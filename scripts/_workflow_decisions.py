@@ -11,7 +11,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import sqlite3
 from datetime import datetime, timezone
 
 DECISIONS = {"accept", "stop", "waive", "resume"}
@@ -21,27 +20,6 @@ SURFACES = {"appearance", "proof", "task"}
 def read_user_message(source: dict) -> dict:
     """Read one original user message without modifying either agent's storage."""
     provider = source.get("provider")
-    if provider == "opencode":
-        path = Path.home() / ".local/share/opencode/opencode.db"
-        with sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True) as connection:
-            row = connection.execute(
-                "SELECT data FROM message WHERE id=? AND session_id=?",
-                (source["message_id"], source["session_id"]),
-            ).fetchone()
-            if not row:
-                raise ValueError("original decision message is unavailable")
-            message = json.loads(row[0])
-            parts = connection.execute(
-                "SELECT data FROM part WHERE message_id=? AND session_id=? ORDER BY id",
-                (source["message_id"], source["session_id"]),
-            ).fetchall()
-            texts = [
-                p.get("text", "")
-                for row in parts
-                if (p := json.loads(row[0])).get("type") == "text"
-                and not p.get("synthetic")
-            ]
-            return {"role": message.get("role"), "text": "\n".join(texts)}
     if provider == "codex":
         root = (
             Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "sessions"
@@ -144,7 +122,7 @@ def matching_receipt(
             valid = message.get("role") == "user" and hashlib.sha256(
                 message.get("text", "").encode()
             ).hexdigest() == source.get("text_sha256")
-        except (OSError, ValueError, KeyError, sqlite3.Error):
+        except (OSError, ValueError, KeyError):
             if preserve_stop and receipt.get("decision") in {"stop", "waive"}:
                 # Missing history cannot grant a verification pass, but it must
                 # not silently reactivate work the user explicitly stopped.

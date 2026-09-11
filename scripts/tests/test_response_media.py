@@ -5,7 +5,7 @@ Purpose: agents need a deterministic way to upload temporary screenshots,
 videos, audio clips, and PDFs for responses without exposing files through
 public buckets.
 Security: tests use dry-run URLs only; no Docker, Vault, or S3 calls run here.
-Run: python3 -m pytest scripts/tests/test_opencode_response_media.py.
+Run: python3 -m pytest scripts/tests/test_response_media.py.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts import opencode_response_media as media
+from scripts import response_media as media
 
 
 def test_dry_run_image_outputs_markdown_and_html(tmp_path: Path, capsys) -> None:

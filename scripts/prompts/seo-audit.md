@@ -44,7 +44,7 @@ Use `curl` or equivalent safe HTTP requests against `https://openmates.org`:
 
 Inspect current files from:
 
-- `.opencode/agents/seo-auditor.md`
+- `.claude/agents/seo-auditor.md`
 - `frontend/apps/web_app/src/app.html`
 - `frontend/apps/web_app/src/routes/**`
 - `frontend/packages/ui/src/i18n/sources/metadata/**`

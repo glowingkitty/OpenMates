@@ -9,7 +9,7 @@ argument-hint: "<appId?> <focusId?>"
 
 Use this skill when the user wants to create or update an OpenMates focus mode.
 OpenMates focus modes are user-facing chat modes that temporarily change how a
-mate thinks and responds for a specific goal. They are not OpenCode modes,
+mate thinks and responds for a specific goal. They are not Codex modes,
 editor modes, OS notification modes, or backend app skills.
 
 ## Arguments
@@ -201,7 +201,7 @@ quality check after the metadata is built and, when testing dev behavior, after
 the change is deployed to dev. Use the test-account helper or the compiled CLI,
 for example:
 - `node scripts/openmates_cli_test_account.mjs login --api-url https://api.dev.openmates.org`
-- `node frontend/packages/openmates-cli/dist/cli.js --api-url https://api.dev.openmates.org chats new "<example request>" --json`
+- `openmates --api-url https://api.dev.openmates.org chats new "<example request>" --json`
 
 Run multiple example requests that match the activation hint and inspect the
 actual assistant output. Record whether the focus mode activated, which skills

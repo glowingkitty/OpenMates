@@ -10,7 +10,7 @@ argument-hint: "[title]"
 
 **IMPORTANT: Only create a PR when the user explicitly asks.**
 
-OpenCode users invoke this workflow through `/pullrequest`. That command creates
+Codex users invoke this workflow through `/pullrequest`. That command creates
 a visible user turn and loads this skill through the `skill` tool. Keep this
 file static: execute commands explicitly during the workflow rather than using
 Claude command-template shell expansion in `SKILL.md`.

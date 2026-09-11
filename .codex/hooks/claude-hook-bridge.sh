@@ -16,7 +16,6 @@ CALLER_CWD=$(echo "$INPUT" | jq -r --arg fallback "$PROJECT_ROOT" '.cwd // $fall
 # and stop hooks rather than relying on a shared terminal or inherited child ID.
 ROUTING_OUTPUT=""
 HOOK_RESULTS=""
-if [ -z "${OPENCODE_SESSION_ID:-}" ]; then
   CODEX_HOOK_TASK=$(echo "$INPUT" | jq -r '.session_id // empty')
   if [ -n "$CODEX_HOOK_TASK" ]; then
     export CODEX_THREAD_ID="$CODEX_HOOK_TASK"
@@ -29,7 +28,6 @@ if [ -z "${OPENCODE_SESSION_ID:-}" ]; then
         INPUT=$(printf '%s' "$INPUT" | jq --argjson routed "$ROUTING_OUTPUT"           'if $routed.hookSpecificOutput.updatedInput then .tool_input = $routed.hookSpecificOutput.updatedInput else . end')
       fi
   fi
-fi
 
 if [ -z "$EVENT" ]; then
   exit 0
@@ -103,11 +101,7 @@ run_hook() {
   status=$?
 
   if [ -s "$stdout_file" ]; then
-    if [ -z "${OPENCODE_SESSION_ID:-}" ]; then
-      HOOK_RESULTS+="$(cat "$stdout_file")"$'\n'
-    else
-      cat "$stdout_file"
-    fi
+    HOOK_RESULTS+="$(cat "$stdout_file")"$'\n'
   fi
 
   if [ -s "$stderr_file" ]; then
@@ -164,7 +158,7 @@ run_for_files() {
 }
 
 emit_codex_result() {
-  if [ -z "${OPENCODE_SESSION_ID:-}" ] && { [ -n "$HOOK_RESULTS" ] || [ -n "$ROUTING_OUTPUT" ]; }; then
+  if [ -n "$HOOK_RESULTS" ] || [ -n "$ROUTING_OUTPUT" ]; then
     printf '%s\n%s\n' "$HOOK_RESULTS" "$ROUTING_OUTPUT" | python3 "${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/scripts/codex_hook_context.py" --merge "$EVENT"
   fi
 }

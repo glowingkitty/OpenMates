@@ -16,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '..');
-const APP_ROOT = process.env.OPENMATES_EVENTS_HEADER_TMP || '/tmp/opencode/openmates-events-newsletter-header';
+const APP_ROOT = process.env.OPENMATES_EVENTS_HEADER_TMP || '/tmp/openmates/openmates-events-newsletter-header';
 const COMPONENT_PATH = path.join(
   REPO_ROOT,
   'frontend/packages/ui/src/components/newsletter/EventsNewsletterHeader.svelte',
@@ -100,7 +100,7 @@ function ensureTempDependencies() {
 
   if (process.env.OPENMATES_ALLOW_TEMP_NPM_INSTALL !== '1') {
     throw new Error(
-      'Missing local Svelte/Vite render dependencies. Install frontend dependencies, or rerun with OPENMATES_ALLOW_TEMP_NPM_INSTALL=1 to install temporary deps under /tmp/opencode.',
+      'Missing local Svelte/Vite render dependencies. Install frontend dependencies, or rerun with OPENMATES_ALLOW_TEMP_NPM_INSTALL=1 to install temporary deps under /tmp/openmates.',
     );
   }
 

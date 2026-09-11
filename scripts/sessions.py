@@ -1,95 +1,43 @@
 #!/usr/bin/env python3
-"""
-Session lifecycle manager for concurrent OpenMates agent sessions.
+"""OpenMates workspace and deployment coordination.
 
-Manages session registration, file tracking, concurrent edit safety,
-tag-based instruction doc preloading, architecture doc staleness detection,
-and automated deployment (lint + commit + push).
-
-Architecture context: See docs/contributing/guides/concurrent-sessions.md for the full protocol.
-
-Usage:
-    # Session lifecycle (modes: feature, bug, docs, question, testing)
-    python3 scripts/sessions.py start   --mode bug --task "fix embed decryption" [--tags frontend,debug]
-    python3 scripts/sessions.py end     --session a3f2
-    python3 scripts/sessions.py status
-    python3 scripts/sessions.py update  --session a3f2 --task "new description"
-    python3 scripts/sessions.py summary --session a3f2
-
-    # File tracking
-    python3 scripts/sessions.py track   --session a3f2 --file path/to/file.py
-    python3 scripts/sessions.py claim   --session a3f2 --file path/to/file.py
-    python3 scripts/sessions.py release --session a3f2 --file path/to/file.py
-    python3 scripts/sessions.py edit-lease acquire --opencode-session ses_... --file path/to/file.py
-
-    # OpenCode transcript debugging
-    python3 scripts/sessions.py opencode-chat read https://code.dev.openmates.org/<project>/session/ses_...
-    python3 scripts/sessions.py opencode-chat search ses_... "worktree"
-    python3 scripts/sessions.py chat attachments ses_... --out /tmp/opencode/chat-files
-    python3 scripts/sessions.py chat read ses_...  # alias for opencode-chat
-
-    # On-demand doc loading
-    python3 scripts/sessions.py context --doc debugging
-    python3 scripts/sessions.py context --doc sync
-    python3 scripts/sessions.py deploy-docs
-
-    # Infrastructure locks
-    python3 scripts/sessions.py lock    --session a3f2 --type docker
-    python3 scripts/sessions.py unlock  --session a3f2 --type docker
-
-    # Deployment
-    python3 scripts/sessions.py prepare-deploy --session a3f2
-    python3 scripts/sessions.py deploy  --session a3f2 --title "fix: msg" --message "body" [--no-verify]
-    python3 scripts/sessions.py visual-smoke --session a3f2 --url https://app.dev.openmates.org/path --viewport laptop --viewport mobile --result passed --method playwright --run-id <artifact> --summary "Reviewed screenshots. Defects: none. Accepted differences: none."
-
-    # Query context docs
-    python3 scripts/sessions.py context --list       # list all available docs with line counts
-    python3 scripts/sessions.py context --doc <name>
+Use `start --mode feature --task ...`, work in the returned workspace, and run
+`deploy --title ...`. Commands infer the bound session; manual SSH callers can
+supply --session. `status --all` is an explicit inventory; --json is for parsers.
 """
 
 import argparse
-import base64
-import binascii
 import fcntl
 import fnmatch
 import glob as glob_mod
 import hashlib
 import html
 import json
-import mimetypes
 import os
 import re
 import secrets
 import shutil
 import socket
-import sqlite3
 import stat
 import subprocess
-import shlex
 import sys
 import tarfile
 import tempfile
-import textwrap
 import threading
 from functools import wraps
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from contextlib import ExitStack, contextmanager
-from datetime import datetime, timedelta, timezone
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 try:
     from scripts import _workflow_decisions as workflow_decisions
 except ModuleNotFoundError:
     import _workflow_decisions as workflow_decisions
-
-try:
-    from scripts.opencode_presence_store import PresenceStore, PresenceStoreError, TaskClaimConflict
-except ModuleNotFoundError:
-    from opencode_presence_store import PresenceStore, PresenceStoreError, TaskClaimConflict
 
 try:
     from scripts.engineering_control_plane import (
@@ -138,15 +86,8 @@ TASKS_META_FILE = TASKS_DIR / ".meta.json"
 AGENT_WORKTREES_DIR = CONTROL_PLANE_ROOT / ".openmates-agent-worktrees"
 WORKTREE_PATH_PREFIX_RE = re.compile(r"^(?:\.openmates-agent-worktrees|\.agent-worktrees)/agent-[^/]+/")
 PROJECT_INDEX_FILE = CONTROL_PLANE_ROOT / ".claude" / "project-index.json"
-OPENCODE_STALE_READ_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-state.json"
-OPENCODE_STALE_READ_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-state.lock"
-OPENCODE_PRESENCE_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.json"
-OPENCODE_PRESENCE_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.lock"
-CONTROL_PLANE_DEPLOY_PROTOCOL_FILE = ".opencode/deploy-protocol-version"
-CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION = 2
-OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
-OPENCODE_SERVER_URL = os.environ.get("OPENCODE_SERVER_URL", "http://127.0.0.1:4096")
-OPENCODE_WEB_BASE_URL = os.environ.get("OPENCODE_WEB_BASE_URL", "https://code.dev.openmates.org")
+CONTROL_PLANE_DEPLOY_PROTOCOL_FILE = ".codex/deploy-protocol-version"
+CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION = 3
 CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
 STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
@@ -186,12 +127,6 @@ API_HEALTH_INCIDENT_STALE_SECONDS = 5 * 60
 API_HEALTH_PROBE_TIMEOUT_SECONDS = 10
 CONTINUATION_ALLOWED_TYPES = {"resource_ready", "health_ready", "deployment_ready", "media_delivery", "task_ready"}
 CONTINUATION_MAX_DELIVERY_ATTEMPTS = 2
-OPENMATES_TASK_BRIDGE_PROFILE = "opencode-personal"
-OPENMATES_TASK_BRIDGE_API_URL = "https://api.dev.openmates.org"
-OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS = 20
-OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES = 4 * 1024 * 1024
-OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS = (2,)
-TASK_COORDINATOR_HANDOFF_SOURCE_SURFACES = {"web", "cli", "opencode"}
 OPENMATES_TASK_ACTIVITY_MAX_ENTRIES = 20
 OPENMATES_TASK_ACTIVITY_MAX_CHARACTERS = 12000
 OPENMATES_TASK_ACTIVITY_ENTRY_CHARACTERS = 2000
@@ -199,23 +134,22 @@ OPENMATES_TASK_OPEN_STATUSES = {"backlog", "todo", "in_progress", "blocked"}
 OPENMATES_TASK_WAIT_QUEUE_STATES = {"waiting", "waiting_for_user", "blocked"}
 OPENMATES_TASK_STOP_EXECUTION_STATES = {"failed", "aborted", "stopped", "waiting_for_user"}
 MEDIA_DELIVERY_MAX_ATTEMPTS = 2
-MEDIA_AUTOMATION_ENABLED = os.environ.get("OPENMATES_OPENCODE_RESPONSE_MEDIA_AUTOMATION", "").strip() == "1"
 PROTECTED_CONTROL_PLANE_EXACT_PATHS = frozenset(
     {
-        "opencode.json",
-        "scripts/opencode_permission_watcher.py",
-        "scripts/opencode_credential_migration.py",
-        "scripts/opencode_runtime_release.py",
-        "scripts/sync_opencode_runtime_hook.py",
+
+
+
+
+
         "scripts/sessions.py",
         "scripts/server-restart.sh",
-        "scripts/start-opencode-server.sh",
+
     }
 )
 PROTECTED_CONTROL_PLANE_PREFIXES = (
-    ".opencode/",
+
     "backend/engineering_control_plane/",
-    "scripts/patches/opencode-",
+
 )
 PREPARED_VERIFICATION_PROFILES = {
     "cli-typecheck": {
@@ -246,7 +180,7 @@ WORKTREE_AUTO_INTEGRATION_SENSITIVE_PREFIXES = (
     ".claude/",
     ".codex/",
     ".github/workflows/",
-    ".opencode/",
+
     "apple/",
     "backend/core/api/app/routes/auth",
     "backend/core/directus/migrations/",
@@ -363,24 +297,6 @@ APPLE_CONTEXT_KEYWORDS = (
     "testflight",
     "native",
 )
-OPENCODE_SESSION_ID_RE = re.compile(r"^ses_[A-Za-z0-9_-]+$")
-OPENCODE_CHAT_URL_SESSION_RE = re.compile(r"/session/(?P<session>ses_[A-Za-z0-9_-]+)")
-OPENCODE_CHAT_ISSUE_RE = re.compile(
-    r"(^|\n)\s*error:|\b(blocked|failed|failure|traceback|timeout|timed out|permission denied|no active sessions\.py|"
-    r"apply_patch verification failed)\b",
-    re.IGNORECASE,
-)
-OPENCODE_CHAT_ARTIFACT_RE = re.compile(r"(Full output saved to:|output truncated)", re.IGNORECASE)
-OPENCODE_CHAT_DEFAULT_MAX_MESSAGES = 160
-OPENCODE_CHAT_DEFAULT_MAX_PARTS_PER_MESSAGE = 24
-OPENCODE_CHAT_DEFAULT_MAX_PART_CHARS = 1_500
-OPENCODE_CHAT_DEFAULT_MAX_ISSUES = 60
-OPENCODE_CHAT_TOOL_OUTPUT_PREVIEW_CHARS = 600
-OPENCODE_CHAT_TEXT_CHILD_SESSION_LIMIT = 25
-OPENCODE_CHAT_REPOSITORY_FILE_LIMIT = 50
-OPENCODE_CHAT_ATTACHMENT_TYPES = {"file", "image", "attachment"}
-OPENCODE_CHAT_ATTACHMENT_LIMIT = 100
-OPENCODE_CHAT_SIGNAL_MODES = {"actionable", "all"}
 COORDINATION_COMPLETED_HOURS = 1
 COORDINATION_SESSION_LIMIT = 12
 
@@ -712,7 +628,7 @@ def _format_write_claim_conflict(filepath: str, session_id: str, session_info: d
     """Return an agent-actionable explanation for a live manual write claim."""
     task = session_info.get("task") or "No task description recorded"
     zellij = session_info.get("zellij_session") or "unknown"
-    opencode = session_info.get("opencode_session_id") or "unknown"
+    task_id = session_info.get("codex_task_id") or "manual"
     last_active = session_info.get("last_active") or ""
     try:
         age = f"{_minutes_since(last_active):.1f} minutes ago" if last_active else "unknown"
@@ -722,1088 +638,99 @@ def _format_write_claim_conflict(filepath: str, session_id: str, session_info: d
     return (
         f"BLOCKED: Another live agent has a manual WRITING claim on '{filepath}'.\n"
         f"Task: {task}\n"
-        f"Last active: {age}; terminal: {zellij}; OpenCode session: {opencode}; diagnostic id: {session_id}.\n"
+        f"Last active: {age}; terminal: {zellij}; Codex task: {task_id}; diagnostic id: {session_id}.\n"
         "Agent next step: do not ask the user to interpret this id. Work on non-conflicting files, "
         "check `python3 scripts/sessions.py status`, or retry after the claim is released. "
         "Ask the user only if this exact file blocks all useful progress."
     )
 
 
-def _opencode_worktree_relative_path(resolved: Path) -> str | None:
-    """Return the repo-relative path for a file inside a routed session checkout."""
-    if not SESSIONS_FILE.is_file():
-        return None
-    try:
-        sessions = json.loads(SESSIONS_FILE.read_text(encoding="utf-8")).get("sessions", {})
-    except (json.JSONDecodeError, OSError):
-        return None
-    candidates: list[Path] = []
-    for session in sessions.values():
-        worktree_path = session.get("worktree", {}).get("path") if isinstance(session, dict) else None
-        repo_root = session.get("repo_root") if isinstance(session, dict) else None
-        for candidate in (worktree_path, repo_root):
-            if not candidate:
-                continue
-            try:
-                candidates.append(Path(candidate).resolve())
-            except OSError:
-                continue
-    for worktree in sorted(candidates, key=lambda path: len(path.as_posix()), reverse=True):
-        try:
-            return resolved.relative_to(worktree).as_posix()
-        except ValueError:
-            continue
-    return None
-
-
-def normalize_opencode_stale_read_path(raw_path: str | Path) -> str | None:
-    """Return a repository-relative regular-file path or None when unsafe."""
-    try:
-        root = PROJECT_ROOT.resolve()
-        candidate = Path(raw_path)
-        resolved = (candidate if candidate.is_absolute() else root / candidate).resolve()
-        try:
-            return resolved.relative_to(root).as_posix()
-        except ValueError:
-            return _opencode_worktree_relative_path(resolved)
-    except (OSError, ValueError):
-        return None
-
-
-def _opencode_stale_read_file_hash(relative_path: str, raw_path: str | Path | None = None) -> str | None:
-    if raw_path is not None:
-        try:
-            candidate = Path(raw_path)
-            path = candidate if candidate.is_absolute() else PROJECT_ROOT / candidate
-            path = path.resolve()
-        except OSError:
-            path = PROJECT_ROOT / relative_path
-    else:
-        path = PROJECT_ROOT / relative_path
-    if not path.is_file():
-        return None
-    digest = hashlib.sha256()
-    try:
-        with path.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(chunk)
-    except OSError:
-        return None
-    return digest.hexdigest()
-
-
-def _empty_opencode_stale_read_state() -> dict:
-    return {"version": 1, "sessions": {}}
-
-
-def _load_opencode_stale_read_state() -> dict:
-    if not OPENCODE_STALE_READ_STATE_FILE.is_file():
-        return _empty_opencode_stale_read_state()
-    try:
-        state = json.loads(OPENCODE_STALE_READ_STATE_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return _empty_opencode_stale_read_state()
-    return state if isinstance(state, dict) and isinstance(state.get("sessions"), dict) else _empty_opencode_stale_read_state()
-
-
-def _prune_opencode_stale_read_sessions(state: dict) -> None:
-    for session_id, session in list(state["sessions"].items()):
-        last_active = session.get("last_active", "") if isinstance(session, dict) else ""
-        try:
-            expired = not last_active or _hours_since(last_active) > STALE_SESSION_HOURS
-        except (TypeError, ValueError):
-            expired = True
-        if expired:
-            del state["sessions"][session_id]
-
-
-def _mutate_opencode_stale_read_state(mutator) -> None:
-    """Atomically update OpenCode-only hash metadata without source contents."""
-    OPENCODE_STALE_READ_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with OPENCODE_STALE_READ_LOCK_FILE.open("a+") as lock_handle:
-        fcntl.flock(lock_handle, fcntl.LOCK_EX)
-        try:
-            state = _load_opencode_stale_read_state()
-            _prune_opencode_stale_read_sessions(state)
-            mutator(state)
-            temporary = OPENCODE_STALE_READ_STATE_FILE.with_suffix(".tmp")
-            temporary.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
-            temporary.replace(OPENCODE_STALE_READ_STATE_FILE)
-        finally:
-            fcntl.flock(lock_handle, fcntl.LOCK_UN)
-
-
-def record_opencode_stale_read(session_id: str, raw_path: str | Path) -> None:
-    relative_path = normalize_opencode_stale_read_path(raw_path)
-    if not relative_path:
-        return
-    digest = _opencode_stale_read_file_hash(relative_path, raw_path)
-    if not digest:
-        return
-
-    def record(state: dict) -> None:
-        session = state["sessions"].setdefault(session_id, {"files": {}})
-        session["last_active"] = _now_iso()
-        session.setdefault("files", {})[relative_path] = {"sha256": digest, "recorded_at": _now_iso()}
-
-    _mutate_opencode_stale_read_state(record)
-
-
-def sync_opencode_stale_read(session_id: str, raw_path: str | Path) -> None:
-    """Refresh the current session baseline after its successful file edit."""
-    record_opencode_stale_read(session_id, raw_path)
-
-
-def opencode_stale_read_error(session_id: str, raw_path: str | Path) -> str | None:
-    relative_path = normalize_opencode_stale_read_path(raw_path)
-    if not relative_path:
-        return None
-    expected = _load_opencode_stale_read_state().get("sessions", {}).get(session_id, {}).get("files", {}).get(relative_path, {}).get("sha256")
-    if not expected:
-        return None
-    current = _opencode_stale_read_file_hash(relative_path, raw_path)
-    if current and current != expected:
-        return f"BLOCKED: {relative_path} changed since this OpenCode session read it. Re-read the file before editing."
-    return None
-
-
-def _decode_opencode_project_path(encoded: str) -> str | None:
-    value = urllib.parse.unquote(encoded.strip())
-    if not value:
-        return None
-    padding = "=" * (-len(value) % 4)
-    try:
-        decoded = base64.urlsafe_b64decode((value + padding).encode("ascii")).decode("utf-8")
-    except (binascii.Error, UnicodeDecodeError, ValueError):
-        return None
-    return decoded if decoded.startswith("/") else None
-
-
-def _repo_session_opencode_id(reference: str) -> str | None:
-    """Resolve a short sessions.py repository ID to its OpenCode chat ID."""
-    try:
-        session = _load_sessions().get("sessions", {}).get(reference)
-    except Exception:
-        return None
-    if not isinstance(session, dict):
-        return None
-    opencode_session_id = str(session.get("opencode_session_id") or "")
-    return opencode_session_id if OPENCODE_SESSION_ID_RE.match(opencode_session_id) else None
-
-
-def parse_opencode_chat_reference(reference: str) -> dict[str, str | None]:
-    """Return the OpenCode session ID and optional project path from a chat URL or repo session ID."""
-    raw = reference.strip()
-    if not raw:
-        raise ValueError("OpenCode chat reference is required")
-    if OPENCODE_SESSION_ID_RE.match(raw):
-        return {"session_id": raw, "project_directory": None}
-    if repo_opencode_id := _repo_session_opencode_id(raw):
-        return {"session_id": repo_opencode_id, "project_directory": None, "repository_session_id": raw}
-
-    parsed = urllib.parse.urlparse(raw)
-    segments = [segment for segment in parsed.path.split("/") if segment]
-    for index, segment in enumerate(segments):
-        if segment != "session" or index + 1 >= len(segments):
-            continue
-        session_id = urllib.parse.unquote(segments[index + 1])
-        if not OPENCODE_SESSION_ID_RE.match(session_id):
-            break
-        project_directory = _decode_opencode_project_path(segments[index - 1]) if index > 0 else None
-        return {"session_id": session_id, "project_directory": project_directory}
-
-    match = OPENCODE_CHAT_URL_SESSION_RE.search(raw)
-    if match:
-        return {"session_id": match.group("session"), "project_directory": None}
-    raise ValueError("Expected an OpenCode session ID, short repository session ID, or /<project>/session/ses_... URL")
-
-
-def opencode_chat_url(session_id: str, project_directory: str | Path | None = None) -> str:
-    """Return the OpenCode Web deep link for a local project/session pair."""
-    directory = str(Path(project_directory or CONTROL_PLANE_ROOT).resolve())
-    encoded = base64.urlsafe_b64encode(directory.encode("utf-8")).decode("ascii").rstrip("=")
-    return f"{OPENCODE_WEB_BASE_URL.rstrip('/')}/{encoded}/session/{session_id}"
-
-
-def _opencode_timestamp_iso(value: object) -> str:
-    try:
-        return datetime.fromtimestamp(float(value) / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    except (TypeError, ValueError, OSError, OverflowError):
-        return "unknown"
-
-
-def _opencode_readonly_connection(db_path: Path | None = None) -> sqlite3.Connection:
-    path = (db_path or OPENCODE_DB_PATH).expanduser()
-    if not path.is_file():
-        raise FileNotFoundError(f"OpenCode database not found: {path}")
-    connection = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA query_only = ON")
-    return connection
-
-
-def _decode_opencode_json(raw: object) -> Any:
-    try:
-        return json.loads(str(raw))
-    except (TypeError, json.JSONDecodeError):
-        return raw
-
-
-def _truncate_opencode_value(value: Any, max_chars: int, truncated: dict[str, bool]) -> Any:
-    if isinstance(value, str):
-        if len(value) > max_chars:
-            truncated["fields"] = True
-            return value[:max_chars] + "...[truncated]"
-        return value
-    if isinstance(value, dict):
-        return {str(key): _truncate_opencode_value(item, max_chars, truncated) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_truncate_opencode_value(item, max_chars, truncated) for item in value]
-    return value
-
-
-def _bounded_opencode_text(value: Any, max_chars: int, truncated: dict[str, bool]) -> str:
-    if isinstance(value, str):
-        text = value
-    else:
-        text = json.dumps(value, ensure_ascii=False, sort_keys=True) if value is not None else ""
-    bounded = _truncate_opencode_value(text, max_chars, truncated)
-    return str(bounded)
-
-
-def _opencode_message_projection(data: Any) -> dict[str, Any]:
-    if not isinstance(data, dict):
-        return {"role": "unknown", "raw": data}
-    projected = {
-        key: data[key]
-        for key in ("role", "agent", "mode", "modelID", "providerID", "finish")
-        if key in data
-    }
-    model = data.get("model")
-    if isinstance(model, dict):
-        projected["model"] = {
-            key: model[key]
-            for key in ("providerID", "modelID", "variant")
-            if key in model
-        }
-    return projected
-
-
-def _opencode_part_projection(
-    data: Any,
-    *,
-    include_tool_output: bool,
-    max_chars: int,
-    truncated: dict[str, bool],
-) -> dict[str, Any] | None:
-    if not isinstance(data, dict):
-        return {"type": "unknown", "value": _truncate_opencode_value(data, max_chars, truncated)}
-    part_type = str(data.get("type") or "unknown")
-    if part_type in {"reasoning", "step-start", "step-finish", "snapshot"}:
-        return None
-    if part_type == "text":
-        return {
-            "type": "text",
-            "text": _bounded_opencode_text(data.get("text", ""), max_chars, truncated),
-            "phase": (data.get("metadata") or {}).get("openai", {}).get("phase") if isinstance(data.get("metadata"), dict) else None,
-        }
-    if part_type == "tool":
-        state = data.get("state") if isinstance(data.get("state"), dict) else {}
-        projected = {
-            "type": "tool",
-            "tool": str(data.get("tool") or "unknown"),
-            "status": str(state.get("status") or "unknown"),
-            "title": data.get("title"),
-            "call_id": data.get("callID") or data.get("callId"),
-        }
-        if state.get("error"):
-            projected["error"] = _bounded_opencode_text(state.get("error"), max_chars, truncated)
-        output = state.get("output")
-        input_value = state.get("input")
-        output_text = _bounded_opencode_text(output, OPENCODE_CHAT_TOOL_OUTPUT_PREVIEW_CHARS, truncated)
-        if include_tool_output:
-            projected["input"] = _truncate_opencode_value(input_value, max_chars, truncated)
-            projected["output"] = _truncate_opencode_value(output, max_chars, truncated)
-        elif output_text and (
-            projected["status"] == "error"
-            or OPENCODE_CHAT_ISSUE_RE.search(output_text)
-            or OPENCODE_CHAT_ARTIFACT_RE.search(output_text)
-        ):
-            projected["output_preview"] = output_text
-        return projected
-    if part_type in {"file", "image", "attachment"}:
-        url = str(data.get("url") or "")
-        return {
-            "type": part_type,
-            "filename": data.get("filename") or data.get("name"),
-            "mime": data.get("mime") or data.get("mimeType"),
-            "extractable": url.startswith("data:"),
-            "content_omitted": True,
-        }
-    return {
-        "type": part_type,
-        "status": data.get("status"),
-        "text": _bounded_opencode_text(data.get("text", ""), max_chars, truncated) if data.get("text") else None,
-    }
-
-
-def _opencode_model_label(message: dict[str, Any]) -> str:
-    model = message.get("model")
-    if isinstance(model, dict):
-        provider = str(model.get("providerID") or "")
-        model_id = str(model.get("modelID") or "")
-        variant = str(model.get("variant") or "")
-        label = "/".join(item for item in (provider, model_id) if item)
-        return f"{label} ({variant})" if label and variant else label
-    provider = str(message.get("providerID") or "")
-    model_id = str(message.get("modelID") or "")
-    return "/".join(item for item in (provider, model_id) if item)
-
-
-def _sqlite_like_pattern(value: str) -> str:
-    escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return f"%{escaped}%"
-
-
-def _find_opencode_descendant_sessions(connection: sqlite3.Connection, session_id: str) -> list[str]:
-    discovered: list[str] = []
-    queue = [session_id]
-    while queue:
-        parent = queue.pop(0)
-        rows = connection.execute(
-            """
-            SELECT id
-            FROM session
-            WHERE parent_id = ?
-            ORDER BY time_created ASC, id ASC
-            """,
-            (parent,),
-        ).fetchall()
-        for row in rows:
-            child_id = str(row["id"])
-            if child_id in discovered or child_id == session_id:
-                continue
-            discovered.append(child_id)
-            queue.append(child_id)
-    return discovered
-
-
-def _opencode_parent_chain(session_id: str, *, db_path: Path | None = None) -> list[str]:
-    """Return immediate-to-root OpenCode parents for a session, best-effort."""
-    if not session_id:
-        return []
-    try:
-        connection = _opencode_readonly_connection(db_path)
-    except (FileNotFoundError, sqlite3.Error):
-        return []
-    parents: list[str] = []
-    visited = {session_id}
-    current = session_id
-    try:
-        while current:
-            row = connection.execute(
-                "SELECT parent_id FROM session WHERE id = ?",
-                (current,),
-            ).fetchone()
-            if row is None:
-                break
-            parent_id = str(row["parent_id"] or "")
-            if not parent_id or parent_id in visited:
-                break
-            parents.append(parent_id)
-            visited.add(parent_id)
-            current = parent_id
-    except sqlite3.Error:
-        return parents
-    finally:
-        connection.close()
-    return parents
-
-
-def _load_opencode_session_rows(
-    connection: sqlite3.Connection,
-    session_id: str,
-    *,
-    include_children: bool,
-) -> list[sqlite3.Row]:
-    root = connection.execute(
-        """
-        SELECT id, directory, parent_id, title, time_created, time_updated
-        FROM session
-        WHERE id = ?
-        """,
-        (session_id,),
-    ).fetchone()
-    if root is None:
-        raise LookupError(f"OpenCode session not found: {session_id}")
-    session_ids = [session_id]
-    if include_children:
-        session_ids.extend(_find_opencode_descendant_sessions(connection, session_id))
-    placeholders = ", ".join("?" for _ in session_ids)
-    return connection.execute(
-        f"""
-        SELECT id, directory, parent_id, title, time_created, time_updated
-        FROM session
-        WHERE id IN ({placeholders})
-        ORDER BY COALESCE(parent_id, id) ASC, time_created ASC, id ASC
-        """,
-        tuple(session_ids),
-    ).fetchall()
-
-
-def _load_opencode_message_rows(
-    connection: sqlite3.Connection,
-    session_ids: list[str],
-    *,
-    query: str | None,
-    max_messages: int,
-) -> tuple[list[sqlite3.Row], bool]:
-    placeholders = ", ".join("?" for _ in session_ids)
-    parameters: list[Any] = [*session_ids]
-    match_sql = ""
-    if query:
-        pattern = _sqlite_like_pattern(query)
-        match_sql = (
-            "AND (message.data LIKE ? ESCAPE '\\' "
-            "OR EXISTS (SELECT 1 FROM part WHERE part.message_id = message.id AND part.data LIKE ? ESCAPE '\\'))"
-        )
-        parameters.extend([pattern, pattern])
-    parameters.append(max_messages + 1)
-    rows = connection.execute(
-        f"""
-        SELECT id, session_id, time_created, time_updated, data
-        FROM (
-            SELECT id, session_id, time_created, time_updated, data
-            FROM message
-            WHERE session_id IN ({placeholders})
-            {match_sql}
-            ORDER BY time_created DESC, id DESC
-            LIMIT ?
-        ) AS recent_messages
-        ORDER BY time_created ASC, id ASC
-        """,
-        tuple(parameters),
-    ).fetchall()
-    truncated = len(rows) > max_messages
-    return (rows[-max_messages:] if truncated else rows), truncated
-
-
-def _load_opencode_part_rows(
-    connection: sqlite3.Connection,
-    message_id: str,
-    *,
-    max_parts_per_message: int,
-) -> tuple[list[sqlite3.Row], bool]:
-    rows = connection.execute(
-        """
-        SELECT id, message_id, session_id, time_created, time_updated, data
-        FROM part
-        WHERE message_id = ?
-        ORDER BY time_created ASC, id ASC
-        LIMIT ?
-        """,
-        (message_id, max_parts_per_message + 1),
-    ).fetchall()
-    return rows[:max_parts_per_message], len(rows) > max_parts_per_message
-
-
-def _matching_repository_sessions(opencode_session_id: str) -> list[dict[str, Any]]:
-    try:
-        sessions = _load_sessions().get("sessions", {})
-    except Exception:
-        return []
-    matches = []
-    for session_id, session in sessions.items():
-        if not isinstance(session, dict) or session.get("opencode_session_id") != opencode_session_id:
-            continue
-        worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
-        modified_files = session.get("modified_files") or []
-        matches.append(
-            {
-                "repository_session_id": session_id,
-                "task": session.get("task"),
-                "mode": session.get("mode"),
-                "tags": session.get("tags") or [],
-                "last_active": session.get("last_active"),
-                "worktree": {
-                    "status": worktree.get("status"),
-                    "path": worktree.get("path"),
-                    "binding_mode": worktree.get("binding_mode"),
-                },
-                "modified_file_count": len(modified_files),
-                "modified_files": modified_files[:OPENCODE_CHAT_REPOSITORY_FILE_LIMIT],
-                "modified_files_truncated": len(modified_files) > OPENCODE_CHAT_REPOSITORY_FILE_LIMIT,
-            }
-        )
-    return matches
-
-
-def _record_opencode_issue_signal(
-    issues: list[dict[str, Any]],
-    *,
-    max_issues: int,
-    kind: str,
-    session_id: str,
-    message_id: str,
-    part_id: str,
-    tool: str = "",
-    text: str = "",
-) -> None:
-    if len(issues) >= max_issues:
-        return
-    issues.append(
-        {
-            "kind": kind,
-            "session_id": session_id,
-            "message_id": message_id,
-            "part_id": part_id,
-            "tool": tool or None,
-            "text": textwrap.shorten(" ".join(text.split()), width=300, placeholder="...[truncated]") if text else "",
-        }
-    )
-
-
-def read_opencode_chat(
-    reference: str,
-    *,
-    query: str | None = None,
-    include_children: bool = True,
-    include_tool_output: bool = False,
-    signal_mode: str = "actionable",
-    max_messages: int = OPENCODE_CHAT_DEFAULT_MAX_MESSAGES,
-    max_parts_per_message: int = OPENCODE_CHAT_DEFAULT_MAX_PARTS_PER_MESSAGE,
-    max_part_chars: int = OPENCODE_CHAT_DEFAULT_MAX_PART_CHARS,
-    max_issues: int = OPENCODE_CHAT_DEFAULT_MAX_ISSUES,
-    db_path: Path | None = None,
-) -> dict[str, Any]:
-    """Read a bounded local OpenCode transcript from a session ID or web URL."""
-    if min(max_messages, max_parts_per_message, max_part_chars, max_issues) <= 0:
-        raise ValueError("OpenCode chat limits must be positive")
-    if signal_mode not in OPENCODE_CHAT_SIGNAL_MODES:
-        raise ValueError(f"OpenCode chat signal mode must be one of: {', '.join(sorted(OPENCODE_CHAT_SIGNAL_MODES))}")
-    parsed = parse_opencode_chat_reference(reference)
-    session_id = str(parsed["session_id"])
-    truncated = {"messages": False, "parts": False, "fields": False, "issues": False}
-    connection = _opencode_readonly_connection(db_path)
-    try:
-        session_rows = _load_opencode_session_rows(connection, session_id, include_children=include_children)
-        sessions = [
-            {
-                "session_id": str(row["id"]),
-                "parent_session_id": str(row["parent_id"]) if row["parent_id"] else None,
-                "title": str(row["title"] or ""),
-                "directory": str(row["directory"] or ""),
-                "time_created": _opencode_timestamp_iso(row["time_created"]),
-                "time_updated": _opencode_timestamp_iso(row["time_updated"]),
-            }
-            for row in session_rows
-        ]
-        session_ids = [session["session_id"] for session in sessions]
-        message_rows, messages_truncated = _load_opencode_message_rows(
-            connection,
-            session_ids,
-            query=query,
-            max_messages=max_messages,
-        )
-        truncated["messages"] = messages_truncated
-        messages: list[dict[str, Any]] = []
-        issue_signals: list[dict[str, Any]] = []
-        suppressed_signal_count = 0
-        part_count = 0
-        query_folded = query.casefold() if query else None
-        for row in message_rows:
-            message_data = _decode_opencode_json(row["data"])
-            projected_message = _opencode_message_projection(message_data)
-            part_rows, parts_truncated = _load_opencode_part_rows(
-                connection,
-                str(row["id"]),
-                max_parts_per_message=max_parts_per_message,
-            )
-            if parts_truncated:
-                truncated["parts"] = True
-            parts: list[dict[str, Any]] = []
-            message_matches = False
-            for part_row in part_rows:
-                decoded_part = _decode_opencode_json(part_row["data"])
-                raw_part_text = json.dumps(decoded_part, ensure_ascii=False, sort_keys=True) if isinstance(decoded_part, (dict, list)) else str(decoded_part)
-                projected_part = _opencode_part_projection(
-                    decoded_part,
-                    include_tool_output=include_tool_output,
-                    max_chars=max_part_chars,
-                    truncated=truncated,
-                )
-                if projected_part is None:
-                    continue
-                part_matches = bool(query_folded and query_folded in raw_part_text.casefold())
-                message_matches = message_matches or part_matches
-                if part_matches:
-                    projected_part["matched"] = True
-                part_type = projected_part.get("type")
-                if part_type == "tool":
-                    status = str(projected_part.get("status") or "")
-                    error_text = str(projected_part.get("error") or "")
-                    preview_text = str(projected_part.get("output_preview") or "")
-                    if status == "error" or error_text:
-                        _record_opencode_issue_signal(
-                            issue_signals,
-                            max_issues=max_issues,
-                            kind="tool_error",
-                            session_id=str(row["session_id"]),
-                            message_id=str(row["id"]),
-                            part_id=str(part_row["id"]),
-                            tool=str(projected_part.get("tool") or ""),
-                            text=error_text or preview_text,
-                        )
-                    elif preview_text and OPENCODE_CHAT_ARTIFACT_RE.search(preview_text):
-                        _record_opencode_issue_signal(
-                            issue_signals,
-                            max_issues=max_issues,
-                            kind="tool_artifact",
-                            session_id=str(row["session_id"]),
-                            message_id=str(row["id"]),
-                            part_id=str(part_row["id"]),
-                            tool=str(projected_part.get("tool") or ""),
-                            text=preview_text,
-                        )
-                    elif preview_text and OPENCODE_CHAT_ISSUE_RE.search(preview_text):
-                        if signal_mode != "all":
-                            suppressed_signal_count += 1
-                        else:
-                            _record_opencode_issue_signal(
-                                issue_signals,
-                                max_issues=max_issues,
-                                kind="tool_output_signal",
-                                session_id=str(row["session_id"]),
-                                message_id=str(row["id"]),
-                                part_id=str(part_row["id"]),
-                                tool=str(projected_part.get("tool") or ""),
-                                text=preview_text,
-                            )
-                elif part_type == "text":
-                    text = str(projected_part.get("text") or "")
-                    if OPENCODE_CHAT_ISSUE_RE.search(text):
-                        if signal_mode != "all":
-                            suppressed_signal_count += 1
-                        else:
-                            _record_opencode_issue_signal(
-                                issue_signals,
-                                max_issues=max_issues,
-                                kind="text_signal",
-                                session_id=str(row["session_id"]),
-                                message_id=str(row["id"]),
-                                part_id=str(part_row["id"]),
-                                text=text,
-                            )
-                projected_part.update(
-                    {
-                        "part_id": str(part_row["id"]),
-                        "time_created": _opencode_timestamp_iso(part_row["time_created"]),
-                    }
-                )
-                parts.append(projected_part)
-            message_raw_text = json.dumps(message_data, ensure_ascii=False, sort_keys=True) if isinstance(message_data, (dict, list)) else str(message_data)
-            if query_folded and not (message_matches or query_folded in message_raw_text.casefold()):
-                continue
-            messages.append(
-                {
-                    "message_id": str(row["id"]),
-                    "session_id": str(row["session_id"]),
-                    "time_created": _opencode_timestamp_iso(row["time_created"]),
-                    "time_updated": _opencode_timestamp_iso(row["time_updated"]),
-                    "role": projected_message.get("role") or "unknown",
-                    "agent": projected_message.get("agent"),
-                    "mode": projected_message.get("mode"),
-                    "model": _opencode_model_label(projected_message),
-                    "finish": projected_message.get("finish"),
-                    "parts": parts,
-                }
-            )
-            part_count += len(parts)
-        if len(issue_signals) >= max_issues:
-            truncated["issues"] = True
-        return {
-            "status": "ok",
-            "reference": reference,
-            "session_id": session_id,
-            "project_directory_from_url": parsed.get("project_directory"),
-            "database": str((db_path or OPENCODE_DB_PATH).expanduser()),
-            "query": query,
-            "resolved_repository_session_id": parsed.get("repository_session_id"),
-            "include_children": include_children,
-            "include_tool_output": include_tool_output,
-            "signal_mode": signal_mode,
-            "suppressed_signal_count": suppressed_signal_count,
-            "sessions": sessions,
-            "repository_sessions": _matching_repository_sessions(session_id),
-            "attachments": list_opencode_chat_attachments(
-                session_id,
-                include_children=include_children,
-                db_path=db_path,
-            )["attachments"],
-            "attachment_extract_command": _opencode_attachment_extract_command(session_id),
-            "message_count": len(messages),
-            "part_count": part_count,
-            "issue_signals": issue_signals,
-            "messages": messages,
-            "truncated": truncated,
-        }
-    finally:
-        connection.close()
-
-
-def search_opencode_chat(reference: str, query: str, **kwargs: Any) -> dict[str, Any]:
-    """Search a bounded local OpenCode transcript from a session ID or web URL."""
-    return read_opencode_chat(reference, query=query, **kwargs)
-
-
-def _opencode_repository_map() -> dict[str, dict[str, Any]]:
-    """Return OpenCode session ID -> durable repository session metadata."""
-    try:
-        durable_sessions = _load_sessions().get("sessions", {})
-    except Exception:
-        return {}
-    mapped: dict[str, dict[str, Any]] = {}
-    for repository_session_id, session in durable_sessions.items():
-        if not isinstance(session, dict):
-            continue
-        opencode_session_id = str(session.get("opencode_session_id") or "")
-        if not opencode_session_id:
-            continue
-        mapped[opencode_session_id] = {
-            "repository_session_id": repository_session_id,
-            "task": session.get("task") or "",
-            "mode": session.get("mode") or "",
-            "worktree": session.get("worktree") if isinstance(session.get("worktree"), dict) else {},
-        }
-    return mapped
-
-
-def _opencode_session_titles(session_ids: list[str], *, db_path: Path | None = None) -> dict[str, str]:
-    """Fetch safe OpenCode session titles for a small visible set."""
-    wanted = [session_id for session_id in session_ids if session_id]
-    if not wanted:
-        return {}
-    placeholders = ",".join("?" for _ in wanted)
-    try:
-        connection = _opencode_readonly_connection(db_path)
-    except (FileNotFoundError, sqlite3.Error):
-        return {}
-    try:
-        rows = connection.execute(
-            f"SELECT id, title FROM session WHERE id IN ({placeholders})",
-            wanted,
-        ).fetchall()
-        return {str(row["id"]): str(row["title"] or "") for row in rows}
-    except sqlite3.Error:
-        return {}
-    finally:
-        connection.close()
-
-
-def _opencode_current_activity_label(session_id: str, *, db_path: Path | None = None) -> str:
-    """Best-effort current activity label for a visibly busy OpenCode chat."""
-    if not session_id:
-        return "unavailable"
-    try:
-        connection = _opencode_readonly_connection(db_path)
-    except (FileNotFoundError, sqlite3.Error):
-        return "unavailable"
-    try:
-        rows = connection.execute(
-            """
-            SELECT data
-            FROM part
-            WHERE session_id = ?
-            ORDER BY time_created DESC, id DESC
-            LIMIT 20
-            """,
-            (session_id,),
-        ).fetchall()
-    except sqlite3.Error:
-        return "unavailable"
-    finally:
-        connection.close()
-
-    truncated = {"fields": False}
-    saw_recent_part = False
-    for row in rows:
-        part = _opencode_part_projection(
-            _decode_opencode_json(row["data"]),
-            include_tool_output=False,
-            max_chars=160,
-            truncated=truncated,
-        )
-        if not part:
-            continue
-        saw_recent_part = True
-        if part.get("type") == "tool":
-            tool = part.get("tool") or "unknown"
-            status = part.get("status") or "unknown"
-            if status in {"completed", "error"}:
-                continue
-            title = f" ({part['title']})" if part.get("title") else ""
-            return f"tool {tool} {status}{title}"
-        if part.get("type") == "text" and part.get("text"):
-            return "responding"
-    return "responding" if saw_recent_part else "unavailable"
-
-
-def list_recent_opencode_chats(
-    *,
-    days: int = 3,
-    limit: int = 20,
-    db_path: Path | None = None,
-) -> dict[str, Any]:
-    """List recent top-level OpenCode chats with repository mapping when available."""
-    if days <= 0 or limit <= 0:
-        raise ValueError("OpenCode recent chat days and limit must be positive")
-    cutoff_ms = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp() * 1000)
-    connection = _opencode_readonly_connection(db_path)
-    try:
-        rows = connection.execute(
-            """
-            SELECT s.id, s.title, s.directory, s.parent_id, s.time_created, s.time_updated,
-                   (SELECT COUNT(*) FROM session c WHERE c.parent_id = s.id) AS child_count
-            FROM session s
-            WHERE s.parent_id IS NULL AND s.time_updated >= ?
-            ORDER BY s.time_updated DESC, s.id DESC
-            LIMIT ?
-            """,
-            (cutoff_ms, limit),
-        ).fetchall()
-    finally:
-        connection.close()
-
-    repository_map = _opencode_repository_map()
-    try:
-        presence = _opencode_presence_store().snapshot()
-    except PresenceStoreError:
-        presence = {"sessions": {}}
-    presence_sessions = presence.get("sessions", {}) if isinstance(presence, dict) else {}
-    chats = []
-    for row in rows:
-        session_id = str(row["id"])
-        mapped = repository_map.get(session_id, {})
-        presence_record = presence_sessions.get(session_id, {}) if isinstance(presence_sessions, dict) else {}
-        state = ""
-        if isinstance(presence_record, dict):
-            execution = str(presence_record.get("execution") or "")
-            turn = str(presence_record.get("turn") or "")
-            state = "/".join(item for item in (execution, turn) if item)
-        chats.append(
-            {
-                "repository_session_id": mapped.get("repository_session_id") or None,
-                "opencode_session_id": session_id,
-                "title": str(row["title"] or ""),
-                "task": mapped.get("task") or "",
-                "directory": str(row["directory"] or ""),
-                "time_created": _opencode_timestamp_iso(row["time_created"]),
-                "time_updated": _opencode_timestamp_iso(row["time_updated"]),
-                "child_count": int(row["child_count"] or 0),
-                "state": state or "unknown",
-                "inspect_command": f"python3 scripts/sessions.py chat read {mapped.get('repository_session_id') or session_id}",
-            }
-        )
-    return {"status": "ok", "days": days, "limit": limit, "database": str((db_path or OPENCODE_DB_PATH).expanduser()), "chats": chats}
-
-
-def _safe_attachment_filename(value: str, fallback: str, mime: str = "") -> str:
-    raw = (value or fallback).strip() or fallback
-    safe = re.sub(r"[^A-Za-z0-9._-]+", "-", raw).strip(".-") or fallback
-    if "." not in Path(safe).name and mime:
-        extension = mimetypes.guess_extension(mime.split(";", 1)[0].strip()) or ""
-        if extension:
-            safe += extension
-    return safe[:120]
-
-
-def _parse_data_url(value: str) -> tuple[str, bytes]:
-    match = re.match(r"^data:(?P<mime>[^;,]+)?(?P<params>(?:;[^,]*)?),(?P<body>.*)$", value, re.DOTALL)
-    if not match:
-        raise ValueError("attachment is not a data URL")
-    mime = match.group("mime") or "application/octet-stream"
-    params = match.group("params") or ""
-    body = match.group("body") or ""
-    if ";base64" in params:
-        return mime, base64.b64decode(body, validate=True)
-    return mime, urllib.parse.unquote_to_bytes(body)
-
-
-def _data_url_metadata(value: str) -> tuple[str, int | None]:
-    match = re.match(r"^data:(?P<mime>[^;,]+)?(?P<params>(?:;[^,]*)?),(?P<body>.*)$", value, re.DOTALL)
-    if not match:
-        raise ValueError("attachment is not a data URL")
-    mime = match.group("mime") or "application/octet-stream"
-    params = match.group("params") or ""
-    body = match.group("body") or ""
-    if ";base64" in params:
-        stripped = re.sub(r"\s+", "", body)
-        padding = len(stripped) - len(stripped.rstrip("="))
-        return mime, max(0, (len(stripped) * 3) // 4 - padding)
-    return mime, None
-
-
-def _opencode_attachment_default_out_dir(session_id: str) -> Path:
-    safe_session = re.sub(r"[^A-Za-z0-9_-]+", "-", session_id).strip("-") or "session"
-    return Path("/tmp/opencode") / f"opencode-attachments-{safe_session}"
-
-
-def _opencode_attachment_extract_command(session_id: str, out_dir: Path | None = None) -> str:
-    target = out_dir or _opencode_attachment_default_out_dir(session_id)
-    return f"python3 scripts/sessions.py chat attachments {session_id} --out {target}"
-
-
-def list_opencode_chat_attachments(
-    reference: str,
-    *,
-    include_children: bool = True,
-    part_ids: set[str] | None = None,
-    db_path: Path | None = None,
-) -> dict[str, Any]:
-    """Return metadata for file/image parts retained in a local OpenCode chat."""
-    parsed = parse_opencode_chat_reference(reference)
-    session_id = str(parsed["session_id"])
-    connection = _opencode_readonly_connection(db_path)
-    try:
-        session_rows = _load_opencode_session_rows(connection, session_id, include_children=include_children)
-        session_ids = [str(row["id"]) for row in session_rows]
-        placeholders = ",".join("?" for _ in session_ids)
-        rows = connection.execute(
-            f"""
-            SELECT
-                part.id AS part_id,
-                part.message_id AS message_id,
-                message.session_id AS session_id,
-                part.time_created AS time_created,
-                part.data AS data
-            FROM part
-            JOIN message ON message.id = part.message_id
-            WHERE message.session_id IN ({placeholders})
-            ORDER BY message.time_created ASC, part.time_created ASC, part.id ASC
-            """,
-            tuple(session_ids),
-        ).fetchall()
-        attachments: list[dict[str, Any]] = []
-        for row in rows:
-            part_id = str(row["part_id"])
-            if part_ids and part_id not in part_ids:
-                continue
-            data = _decode_opencode_json(row["data"])
-            if not isinstance(data, dict):
-                continue
-            part_type = str(data.get("type") or "")
-            if part_type not in OPENCODE_CHAT_ATTACHMENT_TYPES:
-                continue
-            url = str(data.get("url") or "")
-            mime = str(data.get("mime") or data.get("mimeType") or "")
-            filename = str(data.get("filename") or data.get("name") or "")
-            source = "data-url" if url.startswith("data:") else "url" if url else "unknown"
-            byte_count = None
-            if url.startswith("data:"):
-                try:
-                    parsed_mime, byte_count = _data_url_metadata(url)
-                    mime = mime or parsed_mime
-                except ValueError:
-                    source = "invalid-data-url"
-            attachments.append(
-                {
-                    "part_id": part_id,
-                    "message_id": str(row["message_id"]),
-                    "session_id": str(row["session_id"]),
-                    "time_created": _opencode_timestamp_iso(row["time_created"]),
-                    "type": part_type,
-                    "filename": filename or None,
-                    "mime": mime or None,
-                    "source": source,
-                    "extractable": source == "data-url",
-                    "byte_count": byte_count,
-                }
-            )
-            if len(attachments) >= OPENCODE_CHAT_ATTACHMENT_LIMIT:
-                break
-        return {
-            "status": "ok",
-            "reference": reference,
-            "session_id": session_id,
-            "database": str((db_path or OPENCODE_DB_PATH).expanduser()),
-            "include_children": include_children,
-            "attachment_count": len(attachments),
-            "extract_command": _opencode_attachment_extract_command(session_id),
-            "attachments": attachments,
-            "truncated": len(attachments) >= OPENCODE_CHAT_ATTACHMENT_LIMIT,
-        }
-    finally:
-        connection.close()
-
-
-def extract_opencode_chat_attachments(
-    reference: str,
-    *,
-    out_dir: Path | None = None,
-    include_children: bool = True,
-    part_ids: set[str] | None = None,
-    db_path: Path | None = None,
-    dry_run: bool = False,
-) -> dict[str, Any]:
-    """Decode OpenCode data-URL attachments into ordinary local files."""
-    listing = list_opencode_chat_attachments(
-        reference,
-        include_children=include_children,
-        part_ids=part_ids,
-        db_path=db_path,
-    )
-    parsed = parse_opencode_chat_reference(reference)
-    session_id = str(parsed["session_id"])
-    target_dir = out_dir or _opencode_attachment_default_out_dir(session_id)
-    saved: list[dict[str, Any]] = []
-    if dry_run:
-        return {**listing, "out_dir": str(target_dir), "saved": saved}
-
-    target_dir.mkdir(parents=True, exist_ok=True)
-    connection = _opencode_readonly_connection(db_path)
-    try:
-        for index, item in enumerate(listing["attachments"], start=1):
-            if not item.get("extractable"):
-                continue
-            row = connection.execute("SELECT data FROM part WHERE id = ?", (item["part_id"],)).fetchone()
-            if row is None:
-                continue
-            data = _decode_opencode_json(row["data"])
-            if not isinstance(data, dict):
-                continue
-            mime, payload = _parse_data_url(str(data.get("url") or ""))
-            base_name = _safe_attachment_filename(str(item.get("filename") or ""), f"attachment-{index:03d}", mime)
-            stem = Path(base_name).stem or f"attachment-{index:03d}"
-            suffix = Path(base_name).suffix or (mimetypes.guess_extension(mime) or "")
-            file_name = f"{index:03d}-{stem}-{str(item['part_id'])[-8:]}{suffix}"
-            path = target_dir / file_name
-            path.write_bytes(payload)
-            saved_item = {**item, "path": str(path), "byte_count": len(payload), "mime": item.get("mime") or mime}
-            saved.append(saved_item)
-    finally:
-        connection.close()
-    return {**listing, "out_dir": str(target_dir), "saved": saved}
-
-
-def _opencode_attachment_hint_lines(opencode_session_id: str) -> list[str]:
-    try:
-        listing = list_opencode_chat_attachments(opencode_session_id, include_children=False)
-    except (FileNotFoundError, LookupError, ValueError, sqlite3.Error):
-        return []
-    attachments = listing.get("attachments") or []
-    extractable = [item for item in attachments if item.get("extractable")]
-    if not extractable:
-        return []
-    lines = [
-        f"This OpenCode chat contains {len(extractable)} extractable uploaded file(s).",
-        f"Extract: {_opencode_attachment_extract_command(opencode_session_id)}",
-    ]
-    for item in extractable[:5]:
-        size = f", {item['byte_count']} bytes" if item.get("byte_count") is not None else ""
-        lines.append(f"  - {item.get('part_id')}: {item.get('filename') or '(unnamed)'} ({item.get('mime') or 'unknown'}{size})")
-    if len(extractable) > 5:
-        lines.append(f"  ... +{len(extractable) - 5} more")
-    return lines
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def _load_sessions() -> dict:
@@ -2771,15 +1698,6 @@ def _workspace_transition(action):
                 str(reference) if str(reference) in data.get("sessions", {}) else ""
             )
             if not session_id:
-                matched = session_for_opencode(data, str(reference))
-                session_id = matched[0] if matched else ""
-            if not session_id and action == "restore":
-                for parent in _opencode_parent_chain(str(reference)):
-                    matched = session_for_opencode(data, parent)
-                    if matched:
-                        session_id = matched[0]
-                        break
-            if not session_id:
                 return function(reference, *args, **kwargs)
             generation = int(
                 (data["sessions"][session_id].get("lifecycle") or {}).get("generation")
@@ -2849,8 +1767,6 @@ def ensure_session_worktree(session_id: str) -> dict:
         "created_at": _now_iso(),
         "last_active": _now_iso(),
     }
-    if session_data.get("opencode_session_id"):
-        metadata["bootstrap"] = bootstrap_session_worktree(path)
 
     def store(data: dict) -> dict:
         session = data.get("sessions", {}).get(session_id)
@@ -3012,13 +1928,12 @@ def import_root_dirty_file(
     path_value: str | Path,
     *,
     session_id: str = "",
-    opencode_session_id: str = "",
 ) -> dict:
     """Copy one explicitly selected dirty root file into a clean session path."""
     relative_path = _normalize_root_handoff_path(path_value)
     data = _load_sessions()
     resolved_session_id = _resolve_session_id(
-        data, session_id=session_id, opencode_session_id=opencode_session_id
+        data, session_id=session_id
     )
     session = data["sessions"][resolved_session_id]
     if not _session_is_control_plane_repo(session):
@@ -3216,11 +2131,8 @@ def is_protected_control_plane_path(path: str) -> bool:
 
 
 def _current_runtime_allows_control_plane_deploy(session: dict | None) -> bool:
-    return (
-        isinstance(session, dict)
-        and bool(os.environ.get("CODEX_SESSION_ID"))
-        and not os.environ.get("OPENCODE_SESSION_ID")
-    )
+    """All supported agents use the reviewed isolated-worktree deployment lane."""
+    return isinstance(session, dict)
 
 
 def validate_product_session_deploy_paths(paths: list[str], session: dict | None = None) -> None:
@@ -3232,7 +2144,7 @@ def validate_product_session_deploy_paths(paths: list[str], session: dict | None
         return
     rendered = ", ".join(protected)
     raise RuntimeError(
-        "CONTROL-PLANE DEPLOY BLOCKED — ordinary OpenCode product sessions cannot deploy "
+        "CONTROL-PLANE DEPLOY BLOCKED — unbound sessions cannot deploy "
         f"shared orchestration files: {rendered}. Preserve the worktree and move these changes "
         "to the dedicated Codex control-plane recovery branch for review."
     )
@@ -3489,20 +2401,14 @@ def _normalize_session_state_paths(data: dict) -> None:
     data["deploy_queue"] = active_queue
 
 
-def _resolve_session_id(data: dict, *, session_id: str = "", opencode_session_id: str = "") -> str:
-    """Resolve a short sessions.py id from either explicit or OpenCode identity."""
-    sessions = data.get("sessions", {})
-    if session_id:
-        if session_id not in sessions:
-            raise RuntimeError(f"Session {session_id} not found")
-        return session_id
-    if opencode_session_id:
-        matches = [sid for sid, info in sessions.items() if info.get("opencode_session_id") == opencode_session_id]
-        if len(matches) == 1:
-            return matches[0]
-        if len(matches) > 1:
-            raise RuntimeError(f"OpenCode session {opencode_session_id} matches multiple sessions")
-    raise RuntimeError("No active sessions.py session found for this OpenCode chat. Run: python3 scripts/sessions.py start --mode feature --task \"...\"")
+def _resolve_session_id(data: dict, *, session_id: str = "", **retired) -> str:
+    """Resolve only explicit identity, host-scoped Codex binding or exact workspace."""
+    try:
+        from scripts.session_binding import resolve_session
+    except ModuleNotFoundError:
+        from session_binding import resolve_session
+    return resolve_session(data, session_id=session_id, thread_id=_codex_task_identity(),
+                           host=socket.gethostname(), cwd=PROJECT_ROOT, repo_id=DEFAULT_REPO_ID)
 
 
 def _normalize_edit_lease_path(path_value: str | Path, session: dict | None = None) -> str | None:
@@ -3535,15 +2441,12 @@ def _edit_lease_is_active(lease: dict) -> bool:
         return False
 
 
-def _lease_owner_matches(lease: dict, *, session_id: str = "", opencode_session_id: str = "") -> bool:
-    return bool(
-        (session_id and lease.get("session_id") == session_id)
-        or (opencode_session_id and lease.get("opencode_session_id") == opencode_session_id)
-    )
+def _lease_owner_matches(lease: dict, *, session_id: str = "") -> bool:
+    return bool(session_id and lease.get("session_id") == session_id)
 
 
 def _prune_stale_edit_leases(data: dict) -> list[str]:
-    """Remove expired OpenCode edit leases and return the released file keys."""
+    """Remove expired agent edit leases and return the released file keys."""
     leases = data.setdefault("edit_leases", {})
     released: list[str] = []
     for filepath, lease in list(leases.items()):
@@ -3557,7 +2460,7 @@ def _format_edit_lease_conflict(filepath: str, lease: dict, sessions: dict) -> s
     owner = str(lease.get("session_id") or "unknown")
     info = sessions.get(owner, {}) if isinstance(sessions, dict) else {}
     task = info.get("task") or "No task description recorded"
-    opencode = lease.get("opencode_session_id") or info.get("opencode_session_id") or "unknown"
+    task_id = info.get("codex_task_id") or "manual"
     last_updated = lease.get("last_updated") or lease.get("since") or ""
     try:
         age = f"{_minutes_since(str(last_updated)):.1f} minutes ago" if last_updated else "unknown"
@@ -3566,7 +2469,7 @@ def _format_edit_lease_conflict(filepath: str, lease: dict, sessions: dict) -> s
     return (
         f"BLOCKED: Another live agent has an edit lease on '{filepath}'.\n"
         f"Task: {task}\n"
-        f"Last active: {age}; OpenCode session: {opencode}; diagnostic id: {owner}.\n"
+        f"Last active: {age}; Codex task: {task_id}; diagnostic id: {owner}.\n"
         "Agent next step: do not ask the user to interpret this id. Work on non-conflicting files, "
         "check `python3 scripts/sessions.py status`, or retry after the lease expires/releases. "
         "Ask the user only if this exact file blocks all useful progress."
@@ -3592,12 +2495,12 @@ def _manual_write_claim_conflict(filepath: str, session_id: str, sessions: dict)
     return None
 
 
-def acquire_edit_leases(*, session_id: str = "", opencode_session_id: str = "", files: list[str]) -> dict:
-    """Acquire short-lived multi-file edit leases for one OpenCode edit tool call."""
+def acquire_edit_leases(*, session_id: str = "", files: list[str]) -> dict:
+    """Acquire short-lived multi-file edit leases for one agent edit tool call."""
     now = _now_iso()
 
     def mutate(data: dict) -> dict:
-        sid = _resolve_session_id(data, session_id=session_id, opencode_session_id=opencode_session_id)
+        sid = _resolve_session_id(data, session_id=session_id)
         sessions = data.setdefault("sessions", {})
         session = sessions[sid]
         _prune_stale_edit_leases(data)
@@ -3621,14 +2524,12 @@ def acquire_edit_leases(*, session_id: str = "", opencode_session_id: str = "", 
             if isinstance(existing, dict) and _edit_lease_is_active(existing) and not _lease_owner_matches(
                 existing,
                 session_id=sid,
-                opencode_session_id=opencode_session_id,
             ):
                 raise RuntimeError(_format_edit_lease_conflict(filepath, existing, sessions))
 
         for filepath in normalized_files:
             leases[filepath] = {
                 "session_id": sid,
-                "opencode_session_id": opencode_session_id,
                 "since": now,
                 "last_updated": now,
             }
@@ -3640,13 +2541,13 @@ def acquire_edit_leases(*, session_id: str = "", opencode_session_id: str = "", 
     return _mutate_sessions(mutate)
 
 
-def release_edit_leases(*, session_id: str = "", opencode_session_id: str = "", files: list[str] | None = None) -> dict:
+def release_edit_leases(*, session_id: str = "", files: list[str] | None = None) -> dict:
     """Release matching edit leases. Missing sessions are tolerated for cleanup."""
     def mutate(data: dict) -> dict:
         sid = ""
         session = None
         try:
-            sid = _resolve_session_id(data, session_id=session_id, opencode_session_id=opencode_session_id)
+            sid = _resolve_session_id(data, session_id=session_id)
             session = data.get("sessions", {}).get(sid)
         except RuntimeError:
             sid = session_id
@@ -3666,7 +2567,7 @@ def release_edit_leases(*, session_id: str = "", opencode_session_id: str = "", 
                 leases.pop(filepath, None)
                 released.append(filepath)
                 continue
-            if _lease_owner_matches(lease, session_id=sid, opencode_session_id=opencode_session_id):
+            if _lease_owner_matches(lease, session_id=sid):
                 leases.pop(filepath, None)
                 released.append(filepath)
         if session is not None:
@@ -4632,476 +3533,32 @@ def _auto_integration_block_reason(files: list[str]) -> str:
     return ""
 
 
-def checkpoint_session_worktree(opencode_session_id: str, *, event: str, expected_generation=None, operation_id="") -> dict:
-    """Checkpoint one top-level mutating chat and make safe patches integration eligible."""
-    if event not in {"idle", "closed"}:
-        raise ValueError("checkpoint event must be idle or closed")
-    data = _load_sessions()
-    matched = session_for_opencode(data, opencode_session_id)
-    if not matched:
-        return {"status": "skipped", "reason": "not_top_level_session"}
-    session_id, session = matched
-    if session.get("auto_integration_policy") != "enabled":
-        return {"status": "skipped", "reason": "automatic_recovery_not_enabled"}
-    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
-    if (
-        session.get("mode") == "question"
-        or not metadata
-        or not metadata.get("path")
-        or session.get("binding_mode") not in WORKTREE_AUTO_INTEGRATION_BINDING_MODES
-    ):
-        return {"status": "skipped", "reason": "not_mutating_worktree"}
-    with _worktree_checkpoint_lock(session_id):
-        return _checkpoint_session_worktree_locked(session_id, event=event, expected_generation=expected_generation, operation_id=operation_id)
 
 
-def _store_session_worktree_active(data: dict, session_id: str, now: str) -> dict:
-    session = data.get("sessions", {}).get(session_id)
-    if not isinstance(session, dict):
-        return {"status": "skipped", "reason": "session_disappeared"}
-    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
-    if not metadata:
-        return {"status": "skipped", "reason": "not_mutating_worktree"}
-    metadata["status"] = "active"
-    metadata["last_active"] = now
-    session["last_active"] = now
-    session["workspace_state"] = "changes_pending"
-    auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else None
-    if auto and auto.get("status") != "integrated":
-        auto["status"] = "changes_pending"
-        auto["updated_at"] = now
-        auto["block_reason"] = "live_turn_started"
-    return {"status": "active", "session_id": session_id, "workspace_state": "changes_pending"}
 
 
-@_workspace_transition("activate")
-def activate_session_worktree(opencode_session_id: str) -> dict:
-    """Invalidate an idle checkpoint when its top-level chat starts a new turn."""
-    matched = session_for_opencode(_load_sessions(), opencode_session_id)
-    if not matched:
-        return {"status": "skipped", "reason": "not_top_level_session"}
-    session_id, _session = matched
-    with _worktree_checkpoint_lock(session_id):
-        return _mutate_sessions(lambda data: _store_session_worktree_active(data, session_id, _now_iso()))
 
 
-@_workspace_transition("checkpoint")
-def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
-    """Create and persist one checkpoint while holding its session lock."""
-    data = _load_sessions()
-    session = data.get("sessions", {}).get(session_id)
-    if not isinstance(session, dict):
-        return {"status": "skipped", "reason": "session_disappeared"}
-    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
-    if not metadata or not metadata.get("path"):
-        return {"status": "skipped", "reason": "worktree_binding_changed"}
-    files = _session_deploy_files(session, set())
-    if not files:
-        workspace_state = "integrated" if metadata.get("merged_commit") else "clean"
-
-        def mark_clean(current: dict) -> None:
-            current_session = current.get("sessions", {}).get(session_id)
-            if isinstance(current_session, dict):
-                current_session["workspace_state"] = workspace_state
-
-        _mutate_sessions(mark_clean)
-        return {"status": "skipped", "reason": "no_pending_changes", "workspace_state": workspace_state}
-
-    patch_id = _worktree_patch_id(metadata, files)
-    previous = session.get("auto_integration") or {}
-    if (previous.get("status") in {"checkpointed", "eligible"}
-            and previous.get("patch_id") == patch_id and _checkpoint_ref_matches(session_id, previous)):
-        return {"session_id": session_id, **previous}
-    def mark_checkpointing(current: dict) -> None:
-        current_session = current.get("sessions", {}).get(session_id)
-        if isinstance(current_session, dict):
-            current_session["workspace_state"] = "changes_pending"
-
-    _mutate_sessions(mark_checkpointing)
-    try:
-        checkpoint_commit = _create_worktree_checkpoint_commit(session_id, metadata, files, patch_id)
-    except (OSError, RuntimeError) as exc:
-        failure_reason = f"checkpoint_failed:{str(exc)[-1000:]}"
-
-        def mark_failed(current: dict) -> None:
-            current_session = current.get("sessions", {}).get(session_id)
-            if not isinstance(current_session, dict):
-                return
-            previous = current_session.get("auto_integration") if isinstance(current_session.get("auto_integration"), dict) else {}
-            current_session["workspace_state"] = "recovery_needed"
-            current_session["auto_integration"] = {
-                **previous,
-                "status": "blocked",
-                "event": event,
-                "patch_id": patch_id,
-                "files": sorted(files),
-                "checkpointed_at": _now_iso(),
-                "block_reason": failure_reason,
-            }
-
-        _mutate_sessions(mark_failed)
-        raise
-    current_patch_id = _worktree_patch_id(metadata, files)
-    existing = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
-    hold = bool(existing.get("hold"))
-    live_lease = any(
-        isinstance(lease, dict) and lease.get("session_id") == session_id
-        for lease in data.get("edit_leases", {}).values()
-    )
-    block_reason = _auto_integration_block_reason(files)
-    if current_patch_id != patch_id:
-        status = "recovery_needed"
-        block_reason = "patch_changed_during_checkpoint"
-    elif hold or live_lease:
-        status = "held"
-        block_reason = "explicit_hold" if hold else "live_edit_lease"
-    elif block_reason:
-        status = "blocked"
-    else:
-        status = "checkpointed"
-    eligible_after = (
-        datetime.now(timezone.utc) + timedelta(minutes=WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES)
-    ).strftime("%Y-%m-%dT%H:%M:%SZ")
-    now = _now_iso()
-
-    def store(current: dict) -> dict:
-        current_session = current.get("sessions", {}).get(session_id)
-        if not isinstance(current_session, dict):
-            raise RuntimeError(f"Session {session_id} disappeared during checkpoint")
-        current_session["workspace_state"] = "checkpointed" if status in {"eligible", "checkpointed"} else ("held" if status == "held" else "recovery_needed")
-        current_session["auto_integration"] = {
-            "status": status,
-            "hold": hold,
-            "event": event,
-            "patch_id": patch_id,
-            "checkpoint_commit": checkpoint_commit,
-            "checkpoint_ref": _worktree_checkpoint_ref(session_id),
-            "files": sorted(files),
-            "checkpointed_at": now,
-            "eligible_after": eligible_after,
-            "block_reason": block_reason,
-        }
-        return dict(current_session["auto_integration"])
-
-    result = _mutate_sessions(store)
-    return {"session_id": session_id, **result}
 
 
-@_workspace_transition("submit-ready")
-def submit_ready_worktree(
-    session_id: str, *, patch_id: str, checkpoint_commit: str
-) -> dict:
-    """Explicitly publish exactly one preserved submission through existing gates."""
-    with _worktree_checkpoint_lock(session_id):
-        session = _load_sessions()["sessions"][session_id]
-        auto = session.get("auto_integration") or {}
-        if auto.get("status") not in {"checkpointed", "eligible"} or auto.get("hold"):
-            raise RuntimeError("Submission requires an unheld preservation checkpoint")
-        files = _session_deploy_files(session, set())
-        if (
-            auto.get("patch_id") != patch_id
-            or auto.get("checkpoint_commit") != checkpoint_commit
-            or not _checkpoint_ref_matches(session_id, auto)
-            or sorted(files) != sorted(auto.get("files") or [])
-            or _worktree_patch_id(session["worktree"], files) != patch_id
-        ):
-            raise RuntimeError(
-                "Ready submission fingerprint is stale; checkpoint current work first"
-            )
-
-        def store(data):
-            owner = data["sessions"][session_id]
-            owner["ready_submission"] = {
-                "patch_id": patch_id,
-                "checkpoint_commit": checkpoint_commit,
-                "submitted_at": _now_iso(),
-            }
-            owner["auto_integration"]["status"] = "eligible"
-            return owner["ready_submission"]
-
-        return _mutate_sessions(store)
 
 
-def _auto_integration_presence_is_live(session: dict) -> bool:
-    """Return whether the top-level OpenCode chat is currently executing."""
-    opencode_session_id = str(session.get("opencode_session_id") or "")
-    if not opencode_session_id:
-        return False
-    try:
-        record = _opencode_presence_store().snapshot().get("sessions", {}).get(opencode_session_id, {})
-    except (OSError, PresenceStoreError):
-        return True
-    return record.get("execution") in {"busy", "retrying"}
 
 
-def _checkpoint_ref_matches(session_id: str, auto: dict) -> bool:
-    """Return whether durable metadata still names the retained checkpoint ref."""
-    checkpoint_ref = str(auto.get("checkpoint_ref") or "")
-    checkpoint_commit = str(auto.get("checkpoint_commit") or "")
-    if checkpoint_ref != _worktree_checkpoint_ref(session_id) or not checkpoint_commit:
-        return False
-    rc, actual_commit, _stderr = _run_cmd(
-        ["git", "rev-parse", "--verify", checkpoint_ref],
-        cwd=str(CONTROL_PLANE_ROOT),
-    )
-    return rc == 0 and actual_commit.strip() == checkpoint_commit
 
 
-def select_auto_integration_candidates(*, now: str | None = None) -> list[dict]:
-    """Return exact current checkpoints eligible for the normal deploy transaction."""
-    data = _load_sessions()
-    current_time = _parse_iso(now or _now_iso())
-    selected: list[dict] = []
-    rejected: list[tuple[str, str, str]] = []
-    for session_id, session in sorted(data.get("sessions", {}).items()):
-        if not isinstance(session, dict):
-            continue
-        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
-        metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
-        if auto.get("status") != "eligible" or not metadata.get("path"):
-            continue
-        submission = session.get("ready_submission") or {}
-        if submission.get("patch_id") != auto.get("patch_id") or submission.get("checkpoint_commit") != auto.get("checkpoint_commit"):
-            continue
-        if auto.get("hold"):
-            rejected.append((session_id, "held", "explicit_hold"))
-            continue
-        if session.get("auto_integration_policy") != "enabled" or session.get("binding_mode") not in WORKTREE_AUTO_INTEGRATION_BINDING_MODES:
-            rejected.append((session_id, "blocked", "legacy_or_unapproved_session"))
-            continue
-        if not _checkpoint_ref_matches(session_id, auto):
-            rejected.append((session_id, "recovery_needed", "checkpoint_ref_missing_or_changed"))
-            continue
-        try:
-            if _parse_iso(str(auto.get("eligible_after") or "")) > current_time:
-                continue
-        except (TypeError, ValueError):
-            rejected.append((session_id, "recovery_needed", "invalid_eligible_after"))
-            continue
-        if _auto_integration_presence_is_live(session):
-            rejected.append((session_id, "held", "live_presence"))
-            continue
-        if any(
-            isinstance(lease, dict) and lease.get("session_id") == session_id
-            for lease in data.get("edit_leases", {}).values()
-        ):
-            rejected.append((session_id, "held", "live_edit_lease"))
-            continue
-        try:
-            files = _session_deploy_files(session, set())
-            checkpoint_files = sorted(str(path) for path in auto.get("files") or [])
-            if sorted(files) != checkpoint_files:
-                rejected.append((session_id, "recovery_needed", "checkpoint_file_set_changed"))
-                continue
-            block_reason = _auto_integration_block_reason(files)
-            if block_reason:
-                rejected.append((session_id, "blocked", block_reason))
-                continue
-            if not files or _worktree_patch_id(metadata, files) != auto.get("patch_id"):
-                rejected.append((session_id, "recovery_needed", "checkpoint_patch_changed"))
-                continue
-        except (OSError, RuntimeError) as exc:
-            rejected.append(
-                (session_id, "recovery_needed", f"candidate_inspection_failed:{str(exc)[-1000:]}")
-            )
-            continue
-        selected.append(
-            {
-                "session_id": session_id,
-                "task": str(session.get("task") or "checkpointed work"),
-                "patch_id": str(auto.get("patch_id") or ""),
-                "checkpoint_commit": str(auto.get("checkpoint_commit") or ""),
-                "files": files,
-            }
-        )
-    for session_id, status, reason in rejected:
-        _record_auto_integration_state(session_id, status, reason=reason)
-    return selected
 
 
-def _record_auto_integration_state(session_id: str, status: str, *, reason: str = "") -> None:
-    """Persist an automatic integration transition independently from chat presence."""
-    def store(data: dict) -> None:
-        session = data.get("sessions", {}).get(session_id)
-        if not isinstance(session, dict):
-            return
-        auto = session.setdefault("auto_integration", {})
-        auto["status"] = status
-        auto["updated_at"] = _now_iso()
-        auto["block_reason"] = reason
-        if status in {"changes_pending", "integrated", "integrating", "held"}:
-            session["workspace_state"] = status
-        else:
-            session["workspace_state"] = "recovery_needed"
-
-    _mutate_sessions(store)
 
 
-def checkpoint_idle_sessions(*, now: str | None = None) -> list[dict]:
-    """Checkpoint opted-in mutating sessions that stopped producing heartbeats."""
-    current_time = _parse_iso(now or _now_iso())
-    data = _load_sessions()
-    results: list[dict] = []
-    for _session_id, session in sorted(data.get("sessions", {}).items()):
-        if not isinstance(session, dict) or session.get("auto_integration_policy") != "enabled":
-            continue
-        try:
-            opencode_session_id = str(session.get("opencode_session_id") or "")
-            if not opencode_session_id or _auto_integration_presence_is_live(session):
-                continue
-            last_active = str(session.get("last_active") or session.get("started") or "")
-            try:
-                idle_minutes = (current_time - _parse_iso(last_active)).total_seconds() / 60
-            except (TypeError, ValueError):
-                continue
-            if idle_minutes < WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES:
-                continue
-            auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
-            metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
-            files = _session_deploy_files(session, set())
-            if not files:
-                continue
-            retryable_status = auto.get("status") in {"blocked", "recovery_needed"} or (
-                auto.get("status") == "held" and auto.get("block_reason") != "explicit_hold"
-            )
-            if not retryable_status and auto.get("patch_id") and auto.get("files") == files:
-                try:
-                    if _worktree_patch_id(metadata, files) == auto.get("patch_id"):
-                        continue
-                except (OSError, RuntimeError):
-                    pass
-            results.append(checkpoint_session_worktree(opencode_session_id, event="idle"))
-        except (OSError, RuntimeError) as exc:
-            # One corrupt or unrecoverable worktree must not suppress every
-            # later checkpoint/integration candidate in the hourly pass.
-            results.append(
-                {
-                    "session_id": str(_session_id),
-                    "status": "blocked",
-                    "reason": str(exc)[-2000:],
-                }
-            )
-    return results
 
 
-def _complete_auto_integration(candidate: dict) -> bool:
-    """Finish only the checkpoint that the worker actually deployed."""
-    session_id = str(candidate["session_id"])
-    with _worktree_checkpoint_lock(session_id):
-        session = _load_sessions().get("sessions", {}).get(session_id, {})
-        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
-        if (
-            auto.get("status") != "integrated"
-            or auto.get("patch_id") != candidate.get("patch_id")
-            or auto.get("checkpoint_commit") != candidate.get("checkpoint_commit")
-        ):
-            return False
-        metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
-        files = sorted(str(path) for path in candidate.get("files") or [])
-        try:
-            source_still_matches = bool(files) and _worktree_patch_id(metadata, files) == candidate.get("patch_id")
-        except (OSError, RuntimeError):
-            source_still_matches = False
-        if not source_still_matches:
-            _record_auto_integration_state(session_id, "changes_pending", reason="source_changed_during_deploy")
-            return False
-        if not _delete_worktree_checkpoint_ref(
-            session_id,
-            expected_commit=str(candidate.get("checkpoint_commit") or ""),
-        ):
-            _record_auto_integration_state(session_id, "recovery_needed", reason="checkpoint_ref_cleanup_failed")
-            return False
-        _record_auto_integration_state(session_id, "integrated")
-        return True
 
 
-def _claim_auto_integration(candidate: dict) -> bool:
-    """Atomically claim one unchanged eligible checkpoint for a worker."""
-    session_id = str(candidate["session_id"])
-    with _worktree_checkpoint_lock(session_id):
-        session = _load_sessions().get("sessions", {}).get(session_id, {})
-        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
-        if _auto_integration_presence_is_live(session):
-            _mutate_sessions(lambda data: _store_session_worktree_active(data, session_id, _now_iso()))
-            return False
-        if (
-            auto.get("status") != "eligible"
-            or (session.get("ready_submission") or {}).get("patch_id") != candidate.get("patch_id")
-            or (session.get("ready_submission") or {}).get("checkpoint_commit") != candidate.get("checkpoint_commit")
-            or auto.get("patch_id") != candidate.get("patch_id")
-            or auto.get("checkpoint_commit") != candidate.get("checkpoint_commit")
-            or not _checkpoint_ref_matches(session_id, auto)
-        ):
-            return False
-        _record_auto_integration_state(session_id, "integrating")
-        return True
 
 
-def _fail_auto_integration(candidate: dict, reason: str) -> None:
-    """Block only the same checkpoint claimed by this worker."""
-    session_id = str(candidate["session_id"])
-    with _worktree_checkpoint_lock(session_id):
-        session = _load_sessions().get("sessions", {}).get(session_id, {})
-        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
-        if (
-            auto.get("patch_id") == candidate.get("patch_id")
-            and auto.get("checkpoint_commit") == candidate.get("checkpoint_commit")
-        ):
-            _record_auto_integration_state(session_id, "blocked", reason=reason)
 
 
-def auto_integrate_checkpoints(*, runner=None, now: str | None = None, dry_run: bool = False) -> dict:
-    """Integrate eligible checkpoints through sessions.py deploy with no gate waivers."""
-    checkpointed = [] if dry_run else checkpoint_idle_sessions(now=now)
-    candidates = select_auto_integration_candidates(now=now)
-    result = {
-        "checkpointed": checkpointed,
-        "eligible": [item["session_id"] for item in candidates],
-        "integrated": [],
-        "blocked": [],
-    }
-    if dry_run:
-        return result
-    if runner is None:
-        def runner(command: list[str]) -> tuple[int, str, str]:
-            completed = subprocess.run(
-                command,
-                cwd=str(CONTROL_PLANE_ROOT),
-                capture_output=True,
-                text=True,
-                timeout=3600,
-            )
-            return completed.returncode, completed.stdout, completed.stderr
-    for candidate in candidates:
-        session_id = candidate["session_id"]
-        if not _claim_auto_integration(candidate):
-            continue
-        command = [
-            sys.executable,
-            "scripts/sessions.py",
-            "deploy",
-            "--session",
-            session_id,
-            "--title",
-            f"chore: integrate idle session {session_id}",
-            "--message",
-            f"Automatically integrate the validated checkpoint for: {candidate['task']}",
-            "--expected-patch-id",
-            candidate["patch_id"],
-            "--expected-checkpoint-commit",
-            candidate["checkpoint_commit"],
-        ]
-        returncode, stdout, stderr = runner(command)
-        if returncode == 0:
-            if _complete_auto_integration(candidate):
-                result["integrated"].append(session_id)
-            else:
-                result["blocked"].append({"session_id": session_id, "reason": "checkpoint_changed_during_deploy"})
-            continue
-        reason = (stderr or stdout or "automatic deploy failed").strip()[-2000:]
-        _fail_auto_integration(candidate, reason)
-        result["blocked"].append({"session_id": session_id, "reason": reason})
-    return result
 
 
 def _validate_managed_worktree_path(path: str | Path) -> Path:
@@ -5372,300 +3829,16 @@ def _worktree_target_files_match(candidate: dict, target_ref: str) -> bool:
     return True
 
 
-def _legacy_worktree_chat_lineage(db_path: Path | None = None) -> dict[str, dict[str, Any]]:
-    """Reconstruct legacy worktree ownership from bounded session-start outputs."""
-    try:
-        connection = _opencode_readonly_connection(db_path)
-    except (FileNotFoundError, sqlite3.Error):
-        return {}
-    try:
-        parents = {
-            str(row["id"]): str(row["parent_id"]) if row["parent_id"] else None
-            for row in connection.execute("SELECT id, parent_id FROM session")
-        }
-
-        def top_level(session_id: str) -> str:
-            current = session_id
-            seen = {current}
-            while parents.get(current) and parents[current] not in seen:
-                current = str(parents[current])
-                seen.add(current)
-            return current
-
-        events: dict[str, dict[str, Any]] = {}
-        rows = connection.execute(
-            """
-            SELECT session_id, time_created, data
-            FROM part
-            WHERE data LIKE '%== SESSION %' AND data LIKE '%Worktree:%'
-            """
-        )
-        for row in rows:
-            decoded = _decode_opencode_json(row["data"])
-            if not isinstance(decoded, dict) or decoded.get("type") != "tool":
-                continue
-            state = decoded.get("state") if isinstance(decoded.get("state"), dict) else {}
-            output = str(state.get("output") or "")
-            session_match = re.search(r"== SESSION ([0-9a-f]{4})\b", output)
-            worktree_match = re.search(r"^\s*Worktree:\s+(.+?)\s*$", output, re.MULTILINE)
-            if not session_match or not worktree_match or not worktree_match.group(1).strip().startswith("/"):
-                continue
-            repository_session_id = session_match.group(1)
-            created_ms = int(row["time_created"] or 0)
-            previous = events.get(repository_session_id)
-            if previous and int(previous["lineage_created_ms"]) >= created_ms:
-                continue
-            events[repository_session_id] = {
-                "chat_lineage": top_level(str(row["session_id"])),
-                "lineage_created_ms": created_ms,
-            }
-        return events
-    except sqlite3.Error:
-        return {}
-    finally:
-        connection.close()
 
 
-def _plan_duplicate_chat_worktrees(candidates: list[dict]) -> dict:
-    """Keep only the newest source worktree for each known chat lineage."""
-    grouped: dict[str, list[dict]] = {}
-    lineage_unknown: list[str] = []
-    integration_excluded: list[str] = []
-    invalid_path_excluded: list[str] = []
-    for candidate in candidates:
-        session_id = str(candidate.get("session_id") or "")
-        if candidate.get("worktree_kind") == "integration":
-            integration_excluded.append(session_id)
-            continue
-        if candidate.get("lineage_path_valid") is False:
-            invalid_path_excluded.append(session_id)
-            continue
-        lineage = str(candidate.get("chat_lineage") or "")
-        if not lineage:
-            lineage_unknown.append(session_id)
-            continue
-        grouped.setdefault(lineage, []).append(candidate)
-
-    retained: list[str] = []
-    remove: list[str] = []
-    groups: list[dict] = []
-    authoritative: dict[str, str] = {}
-    for lineage, items in sorted(grouped.items()):
-        ordered = sorted(
-            items,
-            key=lambda item: (
-                int(item.get("lineage_created_ms") or 0),
-                str((item.get("metadata") or {}).get("created_at") or ""),
-                str(item.get("last_active") or ""),
-                bool(item.get("lineage_bound")),
-                str(item.get("path") or ""),
-            ),
-        )
-        keep = ordered[-1]
-        authoritative[lineage] = str(keep.get("session_id") or "")
-        if len(items) < 2:
-            continue
-        discarded = ordered[:-1]
-        retained.append(str(keep.get("session_id") or ""))
-        remove.extend(str(item.get("session_id") or "") for item in discarded)
-        groups.append(
-            {
-                "chat_lineage": lineage,
-                "retained": str(keep.get("session_id") or ""),
-                "remove": [str(item.get("session_id") or "") for item in discarded],
-            }
-        )
-    return {
-        "duplicate_chat_count": len(groups),
-        "groups": groups,
-        "authoritative": authoritative,
-        "retained": sorted(retained),
-        "remove": sorted(remove),
-        "lineage_unknown": sorted(lineage_unknown),
-        "integration_excluded": sorted(integration_excluded),
-        "invalid_path_excluded": sorted(invalid_path_excluded),
-    }
 
 
-def _chat_lineage_worktree_candidates(*, db_path: Path | None = None) -> list[dict]:
-    """Enrich current worktree candidates with durable or reconstructed chat lineage."""
-    legacy = _legacy_worktree_chat_lineage(db_path)
-    linked_paths = {
-        Path(str(item.get("path") or "")).resolve()
-        for item in _linked_git_worktrees()
-        if item.get("path")
-    }
-    enriched: list[dict] = []
-    for candidate in _discover_worktree_candidates():
-        item = dict(candidate)
-        session = item.get("session") if isinstance(item.get("session"), dict) else {}
-        event = legacy.get(str(item.get("session_id") or ""), {})
-        lineage = str(session.get("opencode_top_level_session_id") or event.get("chat_lineage") or "")
-        created_ms = int(event.get("lineage_created_ms") or 0)
-        if not created_ms:
-            created_at = str((item.get("metadata") or {}).get("created_at") or session.get("started") or "")
-            try:
-                created_ms = int(_parse_iso(created_at).timestamp() * 1000) if created_at else 0
-            except (TypeError, ValueError):
-                created_ms = 0
-        item["chat_lineage"] = lineage
-        item["lineage_created_ms"] = created_ms
-        item["lineage_bound"] = bool(lineage and session.get("opencode_session_id") == lineage)
-        item["lineage_path_valid"] = _existing_direct_managed_worktree(
-            str(item.get("path") or ""),
-            linked_paths=linked_paths,
-        )
-        enriched.append(item)
-    return enriched
 
 
-def _retain_worktree_head_checkpoint(session_id: str, candidate: dict) -> str:
-    """Retain one clean but unproven worktree head before duplicate cleanup."""
-    head = str(candidate.get("head") or "")
-    if not head:
-        raise RuntimeError(f"Cannot checkpoint duplicate worktree {session_id} without a head commit")
-    checkpoint_ref = _worktree_checkpoint_ref(session_id)
-    expected = _checkpoint_ref_expected_commit(session_id, checkpoint_ref, head)
-    rc, _stdout, stderr = _run_cmd(
-        ["git", "update-ref", checkpoint_ref, head, expected],
-        cwd=str(CONTROL_PLANE_ROOT),
-    )
-    if rc != 0:
-        raise RuntimeError(f"Could not retain duplicate worktree head: {stderr}")
-    return head
 
 
-def _checkpoint_duplicate_worktree(session_id: str, candidate: dict) -> str:
-    """Retain the latest readable state before deleting one duplicate worktree."""
-    files = list(candidate.get("changed_files") or [])
-    if files:
-        metadata = dict(candidate.get("metadata") or {})
-        metadata["path"] = str(candidate.get("path") or "")
-        if not metadata.get("base_commit") and not metadata.get("merged_commit"):
-            metadata["base_commit"] = str(candidate.get("head") or _current_git_sha(metadata["path"]))
-        patch_id = _worktree_patch_id(metadata, files)
-        return _create_worktree_checkpoint_commit(session_id, metadata, files, patch_id)
-    if not candidate.get("head"):
-        checkpoint_ref = _worktree_checkpoint_ref(session_id)
-        rc, existing_checkpoint, _stderr = _run_cmd(
-            ["git", "rev-parse", "--verify", checkpoint_ref],
-            cwd=str(CONTROL_PLANE_ROOT),
-        )
-        if rc == 0:
-            return existing_checkpoint.strip()
-        if not (Path(str(candidate.get("path") or "")) / ".git").exists():
-            return ""
-    return _retain_worktree_head_checkpoint(session_id, candidate)
 
 
-def deduplicate_chat_worktrees(
-    *,
-    target_ref: str = "origin/dev",
-    apply: bool = False,
-    db_path: Path | None = None,
-) -> dict:
-    """Report or remove older source worktrees owned by the same top-level chat."""
-    rc, target_commit, stderr = _run_cmd(["git", "rev-parse", target_ref])
-    if rc != 0:
-        raise RuntimeError(f"Failed to resolve {target_ref}: {stderr}")
-    target_commit = target_commit.strip()
-    candidates = _chat_lineage_worktree_candidates(db_path=db_path)
-    plan = _plan_duplicate_chat_worktrees(candidates)
-    report = {
-        "target_ref": target_ref,
-        "target_commit": target_commit,
-        "apply": apply,
-        **plan,
-        "deleted": [],
-        "checkpointed": [],
-        "blocked": [],
-    }
-    if not apply:
-        return report
-
-    candidates_by_id = {str(item.get("session_id") or ""): item for item in candidates}
-    retained_by_lineage = dict(plan["authoritative"])
-    for session_id in plan["remove"]:
-        candidate = candidates_by_id[session_id]
-        lineage = str(candidate.get("chat_lineage") or "")
-        retained_session_id = retained_by_lineage[lineage]
-        def remove_duplicate(data: dict) -> dict:
-            session = data.get("sessions", {}).get(session_id, {})
-            live_lease = any(
-                isinstance(lease, dict) and lease.get("session_id") == session_id
-                for lease in data.get("edit_leases", {}).values()
-            )
-            if session.get("writing") or live_lease:
-                return {"blocked": "live_edit"}
-            fresh = _refresh_reconciliation_candidate(candidate, data, target_commit, 0, set())
-            if not _existing_direct_managed_worktree(str(fresh.get("path") or "")):
-                return {"blocked": "invalid_or_missing_worktree"}
-            if fresh.get("classification") == "malformed":
-                return {"blocked": "inspection_failed"}
-            checkpoint_commit = ""
-            if fresh.get("classification") not in {"integrated", "duplicated", "superseded"}:
-                checkpoint_commit = _checkpoint_duplicate_worktree(session_id, fresh)
-            _remove_reconciled_worktree(fresh)
-            _prune_deletion_manifests(data)
-            data.setdefault("sessions", {}).pop(session_id, None)
-            data["deploy_queue"] = [
-                item for item in data.setdefault("deploy_queue", [])
-                if str(item.get("session_id") or "") != session_id
-            ]
-            data["edit_leases"] = {
-                path: lease
-                for path, lease in data.setdefault("edit_leases", {}).items()
-                if str(lease.get("session_id") or "") != session_id
-            }
-            data.setdefault("worktree_deletion_manifests", []).append(
-                {
-                    "session_id": session_id,
-                    "worktree_name": Path(str(candidate.get("path") or "")).name,
-                    "classification": "duplicate_chat_worktree",
-                    "reason": "older_worktree_for_same_chat",
-                    "reason_code": "duplicate_chat_lineage",
-                    "chat_lineage": lineage,
-                    "retained_session_id": retained_session_id,
-                    "checkpoint_ref": _worktree_checkpoint_ref(session_id) if checkpoint_commit else "",
-                    "checkpoint_commit": checkpoint_commit,
-                    "changed_file_count": len(fresh.get("changed_files") or []),
-                    "head": str(fresh.get("head") or ""),
-                    "target_commit": target_commit,
-                    "deleted_at": _now_iso(),
-                }
-            )
-            return {"deleted": True, "checkpoint_commit": checkpoint_commit}
-
-        try:
-            with _worktree_checkpoint_lock(session_id):
-                outcome = _mutate_sessions(remove_duplicate)
-        except (OSError, RuntimeError) as exc:
-            report["blocked"].append({"session_id": session_id, "reason": f"cleanup_failed:{exc}"})
-            continue
-        if outcome.get("blocked"):
-            report["blocked"].append({"session_id": session_id, "reason": str(outcome["blocked"])})
-            continue
-        checkpoint_commit = str(outcome.get("checkpoint_commit") or "")
-        if checkpoint_commit:
-            report["checkpointed"].append(
-                {
-                    "session_id": session_id,
-                    "checkpoint_ref": _worktree_checkpoint_ref(session_id),
-                    "checkpoint_commit": checkpoint_commit,
-                }
-            )
-        report["deleted"].append(session_id)
-
-    def bind_authoritative(data: dict) -> None:
-        sessions = data.setdefault("sessions", {})
-        for lineage, session_id in retained_by_lineage.items():
-            if session_id not in sessions:
-                continue
-            sessions[session_id]["opencode_top_level_session_id"] = lineage
-            bind_opencode_session(data, session_id, lineage)
-
-    _mutate_sessions(bind_authoritative)
-    return report
 
 
 def _classify_worktree_candidate(
@@ -6218,7 +4391,7 @@ def _hard_expiry_record_is_live(record: dict, data: dict) -> bool:
     docker_lock = data.get("locks", {}).get("docker_rebuild", {})
     if _is_lock_active(docker_lock, "docker_rebuild") and str(docker_lock.get("claimed_by") or "") == session_id:
         return True
-    return _auto_integration_presence_is_live(session)
+    return bool(session.get("codex_task_id") and (session.get("worktree") or {}).get("status") not in {"merged", "ended"})
 
 
 def _hard_expiry_record_is_safely_disposable(record: dict) -> tuple[bool, str]:
@@ -8320,12 +6493,10 @@ def _linear_start_integration(
     label_ids = issue_data.get("label_ids", [])
     add_label(linear_issue_id, current_label_ids=label_ids)
 
-    # Post pickup comment with current OpenCode-era resume guidance.
+    # Post pickup comment with current agent-era resume guidance.
     post_comment(
         linear_issue_id,
-        f"Picked up by OpenCode session `{sid}`\n\n"
-        f"Resume from the OpenCode Web project sidebar or inspect the linked chat with\n"
-        f"`python3 scripts/sessions.py chat read <opencode-session-id>`.",
+        f"Picked up by repository session `{sid}`. Continue in the owning Codex task.",
     )
 
     # Display issue context in session output
@@ -8418,139 +6589,14 @@ def _linear_complete_session(
     print(f"  Linear: {linear_id} → {'Done' if mode in ('docs', 'question') else 'In Review'}")
 
 
-def bind_opencode_session(data: dict, session_id: str, opencode_session_id: str) -> None:
-    """Bind one authoritative OpenCode chat identity to a repo session."""
-    if not re.fullmatch(r"ses_[A-Za-z0-9]+", opencode_session_id):
-        raise ValueError(f"Invalid OpenCode session ID: {opencode_session_id}")
-    sessions = data.get("sessions", {})
-    if session_id not in sessions:
-        raise ValueError(f"Unknown repo session ID: {session_id}")
-    if sessions[session_id].get("execution_owner_tool") == "codex" or any(
-        session.get("execution_owner_tool") == "codex"
-        and session.get("opencode_session_id") == opencode_session_id
-        for session in sessions.values()
-    ):
-        raise RuntimeError("Session was adopted by Codex; the retired OpenCode owner cannot resume it")
-    for other_id, session in sessions.items():
-        if other_id != session_id and session.get("opencode_session_id") == opencode_session_id:
-            session["opencode_session_id"] = None
-    sessions[session_id]["opencode_session_id"] = opencode_session_id
-    sessions[session_id].setdefault("opencode_top_level_session_id", opencode_session_id)
 
 
-def session_for_opencode(data: dict, opencode_session_id: str, *, repo_id: str = "") -> tuple[str, dict] | None:
-    """Return the one repository session already bound to an OpenCode chat."""
-    sessions = data.get("sessions", {})
-    matches = [
-        (session_id, session)
-        for session_id, session in sessions.items()
-        if session.get("opencode_session_id") == opencode_session_id
-        and (not repo_id or _session_repo_id(session) == repo_id)
-    ]
-    if not matches:
-        matches = [
-            (session_id, session)
-            for session_id, session in sessions.items()
-            if session.get("opencode_top_level_session_id") == opencode_session_id
-            and (not repo_id or _session_repo_id(session) == repo_id)
-        ]
-    if len(matches) > 1:
-        raise RuntimeError(f"OpenCode session {opencode_session_id} matches multiple repository sessions")
-    return matches[0] if matches else None
 
 
-def rotate_opencode_session_binding(
-    data: dict,
-    session_id: str,
-    opencode_session_id: str,
-    *,
-    now: str | None = None,
-) -> None:
-    """Retire one preserved repo-session binding before creating its successor."""
-    session = data.get("sessions", {}).get(session_id)
-    if not isinstance(session, dict):
-        raise RuntimeError(f"Cannot rotate unknown repository session {session_id}")
-    if opencode_session_id not in {
-        session.get("opencode_session_id"),
-        session.get("opencode_top_level_session_id"),
-    }:
-        raise RuntimeError(
-            f"Repository session {session_id} is no longer bound to {opencode_session_id}"
-        )
-    session["opencode_session_id"] = None
-    session["opencode_top_level_session_id"] = None
-    session["rotated_opencode_session_id"] = opencode_session_id
-    session["rotated_at"] = now or _now_iso()
 
 
-def refresh_existing_session_for_start(
-    data: dict,
-    session_id: str,
-    opencode_session_id: str,
-    *,
-    mode: str,
-    tags: list[str],
-    task: str | None,
-    repo_kind: str,
-    now: str | None = None,
-) -> dict:
-    """Refresh an existing session and restore its authoritative chat binding."""
-    current = session_for_opencode(data, opencode_session_id)
-    if current is None or current[0] != session_id:
-        current_id = current[0] if current else "none"
-        raise RuntimeError(
-            f"OpenCode session {opencode_session_id} binding changed while starting "
-            f"(selected {session_id}, current {current_id}); run sessions.py start again"
-        )
-    session = data["sessions"][session_id]
-    bind_opencode_session(data, session_id, opencode_session_id)
-    session["last_active"] = now or _now_iso()
-    session["mode"] = mode
-    session["tags"] = tags
-    session["binding_mode"] = "pending" if repo_kind == "control_plane" else "repo_routed"
-    session["auto_integration_policy"] = "enabled" if repo_kind == "control_plane" else "disabled"
-    if task:
-        session["task"] = task
-    return data
 
 
-def record_worktree_binding(
-    *,
-    opencode_session_id: str,
-    mode: str,
-    directory: str = "",
-    reason: str = "",
-) -> dict:
-    """Persist one native or pilot-fallback binding result atomically."""
-    if mode not in {"native", "pilot_fallback"}:
-        raise ValueError(f"Unsupported binding result mode: {mode}")
-
-    def update(data: dict) -> dict:
-        session_id = _resolve_session_id(data, opencode_session_id=opencode_session_id)
-        session = data["sessions"][session_id]
-        if not _session_is_control_plane_repo(session):
-            checkout_root = _session_checkout_root(session)
-            session["binding_mode"] = "repo_routed"
-            session["binding_updated_at"] = _now_iso()
-            session["binding_failure_reason"] = ""
-            session["last_active"] = _now_iso()
-            return {
-                "session_id": session_id,
-                "mode": "repo_routed",
-                "worktree_path": str(checkout_root),
-                "repo": _session_repo_name(session),
-            }
-        worktree = session.get("worktree") or {}
-        expected = Path(str(worktree.get("path") or "")).resolve()
-        if mode == "native" and (not directory or Path(directory).resolve() != expected):
-            raise RuntimeError("Native OpenCode directory does not match the session worktree")
-        session["binding_mode"] = mode
-        session["binding_updated_at"] = _now_iso()
-        session["binding_failure_reason"] = reason if mode == "pilot_fallback" else ""
-        session["last_active"] = _now_iso()
-        return {"session_id": session_id, "mode": mode, "worktree_path": str(expected), "reason": reason}
-
-    return _mutate_sessions(update)
 
 
 def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
@@ -8633,141 +6679,8 @@ def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
     return _mutate_sessions(update)
 
 
-def restore_original_worktree_binding(opencode_session_id: str, original_session_id: str) -> dict:
-    """Recover a retired binding without copying, publishing, or deleting source.
-
-    Lock both workspaces in stable order and revalidate inside the sessions
-    transaction. Only an idle, pristine successor may relinquish the binding.
-    See docs/architecture/agent-workflow-decisions.md for workspace ownership.
-    """
-    initial = _load_sessions()
-    current = session_for_opencode(initial, opencode_session_id)
-    if current is None:
-        raise RuntimeError("Recovery requires an existing chat binding")
-    current_id = current[0]
-    with ExitStack() as locks:
-        for session_id in sorted({current_id, original_session_id}):
-            locks.enter_context(_worktree_checkpoint_lock(session_id))
-
-        def restore(data: dict) -> dict:
-            matched = session_for_opencode(data, opencode_session_id)
-            if matched is None or matched[0] != current_id:
-                raise RuntimeError("Chat binding changed during recovery; inspect and retry")
-            original = data["sessions"].get(original_session_id)
-            successor = data["sessions"][current_id]
-            if not isinstance(original, dict):
-                raise RuntimeError("Original repository session does not exist")
-            if _session_repo_id(original) != _session_repo_id(successor):
-                raise RuntimeError("Recovery cannot cross repository boundaries")
-            if current_id != original_session_id:
-                if original.get("rotated_opencode_session_id") != opencode_session_id:
-                    raise RuntimeError("Original session has no matching retired chat lineage")
-                if original.get("opencode_session_id") or original.get("opencode_top_level_session_id"):
-                    raise RuntimeError("Original session is already owned by a chat")
-            for session_id in {current_id, original_session_id}:
-                session = data["sessions"][session_id]
-                if _auto_integration_presence_is_live(session) or session.get("writing"):
-                    raise RuntimeError("Recovery requires idle workspaces without active writers")
-                if any(lease.get("session_id") == session_id for lease in data.get("edit_leases", {}).values()):
-                    raise RuntimeError("Recovery requires release of workspace edit leases")
-                if any(lock.get("claimed_by") == session_id for lock in data.get("locks", {}).values()):
-                    raise RuntimeError("Recovery requires release of workspace resource locks")
-                metadata = session.get("worktree") or {}
-                if not metadata.get("path") or not _existing_direct_managed_worktree(metadata["path"]):
-                    raise RuntimeError("Recovery requires both preserved managed worktrees")
-            if current_id != original_session_id:
-                metadata = successor["worktree"]
-                baseline = metadata.get("merged_commit") or metadata.get("base_commit")
-                if not baseline or _current_git_sha(Path(metadata["path"])) != baseline or _worktree_pending_files(successor):
-                    raise RuntimeError("Successor has pending source or commits; preserve and reconcile before recovery")
-            path = original["worktree"]["path"]
-            resources = link_shared_worktree_resources(path)
-            if current_id != original_session_id:
-                rotate_opencode_session_binding(data, current_id, opencode_session_id)
-            bind_opencode_session(data, original_session_id, opencode_session_id)
-            original["opencode_top_level_session_id"] = opencode_session_id
-            original["binding_mode"] = "worktree_routed"
-            original["binding_updated_at"] = _now_iso()
-            original["binding_failure_reason"] = ""
-            original["last_active"] = _now_iso()
-            original["binding_recovery"] = {"from_session": current_id, "recovered_at": _now_iso()}
-            return {"session_id": original_session_id, "previous_session_id": current_id,
-                    "mode": "worktree_routed", "worktree_path": path,
-                    "shared_runtime_resources": resources}
-
-        return _mutate_sessions(restore)
 
 
-@_workspace_transition("repair")
-def repair_worktree_routing(opencode_session_id: str) -> dict:
-    """Reconstruct durable tool routing without depending on OpenCode runtime state."""
-    recreated = False
-    initial = _mutate_sessions(lambda data: data)
-    initial_session_id = _resolve_session_id(initial, opencode_session_id=opencode_session_id)
-    initial_session = initial["sessions"][initial_session_id]
-    initial_worktree = initial_session.get("worktree") or {}
-    initial_path = Path(str(initial_worktree.get("path") or ""))
-    integration = initial_worktree.get("integration") if isinstance(initial_worktree.get("integration"), dict) else {}
-    if initial_path and not _existing_direct_managed_worktree(initial_path) and integration.get("status") == "merged":
-        rc, target_commit, stderr = _run_cmd(["git", "rev-parse", "refs/remotes/origin/dev"])
-        if rc != 0:
-            raise RuntimeError(f"Could not resolve origin/dev while repairing {initial_session_id}: {stderr}")
-        recovery_path = initial_path.with_name(
-            f"{initial_path.name}.recovery-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
-        )
-        if initial_path.exists():
-            initial_path.rename(recovery_path)
-        _run_cmd(["git", "worktree", "prune"])
-        rc, _stdout, stderr = _run_cmd(["git", "worktree", "add", str(initial_path), target_commit])
-        if rc != 0:
-            if recovery_path.exists() and not initial_path.exists():
-                recovery_path.rename(initial_path)
-            raise RuntimeError(f"Failed to recreate merged session worktree {initial_session_id}: {stderr}")
-
-        def record_recovery(data: dict) -> None:
-            recovered = data["sessions"][initial_session_id]["worktree"]
-            recovered["base_commit"] = target_commit
-            recovered["status"] = "active"
-            recovered["recovered_from"] = str(recovery_path) if recovery_path.exists() else ""
-            recovered["recovered_at"] = _now_iso()
-
-        _mutate_sessions(record_recovery)
-        recreated = True
-
-    def update(data: dict) -> dict:
-        session_id = _resolve_session_id(data, opencode_session_id=opencode_session_id)
-        session = data["sessions"][session_id]
-        worktree = session.get("worktree") or {}
-        worktree_path = str(worktree.get("path") or "")
-        if (
-            worktree.get("status") not in {"active", "changes_pending", "merged"}
-            or not worktree_path
-            or not _existing_direct_managed_worktree(worktree_path)
-        ):
-            raise RuntimeError(
-                f"Reason: session {session_id} has no active worktree to route tools into. "
-                f"Next: run python3 scripts/sessions.py worktree ensure --session {session_id}."
-            )
-        shared_runtime_resources = link_shared_worktree_resources(worktree_path)
-        refresh_worktree_base_after_fast_forward(worktree)
-        session["binding_mode"] = "worktree_routed"
-        session["binding_updated_at"] = _now_iso()
-        session["binding_failure_reason"] = ""
-        session["last_active"] = _now_iso()
-        if worktree.get("status") in {"changes_pending", "merged"}:
-            worktree["status"] = "active"
-        if recreated:
-            session["workspace_state"] = "clean"
-            session.pop("auto_integration", None)
-        worktree["last_active"] = session["last_active"]
-        return {
-            "session_id": session_id,
-            "mode": "worktree_routed",
-            "worktree_path": worktree_path,
-            "shared_runtime_resources": shared_runtime_resources,
-        }
-
-    return _mutate_sessions(update)
 
 
 def session_for_codex(
@@ -8829,628 +6742,87 @@ def bind_codex_session(
     return _mutate_sessions(bind)
 
 
-def _session_zellij_owner(opencode_task: str | None, codex_task: str | None) -> str | None:
-    """Shared agent hosts are not a task-owned terminal that end may close."""
-    return None if opencode_task or codex_task else os.environ.get("ZELLIJ_SESSION_NAME")
+def _session_zellij_owner(codex_task: str | None) -> str | None:
+    """A shared task host is not a task-owned terminal."""
+    return None if codex_task else os.environ.get("ZELLIJ_SESSION_NAME")
 
 
 def _codex_task_identity() -> str:
-    """Prefer the durable task ID; session ID supports older Codex launchers."""
-    if os.environ.get("OPENCODE_SESSION_ID"):
-        return ""
     return os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SESSION_ID") or ""
 
 
-def register_session_record(
-    session_record: dict,
-    opencode_session_id: str | None = None,
-) -> tuple[str, list[str], list[str], dict, bool]:
-    """Atomically register one repo session and its authoritative OpenCode chat."""
-    def register(data: dict) -> tuple[str, list[str], list[str], dict, bool]:
-        pruned = _prune_stale(data)
-        cleared_locks = _prune_stale_locks(data)
-        _prune_checkpoint_lock_files(data)
-        codex_task = session_record.get("codex_task_id")
-        if codex_task:
-            existing = session_for_codex(
-                data, codex_task, host=session_record["codex_host"],
-                repo_id=str(session_record.get("repo_id") or ""),
-            )
+def register_session_record(session_record: dict) -> tuple[str, list[str], list[str], dict, bool]:
+    """Atomically register a workspace, reusing an existing Codex task binding."""
+    def register(data):
+        task = session_record.get("codex_task_id")
+        if task:
+            existing = session_for_codex(data, task, host=session_record["codex_host"],
+                                         repo_id=str(session_record.get("repo_id") or ""))
             if existing:
-                existing_id, existing_session = existing
-                existing_session["last_active"] = _now_iso()
-                return existing_id, pruned, cleared_locks, data, False
-        if opencode_session_id:
-            existing = session_for_opencode(
-                data,
-                opencode_session_id,
-                repo_id=str(session_record.get("repo_id") or ""),
-            )
-            if existing:
-                existing_id, existing_session = existing
-                bind_opencode_session(data, existing_id, opencode_session_id)
-                existing_session["last_active"] = _now_iso()
-                return existing_id, pruned, cleared_locks, data, False
-        session_id = secrets.token_hex(2)
-        attempts = 0
-        while session_id in data.get("sessions", {}) and attempts < 10:
-            session_id = secrets.token_hex(2)
-            attempts += 1
-        if session_id in data.get("sessions", {}):
-            raise RuntimeError("Could not generate a unique session ID")
-        data["sessions"][session_id] = dict(session_record)
-        if opencode_session_id:
-            bind_opencode_session(data, session_id, opencode_session_id)
-        return session_id, pruned, cleared_locks, data, True
-
+                existing[1]["last_active"] = _now_iso()
+                return existing[0], [], [], data, False
+        for _ in range(10):
+            sid = secrets.token_hex(2)
+            if sid not in data.get("sessions", {}):
+                data.setdefault("sessions", {})[sid] = dict(session_record)
+                return sid, [], [], data, True
+        raise RuntimeError("Could not generate a unique session ID")
     return _mutate_sessions(register)
 
 
 def cmd_start(args: argparse.Namespace) -> None:
-    """Start a new session with tag-based doc preloading and git context."""
-    # Resolve tags: explicit --tags override auto-inference from --task
-    tags = []
-    if hasattr(args, "tags") and args.tags:
-        tags = [t.strip() for t in args.tags.split(",") if t.strip()]
-        valid_tags = set(TAG_TO_DOCS.keys())
-        unknown = [t for t in tags if t not in valid_tags]
-        if unknown:
-            print(
-                f"Warning: unrecognized tags: {', '.join(unknown)}. "
-                f"Valid tags: {', '.join(sorted(valid_tags))}",
-                file=sys.stderr,
-            )
-    elif args.task:
-        tags = _infer_tags(args.task)
-
-    # Auto-merge tags from prefetch flags (deduplicated, preserving existing order)
-    extra_tags: list[str] = []
-    if getattr(args, "issue", None):
-        extra_tags += ["debug"]
-    if getattr(args, "chat", None):
-        extra_tags += ["debug"]
-    if getattr(args, "embed", None):
-        extra_tags += ["debug", "embed"]
-    if getattr(args, "logs", None) is not None:
-        extra_tags += ["debug", "logging"]
-    if getattr(args, "user", None):
-        extra_tags += ["debug"]
-    if getattr(args, "debug_id", None):
-        extra_tags += ["debug"]
-    if getattr(args, "vercel", False):
-        extra_tags += ["debug"]
-    if getattr(args, "run_id", None):
-        extra_tags += ["test", "debug"]
-    for et in extra_tags:
-        if et not in tags:
-            tags.append(et)
-
+    """Bind a task to its workspace and emit a compact receipt."""
+    repo = _repo_metadata(_resolve_repo_id(getattr(args, "repo", None)))
+    _validate_session_repo(repo)
     mode = args.mode
-    try:
-        repo = _repo_metadata(_resolve_repo_id(getattr(args, "repo", None)))
-        _validate_session_repo(repo)
-    except (RuntimeError, ValueError) as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        sys.exit(1)
-
-    task_id_arg = getattr(args, "task_id", None)
-    linked_task = _load_task(task_id_arg) if task_id_arg else None
-    if task_id_arg and not linked_task:
-        print(f"Warning: --task-id {task_id_arg!r} not found; ignoring.", file=sys.stderr)
-        task_id_arg = None
-
-    # Register session
-    #
-    # `zellij_session`: captured from $ZELLIJ_SESSION_NAME so the auto-track
-    # hook can deterministically identify which Claude Code instance fired
-    # it (each parallel instance lives in its own Zellij tab named claude1,
-    # claude2, ...). See cmd_track for the resolution logic. None when the
-    # session is started outside Zellij (CI runners, bare ssh shells), in
-    # which case auto-tracking gracefully degrades to silent no-op rather
-    # than the previous race-prone max(last_active) fallback that caused
-    # ghost ownership across unrelated sessions.
-    opencode_session_id = getattr(args, "opencode_session", None)
-    existing = session_for_opencode(
-        _load_sessions(),
-        opencode_session_id,
-        repo_id=repo["repo_id"],
-    ) if opencode_session_id else None
-    codex_task_id = "" if opencode_session_id else _codex_task_identity()
-    if codex_task_id:
-        existing = session_for_codex(_load_sessions(), codex_task_id, repo_id=repo["repo_id"])
-    # Chat + repository identity owns the worktree; task descriptions are mutable.
-    if existing and _session_repo_id(existing[1]) != repo["repo_id"]:
-        existing = None
-    is_new_session = existing is None
-    if existing:
-        sid, _existing_session = existing
-
-        def refresh_existing(data: dict) -> dict:
-            if codex_task_id:
-                current = session_for_codex(data, codex_task_id, repo_id=repo["repo_id"])
-                if current is None or current[0] != sid:
-                    raise RuntimeError("Codex binding changed while starting; retry")
-                current[1].update(last_active=_now_iso(), mode=mode, tags=tags)
-                if args.task:
-                    current[1]["task"] = args.task
-                return data
-            return refresh_existing_session_for_start(
-                data,
-                sid,
-                opencode_session_id,
-                mode=mode,
-                tags=tags,
-                task=args.task,
-                repo_kind=repo["repo_kind"],
-            )
-
-        data = _mutate_sessions(refresh_existing)
-        pruned: list[str] = []
-        cleared_locks: list[str] = []
-    else:
-        session_record: dict = {
-            **repo,
-            "task": args.task or "(pending)",
-            "mode": mode,
-            "tags": tags,
-            "started": _now_iso(),
-            "last_active": _now_iso(),
-            "modified_files": [],
-            "writing": None,
-            "task_id": task_id_arg,
-            "linear_issue_id": None,
-            # OpenCode inherits the zellij name of the shared server host pane,
-            # but does not own that zellij session. Recording it here would let
-            # `sessions.py end` kill the server and every sibling chat.
-            "zellij_session": _session_zellij_owner(opencode_session_id, codex_task_id),
-            "opencode_session_id": None,
-            "opencode_top_level_session_id": opencode_session_id,
-            "codex_task_id": codex_task_id or None,
-            "codex_host": socket.gethostname() if codex_task_id else None,
-            "binding_mode": (
-                "repo_routed"
-                if opencode_session_id and mode != "question" and repo["repo_kind"] != "control_plane"
-                else ("pending" if opencode_session_id and mode != "question" else "legacy_grandfathered")
-            ),
-            "auto_integration_policy": "enabled" if opencode_session_id and mode != "question" and repo["repo_kind"] == "control_plane" else "disabled",
-        }
-        sid, pruned, cleared_locks, data, registered_new = register_session_record(
-            session_record,
-            opencode_session_id,
-        )
-        is_new_session = registered_new
-    worktree_metadata: dict | None = None
-    worktree_error = ""
-    if mode != "question" and repo["repo_kind"] == "control_plane":
+    tags = [tag.strip() for tag in (getattr(args, "tags", "") or "").split(",") if tag.strip()]
+    tags = tags or _infer_tags(args.task or "")
+    task_id = _codex_task_identity()
+    data = _load_sessions()
+    existing = session_for_codex(data, task_id, repo_id=repo["repo_id"]) if task_id else None
+    if not task_id:
         try:
-            worktree_metadata = ensure_session_worktree(sid)
-            data = _load_sessions()
-            if opencode_session_id:
-                repair_worktree_routing(opencode_session_id)
-                data = _load_sessions()
-        except (RuntimeError, OSError, ValueError) as exc:
-            worktree_error = str(exc)
-    elif mode != "question":
-        data = _load_sessions()
-
-    # Link task file to this session if --task-id was given
-    if linked_task and is_new_session:
-        linked_task["session"] = sid
-        _save_task(linked_task)
-
-    # ── Linear integration ────────────────────────────────────────────────
-    linear_issue_id = getattr(args, "linear_issue", None)
-    if is_new_session:
-        _linear_start_integration(sid, data, mode, args.task, linear_issue_id)
-
-    # ── OpenCode integration ──────────────────────────────────────────────
-    # Start records the current chat/worktree binding only. Parallel workers are
-    # now persisted OpenCode Web chats, not additional Zellij terminal sessions.
-
-    # ===================================================================
-    # Output context for the active agent (mode-aware, structured with box sections)
-    # ===================================================================
-
-    # ── Warn if workflow scripts themselves are modified but untracked ─────
-    session_checkout_root = _session_checkout_root(data["sessions"].get(sid, {}))
-    dirty_set = _get_dirty_files(checkout_root=session_checkout_root)
-    workflow_dirty = [
-        f for f in dirty_set
-        if f in ("scripts/sessions.py",
-                 "backend/scripts/debug.py",
-                 "backend/scripts/debug_health.py",
-                 "backend/scripts/debug_issue.py",
-                 "backend/scripts/debug_logs.py",
-                 "backend/scripts/debug_vercel.py")
-    ]
-    # Session file lists record commit scope, not exclusive ownership.
-    tracked_by = {}
-    for other_sid, other_info in data.get("sessions", {}).items():
-        if other_sid == sid:
-            continue
-        for wf in workflow_dirty:
-            if wf in other_info.get("modified_files", []):
-                tracked_by[wf] = other_sid
-
-    # ── Header block ──────────────────────────────────────────────────────
-    git_status = _get_git_status_summary(checkout_root=session_checkout_root)
-    branch_info = git_status["branch"]
-    if git_status["tracking"]:
-        branch_info += f" ({git_status['tracking']})"
-    uncommitted = git_status.get("uncommitted", [])
-
-    linear_linked = data["sessions"][sid].get("linear_issue_id")
-    header_lines = [
-        f"  Mode:  {mode}",
-        f"  Tags:  {', '.join(tags) if tags else 'none'}",
-        f"  Task:  {args.task or '(pending)'}",
-    ]
-    if repo["repo_kind"] != "control_plane":
-        header_lines.append(f"  Repo:  {repo['repo_name']} ({repo['repo_branch']})")
-    if linear_linked:
-        header_lines.append(f"  Linear: {linear_linked}")
-    zellij_name = data["sessions"][sid].get("zellij_session")
-    if zellij_name:
-        header_lines.append(f"  Zellij: `zellij attach {zellij_name}` | http://localhost:8082")
-    if worktree_metadata:
-        header_lines.append(f"  Worktree: {worktree_metadata.get('path')}")
-    elif worktree_error:
-        header_lines.append(f"  Worktree: creation failed ({worktree_error})")
-    elif repo["repo_kind"] != "control_plane":
-        header_lines.append(f"  Checkout: {repo['repo_root']}")
-
-    # Git status line
-    if mode in ("feature", "bug", "testing"):
-        if uncommitted:
-            areas = _classify_uncommitted_files(uncommitted)
-            area_summary = ", ".join(f"{len(v)} {k}" for k, v in areas.items())
-            header_lines.append(f"  Git:   {branch_info} | {len(uncommitted)} uncommitted [{area_summary}]")
-        else:
-            header_lines.append(f"  Git:   {branch_info} | clean")
+            sid = _resolve_session_id(data)
+            existing = (sid, data["sessions"][sid])
+        except RuntimeError:
+            pass
+    if existing:
+        sid, record = existing
+        def refresh(state):
+            current = state["sessions"][sid]
+            current.update(last_active=_now_iso(), mode=mode, tags=tags)
+            if getattr(args, "require_proof_video", False):
+                current["proof_video_required"] = True
+            if args.task:
+                current["task"] = args.task
+        _mutate_sessions(refresh)
+        created = False
     else:
-        header_lines.append(f"  Git:   {branch_info}")
-
-    # Recent commits — table layout: SHA  AGE   FULL TITLE (no truncation)
-    if mode != "question":
-        commit_limit = RECENT_COMMITS_COUNT if mode == "feature" else 3
-        recent_commits = _get_recent_commits(count=commit_limit, checkout_root=session_checkout_root)
-        if recent_commits:
-            # Parse all rows first so we can align columns
-            rows = []
-            for commit_line in recent_commits:
-                parts = commit_line.split(" ", 1)
-                sha = parts[0]
-                rest = parts[1] if len(parts) > 1 else ""
-                time_str = ""
-                msg = rest
-                for marker in (" ago ",):
-                    idx = rest.find(marker)
-                    if idx >= 0:
-                        time_str = _format_relative_time(rest[:idx + len(marker)].strip())
-                        msg = rest[idx + len(marker):]
-                        break
-                rows.append((sha, time_str, msg))
-            # Width of the widest age column for alignment
-            max_age = max(len(r[1]) for r in rows) if rows else 0
-            for i, (sha, age, msg) in enumerate(rows):
-                prefix = "  Last:" if i == 0 else "       "
-                age_padded = age.ljust(max_age)
-                header_lines.append(f"{prefix}  {sha}  {age_padded}  {msg}")
-
-    # Print header
-    hdr_bar = "═" * (BOX_WIDTH - len(f"== SESSION {sid} ") - 1)
-    print(f"== SESSION {sid} {hdr_bar}")
-    print("\n".join(header_lines))
-    print("═" * BOX_WIDTH)
-
-    # ── Workflow script modification notice ────────────────────────────────
-    if workflow_dirty:
-        for wf in workflow_dirty:
-            tracked_session = tracked_by.get(wf)
-            if tracked_session:
-                print(
-                    f"NOTICE: {wf} has uncommitted changes (also tracked by session {tracked_session}; advisory only). "
-                    "Re-read it before editing."
-                )
-            else:
-                print(
-                    f"NOTICE: {wf} has uncommitted changes not tracked by any session. "
-                    f"Use: sessions.py track --session {sid} --file {wf}"
-                )
-
-    # ── Collect boxed sections ────────────────────────────────────────────
-    sections: list[str] = []
-
-    # ── HEALTH (bug handled specially below with Vercel; feature, testing normal) ─
-    if opencode_session_id:
-        attachment_lines = _opencode_attachment_hint_lines(opencode_session_id)
-        if attachment_lines:
-            sections.append(_box_section("OPENCODE ATTACHMENTS", attachment_lines))
-
-    if mode in ("feature", "testing"):
-        health_line = _prefetch_health_check_compact()
-        sections.append(_box_section("HEALTH", [health_line]))
-
-    # ── HEALTH + VERCEL one-liner (bug mode only) ─────────────────────────
-    if mode == "bug":
-        health_line = _prefetch_health_check_compact()
-        health_lines = [health_line]
-        # Only show Vercel inline if user didn't request full Vercel box
-        if not getattr(args, "vercel", False):
-            vercel_oneliner = _prefetch_vercel_status_oneliner()
-            if vercel_oneliner:
-                health_lines.append(f"Vercel: {vercel_oneliner}")
-        sections.append(_box_section("HEALTH", health_lines))
-
-    # ── RECENT ERRORS — auto-included in bug mode ────────────────────────
-    if mode == "bug":
-        errors_content = _prefetch_recent_errors_timeline()
-        sections.append(_box_section("RECENT ERRORS (last 15min)", errors_content.split("\n")))
-
-    # ── ISSUES (bug mode) ─────────────────────────────────────────────────
-    if mode == "bug":
-        issues_content = _prefetch_recent_issues(limit=2)
-        issue_lines = issues_content.split("\n")
-        # Add hint when no specific --issue was provided
-        if not getattr(args, "issue", None):
-            issue_lines.append("")
-            issue_lines.append("Hint: debug.py issue --recent 5  |  debug.py issue <ID> --timeline")
-        sections.append(_box_section("ISSUES (last 24h)", issue_lines))
-
-    # ── TESTFLIGHT CRASHES (Apple feature/debug/testing sessions) ──────────
-    if _is_apple_session_context(mode, tags, args.task):
-        crashes_content = _prefetch_testflight_crashes(limit=3)
-        sections.append(_box_section("TESTFLIGHT CRASHES", crashes_content.split("\n")))
-
-    # ── ERROR TRENDS (bug mode) ───────────────────────────────────────────
-    if mode == "bug":
-        error_since = getattr(args, "error_since", 7)
-        trends_content = _prefetch_error_overview(since_minutes=error_since * 24 * 60)
-        sections.append(_box_section("ERROR TRENDS (7d, dev + prod)", trends_content.split("\n")))
-
-    # ── TEST RESULTS (testing mode) ───────────────────────────────────────
-    if mode == "testing":
-        test_content = _prefetch_test_summary()
-        sections.append(_box_section("TEST RESULTS", test_content.split("\n")))
-        events_content = _prefetch_test_events_o2()
-        sections.append(_box_section("TEST EVENTS (2h)", events_content.split("\n")))
-
-    # ── E2E spec inventory (testing mode) ─────────────────────────────────
-    if mode == "testing":
-        spec_count = len(list(E2E_SPEC_DIR.glob("*.spec.ts"))) if E2E_SPEC_DIR.exists() else 0
-        spec_lines = [f"Total: {spec_count} specs"]
-        spec_lines.extend(_get_e2e_spec_categories().split("\n"))
-        sections.append(_box_section("E2E SPECS", spec_lines))
-
-    # ── Skill test coverage gaps (testing + debug mode) ───────────────────
-    if mode in ("testing", "bug"):
-        coverage_lines = _get_skill_test_coverage().split("\n")
-        sections.append(_box_section("SKILL TEST COVERAGE", coverage_lines))
-
-    # ── Explicit prefetch flags (all modes — user explicitly requested) ────
-    issue_id = getattr(args, "issue", None)
-    if issue_id:
-        # Use --summary for inline context (condensed), not full report
-        issue_content = _prefetch_debug_context_summary("issue", issue_id, "issue")
-        sections.append(_box_section(f"ISSUE {issue_id[:12]}", issue_content.split("\n")))
-
-    chat_id = getattr(args, "chat", None)
-    if chat_id:
-        chat_content = _prefetch_debug_context("chat", chat_id, "chat")
-        sections.append(_box_section(f"CHAT {chat_id[:12]}", chat_content.split("\n")))
-
-    embed_id = getattr(args, "embed", None)
-    if embed_id:
-        embed_content = _prefetch_debug_context("embed", embed_id, "embed")
-        sections.append(_box_section(f"EMBED {embed_id[:12]}", embed_content.split("\n")))
-
-    logs_opts = getattr(args, "logs", None)
-    if logs_opts is not None:
-        logs_content = _prefetch_logs(logs_opts or "since=10")
-        sections.append(_box_section(f"LOGS ({logs_opts or 'since=10'})", logs_content.split("\n")))
-
-    user_email = getattr(args, "user", None)
-    if user_email:
-        user_content = _prefetch_user_context(user_email)
-        sections.append(_box_section(f"USER {user_email}", user_content.split("\n")))
-
-    debug_id = getattr(args, "debug_id", None)
-    if debug_id:
-        debug_content = _prefetch_debug_session_logs(debug_id)
-        sections.append(_box_section(f"DEBUG SESSION {debug_id}", debug_content.split("\n")))
-
-    vercel_flag = getattr(args, "vercel", False)
-    if vercel_flag:
-        vercel_content = _prefetch_vercel_status()
-        sections.append(_box_section("VERCEL (latest deployment)", vercel_content.split("\n")))
-
-    run_id = getattr(args, "run_id", None)
-    # Auto-detect latest test run when --mode testing without explicit --run-id
-    if not run_id and mode == "testing":
-        last_run_file = RESULTS_DIR / "last-run.json"
-        if last_run_file.exists():
-            try:
-                with open(last_run_file) as _f:
-                    lr = json.load(_f)
-                auto_run_id = lr.get("run_id", "")
-                if auto_run_id:
-                    run_id = auto_run_id
-                    print(f"  Auto-loaded latest test run: {run_id[:30]}")
-            except (json.JSONDecodeError, OSError):
-                pass
-    if run_id:
-        run_content = _prefetch_test_run(run_id)
-        sections.append(_box_section(f"TEST RUN {run_id[:20]}", run_content.split("\n")))
-
-    # ── Since last deploy (explicit flag) ────────────────────────────────────
-    if getattr(args, "since_last_deploy", False):
-        last_sha = _load_last_deploy_sha()
-        if last_sha:
-            since_commits = _get_commits_since_sha(last_sha)
-            if since_commits:
-                # Build aligned table
-                rows = []
-                for cl in since_commits:
-                    parts = cl.split(" ", 1)
-                    sha = parts[0]
-                    rest = parts[1] if len(parts) > 1 else ""
-                    time_str = ""
-                    msg = rest
-                    for marker in (" ago ",):
-                        idx = rest.find(marker)
-                        if idx >= 0:
-                            time_str = _format_relative_time(rest[:idx + len(marker)].strip())
-                            msg = rest[idx + len(marker):]
-                            break
-                    rows.append((sha, time_str, msg))
-                max_age = max(len(r[1]) for r in rows) if rows else 0
-                since_lines = [f"Since last deploy ({last_sha[:9]}): {len(rows)} commit(s)"]
-                for sha, age, msg in rows:
-                    since_lines.append(f"  {sha}  {age.ljust(max_age)}  {msg}")
-                # Also show changed files since last deploy
-                rc, diff_out, _ = _run_cmd(["git", "diff", "--name-status", f"{last_sha}..HEAD"])
-                if rc == 0 and diff_out:
-                    since_lines.append("")
-                    since_lines.append("Files changed:")
-                    for line in diff_out.splitlines()[:20]:
-                        since_lines.append(f"  {line}")
-                    if len(diff_out.splitlines()) > 20:
-                        since_lines.append(f"  ... +{len(diff_out.splitlines()) - 20} more")
-                sections.append(_box_section("SINCE LAST DEPLOY", since_lines))
-            else:
-                sections.append(_box_section("SINCE LAST DEPLOY",
-                    [f"No commits since last deploy ({last_sha[:9]}) — working tree is current."]))
-        else:
-            sections.append(_box_section("SINCE LAST DEPLOY",
-                ["No previous deploy found in this project. Last deploy SHA will be recorded after first sessions.py deploy."]))
-
-    # Print all boxed sections
-    if sections:
-        print()
-        print("\n\n".join(sections))
-
-    # ── Current coordination state ────────────────────────────────────────
-    try:
-        presence = _opencode_presence_store().snapshot()
-    except PresenceStoreError as error:
-        presence = {"sessions": {}, "task_claims": {}, "diagnostics": [{"code": "unavailable_store", "message": str(error)}]}
-    coordination_view = presence_status_view(data, presence)
-    print()
-    print(_format_coordination_section(sid, data, coordination_view))
-
-    # ── Architecture docs (bug mode now included, with tag filtering) ─────
-    if mode in ("feature", "docs", "bug"):
-        arch_index = _get_arch_doc_index()
-        if arch_index and tags:
-            filter_keywords = set()
-            for tag in tags:
-                filter_keywords.update(TAG_TO_ARCH_KEYWORDS.get(tag, []))
-                filter_keywords.add(tag)
-
-            relevant_docs = [
-                e for e in arch_index
-                if any(kw in e["name"].lower() or kw in (e.get("description", "") or "").lower()
-                       for kw in filter_keywords)
-            ]
-            other_count = len(arch_index) - len(relevant_docs)
-            if relevant_docs:
-                limit = 5 if mode in ("feature", "bug") else len(relevant_docs)
-                shown = relevant_docs[:limit]
-                names = ", ".join(e["name"] for e in shown)
-                extra = ""
-                if len(relevant_docs) > len(shown):
-                    extra = f", +{len(relevant_docs) - len(shown)} more"
-                print()
-                print(f"Arch docs ({len(relevant_docs)} relevant, {other_count} others): {names}{extra}")
-                print("  Load: sessions.py context --doc <name>")
-        elif mode == "docs" and arch_index:
-            print()
-            names = ", ".join(e["name"] for e in arch_index[:10])
-            if len(arch_index) > 10:
-                names += f", +{len(arch_index) - 10} more"
-            print(f"Arch docs ({len(arch_index)}): {names}")
-            print("  Load: sessions.py context --doc <name>")
-
-    # ── Stale docs hint (feature/docs/bug, max 3) ─────────────────────────
-    if mode in ("feature", "docs", "bug"):
-        stale = _check_stale_docs()
-        if stale and tags:
-            relevant_stale = [
-                s for s in stale
-                if any(tag in ARCH_DOC_DESCRIPTIONS.get(s["doc"].replace(".md", ""), "").lower()
-                       or tag in s["doc"].replace(".md", "")
-                       for tag in tags)
-            ]
-            stale = relevant_stale
-        if stale:
-            shown = stale[:3]
-            print()
-            print(f"Stale docs ({len(stale)}):")
-            for s in shown:
-                print(f"  {s['doc']} (doc: {s['doc_modified']}, code: {s['code_modified']})")
-            if len(stale) > 3:
-                print(f"  ... {len(stale) - 3} more (run: sessions.py stale-docs)")
-
-    # ── Project index (minimal for all modes except question) ─────────────
-    if mode not in ("question", "bug"):
-        index = _load_or_generate_index()
-        apps = index.get("backend_apps", [])
-        routes = index.get("api_routes", [])
-        comps = index.get("frontend_components", [])
-        print()
-        print(f"Project: {len(apps)} backend apps, {len(routes)} API routes, {len(comps)} frontend component groups")
-
-    # Cleanup report
-    if pruned:
-        print(f"[Pruned {len(pruned)} stale sessions]")
-    if cleared_locks:
-        print(f"[Cleared {len(cleared_locks)} stale locks]")
-
-    # ── Instruction docs ───────────────────────────────────────────────────
-    # Tag-based docs are now handled by .claude/rules/ (path-scoped, auto-loaded).
-    # On-demand loading still available: sessions.py context --doc <name>
-    # Deploy-phase docs still loaded via: sessions.py deploy-docs
-    docs_for_tags = _resolve_docs_for_tags(tags, include_deploy=False)
-    if docs_for_tags:
-        print(f"\nDocs available for tags ({', '.join(tags)}): {', '.join(docs_for_tags)}")
-        print("  Load any with: sessions.py context --doc <name>")
-
-    # ── Linked task pending steps ───────────────────────────────────────────
-    if mode != "question" and task_id_arg:
-        linked = _load_task(task_id_arg)
-        if linked:
-            plan = linked.get("plan", [])
-            pending = [(i + 1, s) for i, s in enumerate(plan) if "[ ]" in s]
-            ac = linked.get("acceptance_criteria", [])
-            pending_ac = [(i + 1, s) for i, s in enumerate(ac) if "[ ]" in s]
-            done_count = sum(1 for s in plan if "[x]" in s)
-            total_count = len(plan)
-            print()
-            print(f"┌─ TASK {task_id_arg}: {linked.get('title', '?')} ───")
-            print(f"  Status: {linked.get('status', '?')}  |  {done_count}/{total_count} steps done")
-            if pending:
-                print("  Pending steps:")
-                for num, step in pending:
-                    print(f"    [{num}] {step}")
-            else:
-                print("  All steps complete (or no steps defined).")
-            if pending_ac:
-                print("  Pending AC:")
-                for num, item in pending_ac:
-                    print(f"    [{num}] {item}")
-            notes = linked.get("notes", "")
-            if notes:
-                print(f"  Notes: {notes[:120]}{'...' if len(notes) > 120 else ''}")
-            print(f"  Full details: sessions.py task-show --id {task_id_arg}")
-            print("└─────────────────────────────────────────────────────")
-
-    # ── Deploy reminder (compact, 1 line) ──────────────────────────────────
-    if mode != "question":
-        print()
-        print(f"Deploy: deploy-docs -> prepare-deploy --session {sid} -> deploy --session {sid} --title \"...\" --end")
-
-    print()
-    print("== END ==")
+        record = {**repo, "task": args.task or "(pending)", "mode": mode, "tags": tags,
+                  "started": _now_iso(), "last_active": _now_iso(), "modified_files": [],
+                  "writing": None, "task_id": None, "linear_issue_id": None,
+                  "proof_video_required": bool(getattr(args, "require_proof_video", False)),
+                  "zellij_session": _session_zellij_owner(task_id),
+                  "codex_task_id": task_id or None,
+                  "codex_host": socket.gethostname() if task_id else None,
+                  "binding_mode": "legacy_grandfathered", "auto_integration_policy": "disabled"}
+        sid, _, _, _, created = register_session_record(record)
+    if mode != "question" and repo["repo_kind"] == "control_plane":
+        ensure_session_worktree(sid)
+    data = _load_sessions()
+    record = data["sessions"][sid]
+    if getattr(args, "json", False):
+        print(json.dumps({"session_id": sid, "created": created,
+                          "workspace": str(_session_checkout_root(record)),
+                          "task": record.get("task", "")}))
+        return
+    print(f"Session {sid} ({'created' if created else 'reused'})")
+    print(f"Workspace: {_session_checkout_root(record)}")
+    print(f"Task: {str(record.get('task', ''))[:320]}")
+    if getattr(args, "full", False):
+        print(f"Tags: {', '.join(tags) or 'none'}")
+        print(f"Base: {(record.get('worktree') or {}).get('base_commit', '')}")
+        print("Read task-specific guidance under .claude/rules and docs/contributing.")
 
 
 def cmd_end(args: argparse.Namespace) -> None:
@@ -9529,19 +6901,11 @@ def cmd_end(args: argparse.Namespace) -> None:
     # ── Zellij cleanup ───────────────────────────────────────────────────
     # NEVER kill the zellij session the current process is attached to —
     # that would destroy the user's own terminal. Only kill spawned sub-sessions.
-    # OpenCode-bound records never own a zellij session. Keep this identity
-    # check for legacy records that captured the shared server's `code` name.
-    has_opencode_identity = bool(
-        session.get("opencode_session_id") or session.get("opencode_top_level_session_id")
-    )
-    # Codex and legacy records can name the shared terminal without an
-    # OpenCode chat id. Repository completion never owns that server session.
-    shared_zellij_names = {"code", os.environ.get("OPENCODE_ZELLIJ_SESSION", "code")}
+    # Never close a shared agent host; only a recorded task-owned terminal may end.
     candidate_zellij_name = session.get("zellij_session")
-    zellij_name = (
-        None if has_opencode_identity or candidate_zellij_name in shared_zellij_names
-        else candidate_zellij_name
-    )
+    # Historical shared-host metadata is read only to prevent accidentally closing it.
+    zellij_name = None if (session.get("codex_task_id") or session.get("opencode_session_id")
+                          or candidate_zellij_name in {"code", os.environ.get("OPENCODE_ZELLIJ_SESSION", "code")}) else candidate_zellij_name
     if zellij_name:
         current_zellij = os.environ.get("ZELLIJ_SESSION_NAME")
         if current_zellij == zellij_name:
@@ -9656,22 +7020,22 @@ def _command_invokes_openmates_cli(argv: list[str]) -> bool:
     return False
 
 
-def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
-    """Upload reviewed proof media for final OpenCode response embedding."""
+def _publish_proof_media(run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    """Upload reviewed proof media for final agent response embedding."""
     from spec_demo import require_review_receipt_integrity, resolve_run_artifact_path
 
     privacy_status = manifest.get("privacy", {}).get("status")
     if privacy_status not in PROOF_VIDEO_PRIVACY_ACCEPTED_STATUSES or manifest.get("review", {}).get("status") != "passed":
-        raise RuntimeError("OpenCode response-media publication requires finalized proof privacy state and frame review")
+        raise RuntimeError("agent response-media publication requires finalized proof privacy state and frame review")
     try:
         require_review_receipt_integrity(run_dir, manifest)
     except Exception as exc:
         raise RuntimeError(str(exc)) from exc
     audio_status = manifest.get("narration_audio", {}).get("status")
     if audio_status not in {"passed", "not_required"}:
-        raise RuntimeError("OpenCode response-media publication requires passed or intentionally disabled narration audio")
+        raise RuntimeError("agent response-media publication requires passed or intentionally disabled narration audio")
     if audio_status == "passed" and manifest.get("video_metadata", {}).get("has_audio") is not True:
-        raise RuntimeError("OpenCode response-media publication requires the requested narration audio track")
+        raise RuntimeError("agent response-media publication requires the requested narration audio track")
 
     video_path = resolve_run_artifact_path(run_dir, str(manifest.get("video_path") or ""))
     if not video_path.is_file():
@@ -9680,7 +7044,7 @@ def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str,
     alt = f"OpenMates proof video {manifest.get('spec_id', 'session-proof')}"
     command = [
         sys.executable,
-        str(PROJECT_ROOT / "scripts" / "opencode_response_media.py"),
+        str(PROJECT_ROOT / "scripts" / "response_media.py"),
         str(video_path),
     ]
     caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
@@ -9732,7 +7096,7 @@ def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str,
     publication.update(
         {
             "status": "delivered",
-            "delivery_kind": "opencode_response_media",
+            "delivery_kind": "response_media",
             "delivered_at": _now_iso(),
             "expires_in": result.get("expires_in"),
             "s3_key": result.get("key"),
@@ -9927,7 +7291,7 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
     run_dir = args.run_dir
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     try:
-        result = _publish_proof_media_to_opencode_response(run_dir, manifest)
+        result = _publish_proof_media(run_dir, manifest)
     except RuntimeError as exc:
         raise DemonstrationError(str(exc)) from exc
     _upsert_proof_video_record(session, run_dir, result)
@@ -9947,456 +7311,57 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
     )
 
 
-def _opencode_presence_store() -> PresenceStore:
-    return PresenceStore(
-        OPENCODE_PRESENCE_STATE_FILE,
-        lock_path=OPENCODE_PRESENCE_LOCK_FILE,
-        project_root=CONTROL_PLANE_ROOT,
-    )
 
 
-def _presence_identity_item(
-    session_id: str,
-    record: dict,
-    durable_sessions: dict,
-    child_roles: dict,
-) -> dict:
-    repository_session_id = ""
-    durable = {}
-    for candidate_id, candidate in durable_sessions.items():
-        if candidate.get("opencode_session_id") == session_id:
-            repository_session_id = candidate_id
-            durable = candidate
-            break
-    marker = child_roles.get(session_id, {}) if isinstance(child_roles, dict) else {}
-    parent_id = marker.get("parent_id") or record.get("parent_id", "")
-    return {
-        "opencode_session_id": session_id,
-        "repository_session_id": repository_session_id,
-        "parent_id": parent_id,
-        "top_level_session_id": record.get("top_level_session_id") or parent_id or session_id,
-        "child_role": marker.get("role") or record.get("child_role", "unknown"),
-        "execution": record.get("execution", "unknown"),
-        "attention": record.get("attention", "none"),
-        "turn": record.get("turn", "none"),
-        "task": durable.get("task", ""),
-        "worktree": durable.get("worktree", {}),
-        "workspace_state": durable.get("workspace_state", "unknown"),
-        "auto_integration": durable.get("auto_integration", {}),
-        "resource_wait": durable.get("resource_wait", {}),
-        "paths": record.get("paths", []),
-        "updated_at": record.get("updated_at", ""),
-    }
 
 
-def presence_status_view(
-    durable: dict,
-    presence: dict,
-    *,
-    include_all: bool = False,
-    conflicts_only: bool = False,
-    session_filter: str = "",
-) -> dict:
-    """Project durable identities onto current ephemeral OpenCode state."""
-    durable_sessions = durable.get("sessions", {})
-    child_roles = presence.get("child_roles", {})
-    items = {
-        session_id: _presence_identity_item(session_id, record, durable_sessions, child_roles)
-        for session_id, record in presence.get("sessions", {}).items()
-        if isinstance(record, dict)
-    }
-    view = {
-        "working": [],
-        "waiting_for_resource": [],
-        "waiting_for_user": [],
-        "idle_after_response": [],
-        "stopped_or_failed": [],
-        "conflicts": [],
-        "diagnostics": presence.get("diagnostics", []),
-    }
-    infrastructure = durable.get("infrastructure", {}) if isinstance(durable.get("infrastructure"), dict) else {}
-    docker_operations = list(infrastructure.get("docker_operations") or [])
-    persistent_docker_operations = _list_persistent_docker_operations()
-    if persistent_docker_operations:
-        docker_operations = persistent_docker_operations
-    active_docker_operation = _active_docker_operation_from_list(docker_operations)
-    view["infrastructure"] = {
-        "active_docker_operation": active_docker_operation,
-        "test_leases": list((infrastructure.get("test_leases") or {}).values()),
-        "recent_docker_operations": [
-            operation for operation in docker_operations
-            if isinstance(operation, dict) and operation.get("status") in DOCKER_OPERATION_TERMINAL_STATUSES
-        ][-DOCKER_OPERATION_HISTORY_LIMIT:],
-    }
-    for item in items.values():
-        resource_wait = item.get("resource_wait") if isinstance(item.get("resource_wait"), dict) else {}
-        resource_wait_live = (
-            resource_wait.get("status") == "waiting"
-            and resource_wait.get("heartbeat_at")
-            and _minutes_since(resource_wait["heartbeat_at"]) <= 3
-        )
-        if resource_wait_live:
-            view["waiting_for_resource"].append(item)
-        elif item["attention"].startswith("required_"):
-            view["waiting_for_user"].append(item)
-        elif item["execution"] in {"busy", "retrying"}:
-            view["working"].append(item)
-        elif item["execution"] == "idle" and item["turn"] == "completed":
-            view["idle_after_response"].append(item)
-        elif item["execution"] in {"stopped", "error"}:
-            view["stopped_or_failed"].append(item)
-    for section in ("working", "waiting_for_resource", "waiting_for_user", "idle_after_response", "stopped_or_failed"):
-        view[section].sort(key=lambda item: item["opencode_session_id"])
-
-    for path, lease in sorted(durable.get("edit_leases", {}).items()):
-        owner = durable_sessions.get(lease.get("session_id", ""), {}) if isinstance(lease, dict) else {}
-        owner_id = owner.get("opencode_session_id", "")
-        if owner_id and items.get(owner_id, {}).get("execution") in {"busy", "retrying"}:
-            view["conflicts"].append({"type": "edit_lease", "path": path, "owner_session_id": lease.get("session_id"), "opencode_session_id": owner_id})
-    for key, claims in sorted(presence.get("task_claims", {}).items()):
-        implementations = [claim for claim in claims if claim.get("role") == "implementation"]
-        if implementations:
-            view["conflicts"].append({"type": "task_claim", "key": key, "claims": implementations})
-
-    if include_all:
-        view["all"] = [
-            {
-                "repository_session_id": repository_session_id,
-                "opencode_session_id": info.get("opencode_session_id", ""),
-                "task": info.get("task", ""),
-                "worktree": info.get("worktree", {}),
-            }
-            for repository_session_id, info in sorted(durable_sessions.items())
-        ]
-    if session_filter:
-        selected_repository_id = session_filter if session_filter in durable_sessions else ""
-        selected_open_code_id = ""
-        if selected_repository_id:
-            selected_open_code_id = durable_sessions[selected_repository_id].get("opencode_session_id", "")
-        elif session_filter in items:
-            selected_open_code_id = session_filter
-            selected_repository_id = items[session_filter].get("repository_session_id", "")
-        selected = items.get(selected_open_code_id)
-        if selected is None and selected_repository_id:
-            info = durable_sessions[selected_repository_id]
-            selected = {
-                "repository_session_id": selected_repository_id,
-                "opencode_session_id": info.get("opencode_session_id", ""),
-                "task": info.get("task", ""),
-                "worktree": info.get("worktree", {}),
-            }
-        if selected is not None:
-            selected = {**selected, "children": [item for item in items.values() if item.get("parent_id") == selected.get("opencode_session_id")]}
-        view["session"] = selected
-    if conflicts_only:
-        return {"conflicts": view["conflicts"], "diagnostics": view["diagnostics"]}
-    return view
 
 
-def _safe_hours_since(iso_str: str) -> float | None:
-    if not iso_str:
-        return None
-    try:
-        return _hours_since(iso_str)
-    except (TypeError, ValueError):
-        return None
 
 
-def _session_open_reference(item: dict[str, Any]) -> str:
-    return str(item.get("repository_session_id") or item.get("opencode_session_id") or "")
 
 
-def _session_display_task(item: dict[str, Any], titles: dict[str, str]) -> str:
-    opencode_session_id = str(item.get("opencode_session_id") or "")
-    return str(item.get("task") or titles.get(opencode_session_id) or "(untitled)")
 
 
-def _sort_presence_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return sorted(items, key=lambda item: str(item.get("updated_at") or ""), reverse=True)
 
 
-def _append_presence_section(
-    lines: list[str],
-    title: str,
-    items: list[dict[str, Any]],
-    titles: dict[str, str],
-    *,
-    show_activity: bool = False,
-    limit: int = COORDINATION_SESSION_LIMIT,
-) -> None:
-    lines.append(f"{title} ({len(items)}):")
-    if not items:
-        lines.append("  none")
-        return
-    visible = items[:limit]
-    for item in visible:
-        repository_session_id = str(item.get("repository_session_id") or "unbound")
-        opencode_session_id = str(item.get("opencode_session_id") or "")
-        state = "/".join(
-            part for part in (str(item.get("execution") or "unknown"), str(item.get("turn") or "none")) if part
-        )
-        lines.append(
-            f"  {repository_session_id}  {_opencode_chat_session_label(opencode_session_id)}  "
-            f"{state}  {_session_display_task(item, titles)}"
-        )
-        if show_activity:
-            lines.append(f"    Active task: {_opencode_current_activity_label(opencode_session_id)}")
-        open_reference = _session_open_reference(item)
-        if open_reference:
-            lines.append(f"    Open: sessions.py chat read {open_reference}")
-    if len(items) > len(visible):
-        lines.append(f"  ... +{len(items) - len(visible)} more (run: sessions.py status)")
 
 
-def _active_lock_lines(locks: dict[str, Any]) -> list[str]:
-    active = []
-    for lock_name, lock in sorted(locks.items()):
-        if not isinstance(lock, dict) or lock.get("status") != "IN_PROGRESS":
-            continue
-        claimed_by = lock.get("claimed_by") or "unknown"
-        since = lock.get("since") or "unknown"
-        phase = f", phase {lock.get('phase')}" if lock.get("phase") else ""
-        active.append(f"  {lock_name}: held by {claimed_by} since {since}{phase}")
-    return active or ["  none"]
 
 
-def _edit_lease_summary_lines(edit_leases: dict[str, Any]) -> list[str]:
-    if not edit_leases:
-        return ["  none"]
-    by_owner: dict[str, int] = {}
-    for lease in edit_leases.values():
-        if not isinstance(lease, dict):
-            continue
-        owner = str(lease.get("session_id") or "unknown")
-        by_owner[owner] = by_owner.get(owner, 0) + 1
-    if not by_owner:
-        return ["  none"]
-    return [f"  {owner} holds {count} file{'s' if count != 1 else ''}" for owner, count in sorted(by_owner.items())]
 
 
-def _format_coordination_section(session_id: str, data: dict[str, Any], view: dict[str, Any]) -> str:
-    working = _sort_presence_items(list(view.get("working") or []))
-    waiting_for_resource = _sort_presence_items(list(view.get("waiting_for_resource") or []))
-    waiting = _sort_presence_items(list(view.get("waiting_for_user") or []))
-    completed = _sort_presence_items(
-        [
-            item for item in list(view.get("idle_after_response") or [])
-            if (hours := _safe_hours_since(str(item.get("updated_at") or ""))) is not None
-            and hours <= COORDINATION_COMPLETED_HOURS
-        ]
-    )
-    visible_session_ids = [
-        str(item.get("opencode_session_id") or "")
-        for item in [*working, *waiting_for_resource, *waiting, *completed]
-        if item.get("opencode_session_id")
-    ]
-    titles = _opencode_session_titles(visible_session_ids)
-    lines: list[str] = []
-    _append_presence_section(lines, "Working now", working, titles, show_activity=True)
-    lines.append("")
-    _append_presence_section(lines, "Waiting for shared resource", waiting_for_resource, titles)
-    lines.append("")
-    _append_presence_section(lines, "Waiting for user", waiting, titles)
-    lines.append("")
-    _append_presence_section(lines, f"Completed in last {COORDINATION_COMPLETED_HOURS}h", completed, titles)
-    lines.append("")
-    lines.append("Locks:")
-    lines.extend(_active_lock_lines(data.get("locks", {})))
-    lines.append("")
-    lines.append("Edit leases:")
-    lines.extend(_edit_lease_summary_lines(data.get("edit_leases", {})))
-    conflicts = view.get("conflicts") or []
-    lines.append("")
-    if conflicts:
-        lines.append(f"Possible conflicts: {len(conflicts)} active claim(s); details: sessions.py status --conflicts")
-    else:
-        lines.append(f"Possible conflicts: none for session {session_id}")
-    return _box_section("COORDINATION", lines)
 
 
-def _format_status_session_card(selected: dict[str, Any] | None, locks: dict[str, Any], edit_leases: dict[str, Any]) -> str:
-    if selected is None:
-        return "Session: not found\n"
-    opencode_session_id = str(selected.get("opencode_session_id") or "")
-    titles = _opencode_session_titles([opencode_session_id])
-    repository_session_id = str(selected.get("repository_session_id") or "unbound")
-    execution = str(selected.get("execution") or "unknown")
-    turn = str(selected.get("turn") or "none")
-    attention = str(selected.get("attention") or "none")
-    worktree = selected.get("worktree") if isinstance(selected.get("worktree"), dict) else {}
-    worktree_status = worktree.get("status") or "none"
-    worktree_path = worktree.get("path") or "none"
-    active_locks = [name for name, lock in locks.items() if isinstance(lock, dict) and lock.get("status") == "IN_PROGRESS"]
-    owned_leases = [path for path, lease in edit_leases.items() if isinstance(lease, dict) and lease.get("session_id") == repository_session_id]
-    resource_wait = selected.get("resource_wait") if isinstance(selected.get("resource_wait"), dict) else {}
-    if resource_wait.get("status") == "waiting" and resource_wait.get("heartbeat_at") and _minutes_since(resource_wait["heartbeat_at"]) <= 3:
-        blocker = (
-            f"waiting for {resource_wait.get('resource', 'shared resource')} "
-            f"held by {resource_wait.get('owner_session_id') or '?'}"
-        )
-    elif active_locks:
-        blocker = f"active lock(s): {', '.join(sorted(active_locks))}"
-    elif attention.startswith("required_"):
-        blocker = f"user input required ({attention})"
-    else:
-        blocker = "none"
-    open_reference = repository_session_id if repository_session_id != "unbound" else opencode_session_id
-    lines = [
-        f"Session {repository_session_id}",
-        f"  State: {execution}/{turn}; attention={attention}",
-        f"  Task: {_session_display_task(selected, titles)}",
-        f"  OpenCode: {opencode_session_id or 'unknown'}",
-        f"  Worktree: {worktree_status}",
-        f"  Path: {worktree_path}",
-        f"  Current activity: {_opencode_current_activity_label(opencode_session_id) if execution in {'busy', 'retrying'} else 'none'}",
-        f"  Current blocker: {blocker}",
-        f"  Edit leases held: {len(owned_leases)}",
-        f"  Open chat: sessions.py chat read {open_reference}" if open_reference else "  Open chat: unavailable",
-    ]
-    children = selected.get("children") or []
-    if children:
-        lines.append(f"  Child sessions: {len(children)}")
-    return "\n".join(lines) + "\n"
 
 
 def cmd_status(args: argparse.Namespace) -> None:
-    """Show current OpenCode reality, with durable history available explicitly."""
+    """Read scoped durable coordination without pruning or writing shared state."""
     data = _load_sessions()
-    _prune_stale(data)
-    _prune_stale_locks(data)
-    _prune_checkpoint_lock_files(data)
-    _prune_stale_edit_leases(data)
-    _prune_stale_resource_waits(data)
-    _save_sessions(data)
-
     sessions = data.get("sessions", {})
-    locks = data.get("locks", {})
-    edit_leases = data.get("edit_leases", {})
-    try:
-        presence = _opencode_presence_store().snapshot()
-    except PresenceStoreError as error:
-        presence = {"sessions": {}, "task_claims": {}, "diagnostics": [{"code": "unavailable_store", "message": str(error)}]}
-    view = presence_status_view(
-        data,
-        presence,
-        include_all=getattr(args, "all", False),
-        conflicts_only=getattr(args, "conflicts", False),
-        session_filter=getattr(args, "session", "") or "",
-    )
-
-    # --json: emit raw sessions dict for machine consumers (e.g. opencode plugin)
+    if not getattr(args, "all", False):
+        try:
+            sid = _resolve_session_id(data, session_id=getattr(args, "session", "") or "")
+        except RuntimeError as exc:
+            print(str(exc) + "; use status --all for inventory", file=sys.stderr)
+            raise SystemExit(1)
+        sessions = {sid: sessions[sid]}
+    locks = {key: value for key, value in data.get("locks", {}).items()
+             if value.get("status") == "IN_PROGRESS"}
+    leases = {key: value for key, value in data.get("edit_leases", {}).items()
+              if value.get("session_id") in sessions}
     if getattr(args, "json", False):
-        dirty_by_root: dict[Path, set[str]] = {}
-        output = {"sessions": {}, "locks": locks, "edit_leases": edit_leases, "presence": presence, "live": view}
-        for sid, info in sessions.items():
-            root = _session_checkout_root(info)
-            if root not in dirty_by_root:
-                dirty_by_root[root] = _get_dirty_files(checkout_root=root, missing_ok=True)
-            dirty_files = dirty_by_root[root]
-            modified = info.get("modified_files", [])
-            uncommitted = [f for f in modified if f in dirty_files]
-            output["sessions"][sid] = {
-                **info,
-                "uncommitted_files": uncommitted,
-                "has_uncommitted": bool(uncommitted),
-            }
-        print(json.dumps(output))
+        print(json.dumps({"sessions": sessions, "locks": locks, "edit_leases": leases}))
         return
-
-    print("== LIVE SESSION STATUS ==")
-    print()
-
-    if view.get("session") is not None or getattr(args, "session", ""):
-        print(_format_status_session_card(view.get("session"), locks, edit_leases), end="")
-        print()
-    elif getattr(args, "conflicts", False):
-        print("Relevant active conflicts:")
-        if view["conflicts"]:
-            for conflict in view["conflicts"]:
-                print(f"  - {json.dumps(conflict, sort_keys=True)}")
-        else:
-            print("  none")
-        print()
-    else:
-        labels = (
-            ("working", "Currently working"),
-            ("waiting_for_resource", "Waiting for a shared resource"),
-            ("waiting_for_user", "Waiting for required user input"),
-            ("idle_after_response", "Idle after completed response"),
-            ("stopped_or_failed", "Stopped or failed"),
-        )
-        for key, label in labels:
-            print(f"{label} ({len(view[key])}):")
-            for item in view[key]:
-                repository = item.get("repository_session_id") or "unbound"
-                task = f" - {item['task']}" if item.get("task") else ""
-                print(f"  [{repository}] {item['opencode_session_id']} {item['execution']}/{item['turn']}{task}")
-            if not view[key]:
-                print("  none")
-            print()
-
-    if view.get("diagnostics"):
-        print("Presence diagnostics:")
-        for diagnostic in view["diagnostics"]:
-            print(f"  - {diagnostic.get('code', 'unknown')}: {diagnostic.get('message', '')}")
-        print()
-
-    # Locks
-    print("Locks:")
-    for lt, lv in locks.items():
-        status = lv.get("status", "NONE")
-        if status == "IN_PROGRESS":
-            print(
-                f"  {lt}: IN_PROGRESS "
-                f"(by {lv.get('claimed_by', '?')}, "
-                f"since {lv.get('since', '?')})"
-            )
-        else:
-            print(f"  {lt}: NONE")
-    print()
-
-    if edit_leases:
-        print("Edit leases:")
-        for filepath, lease in sorted(edit_leases.items()):
-            if not isinstance(lease, dict):
-                continue
-            print(
-                f"  {filepath}: held by {lease.get('session_id', '?')} "
-                f"(since {lease.get('since', '?')})"
-            )
-        print()
-
-    if getattr(args, "all", False):
-        print(f"Durable and historical sessions ({len(sessions)}):")
-        for sid, info in sorted(sessions.items()):
-            writing = info.get("writing")
-            mod_count = len(info.get("modified_files", []))
-            writing_str = f" WRITING: {writing}" if writing else ""
-            linked_task = info.get("task_id")
-            task_str = f" [task: {linked_task}]" if linked_task else ""
-            linear_id = info.get("linear_issue_id")
-            linear_str = f" [{linear_id}]" if linear_id else ""
-            worktree = info.get("worktree") if isinstance(info.get("worktree"), dict) else {}
-            lifecycle = f" [worktree: {worktree.get('status', 'none')}]" if worktree else ""
-            repo_str = f" [repo: {_session_repo_name(info)}]" if not _session_is_control_plane_repo(info) else ""
-            print(
-                f"  [{sid}] {info.get('task', '?')} "
-                f"(touched: {mod_count} files, advisory){task_str}{linear_str}{repo_str}{lifecycle}{writing_str}"
-            )
-            if info.get("modified_files"):
-                for f in info["modified_files"]:
-                    print(f"         - {f}")
-        print()
-
-    # Stale docs
-    stale = _check_stale_docs()
-    if stale:
-        print(f"Stale architecture docs ({len(stale)}):")
-        for s in stale:
-            print(
-                f"  ! {s['doc']} (doc: {s['doc_modified']}, "
-                f"code: {s['code_modified']})"
-            )
+    for sid, info in sorted(sessions.items()):
+        worktree = info.get("worktree") or {}
+        print(f"{sid} {worktree.get('status', info.get('mode', 'active'))}: {str(info.get('task', ''))[:320]}")
+        print(f"  workspace: {_session_checkout_root(info)}")
+        print(f"  tracked: {len(info.get('modified_files', []))}; writing: {info.get('writing') or 'none'}")
+    for key, value in locks.items():
+        print(f"lock {key}: {value.get('claimed_by', '?')}")
+    for key, value in leases.items():
+        print(f"lease {key}: {value.get('session_id', '?')}")
 
 
 def _product_runtime_diagnostics(checkout: Path = PRODUCT_RUNTIME_CHECKOUT) -> dict[str, Any]:
@@ -10578,6 +7543,8 @@ def cmd_update(args: argparse.Namespace) -> None:
 
     if args.task:
         data["sessions"][sid]["task"] = args.task
+    if getattr(args, "require_proof_video", False):
+        data["sessions"][sid]["proof_video_required"] = True
     data["sessions"][sid]["last_active"] = _now_iso()
     _save_sessions(data)
     print(f"Session {sid} updated.")
@@ -10683,29 +7650,18 @@ def _resolve_session_from_zellij(sessions: dict) -> Optional[str]:
 
 
 def _resolve_session_identity(sessions: dict) -> Optional[str]:
-    """Prefer the exact OpenCode chat identity over the legacy Zellij fallback."""
-    opencode_session_id = os.environ.get("OPENCODE_SESSION_ID")
-    if opencode_session_id:
-        matches = [
-            sid
-            for sid, info in sessions.items()
-            if info.get("opencode_session_id") == opencode_session_id
-        ]
-        if len(matches) == 1:
-            return matches[0]
-        return None
-    codex_task_id = _codex_task_identity()
-    if codex_task_id:
-        matched = session_for_codex({"sessions": sessions}, codex_task_id)
-        return matched[0] if matched else None
-    return _resolve_session_from_zellij(sessions)
+    """Resolve exact task/workspace identity; retain unique Claude terminal fallback."""
+    try:
+        return _resolve_session_id({"sessions": sessions})
+    except RuntimeError:
+        return None if _codex_task_identity() else _resolve_session_from_zellij(sessions)
 
 
 def cmd_track(args: argparse.Namespace) -> None:
     """Track one or more files as modified by this session (without write lock).
 
-    If --session is omitted, resolves the exact OpenCode chat identity first and
-    uses the legacy Zellij identity only when no OpenCode identity is present.
+    If --session is omitted, resolves the exact agent chat identity first and
+    uses the legacy Zellij identity only when no agent identity is present.
     If no unambiguous match exists, exits silently rather than ghost-attaching a
     file to the wrong session.
 
@@ -10918,12 +7874,12 @@ def cmd_check_write(args: argparse.Namespace) -> None:
     """Check if a file can be written (for PreToolUse hook). Exit 2 to block.
 
     Accepts file path via:
-      --file <path>   (OpenCode plugin passes it directly)
+      --file <path>   (agent plugin passes it directly)
       stdin JSON      (Claude Code hook passes {"tool_input": {"filePath": ...}})
     """
     data = _load_sessions()
 
-    # Prefer --file arg (OpenCode plugin); fall back to stdin JSON (Claude Code hook)
+    # Prefer --file arg (agent plugin); fall back to stdin JSON (Claude Code hook)
     filepath = getattr(args, "file", None) or ""
     if not filepath:
         try:
@@ -10959,12 +7915,12 @@ def cmd_check_write(args: argparse.Namespace) -> None:
 
 
 def cmd_edit_lease(args: argparse.Namespace) -> None:
-    """Acquire or release OpenCode edit leases around one edit tool call."""
+    """Acquire or release agent edit leases around one edit tool call."""
     try:
         if args.edit_lease_action == "acquire":
             result = acquire_edit_leases(
                 session_id=getattr(args, "session", None) or "",
-                opencode_session_id=getattr(args, "opencode_session", None) or "",
+
                 files=args.file or [],
             )
             print(json.dumps(result, sort_keys=True))
@@ -10972,7 +7928,7 @@ def cmd_edit_lease(args: argparse.Namespace) -> None:
         if args.edit_lease_action == "release":
             result = release_edit_leases(
                 session_id=getattr(args, "session", None) or "",
-                opencode_session_id=getattr(args, "opencode_session", None) or "",
+
                 files=args.file or None,
             )
             print(json.dumps(result, sort_keys=True))
@@ -10984,769 +7940,59 @@ def cmd_edit_lease(args: argparse.Namespace) -> None:
     sys.exit(1)
 
 
-def cmd_stale_read(args: argparse.Namespace) -> None:
-    """Record, check, or refresh OpenCode-only file-read hash state."""
-    if args.stale_read_action == "record":
-        record_opencode_stale_read(args.opencode_session, args.file)
-        return
-    if args.stale_read_action == "sync":
-        sync_opencode_stale_read(args.opencode_session, args.file)
-        return
-    error = opencode_stale_read_error(args.opencode_session, args.file)
-    if error:
-        print(error, file=sys.stderr)
-        sys.exit(2)
 
 
-def cmd_presence(args: argparse.Namespace) -> None:
-    """Update/query ephemeral presence and atomically manage task intent."""
-    store = _opencode_presence_store()
-    action = args.presence_action
-    try:
-        if action == "update":
-            payload = json.load(sys.stdin) if args.json_stdin else {}
-            print(json.dumps(store.update(payload), sort_keys=True))
-            return
-        if action == "show":
-            print(json.dumps(store.snapshot(expire=not args.no_expire), sort_keys=True))
-            return
-        if action == "child-role":
-            print(json.dumps(store.set_child_role(
-                args.session,
-                args.parent,
-                args.role,
-                if_unset=args.if_unset,
-            ), sort_keys=True))
-            return
-        if action == "claim-task":
-            result = store.claim_task(args.spec, args.task, args.owner, role=args.role, ttl_seconds=args.ttl)
-            print(json.dumps(result, sort_keys=True))
-            return
-        if action == "renew-task":
-            result = store.renew_task(args.spec, args.task, args.owner, ttl_seconds=args.ttl)
-            print(json.dumps(result, sort_keys=True))
-            return
-        if action == "release-task":
-            print(json.dumps(store.release_task(args.spec, args.task, args.owner), sort_keys=True))
-            return
-    except TaskClaimConflict as error:
-        print(f"BLOCKED: {error}", file=sys.stderr)
-        sys.exit(2)
-    except (PresenceStoreError, json.JSONDecodeError) as error:
-        print(f"Presence error: {error}", file=sys.stderr)
-        sys.exit(1)
-    print(f"Error: unknown presence action {action}", file=sys.stderr)
-    sys.exit(1)
 
 
 def _continuation_repository_session_id(data: dict, session_reference: str) -> str:
-    """Resolve a repository session from either short or OpenCode identity."""
-    if session_reference in data.get("sessions", {}):
-        return session_reference
-    for session_id, session in data.get("sessions", {}).items():
-        if isinstance(session, dict) and session.get("opencode_session_id") == session_reference:
-            return session_id
-    return ""
+    """Resolve repository identity without consulting retired transcript stores."""
+    return session_reference if session_reference in data.get("sessions", {}) else ""
 
 
-def _openmates_task_external_context_hash(opencode_session_id: str) -> str:
-    """Hash an external OpenCode identity before storing bridge metadata."""
-    return hashlib.sha256(
-        f"openmates-task-bridge-v1\0opencode\0{opencode_session_id}".encode("utf-8")
-    ).hexdigest()
 
 
-def _openmates_task_opencode_session_id(data: dict, session_reference: str) -> str:
-    """Resolve a bound chat, or accept a validated new top-level chat identity."""
-    repository_session_id = _continuation_repository_session_id(data, session_reference)
-    if repository_session_id:
-        opencode_session_id = str(
-            data["sessions"][repository_session_id].get("opencode_session_id") or ""
-        )
-        if OPENCODE_SESSION_ID_RE.fullmatch(opencode_session_id):
-            return opencode_session_id
-    return session_reference if OPENCODE_SESSION_ID_RE.fullmatch(session_reference) else ""
 
 
-def _openmates_task_cli_failure_message(result: subprocess.CompletedProcess) -> str:
-    """Extract one bounded, terminal-safe error message from CLI output."""
-    for candidate in (result.stdout, result.stderr):
-        if not candidate or len(candidate.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
-            continue
-        try:
-            failure_payload = json.loads(candidate)
-        except json.JSONDecodeError:
-            failure_payload = None
-        if isinstance(failure_payload, dict):
-            failure = failure_payload.get("error")
-            if isinstance(failure, dict) and isinstance(failure.get("message"), str):
-                return re.sub(r"[\x00-\x1f\x7f]+", " ", failure["message"]).strip()
-    return ""
 
 
-def _openmates_task_cli_failure_is_transient(result: subprocess.CompletedProcess, message: str) -> bool:
-    """Recognize API restart failures without retrying caller or authentication errors."""
-    combined = " ".join((message, result.stdout or "", result.stderr or "")).lower()
-    transient_signatures = (
-        "http 502",
-        "http 503",
-        "http 504",
-        "bad gateway",
-        "service unavailable",
-        "gateway timeout",
-        "econnrefused",
-        "connection refused",
-        "connection reset",
-        "socket hang up",
-        "fetch failed",
-    )
-    return any(signature in combined for signature in transient_signatures)
 
 
-def _run_openmates_task_cli(arguments: list[str]) -> dict:
-    """Execute one trusted personal-profile Task CLI command and parse bounded JSON."""
-    if not arguments or arguments[0] != "tasks":
-        raise RuntimeError("Task bridge accepts only trusted openmates tasks commands")
-    environment = dict(os.environ)
-    environment.update({
-        "OPENMATES_PROFILE": OPENMATES_TASK_BRIDGE_PROFILE,
-        "OPENMATES_ACCOUNT_GUARD": "required",
-        "OPENMATES_API_URL": OPENMATES_TASK_BRIDGE_API_URL,
-        "OPENMATES_STATE_DIR": "",
-    })
-    # Only encrypted, durable activity deliveries can safely repeat a write.
-    retry_delays = OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS if "--delivery-id" in arguments else ()
-    attempt_count = len(retry_delays) + 1
-    for attempt in range(attempt_count):
-        try:
-            result = subprocess.run(
-                ["openmates", *arguments],
-                cwd=str(CONTROL_PLANE_ROOT),
-                env=environment,
-                text=True,
-                capture_output=True,
-                timeout=120 if arguments[:3] == ["tasks", "activity", "search"] else OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS,
-                check=False,
-            )
-        except (OSError, subprocess.TimeoutExpired) as error:
-            raise RuntimeError(f"OpenMates Task CLI unavailable: {type(error).__name__}") from error
-        failure_message = _openmates_task_cli_failure_message(result)
-        if result.returncode == 0:
-            break
-        if (
-            attempt < len(retry_delays)
-            and _openmates_task_cli_failure_is_transient(result, failure_message)
-        ):
-            time.sleep(retry_delays[attempt])
-            continue
-        if any(marker in failure_message.lower() for marker in (
-            "passkey verification required", "session expired", "not logged in", "session validation failed",
-        )):
-            recovery = (
-                f"OPENMATES_PROFILE={OPENMATES_TASK_BRIDGE_PROFILE} openmates login "
-                f"--api-url {OPENMATES_TASK_BRIDGE_API_URL}"
-            )
-            raise RuntimeError(
-                f"OpenMates Task authentication required for profile {OPENMATES_TASK_BRIDGE_PROFILE}: "
-                f"{failure_message.replace('`openmates login`', '`' + recovery + '`')} "
-                f"Do not retry Task operations until `{recovery}` completes. "
-                "Logging into the default CLI profile does not repair this isolated profile."
-            )
-        if failure_message:
-            suffix = (
-                f" after {attempt_count} attempts"
-                if _openmates_task_cli_failure_is_transient(result, failure_message)
-                else ""
-            )
-            raise RuntimeError(f"OpenMates Task CLI failed{suffix}: {failure_message[:500]}")
-        raise RuntimeError(f"OpenMates Task CLI failed with exit status {result.returncode}")
-    if len(result.stdout.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
-        raise RuntimeError("OpenMates Task CLI returned an oversized JSON response")
-    try:
-        payload = json.loads(result.stdout)
-    except json.JSONDecodeError as error:
-        raise RuntimeError("OpenMates Task CLI returned invalid JSON") from error
-    if not isinstance(payload, dict):
-        raise RuntimeError("OpenMates Task CLI returned a non-object JSON response")
-    return payload
 
 
-def _validated_openmates_task_records(payload: dict, opencode_session_id: str) -> list[dict]:
-    """Validate and scope trusted CLI records without retaining decrypted text."""
-    records = payload.get("tasks")
-    if not isinstance(records, list):
-        raise RuntimeError("OpenMates Task CLI JSON is missing tasks")
-    if len(records) > 500:
-        raise RuntimeError("OpenMates Task CLI returned too many Tasks")
-    validated: list[dict] = []
-    for record in records:
-        if not isinstance(record, dict):
-            raise RuntimeError("OpenMates Task CLI returned an invalid Task record")
-        task_id = record.get("task_id")
-        short_id = record.get("short_id")
-        status = record.get("status")
-        version = record.get("version")
-        if not isinstance(task_id, str) or not task_id or not isinstance(short_id, str) or not short_id:
-            raise RuntimeError("OpenMates Task CLI returned a Task without stable identity")
-        if not isinstance(status, str) or status not in {"backlog", "todo", "in_progress", "blocked", "done"}:
-            raise RuntimeError(f"OpenMates Task CLI returned an invalid status for {short_id}")
-        if not isinstance(version, int) or version < 1:
-            raise RuntimeError(f"OpenMates Task CLI returned an invalid version for {short_id}")
-        if record.get("source") == "workflow_run" or task_id.startswith(("workflow-run:", "workflow-schedule:")):
-            continue
-        external_chat = record.get("external_chat")
-        if not isinstance(external_chat, dict):
-            raise RuntimeError(f"OpenMates Task CLI returned missing external context for {short_id}")
-        if external_chat.get("provider") != "opencode" or external_chat.get("id") != opencode_session_id:
-            continue
-        validated.append(dict(record))
-    return validated
 
 
-def _openmates_task_order(record: dict) -> tuple[int, str, str]:
-    position = record.get("position")
-    return (
-        int(position) if isinstance(position, (int, float)) else 0,
-        str(record.get("title") or ""),
-        str(record.get("task_id") or ""),
-    )
 
 
-def _openmates_task_is_waiting(record: dict) -> bool:
-    return (
-        str(record.get("queue_state") or "").lower() in OPENMATES_TASK_WAIT_QUEUE_STATES
-        or str(record.get("ai_execution_state") or "").lower() in OPENMATES_TASK_STOP_EXECUTION_STATES
-    )
 
 
-def _classify_openmates_task_snapshot(records: list[dict]) -> dict:
-    """Return one deterministic fail-closed scheduling decision."""
-    ordered = sorted(records, key=_openmates_task_order)
-    ai_tasks = [
-        record for record in ordered
-        if record.get("assignee_type") == "external_ai" and record.get("assignee_identity") == "opencode"
-    ]
-    active = [record for record in ai_tasks if record.get("status") == "in_progress"]
-    if len(active) > 1:
-        raise RuntimeError("OpenMates Task bridge found multiple active Tasks")
-    selected: dict | None
-    if active:
-        selected = active[0]
-        decision = "wait_blocked" if _openmates_task_is_waiting(selected) else "resume_active"
-    else:
-        blocked = [
-            record for record in ai_tasks
-            if record.get("status") == "blocked" or _openmates_task_is_waiting(record)
-        ]
-        runnable = [
-            record for record in ai_tasks
-            if record.get("status") in {"backlog", "todo"} and not _openmates_task_is_waiting(record)
-        ]
-        if blocked:
-            selected = blocked[0]
-            decision = "wait_blocked"
-        elif runnable:
-            selected = runnable[0]
-            decision = "activate_next"
-        else:
-            selected = None
-            decision = "no_work"
-    remaining = [
-        record for record in ordered
-        if record.get("status") in OPENMATES_TASK_OPEN_STATUSES and record is not selected
-    ]
-    return {"decision": decision, "active": selected, "remaining": remaining}
 
 
-def _openmates_task_context_from_payload(payload: dict, opencode_session_id: str) -> dict:
-    """Build request-only plaintext context from trusted CLI JSON."""
-    classified = _classify_openmates_task_snapshot(
-        _validated_openmates_task_records(payload, opencode_session_id)
-    )
-    active = classified.get("active")
-    active_context = None
-    if isinstance(active, dict):
-        active_context = {
-            key: active.get(key)
-            for key in (
-                "task_id", "short_id", "title", "description", "latest_instruction",
-                "status", "assignee_type", "assignee_identity", "queue_state", "blocked_reason_code",
-                "blocked_reason", "ai_execution_state", "priority", "version",
-            )
-        }
-    remaining = [
-        {
-            "short_id": str(record.get("short_id") or ""),
-            "title": str(record.get("title") or ""),
-            "status": str(record.get("status") or ""),
-        }
-        for record in classified.get("remaining", [])
-    ]
-    return {"decision": classified["decision"], "active": active_context, "remaining": remaining}
 
 
-def _openmates_task_activity_context(context: dict, opencode_session_id: str, cli_runner: Callable) -> dict:
-    """Attach bounded attributed activity; never persist decrypted comments."""
-    active = context.get("active")
-    context["fetched_at"] = _now_iso()
-    if not active:
-        return context
-    task_id = str(active["task_id"])
-    scope = ["--external-chat", f"opencode:{opencode_session_id}"]
-    history = cli_runner([
-        "tasks", "activity", "list", task_id, *scope, "--newest-first",
-        "--max-entries", str(OPENMATES_TASK_ACTIVITY_MAX_ENTRIES), "--flush-pending", "--as-assignee", "--json",
-    ])
-    records = history.get("entries")
-    if not isinstance(records, list):
-        raise RuntimeError("Task activity response is missing entries")
-    entries = []
-    budget = OPENMATES_TASK_ACTIVITY_MAX_CHARACTERS
-    truncated = bool(history.get("truncated")) or len(records) > OPENMATES_TASK_ACTIVITY_MAX_ENTRIES
-    for record in records[:OPENMATES_TASK_ACTIVITY_MAX_ENTRIES]:
-        if not isinstance(record, dict) or record.get("task_id") != task_id:
-            raise RuntimeError("Task activity response crossed task scope")
-        entry = {key: record.get(key) for key in (
-            "entry_id", "kind", "actor_type", "actor_identity", "actor_display_name", "created_at", "event_type",
-        )}
-        message = str(record.get("message") or "")
-        visible = message[:min(budget, OPENMATES_TASK_ACTIVITY_ENTRY_CHARACTERS)]
-        entry["message"] = visible
-        if len(visible) < len(message):
-            entry["text_truncated"] = True
-            truncated = True
-        budget -= len(visible)
-        entries.append(entry)
-        if budget <= 0:
-            truncated = truncated or len(entries) < len(records)
-            break
-    context["activity"] = {
-        "entries": list(reversed(entries)), "truncated": truncated,
-        "max_entries": OPENMATES_TASK_ACTIVITY_MAX_ENTRIES,
-        "search_command": shlex.join([
-            "env", f"OPENMATES_PROFILE={OPENMATES_TASK_BRIDGE_PROFILE}",
-            f"OPENMATES_API_URL={OPENMATES_TASK_BRIDGE_API_URL}", "openmates", "tasks", "activity", "search", task_id,
-            *scope, "--query", "SEARCH TEXT", "--max-entries", "200", "--json",
-        ]),
-        "search_tool": {"action": "activity_search", "task_id": task_id, "query": "SEARCH TEXT"},
-        "pending_delivery": history.get("delivery", {}).get("pending", 0) if isinstance(history.get("delivery"), dict) else 0,
-    }
-    return context
 
 
-def _openmates_task_context(
-    session_reference: str,
-    *,
-    cli_runner: Callable[[list[str]], dict] = _run_openmates_task_cli,
-) -> dict:
-    """Fetch one authoritative request-only Task snapshot for a top-level chat."""
-    data = _load_sessions()
-    opencode_session_id = _openmates_task_opencode_session_id(data, session_reference)
-    if not opencode_session_id:
-        return {"decision": "unbound", "active": None, "remaining": []}
-    payload = cli_runner(["tasks", "list", "--external-chat", f"opencode:{opencode_session_id}", "--json"])
-    context = _openmates_task_context_from_payload(payload, opencode_session_id)
-    owner_id = _continuation_repository_session_id(data, session_reference)
-    if context.get("active"):
-        context["active"]["decision_revision"] = _task_decision_revision(context["active"])
-    decisions = _workflow_decision_context(data["sessions"].get(owner_id, {}), context.get("active"))
-    if decisions:
-        context["scoped_decisions"] = decisions
-    return _openmates_task_activity_context(context, opencode_session_id, cli_runner)
 
 
-def _openmates_task_tool(
-    session_reference: str,
-    input_payload: dict,
-    *,
-    cli_runner: Callable[[list[str]], dict] = _run_openmates_task_cli,
-) -> dict:
-    """Execute one allowlisted typed Task operation scoped to a validated chat."""
-    if not isinstance(input_payload, dict):
-        raise RuntimeError("Task tool input must be a JSON object")
-    action = input_payload.get("action")
-    allowed_actions = {"context", "show", "create", "start", "edit", "block", "unblock", "done", "activity_add", "activity_search", "activity_flush"}
-    if action not in allowed_actions:
-        raise RuntimeError(f"unsupported Task tool action: {action}")
-
-    data = _load_sessions()
-    opencode_session_id = _openmates_task_opencode_session_id(data, session_reference)
-    if not opencode_session_id:
-        raise RuntimeError("Task tool requires a valid top-level OpenCode session")
-    scope = ["--external-chat", f"opencode:{opencode_session_id}"]
-
-    def text_field(name: str, *, required: bool = False, maximum: int = 10000) -> str:
-        value = input_payload.get(name)
-        if value is None and not required:
-            return ""
-        if not isinstance(value, str) or (required and not value.strip()):
-            raise RuntimeError(f"Task tool requires a non-empty {name}")
-        value = value.strip() if name in {"task_id", "title", "reason_code"} else value
-        if len(value) > maximum:
-            raise RuntimeError(f"Task tool {name} exceeds {maximum} characters")
-        return value
-
-    if action == "context":
-        payload = cli_runner(["tasks", "list", *scope, "--json"])
-        return _openmates_task_activity_context(
-            _openmates_task_context_from_payload(payload, opencode_session_id), opencode_session_id, cli_runner,
-        )
-
-    if action == "create":
-        command = ["tasks", "create", "--title", text_field("title", required=True, maximum=500)]
-        description = text_field("description")
-        if description:
-            command.extend(["--description", description])
-        assignee = input_payload.get("assignee", "external_ai")
-        if assignee not in {"external_ai", "user"}:
-            raise RuntimeError("Task tool assignee must be external_ai or user")
-        command.extend(["--assign", "external-ai" if assignee == "external_ai" else "user"])
-        status = input_payload.get("status")
-        if status is not None:
-            if status not in {"backlog", "todo", "in_progress", "blocked", "done"}:
-                raise RuntimeError("Task tool received an invalid status")
-            command.extend(["--status", str(status)])
-        command.extend([*scope, "--json"])
-        return cli_runner(command)
-
-    task_id = text_field("task_id", required=True, maximum=200)
-    if action == "show":
-        return cli_runner(["tasks", "show", task_id, *scope, "--json"])
-    if action == "activity_search":
-        return cli_runner([
-            "tasks", "activity", "search", task_id, "--query", text_field("query", required=True, maximum=500),
-            *scope, "--max-entries", "200", "--json",
-        ])
-    if action == "activity_flush":
-        return cli_runner(["tasks", "activity", "flush", task_id, "--as-assignee", *scope, "--json"])
-    if action == "activity_add":
-        message = text_field("message", required=True, maximum=10000)
-        delivery_id = hashlib.sha256(json.dumps([
-            opencode_session_id, task_id, text_field("milestone_id", maximum=200) or message,
-        ], ensure_ascii=False).encode("utf-8")).hexdigest()
-        return cli_runner([
-            "tasks", "activity", "add", task_id, "--message", message,
-            "--delivery-id", delivery_id, "--as-assignee", *scope, "--json",
-        ])
-    if action == "start":
-        # The generic status mutation is supported for AI-owned external-chat
-        # Tasks, while the specialized CLI `start` transition can reject that
-        # otherwise valid ownership/context combination.
-        return cli_runner(["tasks", "edit", task_id, "--status", "in_progress", *scope, "--json"])
-    if action == "edit":
-        command = ["tasks", "edit", task_id]
-        title = text_field("title", maximum=500)
-        description = text_field("description")
-        status = input_payload.get("status")
-        if title:
-            command.extend(["--title", title])
-        if description:
-            command.extend(["--description", description])
-        if status is not None:
-            if status not in {"backlog", "todo", "in_progress", "blocked", "done"}:
-                raise RuntimeError("Task tool received an invalid status")
-            command.extend(["--status", str(status)])
-        if len(command) == 3:
-            raise RuntimeError("Task edit requires title, description, or status")
-        command.extend([*scope, "--json"])
-        return cli_runner(command)
-    if action == "block":
-        reason_code = text_field("reason_code", required=True, maximum=100)
-        allowed_reasons = {
-            "needs_user_input", "waiting_for_approval", "missing_credentials",
-            "ambiguous_requirement", "external_dependency", "environment_unavailable",
-            "verification_failed", "other",
-        }
-        if reason_code not in allowed_reasons:
-            raise RuntimeError("Task tool received an invalid blocked reason code")
-        command = ["tasks", "block", task_id, "--reason-code", reason_code]
-        reason_text = text_field("reason_text")
-        if reason_text:
-            command.extend(["--reason-text", reason_text])
-        command.extend([*scope, "--json"])
-        return cli_runner(command)
-    if action == "done":
-        delivery = cli_runner(["tasks", "activity", "flush", task_id, "--as-assignee", *scope, "--json"])
-        if delivery.get("pending"):
-            raise RuntimeError("Task has pending Activity delivery; reconcile activity_flush before marking done")
-    return cli_runner(["tasks", str(action), task_id, *scope, "--json"])
 
 
-def _stage_openmates_task_reconciliation(session_reference: str, message_id: str) -> dict:
-    """Persist one privacy-minimal completed-response boundary for later idle reconciliation."""
-    if not message_id:
-        raise RuntimeError("Task reconciliation requires a completed assistant message id")
-
-    def mutate(data: dict) -> dict:
-        repository_session_id = _continuation_repository_session_id(data, session_reference)
-        if not repository_session_id:
-            return {"staged": False, "reason": "unbound"}
-        bridge = data["sessions"][repository_session_id].setdefault("task_bridge", {})
-        if bridge.get("pending_message_id") == message_id or bridge.get("last_reconciled_message_id") == message_id:
-            return {"staged": False, "reason": "duplicate"}
-        bridge["pending_message_id"] = message_id
-        bridge["pending_status"] = "ready"
-        bridge["updated_at"] = _now_iso()
-        return {"staged": True, "message_id": message_id}
-
-    return _mutate_sessions(mutate)
 
 
-def _claim_openmates_task_reconciliation(session_reference: str) -> dict | None:
-    def mutate(data: dict) -> dict | None:
-        repository_session_id = _continuation_repository_session_id(data, session_reference)
-        if not repository_session_id:
-            return None
-        session = data["sessions"][repository_session_id]
-        bridge = session.setdefault("task_bridge", {})
-        message_id = bridge.get("pending_message_id")
-        if not message_id or bridge.get("pending_status") != "ready":
-            return None
-        bridge["pending_status"] = "reconciling"
-        bridge["updated_at"] = _now_iso()
-        return {
-            "repository_session_id": repository_session_id,
-            "opencode_session_id": str(session.get("opencode_session_id") or ""),
-            "message_id": str(message_id),
-            "generation": int(bridge.get("generation") or 0) + 1,
-        }
-
-    return _mutate_sessions(mutate)
 
 
-def _finish_openmates_task_reconciliation(
-    session_reference: str,
-    claim: dict,
-    *,
-    decision: str,
-    task: dict | None,
-) -> dict:
-    def mutate(data: dict) -> dict:
-        repository_session_id = _continuation_repository_session_id(data, session_reference)
-        if not repository_session_id:
-            return {"stored": False}
-        bridge = data["sessions"][repository_session_id].setdefault("task_bridge", {})
-        if bridge.get("pending_message_id") != claim["message_id"]:
-            return {"stored": False, "reason": "superseded"}
-        bridge.update({
-            "external_context_hash": _openmates_task_external_context_hash(claim["opencode_session_id"]),
-            "decision": decision,
-            "task_id": str(task.get("task_id") or "") if task else "",
-            "task_version": int(task.get("version") or 0) if task else 0,
-            "generation": claim["generation"],
-            "last_reconciled_message_id": claim["message_id"],
-            "pending_message_id": "",
-            "pending_status": "reconciled",
-            "updated_at": _now_iso(),
-        })
-        return {"stored": True}
-
-    return _mutate_sessions(mutate)
 
 
-def _reconcile_openmates_tasks(
-    session_reference: str,
-    *,
-    cli_runner: Callable[[list[str]], dict] = _run_openmates_task_cli,
-) -> dict:
-    """Reconcile one staged response and record at most one idempotent continuation."""
-    claim = _claim_openmates_task_reconciliation(session_reference)
-    if claim is None:
-        return {"decision": "already_reconciled", "continuation": None}
-    opencode_session_id = claim["opencode_session_id"]
-    if not opencode_session_id:
-        _finish_openmates_task_reconciliation(session_reference, claim, decision="unbound", task=None)
-        return {"decision": "unbound", "continuation": None}
-    try:
-        payload = cli_runner(["tasks", "list", "--external-chat", f"opencode:{opencode_session_id}", "--json"])
-        classified = _classify_openmates_task_snapshot(
-            _validated_openmates_task_records(payload, opencode_session_id)
-        )
-        decision = classified["decision"]
-        selected = classified.get("active")
-        owner = _load_sessions().get("sessions", {}).get(claim["repository_session_id"], {})
-        scoped = _workflow_decision_context(owner, selected)
-        if any(item["surface"] == "task" for item in scoped):
-            decision = "user_stopped"
-        if decision == "activate_next" and isinstance(selected, dict):
-            activated = cli_runner([
-                "tasks", "edit", str(selected["task_id"]), "--status", "in_progress", "--json",
-            ]).get("task")
-            if not isinstance(activated, dict) or activated.get("task_id") != selected.get("task_id"):
-                raise RuntimeError("OpenMates Task activation returned an invalid record")
-            selected = activated
-        continuation = None
-        if decision in {"resume_active", "activate_next"} and isinstance(selected, dict):
-            operation_key = ":".join([
-                _openmates_task_external_context_hash(opencode_session_id),
-                str(selected["task_id"]),
-                str(selected["version"]),
-                str(claim["generation"]),
-            ])
-            continuation = _record_session_continuation(
-                session_reference,
-                operation_type="task_ready",
-                operation_key=operation_key,
-                decision_scope={"target":str(selected["task_id"]), "surface":"task", "revision":_task_decision_revision(selected)},
-                next_action=(
-                    "Continue the active OpenMates Task from the request-only Task context. "
-                    "Work on the smallest remaining step, then explicitly mark the Task done or block it with a reason."
-                ),
-            )
-        _finish_openmates_task_reconciliation(
-            session_reference,
-            claim,
-            decision=decision,
-            task=selected if isinstance(selected, dict) else None,
-        )
-        return {"decision": decision, "continuation": continuation}
-    except Exception:
-        _finish_openmates_task_reconciliation(session_reference, claim, decision="failed_closed", task=None)
-        raise
 
 
-def cmd_task_bridge(args: argparse.Namespace) -> None:
-    """Expose the privacy-minimal Task bridge to the verified OpenCode hook."""
-    try:
-        if args.task_bridge_action == "stage":
-            result = _stage_openmates_task_reconciliation(args.session, args.message_id)
-        elif args.task_bridge_action == "context":
-            result = _openmates_task_context(args.session)
-        elif args.task_bridge_action == "reconcile":
-            result = _reconcile_openmates_tasks(args.session)
-        elif args.task_bridge_action == "tool":
-            result = _openmates_task_tool(args.session, json.load(sys.stdin))
-        else:
-            raise RuntimeError(f"unknown task bridge action: {args.task_bridge_action}")
-    except (RuntimeError, json.JSONDecodeError) as error:
-        print(f"Task bridge error: {error}", file=sys.stderr)
-        sys.exit(1)
-    print(json.dumps({"task_bridge": result}, sort_keys=True))
 
 
-def _safe_task_handoff_identifier(value: str, field_name: str, *, max_length: int = 512) -> str:
-    normalized = str(value or "").strip()
-    if not normalized or len(normalized) > max_length or re.search(r"[\x00-\x1f\x7f]", normalized):
-        raise RuntimeError(f"Task handoff requires a safe {field_name}")
-    return normalized
 
 
-def _openmates_task_coordinator_handoff_key(
-    *,
-    coordinator_session: str,
-    task_id: str,
-    task_version: int,
-    assignee_type: str,
-    assignee_identity: str,
-) -> str:
-    subject = {
-        "assignee_identity": assignee_identity,
-        "assignee_type": assignee_type,
-        "coordinator_session": coordinator_session,
-        "task_id": task_id,
-        "task_version": task_version,
-    }
-    encoded = json.dumps(subject, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
 
 
-def _publish_openmates_task_coordinator_handoff(
-    *,
-    coordinator_session: str,
-    task_id: str,
-    task_version: int,
-    assignee_type: str = "external_ai",
-    assignee_identity: str = "opencode",
-    source_surface: str = "web",
-    api_request: Callable[..., dict] = control_plane_api_request,
-) -> dict:
-    """Publish one privacy-minimal coordinator event for an OpenCode assignment."""
-    coordinator_session = _safe_task_handoff_identifier(coordinator_session, "coordinator session")
-    task_id = _safe_task_handoff_identifier(task_id, "task id")
-    if task_version < 1:
-        raise RuntimeError("Task handoff requires a positive task version")
-    if assignee_type != "external_ai" or assignee_identity != "opencode":
-        raise RuntimeError("Task handoff only supports external_ai/opencode assignment")
-    if source_surface not in TASK_COORDINATOR_HANDOFF_SOURCE_SURFACES:
-        raise RuntimeError(f"unsupported Task handoff source surface: {source_surface}")
-    handoff_key = _openmates_task_coordinator_handoff_key(
-        coordinator_session=coordinator_session,
-        task_id=task_id,
-        task_version=task_version,
-        assignee_type=assignee_type,
-        assignee_identity=assignee_identity,
-    )
-    query = urllib.parse.urlencode({"target_type": "session", "target_key": coordinator_session, "after_cursor": 0})
-    existing_events = api_request("GET", f"/v1/coordination/events?{query}").get("events") or []
-    for event in existing_events:
-        payload = event.get("payload") if isinstance(event, dict) else None
-        if (
-            isinstance(payload, dict)
-            and event.get("event_type") == "task.changed"
-            and event.get("subject_key") == task_id
-            and payload.get("handoff_key") == handoff_key
-        ):
-            return {"published": False, "reused": True, "handoff_key": handoff_key, "event": event}
-    response = api_request(
-        "POST",
-        "/v1/coordination/events",
-        data={
-            "event_type": "task.changed",
-            "target_type": "session",
-            "target_key": coordinator_session,
-            "subject_key": task_id,
-            "payload": {
-                "state": "ready",
-                "change_type": "external_ai_assignment",
-                "assignee_type": assignee_type,
-                "assignee_identity": assignee_identity,
-                "task_version": task_version,
-                "source_surface": source_surface,
-                "handoff_key": handoff_key,
-            },
-        },
-    )
-    event = response.get("event")
-    if not isinstance(event, dict):
-        raise RuntimeError("Task handoff publish returned an invalid event")
-    return {"published": True, "reused": False, "handoff_key": handoff_key, "event": event}
 
 
-def cmd_task_handoff(args: argparse.Namespace) -> None:
-    """Publish safe Task assignment handoffs to the local coordinator."""
-    try:
-        if args.task_handoff_action == "publish":
-            result = _publish_openmates_task_coordinator_handoff(
-                coordinator_session=args.coordinator_session,
-                task_id=args.task_id,
-                task_version=args.task_version,
-                assignee_type=args.assignee_type,
-                assignee_identity=args.assignee_identity,
-                source_surface=args.source_surface,
-            )
-        else:
-            raise RuntimeError(f"unknown task handoff action: {args.task_handoff_action}")
-    except RuntimeError as exc:
-        print(f"Task handoff error: {exc}", file=sys.stderr)
-        sys.exit(1)
-    print(json.dumps({"task_handoff": result}, sort_keys=True))
 
 
-def _opencode_ascending_message_id(*, timestamp_ms: int | None = None, entropy: str = "") -> str:
-    """Create an OpenCode message ID that preserves chronological storage order.
-
-    OpenCode streams messages by lexicographic ID, not by the database timestamp.
-    Supplying a plain digest as ``messageID`` therefore corrupts the effective
-    conversation order whenever that digest sorts after native IDs. Mirror the
-    native 48-bit timestamp prefix and keep a stable base62 suffix for retries.
-    """
-    created_ms = int(timestamp_ms if timestamp_ms is not None else time.time_ns() // 1_000_000)
-    # The native implementation writes the low 48 bits into a six-byte buffer.
-    encoded_time = (created_ms * 0x1000 + 1) & ((1 << 48) - 1)
-    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-    digest = hashlib.sha256((entropy or secrets.token_hex(16)).encode("utf-8")).digest()
-    suffix = "".join(alphabet[value % len(alphabet)] for value in digest[:14])
-    return f"msg_{encoded_time:012x}{suffix}"
 
 
 def _task_decision_revision(task: dict) -> str:
@@ -11791,11 +8037,7 @@ def cmd_decision(args: argparse.Namespace) -> None:
     if not session_id:
         raise RuntimeError("Decision requires an existing owning session")
     session = data["sessions"][session_id]
-    source_session = args.source_session or session.get("opencode_session_id")
-    if args.provider == "opencode" and source_session != session.get(
-        "opencode_session_id"
-    ):
-        raise RuntimeError("Decision source must belong to this top-level chat")
+    source_session = args.source_session or _codex_task_identity()
     if args.provider == "codex" and source_session != os.environ.get("CODEX_THREAD_ID"):
         raise RuntimeError(
             "Codex decision source must match the current CODEX_THREAD_ID"
@@ -11860,399 +8102,30 @@ def cmd_decision(args: argparse.Namespace) -> None:
     print(json.dumps({"decision": _mutate_sessions(record)}, sort_keys=True))
 
 
-def _record_session_continuation(
-    session_reference: str,
-    *,
-    operation_type: str,
-    operation_key: str,
-    next_action: str,
-    decision_scope: dict | None = None,
-) -> dict:
-    """Persist one allowlisted continuation, replacing only the same operation."""
-    if operation_type not in CONTINUATION_ALLOWED_TYPES:
-        raise RuntimeError(f"unsupported continuation operation type: {operation_type}")
-    if not operation_key or not next_action:
-        raise RuntimeError("continuation requires operation key and next action")
-
-    def mutate(data: dict) -> dict:
-        repository_session_id = _continuation_repository_session_id(data, session_reference)
-        if not repository_session_id:
-            raise RuntimeError(f"session not found for continuation: {session_reference}")
-        session = data["sessions"][repository_session_id]
-        now = _now_iso()
-        current = session.get("continuation")
-        if (
-            isinstance(current, dict)
-            and current.get("operation_type") == operation_type
-            and current.get("operation_key") == operation_key
-            and current.get("status") in {"ready", "delivering", "delivered"}
-        ):
-            return dict(current)
-        record = {
-            "operation_type": operation_type,
-            "operation_key": operation_key,
-            "next_action": next_action,
-            "status": "ready",
-            "attempts": 0,
-            "created_at": now,
-            "updated_at": now,
-        }
-        if decision_scope:
-            record["decision_scope"] = decision_scope
-        session["continuation"] = record
-        return dict(record)
-
-    return _mutate_sessions(mutate)
 
 
-def _claim_session_continuation(session_reference: str) -> dict | None:
-    """Claim one ready continuation and derive its idempotent OpenCode message ID."""
-    def mutate(data: dict) -> dict | None:
-        repository_session_id = _continuation_repository_session_id(data, session_reference)
-        if not repository_session_id:
-            return None
-        session = data["sessions"][repository_session_id]
-        record = session.get("continuation")
-        if (not isinstance(record, dict)
-            or record.get("operation_type") not in CONTINUATION_ALLOWED_TYPES
-            or record.get("status") != "ready"):
-            return None
-        scope = record.get("decision_scope")
-        if scope:
-            matching_receipt = workflow_decisions.matching_receipt
-            receipt = matching_receipt(session.get("decisions", []), preserve_stop=True, **scope)
-            if receipt:
-                record.update(status="cancelled", decision_id=receipt["id"])
-                return None
-        attempts = int(record.get("attempts") or 0)
-        if attempts >= CONTINUATION_MAX_DELIVERY_ATTEMPTS:
-            record["status"] = "failed"
-            record["updated_at"] = _now_iso()
-            return None
-        generation = attempts + 1
-        identity = ":".join(
-            [repository_session_id, str(record.get("operation_type")), str(record.get("operation_key")), str(generation)]
-        )
-        record["status"] = "delivering"
-        record["attempts"] = generation
-        record["message_id"] = _opencode_ascending_message_id(entropy=identity)
-        record["updated_at"] = _now_iso()
-        return {**record, "repository_session_id": repository_session_id}
-
-    return _mutate_sessions(mutate)
 
 
-def _finish_session_continuation(session_reference: str, *, delivered: bool) -> dict | None:
-    """Acknowledge delivery or make a transport failure retryable once."""
-    def mutate(data: dict) -> dict | None:
-        repository_session_id = _continuation_repository_session_id(data, session_reference)
-        if not repository_session_id:
-            return None
-        record = data["sessions"][repository_session_id].get("continuation")
-        if not isinstance(record, dict) or record.get("status") != "delivering":
-            return dict(record) if isinstance(record, dict) else None
-        record["status"] = "delivered" if delivered else "ready"
-        record["updated_at"] = _now_iso()
-        return dict(record)
-
-    return _mutate_sessions(mutate)
 
 
-def _cancel_session_continuation(session_reference: str) -> bool:
-    """Cancel a ready continuation after the chat already continued itself."""
-    def mutate(data: dict) -> bool:
-        repository_session_id = _continuation_repository_session_id(data, session_reference)
-        if not repository_session_id:
-            return False
-        session = data["sessions"][repository_session_id]
-        record = session.get("continuation")
-        if not isinstance(record, dict) or record.get("status") != "ready":
-            return False
-        record["status"] = "cancelled"
-        record["updated_at"] = _now_iso()
-        return True
-
-    return bool(_mutate_sessions(mutate))
 
 
-def cmd_continuation(args: argparse.Namespace) -> None:
-    """Record and deliver bounded deterministic OpenCode continuations."""
-    try:
-        if args.continuation_action == "record":
-            result = _record_session_continuation(
-                args.session,
-                operation_type=args.operation_type,
-                operation_key=args.operation_key,
-                next_action=args.next_action,
-            )
-        elif args.continuation_action == "claim":
-            result = _claim_session_continuation(args.session)
-        elif args.continuation_action == "ack":
-            result = _finish_session_continuation(args.session, delivered=True)
-        elif args.continuation_action == "release":
-            result = _finish_session_continuation(args.session, delivered=False)
-        elif args.continuation_action == "cancel":
-            result = {"cancelled": _cancel_session_continuation(args.session)}
-        else:
-            raise RuntimeError(f"unknown continuation action: {args.continuation_action}")
-    except RuntimeError as exc:
-        print(f"Continuation error: {exc}", file=sys.stderr)
-        sys.exit(1)
-    print(json.dumps({"continuation": result}, sort_keys=True))
 
 
-def _record_session_media(
-    session_reference: str,
-    *,
-    artifact_type: str,
-    snippet: str,
-    artifact_key: str = "",
-    artifact_path: str = "",
-    subject_commit: str = "",
-    run_id: str = "",
-) -> dict:
-    """Persist a privacy-minimal response artifact until it is visibly delivered."""
-    if artifact_type not in {"video", "figma_image", "figma_export"}:
-        raise RuntimeError(f"unsupported response media type: {artifact_type}")
-    if not snippet:
-        raise RuntimeError("response media requires an exact snippet or delivery instruction")
-    snippet_hash = hashlib.sha256(snippet.encode("utf-8")).hexdigest()
-    stable_key = artifact_key or snippet_hash[:24]
-
-    def mutate(data: dict) -> dict:
-        repository_session_id = _continuation_repository_session_id(data, session_reference)
-        if not repository_session_id:
-            raise RuntimeError(f"session not found for response media: {session_reference}")
-        session = data["sessions"][repository_session_id]
-        artifacts = session.setdefault("response_media", {})
-        current = artifacts.get(stable_key)
-        if isinstance(current, dict):
-            if (
-                current.get("status") in {"pending", "delivering"}
-                and current.get("artifact_type") == "figma_export"
-                and artifact_type == "figma_image"
-            ):
-                current.update({
-                    "artifact_type": artifact_type,
-                    "artifact_path": artifact_path or current.get("artifact_path", ""),
-                    "snippet": snippet,
-                    "snippet_hash": snippet_hash,
-                    "subject_commit": subject_commit or current.get("subject_commit", ""),
-                    "run_id": run_id or current.get("run_id", ""),
-                    "status": "pending",
-                    "updated_at": _now_iso(),
-                })
-            return dict(current)
-        now = _now_iso()
-        record = {
-            "artifact_key": stable_key,
-            "artifact_type": artifact_type,
-            "artifact_path": artifact_path,
-            "snippet": snippet,
-            "snippet_hash": snippet_hash,
-            "subject_commit": subject_commit,
-            "run_id": run_id,
-            "status": "pending" if MEDIA_AUTOMATION_ENABLED else "quarantined",
-            "attempts": 0,
-            "created_at": now,
-            "updated_at": now,
-        }
-        artifacts[stable_key] = record
-        return dict(record)
-
-    return _mutate_sessions(mutate)
 
 
-def _canonical_response_media_text(value: object) -> str:
-    text = str(value or "").replace('\\"', '"')
-    return re.sub(r"\s+", " ", html.unescape(text)).strip()
 
 
-def _response_media_equivalence_key(record: dict) -> tuple[str, str]:
-    artifact_type = str(record.get("artifact_type") or "")
-    if artifact_type == "video":
-        return artifact_type, _canonical_response_media_text(record.get("snippet"))
-    if artifact_type == "figma_export":
-        return artifact_type, str(record.get("artifact_path") or record.get("snippet") or "").strip()
-    if artifact_type == "figma_image":
-        return artifact_type, _canonical_response_media_text(record.get("snippet"))
-    return artifact_type, str(record.get("artifact_key") or record.get("snippet") or "").strip()
 
 
-def _fail_session_media(session_reference: str, artifact_key: str, *, reason: str = "") -> dict | None:
-    """Retire an undeliverable media artifact without scheduling another prompt."""
-    def mutate(data: dict) -> dict | None:
-        repository_session_id = _continuation_repository_session_id(data, session_reference)
-        if not repository_session_id:
-            return None
-        artifacts = data["sessions"][repository_session_id].get("response_media")
-        record = artifacts.get(artifact_key) if isinstance(artifacts, dict) else None
-        if not isinstance(record, dict):
-            return None
-        record["status"] = "failed"
-        if reason:
-            record["failure_reason"] = reason
-        record["updated_at"] = _now_iso()
-        return dict(record)
-
-    return _mutate_sessions(mutate)
 
 
-def _claim_session_media(session_reference: str) -> dict | None:
-    """Claim the oldest pending media artifact with a deterministic message id."""
-    if not MEDIA_AUTOMATION_ENABLED:
-        return None
-
-    def mutate(data: dict) -> dict | None:
-        repository_session_id = _continuation_repository_session_id(data, session_reference)
-        if not repository_session_id:
-            return None
-        artifacts = data["sessions"][repository_session_id].get("response_media")
-        if not isinstance(artifacts, dict):
-            return None
-        all_records = [item for item in artifacts.values() if isinstance(item, dict)]
-        delivered_keys = {
-            _response_media_equivalence_key(item)
-            for item in all_records
-            if item.get("status") == "delivered"
-        }
-        candidates = sorted(
-            (item for item in artifacts.values() if isinstance(item, dict) and item.get("status") == "pending"),
-            key=lambda item: (str(item.get("created_at") or ""), str(item.get("artifact_key") or "")),
-        )
-        selected = []
-        seen_pending = set()
-        for item in candidates:
-            equivalence_key = _response_media_equivalence_key(item)
-            if equivalence_key in delivered_keys or equivalence_key in seen_pending:
-                item["status"] = "failed"
-                item["failure_reason"] = "duplicate response-media artifact"
-                item["updated_at"] = _now_iso()
-                continue
-            seen_pending.add(equivalence_key)
-            selected.append(item)
-        candidates = selected
-        if not candidates:
-            return None
-        record = candidates[0]
-        attempts = int(record.get("attempts") or 0)
-        if attempts >= MEDIA_DELIVERY_MAX_ATTEMPTS:
-            record["status"] = "failed"
-            record["updated_at"] = _now_iso()
-            return None
-        attempt = attempts + 1
-        identity = f"{repository_session_id}:media:{record.get('artifact_key')}:{attempt}"
-        record["attempts"] = attempt
-        record["status"] = "delivering"
-        record["message_id"] = _opencode_ascending_message_id(entropy=identity)
-        record["updated_at"] = _now_iso()
-        return {**record, "repository_session_id": repository_session_id}
-
-    return _mutate_sessions(mutate)
 
 
-def _quarantine_session_media(session_reference: str = "", *, reason: str = "recovery hotfix") -> dict:
-    """Retire every undelivered legacy media record without deleting forensic state."""
-    now = _now_iso()
-
-    def mutate(data: dict) -> dict:
-        repository_session_id = (
-            _continuation_repository_session_id(data, session_reference)
-            if session_reference
-            else ""
-        )
-        if session_reference and not repository_session_id:
-            raise RuntimeError(f"session not found for response media quarantine: {session_reference}")
-        selected = (
-            {repository_session_id: data["sessions"][repository_session_id]}
-            if repository_session_id
-            else data.get("sessions", {})
-        )
-        quarantined = 0
-        sessions_changed = 0
-        for session in selected.values():
-            artifacts = session.get("response_media") if isinstance(session, dict) else None
-            if not isinstance(artifacts, dict):
-                continue
-            changed = False
-            for record in artifacts.values():
-                if not isinstance(record, dict) or record.get("status") not in {"pending", "delivering"}:
-                    continue
-                record["status"] = "quarantined"
-                record["quarantine_reason"] = reason
-                record["quarantined_at"] = now
-                record["updated_at"] = now
-                quarantined += 1
-                changed = True
-            sessions_changed += int(changed)
-        return {
-            "quarantined": quarantined,
-            "sessions_changed": sessions_changed,
-            "reason": reason,
-            "quarantined_at": now,
-        }
-
-    return _mutate_sessions(mutate)
 
 
-def _finish_session_media(session_reference: str, artifact_key: str, *, delivered: bool) -> dict | None:
-    """Acknowledge visible delivery or allow one bounded retry."""
-    def mutate(data: dict) -> dict | None:
-        repository_session_id = _continuation_repository_session_id(data, session_reference)
-        if not repository_session_id:
-            return None
-        artifacts = data["sessions"][repository_session_id].get("response_media")
-        record = artifacts.get(artifact_key) if isinstance(artifacts, dict) else None
-        if not isinstance(record, dict):
-            return None
-        if delivered and record.get("status") in {"pending", "delivering"}:
-            record["status"] = "delivered"
-            record["updated_at"] = _now_iso()
-        elif not delivered and record.get("status") == "delivering":
-            record["status"] = "pending"
-            if not delivered and int(record.get("attempts") or 0) >= MEDIA_DELIVERY_MAX_ATTEMPTS:
-                record["status"] = "failed"
-            record["updated_at"] = _now_iso()
-        return dict(record)
-
-    return _mutate_sessions(mutate)
 
 
-def cmd_media(args: argparse.Namespace) -> None:
-    """Record and deliver required OpenCode response media."""
-    try:
-        if args.media_action == "quarantine":
-            result = _quarantine_session_media(args.session or "", reason=args.reason or "recovery hotfix")
-        elif args.media_action == "record":
-            result = _record_session_media(
-                args.session,
-                artifact_type=args.artifact_type,
-                snippet=args.snippet,
-                artifact_key=args.artifact_key or "",
-                artifact_path=args.artifact_path or "",
-                subject_commit=args.subject_commit or "",
-                run_id=args.run_id or "",
-            )
-        elif args.media_action == "claim":
-            result = _claim_session_media(args.session)
-        elif args.media_action in {"ack", "release"}:
-            result = _finish_session_media(
-                args.session,
-                args.artifact_key,
-                delivered=args.media_action == "ack",
-            )
-        elif args.media_action == "fail":
-            result = _fail_session_media(
-                args.session,
-                args.artifact_key,
-                reason=args.reason or "",
-            )
-        else:
-            raise RuntimeError(f"unknown media action: {args.media_action}")
-    except RuntimeError as exc:
-        print(f"Response media error: {exc}", file=sys.stderr)
-        sys.exit(1)
-    print(json.dumps({"media": result}, sort_keys=True))
 
 
 def _normalize_lock_type(raw: str) -> str:
@@ -13263,14 +9136,7 @@ def _set_session_resource_wait(session_id: str, lock_type: str, lock: dict) -> N
 
     def update(data: dict) -> None:
         sessions = data.setdefault("sessions", {})
-        repository_session_id = session_id if session_id in sessions else next(
-            (
-                candidate_id
-                for candidate_id, candidate in sessions.items()
-                if isinstance(candidate, dict) and candidate.get("opencode_session_id") == session_id
-            ),
-            "",
-        )
+        repository_session_id = session_id if session_id in sessions else ""
         if not repository_session_id:
             return
         session = sessions[repository_session_id]
@@ -13294,7 +9160,7 @@ def _clear_session_resource_wait(session_id: str, lock_type: str) -> None:
 
     def update(data: dict) -> None:
         for candidate_id, session in data.setdefault("sessions", {}).items():
-            if candidate_id != session_id and session.get("opencode_session_id") != session_id:
+            if candidate_id != session_id:
                 continue
             wait = session.get("resource_wait")
             if isinstance(wait, dict) and wait.get("resource") == lock_type and wait.get("waiter_pid") == os.getpid():
@@ -13348,17 +9214,9 @@ def _probe_health_url(url: str, *, timeout: int = API_HEALTH_PROBE_TIMEOUT_SECON
         return {"ok": False, "status_code": 0, "error": str(getattr(exc, "reason", None) or exc)}
 
 
-def _resource_wait_repository_session_id(data: dict, session_id: str) -> str:
-    """Resolve a repository session id for wait/incident status if possible."""
-    if not session_id:
-        return ""
-    sessions = data.setdefault("sessions", {})
-    if session_id in sessions:
-        return session_id
-    for candidate_id, candidate in sessions.items():
-        if isinstance(candidate, dict) and candidate.get("opencode_session_id") == session_id:
-            return candidate_id
-    return ""
+def _resource_wait_repository_session_id(data: dict, session_reference: str) -> str:
+    """Resolve repository identity without consulting retired transcript stores."""
+    return session_reference if session_reference in data.get("sessions", {}) else ""
 
 
 def _health_incident_live(incident: dict | None) -> bool:
@@ -13823,17 +9681,12 @@ def _playwright_spec_requires_proof_video(file: str) -> bool:
 
 
 def _requires_proof_video(session: dict, files: list[str]) -> bool:
-    if not files:
-        return False
-    if any(PROOF_VIDEO_EXAMPLE_CHAT_PATH_RE.search(f) for f in files):
-        return True
-    mode = str(session.get("mode") or "").strip().lower()
-    if mode == "feature" and _proof_video_runtime_files(files):
-        return True
-    if mode == "testing":
-        e2e_files = [f for f in files if PROOF_VIDEO_E2E_PATH_RE.search(f)]
-        return any(_playwright_spec_requires_proof_video(f) for f in e2e_files)
-    return False
+    """Proof videos are an explicit deliverable, never inferred from feature mode."""
+    relevant = _proof_video_runtime_files(files) or any(
+        PROOF_VIDEO_E2E_PATH_RE.search(path) or PROOF_VIDEO_EXAMPLE_CHAT_PATH_RE.search(path)
+        for path in files
+    )
+    return bool(session.get("proof_video_required") and relevant)
 
 
 def _proof_video_manifest_problems(
@@ -13894,7 +9747,7 @@ def _proof_video_manifest_problems(
         problems.append("caption evidence is missing")
     publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
     if delivery_required and publication.get("status") != "delivered":
-        problems.append("OpenCode response-media proof embed has not completed")
+        problems.append("agent response-media proof embed has not completed")
     return problems
 
 
@@ -14348,10 +10201,12 @@ def _run_deploy_gates(
         rc, stdout, stderr = _run_lint(files, checkout_root=checkout_root)
         if rc != 0:
             print("LINT FAILED — aborting deploy:", file=sys.stderr)
-            if stdout:
-                print(stdout, file=sys.stderr)
-            if stderr:
-                print(stderr, file=sys.stderr)
+            try:
+                from scripts.agent_output import diagnostic
+            except ModuleNotFoundError:
+                from agent_output import diagnostic
+            print(diagnostic("\n".join(part for part in (stdout, stderr) if part),
+                             CONTROL_PLANE_ROOT / ".git" / "agent-diagnostics"), file=sys.stderr)
             raise RuntimeError("lint gate failed")
         print("Lint: PASSED")
     elif lint_flags:
@@ -14479,7 +10334,7 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     # Deployment planning must stay a quick, non-blocking preview. The deploy
     # command and pre-commit hook run the authoritative lint gate; running the
     # same potentially multi-minute lint here caused callers with ordinary tool
-    # timeouts to be killed mid-turn and left OpenCode tool records stale.
+    # timeouts to be killed mid-turn and left agent tool records stale.
     if to_commit:
         lint_flags = _get_lint_flags(to_commit)
         if lint_flags and _session_is_control_plane_repo(session):
@@ -14700,7 +10555,7 @@ def _enforce_control_plane_deploy_protocol_compatible(origin_ref: str) -> None:
         raise RuntimeError(
             f"origin/dev requires control-plane deploy protocol v{required}, "
             f"but this runtime supports v{CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION}. "
-            "Restart OpenCode onto the current control plane before deploying."
+            "Use the current control-plane sessions.py for deployment."
         )
 
 
@@ -14978,6 +10833,7 @@ def _deploy_native_worktree(
     require_parity = getattr(args, "require_parity", False)
     integration: dict | None = None
     deploy_lock_held = False
+    admission = None
     commit_hash_full = ""
     source_sync_warning = ""
 
@@ -14988,6 +10844,13 @@ def _deploy_native_worktree(
         except ModuleNotFoundError:
             import reviewed_deploy
     try:
+        try:
+            from scripts.deploy_admission import admission_lock
+        except ModuleNotFoundError:
+            from deploy_admission import admission_lock
+        admission = admission_lock(CONTROL_PLANE_ROOT / ".git" / "openmates-deploy-admission.lock",
+                                   timeout=getattr(args, "lock_timeout", None) or 900)
+        admission.__enter__()
         prepared_base = _fetch_origin_dev_commit()
         if review:
             reviewed_deploy.verify_current_base(CONTROL_PLANE_ROOT, review, prepared_base)
@@ -15010,6 +10873,7 @@ def _deploy_native_worktree(
             )
         integration = _prepare_integration_worktree(*prepare_args, checkpoint_commit=checkpoint_commit)
 
+        rebuilds = 0
         while True:
             checkout_root = Path(integration["path"])
             _bootstrap_integration_for_files(checkout_root, to_commit)
@@ -15041,6 +10905,9 @@ def _deploy_native_worktree(
                 reviewed_deploy.verify_current_base(CONTROL_PLANE_ROOT, review, final_base)
                 reviewed_deploy.verify_source(Path(worktree_metadata["path"]), review)
             if final_base != integration["prepared_base"]:
+                rebuilds += 1
+                if rebuilds > 2:
+                    raise RuntimeError("External dev updates invalidated three preparations; retry after the other deployment finishes")
                 _release_session_lock("vercel_deploy", released_by=sid)
                 deploy_lock_held = False
                 print(
@@ -15123,6 +10990,8 @@ def _deploy_native_worktree(
         print(f"WORKTREE DEPLOY FAILED — {exc}", file=sys.stderr)
         sys.exit(1)
     finally:
+        if admission is not None:
+            admission.__exit__(None, None, None)
         if deploy_lock_held:
             _release_session_lock("vercel_deploy", released_by=sid)
         if integration:
@@ -15140,8 +11009,9 @@ def _deploy_native_worktree(
     print("== DEPLOYED ==")
     print(f"Commit: {commit_hash}")
     print(f"Files: {len(to_commit)}")
-    for relative_path in sorted(to_commit):
-        print(f"  {relative_path}")
+    if getattr(args, "full", False):
+        for relative_path in sorted(to_commit):
+            print(f"  {relative_path}")
     print("Branch: dev")
     _print_deployed_commit_handoff(commit_hash_full)
 
@@ -15431,7 +11301,6 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
     worktree_patch_id = _worktree_patch_id(worktree_metadata, to_commit) if worktree_metadata and to_commit else ""
     expected_patch_id = str(getattr(args, "expected_patch_id", "") or "")
-    expected_checkpoint_commit = str(getattr(args, "expected_checkpoint_commit", "") or "")
     if expected_patch_id and worktree_patch_id != expected_patch_id:
         print(
             "WORKTREE DEPLOY BLOCKED — checkpoint patch changed before integration. "
@@ -15439,18 +11308,6 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             file=sys.stderr,
         )
         sys.exit(1)
-    if expected_checkpoint_commit:
-        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
-        if (
-            auto.get("patch_id") != expected_patch_id
-            or auto.get("checkpoint_commit") != expected_checkpoint_commit
-            or not _checkpoint_ref_matches(sid, auto)
-        ):
-            print(
-                "WORKTREE DEPLOY BLOCKED — checkpoint metadata or retained ref changed before integration.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
     pending_worktree_commit = _pending_worktree_push_commit(
         sid,
         worktree_patch_id,
@@ -15919,10 +11776,6 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             sys.exit(2)
         print(json.dumps(result, sort_keys=True))
         return
-    if args.worktree_action == "submit-ready":
-        result = submit_ready_worktree(args.session, patch_id=args.patch_id, checkpoint_commit=args.checkpoint_commit)
-        print(json.dumps(result, sort_keys=True))
-        return
     if args.worktree_action == "root-dirty":
         try:
             result = list_root_dirty_files(path_prefix=args.path_prefix or "")
@@ -15936,7 +11789,7 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             result = import_root_dirty_file(
                 args.file,
                 session_id=args.session or "",
-                opencode_session_id=args.opencode_session or "",
+
             )
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
@@ -15956,32 +11809,6 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         print(f"Status: {metadata.get('status', 'active')}")
         print("Use this path as the working directory for source edits.")
         return
-    if args.worktree_action == "binding":
-        try:
-            result = record_worktree_binding(
-                opencode_session_id=args.opencode_session,
-                mode=args.mode,
-                directory=args.directory or "",
-                reason=args.reason or "",
-            )
-        except (RuntimeError, ValueError) as exc:
-            print(f"Error: {exc}", file=sys.stderr)
-            sys.exit(2)
-        print(json.dumps(result, sort_keys=True))
-        return
-    if args.worktree_action == "repair":
-        try:
-            if getattr(args, "restore_session", None):
-                if args.generation is not None or args.operation_id:
-                    raise ValueError("Binding recovery cannot use routing generation or operation-id options")
-                result = restore_original_worktree_binding(args.opencode_session, args.restore_session)
-            else:
-                result = repair_worktree_routing(args.opencode_session, expected_generation=args.generation, operation_id=args.operation_id)
-        except (RuntimeError, ValueError) as exc:
-            print(f"Error: {exc}", file=sys.stderr)
-            sys.exit(2)
-        print(json.dumps(result, sort_keys=True))
-        return
     if args.worktree_action == "refresh-base":
         try:
             result = refresh_session_worktree_base(args.session)
@@ -15989,32 +11816,6 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(2)
         print(json.dumps(result, sort_keys=True))
-        return
-    if args.worktree_action == "checkpoint":
-        try:
-            result = checkpoint_session_worktree(args.opencode_session, event=args.event, expected_generation=args.generation, operation_id=args.operation_id)
-        except (OSError, RuntimeError, ValueError) as exc:
-            print(f"Error: {exc}", file=sys.stderr)
-            sys.exit(1)
-        print(json.dumps(result, sort_keys=True))
-        return
-    if args.worktree_action == "activate":
-        try:
-            result = activate_session_worktree(args.opencode_session, expected_generation=args.generation, operation_id=args.operation_id)
-        except (OSError, RuntimeError, ValueError) as exc:
-            print(f"Error: {exc}", file=sys.stderr)
-            sys.exit(1)
-        print(json.dumps(result, sort_keys=True))
-        return
-    if args.worktree_action == "auto-integrate":
-        try:
-            result = auto_integrate_checkpoints(dry_run=args.dry_run)
-        except (OSError, RuntimeError, ValueError) as exc:
-            print(f"Error: {exc}", file=sys.stderr)
-            sys.exit(1)
-        print(json.dumps(result, indent=2, sort_keys=True))
-        if result["blocked"]:
-            sys.exit(1)
         return
     if args.worktree_action == "expire":
         try:
@@ -16046,31 +11847,6 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         print(f"Deleted safely classified stale worktrees: {len(deleted)}")
         for session_id in deleted:
             print(f"  - {session_id}")
-        return
-    if args.worktree_action == "deduplicate-chats":
-        try:
-            report = deduplicate_chat_worktrees(
-                target_ref=args.target,
-                apply=args.apply,
-            )
-        except (OSError, RuntimeError, ValueError) as exc:
-            print(f"Error: {exc}", file=sys.stderr)
-            sys.exit(1)
-        if args.format == "json":
-            print(json.dumps(report, indent=2, sort_keys=True))
-        else:
-            print("== WORKTREE CHAT DEDUPLICATION ==")
-            print(f"Target: {report['target_ref']} ({report['target_commit'][:10]})")
-            print(f"Duplicate chats: {report['duplicate_chat_count']}")
-            print(f"Planned removals: {len(report['remove'])}")
-            print(f"Deleted: {len(report['deleted'])}")
-            print(f"Checkpointed: {len(report['checkpointed'])}")
-            print(f"Blocked: {len(report['blocked'])}")
-            print(f"Unknown lineage: {len(report['lineage_unknown'])}")
-            for item in report["blocked"]:
-                print(f"  ! {item['session_id']}: {item['reason']}")
-        if report["blocked"]:
-            sys.exit(1)
         return
     if args.worktree_action == "reconcile":
         if args.idle_hours < WORKTREE_CLEANUP_IDLE_HOURS and not args.only:
@@ -16455,21 +12231,14 @@ def cmd_lint(args: argparse.Namespace) -> None:
 
 
 def cmd_deploy_docs(args: argparse.Namespace) -> None:
-    """Load deployment-phase instruction docs (git, deployment standards).
-
-    Call this before prepare-deploy/deploy to get the deployment docs
-    that were deferred during session start.
-    """
-    # Load all deploy-phase docs
+    """List deployment references; expand them only on explicit request."""
+    print("Deployment workflow: .claude/rules/deployment.md")
     for doc_name in sorted(DEPLOY_PHASE_DOCS):
-        doc_content = _load_doc_content(doc_name)
-        if doc_content:
-            print(f"== docs/contributing/{doc_name} ==")
-            print(doc_content.rstrip())
-            print(f"\n== END {doc_name} ==")
-        else:
-            print(f"[!] docs/contributing/{doc_name} not found")
-    print()
+        print(f"docs/contributing/{doc_name}")
+        if getattr(args, "full", False):
+            content = _load_doc_content(doc_name)
+            if content:
+                print(content.rstrip())
 
 
 # ---------------------------------------------------------------------------
@@ -17462,550 +13231,28 @@ def cmd_stale_docs(args: argparse.Namespace) -> None:
     print("== END STALE DOCS ==")
 
 
-def cmd_task_create(args: argparse.Namespace) -> None:
-    """Create a new task YAML file in .claude/tasks/."""
-    meta = _load_task_meta()
-    next_num = meta.get("next_id", 1)
-    task_id = f"t{next_num:03d}"
 
-    title = args.title
-    tags = [t.strip() for t in args.tags.split(",")] if getattr(args, "tags", None) else []
-    files_to_modify = list(getattr(args, "files", None) or [])
 
-    task: dict = {
-        "id": task_id,
-        "title": title,
-        "status": "in_progress",
-        "mode": getattr(args, "mode", None) or "feature",
-        "tags": tags,
-        "created": _now_iso(),
-        "updated": _now_iso(),
-        "session": getattr(args, "session", None) or "~",
-        "context": getattr(args, "context", None) or "",
-        "plan": [],
-        "acceptance_criteria": [],
-        "files_to_modify": files_to_modify,
-        "files_modified": [],
-        "notes": "",
-        "summary": "",
-    }
 
-    _save_task(task)
 
-    # Update meta
-    meta["next_id"] = next_num + 1
-    meta["last_id"] = task_id
-    _save_task_meta(meta)
 
-    # Link to session if provided
-    session_id = getattr(args, "session", None)
-    if session_id:
-        data = _load_sessions()
-        if session_id in data.get("sessions", {}):
-            data["sessions"][session_id]["task_id"] = task_id
-            _save_sessions(data)
 
-    path = _task_id_to_path(task_id)
-    print(f"Created task {task_id}: {title}")
-    print(f"  File: {path}")
-    print(f"  Add steps:    sessions.py task-step --id {task_id} --add \"[ ] Step description\"")
-    print(f"  Add AC:       sessions.py task-ac   --id {task_id} --add \"[ ] Acceptance criterion\"")
-    print(f"  Show:         sessions.py task-show --id {task_id}")
 
 
-def cmd_task_step(args: argparse.Namespace) -> None:
-    """Add or check off a plan step in a task file."""
-    task_id = args.id
-    task = _load_task(task_id)
-    if task is None:
-        print(f"Error: Task {task_id} not found.", file=sys.stderr)
-        sys.exit(1)
 
-    plan = task.get("plan", [])
 
-    if getattr(args, "add", None):
-        plan.append(args.add)
-        task["plan"] = plan
-        _save_task(task)
-        print(f"[{task_id}] Added step [{len(plan)}]: {args.add}")
 
-    elif getattr(args, "done", None) is not None:
-        idx = args.done - 1
-        if idx < 0 or idx >= len(plan):
-            print(f"Error: Step {args.done} out of range (1–{len(plan)}).", file=sys.stderr)
-            sys.exit(1)
-        step = plan[idx]
-        # Replace [ ] with [x]
-        if "[ ]" in step:
-            step = step.replace("[ ]", "[x]", 1)
-        elif "[x]" in step:
-            print(f"Step {args.done} is already checked off.")
-            return
-        else:
-            step = "[x] " + step
-        plan[idx] = step
-        task["plan"] = plan
-        _save_task(task)
-        print(f"[{task_id}] Checked off step {args.done}: {step}")
-    else:
-        print("Use --add \"<text>\" or --done <N>.", file=sys.stderr)
-        sys.exit(1)
 
 
-def cmd_task_ac(args: argparse.Namespace) -> None:
-    """Add or check off an acceptance criterion in a task file."""
-    task_id = args.id
-    task = _load_task(task_id)
-    if task is None:
-        print(f"Error: Task {task_id} not found.", file=sys.stderr)
-        sys.exit(1)
 
-    ac = task.get("acceptance_criteria", [])
 
-    if getattr(args, "add", None):
-        ac.append(args.add)
-        task["acceptance_criteria"] = ac
-        _save_task(task)
-        print(f"[{task_id}] Added AC [{len(ac)}]: {args.add}")
 
-    elif getattr(args, "done", None) is not None:
-        idx = args.done - 1
-        if idx < 0 or idx >= len(ac):
-            print(f"Error: AC {args.done} out of range (1–{len(ac)}).", file=sys.stderr)
-            sys.exit(1)
-        item = ac[idx]
-        if "[ ]" in item:
-            item = item.replace("[ ]", "[x]", 1)
-        elif "[x]" in item:
-            print(f"AC {args.done} is already checked off.")
-            return
-        else:
-            item = "[x] " + item
-        ac[idx] = item
-        task["acceptance_criteria"] = ac
-        _save_task(task)
-        print(f"[{task_id}] Checked off AC {args.done}: {item}")
-    else:
-        print("Use --add \"<text>\" or --done <N>.", file=sys.stderr)
-        sys.exit(1)
 
 
-def cmd_task_show(args: argparse.Namespace) -> None:
-    """Print full task details with numbered steps."""
-    task_id = args.id
-    task = _load_task(task_id)
-    if task is None:
-        print(f"Error: Task {task_id} not found.", file=sys.stderr)
-        sys.exit(1)
 
-    plan = task.get("plan", [])
-    ac = task.get("acceptance_criteria", [])
-    done_steps = sum(1 for s in plan if "[x]" in s)
-    total_steps = len(plan)
 
-    print(f"== TASK {task_id}: {task.get('title', '?')} ==")
-    print(f"Status: {task.get('status', '?')}  |  {done_steps}/{total_steps} steps done  |  Session: {task.get('session', '~')}")
-    print(f"Mode: {task.get('mode', '?')}  |  Tags: {', '.join(task.get('tags', [])) or 'none'}")
-    print(f"Created: {task.get('created', '?')}  |  Updated: {task.get('updated', '?')}")
 
-    ctx = task.get("context", "")
-    if ctx:
-        print()
-        print("Context:")
-        for cl in ctx.split("\n"):
-            print(f"  {cl}")
 
-    if plan:
-        print()
-        print("Plan:")
-        for i, step in enumerate(plan, 1):
-            print(f"  [{i}] {step}")
-
-    if ac:
-        print()
-        print("Acceptance Criteria:")
-        for i, item in enumerate(ac, 1):
-            print(f"  [{i}] {item}")
-
-    ftm = task.get("files_to_modify", [])
-    if ftm:
-        print()
-        print("Files to modify:")
-        for f in ftm:
-            print(f"  - {f}")
-
-    fm = task.get("files_modified", [])
-    if fm:
-        print()
-        print("Files modified:")
-        for f in fm:
-            print(f"  - {f}")
-
-    notes = task.get("notes", "")
-    if notes:
-        print()
-        print("Notes:")
-        for nl in notes.split("\n"):
-            print(f"  {nl}")
-
-    summary = task.get("summary", "")
-    if summary:
-        print()
-        print("Summary:")
-        for sl in summary.split("\n"):
-            print(f"  {sl}")
-
-
-def cmd_task_list(args: argparse.Namespace) -> None:
-    """List all task files as a compact table."""
-    d = _tasks_dir()
-    task_files = sorted(d.glob("t[0-9][0-9][0-9]-*.yml"))
-
-    if not task_files:
-        print("No tasks found. Create one: sessions.py task-create --title \"...\"")
-        return
-
-    status_filter = getattr(args, "status", None)
-
-    tasks = []
-    for path in task_files:
-        try:
-            t = _parse_task_file(path)
-            tasks.append(t)
-        except Exception:
-            continue
-
-    if status_filter:
-        tasks = [t for t in tasks if t.get("status") == status_filter]
-
-    if not tasks:
-        print(f"No tasks with status '{status_filter}'.")
-        return
-
-    # Group by status
-    groups: dict[str, list[dict]] = {}
-    for t in tasks:
-        s = t.get("status", "todo")
-        groups.setdefault(s, []).append(t)
-
-    order = ["in_progress", "todo", "done", "abandoned"]
-    print(f"== TASKS ({len(tasks)}) ==")
-    for status in order:
-        if status not in groups:
-            continue
-        print(f"\n  {status.upper()}:")
-        for t in groups[status]:
-            plan = t.get("plan", [])
-            done = sum(1 for s in plan if "[x]" in s)
-            total = len(plan)
-            sess = t.get("session", "~")
-            title = t.get("title", "?")
-            tid = t.get("id", "?")
-            step_info = f"{done}/{total} steps" if total else "no steps"
-            print(f"    {tid}  {title[:50]:<50}  [{step_info}]  session:{sess}")
-    print()
-    print("Show details: sessions.py task-show --id <id>")
-    print("Resume:       sessions.py start --mode <mode> --task \"...\" --task-id <id>")
-
-
-def cmd_task_update(args: argparse.Namespace) -> None:
-    """Update scalar fields in a task file."""
-    task_id = args.id
-    task = _load_task(task_id)
-    if task is None:
-        print(f"Error: Task {task_id} not found.", file=sys.stderr)
-        sys.exit(1)
-
-    changed = []
-    if getattr(args, "status", None):
-        task["status"] = args.status
-        changed.append(f"status={args.status}")
-    if getattr(args, "title", None):
-        task["title"] = args.title
-        changed.append(f"title={args.title!r}")
-    if getattr(args, "session", None):
-        task["session"] = args.session
-        changed.append(f"session={args.session}")
-    if getattr(args, "notes", None):
-        existing = task.get("notes", "")
-        task["notes"] = (existing + "\n" + args.notes).strip()
-        changed.append("notes appended")
-    if getattr(args, "summary", None):
-        existing = task.get("summary", "")
-        task["summary"] = (existing + "\n" + args.summary).strip() if existing else args.summary
-        changed.append("summary set")
-
-    if not changed:
-        print("Nothing to update. Use --status, --title, --session, --notes, or --summary.")
-        return
-
-    _save_task(task)
-
-    # If session is updated, link it in sessions.json too
-    if getattr(args, "session", None):
-        data = _load_sessions()
-        session_id = args.session
-        if session_id in data.get("sessions", {}):
-            data["sessions"][session_id]["task_id"] = task_id
-            _save_sessions(data)
-
-    print(f"[{task_id}] Updated: {', '.join(changed)}")
-
-
-def cmd_task_track(args: argparse.Namespace) -> None:
-    """Append a file path to files_modified in a task file."""
-    task_id = args.id
-    task = _load_task(task_id)
-    if task is None:
-        print(f"Error: Task {task_id} not found.", file=sys.stderr)
-        sys.exit(1)
-
-    file_path = args.file
-    fm = task.get("files_modified", [])
-    if file_path not in fm:
-        fm.append(file_path)
-        task["files_modified"] = fm
-        _save_task(task)
-        print(f"[{task_id}] Tracked: {file_path}")
-    else:
-        print(f"[{task_id}] Already tracked: {file_path}")
-
-
-def _opencode_chat_session_label(session_id: str) -> str:
-    return session_id[:12] if session_id else "unknown"
-
-
-def _append_indented_block(lines: list[str], text: str, *, prefix: str = "      ") -> None:
-    if not text:
-        return
-    for line in text.splitlines() or [text]:
-        lines.append(f"{prefix}{line}")
-
-
-def _format_opencode_chat_text(view: dict[str, Any]) -> str:
-    sessions = view.get("sessions") or []
-    root = sessions[0] if sessions else {}
-    lines = [
-        "== OPENCODE CHAT ==",
-        f"Session: {view.get('session_id')}",
-        f"Title: {root.get('title') or '(untitled)'}",
-        f"Directory: {root.get('directory') or 'unknown'}",
-        f"Updated: {root.get('time_updated') or 'unknown'}",
-    ]
-    if view.get("resolved_repository_session_id"):
-        lines.append(f"Resolved repo session: {view['resolved_repository_session_id']}")
-    if view.get("project_directory_from_url"):
-        lines.append(f"URL project: {view['project_directory_from_url']}")
-    if view.get("query"):
-        lines.append(f"Query: {view['query']}")
-    child_sessions = [session for session in sessions if session.get("parent_session_id")]
-    lines.append(f"Included sessions: {len(sessions)} ({len(child_sessions)} child)")
-    lines.append(f"Messages: {view.get('message_count', 0)}; parts: {view.get('part_count', 0)}")
-
-    repository_sessions = view.get("repository_sessions") or []
-    if repository_sessions:
-        lines.extend(["", "Repository session mappings:"])
-        for item in repository_sessions:
-            worktree = item.get("worktree") or {}
-            file_count = item.get("modified_file_count", len(item.get("modified_files") or []))
-            lines.append(
-                f"  - {item.get('repository_session_id')}: {item.get('task') or '(no task)'} "
-                f"[{item.get('mode') or 'unknown'}; worktree={worktree.get('status') or 'unknown'}; files={file_count}]"
-            )
-
-    attachments = [item for item in (view.get("attachments") or []) if item.get("extractable")]
-    if attachments:
-        lines.extend(["", "Attachments:"])
-        lines.append(f"  Extract: {view.get('attachment_extract_command')}")
-        for item in attachments[:10]:
-            size = f", {item['byte_count']} bytes" if item.get("byte_count") is not None else ""
-            lines.append(
-                f"  - {item.get('part_id')}: {item.get('filename') or '(unnamed)'} "
-                f"({item.get('mime') or 'unknown'}{size})"
-            )
-        if len(attachments) > 10:
-            lines.append(f"  ... +{len(attachments) - 10} more")
-
-    issues = view.get("issue_signals") or []
-    signal_mode = view.get("signal_mode") or "actionable"
-    signal_title = "Issue signals (all):" if signal_mode == "all" else "Actionable signals:"
-    lines.extend(["", signal_title])
-    if issues:
-        for issue in issues:
-            tool = f" tool={issue['tool']}" if issue.get("tool") else ""
-            text = f": {issue.get('text')}" if issue.get("text") else ""
-            lines.append(
-                f"  - {issue.get('kind')} session={_opencode_chat_session_label(str(issue.get('session_id') or ''))}{tool}{text}"
-            )
-    else:
-        lines.append("  none")
-    suppressed = int(view.get("suppressed_signal_count") or 0)
-    if signal_mode != "all" and suppressed:
-        lines.append(f"  Suppressed broad grep/read/text signals: {suppressed} (show with --signals all)")
-
-    if child_sessions:
-        lines.extend(["", "Child sessions:"])
-        visible_children = child_sessions[:OPENCODE_CHAT_TEXT_CHILD_SESSION_LIMIT]
-        for session in visible_children:
-            lines.append(
-                f"  - {session.get('session_id')}: {session.get('title') or '(untitled)'} "
-                f"parent={session.get('parent_session_id')} updated={session.get('time_updated')}"
-            )
-        hidden_children = len(child_sessions) - len(visible_children)
-        if hidden_children > 0:
-            lines.append(f"  ... {hidden_children} more child sessions omitted from text output; use --json for the full list")
-
-    lines.extend(["", "Transcript:"])
-    for message in view.get("messages") or []:
-        metadata = []
-        if message.get("agent"):
-            metadata.append(f"agent={message['agent']}")
-        if message.get("model"):
-            metadata.append(f"model={message['model']}")
-        if message.get("finish"):
-            metadata.append(f"finish={message['finish']}")
-        metadata_text = f" ({', '.join(metadata)})" if metadata else ""
-        lines.append(
-            f"[{message.get('time_created')}] "
-            f"{str(message.get('role') or 'unknown').upper()} "
-            f"session={_opencode_chat_session_label(str(message.get('session_id') or ''))}{metadata_text}"
-        )
-        parts = message.get("parts") or []
-        if not parts:
-            lines.append("    (no retained parts)")
-            continue
-        for part in parts:
-            marker = "*" if part.get("matched") else "-"
-            part_type = part.get("type")
-            if part_type == "text":
-                phase = f" phase={part['phase']}" if part.get("phase") else ""
-                lines.append(f"    {marker} text{phase}:")
-                _append_indented_block(lines, str(part.get("text") or ""))
-                continue
-            if part_type == "tool":
-                title = f" title={part['title']}" if part.get("title") else ""
-                lines.append(
-                    f"    {marker} tool {part.get('tool') or 'unknown'} "
-                    f"status={part.get('status') or 'unknown'}{title}"
-                )
-                if part.get("error"):
-                    _append_indented_block(lines, f"error: {part['error']}")
-                if part.get("output_preview"):
-                    _append_indented_block(lines, f"output: {part['output_preview']}")
-                if part.get("output") is not None:
-                    _append_indented_block(lines, f"output: {_bounded_opencode_text(part['output'], OPENCODE_CHAT_TOOL_OUTPUT_PREVIEW_CHARS, {'fields': False})}")
-                continue
-            lines.append(f"    {marker} {part_type or 'part'}: {part}")
-
-    truncated = view.get("truncated") or {}
-    if any(truncated.values()):
-        labels = ", ".join(key for key, value in truncated.items() if value)
-        lines.extend(["", f"Truncated: {labels}"])
-    return "\n".join(lines) + "\n"
-
-
-def _format_recent_opencode_chats(result: dict[str, Any]) -> str:
-    lines = [
-        "== RECENT OPENCODE CHATS ==",
-        f"Window: {result.get('days')} day(s); limit: {result.get('limit')}",
-    ]
-    chats = result.get("chats") or []
-    if not chats:
-        lines.append("No recent top-level OpenCode chats found.")
-        return "\n".join(lines) + "\n"
-    for chat in chats:
-        repository = chat.get("repository_session_id") or "unbound"
-        opencode_session_id = str(chat.get("opencode_session_id") or "")
-        label = _opencode_chat_session_label(opencode_session_id)
-        title = chat.get("task") or chat.get("title") or "(untitled)"
-        child_text = f", {chat.get('child_count')} child" if chat.get("child_count") else ""
-        lines.append(
-            f"  {repository}  {label}  {chat.get('state') or 'unknown'}  "
-            f"{chat.get('time_updated') or 'unknown'}{child_text}  {title}"
-        )
-        lines.append(f"    Open: {chat.get('inspect_command')}")
-    return "\n".join(lines) + "\n"
-
-
-def cmd_opencode_chat(args: argparse.Namespace) -> None:
-    """Read or search a local OpenCode chat transcript by session ID or web URL."""
-    if getattr(args, "opencode_chat_action", "") == "recent":
-        try:
-            result = list_recent_opencode_chats(
-                days=getattr(args, "days", 3),
-                limit=getattr(args, "limit", 20),
-                db_path=getattr(args, "db", None),
-            )
-        except (FileNotFoundError, ValueError, sqlite3.Error) as error:
-            print(f"ERROR: {error}", file=sys.stderr)
-            sys.exit(1)
-        if getattr(args, "json", False):
-            print(json.dumps(result, indent=2, ensure_ascii=False, sort_keys=True))
-            return
-        print(_format_recent_opencode_chats(result), end="")
-        return
-
-    if getattr(args, "opencode_chat_action", "") == "attachments":
-        try:
-            result = extract_opencode_chat_attachments(
-                args.reference,
-                out_dir=getattr(args, "out", None),
-                include_children=not getattr(args, "no_children", False),
-                part_ids=set(getattr(args, "part_id", None) or []) or None,
-                db_path=getattr(args, "db", None),
-                dry_run=getattr(args, "list", False),
-            )
-        except (FileNotFoundError, LookupError, ValueError, sqlite3.Error, binascii.Error) as error:
-            print(f"ERROR: {error}", file=sys.stderr)
-            sys.exit(1)
-        if getattr(args, "json", False):
-            print(json.dumps(result, indent=2, ensure_ascii=False, sort_keys=True))
-            return
-        print("== OPENCODE ATTACHMENTS ==")
-        print(f"Session: {result.get('session_id')}")
-        print(f"Database: {result.get('database')}")
-        print(f"Output: {result.get('out_dir')}")
-        attachments = result.get("attachments") or []
-        saved = result.get("saved") or []
-        if not attachments:
-            print("No retained OpenCode file/image attachments found.")
-            return
-        if getattr(args, "list", False):
-            for item in attachments:
-                marker = "extractable" if item.get("extractable") else item.get("source") or "unknown"
-                size = f", {item['byte_count']} bytes" if item.get("byte_count") is not None else ""
-                print(f"- {item.get('part_id')}: {item.get('filename') or '(unnamed)'} ({item.get('mime') or 'unknown'}{size}; {marker})")
-            print(f"Extract: {_opencode_attachment_extract_command(str(result.get('session_id')))}")
-            return
-        if not saved:
-            print("No extractable data-URL attachments were saved.")
-            return
-        for item in saved:
-            print(f"- {item.get('part_id')}: {item.get('path')}")
-        return
-
-    query = getattr(args, "query", None)
-    if isinstance(query, list):
-        query = " ".join(query)
-    try:
-        view = read_opencode_chat(
-            args.reference,
-            query=query,
-            include_children=not getattr(args, "no_children", False),
-            include_tool_output=getattr(args, "include_tool_output", False),
-            signal_mode=getattr(args, "signals", "actionable"),
-            max_messages=getattr(args, "max_messages", OPENCODE_CHAT_DEFAULT_MAX_MESSAGES),
-            max_parts_per_message=getattr(args, "max_parts_per_message", OPENCODE_CHAT_DEFAULT_MAX_PARTS_PER_MESSAGE),
-            max_part_chars=getattr(args, "max_part_chars", OPENCODE_CHAT_DEFAULT_MAX_PART_CHARS),
-            db_path=getattr(args, "db", None),
-        )
-    except (FileNotFoundError, LookupError, ValueError, sqlite3.Error) as error:
-        print(f"ERROR: {error}", file=sys.stderr)
-        sys.exit(1)
-    if getattr(args, "json", False):
-        print(json.dumps(view, indent=2, ensure_ascii=False, sort_keys=True))
-        return
-    print(_format_opencode_chat_text(view), end="")
 
 
 def cmd_trigger_tests(args: argparse.Namespace) -> None:
@@ -18048,7 +13295,7 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
         since_last_deploy=False,
         task_id=None,
         linear_issue=None,
-        opencode_session=getattr(args, "opencode_session", None),
+
     )
     cmd_start(start_args)
 
@@ -18074,21 +13321,8 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
 
 
 def _print_deployed_commit_handoff(commit_sha: str) -> None:
-    """Print one unambiguous subject-commit handoff after a successful dev push."""
-
-    if not commit_sha:
-        return
-    print(f"Full commit: {commit_sha}")
-    print(
-        "Verify deployed spec: python3 scripts/tests.py run --spec <name>.spec.ts "
-        f"--gate-deploy --expected-commit {commit_sha}"
-    )
-    print(json.dumps({
-        "signal": "OPENMATES_CONTINUATION_READY",
-        "operation_type": "deployment_ready",
-        "operation_key": commit_sha,
-        "next_action": "Continue with the exact-commit verification required for this deployment without repeating implementation or local gates.",
-    }, sort_keys=True))
+    print(f"Deployed: {commit_sha}")
+    print(f"Deployment status: python3 scripts/sessions.py wait-deploy --commit {commit_sha}")
 
 
 def _maybe_start_verification_session(args: argparse.Namespace, source_session_id: str, commit_sha: str) -> None:
@@ -18116,7 +13350,7 @@ def _maybe_start_verification_session(args: argparse.Namespace, source_session_i
         since_last_deploy=False,
         task_id=None,
         linear_issue=None,
-        opencode_session=None,
+
     ))
     print(f"Next test commands should use --expected-commit {commit_sha or '<commit>'}.")
 
@@ -18142,6 +13376,16 @@ def cmd_git_stats(args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 
 
+def cmd_wait_deploy(args: argparse.Namespace) -> None:
+    try:
+        from scripts.deployment_wait import wait_deploy
+    except ModuleNotFoundError:
+        from deployment_wait import wait_deploy
+    result = wait_deploy(PROJECT_ROOT, args.commit, timeout=args.timeout, poll=args.poll)
+    print(json.dumps(result) if args.json else f"{result['commit']} {result['state']} {result.get('url', '')}")
+    raise SystemExit(0 if result["state"] == "success" else 1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="OpenMates agent session lifecycle manager"
@@ -18159,6 +13403,9 @@ def main() -> None:
         "'docs' (documentation), 'question' (codebase questions). "
         "Controls which context sections are shown.",
     )
+    p_start.add_argument("--require-proof-video", action="store_true", help="Record a user-requested proof deliverable")
+    p_start.add_argument("--json", action="store_true", help="Emit a compact machine receipt")
+    p_start.add_argument("--full", action="store_true", help="Include diagnostic and documentation context")
     p_start.add_argument("--task", "-t", help="Task description")
     p_start.add_argument(
         "--repo",
@@ -18166,7 +13413,6 @@ def main() -> None:
         choices=sorted(REPO_ALIASES),
         help="Repository to work in (default: openmates; use openmatescloud for the private sibling overlay repo).",
     )
-    p_start.add_argument("--opencode-session", help=argparse.SUPPRESS)
     p_start.add_argument(
         "--tags",
         help="Comma-separated tags (e.g., 'frontend,debug'). "
@@ -18174,90 +13420,10 @@ def main() -> None:
         "Valid: frontend, backend, debug, test, i18n, figma, embed, "
         "api, planning, feature, logging, concurrent, security",
     )
-    p_start.add_argument(
-        "--issue",
-        metavar="ISSUE_ID",
-        help="Pre-fetch issue details at session start (runs debug.py issue <id>). "
-        "Auto-adds 'debug' tag.",
-    )
-    p_start.add_argument(
-        "--chat",
-        metavar="CHAT_ID",
-        help="Pre-fetch chat details at session start (runs debug.py chat <id>). "
-        "Auto-adds 'debug' tag.",
-    )
-    p_start.add_argument(
-        "--embed",
-        metavar="EMBED_ID",
-        help="Pre-fetch embed details at session start (runs debug.py embed <id>). "
-        "Auto-adds 'debug,embed' tags.",
-    )
-    p_start.add_argument(
-        "--logs",
-        metavar="OPTS",
-        nargs="?",
-        const="since=10",
-        help="Pre-fetch OpenObserve logs at session start. "
-        "Optional value: comma-separated options like 'since=10,level=error' "
-        "(default: since=10). Auto-adds 'debug,logging' tags.",
-    )
-    p_start.add_argument(
-        "--user",
-        metavar="EMAIL",
-        help="Pre-fetch user data with session context (10 chats, 20 embeds). "
-        "Auto-adds 'debug' tag.",
-    )
-    p_start.add_argument(
-        "--debug-id",
-        metavar="DEBUG_ID",
-        help="Pre-fetch logs for a user debug session ID (e.g., 'dbg-a3f2c8'). "
-        "Auto-adds 'debug' tag.",
-    )
-    p_start.add_argument(
-        "--error-since",
-        type=int,
-        default=7,
-        metavar="DAYS",
-        help="Error trend lookback period in days (default: 7). "
-        "Used in bug mode for error overview.",
-    )
-    p_start.add_argument(
-        "--vercel",
-        action="store_true",
-        help="Pre-fetch latest Vercel deployment status and build errors. "
-        "Auto-adds 'debug' tag.",
-    )
-    p_start.add_argument(
-        "--run-id",
-        metavar="RUN_ID",
-        help="Pre-fetch context for a specific daily test run by its run ID prefix "
-        "(e.g., '2026-03-18T03:00:01Z'). Shows summary, failing specs, and "
-        "OpenObserve debug logs. Auto-adds 'test,debug' tags.",
-    )
-    p_start.add_argument(
-        "--since-last-deploy",
-        action="store_true",
-        help="Show all commits and changed files since the last sessions.py deploy call. "
-        "Useful when resuming work after a break or picking up from another session.",
-    )
-    p_start.add_argument(
-        "--task-id",
-        metavar="TASK_ID",
-        help="Link an existing task file to this session (e.g. t003). "
-        "Displays pending steps inline at startup.",
-    )
-    p_start.add_argument(
-        "--linear-issue",
-        "--linear",
-        metavar="ISSUE_ID",
-        help="Link to an existing Linear issue (e.g., OPE-42). "
-        "Auto-fetches context, marks In Progress, adds claude-is-working label. "
-        "If omitted and --task is set, a new Linear issue is auto-created.",
-    )
 
     # end
     p_end = sub.add_parser("end", help="End a session")
-    p_end.add_argument("--session", "-s", required=True, help="Session ID")
+    p_end.add_argument("--session", "-s", help="Session ID")
     p_end.add_argument(
         "--force",
         "-f",
@@ -18276,7 +13442,7 @@ def main() -> None:
         "visual-smoke",
         help="Record deployed UI visual-smoke evidence for a session",
     )
-    p_visual_smoke.add_argument("--session", "-s", required=True, help="Session ID")
+    p_visual_smoke.add_argument("--session", "-s", help="Session ID")
     p_visual_smoke.add_argument(
         "--url",
         action="append",
@@ -18316,11 +13482,11 @@ def main() -> None:
     # proof-video
     p_proof_video = sub.add_parser(
         "proof-video",
-        help="Produce, review, and upload exact proof videos for OpenCode response embedding",
+        help="Produce, review, and upload exact proof videos for agent response embedding",
     )
     proof_actions = p_proof_video.add_subparsers(dest="proof_action", required=True)
     p_proof_produce = proof_actions.add_parser("produce", help="Capture and render an exact CLI command")
-    p_proof_produce.add_argument("--session", "-s", required=True, help="Session ID")
+    p_proof_produce.add_argument("--session", "-s", help="Session ID")
     p_proof_produce.add_argument("--run-dir", type=Path)
     p_proof_produce.add_argument("--proof-id", default="session-proof")
     p_proof_produce.add_argument("--subject-commit")
@@ -18345,7 +13511,7 @@ def main() -> None:
         "produce-playwright",
         help="Narrate a passing deployed Playwright test recording",
     )
-    p_proof_playwright.add_argument("--session", "-s", required=True, help="Session ID")
+    p_proof_playwright.add_argument("--session", "-s", help="Session ID")
     p_proof_playwright.add_argument("--run-dir", type=Path)
     p_proof_playwright.add_argument("--source-video", type=Path, required=True)
     p_proof_playwright.add_argument("--proof-id", default="playwright-proof")
@@ -18396,8 +13562,8 @@ def main() -> None:
         type=Path,
         help="Optional product audio fixture to preserve playback audio when it is part of the proof.",
     )
-    p_proof_publish = proof_actions.add_parser("publish", help="Upload a passed proof for OpenCode response embedding")
-    p_proof_publish.add_argument("--session", "-s", required=True, help="Session ID")
+    p_proof_publish = proof_actions.add_parser("publish", help="Upload a passed proof for agent response embedding")
+    p_proof_publish.add_argument("--session", "-s", help="Session ID")
     p_proof_publish.add_argument("--run-dir", type=Path, required=True)
 
     # status
@@ -18405,11 +13571,11 @@ def main() -> None:
     p_status.add_argument(
         "--json",
         action="store_true",
-        help="Output raw JSON (for machine consumers, e.g. opencode plugin)",
+        help="Output raw JSON (for machine consumers, e.g. automation)",
     )
     p_status.add_argument("--all", action="store_true", help="Include durable and historical repository sessions")
     p_status.add_argument("--conflicts", action="store_true", help="Show only relevant active path and task conflicts")
-    p_status.add_argument("--session", help="Show one repository/OpenCode identity chain")
+    p_status.add_argument("--session", help="Show one repository/agent identity chain")
 
     # doctor
     p_doctor = sub.add_parser(
@@ -18423,21 +13589,22 @@ def main() -> None:
     # update
     p_update = sub.add_parser("update", help="Update session task")
     p_update.add_argument(
-        "--session", "-s", required=True, help="Session ID"
+        "--session", "-s", help="Session ID"
     )
     p_update.add_argument("--task", "-t", help="New task description")
+    p_update.add_argument("--require-proof-video", action="store_true", help="Record a user-requested proof deliverable")
 
     # claim
     p_claim = sub.add_parser("claim", help="Claim a file for writing")
     p_claim.add_argument(
-        "--session", "-s", required=True, help="Session ID"
+        "--session", "-s", help="Session ID"
     )
     p_claim.add_argument("--file", "-f", required=True, help="File path")
 
     # release
     p_release = sub.add_parser("release", help="Release write claim")
     p_release.add_argument(
-        "--session", "-s", required=True, help="Session ID"
+        "--session", "-s", help="Session ID"
     )
     p_release.add_argument("--file", "-f", help="File path (optional)")
 
@@ -18470,7 +13637,7 @@ def main() -> None:
              "(opposite of track; cleans up ghost ownership)",
     )
     p_untrack.add_argument(
-        "--session", "-s", required=True, help="Session ID to remove from"
+        "--session", "-s", help="Session ID to remove from"
     )
     p_untrack.add_argument(
         "--file", "-f", nargs="+",
@@ -18491,110 +13658,25 @@ def main() -> None:
         "--file", "-f", help="File path (optional; falls back to stdin JSON)"
     )
 
-    p_edit_lease = sub.add_parser("edit-lease", help="Manage OpenCode multi-file edit leases")
+    p_edit_lease = sub.add_parser("edit-lease", help="Manage agent multi-file edit leases")
     p_edit_lease_sub = p_edit_lease.add_subparsers(dest="edit_lease_action", required=True)
     p_edit_lease_acquire = p_edit_lease_sub.add_parser("acquire", help="Acquire edit leases before an edit tool call")
     p_edit_lease_acquire.add_argument("--session", "-s", help="Short sessions.py ID")
-    p_edit_lease_acquire.add_argument("--opencode-session", help="OpenCode session ID")
     p_edit_lease_acquire.add_argument("--file", "-f", nargs="+", required=True, help="File path(s) to lease")
     p_edit_lease_release = p_edit_lease_sub.add_parser("release", help="Release edit leases after an edit tool call")
     p_edit_lease_release.add_argument("--session", "-s", help="Short sessions.py ID")
-    p_edit_lease_release.add_argument("--opencode-session", help="OpenCode session ID")
     p_edit_lease_release.add_argument("--file", "-f", nargs="+", help="File path(s) to release; omit to release all held leases")
 
-    p_stale_read = sub.add_parser("stale-read", help="Manage OpenCode stale-read hash protection")
-    p_stale_read_sub = p_stale_read.add_subparsers(dest="stale_read_action", required=True)
-    for action in ("record", "check", "sync"):
-        p_stale_read_action = p_stale_read_sub.add_parser(action)
-        p_stale_read_action.add_argument("--opencode-session", required=True, help="OpenCode session ID")
-        p_stale_read_action.add_argument("--file", required=True, help="Repository file path")
 
-    p_opencode_chat = sub.add_parser(
-        "opencode-chat",
-        help="Read or search local OpenCode chat transcripts by session ID or web URL",
-    )
-    p_opencode_chat_sub = p_opencode_chat.add_subparsers(dest="opencode_chat_action", required=True)
 
-    def add_opencode_chat_args(parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("reference", help="OpenCode session ID, short repository session ID, or code.dev.openmates.org chat URL")
-        parser.add_argument("--json", action="store_true", help="Emit structured JSON instead of readable text")
-        parser.add_argument("--no-children", action="store_true", help="Do not include child/subagent sessions")
-        parser.add_argument("--include-tool-output", action="store_true", help="Include bounded completed tool inputs/outputs")
-        parser.add_argument("--signals", choices=sorted(OPENCODE_CHAT_SIGNAL_MODES), default="actionable", help="Signal detail to show; default hides broad grep/read/text noise")
-        parser.add_argument("--max-messages", type=int, default=OPENCODE_CHAT_DEFAULT_MAX_MESSAGES)
-        parser.add_argument("--max-parts-per-message", type=int, default=OPENCODE_CHAT_DEFAULT_MAX_PARTS_PER_MESSAGE)
-        parser.add_argument("--max-part-chars", type=int, default=OPENCODE_CHAT_DEFAULT_MAX_PART_CHARS)
-        parser.add_argument("--db", type=Path, help="Override OpenCode SQLite database path")
 
-    def add_opencode_recent_args(parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--days", type=int, default=3, help="Look back this many days")
-        parser.add_argument("--limit", type=int, default=20, help="Maximum top-level chats to list")
-        parser.add_argument("--json", action="store_true", help="Emit structured JSON")
-        parser.add_argument("--db", type=Path, help="Override OpenCode SQLite database path")
 
-    p_opencode_chat_read = p_opencode_chat_sub.add_parser("read", help="Read a bounded chat transcript")
-    add_opencode_chat_args(p_opencode_chat_read)
-    p_opencode_chat_read.add_argument("--query", help="Only show messages whose message or part JSON contains this text")
-    p_opencode_chat_search = p_opencode_chat_sub.add_parser("search", help="Search inside a bounded chat transcript")
-    add_opencode_chat_args(p_opencode_chat_search)
-    p_opencode_chat_search.add_argument("query", nargs="+", help="Search text")
-    p_opencode_chat_recent = p_opencode_chat_sub.add_parser("recent", help="List recent top-level OpenCode chats")
-    add_opencode_recent_args(p_opencode_chat_recent)
-    p_opencode_chat_attachments = p_opencode_chat_sub.add_parser("attachments", help="Extract retained uploaded files/images from a chat")
-    p_opencode_chat_attachments.add_argument("reference", help="OpenCode session ID, short repository session ID, or code.dev.openmates.org chat URL")
-    p_opencode_chat_attachments.add_argument("--out", type=Path, help="Directory to write extracted files; defaults to /tmp/opencode/opencode-attachments-<session>")
-    p_opencode_chat_attachments.add_argument("--list", action="store_true", help="List attachments without writing files")
-    p_opencode_chat_attachments.add_argument("--json", action="store_true", help="Emit structured JSON")
-    p_opencode_chat_attachments.add_argument("--no-children", action="store_true", help="Do not include child/subagent sessions")
-    p_opencode_chat_attachments.add_argument("--part-id", action="append", help="Extract only this OpenCode part ID; repeat for multiple IDs")
-    p_opencode_chat_attachments.add_argument("--db", type=Path, help="Override OpenCode SQLite database path")
 
-    p_chat = sub.add_parser(
-        "chat",
-        help="Alias for opencode-chat read/search",
-    )
-    p_chat_sub = p_chat.add_subparsers(dest="opencode_chat_action", required=True)
-    p_chat_read = p_chat_sub.add_parser("read", help="Read a bounded OpenCode chat transcript")
-    add_opencode_chat_args(p_chat_read)
-    p_chat_read.add_argument("--query", help="Only show messages whose message or part JSON contains this text")
-    p_chat_search = p_chat_sub.add_parser("search", help="Search inside a bounded OpenCode chat transcript")
-    add_opencode_chat_args(p_chat_search)
-    p_chat_search.add_argument("query", nargs="+", help="Search text")
-    p_chat_recent = p_chat_sub.add_parser("recent", help="List recent top-level OpenCode chats")
-    add_opencode_recent_args(p_chat_recent)
-    p_chat_attachments = p_chat_sub.add_parser("attachments", help="Extract retained uploaded files/images from a chat")
-    p_chat_attachments.add_argument("reference", help="OpenCode session ID, short repository session ID, or code.dev.openmates.org chat URL")
-    p_chat_attachments.add_argument("--out", type=Path, help="Directory to write extracted files; defaults to /tmp/opencode/opencode-attachments-<session>")
-    p_chat_attachments.add_argument("--list", action="store_true", help="List attachments without writing files")
-    p_chat_attachments.add_argument("--json", action="store_true", help="Emit structured JSON")
-    p_chat_attachments.add_argument("--no-children", action="store_true", help="Do not include child/subagent sessions")
-    p_chat_attachments.add_argument("--part-id", action="append", help="Extract only this OpenCode part ID; repeat for multiple IDs")
-    p_chat_attachments.add_argument("--db", type=Path, help="Override OpenCode SQLite database path")
 
-    p_presence = sub.add_parser("presence", help="Manage ephemeral OpenCode presence and task intent")
-    p_presence_sub = p_presence.add_subparsers(dest="presence_action", required=True)
-    p_presence_update = p_presence_sub.add_parser("update", help="Apply one allowlisted lifecycle update")
-    p_presence_update.add_argument("--json-stdin", action="store_true", required=True)
-    p_presence_show = p_presence_sub.add_parser("show", help="Show privacy-minimal presence JSON")
-    p_presence_show.add_argument("--no-expire", action="store_true", help="Do not project stale live entries to unknown")
-    p_presence_role = p_presence_sub.add_parser("child-role", help="Set an explicit OpenCode child role")
-    p_presence_role.add_argument("--session", required=True, help="Child OpenCode session ID")
-    p_presence_role.add_argument("--parent", required=True, help="Parent OpenCode session ID")
-    p_presence_role.add_argument("--role", required=True, choices=["read_only", "reviewer", "writable"])
-    p_presence_role.add_argument("--if-unset", action="store_true", help="Keep an existing explicit child role")
-    for action in ("claim-task", "renew-task", "release-task"):
-        p_presence_task = p_presence_sub.add_parser(action)
-        p_presence_task.add_argument("--spec", required=True, help="Repository-relative executable spec path")
-        p_presence_task.add_argument("--task", required=True, help="Executable spec task ID")
-        p_presence_task.add_argument("--owner", required=True, help="Owning OpenCode session ID")
-        if action == "claim-task":
-            p_presence_task.add_argument("--role", required=True, choices=["implementation", "reviewer", "read_only"])
-        if action != "release-task":
-            p_presence_task.add_argument("--ttl", type=int, default=900, help="Renewable claim TTL in seconds")
 
     p_decision = sub.add_parser("decision", help="Record exact scoped user acceptance, stop or waiver")
     p_decision.add_argument("--session", required=True)
-    p_decision.add_argument("--provider", choices=["opencode", "codex"], default="opencode")
+    p_decision.add_argument("--provider", choices=["codex"], default="codex")
     p_decision.add_argument("--source-session", default="")
     p_decision.add_argument("--message-id", required=True)
     p_decision.add_argument("--quote", required=True, help="Exact original user text; not persisted")
@@ -18604,71 +13686,12 @@ def main() -> None:
     p_decision.add_argument("--decision", choices=["accept", "stop", "waive", "resume"], required=True)
     p_decision.add_argument("--plan", default="", help="Owning worktree Plan path, if applicable")
 
-    p_task_handoff = sub.add_parser("task-handoff", help="Publish privacy-minimal Task assignment handoffs")
-    p_task_handoff_sub = p_task_handoff.add_subparsers(dest="task_handoff_action", required=True)
-    p_task_handoff_publish = p_task_handoff_sub.add_parser("publish", help="Notify a coordinator session about an OpenCode-assigned Task")
-    p_task_handoff_publish.add_argument("--coordinator-session", required=True, help="Coordinator sessions.py or OpenCode session key")
-    p_task_handoff_publish.add_argument("--task-id", required=True, help="Assigned Task id")
-    p_task_handoff_publish.add_argument("--task-version", type=int, required=True, help="Assigned Task optimistic version")
-    p_task_handoff_publish.add_argument("--assignee-type", choices=["external_ai"], default="external_ai")
-    p_task_handoff_publish.add_argument("--assignee-identity", choices=["opencode"], default="opencode")
-    p_task_handoff_publish.add_argument("--source-surface", choices=sorted(TASK_COORDINATOR_HANDOFF_SOURCE_SURFACES), default="web")
 
-    p_task_bridge = sub.add_parser("task-bridge", help="Bridge trusted OpenMates Task JSON into OpenCode")
-    p_task_bridge_sub = p_task_bridge.add_subparsers(dest="task_bridge_action", required=True)
-    p_task_bridge_stage = p_task_bridge_sub.add_parser(
-        "stage", help="Stage one completed response for idle reconciliation"
-    )
-    p_task_bridge_stage.add_argument("--session", required=True, help="Top-level OpenCode session ID")
-    p_task_bridge_stage.add_argument("--message-id", required=True, help="Completed assistant message ID")
-    for action in ("context", "reconcile"):
-        p_task_bridge_action = p_task_bridge_sub.add_parser(action)
-        p_task_bridge_action.add_argument("--session", required=True, help="Top-level OpenCode session ID")
-    p_task_bridge_tool = p_task_bridge_sub.add_parser("tool", help="Execute one typed Task operation")
-    p_task_bridge_tool.add_argument("--session", required=True, help="Top-level OpenCode session ID")
-    p_task_bridge_tool.add_argument("--json-stdin", action="store_true", required=True)
-
-    p_continuation = sub.add_parser("continuation", help="Manage bounded deterministic chat continuations")
-    p_continuation_sub = p_continuation.add_subparsers(dest="continuation_action", required=True)
-    p_continuation_record = p_continuation_sub.add_parser("record", help="Record one ready allowlisted operation")
-    p_continuation_record.add_argument("--session", required=True, help="Repository or OpenCode session ID")
-    p_continuation_record.add_argument("--operation-type", required=True, choices=sorted(CONTINUATION_ALLOWED_TYPES))
-    p_continuation_record.add_argument("--operation-key", required=True)
-    p_continuation_record.add_argument("--next-action", required=True)
-    for action in ("claim", "ack", "release", "cancel"):
-        p_continuation_action = p_continuation_sub.add_parser(action)
-        p_continuation_action.add_argument("--session", required=True, help="Repository or OpenCode session ID")
-
-    p_media = sub.add_parser("media", help="Manage durable response-media delivery")
-    p_media_sub = p_media.add_subparsers(dest="media_action", required=True)
-    p_media_quarantine = p_media_sub.add_parser("quarantine", help="Quarantine undelivered legacy media records")
-    p_media_quarantine.add_argument("--session", default="", help="Optional repository or OpenCode session ID")
-    p_media_quarantine.add_argument("--reason", default="recovery hotfix")
-    p_media_record = p_media_sub.add_parser("record", help="Record one pending response artifact")
-    p_media_record.add_argument("--session", required=True, help="Repository or OpenCode session ID")
-    p_media_record.add_argument(
-        "--artifact-type", required=True, choices=["video", "figma_image", "figma_export"]
-    )
-    p_media_record.add_argument("--artifact-key", default="")
-    p_media_record.add_argument("--artifact-path", default="")
-    p_media_record.add_argument("--snippet", required=True)
-    p_media_record.add_argument("--subject-commit", default="")
-    p_media_record.add_argument("--run-id", default="")
-    p_media_claim = p_media_sub.add_parser("claim")
-    p_media_claim.add_argument("--session", required=True, help="Repository or OpenCode session ID")
-    for action in ("ack", "release"):
-        p_media_finish = p_media_sub.add_parser(action)
-        p_media_finish.add_argument("--session", required=True, help="Repository or OpenCode session ID")
-        p_media_finish.add_argument("--artifact-key", required=True)
-    p_media_fail = p_media_sub.add_parser("fail")
-    p_media_fail.add_argument("--session", required=True, help="Repository or OpenCode session ID")
-    p_media_fail.add_argument("--artifact-key", required=True)
-    p_media_fail.add_argument("--reason", default="")
 
     p_docker = sub.add_parser("docker", help="Run coordinated Docker operations")
     p_docker_sub = p_docker.add_subparsers(dest="docker_action", required=True)
     p_docker_restart = p_docker_sub.add_parser("restart", help="Drain dependent tests and restart services")
-    p_docker_restart.add_argument("--session", "-s", required=True, help="Requesting sessions.py ID")
+    p_docker_restart.add_argument("--session", "-s", help="Requesting sessions.py ID")
     p_docker_restart.add_argument(
         "--service",
         action="append",
@@ -18694,7 +13717,7 @@ def main() -> None:
         help="Seconds to wait for restarted services to become healthy",
     )
     p_docker_setup = p_docker_sub.add_parser("run-setup", help="Drain dependent tests and run setup services")
-    p_docker_setup.add_argument("--session", "-s", required=True, help="Requesting sessions.py ID")
+    p_docker_setup.add_argument("--session", "-s", help="Requesting sessions.py ID")
     p_docker_setup.add_argument(
         "--service",
         action="append",
@@ -18714,7 +13737,7 @@ def main() -> None:
     )
     p_docker_setup.add_argument("--poll", type=int, default=5, help="Seconds between lease checks")
     p_docker_backup = p_docker_sub.add_parser("backup", help="Create a coordinated, owner-only recovery backup archive")
-    p_docker_backup.add_argument("--session", "-s", required=True, help="Requesting sessions.py ID")
+    p_docker_backup.add_argument("--session", "-s", help="Requesting sessions.py ID")
     p_docker_backup.add_argument("--output-dir", required=True, help="Existing or new owner-controlled archive directory")
     p_docker_backup.add_argument("--timeout", type=int, default=DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS)
     p_docker_backup.add_argument("--poll", type=int, default=5, help="Seconds between lease checks")
@@ -18736,39 +13759,14 @@ def main() -> None:
     )
     import_identity = p_worktree_import_root.add_mutually_exclusive_group(required=True)
     import_identity.add_argument("--session", "-s", help="sessions.py session ID")
-    import_identity.add_argument("--opencode-session", help="Top-level OpenCode session ID")
     p_worktree_import_root.add_argument("--file", required=True, help="Exact repository-relative dirty root file")
     p_worktree_ensure = p_worktree_sub.add_parser("ensure", help="Create or show this session's worktree")
-    p_worktree_ensure.add_argument("--session", "-s", required=True, help="Session ID")
-    p_worktree_binding = p_worktree_sub.add_parser("binding", help="Record an OpenCode native-binding result")
-    p_worktree_binding.add_argument("--opencode-session", required=True, help="OpenCode session ID")
-    p_worktree_binding.add_argument("--mode", required=True, choices=["native", "pilot_fallback"])
-    p_worktree_binding.add_argument("--directory", help="Canonical native session directory")
-    p_worktree_binding.add_argument("--reason", help="Stable pilot fallback reason")
-    p_ready = p_worktree_sub.add_parser("submit-ready", help="Explicitly submit one fingerprinted preservation checkpoint")
-    p_ready.add_argument("--session", required=True)
-    p_ready.add_argument("--patch-id", required=True)
-    p_ready.add_argument("--checkpoint-commit", required=True)
-    p_worktree_repair = p_worktree_sub.add_parser("repair", help="Reconstruct root-hosted OpenCode worktree routing")
-    p_worktree_repair.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
-    p_worktree_repair.add_argument("--restore-session", help="Restore a retired original session from an idle pristine successor")
+    p_worktree_ensure.add_argument("--session", "-s", help="Session ID")
     p_worktree_refresh_base = p_worktree_sub.add_parser(
         "refresh-base",
         help="Refresh recorded base after a managed worktree was safely fast-forwarded to origin/dev",
     )
-    p_worktree_refresh_base.add_argument("--session", "-s", required=True, help="Session ID")
-    p_worktree_checkpoint = p_worktree_sub.add_parser("checkpoint", help="Checkpoint an idle or closed mutating OpenCode session")
-    p_worktree_checkpoint.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
-    p_worktree_checkpoint.add_argument("--event", required=True, choices=["idle", "closed"])
-    p_worktree_activate = p_worktree_sub.add_parser(
-        "activate", help="Invalidate an idle checkpoint when a chat starts a new user turn"
-    )
-    p_worktree_activate.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
-    for transition_parser in (p_worktree_repair, p_worktree_checkpoint, p_worktree_activate):
-        transition_parser.add_argument("--generation", type=int, default=None)
-        transition_parser.add_argument("--operation-id", default="")
-    p_worktree_auto_integrate = p_worktree_sub.add_parser("auto-integrate", help="Integrate eligible checkpointed work through normal deploy gates")
-    p_worktree_auto_integrate.add_argument("--dry-run", action="store_true", help="List eligible checkpoints without deploying")
+    p_worktree_refresh_base.add_argument("--session", "-s", help="Session ID")
     p_worktree_expire = p_worktree_sub.add_parser(
         "expire", help="Unconditionally delete managed worktrees at the hard maximum age"
     )
@@ -18786,13 +13784,6 @@ def main() -> None:
         default=WORKTREE_CLEANUP_IDLE_HOURS,
         help="Hours before safely classified stale worktrees may be deleted (default: 48)",
     )
-    p_worktree_deduplicate = p_worktree_sub.add_parser(
-        "deduplicate-chats",
-        help="Keep only the newest source worktree for each top-level OpenCode chat",
-    )
-    p_worktree_deduplicate.add_argument("--target", default="origin/dev", help="Exact integration ref")
-    p_worktree_deduplicate.add_argument("--apply", action="store_true", help="Checkpoint and remove older duplicates")
-    p_worktree_deduplicate.add_argument("--format", choices=["text", "json"], default="text")
     p_worktree_reconcile = p_worktree_sub.add_parser("reconcile", help="Report or safely reconcile all worktrees")
     p_worktree_reconcile.add_argument("--target", default="origin/dev", help="Exact integration ref (default: origin/dev)")
     p_worktree_reconcile.add_argument("--idle-hours", type=int, default=WORKTREE_CLEANUP_IDLE_HOURS)
@@ -18831,7 +13822,7 @@ def main() -> None:
         "approval-pdf",
         help="Render and publish an exact-fingerprint approval PDF from current tooling",
     )
-    p_specification_approval.add_argument("--session", "-s", required=True, help="sessions.py session ID")
+    p_specification_approval.add_argument("--session", "-s", help="sessions.py session ID")
     p_specification_approval.add_argument("--bundle", required=True, help="Repository-relative Specification bundle")
     p_specification_approval.add_argument("--baseline-ref", default="HEAD", help="Worktree Git ref used to highlight changes")
     p_specification_approval.add_argument("--new-specification", action="store_true", help="Allow a bundle absent from the baseline")
@@ -18842,7 +13833,7 @@ def main() -> None:
     # lock
     p_lock = sub.add_parser("lock", help="Acquire a lock")
     p_lock.add_argument(
-        "--session", "-s", required=True, help="Session ID"
+        "--session", "-s", help="Session ID"
     )
     p_lock.add_argument(
         "--type",
@@ -18855,7 +13846,7 @@ def main() -> None:
     # unlock
     p_unlock = sub.add_parser("unlock", help="Release a lock")
     p_unlock.add_argument(
-        "--session", "-s", required=True, help="Session ID"
+        "--session", "-s", help="Session ID"
     )
     p_unlock.add_argument(
         "--type",
@@ -18938,7 +13929,7 @@ def main() -> None:
         "prepare-deploy", help="Show deployment plan"
     )
     p_prep.add_argument(
-        "--session", "-s", required=True, help="Session ID"
+        "--session", "-s", help="Session ID"
     )
     p_prep.add_argument(
         "--exclude",
@@ -18962,7 +13953,7 @@ def main() -> None:
         "verify-prepared",
         help="Run an allowlisted exact-patch check using shared lockfile-compatible dependencies",
     )
-    p_verify_prepared.add_argument("--session", "-s", required=True, help="Session ID")
+    p_verify_prepared.add_argument("--session", "-s", help="Session ID")
     p_verify_prepared.add_argument(
         "--profile",
         required=True,
@@ -18984,10 +13975,11 @@ def main() -> None:
     p_deploy = sub.add_parser(
         "deploy", help="Execute lint + commit + push"
     )
+    p_deploy.add_argument("--full", action="store_true", help="Include the deployed file inventory")
     p_deploy.add_argument("--reviewed-candidate", help="Exact session CI candidate to deploy without changing its source worktree")
     p_deploy.add_argument("--reviewed-base", help="Exact reviewed candidate parent; selected upstream drift blocks deployment")
     p_deploy.add_argument(
-        "--session", "-s", required=True, help="Session ID"
+        "--session", "-s", help="Session ID"
     )
     p_deploy.add_argument(
         "--title", required=True, help="Commit title"
@@ -19092,7 +14084,7 @@ def main() -> None:
         "lint", help="Run linter on tracked files (no commit/push)"
     )
     p_lint.add_argument(
-        "--session", "-s", required=True, help="Session ID"
+        "--session", "-s", help="Session ID"
     )
 
     # context (on-demand doc loading)
@@ -19114,15 +14106,12 @@ def main() -> None:
         "summary", help="Print session summary for handoff"
     )
     p_summary.add_argument(
-        "--session", "-s", required=True, help="Session ID"
+        "--session", "-s", help="Session ID"
     )
 
     # deploy-docs (load deferred deployment docs)
-    sub.add_parser(
-        "deploy-docs",
-        help="Load deployment-phase docs (git, deployment standards) "
-        "deferred from session start",
-    )
+    p_deploy_docs = sub.add_parser("deploy-docs", help="List deployment references")
+    p_deploy_docs.add_argument("--full", action="store_true", help="Print full document contents")
 
     # check-tests
     p_check_tests = sub.add_parser(
@@ -19175,6 +14164,12 @@ def main() -> None:
         help="Stream live status after triggering",
     )
 
+    p_wait_deploy = sub.add_parser("wait-deploy", help="Wait for Vercel status on an exact commit")
+    p_wait_deploy.add_argument("--commit", required=True)
+    p_wait_deploy.add_argument("--timeout", type=float, default=600)
+    p_wait_deploy.add_argument("--poll", type=float, default=15)
+    p_wait_deploy.add_argument("--json", action="store_true")
+
     # debug-vercel
     sub.add_parser(
         "debug-vercel",
@@ -19226,75 +14221,18 @@ def main() -> None:
     )
 
     # task-create
-    p_task_create = sub.add_parser(
-        "task-create",
-        help="Create a persistent task YAML file in .claude/tasks/",
-    )
-    p_task_create.add_argument("--title", "-t", required=True, help="Task title")
-    p_task_create.add_argument("--session", "-s", help="Link to this session ID")
-    p_task_create.add_argument("--context", "-c", help="Background context for the task")
-    p_task_create.add_argument("--mode", "-m", choices=list(VALID_MODES), default="feature",
-                               help="Task mode (default: feature)")
-    p_task_create.add_argument("--tags", help="Comma-separated tags")
-    p_task_create.add_argument("--files", "-f", nargs="*", metavar="FILE",
-                               help="Files to modify (space-separated)")
 
     # task-step
-    p_task_step = sub.add_parser(
-        "task-step",
-        help="Add or check off a plan step in a task file",
-    )
-    p_task_step.add_argument("--id", "-i", required=True, metavar="TASK_ID", help="Task ID (e.g. t001)")
-    p_task_step.add_argument("--add", "-a", metavar="TEXT", help="Add a new step (e.g. '[ ] Step text')")
-    p_task_step.add_argument("--done", "-d", type=int, metavar="N", help="Mark step N as done")
 
     # task-ac
-    p_task_ac = sub.add_parser(
-        "task-ac",
-        help="Add or check off an acceptance criterion in a task file",
-    )
-    p_task_ac.add_argument("--id", "-i", required=True, metavar="TASK_ID", help="Task ID")
-    p_task_ac.add_argument("--add", "-a", metavar="TEXT", help="Add a new acceptance criterion")
-    p_task_ac.add_argument("--done", "-d", type=int, metavar="N", help="Mark AC N as done")
 
     # task-show
-    p_task_show = sub.add_parser(
-        "task-show",
-        help="Print full task details with numbered steps",
-    )
-    p_task_show.add_argument("--id", "-i", required=True, metavar="TASK_ID", help="Task ID")
 
     # task-list
-    p_task_list = sub.add_parser(
-        "task-list",
-        help="List all task files as a compact table",
-    )
-    p_task_list.add_argument(
-        "--status",
-        choices=["todo", "in_progress", "done", "abandoned"],
-        help="Filter by status",
-    )
 
     # task-update
-    p_task_update = sub.add_parser(
-        "task-update",
-        help="Update scalar fields in a task file",
-    )
-    p_task_update.add_argument("--id", "-i", required=True, metavar="TASK_ID", help="Task ID")
-    p_task_update.add_argument("--status", choices=["todo", "in_progress", "done", "abandoned"],
-                               help="New status")
-    p_task_update.add_argument("--title", help="New title")
-    p_task_update.add_argument("--session", "-s", help="Link a session ID")
-    p_task_update.add_argument("--notes", help="Append text to notes field")
-    p_task_update.add_argument("--summary", help="Set/append task summary (what was done and why)")
 
     # task-track
-    p_task_track = sub.add_parser(
-        "task-track",
-        help="Append a file to files_modified in a task file",
-    )
-    p_task_track.add_argument("--id", "-i", required=True, metavar="TASK_ID", help="Task ID")
-    p_task_track.add_argument("--file", "-f", required=True, help="File path")
 
     p_git_stats = sub.add_parser(
         "git-stats",
@@ -19309,6 +14247,14 @@ def main() -> None:
                              help="Emit JSON instead of tables")
 
     args = parser.parse_args()
+    inferred_commands = {"end", "visual-smoke", "proof-video", "update", "claim", "release",
+                         "ci-source", "ci-adopt", "untrack", "lock", "unlock",
+                         "prepare-deploy", "verify-prepared", "deploy", "lint", "summary"}
+    if args.command in inferred_commands and not getattr(args, "session", None):
+        try:
+            args.session = _resolve_session_id(_load_sessions())
+        except RuntimeError as exc:
+            parser.error(str(exc))
 
     commands = {
         "start": cmd_start,
@@ -19327,15 +14273,7 @@ def main() -> None:
         "untrack": cmd_untrack,
         "check-write": cmd_check_write,
         "edit-lease": cmd_edit_lease,
-        "stale-read": cmd_stale_read,
-        "opencode-chat": cmd_opencode_chat,
-        "chat": cmd_opencode_chat,
-        "presence": cmd_presence,
-        "task-bridge": cmd_task_bridge,
-        "task-handoff": cmd_task_handoff,
         "decision": cmd_decision,
-        "continuation": cmd_continuation,
-        "media": cmd_media,
         "docker": cmd_docker,
         "worktree": cmd_worktree,
         "specification": cmd_specification,
@@ -19354,16 +14292,10 @@ def main() -> None:
         "check-docs": cmd_check_docs,
         "trigger-tests": cmd_trigger_tests,
         "debug-vercel": cmd_debug_vercel,
+        "wait-deploy": cmd_wait_deploy,
         "code-quality": cmd_code_quality,
         "find-redundancy": cmd_find_redundancy,
         "stale-docs": cmd_stale_docs,
-        "task-create": cmd_task_create,
-        "task-step": cmd_task_step,
-        "task-ac": cmd_task_ac,
-        "task-show": cmd_task_show,
-        "task-list": cmd_task_list,
-        "task-update": cmd_task_update,
-        "task-track": cmd_task_track,
         "git-stats": cmd_git_stats,
     }
 

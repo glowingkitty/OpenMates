@@ -4,7 +4,7 @@
 The document contains the full Specification and examples in a readable hierarchy.
 Only changed text is colored: green plus-marked insertions and red minus-marked
 deletions. The resulting PDF is uploaded through the existing private 48-hour
-OpenCode response-media path by default.
+Response-media path by default.
 """
 
 from __future__ import annotations
@@ -28,12 +28,12 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts import specifications  # noqa: E402
 from scripts import specification_readable_pdf as readable_pdf  # noqa: E402
-from scripts import opencode_response_media  # noqa: E402
+from scripts import response_media  # noqa: E402
 from scripts.playwright_visual_smoke import launch_browser  # noqa: E402
 
 
 DEFAULT_BASELINE_REF = "HEAD"
-DEFAULT_OUTPUT_ROOT = Path("/tmp/opencode/specification-approvals")
+DEFAULT_OUTPUT_ROOT = Path("/tmp/openmates/specification-approvals")
 MISSING = object()
 IDENTITY_FIELDS = ("id", "name", "key")
 
@@ -804,10 +804,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render and privately upload an inline-diff Specification approval PDF")
     parser.add_argument("bundle", help="Specification bundle directory or specification.yml path")
     parser.add_argument("--baseline-ref", default=DEFAULT_BASELINE_REF, help="Git ref used to highlight changes")
-    parser.add_argument("--output", type=Path, help="PDF output path; defaults under /tmp/opencode/specification-approvals")
+    parser.add_argument("--output", type=Path, help="PDF output path; defaults under /tmp/openmates/specification-approvals")
     parser.add_argument("--preview-output", type=Path, help="Optional first-page PNG used for deterministic visual inspection")
     parser.add_argument("--preview-anchor", default="", help="Render one element id instead of page one when --preview-output is set")
-    parser.add_argument("--container", default=opencode_response_media.DEFAULT_CONTAINER, help="API container used for S3 upload")
+    parser.add_argument("--container", default=response_media.DEFAULT_CONTAINER, help="API container used for S3 upload")
     parser.add_argument("--new-specification", action="store_true", help="Allow Specification files to be absent from the baseline commit")
     parser.add_argument("--no-upload", action="store_true", help="Generate the PDF without uploading it")
     parser.add_argument("--dry-run-upload", action="store_true", help="Generate a fake upload result without Docker or S3")
@@ -866,7 +866,7 @@ def main(argv: list[str] | None = None) -> int:
         }
         publication = None
         if not args.no_upload:
-            publication = opencode_response_media.upload_file(
+            publication = response_media.upload_file(
                 output,
                 alt=f"Read {bundle.versioned_id} Specification approval PDF",
                 container=args.container,

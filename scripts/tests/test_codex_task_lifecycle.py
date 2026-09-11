@@ -203,30 +203,14 @@ def test_pending_recovery_retains_identity_and_does_not_replace_uncertain_intent
     )
 
 
-def test_hook_rejects_source_cli_but_allows_global_and_unit_tests(tmp_path):
+def test_hook_allows_cli_development_inside_bound_workspace(tmp_path):
     from scripts.codex_hook_context import route
-
-    for command in [
-        "node frontend/packages/openmates-cli/dist/cli.js tasks list",
-        "node --loader tests/loader.mjs src/cli.ts tasks list",
-    ]:
-        with pytest.raises(ValueError, match="globally installed"):
-            route(
-                "PreToolUse",
-                {"tool_name": "Bash", "tool_input": {"command": command}},
-                tmp_path,
-                "ecad",
-            )
-    for command in [
-        "openmates tasks list --json",
-        "node --test tests/taskDiscovery.test.ts",
-    ]:
-        assert route(
-            "PreToolUse",
-            {"tool_name": "Bash", "tool_input": {"command": command}},
-            tmp_path,
-            "ecad",
-        )
+    for command in ["node frontend/packages/openmates-cli/dist/cli.js --help",
+                    "node --loader tests/loader.mjs src/cli.ts --help",
+                    "openmates tasks list", "node --test tests/taskDiscovery.test.ts"]:
+        result = route("PreToolUse", {"tool_name": "Bash", "tool_input": {"command": command}}, tmp_path, "ecad")
+        assert str(tmp_path) in result["hookSpecificOutput"]["updatedInput"]["command"]
+        assert result["hookSpecificOutput"]["permissionDecision"] == "allow"
 
 
 def test_shared_429_stops_other_chats_and_honors_retry_after(monkeypatch, tmp_path):

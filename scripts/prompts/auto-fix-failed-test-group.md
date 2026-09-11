@@ -9,7 +9,7 @@ investigate and fix.
 
 ## Hard Rules
 
-- Do not start subagents, parallel agents, background sessions, or additional OpenCode sessions.
+- Do not start subagents, parallel agents, background sessions, or additional Codex tasks.
 - Do not call `scripts/sessions.py start`, `scripts/sessions.py end`, `scripts/sessions.py deploy`, or git commit commands.
 - Do not wait for user feedback. If approval is needed, write `status: "blocked"` and exit.
 - Do not inspect or fix failures outside this group.

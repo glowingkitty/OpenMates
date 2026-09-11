@@ -400,6 +400,46 @@ class Queue:
                     )
 
 
+def print_receipt(value, *, as_json=False):
+    """Keep machine receipts available without flooding ordinary agent calls."""
+    if as_json:
+        print(json.dumps(value))
+        return
+    rows = value if isinstance(value, list) else [value]
+    for row in rows:
+        if not isinstance(row, dict):
+            print(str(row))
+            continue
+        identity = row.get("id", row.get("request_id", "CI"))
+        state = row.get("state", row.get("conclusion", row.get("status", "recorded")))
+        print(f"{identity}: {state}")
+        for key in ("source_commit", "source", "run_id", "url", "run_url", "artifact_url", "reason", "error", "receipt_path", "result_command"):
+            if row.get(key):
+                print(f"  {key}: {str(row[key])[:500]}")
+        if not any(key in row for key in ("id", "request_id", "state", "status", "conclusion")):
+            for key, item in row.items():
+                if key not in ("reason", "error"):
+                    print(f"  {key}: {str(item)[:200]}")
+
+
+def wait_for_job(queue, key, *, timeout=900, poll=10, clock=time.monotonic, sleep=time.sleep):
+    """Read the coordinator cache; the daemon owns GitHub polling and rate limits."""
+    if timeout <= 0 or poll <= 0:
+        raise ValueError("Timeout and poll must be positive")
+    deadline = clock() + timeout
+    while True:
+        rows = queue.status(key)
+        if not rows:
+            raise ValueError("Unknown CI request")
+        row = rows[0]
+        if row["state"] in TERMINAL or row["state"] == "attention":
+            return row
+        remaining = deadline - clock()
+        if remaining <= 0:
+            return {**row, "state": "timeout", "last_state": row["state"]}
+        sleep(min(poll, remaining))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
@@ -419,14 +459,21 @@ def main():
     priority.add_argument("--reason", required=True)
     status = sub.add_parser("status")
     status.add_argument("id", nargs="?")
+    status.add_argument("--all", action="store_true", help="Include recent terminal history")
     result = sub.add_parser("result")
     result.add_argument("id")
     verify = sub.add_parser("verify-pilot")
     verify.add_argument("id")
     verify.add_argument("--activate", action="store_true", help="Enable only verified core coverage; other profiles remain held")
-    sub.add_parser("health")
+    health = sub.add_parser("health")
     sub.add_parser("serve")
     sub.add_parser("tick")
+    wait = sub.add_parser("wait", help="Wait for a cached job result without agent polling")
+    wait.add_argument("id")
+    wait.add_argument("--timeout", type=float, default=900)
+    wait.add_argument("--poll", type=float, default=10)
+    for command in (submit, priority, status, result, verify, health, wait):
+        command.add_argument("--json", action="store_true", help="Emit complete machine-readable data")
     args = parser.parse_args()
     root = canonical_root(Path(__file__).resolve().parent.parent)
     queue = Queue(root / "logs/ci-coordinator/queue.sqlite3")
@@ -447,25 +494,18 @@ def main():
                 raise RuntimeError("Selected specs require a different isolated runtime mode")
             if held:
                 raise RuntimeError("Unsupported isolated coverage: " + json.dumps(held))
-        print(
-            json.dumps(
-                queue.enqueue(
-                    args.session,
-                    args.source,
-                    args.spec,
-                    args.mode,
-                    args.attempt,
-                    args.proof_video_profile,
-                )
-            )
-        )
+        print_receipt(queue.enqueue(args.session, args.source, args.spec, args.mode,
+                                    args.attempt, args.proof_video_profile), as_json=args.json)
     elif args.action == "prioritize":
-        print(json.dumps(queue.prioritize(args.id, args.session, args.reason)))
+        print_receipt(queue.prioritize(args.id, args.session, args.reason), as_json=args.json)
     elif args.action == "status":
-        print(json.dumps(queue.status(args.id)))
+        rows = queue.status(args.id)
+        if not args.id and not args.all:
+            rows = [row for row in rows if row["state"] not in TERMINAL][:10]
+        print_receipt(rows, as_json=args.json)
     elif args.action == "health":
         with queue.connect() as db:
-            print(json.dumps(dict(db.execute("SELECT key, value FROM meta"))))
+            print_receipt(dict(db.execute("SELECT key, value FROM meta")), as_json=args.json)
     elif args.action == "verify-pilot":
         from ci_results import fetch
         try:
@@ -487,11 +527,19 @@ def main():
             temporary = target.with_suffix("." + uuid.uuid4().hex + ".tmp")
             temporary.write_text(json.dumps(checkpoint, indent=2) + "\n")
             temporary.replace(target)
-        print(json.dumps(checkpoint))
+        print_receipt(checkpoint, as_json=args.json)
+    elif args.action == "wait":
+        row = wait_for_job(queue, args.id, timeout=args.timeout, poll=args.poll)
+        if row["state"] == "success":
+            from ci_results import fetch
+            # A green workflow is not sufficient: validate exact-source artifacts once.
+            row = queue.result(GitHub(root), args.id, root, fetch)
+        print_receipt(row, as_json=args.json)
+        return 0 if row["state"] == "success" else 1
     elif args.action == "result":
         from ci_results import fetch
 
-        print(json.dumps(queue.result(GitHub(root), args.id, root, fetch)))
+        print_receipt(queue.result(GitHub(root), args.id, root, fetch), as_json=args.json)
     else:
         github = GitHub(root)
         while True:

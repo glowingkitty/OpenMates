@@ -116,7 +116,7 @@ def record_demonstration(data: dict[str, Any], payload: dict[str, str], args: ar
         or review.get("status") != "passed"
         or publication.get("status") != "delivered"
     ):
-        raise RuntimeError("Passing demonstration evidence requires finalized privacy, audio intent, review, and OpenCode response-media publication states")
+        raise RuntimeError("Passing demonstration evidence requires finalized privacy, audio intent, review, and Response-media publication states")
     manifest_commit = manifest.get("subject_commit")
     if manifest_commit != payload["subject_commit"]:
         raise RuntimeError("Demonstration manifest subject commit does not match recorded evidence")

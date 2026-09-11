@@ -419,15 +419,9 @@ def save_meeting_step(root, day, thread, step, text, message_id, timezone_name):
         elif step == "answer":
             if any(a["message_id"] == message_id for a in record["answers"]):
                 return record
-            if len(record["answers"]) >= 4:
-                raise ValueError("The four clarification rounds are already recorded")
             record["answers"].append({"message_id": message_id, "text": text})
             record["phase"] = "clarifying"
         elif step == "proposal":
-            if len(record["answers"]) != 4:
-                raise ValueError(
-                    "Record four answered clarification rounds before proposing today's focus"
-                )
             record.update(proposal=text, phase="proposed")
             record.pop("approval", None)
         elif step == "approve":

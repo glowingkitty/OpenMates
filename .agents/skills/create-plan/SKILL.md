@@ -1,129 +1,22 @@
 ---
 name: create-plan
-description: Create or update an executable Plan linked to approved Specifications before non-trivial OpenCode implementation work
+description: Record a concise durable Plan for material architecture, risk or multi-session work.
 user-invocable: true
-argument-hint: "<feature | bug | issue id | specification path | docs/plans/<slug>/plan.yml>"
 ---
 
-## Codex execution boundary
+Use an inline goal and acceptance criteria for ordinary clear changes. Use
+`docs/plans/<slug>/plan.yml` for material architecture/risk or durable multi-session
+work. Read `docs/contributing/guides/spec-driven-development.md` when a full Plan
+is needed. Discover relevant source, existing tests and approved decisions first.
 
-OpenMates Tasks remains the execution source of truth; native OpenMates Plans and
-Specs integration is deferred. Preserve the existing repository YAML Plan and PDF
-specification approval workflow. Do not create a second manually maintained Task
-status database. Ordinary real REST/WebSocket, CLI/SDK and browser verification
-runs on the isolated GitHub stack. The separately authorized live signup-email
-smoke uses OpenMates CLI and runs only on dev, with isolated test state. It does
-not move to GitHub when local credentials are missing. Existing authorization
-and explicit user waivers persist; do not restart approval/question rounds or
-require videos the user has explicitly declined.
+A Plan requires `schema_version: 2` and the user-authored `goal`; add only useful
+scope, checks, decisions and evidence. Only explicitly required checks gate
+completion. OpenMates Tasks remains the status/dependency authority; do not
+maintain a second task ledger. Engineering workflows need no product Specification.
+Use `define-specification` only when defining/changing an approved product contract.
 
-## Instructions
-
-You are creating the executable implementation Plan for a non-trivial OpenMates
-change. Clarify the user's vision, discover approved Specifications and existing
-patterns, create one YAML Plan, and stop before implementation until the user
-approves the Plan.
-
-Read `docs/contributing/guides/spec-driven-development.md` before writing or
-updating a Plan.
-
-### Step 1: Decide Plan Size
-
-| Risk tier | Use when | Artifact |
-| --- | --- | --- |
-| Tier 0 | Trivial/mechanical work | No Plan |
-| Tier 1 | Ordinary non-trivial work with clear behavior | Issue or session Plan |
-| Tier 2 | High-risk or durable multi-session work | `docs/plans/<slug>/plan.yml` |
-
-Tier 2 Plans are required for auth, encryption, billing, privacy, teams,
-sharing, permissions, sync, AI pipeline, provider integrations, migrations, new
-API routes, app skills, embed types, background jobs, cron jobs, and Directus
-schema changes.
-
-### Product versus engineering workflow scope
-
-Specifications govern OpenMates product features. Engineering workflows (Codex,
-OpenCode, worktrees, hooks, resource admission, test orchestration and deploy
-coordination) use an executable Plan directly, with `approvals.specification`
-marked `not_required`. Do not create or request a product Specification for those
-workflows. Existing explicit approval of the reviewed workflow design authorizes
-its implementation; do not repeat approval merely to transcribe it into a Plan.
-
-### Step 2: Discover Context And Specifications
-
-Before asking questions or drafting:
-
-1. Search existing GitHub Issues by default if this is tracker work, and relevant
-   Linear tasks only when appropriate.
-2. Search `specifications/`, `docs/plans/`, `docs/architecture/`, user guides,
-   relevant source directories, and related tests.
-3. Identify the governing approved Specification bundle and record its exact
-   reference and fingerprint. For a new product feature or product semantic behavior change, run
-   `define-specification` and wait for approval before creating the Plan.
-   Implementation-only work references the current approved Specification.
-4. Read likely related tests so each task and verification maps to real paths.
-
-For a Tier 2 Plan, ask up to five clarifying questions, exactly one per message,
-then summarize verified facts, uncertainties, scope, non-goals, and unresolved
-decisions. Wait for user confirmation before writing `plan.yml`.
-Every question must include `Recommendation:` with the evidence-based preferred
-answer and rationale plus `Examples:` with task-specific outcomes. If evidence
-is incomplete, recommend the safest reversible default and state the uncertainty.
-
-### Step 3: Write The Plan
-
-For a full Plan, create or update:
-
-```text
-docs/plans/<slug>/plan.yml
-```
-
-The Plan must include:
-
-- `schema_version`, linked Specification references and affected assertion IDs
-- Goal, scope, non-goals, discovery summary, assumptions, risks, and decisions
-- Numbered scenarios (`S-*`) and acceptance criteria (`AC-*`)
-- Technical boundaries, data-flow examples, affected files, rollout needs, and
-  documentation impact
-- Small vertical-slice tasks with status, ownership, dependencies, verification
-  IDs, and evidence/handoff records
-- Tests with red and green phase metadata plus concrete verification commands
-- The required cross-client phase order: REST API/WebSocket, CLI, npm/pip SDKs,
-  CI/daily reproduction, web, deployed Playwright visual smoke, user
-  confirmation, then Apple
-- Endpoint access classification, auth, limits, budget/credit limits, and
-  encrypted-data handling where applicable
-- Required demonstration and visual-smoke records for observable product surfaces
-
-Do not create a second nested planning stage. A Plan is the implementation
-plan and its tasks are direct children of the Plan.
-
-Run validation before presenting the Plan:
-
-```bash
-python3 scripts/plan_validate.py docs/plans/<slug>/plan.yml
-```
-
-### Step 4: Review Gate
-
-After drafting, summarize:
-
-```markdown
-Plan: docs/plans/<slug>/plan.yml
-Specifications: <approved references>
-First slice: <short description>
-Open questions: <none or list>
-Validation: <plan_validate result>
-Next: approve the Plan, then run `tasks-from-plan docs/plans/<slug>/plan.yml`
-```
-
-Do not implement code during this skill.
-
-## Rules
-
-- Specifications are product truth; Plans describe implementation and evidence.
-- Full Plans are executable YAML only. Do not create a nested implementation-plan
-  artifact inside a Plan.
-- Keep Plans concise; concrete examples and checks are more valuable than prose.
-- Do not commit secrets, private user data, raw logs, private emails, or
-  production identifiers.
+Existing explicit approval authorizes implementation. Do not restart question or
+approval rounds just to transcribe a reviewed design. Ask for a material unresolved
+decision and stop only its dependent work. Run `scripts/plan_validate.py <plan>`.
+Update relevant E2E coverage for behavior changes and use isolated GitHub CI.
+Apply `.claude/rules/testing.md` for bounded debugging and user execution waivers.

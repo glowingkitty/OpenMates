@@ -183,8 +183,7 @@ def test_research_requires_priorities_before_any_source_is_read(tmp_path):
         meeting.collect(tmp_path, datetime.now(timezone.utc), "UTC", NeverRead())
 
 
-def test_daily_records_preserve_yesterday_and_require_four_distinct_answers(tmp_path):
-    import pytest
+def test_daily_records_preserve_history_without_forcing_question_rounds(tmp_path):
 
     tid = "00000000-0000-0000-0000-000000000001"
     first = meeting.save_meeting_step(
@@ -199,10 +198,10 @@ def test_daily_records_preserve_yesterday_and_require_four_distinct_answers(tmp_
         ][tid]["priorities"]
         == "Ship signup"
     )
-    with pytest.raises(ValueError, match="four"):
-        meeting.save_meeting_step(
-            tmp_path, "2026-09-08", tid, "proposal", "Today focus", "", "UTC"
-        )
+    proposal = meeting.save_meeting_step(
+        tmp_path, "2026-09-08", tid, "proposal", "Today focus", "", "UTC"
+    )
+    assert proposal["phase"] == "proposed" and proposal["answers"] == []
     for i in range(4):
         meeting.save_meeting_step(
             tmp_path, "2026-09-08", tid, "answer", f"Answer {i}", f"reply-{i}", "UTC"
@@ -274,3 +273,16 @@ def test_legacy_entry_point_asks_priorities_without_research(monkeypatch, tmp_pa
     data = helper.gather_all_data(str(tmp_path), "2026-09-07")
     assert data["needs_priorities"]
     assert "FIRST ask" in helper.build_meeting_prompt(data, "2026-09-08", "2026-09-07")
+
+
+def test_meeting_prompt_keeps_large_inputs_in_private_receipt(monkeypatch, tmp_path):
+    import re
+    from scripts import _daily_meeting_helper as helper
+    monkeypatch.setattr(helper, "TMP_DIR", tmp_path)
+    data = {"meeting": {"history": {"coverage": "complete"}, "raw": "private" * 100000}, "_failures": []}
+    prompt = helper.build_meeting_prompt(data, "2026-09-11", "2026-09-10")
+    assert len(prompt) < 1500
+    assert "privateprivate" not in prompt
+    receipt = tmp_path / re.search(r"daily-meeting-[^\s]+\.json", prompt).group(0)
+    assert json.loads(receipt.read_text()) == data
+    assert receipt.stat().st_mode & 0o777 == 0o600

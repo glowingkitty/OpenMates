@@ -24,7 +24,7 @@ from scripts import proof_video_workflow as workflow
 
 @pytest.fixture(autouse=True)
 def isolate_agent_identity(monkeypatch):
-    for variable in ("CODEX_THREAD_ID", "CODEX_SESSION_ID", "OPENCODE_SESSION_ID"):
+    for variable in ("CODEX_THREAD_ID", "CODEX_SESSION_ID", "CODEX_THREAD_ID"):
         monkeypatch.delenv(variable, raising=False)
 
 
@@ -52,7 +52,7 @@ def test_resolve_current_context_matches_session_commit_and_passing_spec() -> No
     sessions = {
         "sessions": {
             "abcd": {
-                "opencode_session_id": "ses_current",
+                "codex_task_id": "ses_current",
                 "mode": "feature",
             }
         }
@@ -76,7 +76,7 @@ def test_resolve_current_context_matches_session_commit_and_passing_spec() -> No
 
     context = workflow.resolve_current_context(
         sessions,
-        opencode_session_id="ses_current",
+        codex_task_id="ses_current",
         subject_commit=commit,
         spec_name="example.spec.ts",
         test_runs=runs,
@@ -132,7 +132,7 @@ def test_proof_sources_use_shared_control_plane_results() -> None:
     assert workflow.PROOF_SOURCE_DIR == workflow.CONTROL_PLANE_ROOT / "test-results" / "proof-video-sources"
 
 
-@pytest.mark.parametrize("provider", ["opencode", "codex", "explicit"])
+@pytest.mark.parametrize("provider", ["codex", "explicit"])
 def test_start_current_uses_deployed_session_commit_from_linked_worktree(
     provider: str,
     tmp_path: Path,
@@ -148,7 +148,7 @@ def test_start_current_uses_deployed_session_commit_from_linked_worktree(
             {
                 "sessions": {
                     "abcd": {
-                        ("codex_task_id" if provider == "codex" else "opencode_session_id"): "ses_current",
+                        "codex_task_id": "ses_current",
                         "worktree": {"merged_commit": deployed_commit},
                     }
                 }
@@ -170,10 +170,10 @@ def test_start_current_uses_deployed_session_commit_from_linked_worktree(
         ),
         encoding="utf-8",
     )
-    for variable in ("OPENCODE_SESSION_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID"):
+    for variable in ("CODEX_THREAD_ID", "CODEX_SESSION_ID"):
         monkeypatch.delenv(variable, raising=False)
     if provider != "explicit":
-        monkeypatch.setenv("CODEX_THREAD_ID" if provider == "codex" else "OPENCODE_SESSION_ID", "ses_current")
+        monkeypatch.setenv("CODEX_THREAD_ID", "ses_current")
     monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
@@ -202,7 +202,7 @@ def test_start_current_disambiguates_numeric_cli_run_id(
             {
                 "sessions": {
                     "abcd": {
-                        "opencode_session_id": "ses_current",
+                        "codex_task_id": "ses_current",
                         "worktree": {"merged_commit": deployed_commit},
                     }
                 }
@@ -224,7 +224,7 @@ def test_start_current_disambiguates_numeric_cli_run_id(
         ),
         encoding="utf-8",
     )
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_current")
+    monkeypatch.setenv("CODEX_THREAD_ID", "ses_current")
     monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
@@ -251,7 +251,7 @@ def test_start_current_disambiguates_proof_source_run_id(
             {
                 "sessions": {
                     "abcd": {
-                        "opencode_session_id": "ses_current",
+                        "codex_task_id": "ses_current",
                         "worktree": {"merged_commit": deployed_commit},
                     }
                 }
@@ -274,7 +274,7 @@ def test_start_current_disambiguates_proof_source_run_id(
         ),
         encoding="utf-8",
     )
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_current")
+    monkeypatch.setenv("CODEX_THREAD_ID", "ses_current")
     monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
@@ -296,8 +296,8 @@ def test_resolve_current_context_rejects_ambiguous_passing_runs() -> None:
 
     with pytest.raises(workflow.WorkflowError, match="multiple passing runs"):
         workflow.resolve_current_context(
-            {"sessions": {"abcd": {"opencode_session_id": "ses_current"}}},
-            opencode_session_id="ses_current",
+            {"sessions": {"abcd": {"codex_task_id": "ses_current"}}},
+            codex_task_id="ses_current",
             subject_commit=commit,
             spec_name="example.spec.ts",
             test_runs=runs,
@@ -312,8 +312,8 @@ def test_resolve_current_context_accepts_same_run_with_multiple_video_sources() 
     ]
 
     context = workflow.resolve_current_context(
-        {"sessions": {"abcd": {"opencode_session_id": "ses_current"}}},
-        opencode_session_id="ses_current",
+        {"sessions": {"abcd": {"codex_task_id": "ses_current"}}},
+        codex_task_id="ses_current",
         subject_commit=commit,
         spec_name="example.spec.ts",
         test_runs=runs,
@@ -423,8 +423,8 @@ def test_approved_contract_rejects_tampered_payload_with_embedded_old_hash(tmp_p
 def test_context_rejects_local_or_unverified_passing_run() -> None:
     with pytest.raises(workflow.WorkflowError, match="deployed passing run"):
         workflow.resolve_current_context(
-            {"sessions": {"abcd": {"opencode_session_id": "ses_current"}}},
-            opencode_session_id="ses_current",
+            {"sessions": {"abcd": {"codex_task_id": "ses_current"}}},
+            codex_task_id="ses_current",
             subject_commit="abc1234",
             spec_name="frontend/apps/web_app/tests/example.spec.ts",
             test_runs=[
@@ -1459,49 +1459,6 @@ def test_review_run_accepts_control_plane_results(
     assert result["status"] == "passed"
 
 
-def test_review_run_accepts_opencode_runtime_results(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    runtime_root = tmp_path / "runtime"
-    monkeypatch.setattr(workflow, "OPENCODE_RUNTIME_ROOT", runtime_root)
-    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
-    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
-    run_dir, request = _write_review_run(
-        runtime_root / "test-results" / "proof-videos" / "session" / "run"
-    )
-
-    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
-        return (
-            {
-                "status": "passed",
-                "confidence": 0.99,
-                "frame_index_hash": request["frame_index_hash"],
-                "reviewed_frames": ["frames/frame.png"],
-                "frame_reviews": [frame_quality_review("frames/frame.png")],
-                "assertions": [
-                    {
-                        "id": "visible",
-                        "verdict": "supported",
-                        "frames": ["frames/frame.png"],
-                        "observation": "Visible.",
-                    }
-                ],
-                "incidental_findings": [],
-                "return_stage": "complete",
-                "next_action": "Publish.",
-            },
-            "ses_reviewer",
-        )
-
-    result = workflow.review_run(
-        run_dir=run_dir,
-        correction_round=0,
-        correction_kind="none",
-        reviewer_runner=reviewer,
-    )
-
-    assert result["status"] == "passed"
 
 
 def test_review_run_recovers_receipt_written_before_cache_attachment(
@@ -1708,9 +1665,9 @@ def test_review_run_includes_blocker_media_for_failed_review(
     assert blocker_media["image_status"] == "available"
     assert blocker_media["video_status"] == "available"
     assert blocker_media["video_path"] == str(run_dir / "demo.mp4")
-    assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["upload_command"].startswith("python3 scripts/response_media.py ")
     assert blocker_media["image_path"] == str(run_dir / "frames" / "frame.png")
-    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["image_upload_command"].startswith("python3 scripts/response_media.py ")
     assert result["receipt"]["workflow"]["blocker_media"] == blocker_media
 
 
@@ -1741,7 +1698,7 @@ def test_blocker_media_uses_assertion_frame_when_failed_review_has_no_finding(tm
     blocker_media = workflow.proof_blocker_media(run_dir, manifest, "capture_defect")
 
     assert blocker_media["image_path"] == str(frame)
-    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["image_upload_command"].startswith("python3 scripts/response_media.py ")
 
 
 def test_blocker_media_keeps_cited_image_when_video_is_missing(tmp_path: Path) -> None:
@@ -1772,7 +1729,7 @@ def test_blocker_media_keeps_cited_image_when_video_is_missing(tmp_path: Path) -
     assert blocker_media["video_status"] == "missing"
     assert blocker_media["finding_id"] == "UI-1"
     assert blocker_media["image_path"] == str(frame)
-    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["image_upload_command"].startswith("python3 scripts/response_media.py ")
     assert "upload_command" not in blocker_media
 
 
@@ -1837,7 +1794,7 @@ def test_cached_failed_review_preserves_representative_frame(tmp_path: Path, mon
     )
 
     assert result["blocker_media"]["image_path"] == str(run_dir / "frames" / "frame.png")
-    assert result["blocker_media"]["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert result["blocker_media"]["image_upload_command"].startswith("python3 scripts/response_media.py ")
 
 
 def test_user_approved_visual_intent_resolves_only_cited_uncertainty(
@@ -2544,7 +2501,7 @@ def test_review_run_rejects_frame_path_escape_before_inference(
 @pytest.mark.parametrize("records, kwargs", [
     ({"abcd": {}}, {}),
     ({"abcd": {}}, {"repository_session_id": "missing"}),
-    ({"abcd": {"opencode_session_id": "thread"}}, {"codex_task_id": "thread"}),
+    ({"abcd": {"retired_provider_id": "thread"}}, {"codex_task_id": "thread"}),
     ({"abcd": {"codex_task_id": "thread"}, "ef01": {"codex_task_id": "thread"}}, {"codex_task_id": "thread"}),
 ])
 def test_proof_session_resolution_rejects_missing_ambiguous_or_wrong_provider(records, kwargs):

@@ -6,7 +6,7 @@ run-audit and run-redteam use the deterministic digest adapter, including its
 missing/stale snapshot checks; they never launch an AI review or live probe.
 acknowledge, list-findings and reset retain the existing manual state interface.
 DRY_RUN avoids report persistence; PROJECT_ROOT locates retained snapshots.
-Automatic OpenCode review was removed under TASK-7543; see
+Automatic agent review was removed under TASK-7543; see
  docs/architecture/infrastructure/cronjobs.md and future workflow TASK-8338.
 """
 
@@ -19,7 +19,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Append scripts/ to path so we can import _opencode_utils
+# Append scripts/ to path so we can import shared helpers
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from security_scan_reporting import ingest_snapshot
 

@@ -261,7 +261,7 @@ Python tests use `doc_assert("claim-id")` or `with doc_assert("claim-id"):`.
 Manual claims are allowed only when deterministic checks are not feasible and
 must include a reason.
 
-Automation triggers OpenCode documentation review only when:
+Automation triggers Codex documentation review only when:
 
 - A linked assertion fails in test results.
 - A linked assertion marker is removed or renamed.
@@ -281,9 +281,9 @@ Layers that keep docs up to date:
    - `sessions.py draft-docs` lists incomplete draft docs
    - Deploy warns about stale docs related to modified files
 
-4. **Test-backed user guides:** user-guide docs can declare `tested_by` entries that link them to Playwright specs and `docCheckpoint()` IDs. Run `python3 scripts/docs_guide_verify.py` to validate guide/spec/checkpoint links. When a linked spec changes, run `python3 scripts/docs_guide_review.py --since <ref>` to prepare a dry-run review package, or add `--execute` in automation to spawn an OpenCode docs-review session.
+4. **Test-backed user guides:** user-guide docs can declare `tested_by` entries that link them to Playwright specs and `docCheckpoint()` IDs. Run `python3 scripts/docs_guide_verify.py` to validate guide/spec/checkpoint links. When a linked spec changes, run `python3 scripts/docs_guide_review.py --since <ref>` to prepare a dry-run review package, or add `--execute` in automation to spawn an Codex docs-review session.
 
-5. **Assertion-backed claims:** active docs can declare `claims` entries that link them to `docAssert()` / `doc_assert()` markers. Run `python3 scripts/docs_claims_verify.py` to validate claim wiring. Run `python3 scripts/docs_claims_review.py --failures test-results/last-failed-tests.json` to prepare an OpenCode review prompt for failed tests linked to doc claims, or add `--execute` to spawn the review session.
+5. **Assertion-backed claims:** active docs can declare `claims` entries that link them to `docAssert()` / `doc_assert()` markers. Run `python3 scripts/docs_claims_verify.py` to validate claim wiring. Run `python3 scripts/docs_claims_review.py --failures test-results/last-failed-tests.json` to prepare an Codex review prompt for failed tests linked to doc claims, or add `--execute` to spawn the review session.
 
 When updating code, check if it appears in `docs/architecture/code-mapping.yml` and update the corresponding doc.
 

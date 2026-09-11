@@ -77,7 +77,7 @@ This is scoped wrapper/OS-policy enforcement for reviewed operations, not a
 claim of tamper-proof unrestricted host access. SSH login startup and installed
 binaries are trusted. Alternate tools, local ledger tampering and host identity
 routing require host enforcement. Shared hook architecture remains unchanged;
-OpenCode release activation remains separate from source deployment.
+Installed hook trust review remains separate from source deployment.
 
 ## Verification
 

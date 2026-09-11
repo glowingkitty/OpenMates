@@ -1,171 +1,61 @@
 ---
-description: Testing standards — E2E, unit tests, Playwright patterns
+description: Maintain relevant E2E coverage and verify within task scope
 globs:
-  - "**/*.spec.ts"
-  - "**/*.test.ts"
-  - "**/tests/**"
-  - "frontend/apps/web_app/tests/**"
-  - "backend/tests/**"
 ---
 
-@docs/contributing/guides/testing.md
+# Verification
 
-## GitHub isolation cutover (current execution policy)
+Every behavior fix or new feature updates the relevant E2E coverage. Extend an
+existing case when appropriate; add a focused case when none covers the intended
+behavior. Do not request separate permission for routine test maintenance within
+an authorized implementation. A purely mechanical/docs change needs no invented
+E2E case. Explicit user instructions override this default.
 
-The approved GitHub migration supersedes shared-dev/Vercel execution instructions
-below for new automated test runs. Focused unit checks remain local; daily units
-and web E2E use the canonical `scripts/tests.py run` dispatcher and GitHub-hosted
-runner-local frontend, API, workers and state. Never work around a migration hold
-by invoking Playwright, old workflow dispatch, Vercel, or the Hetzner API directly.
-Keep existing assertion, real authentication, encryption, budget and proof gates.
+Confirmed browser observations, logs or existing failing checks are sufficient
+to begin a fix. Investigate only remaining uncertainty; do not require a fresh
+failing baseline or approval to reconfirm a known bug. Preserve useful before
+measurements and verify the affected path after the fix.
+Keep unit checks for the underlying cause; a fixture-only banner/component test
+does not establish that the reported end-to-end failure is fixed. Use existing
+contract-test metadata and stable assertion IDs for product tests; classify
+engineering/tooling tests as such. Never weaken assertions to force a pass.
 
-The explicitly authorized real signup-email smoke is a separate dev-server-only
-health check using the global OpenMates CLI with isolated test state. It exercises
-the deployed signup worker and Brevo delivery. Never dispatch this live-email
-probe to GitHub or make isolated GitHub signup depend on Brevo. Keep the global
-engineering Tasks login intact. Missing dev-host credentials are a local setup
-blocker; do not relocate execution to GitHub to obtain its secrets.
+Focused unit, lint and build checks run in the isolated checkout. Product
+REST/WebSocket, CLI/SDK and browser E2E run with the full Docker/web application
+stack in the existing isolated GitHub CI infrastructure, with disposable test
+accounts. Do not launch a second CI scheduler or use the shared dev stack for
+these tests. Publish immutable source with `sessions.py ci-source`, submit with
+`ci_coordinator.py submit`, then use `ci_coordinator.py wait <id>` or existing
+result events. Inspect the scoped receipt on completion. Source and harness
+identity must match the check; mocks and old runs are not new integration proof.
 
+Choose checks for the actual changed behavior and affected clients. Shared API
+changes need relevant API/client coverage; a web-only fix does not create an
+automatic Apple-verification ladder. Use existing test helpers, fixtures and
+data-testid selectors for reliable UI interaction. Reuse regression coverage.
 
-Use `scripts/ci_coordinator.py status REQUEST_ID` for cached queue state and
-`result REQUEST_ID` for validated source/harness-bound evidence. Historical
-Directus campaign records are not yet synchronized with these new CI receipts;
-do not interpret their absence as a passing or missing execution to retry.
-Coverage not ported to a verified runtime remains an explicit hold. A core account
-pilot does not certify cloud-only or provider-backed tests. See
-`docs/architecture/isolated-github-tests.md` for supported commands and limits.
+Keep debugging bounded by the original acceptance criteria. After two failed
+attempts with the same approach, reassess before another attempt. When the cause
+is unrelated infrastructure, expected behavior is uncertain, or repair would
+materially expand the task, explain the finding and ask the user before resuming
+that expanded work. Keep the implementation and test evidence available. Do not
+turn one product fix into a test-infrastructure repair campaign without approval.
 
+Honor execution waivers (`skip E2E`, for example) and report what was not run.
+An execution waiver does not waive updating the relevant E2E coverage unless the
+user says so. Ask if the user instruction itself leaves that distinction unclear.
+Do not claim a pass from a queued, cancelled, unrelated or stale run.
 
-## Daily Test Results — Where to Find Them
+Return useful existing CI artifacts and failure evidence using the current
+client's supported links. Proof-video captions, extra profiles and visual-smoke
+production are required only by the accepted task/Plan or an explicit request.
+Do not rerun a passing test solely to repair an upload; retry the upload itself.
+Never publish private production evidence or unredacted personal data.
 
-Directus is the canonical test state and claim store. Use `scripts/tests.py`
-for current status, triage, claims, leases, history, and reruns:
+The explicitly authorized real signup-email smoke remains a dev-host check with
+isolated CLI state. It is separate from CI signup and must not replace the global
+engineering Tasks login. Runtime restarts for deployment use the scoped session
+helper and preserve shared-resource leases.
 
-```bash
-python3 scripts/tests.py status --json
-python3 scripts/tests.py triage --json
-python3 scripts/tests.py next --lease --session <session-id> --json
-```
-
-The daily cron job (`tests.py run --daily`) also exports local artifacts for
-offline investigation and historical context:
-
-| File | Contents |
-|------|----------|
-| `test-results/daily-run-YYYY-MM-DD.json` | Full daily run results (all suites, all tests) |
-| `test-results/last-failed-tests.json` | Just the failures from the latest daily run |
-| `test-results/last-passed-tests.json` | Just the passes from the latest daily run |
-| `test-results/reports/failed/*.md` | Per-test MD reports for each failed test |
-| `test-results/reports/success/*.md` | Per-test MD reports for each passed test |
-| `test-results/last-run.json` | Last individual run (may be a subset — check `run_id`) |
-
-**When asked to fix test failures:** Use `/fix-tests` to create or resume a durable Directus campaign, or `/fix-next-test` as its one-group resume wrapper. Lease through `scripts/tests.py campaign next`, persist acceptance criteria before source edits, record every attempt, and verify exact group membership through `scripts/tests.py run --campaign <id> --group <id>`. Use `test-results/reports/failed/` and screenshots only as supporting evidence.
-
-**Do NOT** treat `test-results/*.json` as the source of truth and do not re-download results from GitHub Actions just to see what failed. The unified control plane already records current state.
-
-## Investigating a Failing E2E Spec
-
-When a specific spec fails and needs deep investigation, use the **`e2e-test-investigator`** subagent. Spawn one per failing spec for parallel investigation.
-
-**Key principle: screenshots are ground truth.** Error messages in failure reports often describe downstream symptoms, not root causes. Always read `test-results/screenshots/current/<spec-folder>/test-failed-*.png` AND the last successful step screenshot.
-
-### Manual investigation checklist (if not using the subagent)
-
-1. **Read the failure report:** `test-results/reports/failed/<spec-name>.md`
-2. **Read screenshots:** `test-results/screenshots/current/<spec-folder>/` — compare what the test expected vs. what's actually on screen
-3. **Query OpenObserve for client console logs from the test run:**
-   ```bash
-   docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json \
-     '{"stream":"client_console","filters":[{"field":"debugging_id","op":"like","value":"%<spec-name>%"}],"since_minutes":120,"limit":50}'
-   ```
-4. **Query backend logs for related errors:**
-   ```bash
-   docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json \
-     '{"stream":"default","filters":[{"field":"level","op":"in","value":["ERROR","WARNING"]},{"field":"message","op":"like","value":"%<keyword>%"}],"since_minutes":120,"limit":30}'
-   ```
-5. **Read the spec code** to understand what step failed and what was expected
-6. **Read the frontend component** involved in the failing step
-7. **Check for regressions:** `git log -5 --oneline -- <component-file>`
-
-### E2E Debug Log Pipeline
-
-All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{specName}&e2e-token={hmac}` into the URL. The frontend detects this at page load and starts forwarding all console logs to OpenObserve via `POST /e2e/client-logs`, tagged with the run ID. This works pre-login, so the full test flow (including login/signup) is captured.
-
-### Common E2E failure patterns
-
-| Pattern | Symptom | Typical Cause |
-|---------|---------|---------------|
-| Element not found, screenshot shows different page | Session lost, user redirected | Auth token expired, refresh token revoked |
-| "No verification code" error | Email code rejected | Cache miss race (Celery hasn't written code yet) or email collision between batched tests |
-| Timeout on iframe/overlay | Spinner or empty area visible | Provider iframe failed to load, CSP block, nesting issue |
-| Element visible but click times out | Overlay blocking pointer events | Consent/modal overlay with `pointer-events: all` on top |
-| Spec passes alone, fails in batch | Intermittent/flaky | Shared state: email collision, test account reuse, DB conflict |
-
-## Additional Test Rules
-
-- **Contract assertions:** Every new or changed behavioral test case must use `contract-test` metadata with stable assertion IDs, `direct` or `supporting` proof, and one canonical surface (`rest_api`, `cli`, `sdks.npm`, `sdks.pip`, `gui.web`, or `gui.apple`). Infrastructure/tooling tests must classify themselves explicitly. If a touched test is unmapped, search existing Specifications first; use `backfill-specification` and then `define-specification` only when no approved assertion defines the intended behavior. Preserve generic API, legal, and provider contracts. Deploy blocks unresolved changed tests.
-
-- **New functionality phase gates:** Implement and verify REST/WebSocket, CLI/SDK, then web behavior on the real isolated GitHub test stack. Preserve endpoint access, auth, rate-limit, budget and encryption assertions. Mocks support focused units; they do not replace integration proof. Run the existing SDK/CLI parity audit when those surfaces change. Do not require a shared-dev run before publishing a source for CI.
-- **Dev server API updates:** On this dev machine, `https://api.dev.openmates.org` points at the local Docker-backed dev API. If direct REST/API, CLI, or SDK proof needs newly changed backend code, run `python3 scripts/sessions.py docker restart --session <ID> --service api` (repeat `--service` for workers, add `--build` when images must be rebuilt) before probing the dev URL. The orchestrator drains dependent tests and verifies container health. Do not wait for GitHub self-host image publishes to update `api.dev.openmates.org`; image publishes are for released/self-host artifacts, not the live dev API process.
-- **Cross-app parity order:** Verify shared REST/WebSocket and CLI/SDK behavior before browser-specific behavior through isolated GitHub CI. Preserve any explicitly approved visual review and Apple parity requirements. The separate authorized dev-only email smoke is not a general shared-dev testing fallback.
-- When a spec failure points to a repeated flaky pattern, first look for a
-  deterministic helper or audit improvement that would prevent the class of
-  failure across specs. Prefer shared helpers and `scripts/audit_*` checks over
-  one-off sleeps or per-spec workarounds.
-- **NEVER use CSS class selectors in tests.** All element targeting MUST use `data-testid` attributes with `page.getByTestId('name')`. CSS classes are styling concerns and break when CSS changes.
-  - Bad: `page.locator('.send-button')`, `page.locator('.chat-title')`
-  - Good: `page.getByTestId('send-button')`, `page.getByTestId('chat-title')`
-  - For scoped queries: `container.getByTestId('name')` or `page.getByTestId('parent').getByTestId('child')`
-  - For elements with state: `page.locator('[data-testid="chat-item-wrapper"].active')` or use data attributes
-  - For elements with data attributes: `page.locator('[data-testid="embed-preview"][data-status="finished"]')`
-  - When adding `data-testid` to components, use kebab-case matching the element's purpose
-  - Acceptable non-class selectors: `#id`, `[data-action="..."]`, `[data-authenticated="..."]`, `getByRole()`, `getByText()`
-- **NEVER run vitest, pnpm test, or npx vitest locally.** It crashes the server. Always use `python3 scripts/tests.py run --suite vitest` which dispatches through the unified test control plane and records status/history.
-- **NEVER run Playwright specs locally or via docker compose.** Always use `python3 scripts/tests.py run --spec <name>.spec.ts` or `python3 scripts/tests.py run --suite playwright`. This dispatches specs to GitHub Actions where they run with proper test accounts and infrastructure, and records status/history through the unified control plane. The docker compose commands in the testing doc are reference only — they describe what the CI runner executes, not what you should run.
-- **Playwright deployed-code loop:** If any `*.spec.ts` verification needs local code or spec changes, deploy the scoped session changes to `dev` through `python3 scripts/sessions.py deploy`, wait for Vercel Ready, then dispatch `python3 scripts/tests.py run --spec <name>.spec.ts --gate-deploy --expected-commit <commit-sha>` against `https://app.dev.openmates.org`. Do not stop with a missing explicit deploy/commit request for this scoped verification deploy; the repo/session rules authorize it. Ask only for the exceptions listed in session lifecycle rules.
-- **Focused UI component specs:** For new or modified UI elements, components, and screens, create or update the focused component spec against a bare `https://app.dev.openmates.org/dev/preview/{component-path}?chrome=0` URL before broader flow specs. Every preview inspection, test, screenshot, and recording must include `chrome=0` and show only the component, never the configuration UI. Use the `.preview.ts` default fixture for the standard state; encode every non-default input or configuration in URL query parameters such as `variant`, `props`, `theme`, `background`, and `width` instead of operating preview controls. Assert meaningful hover, focus, click, expanded/collapsed, and on/off states before named proof checkpoints, and publish the focused component video for every modified UI component. Use separate phone/laptop proof profiles only when responsive behavior differs; derive still frames from completed video only for failures, explicit requests, or ambiguous visual inspection; do not add screenshot galleries or browser-side screenshot calls for component proof.
-- **New features require E2E test proposal:** After implementing any auth flow, payment flow, or user-facing feature, propose an E2E test plan (user flow, assertions, which spec to extend). Wait for user confirmation before writing test code.
-- **Sidebar-closed as default:** Always test chat features with sidebar closed (default <=1440px).
-- **Cold-boot verification:** After fixing chat/nav/sync bugs, verify by clearing IndexedDB + localStorage, then reload.
-- **Use Playwright specs plus reviewed Playwright visual smoke for UI verification, not Firecrawl.** Specs are repeatable and don't consume API quota. For larger deployed UI work, run `node frontend/apps/web_app/scripts/visual-smoke.mjs --url <url> --session <id>`, inspect the generated laptop and mobile screenshots, then record `scripts/sessions.py visual-smoke --result passed` with `Defects:` and `Accepted differences:`. Reserve Firecrawl for explicit fallback debugging when Playwright cannot inspect the route.
-- **Apple impact check:** For changes to chat, sync, auth, settings, embeds, billing, shared UI, app chrome, or provider result rendering, check whether the Apple app has a counterpart. If affected and the session runs on Linux, you MUST attempt the redacted remote Mac wrapper `python3 scripts/apple_remote.py status` followed by `build-ios` or `test-ios` from `docs/contributing/guides/testing.md` / `apple/AGENTS.md` before saying Apple verification is unavailable. Record Mac/Xcode evidence or a sanitized failure class such as `ssh_failed`, `project_not_found`, or `xcode_build_failed`. Use `Apple not affected` only when there is no Apple counterpart.
-- **Implementation demonstration evidence:** Eligible Tier 2 specs and user-visible Tier 1 plans use the passing deployed Playwright recording or real PTY command/output as their source. Exact device-scoped WebVTT captions are written after applicable green gates and published as a toggleable player track; never burn captions into video pixels or reduce the clean frame to reserve caption space. Proof-video contracts are tooling-authorized from the spec/test assertions; do not ask the user for a separate pre-render contract approval. Every `*.spec.ts` run or real OpenMates CLI E2E that generates a video must embed its emitted response-media `<video>` HTML in the next assistant progress response, even if the run failed or the proof still needs debugging. Do not run proof-video-specific PII/sensitive-data detection or replacement; review the captured clean frame and approved captions as-is. Never attach the full video to model context. Reconstructed terminal visuals must match a real transcript hash and cannot replace verification evidence.
-- **Test video response metadata:** Whenever an assistant response embeds a video from a test run, include the video's filename or repository-relative artifact path beside the player. If the test covers a UI component, also include a clickable link to that component's exact deployed `https://app.dev.openmates.org/dev/preview/{component-path}` route in the same response. Paths and preview links supplement the required embed; they do not replace it.
-
-## Verification workflow
-
-Confirmed browser observations, logs, or existing failing checks are sufficient to
-start a bug fix. Do not require a fresh failing automated baseline or a separate
-approval merely to reconfirm an established bug. Use test-first development when
-it resolves uncertainty, rather than as a mandatory waiting gate.
-
-### Bug Fixes
-
-1. Preserve the confirmed symptoms and relevant before measurements.
-2. Find related checks with `sessions.py check-tests --session <id>` and extend focused regression coverage where useful.
-3. Implement the fix without waiting for a redundant failing baseline.
-4. Run relevant unit, lint, build and isolated GitHub checks. Use `sessions.py ci-source` and the existing CI coordinator for automated product tests.
-5. Deploy the scoped verified change through `sessions.py deploy`, then repeat the authorized real-browser verification and compare the result with the original evidence.
-
-### Features
-
-1. **Plan the phase ladder:** identify the direct REST API/WebSocket contract, endpoint access model, auth/rate-limit/credit budget requirements, encryption-boundary constraints, CLI command/contract, npm SDK contract, pip SDK contract, web `*.spec.ts`, required reviewed Playwright visual-smoke route(s) and laptop/mobile screenshots for larger UI work, required user confirmation, and Apple `scripts/apple_remote.py test-ios` or `build-ios` evidence required for the feature. If no Apple counterpart exists, record `Apple not affected`.
-2. **REST/API first:** Verify the real isolated GitHub API/WebSocket contract, including relevant auth, permission and budget errors.
-3. **CLI second:** Run real CLI commands against that isolated stack; never substitute the shared dev API for a held product check.
-4. **SDK parity third:** Verify exposed npm/pip SDK behavior on the isolated stack; focused unit and parity audits can run locally.
-5. **Web fourth:** check for an existing web spec with `sessions.py check-tests --session <id>`, then extend or propose the needed Playwright spec. Run it only after deploy through `python3 scripts/tests.py run --spec <name>.spec.ts`.
-6. **Reviewed UI visual smoke fifth:** for larger deployed UI work, run the Playwright visual-smoke helper, inspect the laptop/mobile screenshots, record defects and accepted differences, and fix/redeploy/rerun if objective issues appear.
-7. **User confirmation sixth:** for user-visible web UI or behavior, ask the user to confirm the deployed dev web app works and looks correct. A passing `*.spec.ts` and reviewed visual-smoke evidence are not enough to start Apple parity.
-8. **Apple last:** after REST/API, CLI, SDK, web, required visual-smoke evidence, and required user-confirmation evidence are complete, run or attempt Apple verification with `scripts/apple_remote.py` when the feature has an Apple counterpart.
-9. **Run related specs:** Ensure no regressions in adjacent functionality.
-
-### Exempt Changes (no spec required)
-
-- Documentation-only changes (`.md` files, comments, docstrings)
-- i18n/translation updates (`.yml` source files only)
-- Config/infra changes (`Caddyfile`, `docker-compose`, CI workflows)
-- Purely cosmetic CSS changes with no behavior change
-
-### Deploy Gate
-
-`sessions.py deploy` will warn when source files have related specs that weren't run during the session. For deploy-gated Playwright fixes, do not treat this warning as a blocker; deploy the scoped change and immediately run the related `*.spec.ts` with `--gate-deploy --expected-commit <commit-sha>`. Use `--skip-tests "reason"` only when verification is intentionally bypassed, with an explicit justification logged to the commit.
+Record an explicitly requested video deliverable with `sessions.py update
+--require-proof-video` (or the same flag on `start`).

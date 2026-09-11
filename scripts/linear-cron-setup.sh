@@ -3,7 +3,7 @@
 # Linear Integration Systemd Service Installer
 #
 # Installs retained Linear archive, artifact cleanup and legacy session cleanup
-# services on the DEV SERVER ONLY. Automatic OpenCode polling was removed.
+# services on the DEV SERVER ONLY. Automatic agent polling was removed.
 # Existing task/session records and Claude compatibility remain intact.
 # Architecture: docs/architecture/infrastructure/linear-auto-processing.md
 #

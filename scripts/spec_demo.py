@@ -3143,12 +3143,12 @@ def publish_reviewed_video(
 ) -> dict[str, Any]:
     privacy_status = manifest.get("privacy", {}).get("status")
     if privacy_status not in PROOF_PRIVACY_ACCEPTED_STATUSES or manifest.get("review", {}).get("status") != "passed":
-        raise DemonstrationError("OpenCode response-media publication requires finalized proof privacy state and demonstration review")
+        raise DemonstrationError("Response-media publication requires finalized proof privacy state and demonstration review")
     audio_status = manifest.get("narration_audio", {}).get("status")
     if audio_status not in {"passed", "not_required"}:
-        raise DemonstrationError("OpenCode response-media publication requires passed or intentionally disabled narration audio")
+        raise DemonstrationError("Response-media publication requires passed or intentionally disabled narration audio")
     if audio_status == "passed" and manifest.get("video_metadata", {}).get("has_audio") is not True:
-        raise DemonstrationError("OpenCode response-media publication requires the requested narration audio track")
+        raise DemonstrationError("Response-media publication requires the requested narration audio track")
     publication = manifest.setdefault("publication", {})
     if not isinstance(publication, dict):
         raise DemonstrationError("Manifest publication record must be a mapping")
@@ -3185,7 +3185,7 @@ def publish_reviewed_video(
         )
     except Exception as exc:
         publication["status"] = "publication_pending"
-        publication["failure_reason"] = f"OpenCode response-media upload did not complete: {str(exc)[:500]}"
+        publication["failure_reason"] = f"Response-media upload did not complete: {str(exc)[:500]}"
         publication["next_retry_at"] = _utc_text(now + timedelta(minutes=15))
         _write_run_json(run_dir / "publication.json", publication)
         _write_run_json(run_dir / "manifest.json", manifest)
@@ -3215,14 +3215,14 @@ def publish_reviewed_video(
         or (requires_captions and "<track kind=\"captions\"" not in snippet_html)
     ):
         publication["status"] = "publication_pending"
-        publication["failure_reason"] = "OpenCode response-media upload completed without usable snippets."
+        publication["failure_reason"] = "Response-media upload completed without usable snippets."
         publication["next_retry_at"] = _utc_text(now + timedelta(minutes=15))
     else:
         publication.update(
             {
                 "status": "delivered",
                 "delivered_at": now_text,
-                "delivery_kind": "opencode_response_media",
+                "delivery_kind": "response_media",
                 "response_media_key": str(upload["key"]),
                 "response_media_kind": str(upload.get("kind", "media")),
                 "response_media_markdown": str(snippets.get("markdown", "")),
@@ -3253,7 +3253,7 @@ def upload_response_media(
 ) -> dict[str, Any]:
     command = [
         sys.executable,
-        str(REPO_ROOT / "scripts/opencode_response_media.py"),
+        str(REPO_ROOT / "scripts/response_media.py"),
         str(path),
         "--alt",
         alt,
@@ -3295,7 +3295,7 @@ def expire_pending_video(run_dir: Path, manifest: dict[str, Any], *, now: dateti
         {
             "status": "expired_deleted",
             "expired_at": _utc_text(now),
-            "failure_reason": "OpenCode response-media proof embed did not complete within 24 hours.",
+            "failure_reason": "Response-media proof embed did not complete within 24 hours.",
             "deleted_paths": delete_disposable_artifacts(run_dir, manifest),
             "video_deleted_at": _utc_text(now),
         }

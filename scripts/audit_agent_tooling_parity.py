@@ -199,6 +199,10 @@ def _audit_quickstart(root: Path, manifest: dict[str, Any]) -> list[AuditIssue]:
     if not text:
         return [AuditIssue(str(path), "quickstart file is missing")]
     issues: list[AuditIssue] = []
+    guidance = root / "AGENTS.md"
+    if guidance.is_file() and guidance.stat().st_size > 6000:
+        issues.append(AuditIssue("AGENTS.md", "shared guidance exceeds the 6000-byte budget; move optional detail to scoped docs"))
+
     for term in quickstart.get("required_terms") or []:
         term_text = str(term)
         if term_text not in text:

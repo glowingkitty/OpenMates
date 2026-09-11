@@ -209,3 +209,10 @@ def test_unrepresented_codex_bridge_reference_fails(tmp_path: Path) -> None:
     issues = audit.audit(tmp_path)
 
     assert any("Codex bridge hook reference is missing from parity manifest: bridge-only-guard.sh" in issue.message for issue in issues)
+
+
+def test_root_guidance_budget_prevents_context_growth(tmp_path):
+    audit = load_audit_module()
+    write_valid_fixture(tmp_path)
+    (tmp_path / "AGENTS.md").write_text("x" * 6001)
+    assert any("6000-byte budget" in issue.message for issue in audit.audit(tmp_path))

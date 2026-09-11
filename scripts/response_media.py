@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-# scripts/opencode_response_media.py
+# scripts/response_media.py
 #
-# Upload temporary media/documents for OpenCode responses without making a
+# Upload temporary media/documents for agent responses without making a
 # public bucket. The host script copies a local response file into the API
 # container, where Vault-backed Hetzner S3 credentials are available, then
 # creates/reconciles a private 48-hour bucket and returns a presigned URL.
 #
-# Usage: python3 scripts/opencode_response_media.py path/to/file.png --alt "Screenshot"
+# Usage: python3 scripts/response_media.py path/to/file.png --alt "Screenshot"
 
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ import sys
 import uuid
 
 
+# Stable storage identifiers preserve existing retained media and backend configuration.
 BUCKET_NAME = "openmates-opencode-response-media"
 DEV_BUCKET_NAME = "dev-openmates-opencode-response-media"
 BUCKET_KEY = "opencode_response_media"
@@ -32,7 +33,7 @@ DEFAULT_EXPIRES_SECONDS = 48 * 60 * 60
 MIN_EXPIRES_SECONDS = 60
 MAX_EXPIRES_SECONDS = DEFAULT_EXPIRES_SECONDS
 DEFAULT_CONTAINER = "api"
-CONTAINER_TMP_DIR = "/tmp/opencode-response-media"
+CONTAINER_TMP_DIR = "/tmp/agent-response-media"
 MAX_MEDIA_BYTES = 500 * 1024 * 1024
 RUN_KEY_PREFIX = "opencode-responses/runs"
 LATEST_RUN_TYPE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
@@ -71,7 +72,7 @@ from botocore.exceptions import ClientError
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 
-REQUEST = json.loads(os.environ["OPENCODE_RESPONSE_MEDIA_REQUEST"])
+REQUEST = json.loads(os.environ["AGENT_RESPONSE_MEDIA_REQUEST"])
 
 
 def bucket_name(environment):
@@ -327,9 +328,9 @@ def upload_via_api_container(
         raise RuntimeError(copy.stderr.strip() or copy.stdout.strip())
 
     env = os.environ.copy()
-    env["OPENCODE_RESPONSE_MEDIA_REQUEST"] = json.dumps(request, sort_keys=True)
+    env["AGENT_RESPONSE_MEDIA_REQUEST"] = json.dumps(request, sort_keys=True)
     upload = run_command(
-        ["docker", "exec", "-e", "OPENCODE_RESPONSE_MEDIA_REQUEST", container, "python", "-c", INNER_UPLOAD_CODE],
+        ["docker", "exec", "-e", "AGENT_RESPONSE_MEDIA_REQUEST", container, "python", "-c", INNER_UPLOAD_CODE],
         env=env,
     )
     if upload.returncode != 0:
@@ -734,7 +735,7 @@ def upload_file(
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Upload temporary images, videos, audio clips, or PDF documents for OpenCode responses.",
+        description="Upload temporary images, videos, audio clips, or PDF documents for agent responses.",
     )
     parser.add_argument("path", help="Image, video, audio, PDF, or directory to upload")
     parser.add_argument("--alt", help="Alt text or video label")
@@ -774,7 +775,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = build_batch_result(args, dry_run=args.dry_run)
     except Exception as exc:
-        print(f"opencode_response_media: {exc}", file=sys.stderr)
+        print(f"response_media: {exc}", file=sys.stderr)
         return 1
 
     if args.output == "json":

@@ -3,7 +3,7 @@
 # OpenMates Weekly Deterministic Contract Audits
 #
 # Runs repo-specific static contract audits, stores JSON artifacts, sends a
-# compact admin email when credentials are configured. Automatic OpenCode
+# compact admin email when credentials are configured. Automatic Codex
 # recommendations were removed; workflow migration is tracked by TASK-8338.
 #
 # Triggered by system crontab (Monday at 05:15 UTC):

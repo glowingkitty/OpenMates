@@ -4,7 +4,7 @@
 The audit is Linux-safe and CI-friendly: it does not start the web app, run
 Playwright, call Xcode, or require package installs. It scans source files for
 known accessibility risk patterns, writes machine-readable JSON, and writes a
-Markdown summary that can be reviewed by humans or OpenCode.
+Markdown summary that can be reviewed by humans or Codex.
 """
 
 from __future__ import annotations

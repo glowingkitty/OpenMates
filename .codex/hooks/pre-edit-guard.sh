@@ -45,15 +45,14 @@ if [ -f "$SESSIONS_FILE" ]; then
   # Get relative path for matching against session tracked files.
   REL_FILE=$(normalize_repo_relative "$FILE")
 
-  # OpenCode chats share one Zellij process, so their exact `ses_*` identity
-  # must win. Claude sessions retain the legacy unique-Zellij fallback.
-  if [ -n "$OPENCODE_SESSION_ID" ]; then
-    CURRENT_SESSION=$(jq -r --arg id "$OPENCODE_SESSION_ID" \
-      '[.sessions | to_entries[] | select(.value.opencode_session_id == $id) | .key] | if length == 1 then .[0] else empty end' \
+  # Codex identity is host-scoped; Claude retains its unique terminal fallback.
+  if [ -n "${CODEX_THREAD_ID:-${CODEX_SESSION_ID:-}}" ]; then
+    CURRENT_SESSION=$(jq -r --arg id "${CODEX_THREAD_ID:-$CODEX_SESSION_ID}" --arg host "$(hostname)" \
+      '[.sessions | to_entries[] | select(.value.codex_task_id == $id and .value.codex_host == $host) | .key] | if length == 1 then .[0] else empty end' \
       "$SESSIONS_FILE" 2>/dev/null)
   else
-    CURRENT_SESSION=$(jq -r --arg z "$ZELLIJ_SESSION_NAME" \
-      '[.sessions | to_entries[] | select(.value.zellij_session == $z) | .key] | if length == 1 then .[0] else empty end' \
+    CURRENT_SESSION=$(jq -r --arg z "${ZELLIJ_SESSION_NAME:-}" \
+      '[.sessions | to_entries[] | select($z != "" and .value.zellij_session == $z) | .key] | if length == 1 then .[0] else empty end' \
       "$SESSIONS_FILE" 2>/dev/null)
   fi
   CURRENT_REPO=$(jq -r --arg current "$CURRENT_SESSION" '.sessions[$current].repo_id // "openmates"' "$SESSIONS_FILE" 2>/dev/null)

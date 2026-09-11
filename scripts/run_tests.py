@@ -2925,7 +2925,7 @@ class BatchRunner:
         dispatch_errors: list[SpecResult] = []
         normal_account_index = 0
         account_leases: dict[int, tuple[str, set[str]]] = {}
-        lease_owner = os.environ.get("OPENCODE_SESSION_ID", "scheduled-test-runner")
+        lease_owner = os.environ.get("CODEX_THREAD_ID", "scheduled-test-runner")
 
         def claim_account(preferred: int, *, reserved: bool) -> int:
             if not self.coordinate_accounts:
@@ -8490,7 +8490,7 @@ class TestOrchestrator:
             yield
             return
         lease_id = f"runner-{phase}-{os.getpid()}-{uuid4().hex[:8]}"
-        owner = os.environ.get("OPENCODE_SESSION_ID", "local-test-runner")
+        owner = os.environ.get("CODEX_THREAD_ID", "local-test-runner")
         resources = {session_control.DOCKER_RESOURCE_DEV_STACK}
         session_control.acquire_test_resource_lease(
             lease_id,

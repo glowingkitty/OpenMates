@@ -213,12 +213,11 @@ def test_cmd_worktree_reports_missing_session_without_traceback(monkeypatch, cap
     assert "Traceback" not in captured.err
 
 
-def test_opencode_session_record_does_not_claim_shared_zellij_host(monkeypatch):
+def test_codex_session_record_does_not_claim_shared_zellij_host(monkeypatch):
     sessions = load_sessions_module()
     monkeypatch.setenv("ZELLIJ_SESSION_NAME", "shared-host")
-    assert sessions._session_zellij_owner("ses_example", None) is None
-    assert sessions._session_zellij_owner(None, "codex-task") is None
-    assert sessions._session_zellij_owner(None, None) == "shared-host"
+    assert sessions._session_zellij_owner("codex-task") is None
+    assert sessions._session_zellij_owner(None) == "shared-host"
 
 
 def test_end_never_kills_zellij_for_legacy_opencode_bound_record(monkeypatch, tmp_path, capsys):

@@ -48,7 +48,6 @@ def _resolve_control_plane_root(checkout_root: Path) -> Path:
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(REPO_ROOT)
-OPENCODE_RUNTIME_ROOT = CONTROL_PLANE_ROOT.parent / ".openmates-runtime" / "opencode-server"
 SESSIONS_FILE = CONTROL_PLANE_ROOT / ".claude/sessions.json"
 RESULTS_DIR = REPO_ROOT / "test-results"
 APPROVALS_DIR = RESULTS_DIR / "proof-video-approvals"
@@ -136,14 +135,13 @@ def _commit_matches(candidate: str, expected: str) -> bool:
 def resolve_current_context(
     sessions: dict[str, Any],
     *,
-    opencode_session_id: str = "",
     codex_task_id: str = "",
     repository_session_id: str = "",
     subject_commit: str,
     spec_name: str,
     test_runs: list[dict[str, Any]],
 ) -> ProofContext:
-    session_id, _session = resolve_current_session(sessions, opencode_session_id=opencode_session_id, codex_task_id=codex_task_id, repository_session_id=repository_session_id)
+    session_id, _session = resolve_current_session(sessions, codex_task_id=codex_task_id, repository_session_id=repository_session_id)
     passing_runs = [
         record
         for record in test_runs
@@ -168,7 +166,7 @@ def resolve_current_context(
 
 
 def resolve_current_session(
-    sessions: dict[str, Any], *, opencode_session_id: str = "",
+    sessions: dict[str, Any], *,
     codex_task_id: str = "", repository_session_id: str = "",
 ) -> tuple[str, dict[str, Any]]:
     """Resolve one real repository record without translating provider identities."""
@@ -178,8 +176,8 @@ def resolve_current_session(
         if not isinstance(record, dict):
             raise WorkflowError(f"unknown repository session {repository_session_id}; run sessions.py status")
         return repository_session_id, record
-    identity_field = "codex_task_id" if codex_task_id else "opencode_session_id"
-    identity = codex_task_id or opencode_session_id
+    identity_field = "codex_task_id"
+    identity = codex_task_id
     matches = [
         (session_id, record)
         for session_id, record in records.items()
@@ -1229,7 +1227,7 @@ def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: 
             shlex.quote(part)
             for part in (
                 "python3",
-                "scripts/opencode_response_media.py",
+                "scripts/response_media.py",
                 str(image_path),
                 "--alt",
                 f"Blocked proof frame for {manifest.get('spec_id', 'session-proof')} ({review_status})",
@@ -1239,7 +1237,7 @@ def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: 
         caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
         captions_value = str(caption_artifact.get("path") or "")
         captions_path = resolve_artifact(captions_value) if captions_value else None
-        command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
+        command = ["python3", "scripts/response_media.py", str(video_path)]
         if captions_path is not None and captions_path.is_file():
             command.extend(
                 [
@@ -1440,7 +1438,6 @@ def review_run(
     canonical_runs_roots = {
         (RESULTS_DIR / "proof-videos").resolve(),
         (CONTROL_PLANE_ROOT / "test-results" / "proof-videos").resolve(),
-        (OPENCODE_RUNTIME_ROOT / "test-results" / "proof-videos").resolve(),
     }
     if not any(run_dir.is_relative_to(root) for root in canonical_runs_roots):
         allowed_roots = ", ".join(str(root) for root in sorted(canonical_runs_roots))
@@ -1794,10 +1791,9 @@ def _restore_file_snapshots(snapshots: dict[Path, bytes | None]) -> None:
 
 
 def start_current(spec_name: str, *, run_id: str = "", session_id: str = "") -> dict[str, Any]:
-    opencode_session_id = os.environ.get("OPENCODE_SESSION_ID", "")
     codex_task_id = os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SESSION_ID", "")
     sessions = _load_json(SESSIONS_FILE)
-    _session_id, session = resolve_current_session(sessions, opencode_session_id=opencode_session_id, codex_task_id=codex_task_id, repository_session_id=session_id)
+    _session_id, session = resolve_current_session(sessions, codex_task_id=codex_task_id, repository_session_id=session_id)
     subject_commit = deployed_subject_commit(session)
     if not subject_commit:
         require_clean_worktree()

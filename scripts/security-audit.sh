@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Ingest the existing security-audit snapshot through the digest adapter.
 # Retains collection/reporting and existing manual arguments.
-# Automatic OpenCode launches were removed under TASK-7543.
+# Automatic agent launches were removed under TASK-7543.
 # Dry runs do not persist security ledger reports. Existing schedules remain off.
 # Future workflow requirements: TASK-8338. No replacement scheduler is installed.
 # Architecture: docs/architecture/infrastructure/cronjobs.md

@@ -4,7 +4,7 @@ Collect Dependabot observations for the deterministic security ledger.
 
 The process-alerts command normalizes all fetched alerts and preserves coverage
 and incomplete-data reporting. DRY_RUN and SUMMARY_ONLY do not persist reports.
-Legacy tracking utilities remain for existing records. Automatic OpenCode
+Legacy tracking utilities remain for existing records. Automatic agent
 remediation and redispatch were removed under TASK-7543; TASK-8338 owns future
 workflow requirements. See docs/architecture/infrastructure/cronjobs.md.
 """
@@ -323,7 +323,7 @@ def process_alerts() -> None:
         return
 
     # The deterministic collection/ledger path is the complete scan. Legacy
-    # OpenCode remediation and redispatch are retired (TASK-7543/TASK-8338).
+    # agent remediation and redispatch are retired (TASK-7543/TASK-8338).
     if dry_run:
         print("[dependabot] DRY RUN — no reporting state persisted.")
     print(json.dumps({"source": "dependabot", "total_findings": len(all_findings), "missing_required_data": missing}))

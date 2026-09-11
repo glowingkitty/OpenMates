@@ -224,7 +224,7 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
     if evidence.get("review_status") != "passed":
         failures.append("demonstration: frame-and-caption review has not passed")
     if evidence.get("publication_status") != "delivered":
-        failures.append("demonstration: OpenCode response-media proof embed has not completed")
+        failures.append("demonstration: Response-media proof embed has not completed")
 
     review_attempts = evidence.get("review_attempts")
     if evidence.get("review_status") == "passed" and (not isinstance(review_attempts, int) or review_attempts < 1):
@@ -381,7 +381,7 @@ def _requires_user_input(blocker: Any, current_task_id: str | None) -> bool:
 
 
 def plan_status(data: dict[str, Any], failures: list[str]) -> dict[str, Any]:
-    """Return only the continuation fields an OpenCode plugin needs."""
+    """Return only the continuation fields an agent plugin needs."""
     handoff = data.get("handoff") if isinstance(data.get("handoff"), dict) else {}
     current_task_id = handoff.get("current_task_id")
     requires_user_input = _requires_user_input(handoff.get("blocker"), current_task_id)

@@ -24,11 +24,6 @@ CLAUDE_HOOKS_DIR = REPO_ROOT / ".claude" / "hooks"
 CODEX_HOOKS_DIR = REPO_ROOT / ".codex" / "hooks"
 CODEX_HOOK_BRIDGE = CODEX_HOOKS_DIR / "claude-hook-bridge.sh"
 FRONTMATTER_BOUNDARY = "---"
-# Preserve Claude source skills, but never recreate retired OpenCode-only mirrors.
-RETIRED_MIRROR_SKILLS = {
-    "spawn-chat", "implement-opencode-improvements", "opencode-improvement-research",
-    "opencode-workflow-review", "task-status",
-}
 NON_CLAUDE_HOOK_COMMANDS = {
     "lint-design-tokens.sh": REPO_ROOT / "scripts" / "lint-design-tokens.sh",
     "lint-swift-design-tokens.sh": REPO_ROOT / "scripts" / "lint-swift-design-tokens.sh",
@@ -91,7 +86,6 @@ def sync_skills(*, check: bool) -> list[str]:
     AGENT_SKILLS_DIR.mkdir(parents=True, exist_ok=True)
 
     claude_skill_names = {path.parent.name for path in CLAUDE_SKILLS_DIR.glob("*/SKILL.md")}
-    claude_skill_names -= RETIRED_MIRROR_SKILLS
     agent_skill_names = {path.parent.name for path in AGENT_SKILLS_DIR.glob("*/SKILL.md")}
 
     for stale_name in sorted(agent_skill_names - claude_skill_names):
@@ -100,8 +94,6 @@ def sync_skills(*, check: bool) -> list[str]:
 
     for source in sorted(CLAUDE_SKILLS_DIR.glob("*/SKILL.md")):
         name = source.parent.name
-        if name in RETIRED_MIRROR_SKILLS:
-            continue
         target = AGENT_SKILLS_DIR / name / "SKILL.md"
         rendered = replace_frontmatter_name(source.read_text(), name)
 

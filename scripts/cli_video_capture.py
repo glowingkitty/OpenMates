@@ -32,7 +32,7 @@ SECRET_FLAGS = {"--api-key", "--password", "--token", "--secret", "--otp", "--to
 TERMINAL_GEOMETRY = "160x48"
 TERMINAL_FONT_SIZE = "14"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
-RESPONSE_MEDIA_SCRIPT = Path(__file__).resolve().parent / "opencode_response_media.py"
+RESPONSE_MEDIA_SCRIPT = Path(__file__).resolve().parent / "response_media.py"
 
 
 class CliCaptureError(RuntimeError):
@@ -216,14 +216,14 @@ def publish_response_media(video_path: Path, *, classification: str, dry_run: bo
         command.append("--dry-run")
     result = subprocess.run(command, check=False, capture_output=True, text=True)
     if result.returncode != 0:
-        raise CliCaptureError(result.stderr.strip() or result.stdout.strip() or "OpenCode response-media upload failed")
+        raise CliCaptureError(result.stderr.strip() or result.stdout.strip() or "Response-media upload failed")
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
-        raise CliCaptureError("OpenCode response-media upload returned invalid JSON") from exc
+        raise CliCaptureError("Response-media upload returned invalid JSON") from exc
     snippets = payload.get("snippets") if isinstance(payload, dict) else None
     if not isinstance(snippets, dict) or not snippets.get("html"):
-        raise CliCaptureError("OpenCode response-media upload returned no embeddable snippet")
+        raise CliCaptureError("Response-media upload returned no embeddable snippet")
     return payload
 
 
@@ -327,7 +327,7 @@ def main() -> int:
     parser.add_argument("--classification", default="cli_e2e")
     parser.add_argument("--display-number", type=int, default=91)
     parser.add_argument("--timeout-seconds", type=float, default=120)
-    parser.add_argument("--no-response-media", action="store_true", help="Do not upload the latest CLI E2E video for OpenCode embedding")
+    parser.add_argument("--no-response-media", action="store_true", help="Do not upload the latest CLI E2E video for agent embedding")
     parser.add_argument("--response-media-dry-run", action="store_true", help="Validate response-media output without Docker/S3")
     parser.add_argument("argv", nargs=argparse.REMAINDER)
     args = parser.parse_args()

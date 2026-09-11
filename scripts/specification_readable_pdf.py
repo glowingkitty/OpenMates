@@ -26,11 +26,11 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts import specifications  # noqa: E402
-from scripts import opencode_response_media  # noqa: E402
+from scripts import response_media  # noqa: E402
 from scripts.playwright_visual_smoke import launch_browser  # noqa: E402
 
 
-DEFAULT_OUTPUT_ROOT = Path("/tmp/opencode/specification-presentations")
+DEFAULT_OUTPUT_ROOT = Path("/tmp/openmates/specification-presentations")
 IDENTIFIER_RE = re.compile(r"[^A-Za-z0-9_.:-]+")
 NUMBERED_LINE_RE = re.compile(r"^\s*\d+\.\s+(.*)$")
 IDENTITY_FIELDS = ("id", "name", "key")
@@ -804,10 +804,10 @@ def render_preview(document: str, output: Path, *, anchor: str = "") -> None:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render and optionally upload a readable Specification presentation PDF")
     parser.add_argument("bundle", help="Specification bundle directory or specification.yml path")
-    parser.add_argument("--output", type=Path, help="PDF output path; defaults under /tmp/opencode/specification-presentations")
+    parser.add_argument("--output", type=Path, help="PDF output path; defaults under /tmp/openmates/specification-presentations")
     parser.add_argument("--preview-output", type=Path, help="Optional first-page PNG used for deterministic visual inspection")
     parser.add_argument("--preview-anchor", default="", help="Render one element id instead of page one when --preview-output is set")
-    parser.add_argument("--container", default=opencode_response_media.DEFAULT_CONTAINER, help="API container used for S3 upload")
+    parser.add_argument("--container", default=response_media.DEFAULT_CONTAINER, help="API container used for S3 upload")
     parser.add_argument("--no-upload", action="store_true", help="Generate the PDF without uploading it")
     parser.add_argument("--dry-run-upload", action="store_true", help="Generate a fake upload result without Docker or S3")
     parser.add_argument("--json", action="store_true", help="Print the complete result as JSON")
@@ -830,7 +830,7 @@ def main(argv: list[str] | None = None) -> int:
             **({"preview": str(args.preview_output.resolve())} if args.preview_output else {}),
         }
         if not args.no_upload:
-            result["publication"] = opencode_response_media.upload_file(
+            result["publication"] = response_media.upload_file(
                 output,
                 alt=f"Read {bundle.versioned_id} readable Specification PDF",
                 container=args.container,

@@ -10,7 +10,7 @@ the next failure group so parallel debugging sessions do not collide.
 Architecture: docs/architecture/test-orchestration.md
 
 Common gates:
-    python3 scripts/tests.py next --lease --session ${OPENCODE_SESSION_ID:-manual}
+    python3 scripts/tests.py next --lease --session ${CODEX_THREAD_ID:-manual}
     python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit <sha>
     python3 scripts/tests.py run --spec chat-flow.spec.ts --lease-required --lease-id <lease>
 """
@@ -95,7 +95,7 @@ RUNS_DIR = RESULTS_DIR / "runs"
 LEASE_LOCK_FILE = Path("/tmp/openmates-failed-test-leases.lock")
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 RUN_TESTS_SCRIPT = PROJECT_ROOT / "scripts" / "run_tests.py"
-RESPONSE_MEDIA_SCRIPT = PROJECT_ROOT / "scripts" / "opencode_response_media.py"
+RESPONSE_MEDIA_SCRIPT = PROJECT_ROOT / "scripts" / "response_media.py"
 RESPONSE_MEDIA_LATEST_FILE = RESULTS_DIR / "response-media-latest.json"
 TEST_STORE = None
 DEV_HEALTH_URLS = (
@@ -2003,14 +2003,14 @@ def upload_response_media_video(
         command.append("--dry-run")
     result = subprocess.run(command, cwd=PROJECT_ROOT, check=False, capture_output=True, text=True)
     if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "OpenCode response-media upload failed")
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "Codex response-media upload failed")
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
-        raise RuntimeError("OpenCode response-media upload returned invalid JSON") from exc
+        raise RuntimeError("Codex response-media upload returned invalid JSON") from exc
     snippets = payload.get("snippets") if isinstance(payload, dict) else None
     if not isinstance(snippets, dict) or not snippets.get("html"):
-        raise RuntimeError("OpenCode response-media upload returned no embeddable HTML snippet")
+        raise RuntimeError("Codex response-media upload returned no embeddable HTML snippet")
     return payload
 
 
@@ -2057,7 +2057,7 @@ def publish_latest_playwright_response_media(
     latest = read_json(RESPONSE_MEDIA_LATEST_FILE, {})
     latest["playwright_spec"] = record
     write_json(RESPONSE_MEDIA_LATEST_FILE, latest)
-    print("OpenCode response-media video for latest Playwright spec run:")
+    print("Codex response-media video for latest Playwright spec run:")
     print(str(record["response_media_html"] or record["response_media_markdown"] or upload.get("url") or ""))
     return record
 
@@ -2253,7 +2253,7 @@ def auto_finalize_proof_video_sources(
     if not proof_record_paths:
         return []
     if publish_hook is None:
-        publish_hook = session_control._publish_proof_media_to_opencode_response
+        publish_hook = session_control._publish_proof_media
 
     finalizations: list[dict[str, Any]] = []
     for record_path in proof_record_paths:
@@ -3672,8 +3672,8 @@ def debug_campaign_summary(campaign: dict[str, Any], current_failure_keys: set[s
         "overlapping_test_keys": overlapping_keys[:20],
         "status_command": _campaign_status_hint(campaign_key),
         "resume_command": _campaign_resume_hint(campaign_key, session_id) if session_id else "",
-        "handoff_command": _campaign_handoff_hint(campaign_key, session_id, os.environ.get("OPENCODE_SESSION_ID", ""))
-        if session_id and os.environ.get("OPENCODE_SESSION_ID", "") and os.environ.get("OPENCODE_SESSION_ID", "") != session_id else "",
+        "handoff_command": _campaign_handoff_hint(campaign_key, session_id, os.environ.get("CODEX_THREAD_ID", ""))
+        if session_id and os.environ.get("CODEX_THREAD_ID", "") and os.environ.get("CODEX_THREAD_ID", "") != session_id else "",
     }
 
 
@@ -3707,7 +3707,7 @@ def list_debug_campaigns(
             "active_only": active_only,
             "overlap_current_failures": overlap_current_failures,
         },
-        "next_command": "python3 scripts/tests.py campaign start --session ${OPENCODE_SESSION_ID:-manual} --json"
+        "next_command": "python3 scripts/tests.py campaign start --session ${CODEX_THREAD_ID:-manual} --json"
         if not summaries else summaries[0].get("status_command", ""),
     }
 
@@ -4018,7 +4018,7 @@ def _require_active_worker_session_owns_group(group_key: str) -> None:
         for claim in _active_debug_claims(load_leases().get("leases") or [])
         if claim.get("worker_id")
     ]
-    env_session = os.environ.get("OPENCODE_SESSION_ID", "")
+    env_session = os.environ.get("CODEX_THREAD_ID", "")
     env_worker_claims = [
         claim for claim in active_worker_claims
         if env_session in {str(claim.get("session_id") or ""), str(claim.get("worker_id") or "")}
@@ -4026,10 +4026,10 @@ def _require_active_worker_session_owns_group(group_key: str) -> None:
     group_worker_claims = [claim for claim in active_worker_claims if claim.get("debug_group_key") == group_key]
     if not group_worker_claims:
         if env_worker_claims:
-            raise RuntimeError(f"OpenCode session {env_session} does not own debug group {group_key}")
+            raise RuntimeError(f"Codex session {env_session} does not own debug group {group_key}")
         return
     if not env_session:
-        raise RuntimeError(f"OpenCode session is required to mutate active debug group {group_key}")
+        raise RuntimeError(f"Codex session is required to mutate active debug group {group_key}")
     owner_sessions = {
         session
         for claim in group_worker_claims
@@ -4037,7 +4037,7 @@ def _require_active_worker_session_owns_group(group_key: str) -> None:
     }
     owner_sessions.discard("")
     if env_session not in owner_sessions:
-        raise RuntimeError(f"OpenCode session {env_session} does not own debug group {group_key}")
+        raise RuntimeError(f"Codex session {env_session} does not own debug group {group_key}")
 
 
 def prepare_debug_group(group_key: str, expected_behavior: str, acceptance_criteria: list[str]) -> dict[str, Any]:
@@ -4077,7 +4077,7 @@ def append_debug_group_attempt(
 
 def block_debug_group(group_key: str, reason: str, question: str, next_action: str) -> dict[str, Any]:
     group = _debug_group(group_key)
-    _require_campaign_coordinator_for_campaign(str(group["campaign_key"]), os.environ.get("OPENCODE_SESSION_ID", ""), "campaign block")
+    _require_campaign_coordinator_for_campaign(str(group["campaign_key"]), os.environ.get("CODEX_THREAD_ID", ""), "campaign block")
     blocker = {
         "reason": sanitize_debug_text(reason),
         "question": sanitize_debug_text(question),
@@ -4162,13 +4162,13 @@ def _require_active_debug_lease(
         raise RuntimeError(f"Debug lease {lease_id} does not own group {group_key}")
     if worker_id and lease.get("worker_id") and worker_id not in {lease.get("worker_id"), lease.get("session_id")}:
         raise RuntimeError(f"Debug lease {lease_id} belongs to worker {lease.get('worker_id')}")
-    env_session = os.environ.get("OPENCODE_SESSION_ID", "")
+    env_session = os.environ.get("CODEX_THREAD_ID", "")
     if require_session_owner:
         lease_session = str(lease.get("session_id") or "")
         if not env_session:
-            raise RuntimeError("Worker lifecycle commands require OPENCODE_SESSION_ID")
+            raise RuntimeError("Worker lifecycle commands require CODEX_THREAD_ID")
         if not lease_session or env_session != lease_session:
-            raise RuntimeError(f"OpenCode session {env_session} does not own debug lease {lease_id}")
+            raise RuntimeError(f"Codex session {env_session} does not own debug lease {lease_id}")
     expires_at = parse_utc(str(lease.get("expires_at") or ""))
     if expires_at is not None and expires_at <= datetime.now(timezone.utc):
         raise RuntimeError(f"Debug lease {lease_id} is expired")
@@ -4215,9 +4215,9 @@ def _active_worker_identity_sessions() -> set[str]:
 
 
 def _require_session_identity(session_id: str, action: str) -> None:
-    env_session = os.environ.get("OPENCODE_SESSION_ID", "")
+    env_session = os.environ.get("CODEX_THREAD_ID", "")
     if not env_session:
-        raise RuntimeError(f"{action} requires OPENCODE_SESSION_ID")
+        raise RuntimeError(f"{action} requires CODEX_THREAD_ID")
     if env_session != session_id:
         raise RuntimeError(f"{action} session mismatch: {env_session} != {session_id}")
     if env_session in _active_worker_identity_sessions() or session_id in _active_worker_identity_sessions():
@@ -4428,17 +4428,16 @@ def _worker_harvest_metadata(group: dict[str, Any], lease: dict[str, Any], chang
         "status_command": status_command,
     }
     if worker_session_id:
-        harvest["inspect_command"] = _shell_command(["python3", "scripts/sessions.py", "chat", "read", worker_session_id])
-        harvest["checkpoint_command"] = _shell_command([
-            "python3",
-            "scripts/sessions.py",
-            "worktree",
-            "checkpoint",
-            "--opencode-session",
-            worker_session_id,
-            "--event",
-            "idle",
-        ])
+        data = session_control._load_sessions()
+        repository_id = worker_session_id if worker_session_id in data.get("sessions", {}) else ""
+        if not repository_id:
+            try:
+                matched = session_control.session_for_codex(data, worker_session_id)
+                repository_id = matched[0] if matched else ""
+            except (RuntimeError, ValueError):
+                pass
+        if repository_id:
+            harvest["inspect_command"] = _shell_command(["python3", "scripts/sessions.py", "status", "--session", repository_id])
         harvest["patch_diff_command_template"] = _shell_command([
             "git",
             "diff",
@@ -4458,7 +4457,7 @@ def _known_worker_modified_files(worker_session_id: str) -> list[str]:
     sessions = data.get("sessions") or {}
     session = sessions.get(worker_session_id)
     if not isinstance(session, dict):
-        matched = session_control.session_for_opencode(data, worker_session_id)
+        matched = session_control.session_for_codex(data, worker_session_id)
         session = matched[1] if matched else None
     if not isinstance(session, dict):
         return []
@@ -4529,7 +4528,7 @@ def _active_worker_claims_for_session(session_id: str) -> list[dict[str, Any]]:
         if session_id == claim_session:
             claims.append(claim)
             continue
-        if claim_session == worker_id and resolve_opencode_session_id_for_name(worker_id) == session_id:
+        if claim_session == worker_id and resolve_worker_task_id(worker_id) == session_id:
             claims.append(claim)
     return claims
 
@@ -4680,7 +4679,7 @@ def _synthetic_vercel_deployment_gate_evidence(group: dict[str, Any]) -> dict[st
 
 def complete_debug_group(group_key: str, commit: str = "") -> dict[str, Any]:
     group = _debug_group(group_key)
-    _require_campaign_coordinator_for_campaign(str(group["campaign_key"]), os.environ.get("OPENCODE_SESSION_ID", ""), "campaign complete")
+    _require_campaign_coordinator_for_campaign(str(group["campaign_key"]), os.environ.get("CODEX_THREAD_ID", ""), "campaign complete")
     evidence, missing = _passing_evidence_for_group(group)
     if missing:
         raise RuntimeError("Cannot complete debug group; missing green evidence for: " + ", ".join(missing))
@@ -4812,7 +4811,7 @@ def debug_campaign_status(campaign_key: str, persist: bool = False) -> dict[str,
             "approved_write_files": intent.get("approved_write_files") or [],
             "finish_status": finish.get("status"),
             "changed_files": finish.get("changed_files") or [],
-            "harvest_command": harvest.get("checkpoint_command") or "",
+            "harvest_command": harvest.get("inspect_command") or "",
             "leased_at": claim.get("leased_at"),
             "expires_at": claim.get("expires_at"),
         })
@@ -4828,7 +4827,7 @@ def debug_campaign_status(campaign_key: str, persist: bool = False) -> dict[str,
 def finalize_debug_campaign(campaign_key: str, run_key: str) -> dict[str, Any]:
     """Complete a campaign only from a full run with both lanes represented."""
     campaign = _debug_campaign(campaign_key)
-    _require_campaign_coordinator_for_campaign(campaign_key, os.environ.get("OPENCODE_SESSION_ID", ""), "campaign finalize")
+    _require_campaign_coordinator_for_campaign(campaign_key, os.environ.get("CODEX_THREAD_ID", ""), "campaign finalize")
     groups = debug_groups_for_campaign(campaign_key)
     if not groups or any(group.get("status") != "green" for group in groups):
         raise RuntimeError("Campaign finalization requires every selected and child group to be green")
@@ -4922,7 +4921,7 @@ def record_daily_recovery_milestone(campaign_key: str, run_key: str) -> dict[str
         )
     _require_campaign_coordinator_for_campaign(
         campaign_key,
-        os.environ.get("OPENCODE_SESSION_ID", ""),
+        os.environ.get("CODEX_THREAD_ID", ""),
         "campaign milestone",
     )
     run = get_store().get_test_run(run_key)
@@ -5072,18 +5071,13 @@ def active_lease_for_session(session_id: str = "", lease_id: str = "") -> dict[s
     return None
 
 
-def resolve_opencode_session_id_for_name(session_name: str) -> str:
+def resolve_worker_task_id(task_id: str) -> str:
+    """Resolve an exact registered Codex worker, without title or transcript polling."""
     try:
-        from _zellij_utils import find_opencode_session_id
-    except ImportError:
-        scripts_dir = str(PROJECT_ROOT / "scripts")
-        if scripts_dir not in sys.path:
-            sys.path.insert(0, scripts_dir)
-        from _zellij_utils import find_opencode_session_id
-    try:
-        return find_opencode_session_id(session_name, str(PROJECT_ROOT), attempts=2) or ""
-    except Exception:
+        matched = session_control.session_for_codex(session_control._load_sessions(), task_id)
+    except (RuntimeError, ValueError):
         return ""
+    return task_id if matched else ""
 
 
 def _bind_pending_worker_lease_session(lease: dict[str, Any], session_id: str) -> dict[str, Any]:
@@ -5097,11 +5091,11 @@ def _bind_pending_worker_lease_session(lease: dict[str, Any], session_id: str) -
         return lease
     if lease_session and lease_session != worker_id:
         return lease
-    resolved_session_id = resolve_opencode_session_id_for_name(worker_id)
+    resolved_session_id = resolve_worker_task_id(worker_id)
     if not resolved_session_id:
-        raise RuntimeError(f"Pending worker lease {lease_id} cannot be bound until OpenCode session {worker_id} resolves; retry lease-required")
+        raise RuntimeError(f"Pending worker lease {lease_id} cannot be bound until Codex session {worker_id} resolves; retry lease-required")
     if resolved_session_id != session_id:
-        raise RuntimeError(f"OpenCode session {session_id} does not match spawned worker chat {worker_id}")
+        raise RuntimeError(f"Codex session {session_id} does not match spawned worker chat {worker_id}")
     entry = _claim_entry_with_launch(
         lease,
         status="confirmed_by_worker",
@@ -5126,7 +5120,7 @@ def require_active_lease(session_id: str = "", lease_id: str = "") -> dict[str, 
     triage = build_triage(limit=1)
     if not triage.get("entries"):
         return None
-    hint = "python3 scripts/tests.py next --lease --session ${OPENCODE_SESSION_ID:-manual}"
+    hint = "python3 scripts/tests.py next --lease --session ${CODEX_THREAD_ID:-manual}"
     target = f" lease {lease_id}" if lease_id else f" session {session_id or 'manual'}"
     raise RuntimeError(
         f"No active failed-test lease for{target}. Claim the next failure group first: {hint}"
@@ -5287,7 +5281,7 @@ def claim_next(session_id: str, worker_id: str = "", days: int = 7) -> dict[str,
 
 
 def claim_next_debug_group(campaign_key: str, session_id: str, worker_id: str = "", group_key: str = "") -> dict[str, Any] | None:
-    coordinator_session = os.environ.get("OPENCODE_SESSION_ID", "") if worker_id else session_id
+    coordinator_session = os.environ.get("CODEX_THREAD_ID", "") if worker_id else session_id
     _require_campaign_coordinator_for_campaign(campaign_key, coordinator_session, "campaign next")
     if group_key:
         group = _debug_group(group_key)
@@ -5374,16 +5368,16 @@ def _blocking_triage_entry_for_lease(lease: dict[str, Any]) -> dict[str, Any] | 
 def _require_debug_lease_release_identity(lease: dict[str, Any], action: str) -> None:
     if not lease.get("debug_group_key") or not lease.get("worker_id"):
         return
-    env_session = os.environ.get("OPENCODE_SESSION_ID", "")
+    env_session = os.environ.get("CODEX_THREAD_ID", "")
     if not env_session:
-        raise RuntimeError(f"{action} requires OPENCODE_SESSION_ID")
+        raise RuntimeError(f"{action} requires CODEX_THREAD_ID")
     if env_session == str(lease.get("session_id") or ""):
         return
     campaign_key = str(lease.get("campaign_key") or "")
     if campaign_key:
         _require_campaign_coordinator_for_campaign(campaign_key, env_session, action)
         return
-    raise RuntimeError(f"OpenCode session {env_session} does not own debug lease {lease.get('lease_id') or lease.get('claim_key')}")
+    raise RuntimeError(f"Codex session {env_session} does not own debug lease {lease.get('lease_id') or lease.get('claim_key')}")
 
 
 def complete_lease(lease_id: str, commit: str = "", require_passing: bool = False) -> dict[str, Any]:
@@ -5920,7 +5914,7 @@ def record_latest_run_artifact(
                 proof_finalizations = auto_finalize_proof_video_sources(
                     run_data,
                     proof_records,
-                    session_id=os.environ.get("OPENCODE_SESSION_ID", ""),
+                    session_id=os.environ.get("CODEX_THREAD_ID", ""),
                 )
                 if proof_finalizations:
                     run_data["proof_video_finalizations"] = proof_finalizations
@@ -6059,13 +6053,13 @@ def command_run(runner_args: list[str]) -> int:
     if options.lease_required:
         try:
             active_lease = require_active_lease(
-                session_id=os.environ.get("OPENCODE_SESSION_ID", "manual"),
+                session_id=os.environ.get("CODEX_THREAD_ID", "manual"),
                 lease_id=options.lease_id,
             )
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 2
-    lease_owner = os.environ.get("OPENCODE_SESSION_ID", "manual")
+    lease_owner = os.environ.get("CODEX_THREAD_ID", "manual")
     account_lease: tuple[str, str, set[str], str] | None = None
     selected_account: int | None = None
     try:
@@ -6339,7 +6333,7 @@ def main(argv: list[str] | None = None) -> int:
     next_parser.add_argument("--json", action="store_true")
 
     lease_required_parser = sub.add_parser("lease-required", help="Fail when current failed-test work has no active lease")
-    lease_required_parser.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    lease_required_parser.add_argument("--session", default=os.environ.get("CODEX_THREAD_ID", "manual"))
     lease_required_parser.add_argument("--lease-id", default="")
     lease_required_parser.add_argument("--json", action="store_true")
 
@@ -6364,7 +6358,7 @@ def main(argv: list[str] | None = None) -> int:
     campaign_parser = sub.add_parser("campaign", help="Manage durable failed-test debug campaigns")
     campaign_sub = campaign_parser.add_subparsers(dest="campaign_command", required=True)
     campaign_start = campaign_sub.add_parser("start", help="Create or resume a campaign")
-    campaign_start.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_start.add_argument("--session", default=os.environ.get("CODEX_THREAD_ID", "manual"))
     campaign_start.add_argument("--campaign", default="")
     campaign_start.add_argument("--test-key", action="append", default=[])
     campaign_start.add_argument("--daily-recovery", action="store_true")
@@ -6372,7 +6366,7 @@ def main(argv: list[str] | None = None) -> int:
     campaign_handoff = campaign_sub.add_parser("handoff", help="Rebind a campaign coordinator to the current visible chat")
     campaign_handoff.add_argument("--campaign", required=True)
     campaign_handoff.add_argument("--from-session", required=True)
-    campaign_handoff.add_argument("--to-session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_handoff.add_argument("--to-session", default=os.environ.get("CODEX_THREAD_ID", "manual"))
     campaign_handoff.add_argument("--reason", required=True)
     campaign_handoff.add_argument("--json", action="store_true")
     campaign_list = campaign_sub.add_parser("list", help="List resumable failed-test debug campaigns")
@@ -6387,7 +6381,7 @@ def main(argv: list[str] | None = None) -> int:
     campaign_next = campaign_sub.add_parser("next", help="Lease the next durable campaign group")
     campaign_next.add_argument("--campaign", required=True)
     campaign_next.add_argument("--group", default="", help="Lease this exact unblocked group instead of the first available group")
-    campaign_next.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_next.add_argument("--session", default=os.environ.get("CODEX_THREAD_ID", "manual"))
     campaign_next.add_argument("--worker", default="")
     campaign_next.add_argument("--lease", action="store_true")
     campaign_next.add_argument("--json", action="store_true")
@@ -6410,7 +6404,7 @@ def main(argv: list[str] | None = None) -> int:
     campaign_block.add_argument("--next-action", required=True)
     campaign_unblock = campaign_sub.add_parser("unblock", help="Clear a structured blocker after coordinator approval")
     campaign_unblock.add_argument("--group", required=True)
-    campaign_unblock.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_unblock.add_argument("--session", default=os.environ.get("CODEX_THREAD_ID", "manual"))
     campaign_unblock.add_argument("--reason", required=True)
     campaign_unblock.add_argument("--approved-file", action="append", default=[])
     campaign_complete = campaign_sub.add_parser("complete-group", help="Complete a group after all members pass")
@@ -6425,7 +6419,7 @@ def main(argv: list[str] | None = None) -> int:
     campaign_intent = campaign_sub.add_parser("intent", help="Record a worker fix intent before source edits")
     campaign_intent.add_argument("--group", required=True)
     campaign_intent.add_argument("--lease", required=True)
-    campaign_intent.add_argument("--worker", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_intent.add_argument("--worker", default=os.environ.get("CODEX_THREAD_ID", "manual"))
     campaign_intent.add_argument("--base-commit", required=True)
     campaign_intent.add_argument("--hypothesis", required=True)
     campaign_intent.add_argument("--write-file", action="append", required=True)
@@ -6434,33 +6428,33 @@ def main(argv: list[str] | None = None) -> int:
     campaign_approve_intent = campaign_sub.add_parser("approve-intent", help="Approve a current worker fix intent")
     campaign_approve_intent.add_argument("--group", required=True)
     campaign_approve_intent.add_argument("--lease", required=True)
-    campaign_approve_intent.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_approve_intent.add_argument("--session", default=os.environ.get("CODEX_THREAD_ID", "manual"))
     campaign_approve_intent.add_argument("--current-commit", default="")
     campaign_boundary = campaign_sub.add_parser("boundary", help="Record a worker boundary expansion request")
     campaign_boundary.add_argument("--group", required=True)
     campaign_boundary.add_argument("--lease", required=True)
-    campaign_boundary.add_argument("--worker", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_boundary.add_argument("--worker", default=os.environ.get("CODEX_THREAD_ID", "manual"))
     campaign_boundary.add_argument("--requested-file", action="append", required=True)
     campaign_boundary.add_argument("--reason", required=True)
     campaign_boundary.add_argument("--hypothesis", default="")
     campaign_approve_boundary = campaign_sub.add_parser("approve-boundary", help="Approve a pending worker boundary expansion request")
     campaign_approve_boundary.add_argument("--group", required=True)
     campaign_approve_boundary.add_argument("--lease", required=True)
-    campaign_approve_boundary.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_approve_boundary.add_argument("--session", default=os.environ.get("CODEX_THREAD_ID", "manual"))
     campaign_finish = campaign_sub.add_parser("finish-worker", help="Record a harvestable worker finish checkpoint")
     campaign_finish.add_argument("--group", required=True)
     campaign_finish.add_argument("--lease", required=True)
-    campaign_finish.add_argument("--worker", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_finish.add_argument("--worker", default=os.environ.get("CODEX_THREAD_ID", "manual"))
     campaign_finish.add_argument("--base-commit", required=True)
     campaign_finish.add_argument("--changed-file", action="append", required=True)
     campaign_finish.add_argument("--summary", required=True)
     campaign_finish.add_argument("--verification-command", default="")
     campaign_finish.add_argument("--current-commit", default="")
     campaign_edit_gate = campaign_sub.add_parser("edit-gate", help="Validate that a worker edit is inside an approved write set")
-    campaign_edit_gate.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_edit_gate.add_argument("--session", default=os.environ.get("CODEX_THREAD_ID", "manual"))
     campaign_edit_gate.add_argument("--file", action="append", required=True)
     campaign_worker_state = campaign_sub.add_parser("worker-state", help="Return whether a session owns an active debug worker lease")
-    campaign_worker_state.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_worker_state.add_argument("--session", default=os.environ.get("CODEX_THREAD_ID", "manual"))
 
     run_parser = sub.add_parser("run", help="Run tests through the unified control plane and record state")
     run_parser.add_argument("runner_args", nargs=argparse.REMAINDER)

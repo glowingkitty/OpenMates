@@ -7,6 +7,8 @@ Privacy: fixtures use synthetic task names, paths, and session IDs.
 Run: python3 -m pytest scripts/tests/test_sessions_write_claim_messages.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -37,7 +39,7 @@ def test_write_claim_conflict_message_is_actionable_not_a_naked_id() -> None:
             "task": "Strengthen epoch-one recovery request-correlation verification",
             "last_active": sessions._now_iso(),
             "zellij_session": "recovery-worker",
-            "opencode_session_id": "opencode-session-123",
+            "codex_task_id": "codex-task-123",
         },
     )
 

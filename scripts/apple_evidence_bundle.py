@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build sanitized Apple workflow evidence bundles.
 
-Purpose: give humans and OpenCode agents one deterministic Apple debug/parity input.
+Purpose: give humans and Codex agents one deterministic Apple debug/parity input.
 Architecture: orchestrates existing parity, contract, comparator, and remote-Mac wrappers.
 Safety: defaults to Linux-safe static checks; remote Mac commands require explicit opt-in.
 Evidence: writes JSON summaries under test-results/apple-evidence for later triage.

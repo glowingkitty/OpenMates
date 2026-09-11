@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import shlex
-import re
 import sys
 
 
@@ -34,8 +33,6 @@ def route(event: str, payload: dict, workspace: Path, session_id: str) -> dict:
         if tool in {"Bash", "bash"}:
             if not isinstance(command, str):
                 raise ValueError("Unsupported Codex shell payload; command is required")
-            if re.search(r"\b(?:node|bun|tsx|ts-node)\b[^;\n]*(?:src|dist)/cli\.(?:ts|js)\b", command):
-                raise ValueError("Use the globally installed openmates executable; source/dist CLI execution is prohibited")
             requested = Path(
                 inputs.get("workdir")
                 or inputs.get("cwd")

@@ -224,7 +224,7 @@ def _context(root: Path, session: str, thread: str, event: str, config: dict) ->
         previous = json.loads(receipt_path.read_text())
     except FileNotFoundError:
         previous = {}
-    full = event in {"SessionStart", "UserPromptSubmit"}
+    full = event == "SessionStart" or not previous
     if (
         event == "UserPromptSubmit"
         and previous.get("event") == "SessionStart"

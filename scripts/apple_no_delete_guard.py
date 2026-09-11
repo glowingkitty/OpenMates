@@ -152,12 +152,9 @@ def task_identity() -> str:
     # These environment variables are routing hints, not authentication. A host
     # integration must bind them independently before claiming bypass resistance.
     codex = os.environ.get('CODEX_THREAD_ID') or os.environ.get('CODEX_SESSION_ID')
-    opencode = os.environ.get('OPENCODE_SESSION_ID')
     claude = os.environ.get('CLAUDE_SESSION_ID')
     if codex:
         return f'codex:{codex}'
-    if opencode:
-        return f'opencode:{opencode}'
     if claude:
         return f'claude:{claude}'
     raise MacDeletionStop('Cannot bind a durable stop without a task identity.')
@@ -234,7 +231,7 @@ def main():
         if not isinstance(payload, dict):
             raise ValueError('hook payload must be an object')
         if payload.get('session_id') and not any(os.environ.get(k) for k in
-                ('CODEX_THREAD_ID', 'CODEX_SESSION_ID', 'OPENCODE_SESSION_ID')):
+                ('CODEX_THREAD_ID', 'CODEX_SESSION_ID')):
             os.environ['CLAUDE_SESSION_ID'] = str(payload['session_id'])
     except (ValueError, OSError) as exc:
         print(json.dumps({'continue': False, 'stopReason': str(exc)}))

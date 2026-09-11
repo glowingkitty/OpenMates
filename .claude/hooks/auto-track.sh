@@ -10,13 +10,8 @@ FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 [ -z "$FILE" ] && exit 0
 
 PROJECT_DIR="/home/superdev/projects/OpenMates"
-# Track the file. OpenCode provides an exact session id; resolve it to the
-# short sessions.py id so concurrent chats do not attach files to each other.
-if [ -n "$OPENCODE_SESSION_ID" ] && [ -f "$PROJECT_DIR/.claude/sessions.json" ]; then
-  SESSION_ID=$(jq -r --arg id "$OPENCODE_SESSION_ID" \
-    '[.sessions | to_entries[] | select(.value.opencode_session_id == $id) | .key] | if length == 1 then .[0] else empty end' \
-    "$PROJECT_DIR/.claude/sessions.json" 2>/dev/null)
-fi
+# The shared session resolver uses host-scoped Codex identity or a unique Claude terminal.
+SESSION_ID=""
 
 SESSION_REPO_ROOT=""
 if [ -n "$SESSION_ID" ] && [ -f "$PROJECT_DIR/.claude/sessions.json" ]; then

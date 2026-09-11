@@ -6,7 +6,7 @@ targets.
 Architecture: docs/specs/account-import-v1/spec.yml.
 Security: uses synthetic fixtures only and never prints tokens, cookies, or
 private import content.
-Privacy: writes temporary import fixtures only under /tmp/opencode unless an
+Privacy: writes temporary import fixtures only under /tmp/openmates unless an
 explicit --work-dir is provided.
 """
 
@@ -50,7 +50,7 @@ def main() -> int:
 
     api_url = (args.api_url or os.getenv("OPENMATES_API_URL") or (DEFAULT_DEV_API_URL if args.env == "dev" else DEFAULT_PROD_API_URL)).rstrip("/")
     should_cleanup_work_dir = args.work_dir is None
-    work_dir = Path(args.work_dir) if args.work_dir else Path(tempfile.mkdtemp(prefix="account-import-cli-", dir="/tmp/opencode"))
+    work_dir = Path(args.work_dir) if args.work_dir else Path(tempfile.mkdtemp(prefix="account-import-cli-", dir=None))
     work_dir.mkdir(parents=True, exist_ok=True)
 
     run(["npm", "run", "build"], cwd=CLI_DIR)

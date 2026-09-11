@@ -20,7 +20,7 @@ require videos the user has explicitly declined.
 ## Instructions
 
 You are creating the task breakdown for Plan-driven implementation. The output
-must let OpenCode implement one small vertical slice at a time without losing
+must let Codex implement one small vertical slice at a time without losing
 Specification or verification traceability.
 
 ### Step 1: Read Inputs

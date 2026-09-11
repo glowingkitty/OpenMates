@@ -5,7 +5,7 @@ Collect dependency vulnerability observations from OSV and NVD.
 The check-vulns command retains dependency inventory, query coverage, enrichment
 and the deterministic security ledger adapter. DRY_RUN and SUMMARY_ONLY avoid
 report persistence. Legacy tracking utilities remain for existing records.
-Automatic OpenCode remediation was removed under TASK-7543; TASK-8338 owns
+Automatic agent remediation was removed under TASK-7543; TASK-8338 owns
 future workflows. See docs/architecture/infrastructure/cronjobs.md.
 """
 
@@ -635,7 +635,7 @@ def _process_osv_results(
 # ---------------------------------------------------------------------------
 
 def _build_alert_summary(findings_to_dispatch: List[Dict]) -> str:
-    """Build alert summary for the OpenCode prompt, grouped by severity."""
+    """Build alert summary for the agent prompt, grouped by severity."""
     by_severity: Dict[str, List[Dict]] = {"critical": [], "high": [], "medium": []}
 
     for finding in findings_to_dispatch:
@@ -774,7 +774,7 @@ def check_vulns() -> None:
     )
     print(f"[eu-vulns] Actionable findings (after Dependabot dedup): {len(findings)}")
 
-    # Preserve all scanner/coverage reporting above. Legacy OpenCode launch
+    # Preserve all scanner/coverage reporting above. Legacy agent launch
     # and redispatch state are retired; historical tracking files stay intact.
     if summary_only:
         print(_build_json_summary(findings))

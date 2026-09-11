@@ -127,8 +127,7 @@ def run(argv: list[str]) -> int:
     parser.add_argument("--daily", action="store_true")
     parser.add_argument(
         "--session",
-        default=os.environ.get("OPENMATES_SESSION_ID")
-        or os.environ.get("OPENCODE_SESSION_ID"),
+        default=os.environ.get("OPENMATES_SESSION_ID"),
     )
     parser.add_argument("--expected-commit", "--commit", dest="source")
     parser.add_argument("--detach", action="store_true")

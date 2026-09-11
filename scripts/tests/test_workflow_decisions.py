@@ -139,33 +139,6 @@ def test_plan_verifier_accepts_only_scoped_proof_waiver(monkeypatch):
     assert plan_verify._demonstration_failures(data)
 
 
-def test_queued_task_stop_cancels_delivery_and_does_not_cancel_unrelated(monkeypatch):
-    import _workflow_decisions as decisions
-    import sessions
-
-    monkeypatch.setattr(decisions, "read_user_message", user_message)
-    r = receipt()
-    r["surface"] = "task"
-    data = {"sessions": {"abcd": {"opencode_session_id": "ses-1", "decisions": [r]}}}
-    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
-    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
-    sessions._record_session_continuation(
-        "abcd",
-        operation_type="task_ready",
-        operation_key="one",
-        next_action="Resume",
-        decision_scope={"target": "task-1", "surface": "task", "revision": "abc1234"},
-    )
-    assert sessions._claim_session_continuation("abcd") is None
-    assert data["sessions"]["abcd"]["continuation"]["status"] == "cancelled"
-    sessions._record_session_continuation(
-        "abcd",
-        operation_type="task_ready",
-        operation_key="other",
-        next_action="Resume",
-        decision_scope={"target": "task-2", "surface": "task", "revision": "abc1234"},
-    )
-    assert sessions._claim_session_continuation("abcd")["status"] == "delivering"
 
 
 def test_task_bookkeeping_does_not_invalidate_instruction_scope():

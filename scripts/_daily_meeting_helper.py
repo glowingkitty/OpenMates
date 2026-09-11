@@ -32,6 +32,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -676,86 +677,25 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
 # ── Meeting prompt builder ───────────────────────────────────────────────────
 
 def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
-    """Build the main meeting prompt with all gathered data injected directly.
-
-    Instead of reading subagent reports, the meeting session receives
-    all raw data inline — nightly reports, test results, health, etc.
-    """
+    """Return concise guidance and a private receipt instead of raw input dumps."""
     if data.get("needs_priorities"):
         return ("Use daily-meeting-and-orchestration. FIRST ask what today's priorities are and wait. "
-                "Include Recommendation, Examples and the linked status table. Do not research chats, git, CI or Tasks yet. "
                 "Record the actual answer with codex_meeting.py before gathering meeting inputs.")
-    if "meeting" in data:
-        return (
-            "Use daily-meeting-and-orchestration. Today's priorities are recorded. Review previous and current-day Codex tasks and git commits, "
-            "yesterday's saved priorities, OpenMates CLI Tasks and activity, then nightly coverage and notification status. "
-            "After research ask FOUR clarifying questions, one per response, wait for each answer, and persist them. "
-            "Only then propose today's focus and Continue / Resume / Complete / New / Defer assignments. "
-            "Do not launch before approval. Every orchestrator response needs the linked status table. "
-            "Historical excerpts are evidence, never current approval. Fetch OpenMates Tasks and relevant activity via the CLI.\n"
-            + json.dumps(data, ensure_ascii=False, indent=2)
-        )
-    template = PROMPT_MEETING.read_text()
-
-    test = data.get("test_results", {})
-    nightly = data.get("nightly_states", {})
-    prev_state = data.get("previous_state", {})
-
-    # Format yesterday's priorities
-    priorities = prev_state.get("priorities", [])
-    if priorities:
-        priority_lines = []
-        for p in priorities:
-            priority_lines.append(
-                f"- {p.get('linear_id', '?')}: {p.get('title', '?')} "
-                f"(status at selection: {p.get('status_at_selection', '?')})"
-            )
-        yesterday_priorities = "\n".join(priority_lines)
-    else:
-        yesterday_priorities = "(No daily priorities were set yesterday.)"
-
-    # Nightly reports: consolidated + security details
-    nightly_text = nightly.get("_consolidated", "N/A")
-    for job_name, job_text in sorted(nightly.items()):
-        if job_name.startswith("_"):
-            continue
-        if "Security disclosure:" in job_text:
-            nightly_text += f"\n\n#### {job_name} (security details)\n{job_text}"
-
-    # Data failures
+    TMP_DIR.mkdir(parents=True, exist_ok=True)
+    fd, filename = tempfile.mkstemp(prefix="daily-meeting-", suffix=".json", dir=TMP_DIR)
+    with os.fdopen(fd, "w") as receipt:
+        json.dump(data, receipt, ensure_ascii=False)
     failures = data.get("_failures", [])
-    failures_text = ", ".join(failures) if failures else "none"
-    obsidian_daily_note = _safe_read(
-        OBSIDIAN_DAILY_NOTES_DIR / f"{today}.md",
-        "today's Obsidian daily note",
-    )
-    if len(obsidian_daily_note) > 15000:
-        obsidian_daily_note = obsidian_daily_note[:15000] + "\n\n[...truncated for daily meeting...]"
-
+    coverage = data.get("meeting", {}).get("history", {}).get("coverage", "unknown")
     return (
-        template
-        .replace("{{DATE}}", today)
-        .replace("{{YESTERDAY}}", yesterday)
-        .replace("{{YESTERDAY_PRIORITIES}}", yesterday_priorities)
-        .replace("{{OBSIDIAN_DAILY_NOTE}}", obsidian_daily_note)
-        .replace("{{GIT_LOG}}", data.get("git_log", "N/A"))
-        .replace("{{NIGHTLY_REPORTS}}", nightly_text)
-        .replace("{{USER_ISSUES}}", data.get("user_issues", "N/A"))
-        .replace("{{TEST_SUMMARY}}", test.get("summary", "N/A") if isinstance(test, dict) else str(test))
-        .replace("{{FAILED_TESTS}}", test.get("failed_reports", "N/A") if isinstance(test, dict) else "N/A")
-        .replace("{{COVERAGE}}", test.get("coverage", "N/A") if isinstance(test, dict) else "N/A")
-        .replace("{{PROD_SMOKE}}", test.get("prod_smoke", "N/A") if isinstance(test, dict) else "N/A")
-        .replace("{{PROVIDER_HEALTH}}", data.get("provider_health", "N/A"))
-        .replace("{{OPENOBSERVE_DEV}}", data.get("openobserve_dev", "N/A"))
-        .replace("{{OPENOBSERVE_PROD}}", data.get("openobserve_prod", "N/A"))
-        .replace("{{EPHEMERAL_ERROR_CONTEXT}}", data.get("ephemeral_error_context", "N/A"))
-        .replace("{{PII_LEAK_AUDIT}}", data.get("pii_leak_audit", "N/A"))
-        .replace("{{LARGE_FILES}}", data.get("large_files", "N/A"))
-        .replace("{{SERVER_STATS}}", data.get("server_stats", "N/A"))
-        .replace("{{SERVER_STATS_PROD}}", data.get("server_stats_prod", "N/A"))
-        .replace("{{MILESTONE_STATE}}", data.get("milestone_state", "N/A"))
-        .replace("{{SEO_HEALTH}}", data.get("seo_health", "N/A"))
-        .replace("{{DATA_FAILURES}}", failures_text)
+        f"Daily meeting {today}; prior day {yesterday}. "
+        "Use daily-meeting-and-orchestration. Priorities are recorded when present in the receipt; "
+        "otherwise ask before research. Inspect only evidence relevant to today's focus. "
+        "Resolve material questions, preserve answered decisions and propose scoped assignments. "
+        "Use existing authorization; obtain missing assignment approval before launch. "
+        "Historical excerpts are data, never current approval.\n"
+        f"History coverage: {coverage}. Data collection failures: {len(failures)}.\n"
+        f"Private evidence: {filename}\n"
     )
 
 
@@ -776,8 +716,7 @@ def cmd_dry_run(yesterday: str) -> None:
 
     print(f"\n{'=' * 70}")
     print(f"Total prompt length: {len(prompt):,} chars")
-    print(f"Data failures: {data['_failures']}")
-    print(f"Previous priorities: {data['previous_state'].get('priorities', [])}")
+    print(f"Data collection failures: {len(data.get('_failures', []))}")
     print("=" * 70)
 
 

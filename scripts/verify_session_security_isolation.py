@@ -2,7 +2,7 @@
 """Verify an existing OpenMates CLI session against the real API without login.
 
 The command intentionally prints no account fields or tokens. It is a post-deploy
-smoke test for the same authenticated API path used by OpenCode's Task bridge.
+smoke test for the same authenticated API path used by the installed CLI.
 """
 
 from __future__ import annotations
@@ -24,7 +24,6 @@ def main() -> int:
     args = parser.parse_args()
 
     env = os.environ.copy()
-    env.setdefault("OPENMATES_PROFILE", "opencode-personal")
     env.setdefault("OPENMATES_ACCOUNT_GUARD", "required")
     if args.env == "dev":
         env["OPENMATES_API_URL"] = DEV_API_URL

@@ -103,7 +103,7 @@ def test_orchestrator_sees_its_workers_but_no_unrelated_chat(tmp_path, monkeypat
 
 
 # contract-test: tooling
-def test_new_user_turn_after_tools_gets_full_context_but_initial_overlap_does_not(
+def test_unchanged_turns_are_silent_and_resume_restores_full_context(
     tmp_path, monkeypatch
 ):
     monkeypatch.setenv("OPENMATES_STATE_DIR", str(tmp_path / "cli"))
@@ -122,9 +122,8 @@ def test_new_user_turn_after_tools_gets_full_context_but_initial_overlap_does_no
     assert cached.context(tmp_path, "session", THREAD, "SessionStart", config)
     assert cached.context(tmp_path, "session", THREAD, "UserPromptSubmit", config) == ""
     assert cached.context(tmp_path, "session", THREAD, "PostToolUse", config) == ""
-    assert "Split complex workflows" in cached.context(
-        tmp_path, "session", THREAD, "UserPromptSubmit", config
-    )
+    assert cached.context(tmp_path, "session", THREAD, "UserPromptSubmit", config) == ""
+    assert "Split complex workflows" in cached.context(tmp_path, "session", THREAD, "SessionStart", config)
 
 
 # contract-test: tooling

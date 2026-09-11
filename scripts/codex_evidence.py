@@ -292,7 +292,7 @@ def main():
     receipt = json.loads((directory / "receipt.json").read_text())
     path = prepare(directory, receipt)
     if args.upload:
-        from opencode_response_media import upload_file
+        from response_media import upload_file
 
         publish(directory, upload_file)
     if args.ack:

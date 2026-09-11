@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Tests for OpenCode multi-file edit leases.
+"""Tests for concurrent agent multi-file edit leases.
 
 Purpose: keep concurrent execute-mode agents from editing the same source file
 at the same time while preserving sessions.py as the single coordination store.
 The tests use a temporary sessions.json and never touch real agent sessions.
 Run: python3 -m pytest scripts/tests/test_sessions_edit_leases.py.
 """
+
+# contract-test-file: tooling
 
 from __future__ import annotations
 
@@ -48,7 +50,7 @@ def write_sessions_file(path: Path) -> None:
     )
 
 
-def test_edit_lease_blocks_other_opencode_session(monkeypatch, tmp_path):
+def test_edit_lease_blocks_other_repository_session(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     sessions_file = tmp_path / "sessions.json"
     write_sessions_file(sessions_file)
@@ -56,16 +58,16 @@ def test_edit_lease_blocks_other_opencode_session(monkeypatch, tmp_path):
     monkeypatch.setattr(sessions, "_now_iso", lambda: "2026-08-01T00:01:00Z")
     monkeypatch.setattr(sessions, "_minutes_since", lambda _value: 1)
 
-    result = sessions.acquire_edit_leases(opencode_session_id="oc-a", files=[str(PROJECT_ROOT / "scripts/sessions.py")])
+    result = sessions.acquire_edit_leases(session_id="a111", files=[str(PROJECT_ROOT / "scripts/sessions.py")])
 
     assert result == {"session_id": "a111", "files": ["scripts/sessions.py"]}
     with pytest.raises(RuntimeError, match="Another live agent has an edit lease"):
-        sessions.acquire_edit_leases(opencode_session_id="oc-b", files=[str(PROJECT_ROOT / "scripts/sessions.py")])
+        sessions.acquire_edit_leases(session_id="b222", files=[str(PROJECT_ROOT / "scripts/sessions.py")])
 
-    release = sessions.release_edit_leases(opencode_session_id="oc-a", files=[str(PROJECT_ROOT / "scripts/sessions.py")])
+    release = sessions.release_edit_leases(session_id="a111", files=[str(PROJECT_ROOT / "scripts/sessions.py")])
 
     assert release == {"session_id": "a111", "files": ["scripts/sessions.py"]}
-    second = sessions.acquire_edit_leases(opencode_session_id="oc-b", files=[str(PROJECT_ROOT / "scripts/sessions.py")])
+    second = sessions.acquire_edit_leases(session_id="b222", files=[str(PROJECT_ROOT / "scripts/sessions.py")])
     assert second == {"session_id": "b222", "files": ["scripts/sessions.py"]}
 
 
@@ -81,7 +83,7 @@ def test_edit_lease_respects_manual_write_claim(monkeypatch, tmp_path):
     monkeypatch.setattr(sessions, "_minutes_since", lambda _value: 1)
 
     with pytest.raises(RuntimeError, match="manual WRITING claim"):
-        sessions.acquire_edit_leases(opencode_session_id="oc-b", files=[str(PROJECT_ROOT / "scripts/sessions.py")])
+        sessions.acquire_edit_leases(session_id="b222", files=[str(PROJECT_ROOT / "scripts/sessions.py")])
 
 
 def test_edit_lease_normalizes_session_worktree_paths(monkeypatch, tmp_path):
@@ -99,7 +101,7 @@ def test_edit_lease_normalizes_session_worktree_paths(monkeypatch, tmp_path):
     monkeypatch.setattr(sessions, "_now_iso", lambda: "2026-08-01T00:01:00Z")
     monkeypatch.setattr(sessions, "_minutes_since", lambda _value: 1)
 
-    result = sessions.acquire_edit_leases(opencode_session_id="oc-a", files=[str(worktree_file)])
+    result = sessions.acquire_edit_leases(session_id="a111", files=[str(worktree_file)])
 
     assert result == {"session_id": "a111", "files": ["frontend/example.ts"]}
 
@@ -121,7 +123,7 @@ def test_edit_lease_normalizes_worktree_nested_inside_project_root(monkeypatch, 
     monkeypatch.setattr(sessions, "_now_iso", lambda: "2026-08-01T00:01:00Z")
     monkeypatch.setattr(sessions, "_minutes_since", lambda _value: 1)
 
-    result = sessions.acquire_edit_leases(opencode_session_id="oc-a", files=[str(worktree_file)])
+    result = sessions.acquire_edit_leases(session_id="a111", files=[str(worktree_file)])
 
     assert result == {"session_id": "a111", "files": ["scripts/sessions.py"]}
     saved = json.loads(sessions_file.read_text(encoding="utf-8"))

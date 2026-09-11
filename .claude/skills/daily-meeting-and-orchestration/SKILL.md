@@ -1,6 +1,6 @@
 ---
 name: daily-meeting-and-orchestration
-description: Ask today’s priorities first, review previous and current work plus saved priorities and CLI Tasks, ask four clarification rounds, then propose and orchestrate approved assignments.
+description: Ask today’s priorities first, review previous and current work plus saved priorities and CLI Tasks, resolve material questions, then propose and orchestrate approved assignments.
 ---
 
 # Daily meeting and orchestration
@@ -44,9 +44,9 @@ then wait. Preserve previously approved scope and answered questions.
 
 ## Required meeting sequence
 
-**Priorities → research → four clarification rounds → proposal → approval.**
+**Priorities → research → material questions if needed → proposal → approval.**
 Do not skip or reorder these stages on a new daily meeting. On resume, load the
-dated record and continue the unfinished stage without repeating answered rounds.
+dated record and continue the unfinished stage without repeating answered questions.
 
 ### 1. Ask today's priorities FIRST
 
@@ -79,7 +79,7 @@ Use all five inputs:
 | Nightly CI | Source-bound coverage/results, missing reports and notification status |
 
 Daily records are private, gitignored text files at the canonical repository's
-`logs/daily-meetings/YYYY-MM-DD.json`. They retain priorities, four answers,
+`logs/daily-meetings/YYYY-MM-DD.json`. They retain priorities, relevant answers,
 proposed focus, approval and linked meeting identity. Multiple meetings on a day
 remain separate; revisions preserve earlier decisions. Load yesterday's file,
 fall back to the last recorded day within 30 days, and include the old
@@ -104,31 +104,24 @@ or substitute stale summaries. Missing coverage or notification receipts are
 explicit gaps. Suspected signup/billing/basic-chat failures warrant investigation
 today; other bugs compete with the user's goals, without an endless debug campaign.
 
-### 3. Ask FOUR clarifying questions
+### 3. Resolve material questions
 
-After research, ask **exactly four rounds**, labeled **1/4** through **4/4**,
-**one question per response, waiting for each answer**. These are additional to
-the initial priorities question. Include Recommendation and concrete Examples.
-Tailor each question to the gathered evidence and prior answers; do not ask the
-user to restate known information or choose technical implementation trivia.
-Useful decisions concern priority conflicts, carryovers, capacity/deadlines and
-scope/completion expectations. Never batch all four or replace them with a plan.
-
-Persist each actual answer using `--record answer --text-file <answer-file>
---message-id <human-message-id>` with the same timezone/meeting-thread flags.
-If the user explicitly changes the meeting process, follow their instruction;
-do not fabricate answers to satisfy a guard.
+Ask only for unresolved priority conflicts, scope, capacity or deadlines. Batch
+related questions when helpful; skip questions already answered by the user's
+priorities or earlier approvals. There is no required number of rounds. Do not
+ask the user to choose implementation trivia or manufacture answers for a guard.
+Record actual answers with their human message ID when they affect the plan.
 
 ### 4. Propose today's focus and assignments
 
-Only after all four answers, propose the focus and a compact linked table of:
+Once material questions are resolved, propose the focus and a compact linked table of:
 **Continue already running / Resume / Complete and close / Start new / Defer**.
 Compare yesterday's intended priorities with outcomes and today's existing work.
 Show why the proposed assignments fit today's stated goals, with scope and proof
 of completion. Include OpenMates Task IDs and existing Codex links.
 
 Save the proposal with `--record proposal --text-file <proposal-file>`; this
-command rejects proposals before four distinct answers. Ask for approval, then
+command preserves the dated proposal. Ask for approval when not already given, then
 record it with `--record approve --text-file <approval-file>
 --message-id <human-message-id>`. A priorities answer is not assignment approval.
 Update the dated record and OpenMates activity when approved focus changes.
@@ -145,7 +138,7 @@ reuse its OpenMates Task, connect its Codex identity, and record meaningful task
 activity via the CLI. Include goal, task ID, scope, saved findings and remaining
 verification in the handoff. Keep it concise. Verify accepted launches rather
 than retry uncertain submissions. Use supported Codex task controls; never use
-retired OpenCode `monitor`, `restore` or launcher commands.
+retired Codex `monitor`, `restore` or launcher commands.
 
 There is **no orchestrator-imposed worker cap** and **no nightly clock cutoff**.
 Respect actual platform/CI capacity and current file/runtime ownership.

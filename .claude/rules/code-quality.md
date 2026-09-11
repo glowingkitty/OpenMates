@@ -38,7 +38,7 @@ already too large.
 ## Deterministic Scripts And Audits
 
 - When you uncover a recurring bug pattern, flaky test pattern, security/privacy
-  risk, provider metadata drift, code-quality issue, or OpenCode workflow that
+  risk, provider metadata drift, code-quality issue, or Codex workflow that
   repeatedly consumes inference, ask whether a deterministic script can prevent
   or detect it.
 - Prefer updating an existing audit, guard, test helper, or repo script before

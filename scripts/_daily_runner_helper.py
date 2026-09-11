@@ -324,8 +324,8 @@ def dispatch_email() -> None:
 
     normalized_payload = _build_test_run_payload(results_dir, environment)
 
-    # Include OpenCode analysis session ID if one was produced during this run.
-    opencode_session_id = os.environ.get("OPENCODE_SESSION_ID", "").strip() or None
+    # Include Codex analysis session ID if one was produced during this run.
+    codex_task_id = os.environ.get("CODEX_THREAD_ID", "").strip() or None
 
     # Dispatch via internal API endpoint.
     # When running on the host (via crontab), use localhost:8000 since
@@ -337,7 +337,7 @@ def dispatch_email() -> None:
     payload = {
         "recipient_email": admin_email,
         **normalized_payload,
-        "claude_session_id": opencode_session_id,
+        "claude_session_id": codex_task_id,
     }
 
     try:

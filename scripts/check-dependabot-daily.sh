@@ -16,7 +16,7 @@ TRACKING_FILE="$PROJECT_ROOT/logs/dependabot-processed.json"
 LOCK_FILE="$PROJECT_ROOT/logs/dependabot-scanner.lock"
 PROMPT_TEMPLATE="$SCRIPT_DIR/prompts/dependabot-analysis.md"
 
-# Re-dispatch threshold: re-open an OpenCode chat if still unresolved after this many days
+# Re-dispatch threshold: re-open an agent chat if still unresolved after this many days
 REDISPATCH_AFTER_DAYS=7
 
 # Minimum severity to process (critical, high, medium — skip low)
