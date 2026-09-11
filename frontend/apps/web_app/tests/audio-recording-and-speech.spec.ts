@@ -274,6 +274,9 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await expect(reloadedRecording).toHaveAttribute('data-recording-title', TRANSCRIPTION_TITLE);
 		await expect(reloadedRecording.getByText(TRANSCRIPTION_TEXT, { exact: true })).toBeVisible();
 		await expect(reloadedRecording.getByTestId('recording-preview-waveform')).toBeVisible();
+        // Sent attachments belong only to history, never to a restored draft.
+        await expect(page.getByTestId('message-field').last().getByTestId('recording-preview')).toHaveCount(0);
+        await expect(page.getByTestId('message-field').last().getByTestId('message-editor')).toBeEmpty();
 		await page.getByTestId('message-field').last().click();
 		const reloadedToggle = page.getByTestId('message-field').last().getByTestId('assistant-speech-toggle');
 		await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 30_000 });

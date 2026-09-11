@@ -203,6 +203,7 @@
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
         "components/embed-workspace.spec.ts",
+        "components/panel-responsiveness.spec.ts",
         "composer-model-routing.spec.ts",
         "design-search-icons.spec.ts",
         "dev-preview.spec.ts",
