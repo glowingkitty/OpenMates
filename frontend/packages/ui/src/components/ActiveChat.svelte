@@ -1803,6 +1803,16 @@
             console.debug('[ActiveChat] Early URL hash guard set for embed:', embedId, 'chatId:', hasChatContext ? currentChat?.chat_id : null);
         }
         
+        // Cached imports/resolvers can complete in microtasks without yielding a
+        // paint. Let Safari present the closeable shell before decoding results
+        // or evaluating a cold viewer module. A second frame crosses a paint
+        // opportunity; tick alone only flushes Svelte's DOM updates.
+        await tick();
+        await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        });
+        if (!stillOpening()) return;
+
         // ALWAYS reload from EmbedStore when embedId is provided to ensure we get the latest data.
         // The embed might have been updated since the preview was rendered (e.g., processing -> finished).
         // The event's embedData/decodedContent might be stale (captured at render time before skill results arrived).
