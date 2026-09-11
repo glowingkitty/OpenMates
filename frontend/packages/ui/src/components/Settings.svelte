@@ -194,6 +194,15 @@ changes to the documentation (to keep the documentation up to date).
     
     // State for toggles and menu visibility
     let isMenuVisible = $state(false);
+    let settingsContentReady = $state(false);
+    $effect(() => {
+        if (!isMenuVisible) { settingsContentReady = false; return; }
+        let secondFrame = 0;
+        const firstFrame = requestAnimationFrame(() => {
+            secondFrame = requestAnimationFrame(() => { settingsContentReady = true; });
+        });
+        return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame); };
+    });
     // Timestamp when settings was last programmatically opened (e.g., via deep link from AppStoreCard click)
     // Used to prevent handleClickOutside from immediately closing settings on the same click event.
     // On mobile, the same tap that opens settings also triggers the document click listener which would close it.
@@ -3386,6 +3395,7 @@ changes to the documentation (to keep the documentation up to date).
     >
         <!-- Show settings menu for both authenticated and non-authenticated users -->
         <!-- For non-authenticated users, only language settings are available -->
+        {#if settingsContentReady}
         <CurrentSettingsPage
         	bind:this={currentPageInstance}
         	{activeSettingsView}
@@ -3418,6 +3428,8 @@ changes to the documentation (to keep the documentation up to date).
                 panelState.closeSettings();
             }}
         />
+
+        {/if}
 
         <!-- Show footer for both authenticated and non-authenticated users -->
         <!-- This displays social links and legal information -->
@@ -3748,8 +3760,15 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        transition: width var(--duration-slow) var(--easing-default);
+        transition: opacity 0.12s ease-out;
+        opacity: 0;
         z-index: var(--z-index-modal-above);
+    }
+
+    .settings-menu.visible { opacity: 1; }
+
+    @media (prefers-reduced-motion: reduce) {
+        .settings-menu { transition: none !important; }
     }
 
     .mobile-overlay-sentinel {
@@ -3767,10 +3786,10 @@ changes to the documentation (to keep the documentation up to date).
             z-index: var(--z-index-modal);
             /* Override desktop width animation — keep full width, slide with GPU-accelerated transform */
             width: var(--settings-panel-width);
-            transition: transform var(--duration-slow) var(--easing-default), visibility var(--duration-slow) var(--easing-default);
+            transition: transform 0.12s ease-out, opacity 0.12s ease-out;
             transform: translateX(calc(100% + 40px));
             visibility: hidden;
-            will-change: transform;
+
         }
 
         .settings-menu.visible {

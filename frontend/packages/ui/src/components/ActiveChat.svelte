@@ -21,7 +21,7 @@
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
     import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../types/embedFullscreen';
-    import EmbedTopBar from './embeds/EmbedTopBar.svelte';
+    import EmbedFullscreenLoading from './embeds/EmbedFullscreenLoading.svelte';
     import { panelState } from '../stores/panelStateStore'; // Added import
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
@@ -14204,10 +14204,7 @@
             
             <!-- Embed fullscreen view (app-skill-use, website, etc.) -->
             {#snippet fullscreenLoading(failed: boolean)}
-                <div class="embed-fullscreen-loading" data-testid="embed-fullscreen-loading" role="status">
-                    <EmbedTopBar onClose={handleCloseEmbedFullscreen} showShare={false} />
-                    <p>{$text(failed ? 'common.detail_load_error' : 'common.loading')}</p>
-                </div>
+                <EmbedFullscreenLoading data={embedFullscreenData} {failed} onClose={handleCloseEmbedFullscreen} />
             {/snippet}
             <!-- Container switches between overlay mode (default) and side panel mode (ultra-wide screens) -->
             <!-- Side-by-side mode shows embed next to chat for better large display usage -->
@@ -14765,17 +14762,6 @@
     @keyframes panelReveal {
         from { transform: translateX(16px); opacity: 0; }
         to { transform: translateX(0); opacity: 1; }
-    }
-    .embed-fullscreen-loading {
-        position: relative;
-        display: grid;
-        place-items: center;
-        width: 100%;
-        height: 100%;
-        min-height: 10rem;
-        background: var(--color-grey-20);
-        border-radius: inherit;
-        color: var(--color-font-secondary);
     }
 
     /* Override UnifiedEmbedFullscreen overlay styles when in side panel mode */
