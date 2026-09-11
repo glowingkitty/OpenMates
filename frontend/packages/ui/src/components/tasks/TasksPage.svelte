@@ -24,6 +24,7 @@
     deleteUserTask,
     cancelWorkflowRunTaskProjection,
     extractUserTaskProposals,
+    getTaskAssignmentEligibility,
     isWorkflowRunTaskProjectionViewModel,
     listTaskBoardItems,
     reorderUserTasks,
@@ -33,6 +34,8 @@
     updateUserTask,
     type ListUserTasksFilters,
     type UserTaskProposal,
+    type UserTaskAssigneeIdentity,
+    type UserTaskAssigneeType,
     type UserTaskStatus,
     type UserTaskViewModel,
     type TasksBoardItem,
@@ -45,6 +48,8 @@
     listUserPlans,
     type UserPlanViewModel,
   } from '../../services/userPlanService';
+
+  type TaskAssigneeChoice = 'user' | 'openmates' | 'codex' | 'unassigned';
 
   let {
     projectId = null,
@@ -69,7 +74,7 @@
   let description = $state('');
   let planTitle = $state('');
   let planSummary = $state('');
-  let assignToAI = $state(false);
+  let taskAssigneeChoice = $state<TaskAssigneeChoice>('user');
   let transcriptText = $state('');
   let correctedTranscriptText = $state('');
   let taskPromptValue = $state('');
@@ -98,6 +103,7 @@
   const greetingName = $derived(formatGreetingName($userProfile.username));
   const taskFilterChips = $derived(resolveTaskFilterChips(tasks));
   const visibleTasks = $derived(filterTasks(tasks, searchTerm));
+  let canAssignCodex = $state(false);
 
   function formatGreetingName(username: string): string {
     const trimmed = username.trim();
@@ -130,6 +136,48 @@
     return matches[0] ?? null;
   }
 
+  function createAssigneeInput(choice: TaskAssigneeChoice): { assigneeType: UserTaskAssigneeType; assigneeIdentity: UserTaskAssigneeIdentity | null } {
+    if (choice === 'openmates') return { assigneeType: 'openmates', assigneeIdentity: 'openmates' };
+    if (choice === 'codex') return { assigneeType: 'external_ai', assigneeIdentity: 'codex' };
+    if (choice === 'unassigned') return { assigneeType: 'unassigned', assigneeIdentity: null };
+    return { assigneeType: 'user', assigneeIdentity: null };
+  }
+
+  function assigneeSuccessLabel(choice: TaskAssigneeChoice): string {
+    if (choice === 'openmates') return 'AI task started';
+    if (choice === 'codex') return 'Task assigned to Codex';
+    if (choice === 'unassigned') return 'Unassigned task created';
+    return 'Task created';
+  }
+
+  function assignmentPatchForTask(task: UserTaskViewModel, choice: TaskAssigneeChoice): Parameters<typeof updateUserTask>[1] {
+    const assignment = createAssigneeInput(choice);
+    return {
+      assigneeType: assignment.assigneeType,
+      assigneeIdentity: assignment.assigneeIdentity,
+      ...(task.externalChat && (choice !== 'codex' || task.externalChat.provider !== 'codex') ? { primaryChatId: task.primaryChatId ?? null } : {}),
+    };
+  }
+
+  function parseAssigneeUpdate(request: string): TaskAssigneeChoice | null {
+    if (!/\b(assign|assigned|handoff|hand off|start)\b/i.test(request)) return null;
+    if (/\bcodex\b/i.test(request)) return 'codex';
+    if (/\b(openmates|ai mate|ai)\b/i.test(request)) return 'openmates';
+    if (/\b(unassigned|no assignee)\b/i.test(request)) return 'unassigned';
+    if (/\b(me|myself|user)\b/i.test(request)) return 'user';
+    return null;
+  }
+
+  function requestedCodexAssignment(request: string): boolean {
+    return /\b(assign|assigned|handoff|hand off|start)\b/i.test(request) && /\bcodex\b/i.test(request);
+  }
+
+  function handleTaskChange(updated: UserTaskViewModel): void {
+    tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
+    if (selectedTask?.task_id === updated.task_id) selectedTask = updated;
+    broadcastTasksChanged();
+  }
+
   async function revealTaskBoardPanel(): Promise<void> {
     if (!isCentralTasksWorkspace || !taskBoardPanel) return;
     await tick();
@@ -156,7 +204,11 @@
   }
 
   function looksLikeTaskManagementRequest(request: string): boolean {
-    return /\b(rename|retitle|edit|update|move|mark|delete|remove|complete|block|start|skip)\b/i.test(request);
+    return /\b(rename|retitle|edit|update|move|mark|delete|remove|complete|block|start|skip|assign|assigned|handoff|hand off)\b/i.test(request);
+  }
+
+  function looksLikeTaskCreationRequest(request: string): boolean {
+    return /\b(create|add|new|make)\b/i.test(request) && /\b(task|to do|todo)\b/i.test(request);
   }
 
   function parseRenameTitle(request: string): string | null {
@@ -193,6 +245,7 @@
   }
 
   async function refreshTasks(): Promise<void> {
+    canAssignCodex = false;
     if (!tasksEnabled) {
       tasks = [];
       isLoading = false;
@@ -201,7 +254,9 @@
     isLoading = true;
     try {
       hasLoadError = false;
-      tasks = await listTaskBoardItems(filters());
+      const [loadedTasks, eligible] = await Promise.all([listTaskBoardItems(filters()), getTaskAssignmentEligibility()]);
+      tasks = loadedTasks;
+      canAssignCodex = eligible;
     } catch (error) {
       hasLoadError = true;
       console.error('[TasksPage] Failed to load tasks:', error);
@@ -234,13 +289,19 @@
   async function handleCreateTask(): Promise<void> {
     const trimmedTitle = title.trim();
     if (!trimmedTitle || isSaving) return;
+    if (taskAssigneeChoice === 'codex' && !canAssignCodex) {
+      notificationStore.error('Codex must create its first task before it can be assigned work.');
+      return;
+    }
     isSaving = true;
     try {
-      const assignedToAI = assignToAI;
+      const selectedAssignee = taskAssigneeChoice;
+      const assignment = createAssigneeInput(selectedAssignee);
       const task = await createUserTask({
         title: trimmedTitle,
         description: description.trim(),
-        assigneeType: assignedToAI ? 'ai' : 'user',
+        assigneeType: assignment.assigneeType,
+        assigneeIdentity: assignment.assigneeIdentity,
         primaryChatId: chatId,
         linkedProjectIds: projectId ? [projectId] : [],
       });
@@ -248,8 +309,8 @@
       broadcastTasksChanged();
       title = '';
       description = '';
-      assignToAI = false;
-      notificationStore.success(assignedToAI ? 'AI task started' : 'Task created');
+      taskAssigneeChoice = 'user';
+      notificationStore.success(assigneeSuccessLabel(selectedAssignee));
     } catch (error) {
       console.error('[TasksPage] Failed to create task:', error);
       notificationStore.error('Failed to create task');
@@ -260,6 +321,14 @@
 
   async function handleTaskPromptSubmit(value: string): Promise<void> {
     if (!tasksEnabled || isSaving) return;
+    if (/\bexternal[-\s]?ai\b/i.test(value) && !/\bcodex\b/i.test(value) && /\b(assign|start|handoff|hand off)\b/i.test(value)) {
+      notificationStore.error('Name Codex explicitly when assigning work to it.');
+      return;
+    }
+    if (/\bopencode\b/i.test(value) && /\b(assign|start|handoff|hand off)\b/i.test(value)) {
+      notificationStore.error('New external tasks use Codex. Existing OpenCode connections remain readable.');
+      return;
+    }
     const mentionedTask = findTaskMention(value);
     const normalized = value.toLowerCase();
     if (/\b(delete|remove)\b/.test(normalized)) {
@@ -275,6 +344,7 @@
     if (mentionedTask && !isWorkflowRunTaskProjectionViewModel(mentionedTask)) {
       const renamedTitle = parseRenameTitle(value);
       const description = parseDescriptionUpdate(value);
+      const targetAssignee = parseAssigneeUpdate(value);
       const targetStatus = parseTaskStatus(value);
       if (renamedTitle) {
         await updateTaskFromPrompt(mentionedTask, { title: renamedTitle }, 'Task renamed');
@@ -286,6 +356,17 @@
         taskPromptValue = '';
         return;
       }
+      if (targetAssignee) {
+        if (targetAssignee === 'codex' && !canAssignCodex) {
+          notificationStore.error('Codex must create its first task before it can be assigned work.');
+        } else if (targetAssignee === 'openmates') {
+          await handleStartAI(mentionedTask);
+        } else {
+          await updateTaskFromPrompt(mentionedTask, assignmentPatchForTask(mentionedTask, targetAssignee), targetAssignee === 'codex' ? 'Task assigned to Codex' : 'Task assignment updated');
+        }
+        taskPromptValue = '';
+        return;
+      }
       if (targetStatus) {
         await handleMove(mentionedTask, targetStatus);
         taskPromptValue = '';
@@ -293,7 +374,7 @@
       }
     }
 
-    if (looksLikeTaskManagementRequest(value)) {
+    if (looksLikeTaskManagementRequest(value) && !looksLikeTaskCreationRequest(value)) {
       notificationStore.error('I could not find a matching task. Include the exact task title.');
       return;
     }
@@ -303,19 +384,29 @@
   }
 
   async function createTaskFromPrompt(value: string): Promise<void> {
+    if (requestedCodexAssignment(value) && !canAssignCodex) {
+      notificationStore.error('Codex must create its first task before it can be assigned work.');
+      return;
+    }
     isSaving = true;
     try {
-      const assignedToAI = /\b(ai|mate)\b/i.test(value) && /\b(assign|start)\b/i.test(value);
+      const selectedAssignee: TaskAssigneeChoice = requestedCodexAssignment(value)
+        ? 'codex'
+        : /\b(ai|mate)\b/i.test(value) && /\b(assign|start)\b/i.test(value)
+          ? 'openmates'
+          : 'user';
+      const assignment = createAssigneeInput(selectedAssignee);
       const task = await createUserTask({
         title: value,
         description: value.split(/\s+/).length > 10 ? value : '',
-        assigneeType: assignedToAI ? 'ai' : 'user',
+        assigneeType: assignment.assigneeType,
+        assigneeIdentity: assignment.assigneeIdentity,
         primaryChatId: chatId,
         linkedProjectIds: projectId ? [projectId] : [],
       });
       tasks = [task, ...tasks];
       broadcastTasksChanged();
-      notificationStore.success(assignedToAI ? 'AI task started' : 'Task created');
+      notificationStore.success(assigneeSuccessLabel(selectedAssignee));
     } catch (error) {
       console.error('[TasksPage] Failed to create task from prompt:', error);
       notificationStore.error('Failed to create task');
@@ -788,9 +879,14 @@
         data-testid="task-description-input"
       ></textarea>
     </div>
-    <label class="ai-toggle">
-      <input type="checkbox" bind:checked={assignToAI} data-testid="task-assign-ai-toggle" />
-      <span>Assign to AI now</span>
+    <label class="assignee-select">
+      <span>Assigned to</span>
+      <select bind:value={taskAssigneeChoice} data-testid="task-assignee-select">
+        <option value="user">Me</option>
+        <option value="unassigned">Unassigned</option>
+        <option value="openmates">OpenMates</option>
+        {#if canAssignCodex}<option value="codex">Codex</option>{/if}
+      </select>
     </label>
     <button type="submit" disabled={isSaving || !title.trim()} data-testid="task-create-button">
       {isSaving ? 'Creating...' : 'Create task'}
@@ -872,7 +968,7 @@
   {/if}
   {/if}
   {#if selectedTask}
-    <TaskDetailFullscreen task={selectedTask} onClose={() => { selectedTask = null; }} />
+    <TaskDetailFullscreen task={selectedTask} {canAssignCodex} onTaskChange={handleTaskChange} onClose={() => { selectedTask = null; }} />
   {/if}
 </section>
 {/if}
@@ -1417,11 +1513,15 @@
     resize: vertical;
   }
 
-  .ai-toggle {
-    flex-direction: row;
-    align-items: center;
+  .assignee-select select {
+    min-height: 44px;
+    border: 1px solid var(--color-grey-30);
+    border-radius: 18px;
+    background: var(--color-grey-0);
     color: var(--color-font-primary);
-    white-space: nowrap;
+    padding: 10px 12px;
+    font: inherit;
+    font-weight: 700;
   }
 
   button {

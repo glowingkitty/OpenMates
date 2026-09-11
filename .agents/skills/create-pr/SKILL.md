@@ -10,7 +10,7 @@ argument-hint: "[title]"
 
 **IMPORTANT: Only create a PR when the user explicitly asks.**
 
-OpenCode users invoke this workflow through `/pullrequest`. That command creates
+Codex users invoke this workflow through `/pullrequest`. That command creates
 a visible user turn and loads this skill through the `skill` tool. Keep this
 file static: execute commands explicitly during the workflow rather than using
 Claude command-template shell expansion in `SKILL.md`.
@@ -235,6 +235,15 @@ Write a **human-readable** PR description — not a commit dump. Structure:
 ```
 
 Only include sections that have content. Write for a developer audience — specific and clear.
+
+Apply this guidance when creating or updating a PR description. The public body
+describes the included changes, their purpose, and concise factual validation.
+Keep production rollout plans, SSH/server operations, manual post-deployment
+testing plans, internal approvals, gate waivers/bypass instructions, and agent
+coordination in the private task conversation, outside the public description.
+Report only validation actually performed; do not imply unrun checks passed.
+If validation coverage matters to reviewers, state that a check was not run
+without publishing the internal waiver or deployment plan.
 
 ### Step 8 — Create the PR
 

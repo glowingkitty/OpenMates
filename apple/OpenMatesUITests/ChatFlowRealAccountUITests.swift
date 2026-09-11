@@ -18,15 +18,192 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.persistence.client-encrypted
-    func testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse() throws {
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chats.surface.semantic-parity
+    func testExistingEncryptedChatsRestoreUserMessagesAndEmbedPreviews() throws {
+        guard let configured = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_EMBED_CHAT_IDS") else {
+            throw XCTSkip("Configure existing test-account chats containing user messages and embeds")
+        }
+        guard let queries = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_EMBED_CHAT_QUERIES")?.split(separator: "|").map(String.init),
+              queries.count == configured.split(separator: ",").count else {
+            throw XCTSkip("Configure matching chat search titles for the existing embed fixtures")
+        }
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
-        let app = RealAccountUITestSupport.launchApp()
+        let reuseAuthentication = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_REUSE_AUTH") == "1"
+        let app = RealAccountUITestSupport.launchApp(disableAuthCache: !reuseAuthentication,
+            extraArguments: (reuseAuthentication ? [] : ["--ui-test-open-login"]) + ["--ui-test-start-new-chat", "--ui-test-expose-chat-ids"])
+        if !reuseAuthentication {
+            RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        }
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 35))
+        for (index, chatId) in configured.split(separator: ",").map(String.init).enumerated() {
+            openChatsPanel(in: app, allowingSearch: true)
+            // SwiftUI can propagate the panel identifier over its header
+            // buttons on iOS; retain the actual Search accessibility label.
+            let searchButton = app.buttons.matching(NSPredicate(
+                format: "identifier == %@ OR label == %@", "search-button", "Search"
+            )).firstMatch
+            let existingSearch = app.textFields.matching(NSPredicate(format: "placeholderValue == %@", "Search")).firstMatch
+            if !existingSearch.exists {
+                XCTAssertTrue(searchButton.waitForExistence(timeout: 10))
+                searchButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
+            let search = app.textFields.matching(NSPredicate(
+                format: "identifier == %@ OR placeholderValue == %@", "search-input", "Search"
+            )).firstMatch
+            XCTAssertTrue(search.waitForExistence(timeout: 10))
+            search.tap()
+            if index > 0, let value = search.value as? String, !value.isEmpty {
+                search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count))
+            }
+            search.typeText(queries[index])
+            let result = app.buttons.matching(identifier: "search-chat-item").firstMatch
+            XCTAssertTrue(result.waitForExistence(timeout: 45), "Configured conversation must be searchable")
+            let start = Date()
+            result.tap()
+            XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "chat-view-\(chatId)").firstMatch.waitForExistence(timeout: 20))
+            let user = app.descendants(matching: .any).matching(identifier: "message-user").firstMatch
+            let assistant = app.descendants(matching: .any).matching(identifier: "message-assistant").firstMatch
+            XCTAssertTrue(assistant.waitForExistence(timeout: 20), "Existing assistant message must remain visible")
+            let scrollToTop = app.buttons["scroll-to-top-button"]
+            if scrollToTop.exists { scrollToTop.tap() }
+            XCTAssertTrue(user.waitForExistence(timeout: 20), "Existing user message must remain visible")
+            let elapsed = Date().timeIntervalSince(start)
+            let timing = XCTAttachment(string: "existing-chat-visible-seconds=\(elapsed)")
+            timing.lifetime = .keepAlways
+            add(timing)
+            let preview = app.buttons.matching(identifier: "embed-preview").firstMatch
+            XCTAssertTrue(preview.waitForExistence(timeout: 20), "Hydrated embed preview must be available")
+            preview.tap()
+            let minimize = app.buttons["embed-minimize"]
+            XCTAssertTrue(minimize.waitForExistence(timeout: 10), "Embed preview must open its fullscreen content")
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Existing conversation embed content"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            minimize.tap()
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,sync.surface.semantic-parity
+    func testExistingLongChatScrollsToFinalMessageRepeatedly() throws {
+        guard let query = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_LONG_CHAT_QUERY") else {
+            throw XCTSkip("Configure an existing long test-account conversation")
+        }
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(extraArguments: ["--ui-test-start-new-chat"])
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 35))
+        openChatsPanel(in: app, allowingSearch: true)
+        let search = app.textFields.matching(NSPredicate(format: "placeholderValue == %@", "Search")).firstMatch
+        if !search.exists {
+            let button = app.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", "search-button", "Search")).firstMatch
+            XCTAssertTrue(button.waitForExistence(timeout: 10))
+            button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        search.tap()
+        if let value = search.value as? String, !value.isEmpty {
+            search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count))
+        }
+        search.typeText(query)
+        let result = app.buttons.matching(identifier: "search-chat-item").firstMatch
+        XCTAssertTrue(result.waitForExistence(timeout: 45))
+        XCTAssertTrue(result.label.localizedCaseInsensitiveContains(query))
+        result.tap()
+        let history = app.scrollViews.matching(identifier: "chat-history-container").firstMatch
+        XCTAssertTrue(history.waitForExistence(timeout: 20))
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "message-assistant").firstMatch.waitForExistence(timeout: 20))
+        let toTop = app.buttons["scroll-to-top-button"]
+        let toBottom = app.buttons["scroll-to-bottom-button"]
+        for pass in 1...3 {
+            if toTop.exists { toTop.tap() }
+            XCTAssertTrue(toTop.waitForNonExistence(timeout: 10))
+            var gestures = 0
+            let started = Date()
+            repeat {
+                history.swipeUp()
+                gestures += 1
+            } while toBottom.exists && gestures < 60
+            XCTAssertFalse(toBottom.exists, "Must reach the FINAL message, not just the opening responses")
+            XCTAssertTrue(toTop.exists, "Long conversation must remain navigable back to the beginning")
+            XCTAssertTrue(app.state == .runningForeground)
+            XCTAssertNotNil(RealAccountUITestSupport.waitForMessageEditor(in: app, timeout: 5))
+            let attachment = XCTAttachment(string: "full-scroll-pass=\(pass) gestures=\(gestures) seconds=\(Date().timeIntervalSince(started))")
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+        toTop.tap()
+        XCTAssertTrue(toTop.waitForNonExistence(timeout: 10))
+        let preview = app.buttons.matching(identifier: "embed-preview").firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 10))
+        preview.tap()
+        let minimize = app.buttons["embed-minimize"]
+        XCTAssertTrue(minimize.waitForExistence(timeout: 10), "Citation/embed actions must still work after repeated full traversal")
+        minimize.tap()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.persistence.client-encrypted
+    func testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse() throws {
+        let markerPrompt = "Reply with one short sentence: Hello from Osaka."
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(
+            disableAuthCache: true,
+            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat", "--ui-test-expose-chat-ids"]
+        )
 
         RealAccountUITestSupport.logIn(app: app, credentials: credentials)
         RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: markerPrompt)
         RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
+
+        let active = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat-view-")).firstMatch
+        XCTAssertTrue(active.exists)
+        let chatId = String(active.identifier.dropFirst("chat-view-".count))
+        XCTAssertFalse(chatId.isEmpty)
+        app.terminate()
+        app.launchArguments.removeAll { ["--ui-test-disable-auth-cache", "--ui-test-open-login", "--ui-test-start-new-chat"].contains($0) }
+        app.launch()
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 35))
+        openChatsPanel(in: app)
+        let row = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND value == %@", "chat-item-wrapper", "user-chat:\(chatId)"
+        )).firstMatch
+        // Drafts sort ahead of recent conversations; expand and scroll the
+        // sidebar before asserting that a particular persisted identity is absent.
+        let history = app.scrollViews.matching(identifier: "chat-history-panel").firstMatch
+        for _ in 0..<12 {
+            if row.exists { break }
+            let more = app.buttons["load-more-chats"]
+            if more.exists && history.frame.insetBy(dx: 0, dy: 35).contains(more.frame) {
+                more.tap()
+            } else {
+                history.swipeUp()
+            }
+        }
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "Created chat must survive relaunch")
+        row.tap()
+        let userMessage = RealAccountUITestSupport.accessibilityElement(
+            in: app, identifier: "message-user", labelContaining: markerPrompt)
+        XCTAssertTrue(userMessage.waitForExistence(timeout: 25), "Original user message must survive relaunch")
+        let assistants = app.otherElements.matching(identifier: "message-assistant")
+        XCTAssertTrue(assistants.firstMatch.waitForExistence(timeout: 25), "Assistant response must survive relaunch")
+        let previousCount = assistants.count
+        let editor = try XCTUnwrap(RealAccountUITestSupport.waitForMessageEditor(in: app, timeout: 10))
+        guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        let followUpPrompt = "Which city did I mention? Reply with only the city name."
+        app.typeText(followUpPrompt)
+        XCTAssertEqual(editor.value as? String, followUpPrompt, "Typing must preserve the complete follow-up")
+        app.buttons["send-button"].tap()
+        let completed = NSPredicate { _, _ in assistants.count > previousCount }
+        expectation(for: completed, evaluatedWith: app)
+        waitForExpectations(timeout: assistantResponseTimeout)
+        let streaming = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "streaming-banner")
+        XCTAssertTrue(streaming.waitForNonExistence(timeout: assistantResponseTimeout), "Follow-up must finish streaming")
+        XCTAssertTrue(assistants.element(boundBy: assistants.count - 1).label.contains("Osaka"),
+                      "Follow-up must use the persisted conversation history")
     }
 
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.surface.semantic-parity
@@ -246,20 +423,20 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         add(attachment)
     }
 
-    private func openChatsPanel(in app: XCUIApplication) {
-        let panel = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "chat-history-panel")
-        let rows = chatRows(in: app)
-        if panel.exists && (panel.isHittable || rows.firstMatch.exists) {
-            return
+    private func openChatsPanel(in app: XCUIApplication, allowingSearch: Bool = false) {
+        // Wait for the actual panel after tapping: during a cold relaunch the
+        // startup overlay can still cover the header when sync first completes.
+        let toggle = app.buttons["sidebar-toggle"]
+        let panel = app.scrollViews.matching(identifier: "chat-history-panel").firstMatch
+        for _ in 0..<3 {
+            if panel.exists && app.frame.contains(CGPoint(x: panel.frame.midX, y: panel.frame.midY)) { break }
+            guard toggle.waitForExistence(timeout: 2) else { break }
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            if chatRows(in: app).firstMatch.waitForExistence(timeout: 3) { break }
         }
-
-        let toggle = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "sidebar-toggle")
-        XCTAssertTrue(
-            toggle.waitForExistence(timeout: 10),
-            "Missing sidebar-toggle. Visible UI: \(visibleStateLabels(in: app))"
-        )
-        toggle.tap()
-        XCTAssertTrue(panel.waitForExistence(timeout: 15), "Chat history panel did not open")
+        if allowingSearch && app.textFields.matching(NSPredicate(format: "placeholderValue == %@", "Search")).firstMatch.exists { return }
+        XCTAssertTrue(chatRows(in: app).firstMatch.waitForExistence(timeout: 15),
+                      "Chat history did not expose account rows after opening")
     }
 
     private func parityCredentials() throws -> RealAccountTestCredentials {
@@ -274,14 +451,10 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     }
 
     private func chatRows(in app: XCUIApplication) -> XCUIElementQuery {
-        app.descendants(matching: .any)
-            .matching(NSPredicate(
-                format: "(identifier == %@ AND value == %@) OR identifier BEGINSWITH %@ OR identifier BEGINSWITH %@",
-                "chat-item-wrapper",
-                "user-chat",
-                "welcome-chat-compact-card-",
-                "welcome-chat-card-"
-            ))
+        app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND (value == %@ OR value BEGINSWITH %@)",
+            "chat-item-wrapper", "user-chat", "user-chat:"
+        ))
     }
 
     private func waitForChatRows(_ rows: XCUIElementQuery, timeout: TimeInterval) -> Bool {

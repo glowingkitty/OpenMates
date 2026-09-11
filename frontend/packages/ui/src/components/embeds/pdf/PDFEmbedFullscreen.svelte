@@ -33,6 +33,8 @@
 
 <script lang="ts">
   import { onMount, onDestroy, untrack } from 'svelte';
+  import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
+  const pageImageOwner = createImageUrlOwner();
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -216,10 +218,10 @@
     };
 
     try {
-      const { fetchAndDecryptImage } = await import('../images/imageEmbedCrypto');
       // s3BaseUrl not needed — fetchAndDecryptImage uses the presigned URL service
-      const blob = await fetchAndDecryptImage('', s3Key, aesKey, aesNonce);
-      const url = URL.createObjectURL(blob);
+      await fetchAndDecryptImage('', s3Key, aesKey, aesNonce);
+      const url = getCachedImageUrl(s3Key);
+      pageImageOwner.retain(s3Key);
       pageImages = {
         ...pageImages,
         [pageNum]: { url, loading: false, error: undefined, retries: (pageImages[pageNum]?.retries ?? 0) },
@@ -282,10 +284,7 @@
   });
 
   onDestroy(() => {
-    // Revoke all blob URLs to free memory
-    for (const state of Object.values(pageImages)) {
-      if (state.url) URL.revokeObjectURL(state.url);
-    }
+    pageImageOwner.destroy();
     for (const obs of observers) obs.disconnect();
   });
 
@@ -496,7 +495,7 @@
     width: 100%;
     /* A4 aspect ratio approx */
     padding-bottom: 141.4%;
-    background: var(--color-grey-15, #ebebeb);
+    background: #ebebeb;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -604,7 +603,7 @@
   }
 
   :global(.dark) .pdf-page-skeleton.error {
-    background: var(--color-grey-85, #222);
+    background: #222;
   }
 
   :global(.dark) .pdf-filename {

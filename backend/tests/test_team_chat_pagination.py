@@ -121,3 +121,44 @@ async def test_metadata_chat_sync_uses_exact_team_scope_and_echoes_context() -> 
     assert service.team.required[0][:2] == ("team-1", "user-1")
     assert manager.sent[-1]["payload"]["team_id"] == "team-1"
     assert manager.sent[-1]["payload"]["context_epoch"] == 5
+
+
+# contract-test: direct surface=rest_api assertions=sync.surface.semantic-parity
+@pytest.mark.anyio
+async def test_personal_pagination_ignores_sparse_draft_only_cache() -> None:
+    class SparseCache:
+        async def get_chat_ids_versions(self, *args, **kwargs):
+            return ["draft-without-persisted-chat"]
+
+        async def get_batch_chat_list_item_data(self, *args):
+            return {}
+
+        async def get_batch_chat_versions(self, *args):
+            return {}
+
+    class PersistedChatPage(FakeChat):
+        async def get_chat_metadata(self, chat_id):
+            return None  # Draft-only cache IDs do not own a persisted chat row.
+
+        async def get_core_chats_and_user_drafts_for_cache_warming(
+            self, user_id, *, limit, offset, team_id=None
+        ):
+            self.scopes.append(team_id)
+            assert offset == 0 and limit == 20
+            return [{"chat_details": {"id": "persisted-personal-chat"}}]
+
+    manager = FakeManager()
+    service = SimpleNamespace(team=FakeTeam(), chat=PersistedChatPage(425))
+    await handle_load_more_chats(
+        websocket=None, manager=manager, cache_service=SparseCache(),
+        directus_service=service, encryption_service=None,
+        user_id="user-1", device_fingerprint_hash="device-1",
+        payload={"offset": 0, "limit": 20, "context_epoch": 0},
+    )
+    payload = manager.sent[-1]["payload"]
+    assert [item["chat_details"]["id"] for item in payload["chats"]] == ["persisted-personal-chat"]
+    assert payload["total_count"] == 425
+    assert payload["has_more"] is True
+    assert payload["context_epoch"] == 0
+    assert payload["team_id"] is None
+    assert service.chat.scopes == [None, None]

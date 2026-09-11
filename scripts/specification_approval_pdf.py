@@ -4,7 +4,7 @@
 The document contains the full Specification and examples in a readable hierarchy.
 Only changed text is colored: green plus-marked insertions and red minus-marked
 deletions. The resulting PDF is uploaded through the existing private 48-hour
-OpenCode response-media path by default.
+Response-media path by default.
 """
 
 from __future__ import annotations
@@ -28,12 +28,12 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts import specifications  # noqa: E402
 from scripts import specification_readable_pdf as readable_pdf  # noqa: E402
-from scripts import opencode_response_media  # noqa: E402
+from scripts import response_media  # noqa: E402
 from scripts.playwright_visual_smoke import launch_browser  # noqa: E402
 
 
 DEFAULT_BASELINE_REF = "HEAD"
-DEFAULT_OUTPUT_ROOT = Path("/tmp/opencode/specification-approvals")
+DEFAULT_OUTPUT_ROOT = Path("/tmp/openmates/specification-approvals")
 MISSING = object()
 IDENTITY_FIELDS = ("id", "name", "key")
 
@@ -345,6 +345,85 @@ def _compact_diff_value(current: Any, baseline: Any) -> str:
     return f'<div class="structured-diff"><span class="diff-delete"><b>-</b>{_compact_value(baseline)}</span><span class="diff-insert"><b>+</b>{_compact_value(current)}</span></div>'
 
 
+def requirement_examples(assertion: dict[str, Any], examples: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """Resolve explicit case IDs or existing scoped example dependencies, never guess."""
+    groups = {value.removeprefix("examples.") for value in assertion.get("depends_on", [])
+              if isinstance(value, str) and value.startswith("examples.")}
+    return [(group, case) for group, cases in examples.items() if isinstance(cases, list)
+            for case in cases if isinstance(case, dict)
+            and (group in groups or assertion["id"] in case.get("assertion_ids", []))]
+
+
+def validate_requirement_example_coverage(
+    bundle: specifications.SpecificationBundle, baseline_contract: dict[str, Any],
+) -> None:
+    """Gate new reviews only; historical validation and approval hashes stay unchanged."""
+    changed = _changed_item_ids(bundle.specification.get("assertions"), baseline_contract.get("assertions"))
+    for assertion in bundle.specification.get("assertions", []):
+        if assertion["id"] not in changed:
+            continue
+        cases = requirement_examples(assertion, bundle.examples)
+        def readable(value: Any) -> bool:
+            return (isinstance(value, str) and bool(value.strip())) or (
+                isinstance(value, dict) and isinstance(value.get("code"), str) and bool(value["code"].strip())
+            )
+        concrete = all(case.get("id") and readable(case.get("given") or case.get("input"))
+                       and readable(case.get("then") or case.get("expect")) for _, case in cases)
+        if not 1 <= len(cases) <= 2 or not concrete:
+            raise ValueError(f"Requirement {assertion['id']} needs 1–2 concrete mapped examples "
+                             "written as natural-language input/given and expect/then, or explicit code examples; "
+                             "use assertion_ids or depends_on: examples.<group>")
+
+
+def _example_rows(current: Any, baseline: Any = MISSING, path: str = "") -> str:
+    """Render human scenarios as prose and explicit commands as code, never leaf tables.
+
+    Historical structured fixtures stay visible as a single code block. New or
+    changed requirements must supply a readable scenario or actual code example.
+    """
+    if not path and isinstance(current, dict):
+        old = baseline if isinstance(baseline, dict) else {}
+        parts = [_example_rows(value, old.get(key, MISSING), _label(key))
+                 for key, value in current.items()]
+        parts.extend(render_removed(_label(key), value, level=5)
+                     for key, value in old.items() if key not in current)
+        return "".join(parts)
+    label = f'<strong>{html.escape(path)}.</strong> ' if path else ""
+    if isinstance(current, str):
+        return f'<p class="requirement-example-prose">{label}{_scalar_diff(current, baseline)}</p>'
+    if isinstance(current, dict) and isinstance(current.get("code"), str):
+        previous = baseline.get("code", MISSING) if isinstance(baseline, dict) else MISSING
+        return (f'<p>{label}</p><pre class="requirement-example-code" '
+                f'style="white-space:pre-wrap;overflow-wrap:anywhere"><code>{_scalar_diff(current["code"], previous)}</code></pre>')
+    # Preserve old fixtures without presenting nested field paths as prose.
+    text = json.dumps(current, ensure_ascii=False, indent=2)
+    old_text = MISSING if baseline is MISSING else json.dumps(baseline, ensure_ascii=False, indent=2)
+    return (f'<p>{label}</p><pre class="requirement-example-code" '
+            f'style="white-space:pre-wrap;overflow-wrap:anywhere"><code>{_scalar_diff(text, old_text)}</code></pre>')
+
+
+def _attach_requirement_examples(document: str, bundle: specifications.SpecificationBundle,
+                                 baseline_examples: dict[str, Any]) -> str:
+    for assertion in bundle.specification.get("assertions", []):
+        cases = requirement_examples(assertion, bundle.examples)
+        cards = []
+        for group, case in cases:
+            baseline = _item_map(baseline_examples.get(group)).get(str(case.get("id")), {})
+            fields = {key: value for key, value in case.items() if key not in {"id", "assertion_ids"}}
+            old_fields = {key: value for key, value in baseline.items() if key not in {"id", "assertion_ids"}}
+            cards.append(f'<article class="requirement-example"><h5>Example: {html.escape(_label(case.get("id", group)))}</h5>'
+                         f'{_example_rows(fields, old_fields)}</article>')
+        anchor = readable_pdf._anchor("requirement", str(assertion["id"]))
+        marker = f'id="{anchor}"'
+        start = document.find(marker)
+        if start < 0:
+            raise ValueError(f"Requirement missing from readable presentation: {assertion['id']}")
+        end = document.index("</section>", start)
+        content = "".join(cards) if cards else '<p class="example-coverage-warning">No explicitly mapped examples in this existing requirement.</p>'
+        document = document[:end] + f'<div class="requirement-examples">{content}</div>' + document[end:]
+    return document
+
+
 def _render_examples_appendix(
     examples: dict[str, Any],
     baseline_examples: dict[str, Any],
@@ -361,11 +440,10 @@ def _render_examples_appendix(
             case_key = str(case_id[1]) if case_id else f"case-{index}"
             changed = case != baseline_by_id.get(case_key, MISSING)
             baseline_case = baseline_by_id.get(case_key, MISSING)
-            fields = "".join(
-                f'<div class="example-field"><div class="field-label">{html.escape(_label(key))}</div>'
-                f'{_compact_diff_value(value, baseline_case.get(key, MISSING) if isinstance(baseline_case, dict) else MISSING)}</div>'
-                for key, value in case.items()
-                if key != "id"
+            fields = _example_rows(
+                {key: value for key, value in case.items() if key not in {"id", "assertion_ids"}},
+                {key: value for key, value in baseline_case.items() if key not in {"id", "assertion_ids"}}
+                if isinstance(baseline_case, dict) else {},
             ) if isinstance(case, dict) else _compact_value(case)
             case_cards.append(
                 f'<article class="example-case {"diff-added" if baseline_case is MISSING else "diff-modified" if changed else ""}" id="example-{readable_pdf._anchor("case", case_key)}">'
@@ -560,6 +638,7 @@ def build_html(
     has_custom_presentation = isinstance(bundle.specification.get("presentation"), dict)
     document = readable_pdf.build_html(readable_pdf.with_default_presentation(bundle))
     document = _annotate_readable_changes(document, bundle.specification, baseline_contract)
+    document = _attach_requirement_examples(document, bundle, baseline_examples)
     change_summary = _change_summary(bundle, baseline_contract, baseline_examples, baseline_ref)
     document = document.replace('<section class="legend" id="legend">', change_summary + '<section class="legend" id="legend">', 1)
     technical_appendix = (
@@ -581,6 +660,11 @@ def build_html(
     )
     document = document.replace('<div class="utility-links">', f'<div class="utility-links">{navigation_additions}', 1)
     approval_css = """
+.requirement-examples { margin-top: 3mm; }
+.requirement-example { border-top: 1px solid #cbd5df; padding-top: 1mm; margin-top: 2mm; break-inside: avoid; }
+.requirement-example h5 { font-size: 9pt; margin: 1mm 0; }
+.requirement-example-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 1mm; font-size: 9pt; line-height: 1.4; padding: .4mm 0; overflow-wrap: anywhere; }
+.requirement-example-row strong { font-weight: 500; color: #52616f; }
 .diff-added { border-color: #239b56 !important; }
 .diff-modified { border-left-color: #4b7bec !important; }
 .diff-insert { background: #e6f7ec; color: #176b3b; text-decoration: none; }
@@ -720,10 +804,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render and privately upload an inline-diff Specification approval PDF")
     parser.add_argument("bundle", help="Specification bundle directory or specification.yml path")
     parser.add_argument("--baseline-ref", default=DEFAULT_BASELINE_REF, help="Git ref used to highlight changes")
-    parser.add_argument("--output", type=Path, help="PDF output path; defaults under /tmp/opencode/specification-approvals")
+    parser.add_argument("--output", type=Path, help="PDF output path; defaults under /tmp/openmates/specification-approvals")
     parser.add_argument("--preview-output", type=Path, help="Optional first-page PNG used for deterministic visual inspection")
     parser.add_argument("--preview-anchor", default="", help="Render one element id instead of page one when --preview-output is set")
-    parser.add_argument("--container", default=opencode_response_media.DEFAULT_CONTAINER, help="API container used for S3 upload")
+    parser.add_argument("--container", default=response_media.DEFAULT_CONTAINER, help="API container used for S3 upload")
     parser.add_argument("--new-specification", action="store_true", help="Allow Specification files to be absent from the baseline commit")
     parser.add_argument("--no-upload", action="store_true", help="Generate the PDF without uploading it")
     parser.add_argument("--dry-run-upload", action="store_true", help="Generate a fake upload result without Docker or S3")
@@ -731,11 +815,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _unused_review_output(output: Path, *, explicit: bool) -> Path:
+    """Never invalidate a delivered receipt by overwriting its fingerprint-named PDF."""
+    candidate = output
+    revision = 1
+    while candidate.exists() or candidate.with_suffix(".approval.json").exists():
+        if explicit:
+            raise ValueError(f"Review output already exists: {output}; choose a new output path")
+        revision += 1
+        candidate = output.with_name(f"{output.stem}-review-{revision}{output.suffix}")
+    return candidate
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         bundle = specifications.validate_bundle(specifications._resolve_specification_path(args.bundle))
         output = args.output or DEFAULT_OUTPUT_ROOT / f"{_safe_name(bundle.specification_id)}-{bundle.fingerprint[:16]}.pdf"
+        output = _unused_review_output(output, explicit=args.output is not None)
         baseline_commit = _baseline_commit(specifications.REPO_ROOT, args.baseline_ref)
         baseline_contract = _git_yaml(
             specifications.REPO_ROOT,
@@ -749,6 +846,7 @@ def main(argv: list[str] | None = None) -> int:
             _examples_path(bundle, baseline_contract if baseline_contract is not None else None),
             allow_missing=args.new_specification,
         )
+        validate_requirement_example_coverage(bundle, baseline_contract or {})
         document = build_html(
             bundle,
             baseline_contract=baseline_contract,
@@ -768,7 +866,7 @@ def main(argv: list[str] | None = None) -> int:
         }
         publication = None
         if not args.no_upload:
-            publication = opencode_response_media.upload_file(
+            publication = response_media.upload_file(
                 output,
                 alt=f"Read {bundle.versioned_id} Specification approval PDF",
                 container=args.container,

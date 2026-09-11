@@ -9,9 +9,6 @@
 //   3. A redirect in +page.svelte sends human browsers to the SPA at /#chat-id={chat_id}.
 //   4. Crawlers don't execute JavaScript — they see and index the full HTML content.
 //
-// SLUGS → CHAT_ID mapping:
-//   who-develops-openmates → demo-who-develops-openmates
-//
 // SEE ALSO: +page.ts (prerender config), +page.svelte (HTML + redirect)
 // Architecture reference: docs/architecture/web-app
 
@@ -37,36 +34,7 @@ interface IntroChatContent {
  *
  * When i18n content changes, update both the locale JSON and this map.
  */
-const INTRO_CHAT_CONTENT: Record<string, IntroChatContent> = {
-	'who-develops-openmates': {
-		chatId: 'demo-who-develops-openmates',
-		title: 'Who develops OpenMates?',
-		description: 'Meet the creator of OpenMates and learn about the philosophy behind the project',
-		message: `# 👋 Who develops OpenMates?
-
-Hello!
-Marco here (aka glowingkitty). Designer, software architect, maker. And the creator of OpenMates.
-
-We all have our share of frustrations with technology — apps that disrespect your privacy, subscriptions that nickel-and-dime you, AI tools locked behind walled gardens. OpenMates is my answer to that.
-
-## The philosophy
-
-OpenMates is built on a simple belief: powerful AI tools should be accessible to everyone, privacy-respecting by design, and open to the community. No dark patterns, no data harvesting, no lock-in.
-
-## Open source
-
-OpenMates is fully open source. The code is on GitHub — you can read it, contribute to it, or run your own instance. Transparency is not optional.
-
-## Built with love
-
-Every feature in OpenMates is designed with care. If something bothers you, there's a good chance it bothers me too — and I'm working on fixing it.`,
-		followUpSuggestions: [
-			'What is the long-term vision for OpenMates?',
-			'How can I contribute to OpenMates?',
-			'Why is open source important for OpenMates?'
-		]
-	}
-};
+const INTRO_CHAT_CONTENT: Record<string, IntroChatContent> = {};
 
 export const load: PageServerLoad = async ({ params, url }) => {
 	const { slug } = params;

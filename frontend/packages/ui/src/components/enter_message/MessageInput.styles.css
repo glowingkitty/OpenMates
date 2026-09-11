@@ -148,7 +148,7 @@
   position: relative;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transition:
-    padding-bottom 0.3s ease-in-out,
+    padding 0.3s ease-in-out,
     max-height 0.3s ease-in-out,
     height 0.3s ease-in-out,
     min-height 0.3s ease-in-out,
@@ -224,7 +224,7 @@
   min-height: 48px;
   max-height: 48px;
   padding: 0 0 0 0;
-  border-radius: var(--radius-full, 9999px);
+  border-radius: 24px;
   /* No overflow:hidden — let the transition from pill→rounded happen smoothly.
      The .message-field already transitions border-radius 0.3s ease-in-out. */
 }
@@ -306,6 +306,12 @@
 }
 
 /* Left clickable area: icon + label + "focus on" */
+/* Approved focus banner lift; privacy and IdeaBucket pills retain their position. */
+.focus-pill:not(.incognito-pill):not(.ideabucket-pill) {
+  --active-focus-banner-lift: 10px;
+  top: calc(-20px - var(--active-focus-banner-lift));
+}
+
 .focus-pill-body {
   display: flex;
   align-items: center;
@@ -1006,6 +1012,9 @@
 /* Mic permission hint reuses the queued-message-indicator pill style but with a
    neutral background (not the yellow warning color used for queued messages). */
 .queued-message-indicator.mic-permission-hint {
+  /* Keep complete permission guidance inside the existing pill on narrow screens. */
+  white-space: normal;
+  overflow-wrap: anywhere;
   background-color: var(--color-grey-30, rgba(128, 128, 128, 0.3));
   color: var(--color-text-primary, #000);
 }

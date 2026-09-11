@@ -36,6 +36,8 @@ GOOGLE_CALENDAR_STATE_PREFIX = "connected_account:oauth_state:google_calendar:"
 GOOGLE_CALENDAR_STATE_TTL_SECONDS = 10 * 60
 CALENDAR_READ_SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
 CALENDAR_EVENTS_SCOPE = "https://www.googleapis.com/auth/calendar.events"
+CALENDAR_LIST_READ_SCOPE = "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
+CALENDAR_APP_CREATED_SCOPE = "https://www.googleapis.com/auth/calendar.app.created"
 DEFAULT_DEV_WEBAPP_URL = "https://app.dev.openmates.org"
 DEFAULT_PROD_WEBAPP_URL = "https://openmates.org"
 
@@ -124,14 +126,20 @@ def _append_handoff_query(base_url: str, return_path: str, handoff_id: str) -> s
 
 def google_calendar_scopes_for_capabilities(capabilities: list[str]) -> list[str]:
     normalized = {capability.strip().lower() for capability in capabilities}
-    unsupported = normalized - {"read", "write", "delete"}
+    unsupported = normalized - {"read", "write", "delete", "create_calendar"}
     if unsupported:
         raise ValueError("unsupported Google Calendar capability: " + ", ".join(sorted(unsupported)))
+    if not normalized:
+        raise ValueError("at least one Calendar capability is required")
     if "write" in normalized or "delete" in normalized:
-        return [CALENDAR_EVENTS_SCOPE]
-    if "read" in normalized:
-        return [CALENDAR_READ_SCOPE]
-    raise ValueError("at least one Calendar capability is required")
+        scopes = [CALENDAR_EVENTS_SCOPE, CALENDAR_LIST_READ_SCOPE]
+    elif "read" in normalized:
+        scopes = [CALENDAR_READ_SCOPE]
+    else:
+        scopes = [CALENDAR_LIST_READ_SCOPE]
+    if "create_calendar" in normalized:
+        scopes.append(CALENDAR_APP_CREATED_SCOPE)
+    return scopes
 
 
 @router.post("/start", response_model=GoogleCalendarOAuthStartResponse)
@@ -222,6 +230,19 @@ async def google_calendar_oauth_callback(
     if not refresh_token:
         raise HTTPException(status_code=502, detail="Google OAuth did not return a refresh token")
 
+    requested_scopes = state_payload.get("scopes") or []
+    # OAuth permits scope omission only when the grant matches the request.
+    granted_scope = token_response.get("scope", " ".join(requested_scopes))
+    granted_scopes = list(dict.fromkeys(granted_scope.split())) if isinstance(granted_scope, str) else []
+    if not set(requested_scopes).issubset(granted_scopes) or not granted_scopes:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "google_calendar_missing_scope",
+                "message": "Required Calendar permissions were not granted. Reconnect and review Google consent.",
+            },
+        )
+
     vault_key_id = getattr(current_user, "vault_key_id", None)
     if not vault_key_id:
         raise HTTPException(status_code=403, detail="User vault key is required for OAuth handoff")
@@ -237,13 +258,13 @@ async def google_calendar_oauth_callback(
         refresh_token_bundle={
             "provider": "google_calendar",
             "refresh_token": refresh_token,
-            "scopes": state_payload.get("scopes") or [],
+            "scopes": granted_scopes,
             "token_type": token_response.get("token_type"),
         },
         account_hint={
             "provider_id": "google_calendar",
             "capabilities": state_payload.get("capabilities") or [],
-            "scopes": state_payload.get("scopes") or [],
+            "scopes": granted_scopes,
         },
     )
 

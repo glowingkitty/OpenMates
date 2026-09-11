@@ -8,7 +8,7 @@
 //
 // Architecture: frontend/packages/ui/src/stores/authSessionActions.ts
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 
 const cleanupCalls: string[] = [];
@@ -290,6 +290,7 @@ vi.mock("../../services/websocketService", () => ({
 
 vi.mock("../../demo_chats/loadDefaultInspirations", () => ({
   loadDefaultInspirations: vi.fn(async () => cleanupCalls.push("loadDefaultInspirations")),
+  loadGuestOnboardingInspirations: vi.fn(async () => cleanupCalls.push("loadGuestOnboardingInspirations")),
 }));
 
 vi.mock("../../services/pendingChatDeletions", () => ({
@@ -348,11 +349,16 @@ vi.stubGlobal("localStorage", createStorageMock());
 vi.stubGlobal("sessionStorage", createStorageMock());
 
 import { checkAuth } from "../authSessionActions";
-import { authStore } from "../authState";
+import { authStore, isCheckingAuth } from "../authState";
+import { bumpLoginSessionGeneration, logout } from "../authLoginLogoutActions";
+import { setWebSocketToken } from "../../utils/cookies";
 import { loginInterfaceOpen, loginStayLoggedInRequested } from "../uiStateStore";
 
 describe("checkAuth auto logout cleanup", () => {
   beforeEach(() => {
+    bumpLoginSessionGeneration();
+    vi.useFakeTimers();
+    vi.stubGlobal("navigator", {});
     cleanupCalls.length = 0;
     autoLogoutAction = undefined;
     lastAutoLogoutNotificationId = "";
@@ -369,6 +375,87 @@ describe("checkAuth auto logout cleanup", () => {
     });
   });
 
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("shares forced session checks and waits for the actual result", async () => {
+    let respond!: (value: unknown) => void;
+    mockFetch.mockImplementation(() => new Promise((resolve) => { respond = resolve; }));
+    const first = checkAuth(undefined, true);
+    const second = checkAuth(undefined, true);
+    expect(second).toBe(first);
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+    expect(get(isCheckingAuth)).toBe(true);
+    respond({ ok: true, json: async () => ({ success: false, message: "Session expired" }) });
+    expect(await first).toBe(false);
+    expect(await second).toBe(false);
+    expect(get(isCheckingAuth)).toBe(false);
+    expect(get(authStore).isAuthenticated).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("ignores an expired response from before a new login", async () => {
+    let respond!: (value: unknown) => void;
+    mockFetch.mockImplementation(() => new Promise((resolve) => { respond = resolve; }));
+    const pending = checkAuth(undefined, true);
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+    bumpLoginSessionGeneration();
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+    respond({ ok: true, json: async () => ({ success: false, message: "Session expired" }) });
+    expect(await pending).toBe(true);
+    expect(cleanupCalls).not.toContain("clearKeyFromStorage");
+    expect(cleanupCalls).not.toContain("phasedSyncState.reset");
+    expect(get(authStore).isAuthenticated).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("does not resurrect authentication when a session response arrives after explicit logout", async () => {
+    let respond!: (value: unknown) => void;
+    mockFetch.mockImplementation(() => new Promise((resolve) => { respond = resolve; }));
+    const pending = checkAuth(undefined, true);
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+    await logout({ skipServerLogout: true });
+    respond({ ok: true, json: async () => ({ success: true, user: { id: "user-1" }, ws_token: "old-session-token" }) });
+    expect(await pending).toBe(false);
+    expect(get(authStore).isAuthenticated).toBe(false);
+    expect(setWebSocketToken).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("waits for the cross-tab refresh lock and rechecks the session generation before fetching", async () => {
+    let runLocked!: () => Promise<unknown>;
+    let finishLock!: (value: unknown) => void;
+    const request = vi.fn((_name, _options, callback) => {
+      runLocked = callback;
+      return new Promise((resolve) => { finishLock = resolve; });
+    });
+    vi.stubGlobal("navigator", { locks: { request } });
+    const pending = checkAuth(undefined, true);
+    await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+    expect(mockFetch).not.toHaveBeenCalled();
+    bumpLoginSessionGeneration();
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+    finishLock(await runLocked());
+    expect(await pending).toBe(true);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("skips delayed session-expiry cleanup after a new login", async () => {
+    await checkAuth(undefined, true);
+    bumpLoginSessionGeneration();
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+    cleanupCalls.length = 0;
+    await vi.runAllTimersAsync();
+    expect(cleanupCalls).not.toContain("userDB.deleteDatabase");
+    expect(cleanupCalls).not.toContain("chatDB.deleteDatabase");
+    expect(get(authStore).isAuthenticated).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
   it("clears the same in-memory chat state on session expiry as manual logout", async () => {
     const result = await checkAuth(undefined, true);
 
@@ -396,6 +483,7 @@ describe("checkAuth auto logout cleanup", () => {
     expect(authState.isInitialized).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
   it("dismisses the auto-logout notification when the login CTA is used", async () => {
     await checkAuth(undefined, true);
 

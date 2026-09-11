@@ -7,6 +7,21 @@
 
 import { decode as toonDecode } from '@toon-format/toon';
 
+/** Collect explicit assistant links in document order, excluding skill-card groups. */
+export function collectHeaderImageRefs(node: unknown, refs = new Set<string>()): string[] {
+  if (!node || typeof node !== 'object') return Array.from(refs);
+  const record = node as { attrs?: Record<string, unknown>; marks?: Array<{ attrs?: { href?: unknown } }>; content?: unknown[] };
+  const ref = record.attrs?.embedRef;
+  if (typeof ref === 'string' && ref) refs.add(ref);
+  for (const mark of record.marks ?? []) {
+    const href = mark.attrs?.href;
+    if (typeof href === 'string' && href.startsWith('embed:')) refs.add(href.slice('embed:'.length));
+  }
+  for (const child of record.content ?? []) collectHeaderImageRefs(child, refs);
+  return Array.from(refs);
+}
+
+
 export const DEFAULT_CAROUSEL_HYDRATION_OVERSCAN = 1;
 export const DEFAULT_PARENT_PREVIEW_METADATA_LIMIT = 6;
 

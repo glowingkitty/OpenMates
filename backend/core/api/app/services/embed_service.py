@@ -462,6 +462,17 @@ class EmbedService:
                 if not preserve_zero_values and not value:
                     continue
                 preview_result[key] = value
+            # Search providers use nested or flattened thumbnail fields. Preserve
+            # one URL on the parent so previews do not need to decrypt children.
+            if app_id in ("web", "news") and skill_id == "search" and not preview_result.get("preview_image_url"):
+                thumbnail = result.get("thumbnail")
+                thumbnail = thumbnail if isinstance(thumbnail, dict) else {}
+                image_url = next((value for value in (
+                    result.get("thumbnail_original"), thumbnail.get("original"),
+                    result.get("thumbnail_src"), thumbnail.get("src"),
+                ) if isinstance(value, str) and value.strip()), None)
+                if image_url:
+                    preview_result["preview_image_url"] = image_url
             if app_id == "web" and skill_id == "search" and not preview_result.get("url"):
                 continue
             if not preview_result:

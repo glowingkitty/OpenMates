@@ -1,7 +1,7 @@
 schema_version: 1
 id: architecture.operational-monitoring
-version: 2
-status: approved
+version: 3
+status: draft
 title: Operational Monitoring And Operator Alerts
 summary: >
   OpenMates operators receive a compact, privacy-safe daily view of server and
@@ -11,6 +11,7 @@ summary: >
 
 scope:
   includes:
+    - Immediate capped admin email for terminal chat-processing failures on official dev and production only.
     - Twenty-four-hour operational snapshots for official dev and production servers.
     - Automatic self-hosted snapshots when an admin email and working email service are available.
     - Host and container CPU, memory, disk, availability, latency, errors, and monitoring freshness.
@@ -110,6 +111,18 @@ models:
       constraints: {per_channel: true, values: [queued, accepted, failed, unavailable]}
 
 assertions:
+  - id: operational-monitoring.chat-failures.email-trigger
+    type: behavior
+    must: On official development and production servers, a backend-detected technical failure that terminates a chat request or produces a user-visible processing-error response promptly queues an email to the configured server admin independently of Discord and OpenObserve. This includes dispatch, preprocessing, inference, streaming, and finalization failures, including error responses otherwise marked completed. Successful fallback attempts, user cancellation, expected insufficient credits, and deliberate policy rejection do not trigger these emails. Self-hosted installations never send this category of email.
+    depends_on: [examples.chat_failure_triggers]
+  - id: operational-monitoring.chat-failures.daily-cap
+    type: invariant
+    must: Each server has an independent allowance of five chat-failure notification emails per UTC calendar day shared atomically across workers and preserved across worker restarts. Repeated handling of the same failed request cannot create duplicate emails; distinct failures remain eligible without waiting for a frequency threshold. The sixth and later failures remain counted and logged as suppressed, and the fifth email explains the cap. Retries and ambiguous transport outcomes cannot bypass the allowance or cause duplicate sends.
+    depends_on: [examples.chat_failure_limits]
+  - id: operational-monitoring.chat-failures.safe-delivery
+    type: privacy
+    must: Chat-failure emails contain only an explicit environment label, allowlisted failure stage and category, deployed source revision when available, and aggregate daily failure and suppression counts; they exclude chat content, user or chat identifiers, provider payloads, raw exception text, secrets, and ciphertext. Missing configuration, queue or limiter failure, email-provider rejection, and ambiguous delivery are recorded distinctly from accepted delivery. Notification failures never replace or delay the chat error response and never recursively generate another chat-failure email.
+    depends_on: [examples.chat_failure_delivery]
   - id: operational-monitoring.digest.real-24h-snapshot
     type: behavior
     must: Each scheduled digest summarizes real observed data from the preceding 24 hours in one compact graph and a scan-first summary containing resource trends, aggregate activity, explicitly labeled AI response recovery-job outcomes, fresh provider availability, exact rolling-24-hour credit purchases and credits sold from a privacy-safe durable settlement ledger, non-mutating EU-card and Managed-Payments readiness, usage charging outcomes, current open purchase issues, monitoring freshness, and at most three prioritized issues; an incomplete ledger window reports warming and any unresolved settlement or required payment-readiness failure reports unavailable or degraded rather than healthy.
@@ -183,4 +196,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [daily_snapshots, self_host_activation, delivery_tests, urgent_alerts, privacy_boundaries, environment_isolation]
+  required_groups: [chat_failure_triggers, chat_failure_limits, chat_failure_delivery, daily_snapshots, self_host_activation, delivery_tests, urgent_alerts, privacy_boundaries, environment_isolation]

@@ -79,7 +79,7 @@ integration point only.
    If the spec needs a pinned account, include `--account N`.
 
    For every modified UI component, publish the focused component proof video in
-   the OpenCode response. Use separate phone and laptop proof profiles only when
+   the Codex response. Use separate phone and laptop proof profiles only when
    responsive behavior differs. Derive still frames from the completed video only
    for failures, explicit requests, or ambiguous visual-intent inspection; do not
    add screenshot galleries or browser-side screenshot calls for component proof.

@@ -8,7 +8,7 @@ import asyncio
 import json
 import re
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from backend.core.api.app.utils.encryption import EncryptionService
 
@@ -1181,6 +1181,98 @@ class UsageMethods:
         except Exception as e:
             logger.error(f"{log_prefix} Error fetching daily overview: {e}", exc_info=True)
             return []
+
+    async def get_reconciled_daily_overview(
+        self,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        days: int = 7,
+    ) -> List[Dict[str, Any]]:
+        """Rebuild visible chat totals from authoritative rows when Usage is opened."""
+        overview = await self.get_daily_overview(user_id_hash=user_id_hash, days=days)
+        if not overview:
+            return overview
+
+        oldest_day = (
+            datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            - timedelta(days=days - 1)
+        )
+        raw_entries = await self.sdk.get_items(
+            self.collection,
+            params={
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "source": {"_eq": "chat"},
+                    "created_at": {"_gte": int(oldest_day.timestamp())},
+                },
+                "fields": "id,user_id_hash,source,chat_id,root_chat_id,created_at,updated_at,encrypted_credits_costs_total",
+                "sort": ["-created_at"],
+                "limit": -1,
+            },
+            no_cache=True,
+        )
+        scoped_entries = [
+            entry for entry in (raw_entries or [])
+            if entry.get("user_id_hash") == user_id_hash and entry.get("source", "chat") == "chat"
+        ]
+        if not scoped_entries:
+            return overview
+
+        encrypted_credits = [entry.get("encrypted_credits_costs_total") for entry in scoped_entries]
+        if any(not value for value in encrypted_credits):
+            logger.warning("Usage reconciliation skipped because a raw row has no encrypted credit total")
+            return overview
+
+        decrypted_credits = await asyncio.gather(
+            *[
+                self.encryption_service.decrypt_with_user_key(value, user_vault_key_id)
+                for value in encrypted_credits
+            ],
+            return_exceptions=True,
+        )
+        if any(isinstance(value, Exception) or value is None for value in decrypted_credits):
+            logger.warning("Usage reconciliation skipped because a raw credit total could not be decrypted")
+            return overview
+
+        chat_totals: Dict[tuple[str, str], Dict[str, int]] = {}
+        for entry, decrypted in zip(scoped_entries, decrypted_credits):
+            chat_id = _summary_identifier(entry.get("root_chat_id")) or _summary_identifier(entry.get("chat_id"))
+            created_at = _summary_int(entry.get("created_at"))
+            if not chat_id or created_at <= 0:
+                continue
+            date = datetime.fromtimestamp(created_at).strftime("%Y-%m-%d")
+            key = (date, chat_id)
+            bucket = chat_totals.setdefault(key, {"total_credits": 0, "entry_count": 0, "updated_at": 0})
+            bucket["total_credits"] += _summary_int(decrypted)
+            bucket["entry_count"] += 1
+            bucket["updated_at"] = max(bucket["updated_at"], _summary_int(entry.get("updated_at")))
+
+        reconciled: List[Dict[str, Any]] = []
+        for day in overview:
+            date = day.get("date")
+            existing_chat_items = {
+                item.get("chat_id"): item
+                for item in day.get("items") or []
+                if item.get("type") == "chat" and item.get("chat_id")
+            }
+            items = [dict(item) for item in day.get("items") or [] if item.get("type") != "chat"]
+            for (entry_date, chat_id), totals in chat_totals.items():
+                if entry_date != date:
+                    continue
+                item = dict(existing_chat_items.get(chat_id) or {
+                    "type": "chat",
+                    "chat_id": chat_id,
+                    "api_key_hash": None,
+                })
+                item.update(totals)
+                items.append(item)
+            items.sort(key=lambda item: _summary_order_value(item.get("updated_at")), reverse=True)
+            reconciled.append({
+                **day,
+                "items": items,
+                "total_credits": sum(_summary_int(item.get("total_credits")) for item in items),
+            })
+        return reconciled
 
     async def get_user_usage_entries(
         self,

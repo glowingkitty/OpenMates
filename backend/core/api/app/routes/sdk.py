@@ -122,6 +122,19 @@ async def _tombstone_sdk_deleted_chat(
         )
 
 
+def _sdk_focus_id(selection: dict[str, str] | None) -> str | None:
+    """Translate the SDK focus selection to the inference focus identity."""
+    if not selection:
+        return None
+    focus_id = selection.get("focus_mode_id")
+    app_id = selection.get("app_id")
+    if not focus_id:
+        raise HTTPException(status_code=422, detail="focus_mode_id is required")
+    if app_id and not focus_id.startswith(f"{app_id}-"):
+        return f"{app_id}-{focus_id}"
+    return focus_id
+
+
 class SdkChatCreateRequest(BaseModel):
     message: str | None = Field(default=None)
     history: list[dict[str, Any]] = Field(default_factory=list)
@@ -588,6 +601,10 @@ def _validate_encrypted_fork_payload(
         raise HTTPException(status_code=400, detail={"error": "encrypted_history_required", "missing": ["encrypted_chat_key"]})
     if len(request_body.encrypted_messages) != copied_count:
         raise HTTPException(status_code=400, detail={"error": "encrypted_history_required", "expected_message_count": copied_count})
+    # Fork clients may omit the version while supplying an encrypted title.
+    # Initialize the title version as the web fork does, without touching ciphertext.
+    if metadata.get("title_v") is None:
+        metadata["title_v"] = 1 if metadata.get("encrypted_title") else 0
     metadata.update({"id": request_body.new_chat_id, "hashed_user_id": hashed_user_id, "hashed_team_id": None, "messages_v": copied_count})
     return metadata
 
@@ -1673,7 +1690,7 @@ async def create_sdk_chat(
             "chat_has_title": request_body.encrypted_chat_metadata is None,
             "is_incognito": False,
             "is_external": True,
-            "active_focus_id": focus_mode.get("focus_mode_id") if isinstance(focus_mode, dict) else None,
+            "active_focus_id": _sdk_focus_id(focus_mode) if isinstance(focus_mode, dict) else None,
             "user_preferences": {"model": inference_request.get("model"), "apps_enabled": True},
             "memory_ids": inference_request.get("memory_ids", []),
             "team_id": team_id,
@@ -1770,9 +1787,19 @@ async def create_sdk_chat(
     if request_body.memory_ids:
         payload["memory_ids"] = request_body.memory_ids
     if request_body.focus_mode:
-        payload["focus_mode"] = request_body.focus_mode
+        payload["focus_mode"] = _sdk_focus_id(request_body.focus_mode)
 
     from backend.core.api.app.services.skill_registry import get_global_registry
+
+    from backend.shared.python_utils.rest_test_replay import prepare_rest_replay_messages
+
+    try:
+        payload["messages"] = await prepare_rest_replay_messages(
+            payload["messages"], str(api_key_info["user_id"]),
+            request.app.state.cache_service, request.app.state.directus_service,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Invalid or unauthorized REST replay marker") from exc
 
     result = await get_global_registry().dispatch_skill("ai", "ask", payload)
     if hasattr(result, "body_iterator"):
@@ -2206,6 +2233,7 @@ async def run_sdk_connected_account_skill(
 ) -> dict[str, Any]:
     api_key_info = await _authenticate_connected_account_skill_request(request, response or Response())
     from backend.apps.ai.processing.connected_account_execution import (
+        ConnectedAccountExecutionContext,
         cleanup_connected_account_token_artifacts,
         prepare_connected_account_skill_execution,
     )
@@ -2231,6 +2259,17 @@ async def run_sdk_connected_account_skill(
         requests = []
     if not isinstance(requests, list):
         raise HTTPException(status_code=400, detail=f"{config.request_field} must be an array")
+    if any(not isinstance(item, dict) for item in requests):
+        raise HTTPException(status_code=400, detail=f"{config.request_field} entries must be objects")
+    if request_body.connected_account_token_ref_inputs and not requests:
+        raise HTTPException(status_code=400, detail="Token inputs require at least one connected-account request")
+    # First-party execution only: validate resource selection before retaining any
+    # transient credential envelope. Provider/account contents stay out of errors.
+    try:
+        for request_item in requests:
+            action_scope_for_request(request_item, action=config.action, config=config)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"error": "invalid_connected_account_request"}) from exc
 
     async def _unused_exchange_refresh_token(_refresh_token: str, _scope_context: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("SDK token ref creation must not exchange refresh tokens")
@@ -2241,54 +2280,55 @@ async def run_sdk_connected_account_skill(
         exchange_refresh_token=_unused_exchange_refresh_token,
     )
     token_refs: list[dict[str, Any]] = []
-    for index, token_input in enumerate(request_body.connected_account_token_ref_inputs):
-        if not isinstance(token_input, dict):
-            raise HTTPException(status_code=400, detail="connected_account_token_ref_inputs entries must be objects")
-        request_item = dict(requests[min(index, len(requests) - 1)])
-        provider_id = str(token_input.get("provider_id") or config.provider_id)
-        app_for_ref = str(token_input.get("app_id") or app_id)
-        allowed_actions = [str(action) for action in (token_input.get("allowed_actions") or [config.action])]
-        await _assert_connected_account_context(
-            directus_service=request.app.state.directus_service,
-            account_id=str(token_input.get("connected_account_id") or ""),
-            user_id=user_id,
-            team_id=None,
-            app_id=app_for_ref,
-            provider_id=provider_id,
-            allowed_actions=allowed_actions,
-        )
-        action_scope = token_input.get("action_scope") or action_scope_for_request(
-            request_item,
-            action=config.action,
-            config=config,
-        )
-        try:
-            ref = await broker.create_turn_token_ref(
+    context = ConnectedAccountExecutionContext(skill_arguments=skill_input)
+    try:
+        for index, token_input in enumerate(request_body.connected_account_token_ref_inputs):
+            if not isinstance(token_input, dict):
+                raise HTTPException(status_code=400, detail="connected_account_token_ref_inputs entries must be objects")
+            request_item = dict(requests[min(index, len(requests) - 1)])
+            provider_id = str(token_input.get("provider_id") or config.provider_id)
+            app_for_ref = str(token_input.get("app_id") or app_id)
+            allowed_actions = [str(action) for action in (token_input.get("allowed_actions") or [config.action])]
+            await _assert_connected_account_context(
+                directus_service=request.app.state.directus_service,
+                account_id=str(token_input.get("connected_account_id") or ""),
                 user_id=user_id,
-                user_vault_key_id=vault_key_id,
-                connected_account_id=str(token_input.get("connected_account_id") or ""),
-                chat_id=chat_id,
-                message_id=message_id,
+                team_id=None,
                 app_id=app_for_ref,
                 provider_id=provider_id,
                 allowed_actions=allowed_actions,
-                refresh_token_envelope=dict(token_input.get("refresh_token_envelope") or {}),
-                action_scope=action_scope if isinstance(action_scope, dict) else {},
             )
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        token_refs.append(
-            {
-                "connected_account_id": str(token_input.get("connected_account_id") or ""),
-                "app_id": app_for_ref,
-                "provider_id": provider_id,
-                "allowed_actions": allowed_actions,
-                "action_scope": action_scope if isinstance(action_scope, dict) else {},
-                "turn_token_ref": ref.turn_token_ref,
-            }
-        )
+            action_scope = token_input.get("action_scope") or action_scope_for_request(
+                request_item,
+                action=config.action,
+                config=config,
+            )
+            try:
+                ref = await broker.create_turn_token_ref(
+                    user_id=user_id,
+                    user_vault_key_id=vault_key_id,
+                    connected_account_id=str(token_input.get("connected_account_id") or ""),
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    app_id=app_for_ref,
+                    provider_id=provider_id,
+                    allowed_actions=allowed_actions,
+                    refresh_token_envelope=dict(token_input.get("refresh_token_envelope") or {}),
+                    action_scope=action_scope if isinstance(action_scope, dict) else {},
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            token_refs.append(
+                {
+                    "connected_account_id": str(token_input.get("connected_account_id") or ""),
+                    "app_id": app_for_ref,
+                    "provider_id": provider_id,
+                    "allowed_actions": allowed_actions,
+                    "action_scope": action_scope if isinstance(action_scope, dict) else {},
+                    "turn_token_ref": ref.turn_token_ref,
+                }
+            )
 
-    try:
         if requests:
             context = await prepare_connected_account_skill_execution(
                 app_id=app_id,
@@ -2302,13 +2342,22 @@ async def run_sdk_connected_account_skill(
                 cache_service=request.app.state.cache_service,
                 encryption_service=request.app.state.encryption_service,
             )
-        else:
-            from backend.apps.ai.processing.connected_account_execution import ConnectedAccountExecutionContext
-
-            context = ConnectedAccountExecutionContext(skill_arguments=skill_input)
+        result = await call_app_skill(
+            app_id=app_id,
+            skill_id=skill_id,
+            input_data=context.skill_arguments,
+            parameters={},
+            user_info=api_key_info,
+            secrets_manager=getattr(request.app.state, "secrets_manager", None),
+            cache_service=getattr(request.app.state, "cache_service", None),
+            enforce_rest_exposure_policy=False,
+        )
+        return _strip_sdk_owner_pii_mappings(app_id, skill_id, result)
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=403, detail={"error": "connected_account_authorization_required"},
+        ) from exc
     except (GoogleOAuthTokenExchangeError, RevolutBusinessTokenExchangeError) as exc:
-        for token_ref in token_refs:
-            await broker.delete_turn_artifacts(turn_token_ref=str(token_ref.get("turn_token_ref") or ""))
         logger.warning(
             "Connected-account provider token exchange failed for %s/%s provider=%s: %s",
             app_id,
@@ -2323,19 +2372,10 @@ async def run_sdk_connected_account_skill(
                 "provider_id": config.provider_id,
             },
         ) from exc
-    try:
-        result = await call_app_skill(
-            app_id=app_id,
-            skill_id=skill_id,
-            input_data=context.skill_arguments,
-            parameters={},
-            user_info=api_key_info,
-            secrets_manager=getattr(request.app.state, "secrets_manager", None),
-            cache_service=getattr(request.app.state, "cache_service", None),
-            enforce_rest_exposure_policy=False,
-        )
-        return _strip_sdk_owner_pii_mappings(app_id, skill_id, result)
     finally:
+        # Preparation may fail before returning its artifact list.
+        for token_ref in token_refs:
+            await broker.delete_turn_artifacts(turn_token_ref=token_ref["turn_token_ref"])
         await cleanup_connected_account_token_artifacts(
             token_artifacts=context.token_artifacts,
             cache_service=request.app.state.cache_service,

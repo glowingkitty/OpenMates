@@ -169,7 +169,6 @@ files:
       'example-pdf-view-page-layout',
       'example-launch-readiness-checklist-doc',
       'example-image-vectorize-openmates-header',
-      'example-private-workspace-demo-video',
       'example-product-launch-synth-loop',
       'example-reference-image-3d-model',
       'example-audio-generate-openmates-success-chime',

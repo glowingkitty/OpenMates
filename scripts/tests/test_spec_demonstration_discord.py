@@ -172,7 +172,7 @@ def test_response_media_upload_helper_parses_json(monkeypatch, tmp_path: Path) -
     video.write_bytes(b"synthetic-video")
 
     def fake_run(command, **kwargs):
-        assert command[1].endswith("opencode_response_media.py")
+        assert command[1].endswith("response_media.py")
         assert "--output" in command
         assert "--captions" in command
         assert kwargs == {"check": False, "capture_output": True, "text": True}

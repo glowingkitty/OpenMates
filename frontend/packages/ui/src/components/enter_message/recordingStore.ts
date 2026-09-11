@@ -5,13 +5,14 @@
 //   'unknown'  — not yet queried (SSR / Permissions API unavailable)
 //   'granted'  — user has previously allowed; recording can start immediately
 //   'prompt'   — browser will show a permission popup on first getUserMedia call
-//   'denied'   — user has blocked the mic; show settings-redirect hint
+//   'denied'   — user has blocked the mic; warn only on a recording attempt
 import { writable } from "svelte/store";
 
 export type MicPermissionState = "unknown" | "granted" | "prompt" | "denied";
 
 interface RecordingState {
   isRecordButtonPressed: boolean;
+  blockedMicAttempt: number;
   showRecordAudioUI: boolean;
   showRecordHint: boolean;
   /** Tri-state mic permission derived from navigator.permissions — replaces the old boolean. */
@@ -22,6 +23,7 @@ interface RecordingState {
 
 const initialState: RecordingState = {
   isRecordButtonPressed: false,
+  blockedMicAttempt: 0,
   showRecordAudioUI: false,
   showRecordHint: false,
   micPermissionState: "unknown",
@@ -36,7 +38,7 @@ export function updateRecordingState(updates: Partial<RecordingState>) {
 }
 
 // Query the Permissions API on module load (client-side only).
-// This lets the mic button show the correct hint without any user interaction.
+// This keeps permission checks current without displaying unsolicited feedback.
 // The onchange handler keeps the state in sync if the user later grants/revokes
 // permission in browser settings without reloading the page.
 if (typeof navigator !== "undefined" && navigator.permissions) {

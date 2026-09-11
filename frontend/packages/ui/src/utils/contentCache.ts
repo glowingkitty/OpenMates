@@ -4,6 +4,10 @@
  * Uses a simple LRU (Least Recently Used) strategy with a max size limit
  */
 
+import { BoundedCache, estimatePayloadBytes } from "./boundedCache";
+
+const MAX_CONTENT_CACHE_BYTES = 32 * 1024 * 1024;
+
 interface CacheEntry {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TipTap JSON is intentionally schema-extensible at this cache boundary.
   content: any;
@@ -21,11 +25,12 @@ function cloneContent<T>(content: T): T {
 }
 
 export class ContentCache {
-  private cache: Map<string, CacheEntry> = new Map();
+  private cache: BoundedCache<string, CacheEntry>;
   private readonly maxSize: number;
   private readonly maxAgeMs: number;
 
   constructor({ maxSize = 100, maxAgeMs = 1000 * 60 * 5 }: ContentCacheOptions = {}) {
+    this.cache = new BoundedCache(MAX_CONTENT_CACHE_BYTES, maxSize);
     this.maxSize = maxSize;
     this.maxAgeMs = maxAgeMs;
   }
@@ -67,12 +72,14 @@ export class ContentCache {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Preserve the existing dynamic TipTap cache API for heterogeneous node attributes.
   set(content: string, processedContent: any): void {
     const key = this.generateKey(content);
+    // Avoid cloning a payload that cannot fit in the cache.
+    if (content.length * 2 + estimatePayloadBytes(processedContent, MAX_CONTENT_CACHE_BYTES) > MAX_CONTENT_CACHE_BYTES) return;
 
     // If cache is full, remove oldest entry
     if (this.cache.has(key)) this.cache.delete(key);
     if (this.cache.size >= this.maxSize) {
       const oldestKey = this.cache.keys().next().value;
-      this.cache.delete(oldestKey);
+      if (oldestKey !== undefined) this.cache.delete(oldestKey);
     }
 
     this.cache.set(key, {
@@ -101,3 +108,7 @@ export class ContentCache {
 
 // Export singleton instance
 export const contentCache = new ContentCache();
+
+if (typeof window !== "undefined") {
+  window.addEventListener("userLoggingOut", () => contentCache.clear());
+}

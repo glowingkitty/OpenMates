@@ -22,7 +22,7 @@ Source of truth: `docs/plans/realistic-long-chat-cli-validation/plan.yml`.
 
 Do not run this workflow as a hidden unattended deterministic script. It is fine
 to use short helper commands for inspection, checkpoint queries, or CLI command
-wrapping, but the chat itself must proceed as individual OpenCode-controlled CLI
+wrapping, but the chat itself must proceed as individual Codex-controlled CLI
 turns with response review before the next turn.
 
 ## Topic Agreement Gate

@@ -5,6 +5,8 @@
 # that bypass prompt injection detection but are processed by LLMs.
 # See: docs/architecture/prompt_injection_protection.md
 
+from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
+
 import logging
 import json
 import hashlib # Import hashlib for hashing user_id
@@ -679,7 +681,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # the client state is stale (e.g., inspiration chats created before the title_v: 1 fix).
         # Trust the server's title_v over the client flag to prevent overwriting existing titles.
         # This protects against any future client-side bug causing the same mismatch.
-        if chat_metadata_from_db and chat_metadata_from_db.get("title_v", 0) > 0 and not chat_has_title_from_client:
+        # Older CLI forks persisted a null version alongside their encrypted title.
+        # Treat its presence as an initialized title; do not rewrite persisted metadata.
+        chat_title_v = (chat_metadata_from_db or {}).get("title_v")
+        if chat_title_v is None:
+            chat_title_v = 1 if (chat_metadata_from_db or {}).get("encrypted_title") else 0
+        if chat_title_v > 0 and not chat_has_title_from_client:
             logger.info(
                 f"Chat {chat_id} has title_v={chat_metadata_from_db.get('title_v')} in DB "
                 f"but client sent chat_has_title=False. Overriding to True to preserve existing title."
@@ -2279,6 +2286,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
             except Exception as e_send_err:
                 logger.error(f"Failed to send error to client after AI task dispatch failure: {e_send_err}")
+            await notify_chat_failure(f"{chat_id}:{message_id}", stage="dispatch")
         finally:
             if legacy_admitted and not ai_task_id:
                 try:
@@ -2324,6 +2332,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
         except Exception as e_send:
             logger.error(f"Failed to send error to {user_id}/{device_fingerprint_hash} after main error: {e_send}")
+        failure_identity = f"{payload.get('chat_id')}:{payload.get('message_id')}" if isinstance(payload, dict) and payload.get("message_id") else ""
+        await notify_chat_failure(failure_identity, stage="dispatch", category="unexpected_error")
     finally:
         # End the OTel span and detach context via ws_span_helper
         if _otel_span is not None:

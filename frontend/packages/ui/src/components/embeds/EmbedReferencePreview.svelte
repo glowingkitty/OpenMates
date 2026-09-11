@@ -13,6 +13,7 @@
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   import { chatSyncService } from '../../services/chatSyncService';
   import { getEmbedRenderer } from '../enter_message/extensions/embed_renderers';
+  import { disposeEmbedTree } from '../enter_message/extensions/embed_renderers/mountedEmbedLifecycle';
   import { normalizeEmbedType } from '../../data/embedRegistry.generated';
   import InteractiveQuestionContainer from '../interactive_questions/InteractiveQuestionContainer.svelte';
   import type { InteractiveQuestionPayload } from '../interactive_questions/types';
@@ -83,7 +84,7 @@
    */
   const CHILD_TYPE_OVERRIDES = new Set([
     'image_result', 'web_result', 'news_result', 'video_result',
-    'location', 'flight', 'stay', 'event', 'product', 'job',
+    'location', 'flight', 'stay', 'event', 'event_result', 'product', 'job',
     'health_result', 'recipe', 'price_calendar_result', 'listing',
   ]);
   const INTERACTIVE_QUESTION_LANGUAGE = 'interactive_question';
@@ -141,6 +142,7 @@
   function renderInteractiveQuestionPayload(payload: InteractiveQuestionPayload): void {
     if (!containerEl) return;
     cleanupMountedPreviewComponent();
+    disposeEmbedTree(containerEl, false);
     containerEl.innerHTML = '';
     mountedPreviewComponent = mount(InteractiveQuestionContainer, {
       target: containerEl,
@@ -242,6 +244,7 @@
     const thisVersion = ++renderVersion;
 
     cleanupMountedPreviewComponent();
+    disposeEmbedTree(containerEl, false);
     containerEl.innerHTML = '';
     errorText = null;
 
@@ -278,6 +281,9 @@
         retryTimer = setTimeout(() => {
           retryCount++;
           embedRefIndexVersion.update((n) => n + 1);
+          // A still-unresolved derived ID remains null, so Svelte will not
+          // rerun the render effect merely because the index version changed.
+          void renderResolvedPreview();
         }, 1000 * (retryCount + 1)); // 1s, 2s, 3s
       } else {
         loading = false;
@@ -329,6 +335,7 @@
       // Abort if a newer render started while decoding
       if (thisVersion !== renderVersion) return;
 
+      if (thisVersion !== renderVersion || !containerEl?.isConnected) return;
       const attrs = buildAttrs(resolvedEmbedId, embedData, decodedContent);
       const interactivePayload = resolveInteractiveQuestionPayload(attrs, decodedContent);
       if (interactivePayload) {
@@ -396,7 +403,8 @@
         renderVersion += 1;
         clearEmbedDataRetry();
         cleanupMountedPreviewComponent();
-        if (containerEl) containerEl.innerHTML = '';
+        if (containerEl) disposeEmbedTree(containerEl, false);
+    containerEl.innerHTML = '';
         loading = false;
         errorText = 'Preview unavailable';
         return;
@@ -408,6 +416,8 @@
   });
 
   onDestroy(() => {
+    renderVersion += 1;
+    if (containerEl) disposeEmbedTree(containerEl);
     if (retryTimer) clearTimeout(retryTimer);
     clearEmbedDataRetry();
     if (embedUpdateListener) {
@@ -416,7 +426,8 @@
     }
     if (containerEl) {
       cleanupMountedPreviewComponent();
-      containerEl.innerHTML = '';
+      disposeEmbedTree(containerEl, false);
+    containerEl.innerHTML = '';
     }
   });
 </script>

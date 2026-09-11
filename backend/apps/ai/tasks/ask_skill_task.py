@@ -10,6 +10,8 @@
 # that the 'task-worker' is configured to use. This is how tasks defined here
 # are registered with and executed by that worker.
 
+from backend.shared.python_utils.chat_failure_notifications import failure_stage, notify_chat_failure
+
 import logging
 import asyncio
 import time
@@ -2688,6 +2690,12 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 completion_timing=completion_timing,
             )
         )
+        from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
+        alert_stage = failure_stage(task_result_dict, STANDARDIZED_USER_ERROR_MESSAGE)
+        if alert_stage:
+            loop.run_until_complete(notify_chat_failure(
+                f"{request_data.chat_id}:{request_data.message_id}", stage=alert_stage,
+            ))
         legacy_completion_requires_persistence = completion_requires_persistence(
             task_result_dict
         )
@@ -2777,6 +2785,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after soft time limit: {cleanup_err}")
+        if not was_revoked:
+            loop.run_until_complete(notify_chat_failure(f"{request_data.chat_id}:{request_data.message_id}", stage="inference", category="timeout"))
         try:
             loop.run_until_complete(_mark_sub_chat_terminal_failure(
                 request_data,
@@ -2882,6 +2892,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after exception: {cleanup_err}")
+        if not was_revoked:
+            loop.run_until_complete(notify_chat_failure(
+                f"{request_data.chat_id}:{request_data.message_id}", stage="finalization" if completion_timing.first_token_ms is not None else "preprocessing",
+                category="unexpected_error",
+            ))
         try:
             loop.run_until_complete(_mark_sub_chat_terminal_failure(
                 request_data,

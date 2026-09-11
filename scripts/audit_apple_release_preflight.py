@@ -3,7 +3,7 @@
 
 This audit catches the high-churn Apple packaging and TestFlight contracts that
 otherwise fail late in remote Xcode archives. It is intentionally path-scoped so
-OpenCode hooks and commit guards can run it cheaply after Apple release files are
+agent hooks and commit guards can run it cheaply after Apple release files are
 edited, while still exposing `--all` for manual full checks.
 """
 

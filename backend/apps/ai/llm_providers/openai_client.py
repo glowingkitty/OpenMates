@@ -26,7 +26,7 @@ except Exception:  # pragma: no cover
     AsyncOpenAI = None  # type: ignore
 
 logger = logging.getLogger(__name__)
-OPENAI_REASONING_EFFORTS = {"none", "low", "medium", "high", "max"}
+OPENAI_REASONING_EFFORTS = {"none", "low", "medium", "high", "xhigh", "max"}
 OPENAI_CHAT_COMPLETIONS_TOOL_REASONING_NONE_MODELS = {"gpt-5.6-luna"}
 
 # Global state
@@ -256,7 +256,18 @@ async def _invoke_openai_direct_api(
             raise ValueError(error_msg)
         return UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
-    # NOTE: About OpenAI Responses API (not used here yet)
+    if _normalize_openai_model_id(catalog_model_id or model_id) == "gpt-6-astra":
+        from .openai_responses import invoke_responses
+        return await invoke_responses(
+            client=_openai_direct_client, task_id=task_id,
+            model_id=_get_openai_request_model_id(model_id, catalog_model_id),
+            messages=messages, reasoning_effort=_get_openai_reasoning_effort(model_id, catalog_model_id),
+            tools=_map_tools_to_openai_format(tools) if tools else None,
+            tool_choice=tool_choice, max_tokens=max_tokens, stream=stream,
+        )
+
+    # Other models retain the existing Chat Completions transport.
+    # NOTE: About OpenAI Responses API (not used for other models here yet)
     # We intentionally use Chat Completions streaming instead of the newer Responses API for now.
     # Rationale:
     # - Integration cost today: Our pipeline expects Chat-Completions-style chunks (strings + tool-calls + optional

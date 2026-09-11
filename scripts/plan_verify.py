@@ -3,9 +3,8 @@
 
 This script layers evidence checks on top of structural validation. It does not
 run tests itself; it verifies that red and green phase evidence has been recorded
-in plan.yml by the workflow after approved test commands were run. Playwright
-green evidence is intentionally required after dev deployment because tests run
-against app.dev.openmates.org.
+in plan.yml by the workflow after approved test commands were run. Isolated GitHub CI evidence records the tested source, harness and profile.
+Historical shared-dev evidence remains readable; it cannot cover later changes.
 """
 
 from __future__ import annotations
@@ -14,12 +13,12 @@ import argparse
 import hashlib
 import json
 import re
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 from plan_validate import REPO_ROOT, PlanError, validate_plan
+from _workflow_decisions import matching_receipt
 
 
 PASS_STATUSES = {"passed", "passed_after_deploy"}
@@ -141,9 +140,17 @@ def _evidence_contract_failures(
             failures.append(f"{record_id}: {phase} evidence missing {field}")
 
     if playwright and phase == "green_phase" and status in PASS_STATUSES:
-        for field in ("target", "deployment_reference"):
+        isolated = evidence.get("execution_environment") == "isolated_github_ci"
+        fields = ("harness_commit", "profile") if isolated else ("target", "deployment_reference")
+        for field in fields:
             if not isinstance(evidence.get(field), str) or not evidence[field].strip():
                 failures.append(f"{record_id}: {phase} evidence missing {field}")
+        if isolated:
+            artifacts = evidence.get("artifacts")
+            if not isinstance(artifacts, list) or not artifacts or not all(
+                isinstance(item, str) and item.strip() for item in artifacts
+            ):
+                failures.append(f"{record_id}: {phase} evidence missing artifacts")
 
     current_commit = data.get("implementation_state", {}).get("subject_commit")
     if (
@@ -161,21 +168,10 @@ def _evidence_contract_failures(
 
 
 def _evidence_commit_covers_implementation(evidence_commit: Any, current_commit: str) -> bool:
-    """Accept evidence from the implementation commit or one of its ancestors."""
-    if not isinstance(evidence_commit, str) or not evidence_commit.strip():
-        return False
+    """Only the tested subject proves this implementation; ancestry is not proof."""
     candidate = _normalise_commit(evidence_commit)
-    normalized_current = _normalise_commit(current_commit)
-    if candidate == normalized_current:
-        return True
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", candidate, normalized_current],
-        cwd=REPO_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode == 0
+    current = _normalise_commit(current_commit)
+    return bool(candidate and current and candidate == current)
 
 
 def _normalise_commit(value: Any) -> str:
@@ -211,7 +207,13 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
 
     failures: list[str] = []
     if evidence.get("status") == "waived":
-        return ["demonstration: implemented executable specs cannot waive embedded proof-video evidence"]
+        receipt = matching_receipt(
+            data.get("decisions", []), target=str(data.get("id") or ""), surface="proof",
+            revision=str(data.get("implementation_state", {}).get("subject_commit") or ""),
+        )
+        if receipt and evidence.get("decision_id") == receipt["id"]:
+            return []
+        return ["demonstration: cannot waive embedded proof-video evidence without a valid scoped user decision"]
 
     if evidence.get("status") != "passed":
         failures.append("demonstration: missing required passing evidence")
@@ -222,7 +224,7 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
     if evidence.get("review_status") != "passed":
         failures.append("demonstration: frame-and-caption review has not passed")
     if evidence.get("publication_status") != "delivered":
-        failures.append("demonstration: OpenCode response-media proof embed has not completed")
+        failures.append("demonstration: Response-media proof embed has not completed")
 
     review_attempts = evidence.get("review_attempts")
     if evidence.get("review_status") == "passed" and (not isinstance(review_attempts, int) or review_attempts < 1):
@@ -379,7 +381,7 @@ def _requires_user_input(blocker: Any, current_task_id: str | None) -> bool:
 
 
 def plan_status(data: dict[str, Any], failures: list[str]) -> dict[str, Any]:
-    """Return only the continuation fields an OpenCode plugin needs."""
+    """Return only the continuation fields an agent plugin needs."""
     handoff = data.get("handoff") if isinstance(data.get("handoff"), dict) else {}
     current_task_id = handoff.get("current_task_id")
     requires_user_input = _requires_user_input(handoff.get("blocker"), current_task_id)

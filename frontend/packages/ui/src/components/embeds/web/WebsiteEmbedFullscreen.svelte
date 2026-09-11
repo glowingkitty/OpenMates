@@ -24,6 +24,7 @@
 -->
 
 <script lang="ts">
+  import { searchResultImageUrl } from '../../../utils/searchPreviewImages';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
@@ -80,7 +81,6 @@
   let description = $derived(typeof dc.description === 'string' ? dc.description : (typeof attrs.description === 'string' ? attrs.description : undefined));
   let meta_url_favicon = $derived(typeof dc.meta_url_favicon === 'string' ? dc.meta_url_favicon : undefined);
   let favicon = $derived(typeof dc.favicon === 'string' ? dc.favicon : (typeof attrs.favicon === 'string' ? attrs.favicon : undefined));
-  let thumbnail_original = $derived(typeof dc.thumbnail_original === 'string' ? dc.thumbnail_original : undefined);
   let image = $derived(typeof dc.image === 'string' ? dc.image : (typeof attrs.image === 'string' ? attrs.image : undefined));
   let extra_snippets = $derived(dc.extra_snippets as string | string[] | undefined);
   let dataDate = $derived(typeof dc.page_age === 'string' ? dc.page_age : undefined);
@@ -260,7 +260,7 @@
   // If no image URL is available, we simply don't show a header image
   
   let imageUrl = $derived.by(() => {
-    const originalImageUrl = thumbnail_original || image;
+    const originalImageUrl = searchResultImageUrl(dc) || searchResultImageUrl(attrs);
     if (!originalImageUrl) {
       return null;
     }
@@ -389,7 +389,8 @@
   // share context and properly opens the settings panel (including on mobile).
   
   // Track image loading error to hide broken images
-  let imageError = $state(false);
+  let failedImageUrl = $state<string | null>(null);
+  let imageError = $derived(!!imageUrl && failedImageUrl === imageUrl);
 
   $effect(() => {
     void cleanedDescription;
@@ -565,8 +566,7 @@
             alt={displayTitle}
             class="header-image"
             loading="lazy"
-            crossorigin="anonymous"
-            onerror={(e) => { imageError = true; handleImageError(e.currentTarget as HTMLImageElement); }}
+            onerror={(e) => { failedImageUrl = imageUrl; handleImageError(e.currentTarget as HTMLImageElement); }}
           />
         </div>
       {/if}

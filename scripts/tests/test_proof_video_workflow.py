@@ -22,6 +22,12 @@ import pytest
 from scripts import proof_video_workflow as workflow
 
 
+@pytest.fixture(autouse=True)
+def isolate_agent_identity(monkeypatch):
+    for variable in ("CODEX_THREAD_ID", "CODEX_SESSION_ID", "CODEX_THREAD_ID"):
+        monkeypatch.delenv(variable, raising=False)
+
+
 def frame_quality_review(frame: str, **overrides: str) -> dict[str, object]:
     checks = {
         "layout": "pass",
@@ -46,7 +52,7 @@ def test_resolve_current_context_matches_session_commit_and_passing_spec() -> No
     sessions = {
         "sessions": {
             "abcd": {
-                "opencode_session_id": "ses_current",
+                "codex_task_id": "ses_current",
                 "mode": "feature",
             }
         }
@@ -70,7 +76,7 @@ def test_resolve_current_context_matches_session_commit_and_passing_spec() -> No
 
     context = workflow.resolve_current_context(
         sessions,
-        opencode_session_id="ses_current",
+        codex_task_id="ses_current",
         subject_commit=commit,
         spec_name="example.spec.ts",
         test_runs=runs,
@@ -126,7 +132,9 @@ def test_proof_sources_use_shared_control_plane_results() -> None:
     assert workflow.PROOF_SOURCE_DIR == workflow.CONTROL_PLANE_ROOT / "test-results" / "proof-video-sources"
 
 
+@pytest.mark.parametrize("provider", ["codex", "explicit"])
 def test_start_current_uses_deployed_session_commit_from_linked_worktree(
+    provider: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -140,7 +148,7 @@ def test_start_current_uses_deployed_session_commit_from_linked_worktree(
             {
                 "sessions": {
                     "abcd": {
-                        "opencode_session_id": "ses_current",
+                        "codex_task_id": "ses_current",
                         "worktree": {"merged_commit": deployed_commit},
                     }
                 }
@@ -162,7 +170,10 @@ def test_start_current_uses_deployed_session_commit_from_linked_worktree(
         ),
         encoding="utf-8",
     )
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_current")
+    for variable in ("CODEX_THREAD_ID", "CODEX_SESSION_ID"):
+        monkeypatch.delenv(variable, raising=False)
+    if provider != "explicit":
+        monkeypatch.setenv("CODEX_THREAD_ID", "ses_current")
     monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
@@ -170,7 +181,7 @@ def test_start_current_uses_deployed_session_commit_from_linked_worktree(
     monkeypatch.setattr(workflow, "_tracked_worktree_changes", lambda: ["frontend/dirty.svelte"])
     monkeypatch.setattr(workflow, "_current_git_sha", lambda: "b" * 40)
 
-    result = workflow.start_current("example.spec.ts")
+    result = workflow.start_current("example.spec.ts", session_id="abcd" if provider == "explicit" else "")
 
     assert result["context"]["session_id"] == "abcd"
     assert result["context"]["subject_commit"] == deployed_commit
@@ -191,7 +202,7 @@ def test_start_current_disambiguates_numeric_cli_run_id(
             {
                 "sessions": {
                     "abcd": {
-                        "opencode_session_id": "ses_current",
+                        "codex_task_id": "ses_current",
                         "worktree": {"merged_commit": deployed_commit},
                     }
                 }
@@ -213,7 +224,7 @@ def test_start_current_disambiguates_numeric_cli_run_id(
         ),
         encoding="utf-8",
     )
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_current")
+    monkeypatch.setenv("CODEX_THREAD_ID", "ses_current")
     monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
@@ -240,7 +251,7 @@ def test_start_current_disambiguates_proof_source_run_id(
             {
                 "sessions": {
                     "abcd": {
-                        "opencode_session_id": "ses_current",
+                        "codex_task_id": "ses_current",
                         "worktree": {"merged_commit": deployed_commit},
                     }
                 }
@@ -263,7 +274,7 @@ def test_start_current_disambiguates_proof_source_run_id(
         ),
         encoding="utf-8",
     )
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_current")
+    monkeypatch.setenv("CODEX_THREAD_ID", "ses_current")
     monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
@@ -285,8 +296,8 @@ def test_resolve_current_context_rejects_ambiguous_passing_runs() -> None:
 
     with pytest.raises(workflow.WorkflowError, match="multiple passing runs"):
         workflow.resolve_current_context(
-            {"sessions": {"abcd": {"opencode_session_id": "ses_current"}}},
-            opencode_session_id="ses_current",
+            {"sessions": {"abcd": {"codex_task_id": "ses_current"}}},
+            codex_task_id="ses_current",
             subject_commit=commit,
             spec_name="example.spec.ts",
             test_runs=runs,
@@ -301,8 +312,8 @@ def test_resolve_current_context_accepts_same_run_with_multiple_video_sources() 
     ]
 
     context = workflow.resolve_current_context(
-        {"sessions": {"abcd": {"opencode_session_id": "ses_current"}}},
-        opencode_session_id="ses_current",
+        {"sessions": {"abcd": {"codex_task_id": "ses_current"}}},
+        codex_task_id="ses_current",
         subject_commit=commit,
         spec_name="example.spec.ts",
         test_runs=runs,
@@ -412,8 +423,8 @@ def test_approved_contract_rejects_tampered_payload_with_embedded_old_hash(tmp_p
 def test_context_rejects_local_or_unverified_passing_run() -> None:
     with pytest.raises(workflow.WorkflowError, match="deployed passing run"):
         workflow.resolve_current_context(
-            {"sessions": {"abcd": {"opencode_session_id": "ses_current"}}},
-            opencode_session_id="ses_current",
+            {"sessions": {"abcd": {"codex_task_id": "ses_current"}}},
+            codex_task_id="ses_current",
             subject_commit="abc1234",
             spec_name="frontend/apps/web_app/tests/example.spec.ts",
             test_runs=[
@@ -1448,49 +1459,6 @@ def test_review_run_accepts_control_plane_results(
     assert result["status"] == "passed"
 
 
-def test_review_run_accepts_opencode_runtime_results(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    runtime_root = tmp_path / "runtime"
-    monkeypatch.setattr(workflow, "OPENCODE_RUNTIME_ROOT", runtime_root)
-    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
-    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
-    run_dir, request = _write_review_run(
-        runtime_root / "test-results" / "proof-videos" / "session" / "run"
-    )
-
-    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
-        return (
-            {
-                "status": "passed",
-                "confidence": 0.99,
-                "frame_index_hash": request["frame_index_hash"],
-                "reviewed_frames": ["frames/frame.png"],
-                "frame_reviews": [frame_quality_review("frames/frame.png")],
-                "assertions": [
-                    {
-                        "id": "visible",
-                        "verdict": "supported",
-                        "frames": ["frames/frame.png"],
-                        "observation": "Visible.",
-                    }
-                ],
-                "incidental_findings": [],
-                "return_stage": "complete",
-                "next_action": "Publish.",
-            },
-            "ses_reviewer",
-        )
-
-    result = workflow.review_run(
-        run_dir=run_dir,
-        correction_round=0,
-        correction_kind="none",
-        reviewer_runner=reviewer,
-    )
-
-    assert result["status"] == "passed"
 
 
 def test_review_run_recovers_receipt_written_before_cache_attachment(
@@ -1697,9 +1665,9 @@ def test_review_run_includes_blocker_media_for_failed_review(
     assert blocker_media["image_status"] == "available"
     assert blocker_media["video_status"] == "available"
     assert blocker_media["video_path"] == str(run_dir / "demo.mp4")
-    assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["upload_command"].startswith("python3 scripts/response_media.py ")
     assert blocker_media["image_path"] == str(run_dir / "frames" / "frame.png")
-    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["image_upload_command"].startswith("python3 scripts/response_media.py ")
     assert result["receipt"]["workflow"]["blocker_media"] == blocker_media
 
 
@@ -1730,7 +1698,7 @@ def test_blocker_media_uses_assertion_frame_when_failed_review_has_no_finding(tm
     blocker_media = workflow.proof_blocker_media(run_dir, manifest, "capture_defect")
 
     assert blocker_media["image_path"] == str(frame)
-    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["image_upload_command"].startswith("python3 scripts/response_media.py ")
 
 
 def test_blocker_media_keeps_cited_image_when_video_is_missing(tmp_path: Path) -> None:
@@ -1761,7 +1729,7 @@ def test_blocker_media_keeps_cited_image_when_video_is_missing(tmp_path: Path) -
     assert blocker_media["video_status"] == "missing"
     assert blocker_media["finding_id"] == "UI-1"
     assert blocker_media["image_path"] == str(frame)
-    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["image_upload_command"].startswith("python3 scripts/response_media.py ")
     assert "upload_command" not in blocker_media
 
 
@@ -1826,7 +1794,7 @@ def test_cached_failed_review_preserves_representative_frame(tmp_path: Path, mon
     )
 
     assert result["blocker_media"]["image_path"] == str(run_dir / "frames" / "frame.png")
-    assert result["blocker_media"]["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert result["blocker_media"]["image_upload_command"].startswith("python3 scripts/response_media.py ")
 
 
 def test_user_approved_visual_intent_resolves_only_cited_uncertainty(
@@ -2455,154 +2423,28 @@ def test_review_run_rejects_mismatched_cached_request_provenance(
         workflow.review_run(run_dir=second_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
 
 
-def test_default_reviewer_reuses_canonical_project_instance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo_root = tmp_path / "repo"
-    repo_root.mkdir()
-    run_dir = repo_root / "test-results" / "proof-videos" / "run"
-    run_dir.mkdir(parents=True)
-    (run_dir / "frames").mkdir()
-    prompt = run_dir / "review-prompt-round-0.json"
-    prompt.write_text("{}\n", encoding="utf-8")
-    observed: dict[str, object] = {}
-
-    class Process:
-        returncode = 0
-
-        def __init__(self, command: list[str], **kwargs: object) -> None:
-            observed.update({"command": command, **kwargs})
-            kwargs["stdout"].write('{"type":"text","part":{"text":"{}"}}\n')
-
-        def wait(self, timeout: float) -> int:
-            return self.returncode
-
-    def popen(command: list[str], **kwargs: object):
-        return Process(command, **kwargs)
-
-    monkeypatch.setattr(workflow.subprocess, "Popen", popen)
-    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
-    monkeypatch.setattr(workflow, "REPO_ROOT", repo_root)
-    monkeypatch.setattr(workflow, "CONTROL_PLANE_ROOT", repo_root)
-    monkeypatch.chdir(repo_root)
-    relative_run_dir = Path("test-results") / "proof-videos" / "run"
-    workflow._default_reviewer_runner(
-        relative_run_dir / "review-prompt-round-0.json",
-        run_dir=relative_run_dir,
-        correction_round=0,
-    )
-
-    assert observed["cwd"] == run_dir
-    assert observed["command"][0] == "/test/opencode"
-    assert "--dir" in observed["command"]
-    assert observed["command"][observed["command"].index("--attach") + 1] == workflow.REVIEWER_ATTACH_URL
-    assert observed["command"][observed["command"].index("--dir") + 1] == str(repo_root)
-    attached_files = [
-        observed["command"][index + 1]
-        for index, value in enumerate(observed["command"])
-        if value == "--file"
-    ]
-    assert attached_files == [str(prompt.resolve())]
-    assert not (repo_root / "review-prompt-round-0.json").exists()
-    assert not (repo_root / "frames").exists()
-
-
-def test_default_reviewer_uses_checkout_containing_runtime_proof(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    control_plane_root = tmp_path / "control-plane"
-    runtime_root = tmp_path / "runtime"
-    control_plane_root.mkdir()
-    run_dir = runtime_root / "test-results" / "proof-videos" / "run"
-    run_dir.mkdir(parents=True)
-    frame_path = run_dir / "frames" / "frame-0000.png"
-    frame_path.parent.mkdir()
-    frame_path.write_bytes(b"frame")
-    prompt = run_dir / "review-prompt-round-0.json"
-    prompt.write_text(
-        json.dumps({"review_request": {"frames": [{"path": "frames/frame-0000.png"}]}}),
-        encoding="utf-8",
-    )
-    observed: dict[str, object] = {}
-
-    class Process:
-        returncode = 0
-
-        def __init__(self, command: list[str], **kwargs: object) -> None:
-            observed["command"] = command
-            kwargs["stdout"].write('{"type":"text","part":{"text":"{}"}}\n')
-
-        def wait(self, timeout: float) -> int:
-            return self.returncode
-
-    monkeypatch.setattr(workflow.subprocess, "Popen", lambda command, **kwargs: Process(command, **kwargs))
-    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
-    monkeypatch.setattr(workflow, "CONTROL_PLANE_ROOT", control_plane_root)
-    monkeypatch.setattr(workflow, "REPO_ROOT", runtime_root)
-
-    workflow._default_reviewer_runner(prompt, run_dir=run_dir, correction_round=0)
-
-    command = observed["command"]
-    assert isinstance(command, list)
-    assert command[command.index("--dir") + 1] == str(runtime_root)
-    attached_files = [command[index + 1] for index, value in enumerate(command) if value == "--file"]
-    assert attached_files == [str(prompt), str(frame_path)]
-    prompt_payload = json.loads(prompt.read_text(encoding="utf-8"))
-    assert prompt_payload["review_request"]["frames"][0]["read_path"] == (
-        "test-results/proof-videos/run/frames/frame-0000.png"
-    )
-
-
-def test_default_reviewer_requires_resolvable_opencode_binary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_default_reviewer_accepts_only_codex_request_bound_result(tmp_path: Path):
+    from scripts.spec_demo import review_request_hash
     prompt = tmp_path / "review-prompt-round-0.json"
-    prompt.write_text("{}\n", encoding="utf-8")
-    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: None)
-
-    with pytest.raises(workflow.WorkflowError, match="OPENCODE_BIN"):
+    request = {"frame_index_hash": "synthetic-frames"}
+    prompt.write_text(json.dumps({"review_request": request}))
+    result_path = tmp_path / "review-result-round-0.json"
+    result = {
+        "reviewer_session_id": "codex://threads/11111111-1111-4111-8111-111111111111",
+        "review_request_hash": review_request_hash(request),
+    }
+    result_path.write_text(json.dumps(result))
+    receipt, session = workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
+    assert receipt == result
+    assert session == result["reviewer_session_id"]
+    result["review_request_hash"] = "changed-request"
+    result_path.write_text(json.dumps(result))
+    with pytest.raises(workflow.WorkflowError, match="does not match"):
         workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
-
-
-def test_default_reviewer_reports_progress_and_terminates_at_timeout(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    repo_root = tmp_path / "repo"
-    repo_root.mkdir()
-    run_dir = repo_root / "test-results" / "proof-videos" / "run"
-    run_dir.mkdir(parents=True)
-    (run_dir / "frames").mkdir()
-    prompt = run_dir / "review-prompt-round-0.json"
-    prompt.write_text("{}\n", encoding="utf-8")
-
-    class Process:
-        terminated = False
-
-        def wait(self, timeout: float) -> int:
-            if self.terminated:
-                return -15
-            raise workflow.subprocess.TimeoutExpired("opencode", timeout)
-
-        def terminate(self) -> None:
-            self.terminated = True
-
-        def kill(self) -> None:
-            self.terminated = True
-
-    process = Process()
-    monotonic_values = iter([0.0, 0.0, 31.0, 601.0])
-    monkeypatch.setattr(workflow.subprocess, "Popen", lambda *_args, **_kwargs: process)
-    monkeypatch.setattr(workflow.time, "monotonic", lambda: next(monotonic_values))
-    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
-    monkeypatch.setattr(workflow, "REPO_ROOT", repo_root)
-    with pytest.raises(workflow.WorkflowError, match="timed out after 600s"):
-        workflow._default_reviewer_runner(
-            prompt,
-            run_dir=run_dir,
-            correction_round=0,
-        )
-
-    output = capsys.readouterr().out
-    assert "still running (31s elapsed)" in output
-    assert process.terminated is True
-    assert not (repo_root / "review-prompt-round-0.json").exists()
-    assert not (repo_root / "frames").exists()
+    result["reviewer_session_id"] = "ses_legacy"
+    result_path.write_text(json.dumps(result))
+    with pytest.raises(workflow.WorkflowError, match="actual codex"):
+        workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
 
 
 def test_review_run_rejects_reviewer_frame_hash_replacement(
@@ -2654,3 +2496,72 @@ def test_review_run_rejects_frame_path_escape_before_inference(
             reviewer_runner=reviewer,
         )
     assert invoked is False
+
+
+@pytest.mark.parametrize("records, kwargs", [
+    ({"abcd": {}}, {}),
+    ({"abcd": {}}, {"repository_session_id": "missing"}),
+    ({"abcd": {"retired_provider_id": "thread"}}, {"codex_task_id": "thread"}),
+    ({"abcd": {"codex_task_id": "thread"}, "ef01": {"codex_task_id": "thread"}}, {"codex_task_id": "thread"}),
+])
+def test_proof_session_resolution_rejects_missing_ambiguous_or_wrong_provider(records, kwargs):
+    with pytest.raises(workflow.WorkflowError):
+        workflow.resolve_current_session({"sessions": records}, **kwargs)
+
+
+def test_review_prepares_request_without_launching_agent(tmp_path, monkeypatch):
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, _request = _write_review_run(tmp_path / "proof-videos" / "run")
+    def forbidden(*args, **kwargs):
+        raise AssertionError("review preparation must not launch an agent")
+    monkeypatch.setattr(workflow.subprocess, "Popen", forbidden)
+    result = workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none")
+    assert result["status"] == "awaiting_review"
+    assert Path(result["prompt_path"]).is_file()
+    assert not Path(result["result_path"]).exists()
+    assert not (run_dir / "review-receipt.json").exists()
+
+
+def test_bound_browser_plan_forwards_attested_timeline_and_recording_clock(tmp_path, monkeypatch):
+    from scripts import spec_demo
+    frame = tmp_path / "frame.png"
+    frame.write_bytes(b"synthetic frame")
+    timeline = {
+        "device": "web-phone",
+        "contract": {"surface": "web", "domain": "example.invalid", "transcript": [
+            {"text": "The screen shows the title.", "checkpoint": "title", "devices": ["web-phone"]}],
+            "assertions": [{"id": "title", "description": "Title visible", "devices": ["web-phone"]}]},
+        "checkpoint_frames": [{"checkpoint": "title", "at_ms": 2000, "sha256": workflow._file_sha256(frame)}],
+    }
+    path = tmp_path / "timeline.json"
+    path.write_text(json.dumps(timeline))
+    original = path.read_bytes()
+    record = {"source": "github_isolated", "proof_timeline_path": str(path),
+              "proof_timeline_sha256": workflow._file_sha256(path), "proof_checkpoint_paths": {"title": str(frame)}}
+    claims = workflow.spec_timeline_render_claims(timeline, device_profile="web-phone")
+    observed = {}
+    monkeypatch.setattr(spec_demo, "video_metadata", lambda _p: {"duration_seconds": 3.84, "frame_rate": 30})
+    monkeypatch.setattr(spec_demo, "assert_source_device_profile_dimensions", lambda *_a: None)
+    monkeypatch.setattr(spec_demo, "_require_source_frame_rate", lambda _m: 30)
+    monkeypatch.setattr(spec_demo, "estimate_video_clock_offset_ms", lambda *_a, **_k: 1200)
+    def planner(value, **kwargs):
+        observed.update(kwargs)
+        assert value["checkpoint_frames"][0]["path"] == str(frame)
+        assert value["contract"]["transcript"] == timeline["contract"]["transcript"]
+        return {"bound": True}
+    monkeypatch.setattr(spec_demo, "build_browser_tutorial_plan", planner)
+    assert workflow.bound_browser_tutorial_plan(record, source_video=tmp_path / "video.webm", device_profile="web-phone", approved_claims=claims, narration_id="N1") == {"bound": True}
+    assert observed["source_end_seconds"] == pytest.approx(5.04)
+    assert observed["timeline_hash"] == record["proof_timeline_sha256"]
+    assert path.read_bytes() == original
+    with pytest.raises(workflow.WorkflowError, match="claims differ"):
+        workflow.bound_browser_tutorial_plan(record, source_video=tmp_path / "video.webm", device_profile="web-phone", approved_claims={**claims, "caption_text": "Changed"}, narration_id="N1")
+    path.write_text("{}")
+    with pytest.raises(workflow.WorkflowError, match="source hash changed"):
+        workflow.bound_browser_tutorial_plan(record, source_video=tmp_path / "video.webm", device_profile="web-phone", approved_claims=claims, narration_id="N1")
+
+
+def test_isolated_browser_proof_cannot_fall_back_to_generic_rendering(tmp_path):
+    with pytest.raises(workflow.WorkflowError, match="receipt-bound timeline"):
+        workflow.bound_browser_tutorial_plan({"source": "github_isolated"}, source_video=tmp_path / "video.webm", device_profile="web-phone", approved_claims={}, narration_id="N1")

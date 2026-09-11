@@ -74,7 +74,7 @@
   function classDateTime(date: unknown, timeRange: unknown, index: 0 | 1): string {
     const classDate = asText(date);
     const time = timeFromRange(timeRange, index);
-    return classDate && time ? `${classDate}T${time}:00` : '';
+    return classDate && time ? `${classDate}T${time}:00` : classDate;
   }
 
   let calendarStart = $derived(skillId === 'search_classes' ? classDateTime(result.date, result.time_range, 0) : '');

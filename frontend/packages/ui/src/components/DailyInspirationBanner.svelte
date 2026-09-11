@@ -155,12 +155,14 @@
     /** Start after the expanded intro when returning from a guest example chat. */
     skipLandingIntro?: boolean;
     /** Called when the visible inspiration changes, including manual and automatic carousel moves. */
+    /** Restore the guest workspace position after closing a chat. */
+    restoreGuestSlideId?: string | null;
     onVisibleInspirationChange?: (inspiration: DailyInspiration) => void;
     /** Called while the logged-out intro overlay changes size over the welcome surface. */
     onLandingIntroExpandedChange?: (phase: LandingIntroPhase) => void;
   }
 
-  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', landingIntroResetToken = 0, landingSignupSlideToken = 0, skipLandingIntro = false, onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', landingIntroResetToken = 0, landingSignupSlideToken = 0, skipLandingIntro = false, restoreGuestSlideId = null, onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
   let isGuestIntroVariant = $derived(variant === 'guest-intro');
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
@@ -229,6 +231,8 @@
   let lastLandingIntroResetToken = $state(0);
   let lastLandingSignupSlideToken = $state(0);
   let skipLandingIntroApplied = $state(false);
+  let guestSlideRestored = $state(false);
+  const guestSlideRestorePending = $derived(isGuestIntroVariant && !!restoreGuestSlideId && !guestSlideRestored);
   let landingIntroPrimaryRailOffsetPx = $state(0);
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
@@ -431,7 +435,7 @@
   });
 
   $effect(() => {
-    if (!current) return;
+    if (!current || guestSlideRestorePending) return;
     if (current.inspiration_id === lastNotifiedInspirationId) return;
     lastNotifiedInspirationId = current.inspiration_id;
     onVisibleInspirationChange?.(current);
@@ -564,7 +568,7 @@
   });
 
   $effect(() => {
-    if (!isGuestIntroVariant || landingIntroDismissed || visibleInspirations.length === 0) return;
+    if (guestSlideRestorePending || !isGuestIntroVariant || landingIntroDismissed || visibleInspirations.length === 0) return;
     const introIndex = visibleInspirations.findIndex((inspiration) =>
       inspiration.inspiration_id === LANDING_INTRO_INSPIRATION_ID,
     );
@@ -574,6 +578,7 @@
   });
 
   $effect(() => {
+    if (guestSlideRestorePending) return;
     if (!skipLandingIntro) {
       skipLandingIntroApplied = false;
       return;
@@ -585,6 +590,25 @@
     if (landingIntroIsCurrentSlide) {
       currentIndex = 1;
     }
+  });
+
+  $effect(() => {
+    if (!guestSlideRestorePending || visibleInspirations.length === 0) return;
+    const restoredIndex = visibleInspirations.findIndex((inspiration) =>
+      inspiration.inspiration_id === restoreGuestSlideId,
+    );
+    // A removed/personalized-away slide cannot be restored; use the normal intro.
+    if (restoredIndex < 0) {
+      console.warn('[DailyInspirationBanner] Previous guest slide is no longer available', restoreGuestSlideId);
+    } else {
+      currentIndex = restoredIndex;
+      landingIntroDismissed = restoreGuestSlideId !== LANDING_INTRO_INSPIRATION_ID;
+      landingIntroPhase = landingIntroDismissed ? 'regular' : 'expanded';
+    }
+    // These tokens describe actions before this remount, not new navigation.
+    lastLandingIntroResetToken = landingIntroResetToken;
+    lastLandingSignupSlideToken = landingSignupSlideToken;
+    guestSlideRestored = true;
   });
 
   $effect(() => {
@@ -612,13 +636,13 @@
   });
 
   $effect(() => {
-    if (!isGuestIntroVariant || landingIntroResetToken === lastLandingIntroResetToken) return;
+    if (guestSlideRestorePending || !isGuestIntroVariant || landingIntroResetToken === lastLandingIntroResetToken) return;
     lastLandingIntroResetToken = landingIntroResetToken;
     resetLandingIntroToFirstSlide();
   });
 
   $effect(() => {
-    if (!isGuestIntroVariant || landingSignupSlideToken === lastLandingSignupSlideToken) return;
+    if (guestSlideRestorePending || !isGuestIntroVariant || landingSignupSlideToken === lastLandingSignupSlideToken) return;
     const signupIndex = visibleInspirations.findIndex((inspiration) =>
       inspiration.inspiration_id === LANDING_SIGNUP_CTA_ID,
     );

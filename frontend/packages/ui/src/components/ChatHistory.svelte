@@ -1,7 +1,11 @@
 <script lang="ts">
+  import { searchResultImageUrl } from '../utils/searchPreviewImages';
+  import { collectHeaderImageRefs } from './embeds/embedPreviewHydration';
+  import { embedStore, embedRefIndexVersion } from '../services/embedStore';
   import { createEventDispatcher, tick, onMount, onDestroy, untrack } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import type { SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
+  import { parseMemoryRequest, mergeMemoryRequests } from "../utils/appMemoryRequests";
   import ChatMessage from "./ChatMessage.svelte";
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import QuickTipsCard from './QuickTipsCard.svelte';
@@ -346,6 +350,7 @@
   let headerImageBubbles = $state<HeaderImageBubble[] | null>(null);
   let headerImageBubbleRequestId = 0;
   let headerImageBubbleCandidateKey = '';
+  let headerImageBubbleChatKey: string | null = null;
   let headerImageBubbleRetryTick = $state(0);
   let headerImageBubbleRetryTimer: ReturnType<typeof setTimeout> | null = null;
   let headerImageBubbleRetryBaseKey = '';
@@ -460,7 +465,7 @@
     parentEmbedId: string,
     childEmbedId: string,
   ): boolean {
-    const rawUrl = result.thumbnail_url || result.image_url;
+    const rawUrl = searchResultImageUrl(result);
     if (!rawUrl || seen.has(rawUrl)) return false;
 
     seen.add(rawUrl);
@@ -486,7 +491,7 @@
       const appId = attrs.app_id;
       const skillId = attrs.skill_id;
       const contentRef = attrs.contentRef;
-      if (appId === 'images' && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
+      if ((appId === 'images' || appId === 'news' || appId === 'web' || appId === 'events') && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
         const parentEmbedId = contentRef.slice('embed:'.length);
         candidates.push({
           parentEmbedId,
@@ -503,9 +508,25 @@
     }
   }
 
-  async function resolveHeaderImageBubbles(candidates: ImageSearchCandidate[]): Promise<HeaderImageBubble[]> {
+  async function resolveHeaderImageBubbles(candidates: ImageSearchCandidate[], linkedRefs: string[], chatId: string | null): Promise<HeaderImageBubble[]> {
     const seen = new Set<string>();
     const bubbles: HeaderImageBubble[] = [];
+
+    // Explicit assistant references outrank parent preview order across all searches.
+    // Resolve actual child IDs so clicking a bubble opens the referenced result.
+    for (const ref of linkedRefs) {
+      const embedId = await embedStore.resolveByRefDeep(ref, chatId);
+      if (!embedId) continue;
+      const linkedEmbed = await resolveEmbed(embedId);
+      const decoded = linkedEmbed?.content ? await decodeToonContent(linkedEmbed.content) : null;
+      if (!decoded || typeof decoded !== 'object') continue;
+      const rawEntry = await embedStore.getRawEntry(`embed:${embedId}`);
+      const parentId = rawEntry?.parent_embed_id || embedId;
+      if (appendHeaderImageBubble(decoded, bubbles, seen, parentId, embedId)) return bubbles;
+      for (const result of getParentPreviewImageResults(decoded)) {
+        if (appendHeaderImageBubble(result, bubbles, seen, embedId, embedId)) return bubbles;
+      }
+    }
 
     for (const candidate of candidates) {
       let childEmbedIds = candidate.childEmbedIds;
@@ -524,6 +545,9 @@
           return bubbles;
         }
       }
+
+      // Parent metadata already carries the visible images; avoid duplicate child hydration.
+      if (parentPreviewResults.some(result => searchResultImageUrl(result))) continue;
 
       if (childEmbedIds.length === 0) {
         childEmbedIds = normalizeEmbedIds(decodedParent?.embed_ids ?? parentEmbed?.embed_ids);
@@ -593,21 +617,6 @@
    * Parse system message content to check if it's an app_settings_memories_request.
    * Returns the parsed content or null if not a valid request.
    */
-  function parseAppSettingsMemoriesRequest(content: unknown): AppSettingsMemoriesRequestContent | null {
-    if (typeof content !== 'string') {
-      console.warn(`[ChatHistory][parseRequest] content is not a string, got: ${typeof content}`, content);
-      return null;
-    }
-    try {
-      const parsed = JSON.parse(content);
-      if (parsed.type === 'app_settings_memories_request') {
-        return parsed as AppSettingsMemoriesRequestContent;
-      }
-    } catch {
-      // Not valid JSON, ignore
-    }
-    return null;
-  }
 
   /**
    * Helper to read thinking entries from the map with a stable signature.
@@ -635,9 +644,11 @@
     
     for (const msg of messages) {
       if (msg.role === 'system') {
-        const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
+        const request = parseMemoryRequest(msg.original_message?.content, msg.original_message?.message_id ?? msg.id);
         if (request) {
-          map.set(request.user_message_id, request);
+          const previous = map.get(request.user_message_id);
+          map.set(request.user_message_id, previous?.request_id === request.request_id
+            ? mergeMemoryRequests(previous, request) : request);
         }
       }
     }
@@ -818,7 +829,7 @@
         if (response?.type === 'app_settings_memories_response') {
           return false;
         }
-        const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
+        const request = parseMemoryRequest(msg.original_message?.content, msg.original_message?.message_id ?? msg.id);
         // Filter out app_settings_memories_request system messages
         if (request?.type === 'app_settings_memories_request') {
           return false;
@@ -1156,6 +1167,7 @@
     onSuggestionClick = undefined,
     onChatNavigate = undefined,
     onSpeakMessage = undefined,
+    canSpeakMessage = undefined,
     canAnnotate = true,
   }: {
     disablePointerEvents?: boolean;
@@ -1230,6 +1242,7 @@
     onSuggestionClick?: (suggestion: string) => void;
     onChatNavigate?: (chatId: string) => Promise<void> | void;
     onSpeakMessage?: (messageId: string, content: string) => Promise<void> | void;
+    canSpeakMessage?: (messageId: string) => boolean;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
     hasOlderMessages?: boolean;
     olderMessagesLoading?: boolean;
@@ -1674,10 +1687,16 @@
   }
 
   $effect(() => {
-    const requestId = ++headerImageBubbleRequestId;
+    const chatKey = currentChatId;
+    if (headerImageBubbleChatKey !== chatKey) {
+      headerImageBubbleChatKey = chatKey;
+      headerImageBubbles = null;
+      headerImageBubbleRequestId += 1;
+    }
     const retryTick = headerImageBubbleRetryTick;
 
     if (!showChatHeader || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError) {
+      headerImageBubbleRequestId += 1;
       headerImageBubbleCandidateKey = '';
       headerImageBubbleRetryBaseKey = '';
       headerImageBubbleRetryCount = 0;
@@ -1688,11 +1707,16 @@
     }
 
     const candidates: ImageSearchCandidate[] = [];
+    const linkedRefs = Array.from(new Set(messages
+      .filter(message => message.role === 'assistant')
+      .flatMap(message => collectHeaderImageRefs(message.content))));
+    const refIndexVersion = $embedRefIndexVersion;
     for (const message of messages) {
       collectImageSearchCandidates(message.content as TiptapNode | undefined, candidates);
     }
 
-    if (candidates.length === 0) {
+    if (candidates.length === 0 && linkedRefs.length === 0) {
+      headerImageBubbleRequestId += 1;
       headerImageBubbleCandidateKey = '';
       headerImageBubbleRetryBaseKey = '';
       headerImageBubbleRetryCount = 0;
@@ -1705,9 +1729,9 @@
     const embedUpdateKey = messages
       .map(message => message._embedUpdateTimestamp ?? '')
       .join('|');
-    const baseCandidateKey = `${candidates
+    const baseCandidateKey = `${chatKey}:${candidates
       .map(candidate => `${candidate.parentEmbedId}:${candidate.childEmbedIds.join('|')}`)
-      .join(';')}#${embedUpdateKey}`;
+      .join(';')}#${embedUpdateKey}#${linkedRefs.join('|')}#${refIndexVersion}`;
     if (baseCandidateKey !== headerImageBubbleRetryBaseKey) {
       headerImageBubbleRetryBaseKey = baseCandidateKey;
       headerImageBubbleRetryCount = 0;
@@ -1717,8 +1741,9 @@
     const candidateKey = `${baseCandidateKey}#retry:${retryTick}`;
     if (candidateKey === headerImageBubbleCandidateKey) return;
     headerImageBubbleCandidateKey = candidateKey;
+    const requestId = ++headerImageBubbleRequestId;
 
-    resolveHeaderImageBubbles(candidates)
+    resolveHeaderImageBubbles(candidates, linkedRefs, chatKey)
       .then((bubbles) => {
         if (requestId !== headerImageBubbleRequestId) return;
         headerImageBubbles = bubbles.length > 0 ? bubbles : null;
@@ -2932,7 +2957,7 @@
                         {onChatNavigate}
                         {canAnnotate}
                         isForgottenMessage={isForgottenMessage(msg)}
-                        onSpeak={msg.role === 'assistant' && onSpeakMessage && speechContent
+                        onSpeak={msg.role === 'assistant' && onSpeakMessage && speechContent && (canSpeakMessage?.(msg.id) ?? true)
                           ? () => onSpeakMessage(msg.id, speechContent)
                           : undefined}
                     />
@@ -3216,7 +3241,8 @@
     /* ActiveChat's action buttons float over both inline edges. Reserve those
        lanes in the scrollable message column so auto-scroll cannot move a
        bubble underneath them after the sidebar narrows the canvas. */
-    padding-inline: 90px;
+    /* Gradually release the floating-control gutters as the pane narrows. */
+    padding-inline: clamp(0px, calc((100cqw - 730px) / 3), 90px);
     /* Ensure minimum height for proper scrolling when messages exist */
     min-height: 100%;
   }

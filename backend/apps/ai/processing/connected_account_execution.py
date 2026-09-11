@@ -73,56 +73,65 @@ async def prepare_connected_account_skill_execution(
     token_map: dict[str, str] = {}
     artifacts: list[dict[str, str]] = []
 
-    for item in requests:
-        token_ref_payload = _find_token_ref(
-            connected_account_token_refs or [],
-            app_id=app_id,
-            action=action,
-            request=item,
-            config=config,
-            provider_id=config.provider_id,
-        )
-        if not token_ref_payload:
-            raise PermissionError(
-                f"Connected-account permission is required before executing {app_id}.{skill_id}"
+    try:
+        for item in requests:
+            token_ref_payload = _find_token_ref(
+                connected_account_token_refs or [],
+                app_id=app_id,
+                action=action,
+                request=item,
+                config=config,
+                provider_id=config.provider_id,
             )
-        action_scope = action_scope_for_request(item, action=action, config=config)
-        turn_token_ref = str(token_ref_payload["turn_token_ref"])
-        handle = await broker.exchange_turn_token_ref(
-            turn_token_ref=turn_token_ref,
-            user_id=user_id,
-            user_vault_key_id=user_vault_key_id,
-            chat_id=chat_id,
-            message_id=message_id,
-            app_id=app_id,
-            action=action,
-            provider_id=config.provider_id,
-            action_scope=action_scope,
+            if not token_ref_payload:
+                raise PermissionError(
+                    f"Connected-account permission is required before executing {app_id}.{skill_id}"
+                )
+            action_scope = action_scope_for_request(item, action=action, config=config)
+            turn_token_ref = str(token_ref_payload["turn_token_ref"])
+            handle = await broker.exchange_turn_token_ref(
+                turn_token_ref=turn_token_ref,
+                user_id=user_id,
+                user_vault_key_id=user_vault_key_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                app_id=app_id,
+                action=action,
+                provider_id=config.provider_id,
+                action_scope=action_scope,
+            )
+            # Track the handle before resolution, which can fail or be cancelled.
+            artifacts.append(
+                {
+                    "turn_token_ref": turn_token_ref,
+                    "access_token_handle": handle.access_token_handle,
+                    "connected_account_id": str(token_ref_payload.get("connected_account_id") or ""),
+                    "app_id": app_id,
+                    "provider_id": config.provider_id,
+                    "action": action,
+                    "action_scope": action_scope,
+                }
+            )
+            access_token = await broker.resolve_access_token_handle(
+                access_token_handle=handle.access_token_handle,
+                user_id=user_id,
+                user_vault_key_id=user_vault_key_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                app_id=app_id,
+                action=action,
+                provider_id=config.provider_id,
+                action_scope=action_scope,
+            )
+            item["access_token_handle"] = handle.access_token_handle
+            token_map[handle.access_token_handle] = access_token
+    except BaseException:
+        await cleanup_connected_account_token_artifacts(
+            token_artifacts=artifacts,
+            cache_service=cache_service,
+            encryption_service=encryption_service,
         )
-        access_token = await broker.resolve_access_token_handle(
-            access_token_handle=handle.access_token_handle,
-            user_id=user_id,
-            user_vault_key_id=user_vault_key_id,
-            chat_id=chat_id,
-            message_id=message_id,
-            app_id=app_id,
-            action=action,
-            provider_id=config.provider_id,
-            action_scope=action_scope,
-        )
-        item["access_token_handle"] = handle.access_token_handle
-        token_map[handle.access_token_handle] = access_token
-        artifacts.append(
-            {
-                "turn_token_ref": turn_token_ref,
-                "access_token_handle": handle.access_token_handle,
-                "connected_account_id": str(token_ref_payload.get("connected_account_id") or ""),
-                "app_id": app_id,
-                "provider_id": config.provider_id,
-                "action": action,
-                "action_scope": action_scope,
-            }
-        )
+        raise
 
     updated = dict(skill_arguments)
     updated[config.request_field] = requests
@@ -171,7 +180,11 @@ def _find_token_ref(
     provider_id: str,
 ) -> dict[str, Any] | None:
     request_scope = action_scope_for_request(request, action=action, config=config)
+    selected_account = request.get("connected_account_id")
+    matches: list[dict[str, Any]] = []
     for token_ref in token_refs:
+        if selected_account is not None and token_ref.get("connected_account_id") != selected_account:
+            continue
         if normalize_connected_account_app_id(token_ref.get("app_id")) != app_id:
             continue
         token_provider = normalize_connected_account_provider_id(
@@ -186,5 +199,9 @@ def _find_token_ref(
         if stored_scope and stored_scope != request_scope:
             continue
         if token_ref.get("turn_token_ref"):
-            return token_ref
-    return None
+            matches.append(token_ref)
+    # A token's list position is never account-selection authority. Existing
+    # single-account calls remain valid; multiple eligible accounts need selection.
+    if len({item.get("connected_account_id") for item in matches}) != 1:
+        return None
+    return matches[0]

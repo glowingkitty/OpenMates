@@ -8,6 +8,8 @@ See contracts/architecture/storage-lifecycle/contract.yml.
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 
 SUPPORTED_STORAGE_REGIONS = ("nbg1", "fsn1", "hel1")
 DEFAULT_STORAGE_REGIONS = SUPPORTED_STORAGE_REGIONS
@@ -68,11 +70,32 @@ def parse_storage_regions(value: str | None) -> tuple[str, ...]:
     return regions
 
 
-def endpoint_for_region(region: str) -> str:
+def endpoint_for_region(region: str, *, endpoint_override: str | None = None) -> str:
     """Return the Hetzner endpoint for one supported region."""
     if region not in SUPPORTED_STORAGE_REGIONS:
         raise ValueError(f"Unsupported storage region: {region}")
+    if endpoint_override:
+        endpoint = urlparse(endpoint_override)
+        if (endpoint.scheme not in ("http", "https") or not endpoint.hostname
+                or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment
+                or endpoint.path not in ("", "/")):
+            raise ValueError("S3 endpoint must be an HTTP(S) origin without credentials, path or query")
+        return endpoint_override.rstrip("/")
     return f"https://{region}.{HETZNER_OBJECT_STORAGE_DOMAIN}"
+
+
+def object_url_for_region(bucket: str, key: str, region: str, *, endpoint_override: str | None = None) -> str:
+    """Build provider URLs or explicit path-style isolated storage URLs.
+
+    GitHub CI uses an actual disposable S3 server rather than shared Hetzner
+    data. The caller supplies configuration; this policy stays deterministic.
+    See docs/architecture/isolated-github-tests.md.
+    """
+    endpoint = endpoint_for_region(region, endpoint_override=endpoint_override)
+    regional_bucket = resolve_regional_bucket_name(bucket, region)
+    if endpoint_override:
+        return f"{endpoint}/{regional_bucket}/{key}".rstrip("/")
+    return f"https://{regional_bucket}.{urlparse(endpoint).netloc}/{key}"
 
 
 def is_retryable_storage_error(error_code: str | None, http_status: int | str | None = None) -> bool:

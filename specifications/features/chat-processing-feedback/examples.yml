@@ -1,0 +1,45 @@
+schema_version: 1
+specification: feature.chat-processing-feedback@1
+
+selection:
+  - id: accepted-send-before-preprocessing
+    input: {server_processing_acknowledged: true, preprocessing_complete: false, selected_mate: null}
+    expect: {status: "Selecting mate & AI model...", location: above_composer, portrait: absent, ai_badge: absent, centered_duplicate: absent}
+  - id: click-without-server-acceptance
+    input: {send_clicked: true, server_processing_acknowledged: false}
+    expect: {selection_status: absent, existing_sending_or_failure_feedback_preserved: true}
+  - id: delayed-acknowledgement-after-selection
+    input: {current_phase: thinking, incoming_event: delayed_processing_acknowledgement}
+    expect: {phase: thinking, selection_status: absent}
+
+identity:
+  - id: george-selected
+    input: {selected_mate_name: George, phase: thinking, model_metadata: known}
+    expect: {status: "George is thinking...", portrait: small_circle, badge: ai_icon_bottom_right, model_information: retained}
+  - id: activate-mate-name
+    input: {selected_mate_name: George, action: activate_name}
+    expect: {destination: existing_george_mate_details, processing_continues: true, extra_message_sent: false}
+  - id: unknown-mate-is-not-last-turn-mate
+    input: {previous_mate_name: George, selected_mate: null}
+    expect: {george_portrait: absent, george_name_action: absent, broken_link: absent}
+
+lifecycle:
+  - id: terminal-state-clears-status
+    input: {previous_phase: thinking, next_state: completed_or_failed_or_cancelled_or_waiting_for_user}
+    expect: {processing_indicator: absent, existing_error_or_gate_preserved: true}
+  - id: late-event-for-inactive-turn
+    input: {active_chat: chat_b, incoming_typing_chat: chat_a}
+    expect: {chat_a_indicator_visible_in_chat_b: false}
+
+border:
+  - id: faded-transcript-with-active-rainbow
+    input: {processing_border: active, transcript_fade: visible, viewport: phone_or_laptop}
+    expect: {text_fade_preserved: true, rainbow_left_side_continuous: true, rainbow_right_side_continuous: true, controls_unobstructed: true}
+  - id: reduced-motion
+    input: {processing_border: active, prefers_reduced_motion: true}
+    expect: {border_visible: true, rainbow_animation_required: false}
+
+responsive:
+  - id: phone-and-laptop
+    input: {chat_width: phone_or_laptop, phase: thinking, selected_mate_name: George}
+    expect: {portrait_and_badge_unclipped: true, composer_unobstructed: true, mate_name_keyboard_activatable: true, composer_focus_stolen: false}

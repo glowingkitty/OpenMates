@@ -48,7 +48,7 @@ class FakeCache:
 async def test_process_due_ai_tasks_starts_due_rows() -> None:
     directus = SimpleNamespace()
     directus.cache = FakeCache()
-    task = {"id": "row-1", "task_id": "task-1", "hashed_user_id": hash_id("user-1"), "status": "todo", "assignee_type": "ai", "version": 2}
+    task = {"id": "row-1", "task_id": "task-1", "hashed_user_id": hash_id("user-1"), "status": "todo", "assignee_type": "openmates", "assignee_identity": "openmates", "version": 2}
     directus.get_items = AsyncMock(side_effect=[[task], [], [], [task], []])
     directus.update_item_if_version = AsyncMock(return_value={"id": "row-1", "status": "in_progress"})
 
@@ -75,7 +75,7 @@ async def test_due_ai_query_uses_durable_filters() -> None:
     await UserTaskMethods(directus).list_due_ai_tasks(200)
 
     params = directus.get_items.await_args.kwargs["params"]
-    assert params["filter[assignee_type][_eq]"] == "ai"
+    assert params["filter[assignee_type][_eq]"] == "openmates"
     assert params["filter[due_at][_lte]"] == 200
     assert params["filter[status][_eq]"] == "todo"
 
@@ -89,7 +89,7 @@ async def test_stale_queued_query_only_selects_expired_dispatch_leases() -> None
     await UserTaskMethods(directus).list_stale_queued_ai_tasks(200)
 
     params = directus.get_items.await_args.kwargs["params"]
-    assert params["filter[assignee_type][_eq]"] == "ai"
+    assert params["filter[assignee_type][_eq]"] == "openmates"
     assert params["filter[status][_eq]"] == "in_progress"
     assert params["filter[queue_state][_eq]"] == "active"
     assert params["filter[ai_execution_state][_eq]"] == "queued"
@@ -115,7 +115,7 @@ async def test_process_due_ai_tasks_skips_rows_without_version() -> None:
 # contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_scheduler_reconciles_waiting_todo_scope_without_due_task() -> None:
-    task = {"id": "row-1", "task_id": "task-1", "hashed_user_id": hash_id("user-1"), "status": "todo", "assignee_type": "ai", "version": 2}
+    task = {"id": "row-1", "task_id": "task-1", "hashed_user_id": hash_id("user-1"), "status": "todo", "assignee_type": "openmates", "assignee_identity": "openmates", "version": 2}
     directus = SimpleNamespace(cache=FakeCache())
     directus.get_items = AsyncMock(side_effect=[[], [task], [], [task], []])
     directus.update_item_if_version = AsyncMock(return_value={**task, "status": "in_progress", "version": 3})
@@ -136,7 +136,7 @@ async def test_scheduler_fails_stale_queued_task_before_refill() -> None:
         "status": "in_progress",
         "queue_state": "active",
         "ai_execution_state": "queued",
-        "assignee_type": "ai",
+        "assignee_type": "openmates", "assignee_identity": "openmates",
         "started_at": 100,
         "version": 2,
     }
@@ -153,7 +153,7 @@ async def test_scheduler_fails_stale_queued_task_before_refill() -> None:
         "task_id": "task-2",
         "hashed_user_id": hash_id("user-1"),
         "status": "todo",
-        "assignee_type": "ai",
+        "assignee_type": "openmates", "assignee_identity": "openmates",
         "version": 1,
     }
     directus = SimpleNamespace(cache=FakeCache())
@@ -213,7 +213,7 @@ async def test_stale_sweep_treats_worker_claim_lock_as_healthy_contention() -> N
         "status": "in_progress",
         "queue_state": "active",
         "ai_execution_state": "queued",
-        "assignee_type": "ai",
+        "assignee_type": "openmates", "assignee_identity": "openmates",
         "started_at": 100,
         "version": 2,
     }

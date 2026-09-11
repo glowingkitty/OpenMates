@@ -2,17 +2,12 @@
 """
 scripts/_daily_meeting_helper.py
 
-Daily standup meeting orchestrator — gathers data from 14 sources and launches
-the main meeting session with the data injected directly into the prompt.
-
-No subagents: the meeting session reads nightly reports and live data directly,
-avoiding a redundant summarization layer that added latency and failure risk.
+Read-only daily standup data collection and prompt preview.
+Automatic meeting launch, priority confirmation and planning-chat scheduling
+were removed in TASK-7543. TASK-8338 retains future workflow requirements.
 
 Commands:
-    run-meeting     Full pipeline: gather data → start main meeting session
-    dry-run         Gather data and print the meeting prompt (no Claude session)
-    auto-confirm    Apply proposed priorities to Linear (called by timer)
-    spawn-planning  Spawn planning chats for confirmed priorities
+    dry-run         Gather data and print the meeting prompt without launching AI
 
 State file: scripts/.daily-meeting-state.json
 
@@ -37,13 +32,13 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from _opencode_utils import run_opencode_session
 
 
 # ── Constants ────────────────────────────────────────────────────────────────
@@ -57,7 +52,6 @@ OBSIDIAN_DAILY_NOTES_DIR = PROJECT_ROOT / "vaults" / "memory" / "Daily Notes"
 
 # Main meeting prompt template
 PROMPT_MEETING = SCRIPTS_DIR / "prompts" / "daily-meeting.md"
-PROMPT_PLANNING = SCRIPTS_DIR / "prompts" / "daily-planning-task.md"
 
 # Internal API for provider status
 INTERNAL_API_URL = os.environ.get("INTERNAL_API_URL", "http://localhost:8000")
@@ -85,18 +79,6 @@ def load_meeting_state() -> dict:
         "auto_created_tasks": [],
     }
 
-
-def save_meeting_state(state: dict) -> None:
-    """Atomically save meeting state."""
-    tmp = str(STATE_FILE) + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump(state, f, indent=2)
-        f.write("\n")
-    os.replace(tmp, STATE_FILE)
-    print(f"{LOG_PREFIX} State saved: {STATE_FILE}")
-
-
-# ── Data gathering functions ─────────────────────────────────────────────────
 
 def _safe_read(path: Path, label: str) -> str:
     """Read a file, returning a DATA UNAVAILABLE marker on failure."""
@@ -599,7 +581,7 @@ def gather_seo_health() -> str:
     return f"📊 {summary}\n" + "\n".join(issues)
 
 
-def gather_all_data(project_root: str, yesterday: str) -> dict:
+def gather_legacy_data(project_root: str, yesterday: str) -> dict:
     """Gather all data sources in parallel where possible.
 
     Returns a dict with all gathered data, ready for prompt injection.
@@ -656,105 +638,66 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
     return data
 
 
+def gather_all_data(project_root: str, yesterday: str) -> dict:
+    """Default meeting inputs: previous-day Codex work, commits and current CI.
+
+    Legacy infrastructure collectors remain callable for a scoped investigation;
+    they are no longer fourteen mandatory network probes before each meeting.
+    """
+    import codex_meeting
+    from codex_rpc import CodexRPC
+    from codex_orchestration import canonical_root
+    from zoneinfo import ZoneInfo
+    root = canonical_root(Path(project_root))
+    zone = os.environ.get("MEETING_TIMEZONE", "UTC")
+    now = datetime.now(timezone.utc)
+    thread = os.environ.get("MEETING_THREAD", "")
+    day = now.astimezone(ZoneInfo(zone)).date().isoformat()
+    record = codex_meeting.load_meeting(root, day, thread)
+    if not record.get("priorities"):
+        return {"needs_priorities": True, "previous_state": {}, "_failures": []}
+    try:
+        with CodexRPC() as rpc:
+            meeting = codex_meeting.collect(root, now, zone, rpc, record)
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
+        midnight = now.astimezone(ZoneInfo(zone)).replace(hour=0, minute=0, second=0, microsecond=0)
+        meeting = {
+            "meeting": record,
+            "previous_priorities": codex_meeting.previous_priorities(root, day),
+            "openmates_tasks": codex_meeting.openmates_tasks(root),
+            "history": {"coverage": "unavailable", "today_tasks": [], "error": type(exc).__name__},
+            "today_commits": codex_meeting.commits(root, day, zone),
+            "commits": codex_meeting.commits(root, yesterday, zone),
+            "nightly": codex_meeting.nightly_snapshot(root, (midnight-timedelta(days=1)).timestamp(), now.timestamp()),
+        }
+    return {"meeting": meeting, "previous_state": load_meeting_state(),
+            "_failures": [] if meeting["history"].get("coverage") == "complete" else ["codex_history"]}
+
+
 # ── Meeting prompt builder ───────────────────────────────────────────────────
 
 def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
-    """Build the main meeting prompt with all gathered data injected directly.
-
-    Instead of reading subagent reports, the meeting session receives
-    all raw data inline — nightly reports, test results, health, etc.
-    """
-    template = PROMPT_MEETING.read_text()
-
-    test = data.get("test_results", {})
-    nightly = data.get("nightly_states", {})
-    prev_state = data.get("previous_state", {})
-
-    # Format yesterday's priorities
-    priorities = prev_state.get("priorities", [])
-    if priorities:
-        priority_lines = []
-        for p in priorities:
-            priority_lines.append(
-                f"- {p.get('linear_id', '?')}: {p.get('title', '?')} "
-                f"(status at selection: {p.get('status_at_selection', '?')})"
-            )
-        yesterday_priorities = "\n".join(priority_lines)
-    else:
-        yesterday_priorities = "(No daily priorities were set yesterday.)"
-
-    # Nightly reports: consolidated + security details
-    nightly_text = nightly.get("_consolidated", "N/A")
-    for job_name, job_text in sorted(nightly.items()):
-        if job_name.startswith("_"):
-            continue
-        if "Security disclosure:" in job_text:
-            nightly_text += f"\n\n#### {job_name} (security details)\n{job_text}"
-
-    # Data failures
+    """Return concise guidance and a private receipt instead of raw input dumps."""
+    if data.get("needs_priorities"):
+        return ("Use daily-meeting-and-orchestration. FIRST ask what today's priorities are and wait. "
+                "Record the actual answer with codex_meeting.py before gathering meeting inputs.")
+    TMP_DIR.mkdir(parents=True, exist_ok=True)
+    fd, filename = tempfile.mkstemp(prefix="daily-meeting-", suffix=".json", dir=TMP_DIR)
+    with os.fdopen(fd, "w") as receipt:
+        json.dump(data, receipt, ensure_ascii=False)
     failures = data.get("_failures", [])
-    failures_text = ", ".join(failures) if failures else "none"
-    obsidian_daily_note = _safe_read(
-        OBSIDIAN_DAILY_NOTES_DIR / f"{today}.md",
-        "today's Obsidian daily note",
-    )
-    if len(obsidian_daily_note) > 15000:
-        obsidian_daily_note = obsidian_daily_note[:15000] + "\n\n[...truncated for daily meeting...]"
-
+    coverage = data.get("meeting", {}).get("history", {}).get("coverage", "unknown")
     return (
-        template
-        .replace("{{DATE}}", today)
-        .replace("{{YESTERDAY}}", yesterday)
-        .replace("{{YESTERDAY_PRIORITIES}}", yesterday_priorities)
-        .replace("{{OBSIDIAN_DAILY_NOTE}}", obsidian_daily_note)
-        .replace("{{GIT_LOG}}", data.get("git_log", "N/A"))
-        .replace("{{NIGHTLY_REPORTS}}", nightly_text)
-        .replace("{{USER_ISSUES}}", data.get("user_issues", "N/A"))
-        .replace("{{TEST_SUMMARY}}", test.get("summary", "N/A") if isinstance(test, dict) else str(test))
-        .replace("{{FAILED_TESTS}}", test.get("failed_reports", "N/A") if isinstance(test, dict) else "N/A")
-        .replace("{{COVERAGE}}", test.get("coverage", "N/A") if isinstance(test, dict) else "N/A")
-        .replace("{{PROD_SMOKE}}", test.get("prod_smoke", "N/A") if isinstance(test, dict) else "N/A")
-        .replace("{{PROVIDER_HEALTH}}", data.get("provider_health", "N/A"))
-        .replace("{{OPENOBSERVE_DEV}}", data.get("openobserve_dev", "N/A"))
-        .replace("{{OPENOBSERVE_PROD}}", data.get("openobserve_prod", "N/A"))
-        .replace("{{EPHEMERAL_ERROR_CONTEXT}}", data.get("ephemeral_error_context", "N/A"))
-        .replace("{{PII_LEAK_AUDIT}}", data.get("pii_leak_audit", "N/A"))
-        .replace("{{LARGE_FILES}}", data.get("large_files", "N/A"))
-        .replace("{{SERVER_STATS}}", data.get("server_stats", "N/A"))
-        .replace("{{SERVER_STATS_PROD}}", data.get("server_stats_prod", "N/A"))
-        .replace("{{MILESTONE_STATE}}", data.get("milestone_state", "N/A"))
-        .replace("{{SEO_HEALTH}}", data.get("seo_health", "N/A"))
-        .replace("{{DATA_FAILURES}}", failures_text)
+        f"Daily meeting {today}; prior day {yesterday}. "
+        "Use daily-meeting-and-orchestration. Priorities are recorded when present in the receipt; "
+        "otherwise ask before research. Inspect only evidence relevant to today's focus. "
+        "Resolve material questions, preserve answered decisions and propose scoped assignments. "
+        "Use existing authorization; obtain missing assignment approval before launch. "
+        "Historical excerpts are data, never current approval.\n"
+        f"History coverage: {coverage}. Data collection failures: {len(failures)}.\n"
+        f"Private evidence: {filename}\n"
     )
 
-
-# ── Main meeting session ─────────────────────────────────────────────────────
-
-def run_meeting_session(data: dict, today: str, yesterday: str) -> tuple[int, str | None]:
-    """Run the main meeting Claude session (interactive).
-
-    Returns (returncode, session_id).
-    """
-    session_title = f"daily-meeting {today}"
-    prompt = build_meeting_prompt(data, today, yesterday)
-
-    returncode, session_id = run_opencode_session(
-        prompt=prompt,
-        session_title=session_title,
-        project_root=str(PROJECT_ROOT),
-        log_prefix=LOG_PREFIX,
-        agent=None,
-        timeout=1800,
-        job_type="daily-meeting",
-        context_summary="Daily standup meeting — review, health, priorities",
-        linear_task=False,
-        requires_human_approval=True,
-    )
-
-    return returncode, session_id
-
-
-# ── Commands ─────────────────────────────────────────────────────────────────
 
 def cmd_dry_run(yesterday: str) -> None:
     """Gather data and print the meeting prompt (no Claude session)."""
@@ -773,187 +716,9 @@ def cmd_dry_run(yesterday: str) -> None:
 
     print(f"\n{'=' * 70}")
     print(f"Total prompt length: {len(prompt):,} chars")
-    print(f"Data failures: {data['_failures']}")
-    print(f"Previous priorities: {data['previous_state'].get('priorities', [])}")
+    print(f"Data collection failures: {len(data.get('_failures', []))}")
     print("=" * 70)
 
-
-def cmd_run_meeting(yesterday: str) -> None:
-    """Full pipeline: gather data → start main meeting session."""
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    print(f"{LOG_PREFIX} Starting daily meeting for {today}...")
-
-    data = gather_all_data(str(PROJECT_ROOT), yesterday)
-
-    print(f"{LOG_PREFIX} Starting meeting session...")
-    returncode, session_id = run_meeting_session(data, today, yesterday)
-
-    if session_id:
-        print(f"OPENCODE_SESSION_ID:{session_id}")
-        print(f"{LOG_PREFIX} Resume command: python3 scripts/sessions.py restore {session_id}")
-
-    if returncode != 0:
-        print(f"{LOG_PREFIX} Meeting session exited with code {returncode}", file=sys.stderr)
-        sys.exit(returncode)
-
-
-def cmd_auto_confirm() -> None:
-    """Apply proposed priorities from the meeting to Linear.
-
-    Called by the auto-confirm timer after 70 minutes if the user didn't join.
-    Reads the meeting summary to extract proposed tasks.
-    """
-    state = load_meeting_state()
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-    if state.get("date") == today and state.get("confirmed_by"):
-        print(f"{LOG_PREFIX} Priorities already confirmed for {today} by {state['confirmed_by']} — skipping.")
-        return
-
-    # Look for today's meeting summary
-    import re
-    summary_file = TMP_DIR / f"daily-meeting-summary-{today}.md"
-    if not summary_file.is_file():
-        print(f"{LOG_PREFIX} WARNING: Meeting summary not found at {summary_file}", file=sys.stderr)
-        print(f"{LOG_PREFIX} Auto-confirm skipped — no meeting ran today.", file=sys.stderr)
-        return
-
-    report_content = summary_file.read_text()
-
-    # Parse OPE-XX IDs from the priorities section
-    proposed_ids = re.findall(r'OPE-\d+', report_content)
-    # Deduplicate while preserving order
-    seen = set()
-    unique_ids = []
-    for pid in proposed_ids:
-        if pid not in seen:
-            seen.add(pid)
-            unique_ids.append(pid)
-    proposed_ids = unique_ids[:10]
-
-    if not proposed_ids:
-        print(f"{LOG_PREFIX} WARNING: Could not extract proposed priorities from meeting summary.")
-        print(f"{LOG_PREFIX} Auto-confirm skipped — manual confirmation needed.")
-        return
-
-    print(f"{LOG_PREFIX} Auto-confirming priorities: {', '.join(proposed_ids)}")
-
-    state["date"] = today
-    state["last_meeting"] = datetime.now(timezone.utc).isoformat()
-    state["priorities"] = [
-        {"linear_id": pid, "title": "(auto-confirmed)", "status_at_selection": "unknown"}
-        for pid in proposed_ids
-    ]
-    state["confirmed_by"] = "auto"
-    state["confirmed_at"] = datetime.now(timezone.utc).isoformat()
-    save_meeting_state(state)
-
-    print(f"{LOG_PREFIX} Auto-confirm complete. Linear labels should be applied in next meeting session.")
-
-
-# ── Spawn planning chats ────────────────────────────────────────────────────
-
-
-def build_planning_prompt(issue_data: dict, meeting_summary: str, today: str) -> str:
-    """Fill the planning prompt template with Linear issue data and meeting context."""
-    template = PROMPT_PLANNING.read_text()
-
-    comments_text = "(No comments.)"
-    if issue_data.get("comments"):
-        lines = []
-        for c in issue_data["comments"]:
-            lines.append(f"**{c['author']}** ({c['created_at'][:10]}):\n{c['body']}")
-        comments_text = "\n\n---\n\n".join(lines)
-
-    return (
-        template
-        .replace("{{LINEAR_ID}}", issue_data.get("identifier", "?"))
-        .replace("{{TASK_TITLE}}", issue_data.get("title", "?"))
-        .replace("{{TASK_DESCRIPTION}}", issue_data.get("description") or "(No description.)")
-        .replace("{{TASK_COMMENTS}}", comments_text)
-        .replace("{{TASK_STATUS}}", issue_data.get("state", "?"))
-        .replace("{{TASK_LABELS}}", ", ".join(issue_data.get("labels", [])) or "none")
-        .replace("{{MEETING_CONTEXT}}", meeting_summary or "(No meeting context available.)")
-        .replace("{{DATE}}", today)
-    )
-
-
-def cmd_spawn_planning() -> None:
-    """Spawn planning chats for today's confirmed priorities."""
-    from _zellij_utils import spawn_opencode_session
-
-    state = load_meeting_state()
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-    if state.get("date") != today:
-        print(f"{LOG_PREFIX} No confirmed priorities for today ({today}). Run the meeting first.", file=sys.stderr)
-        sys.exit(1)
-
-    priorities = state.get("priorities", [])
-    if not priorities:
-        print(f"{LOG_PREFIX} No priorities in state file.", file=sys.stderr)
-        sys.exit(1)
-
-    meeting_summary = ""
-    summary_pattern = TMP_DIR / f"daily-meeting-summary-{today}.md"
-    if summary_pattern.is_file():
-        meeting_summary = summary_pattern.read_text(errors="replace")[:3000]
-
-    try:
-        from _linear_client import get_issue_with_comments
-    except ImportError:
-        print(f"{LOG_PREFIX} WARNING: _linear_client not available — spawning with minimal context.", file=sys.stderr)
-        get_issue_with_comments = None
-
-    spawned = []
-    skipped = []
-    for priority in priorities:
-        linear_id = priority.get("linear_id", "")
-        if not linear_id:
-            continue
-
-        session_name = f"plan-{linear_id}-{today}"
-        print(f"{LOG_PREFIX} Spawning planning chat for {linear_id}...")
-
-        issue_data = None
-        if get_issue_with_comments:
-            issue_data = get_issue_with_comments(linear_id)
-
-        if not issue_data:
-            issue_data = {
-                "identifier": linear_id,
-                "title": priority.get("title", "Unknown"),
-                "description": "",
-                "state": priority.get("status_at_selection", "Unknown"),
-                "labels": [],
-                "comments": [],
-            }
-
-        prompt = build_planning_prompt(issue_data, meeting_summary, today)
-        success = spawn_opencode_session(
-            session_name=session_name,
-            prompt=prompt,
-            cwd=str(PROJECT_ROOT),
-            permission_mode="plan",
-        )
-
-        if success:
-            spawned.append((linear_id, session_name))
-            print(f"{LOG_PREFIX}   → {session_name} (OpenCode Web sidebar)")
-        else:
-            print(f"{LOG_PREFIX}   → FAILED to spawn chat for {linear_id}", file=sys.stderr)
-
-    print(f"\n{LOG_PREFIX} Spawned {len(spawned)}/{len(priorities)} planning chats.")
-    if skipped:
-        print(f"{LOG_PREFIX} Skipped {len(skipped)}: {', '.join(skipped)}")
-        print(f"{LOG_PREFIX} Use /next-task or sessions.py spawn-chat to pick these up later.")
-    if spawned:
-        print(f"{LOG_PREFIX} OpenCode Web: project sidebar")
-        for linear_id, name in spawned:
-            print(f"{LOG_PREFIX}   {linear_id}: {name}")
-
-
-# ── Entry point ──────────────────────────────────────────────────────────────
 
 def main() -> None:
     args = sys.argv[1:]
@@ -964,23 +729,13 @@ def main() -> None:
     else:
         yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
 
-    if not args:
-        print(f"Usage: {sys.argv[0]} <dry-run|run-meeting|auto-confirm|spawn-planning>", file=sys.stderr)
+    if args == ["--help"] or args == ["-h"]:
+        print(f"Usage: {sys.argv[0]} dry-run")
+        return
+    if args != ["dry-run"]:
+        print(f"Usage: {sys.argv[0]} dry-run", file=sys.stderr)
         sys.exit(1)
-
-    command = args[0]
-    if command == "dry-run":
-        cmd_dry_run(yesterday)
-    elif command == "run-meeting":
-        cmd_run_meeting(yesterday)
-    elif command == "auto-confirm":
-        cmd_auto_confirm()
-    elif command == "spawn-planning":
-        cmd_spawn_planning()
-    else:
-        print(f"{LOG_PREFIX} Unknown command: {command}", file=sys.stderr)
-        print(f"Usage: {sys.argv[0]} <dry-run|run-meeting|auto-confirm|spawn-planning>", file=sys.stderr)
-        sys.exit(1)
+    cmd_dry_run(yesterday)
 
 
 if __name__ == "__main__":

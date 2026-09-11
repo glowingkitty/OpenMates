@@ -1,0 +1,1078 @@
+schema_version: 2
+id: landing-example-quality-campaign
+goal: Get the 12 landingpage example chats to a high quality and bug free experience and with audio speaking working
+  properly.
+status: implementing
+approval:
+  user_approved: true
+  scope: User approved proposal and separate own-worktree chats; coordinator until daily meeting handoff.
+  audio_gate: ONE example with working speech must be confirmed by user before remaining audio generation.
+coordination:
+  session: 4aa6
+  handoff_to: daily meeting and orchestration chat when user requests
+  worker_rules:
+  - Each worker starts its own sessions.py session/worktree before edits; never write canonical root or coordinator
+    worktree. Verify distinct worktree and report it. You are not alone; do not revert others; acquire edit leases
+    and shared runtime locks.
+  - Start real conversations through OpenMates CLI against dev. Read each response then react naturally, never invent
+    or rewrite transcript or force app/focus mentions. Explicit model mentions only for provider examples. Stop
+    clear bugs/bad responses and investigate; ask user when ambiguous.
+  - Inspect full deployed web conversation on phone and laptop, exercise links, previews/fullscreen, maps/artifacts,
+    composer/follow-ups/focus. Correct mate/model/language, realistic useful outcome and slide relevance required.
+    Follow repo deployed tests/proof workflow.
+  - No example worker generates audio until speech pilot confirmed by user. Speech owner coordinates narration.
+    No image/video/audio generation showcase in landing.
+  - Shared defects go to assigned fix worker; do not duplicate shared renderer changes. Own only candidate data/translations/proof
+    for your example. Catalog owner integrates registry/slide mapping. Coordinate test account memory mutation;
+    no concurrent changes to same preferences.
+  - Record meaningful milestones/bugs/decisions/evidence in assigned OpenMates task activities, and report to coordinator.
+    Never mark complete based on transcript-only checks.
+  - Product semantic changes need existing approved Specification or present exact review artifact for approval.
+    Planning/design task approval is already given; do not repeat five clarification rounds.
+  batching: Bounded workers; prioritize speech/shared blockers and first content candidate. Spawn remaining separate
+    workers as capacity frees.
+  specifications: Coordinator assigns work only; workers inspect governing Specifications before product edits.
+  specification_decisions_2026_09_08:
+    approved:
+    - feature.ai-model-routing-75e40f6ee6d82dc2; preprocessing recovery; owner example-sonnet
+    - feature.app-memories-278c09756fdcbea7; duplicate consent prevention; owner example-work-memory
+    shared_focus_owner: fix-focus-state; career supplies instruction-loading evidence
+    shared_focus_behavior: Every active-focus request includes full instructions in system prompt; off omits them;
+      activation/deactivation history events remain without instruction content. Historical countdowns belong here.
+    individual_research: feature.web.focus-mode.deep-research; link shared lifecycle
+    app_skill_contracts: Appointment selection and generated-video preview belong to their full app-skill contracts.
+    reuse_first: Preview and dollar rendering owners must check existing contracts before proposing new bundles.
+    examples: Every new or changed requirement must include one or two concrete assertion-mapped examples.
+    pending_question: Explain app-skill instruction sources and recommend observable guarantees in specs, prompt wording in implementation.
+  registry_worker:
+    worker: task_registry
+    session: 6d7a
+  observed_blockers:
+  - Installed CLI is older than supported Codex attribution; registry worker built current CLI locally without global
+    install.
+  - First activities candidate dropped next-week constraint before tool execution.
+  - Current selected examples have no public_speech manifests; pilot awaits content-approved candidate.
+  task_registry:
+  - key: example-activities
+    plan_task_id: TASK-1
+    task_id: 66d77634-46ba-49db-8243-042506b2e58c
+    short_id: TASK-8912
+    title: 'Apps: Berlin workshops'
+  - key: example-appointments
+    plan_task_id: TASK-2
+    task_id: e23f8cc5-cbaf-49ed-b569-b003aeb576f1
+    short_id: TASK-584
+    title: 'Apps: Berlin doctor appointment'
+  - key: example-flights
+    plan_task_id: TASK-3
+    task_id: 6823f1b2-ac46-48a8-aed9-b2dd6e286df9
+    short_id: TASK-3325
+    title: 'Apps: compare holiday flights'
+  - key: example-pii
+    plan_task_id: TASK-4
+    task_id: 8af0f735-ff11-41e6-add9-fec6ac633c73
+    short_id: TASK-77
+    title: 'Privacy: email and phone protection'
+  - key: example-travel-memory
+    plan_task_id: TASK-5
+    task_id: 1f8b7518-fefc-48ef-8ccc-a53911d8088d
+    short_id: TASK-3958
+    title: 'Privacy: Paris travel memories'
+  - key: example-work-memory
+    plan_task_id: TASK-6
+    task_id: 19654fc1-27ab-4d4e-a6c9-21a4d9100817
+    short_id: TASK-8774
+    title: 'Privacy: work writing memories'
+  - key: example-career
+    plan_task_id: TASK-7
+    task_id: 44c11197-5a09-492f-af2e-a65b59d5c956
+    short_id: TASK-6436
+    title: 'Focus: career insights'
+  - key: example-research
+    plan_task_id: TASK-8
+    task_id: ad521cb4-6649-48df-b1e5-b59aa8eb09eb
+    short_id: TASK-1905
+    title: 'Focus: evidence-backed egg-price research'
+  - key: example-reputation
+    plan_task_id: TASK-9
+    task_id: 71a89975-5531-4bdd-96fe-b49f43cb1f3d
+    short_id: TASK-3588
+    title: 'Focus: shop reputation'
+  - key: example-astra
+    plan_task_id: TASK-10
+    task_id: 8ce206ef-0542-47ed-b582-a1e5a8f3c2a8
+    short_id: TASK-3176
+    title: 'Providers: GPT-6 Astra habit tracker'
+  - key: example-sonnet
+    plan_task_id: TASK-11
+    task_id: 33b16567-fd1a-4404-b08a-e3a68d34c0b6
+    short_id: TASK-9006
+    title: 'Providers: Claude Sonnet 5 client email'
+  - key: example-mistral
+    plan_task_id: TASK-12
+    task_id: 29d8e9b1-331a-4add-8273-8dfb71573305
+    short_id: TASK-8548
+    title: 'Providers: Mistral Medium printing choice'
+  - key: fix-speech
+    plan_task_id: TASK-13
+    task_id: 47b47f09-d38d-4a78-911b-138987b00c6a
+    short_id: TASK-5641
+    title: Repair example speech and deliver one audio pilot
+  - key: fix-interactions
+    plan_task_id: TASK-14
+    task_id: 2ac8891f-00f1-45eb-854b-dc400601ecab
+    short_id: TASK-5147
+    title: Fix example links follow-ups and composer activation
+  - key: fix-focus-state
+    plan_task_id: TASK-15
+    task_id: 97776532-d73d-4cd3-94d0-649ac1c8c42d
+    short_id: TASK-2879
+    title: Fix historical focus countdown and banner placement
+  - key: fix-previews
+    plan_task_id: TASK-16
+    task_id: dd76f69d-9ef8-4a62-84df-f5a1f1cef60c
+    short_id: TASK-1503
+    title: Fix failed images PDF previews and dollar-sign text
+  - key: fix-research-evidence
+    plan_task_id: TASK-17
+    task_id: 39f575f0-04de-4d56-b77c-d5175bfed7d2
+    short_id: TASK-4273
+    title: Preserve quoted source evidence in deep research
+  - key: fix-mindmaps
+    plan_task_id: TASK-18
+    task_id: 0b815ac1-2c50-4180-9a51-ec260ac4f6aa
+    short_id: TASK-4213
+    title: Review and improve mindmap fullscreen rendering
+  - key: fix-video
+    plan_task_id: TASK-19
+    task_id: e3758b49-eb73-4778-9b9d-883d82ab1f3e
+    short_id: TASK-5592
+    title: Fix generated-video preview and replace bad example
+  - key: fix-catalog
+    plan_task_id: TASK-20
+    task_id: 86137701-4bd7-4ad3-95fa-8130b1f84160
+    short_id: TASK-5238
+    title: Remove rejected examples and integrate approved landing set
+  - key: fix-browser-review
+    plan_task_id: TASK-21
+    task_id: e98f3d64-9cda-4a61-b63d-8cc6580f7c58
+    short_id: TASK-4584
+    title: Create reusable rendered-chat review skill
+  - key: coordinator
+    task_id: dad5ffe9-3183-4199-b6df-2dd2eb6da7e8
+    short_id: TASK-5745
+    title: Coordinate landing example quality campaign
+  - key: fix-events-date-filter
+    task_id: 8fc0a82d-71ec-4dcc-9548-b257a9c1ed41
+    short_id: TASK-9160
+    title: Fix next-week event date filters and timezone parsing
+  coordinator_task: TASK-5745
+  new_shared_bug: TASK-9160
+  visibility_correction: Initial native subagents and exec threads were hidden by default UI source filter. All
+    21 assignments now have named interactive-source app-server threads; queue carries approved handoff, preserving
+    old workers and avoiding duplicate work.
+  activation_verified: All 20 formerly queued visible worker threads have inProgress turns and actual commandExecution
+    items. Doctor appointment thread started earlier. Prior worker findings supplied to prevent duplicate work.
+tasks:
+- id: TASK-1
+  title: 'Apps: Berlin workshops'
+  status: in_progress
+  kind: example
+  opening: A friend is visiting Berlin for next week. We’d like to try a drawing or pottery workshop together. What’s
+    available?
+  acceptance: Working event links, available results; no settings navigation from result links.
+  review:
+    source_chat: bb0505c3-8b1c-4bed-976a-88650b32b0b3
+    deployed_url: null
+    content: 'rejected: next-week request became this-week results'
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner:
+    worker: example_activities
+    session: 08b4
+    worktree: /home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-08b4
+  key: example-activities
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers:
+  - Tool requests start at current time and lack end_date; investigate date-intent propagation and bracketed IANA
+    parsing.
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 66d77634-46ba-49db-8243-042506b2e58c
+    short_id: TASK-8912
+  visible_chat:
+    id: 01a080f6-03b1-7dd0-94bb-bd07108ebb07
+    url: codex://threads/01a080f6-03b1-7dd0-94bb-bd07108ebb07
+    queue_state: running
+    turn_id: 01a080f9-3be6-7d33-8ca7-fd5274d79719
+- id: TASK-2
+  title: 'Apps: Berlin doctor appointment'
+  status: pending
+  kind: example
+  opening: I fell while playing basketball today and my hand still hurts a lot. Find me a doctor appointment in
+    Berlin for as soon as possible.
+  acceptance: Appropriate injury handling and actionable appointment links, inspect map/results; no irrelevant sheet.
+  review:
+    source_chat: null
+    deployed_url: null
+    content: pending
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner: null
+  key: example-appointments
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: e23f8cc5-cbaf-49ed-b569-b003aeb576f1
+    short_id: TASK-584
+  visible_chat:
+    id: 01a080f4-f82a-7270-b846-668e3ce8c437
+    url: codex://threads/01a080f4-f82a-7270-b846-668e3ce8c437
+    queue_state: running
+- id: TASK-3
+  title: 'Apps: compare holiday flights'
+  status: in_progress
+  kind: example
+  opening: I have holiday from Oct 10 to 20. Search for flights from Berlin to Lisbon, Paris, London. Which of the
+    flights would be the cheapest and when?
+  acceptance: Clarify material itinerary ambiguity naturally; comparable itineraries, dates, prices and booking
+    links.
+  review:
+    source_chat: null
+    deployed_url: null
+    content: pending
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner: null
+  key: example-flights
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 6823f1b2-ac46-48a8-aed9-b2dd6e286df9
+    short_id: TASK-3325
+  visible_chat:
+    id: 01a080f6-9048-75c3-9f0c-f0f0b1911623
+    url: codex://threads/01a080f6-9048-75c3-9f0c-f0f0b1911623
+    queue_state: running
+    turn_id: 01a080f9-3c00-7991-90db-23ffd1193ffe
+- id: TASK-4
+  title: 'Privacy: email and phone protection'
+  status: in_progress
+  kind: example
+  opening: Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available
+    tomorrow afternoon. Ask them to contact me at lena.hoffmann@example.com or +1 202-555-0147 to arrange a visit.
+  acceptance: Fictional contacts; visibly verify email/phone detection and replacement, no claim of name/address
+    detection.
+  review:
+    source_chat: null
+    deployed_url: null
+    content: pending
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner: null
+  key: example-pii
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 8af0f735-ff11-41e6-add9-fec6ac633c73
+    short_id: TASK-77
+  visible_chat:
+    id: 01a080f6-92ce-7ed0-b196-4a3cc31208f0
+    url: codex://threads/01a080f6-92ce-7ed0-b196-4a3cc31208f0
+    queue_state: running
+    turn_id: 01a080f9-3c17-7bc3-86ee-b413e20279b5
+- id: TASK-5
+  title: 'Privacy: Paris travel memories'
+  status: in_progress
+  kind: example
+  opening: I am visiting Paris from October 1 to 20th. Suggestions for places i should check out?
+  acceptance: Coordinate prepared fictional travel memories before generation; verify actual memory request/consent/personalization.
+  review:
+    source_chat: null
+    deployed_url: null
+    content: pending
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner: null
+  key: example-travel-memory
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 1f8b7518-fefc-48ef-8ccc-a53911d8088d
+    short_id: TASK-3958
+  visible_chat:
+    id: 01a080f6-953b-7473-83c2-f55b7c70fdb4
+    url: codex://threads/01a080f6-953b-7473-83c2-f55b7c70fdb4
+    queue_state: running
+    turn_id: 01a080f9-3c49-70b3-86d0-4572530b34ed
+- id: TASK-6
+  title: 'Privacy: work writing memories'
+  status: in_progress
+  kind: example
+  opening: Help me draft a reply to a customer asking whether I can photograph their event next Friday. I’m available,
+    but I need the location, timings and approximate guest count before I can quote. Use my saved writing preferences
+    and include lena.hoffmann@example.com as my contact email.
+  acceptance: Prepared fictional writing memories, no mailbox access implied; verify email protection.
+  review:
+    source_chat: null
+    deployed_url: null
+    content: pending
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner: null
+  key: example-work-memory
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 19654fc1-27ab-4d4e-a6c9-21a4d9100817
+    short_id: TASK-8774
+  visible_chat:
+    id: 01a080f6-97c8-7df2-bead-3423cb53299b
+    url: codex://threads/01a080f6-97c8-7df2-bead-3423cb53299b
+    queue_state: running
+    turn_id: 01a080f9-3c91-7df2-bcc1-50a0d86239af
+- id: TASK-7
+  title: 'Focus: career insights'
+  status: in_progress
+  kind: example
+  opening: I’ve worked in retail for eight years and now manage a small team. I enjoy helping people, but the unpredictable
+    shifts are wearing me down. Can you help me figure out what other work might suit me?
+  acceptance: Natural multi-turn career conversation; no historical countdown; useful guidance and focus banner
+    layout.
+  review:
+    source_chat: null
+    deployed_url: null
+    content: pending
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner: null
+  key: example-career
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 44c11197-5a09-492f-af2e-a65b59d5c956
+    short_id: TASK-6436
+  visible_chat:
+    id: 01a080f6-9b57-7672-953f-bc8e21ac40a5
+    url: codex://threads/01a080f6-9b57-7672-953f-bc8e21ac40a5
+    queue_state: running
+    turn_id: 01a080f9-3d2c-7f31-a5e7-954d7f68fc78
+- id: TASK-8
+  title: 'Focus: evidence-backed egg-price research'
+  status: in_progress
+  kind: example
+  opening: null
+  acceptance: Replace example-us-egg-prices-deep. Reuse its natural opening after inspection; parent must include
+    accurate attributed quotations and clickable original source links from sub-chat evidence, not unsupported prose.
+    Coordinate research-evidence fix.
+  review:
+    source_chat: null
+    deployed_url: null
+    content: pending
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner: null
+  key: example-research
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: ad521cb4-6649-48df-b1e5-b59aa8eb09eb
+    short_id: TASK-1905
+  visible_chat:
+    id: 01a080f6-a15f-79f0-ae1d-3cf58b377a4d
+    url: codex://threads/01a080f6-a15f-79f0-ae1d-3cf58b377a4d
+    queue_state: running
+    turn_id: 01a080f9-3db1-7730-8b92-fed0b582d4bc
+- id: TASK-9
+  title: 'Focus: shop reputation'
+  status: in_progress
+  kind: example
+  opening: I’m thinking of buying a refurbished phone from Back Market, but I’ve never used them before. Are they
+    reliable, and what should I check before ordering?
+  acceptance: Verify readiness and automatic focus activation; independent evidence and calibrated verdict. Ask
+    user before readiness improvements.
+  review:
+    source_chat: null
+    deployed_url: null
+    content: pending
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner: null
+  key: example-reputation
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 71a89975-5531-4bdd-96fe-b49f43cb1f3d
+    short_id: TASK-3588
+  visible_chat:
+    id: 01a080f6-a71b-7a63-aedc-9d53f6099d7c
+    url: codex://threads/01a080f6-a71b-7a63-aedc-9d53f6099d7c
+    queue_state: running
+    turn_id: 01a080f9-3e60-7333-8f99-8be42c88c34d
+- id: TASK-10
+  title: 'Providers: GPT-6 Astra habit tracker'
+  status: in_progress
+  kind: example
+  opening: '@gpt-6-astra Can you build me a simple habit tracker web app? I want to add my own habits, tick them
+    off each day and see how I’ve done this week. It should work nicely on my phone and remember my progress when
+    I close it.'
+  acceptance: Verify requested model, app interactions, phone rendering and persistence. Replace old habit tracker
+    only if better and verified.
+  review:
+    source_chat: null
+    deployed_url: null
+    content: pending
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner: null
+  key: example-astra
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 8ce206ef-0542-47ed-b582-a1e5a8f3c2a8
+    short_id: TASK-3176
+  visible_chat:
+    id: 01a080f6-ab97-7f51-97c8-45e5ed94aada
+    url: codex://threads/01a080f6-ab97-7f51-97c8-45e5ed94aada
+    queue_state: running
+    turn_id: 01a080f9-3fad-7862-9130-525096871601
+- id: TASK-11
+  title: 'Providers: Claude Sonnet 5 client email'
+  status: in_progress
+  kind: example
+  opening: '@claude-sonnet-5 Help me tell a client that the two extra pages they requested will add €600 and move
+    delivery from Thursday to Monday. We have a good relationship, and I want to keep the message friendly but clear.'
+  acceptance: Verify actual requested model, natural draft, accurate cost and schedule.
+  review:
+    source_chat: null
+    deployed_url: null
+    content: pending
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner:
+    thread: 01a080ef-880f-74e2-8d97-967a07aa44f1
+    worktree: awaiting worker start acknowledgment
+  key: example-sonnet
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 33b16567-fd1a-4404-b08a-e3a68d34c0b6
+    short_id: TASK-9006
+  visible_chat:
+    id: 01a080f6-b1a5-7122-a014-301abb08f430
+    url: codex://threads/01a080f6-b1a5-7122-a014-301abb08f430
+    queue_state: running
+    turn_id: 01a080f9-4154-7483-a397-65f99da02820
+- id: TASK-12
+  title: 'Providers: Mistral Medium printing choice'
+  status: in_progress
+  kind: example
+  opening: '@mistral-medium-latest I run a small café and we’re printing 200 menus for our new Sunday opening. We
+    need them by Friday. Our usual printer quoted €180 plus €25 delivery, arriving Thursday. A local printer quoted
+    €220 including delivery, arriving Wednesday, with one proof correction included. We’re still finalising the
+    prices on two dishes. Which option would you choose, and what should I confirm before ordering?'
+  acceptance: Verify actual model, arithmetic and practical consequences of unfinished prices.
+  review:
+    source_chat: null
+    deployed_url: null
+    content: pending
+    browser: pending
+    audio: pending
+    user_feedback: pending
+  owner: null
+  key: example-mistral
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 29d8e9b1-331a-4add-8273-8dfb71573305
+    short_id: TASK-8548
+  visible_chat:
+    id: 01a080f6-b6ce-7011-924f-81c480e1b715
+    url: codex://threads/01a080f6-b6ce-7011-924f-81c480e1b715
+    queue_state: running
+    turn_id: 01a080f9-42bc-7c73-a788-92884175c853
+- id: TASK-13
+  title: Repair example speech and deliver one audio pilot
+  status: in_progress
+  kind: shared_fix
+  acceptance: Own speech playback/publishing only. Investigate nonfunctional example speak, generate ElevenLabs
+    narration for ONE content-approved example, publish stable public audio and test guest playback. User confirmation
+    required before all remaining audio generations. No generation image/audio/video examples on landing; narration
+    allowed.
+  owner:
+    worker: speech_pilot
+    session: c6ec
+    worktree: /home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-c6ec
+  key: fix-speech
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 47b47f09-d38d-4a78-911b-138987b00c6a
+    short_id: TASK-5641
+  visible_chat:
+    id: 01a080f6-bd42-73b1-8e36-b412e39fbe2f
+    url: codex://threads/01a080f6-bd42-73b1-8e36-b412e39fbe2f
+    queue_state: running
+    turn_id: 01a080f9-44ae-7dc1-ae8c-eac5a1b0e1a2
+- id: TASK-14
+  title: Fix example links follow-ups and composer activation
+  status: in_progress
+  kind: shared_fix
+  acceptance: Own shared links/follow-up/composer routing. Hackers/Founders incorrectly opens settings/apps/web;
+    browse events/tutorial links wrongly open settings; contextual actions should prefill and visibly focus composer;
+    missing follow-up suggestions across examples.
+  owner:
+    worker: chat_interactions
+    session: e8c5
+    worktree: /home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-e8c5
+  key: fix-interactions
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 2ac8891f-00f1-45eb-854b-dc400601ecab
+    short_id: TASK-5147
+  visible_chat:
+    id: 01a080f6-c325-76c0-bde8-d008969785ee
+    url: codex://threads/01a080f6-c325-76c0-bde8-d008969785ee
+    queue_state: running
+    turn_id: 01a080f9-46f2-76c0-b700-69c619c968d3
+- id: TASK-15
+  title: Fix historical focus countdown and banner placement
+  status: in_progress
+  kind: shared_fix
+  acceptance: Own focus activation state UI. Countdown only for genuinely pending cancellable activation, never
+    completed/shared/example history; move Career insights active banner about 10px up. Coordinate any ActiveChat
+    edits via leases.
+  owner: null
+  key: fix-focus-state
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 97776532-d73d-4cd3-94d0-649ac1c8c42d
+    short_id: TASK-2879
+  visible_chat:
+    id: 01a080f6-c97b-7332-9d61-997585560557
+    url: codex://threads/01a080f6-c97b-7332-9d61-997585560557
+    queue_state: running
+    turn_id: 01a080f9-4abe-7b43-b5e3-659d46ed8db9
+- id: TASK-16
+  title: Fix failed images PDF previews and dollar-sign text
+  status: in_progress
+  kind: shared_fix
+  acceptance: Own image failure behavior/PDF thumbnails/message inline math handling. Hide failed images at render
+    time; investigate blank PDF preview; Svelte $state and $derived incorrectly render stateandderived. Split distinct
+    causes with focused tests.
+  owner: null
+  key: fix-previews
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: dd76f69d-9ef8-4a62-84df-f5a1f1cef60c
+    short_id: TASK-1503
+  visible_chat:
+    id: 01a080f6-cf4c-75c3-b1ce-11e2c225f50b
+    url: codex://threads/01a080f6-cf4c-75c3-b1ce-11e2c225f50b
+    queue_state: running
+    turn_id: 01a080f9-4cb2-7ba0-9e3b-cffffb63df04
+- id: TASK-17
+  title: Preserve quoted source evidence in deep research
+  status: in_progress
+  kind: shared_fix
+  acceptance: Own research prompt/evidence propagation. Verify parent receives sub-chat quotes and source URLs,
+    attributes accurate quotations and supports major claims. Follow product Specification gates for semantic AI-pipeline
+    changes; coordinate example research worker.
+  owner:
+    worker: research_evidence
+    session: a173
+    worktree: /home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-a173
+  key: fix-research-evidence
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 39f575f0-04de-4d56-b77c-d5175bfed7d2
+    short_id: TASK-4273
+  visible_chat:
+    id: 01a080f6-d54e-7802-919e-f913ea2df1ab
+    url: codex://threads/01a080f6-d54e-7802-919e-f913ea2df1ab
+    queue_state: running
+    turn_id: 01a080f9-4e29-7f03-ac4a-af3f6de54518
+- id: TASK-18
+  title: Review and improve mindmap fullscreen rendering
+  status: in_progress
+  kind: shared_fix
+  acceptance: Own mindmap renderer. No raw JSON in normal fullscreen. Prepare MindNode-style design proposal and
+    obtain user design approval before redesign. Preserve screenshot evidence from parent conversation; request
+    exact attachment if needed.
+  owner: null
+  key: fix-mindmaps
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 0b815ac1-2c50-4180-9a51-ec260ac4f6aa
+    short_id: TASK-4213
+  visible_chat:
+    id: 01a080f6-dbe3-7151-97d7-1e0dd6916fa2
+    url: codex://threads/01a080f6-dbe3-7151-97d7-1e0dd6916fa2
+    queue_state: running
+    turn_id: 01a080f9-56d4-7103-a3ba-42ad70e5ba25
+- id: TASK-19
+  title: Fix generated-video preview and replace bad example
+  status: in_progress
+  kind: shared_fix
+  acceptance: Own video preview/provider labels and video example only. Fill preview with thumbnail, white play
+    overlay, base info bar overlay, AI icon for Generate, human label via Veo 3.1 Fast. Real natural CLI generation
+    matching request; reject unrelated scenic output. Exclude all generation examples from landing.
+  owner: null
+  key: fix-video
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: e3758b49-eb73-4778-9b9d-883d82ab1f3e
+    short_id: TASK-5592
+  visible_chat:
+    id: 01a080f6-e2df-7c50-9c12-ad0541354a26
+    url: codex://threads/01a080f6-e2df-7c50-9c12-ad0541354a26
+    queue_state: running
+    turn_id: 01a080f9-6824-79b1-a5bd-84540dbbcfa3
+- id: TASK-20
+  title: Remove rejected examples and integrate approved landing set
+  status: in_progress
+  kind: shared_fix
+  acceptance: Own registry/slide mapping/deletions/get-docs metadata. Remove urban sports, dermatology, PDF encryption,
+    product-launch mindmap, old career, get-docs, bad video examples as instructed; remove missing learning ID.
+    Preserve acceptable local-AI compression and Svelte examples outside landing. Disable get-docs using sparse
+    default_enabled false, absent in settings. Coordinate replacements; registry writes only after candidates approved.
+  owner: null
+  key: fix-catalog
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: 86137701-4bd7-4ad3-95fa-8130b1f84160
+    short_id: TASK-5238
+  visible_chat:
+    id: 01a080f6-e8f2-7032-a4e4-2204c189d088
+    url: codex://threads/01a080f6-e8f2-7032-a4e4-2204c189d088
+    queue_state: running
+    turn_id: 01a080f9-68f6-7ab1-a0ab-b2084f75ef31
+- id: TASK-21
+  title: Create reusable rendered-chat review skill
+  status: in_progress
+  kind: shared_fix
+  acceptance: Own canonical .claude skill and corresponding generated mirrors, focused audit tooling. Read skill-creator;
+    extend existing add-example-chat/review mechanisms. Review real CLI first, deployed phone/laptop full transcript
+    and interactions, quotations, mate/model, follow-ups, media/fullscreen, focus state, privacy and actual speech.
+    Stop clear failures and report uncertain design to user. Do not modify daily-meeting orchestration skill; user
+    is changing it.
+  owner:
+    worker: browser_review_skill
+    session: '2902'
+    worktree: /home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-2902
+  key: fix-browser-review
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-specific files discovered and leased by assigned worker
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific files discovered and leased by assigned worker
+    shared_files: []
+  external_task:
+    id: e98f3d64-9cda-4a61-b63d-8cc6580f7c58
+    short_id: TASK-4584
+  visible_chat:
+    id: 01a080f6-eed3-7a92-8d0b-7ff8ecc22e4a
+    url: codex://threads/01a080f6-eed3-7a92-8d0b-7ff8ecc22e4a
+    queue_state: running
+    turn_id: 01a080f9-6a99-7c73-a0bd-1efe58318c73
+title: Coordinate landing example quality and shared fixes
+scope:
+  in:
+  - Twelve reviewed landing examples, task handoffs, shared defect fixes and single speech pilot gate
+  out:
+  - Production deployment
+  - Changing daily-meeting orchestration skill
+  - Bulk narration before user confirms pilot
+scenarios:
+- id: S-1
+  title: Coordinate independently verified examples
+  given:
+  - User approved 12 examples and shared fixes
+  when:
+  - Coordinator assigns separate worktrees and task records
+  then:
+  - Each example has real CLI and deployed browser evidence, and speech follows pilot approval
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: All 12 review rows link real source chats, deployed browser proof and passing speech after user approves
+    one pilot; all shared fixes have accountable handoff records.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: manual
+  verification_ids:
+  - T-REVIEW
+tests:
+- id: T-REVIEW
+  type: manual
+  assertions:
+  - Review each source, deployed phone/laptop interaction proof, task handoff, and guest speech evidence; require
+    actual user pilot confirmation before bulk generation.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+implementation_state:
+  subject_commit: 5bd0e38d222d7afeda02ee695285136b25dd4774
+approvals:
+  specification:
+    status: not_required
+    reason: Coordinator workflow only; delegated semantic product changes retain governing Specification gates.
+  plan:
+    status: approved
+    approved_at: '2026-09-08T12:10:04.318139+00:00'
+decisions:
+- id: D-1
+  status: active
+  decision: User approved coordinator role, separate worktrees and proposal; require one approved speech pilot before
+    all other audio.
+  reason: Explicit current user instruction
+  decided_at: '2026-09-08T12:10:04.318139+00:00'
+attempts:
+- id: A-1
+  task_id: TASK-13
+  outcome: planned
+  approach: Start speech investigation and first candidate alongside shared interaction/research work.
+  recorded_at: '2026-09-08T12:10:04.318139+00:00'
+handoff:
+  current_task_id: TASK-13
+  next_action: Coordinate active workers and task registration; present one verified audio pilot to user.
+  command: python3 scripts/sessions.py status --session 4aa6
+  expected_outcome: Distinct worker worktrees, accountable tasks and reviewed pilot
+  last_verified_commit: 5bd0e38d222d7afeda02ee695285136b25dd4774
+  blocker: null

@@ -2,8 +2,8 @@
   frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
 
   Fullscreen view for Mind Maps direct embeds. The canonical .ommindmap JSON can
-  be downloaded from the top bar; the visible body shows the normalized outline
-  and the exact source JSON for transparent debugging/import parity.
+  be downloaded from the top bar; normal fullscreen shows the rendered map.
+  Unparseable documents retain copyable source for explicit error recovery.
 
   Native Swift counterparts:
   - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
@@ -290,10 +290,12 @@
           </section>
         {/if}
       {/if}
-      <section class="mindmap-source">
-        <h3>Source</h3>
-        <pre>{sourceJson}</pre>
-      </section>
+      {#if normalized.status === 'invalid_source'}
+        <section class="mindmap-source">
+          <h3>Source</h3>
+          <pre>{sourceJson}</pre>
+        </section>
+      {/if}
     </div>
   {/snippet}
 </UnifiedEmbedFullscreen>
@@ -301,6 +303,8 @@
 <style>
   .mindmap-fullscreen {
     display: grid;
+    /* Removing the source panel must not stretch the floating controls row. */
+    align-content: start;
     gap: var(--spacing-8, 16px);
     padding: var(--spacing-8, 16px);
     min-height: 100%;

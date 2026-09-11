@@ -231,6 +231,12 @@ om.workflows.respond(workflow["id"], run["id"], "ask-city", {"city": "Berlin"})
 om.workflows.cancel_run(workflow["id"], run["id"])
 ```
 
+## Task lookup limits
+
+The npm and pip SDKs request up to 500 Tasks, the API's existing maximum, when listing or resolving a Task ID. The Task API currently provides neither continuation paging nor an exact-ID read endpoint, so this does not guarantee lookup across more than 500 matching Tasks.
+
+For larger workspaces, pass a narrower supported filter, such as `externalChat` (npm), `external_chat` (pip), or a Project/Team filter, to Task operations. The same filters must be supplied when showing or editing a Task outside the initial bounded list.
+
 ## Scopes
 
 Chat scopes are enforced server-side:

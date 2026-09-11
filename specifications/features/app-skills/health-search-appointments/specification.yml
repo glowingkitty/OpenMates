@@ -1,0 +1,328 @@
+schema_version: 1
+id: feature.app-skill.health-search-appointments
+version: 1
+status: draft
+title: Health Appointment Search — App Skill
+summary: Search supported German appointment providers while preserving the requested visit purpose, eligibility
+  constraints and actionable provider booking evidence; never substitute a treatment slot for an initial
+  consultation.
+inherits:
+- architecture.app-skill-execution@1
+- architecture.platform-parity@1
+scope:
+  includes:
+  - Registered health/search_appointments skill for Doctolib Germany and Jameda Germany.
+  - Batch inputs, provider selection, visit-purpose and eligibility filters, bounded availability search,
+    grouped results, links, maps and outcome states.
+  - Observable equivalent behavior across supported programmatic and graphical clients.
+  excludes:
+  - Diagnosis, treatment recommendations, emergency triage policy and selecting a medical speciality from
+    symptoms.
+  - Agent system-prompt wording, prompting tactics, tool-selection instructions and focus-mode behavior;
+    coordinator owns that separate question.
+  - Appointment booking/cancellation, health memories, medical report generation and medication lookup.
+  - New providers, endpoints or supported procedures; changes to authentication, credits, rate limits
+    and encryption.
+  - Pixel-level layouts and the internal implementation of generic embed serialization.
+models:
+  HealthSearchRequest:
+    requests:
+      type: array
+      required: true
+      items: HealthSearchRequestItem
+      constraints:
+        min_items: 1
+  HealthSearchRequestItem:
+    id:
+      type: string
+      nullable: true
+    speciality:
+      type: string
+      required: true
+    city:
+      type: string
+      required: true
+    provider_platform:
+      type: enum
+      values:
+      - both
+      - doctolib_de
+      - jameda
+      default: both
+    visit_motive_category:
+      type: enum
+      nullable: true
+      values:
+      - general
+      - checkup
+      - vaccination
+      - followup
+    insurance_sector:
+      type: enum
+      nullable: true
+      values:
+      - public
+      - private
+    telehealth:
+      type: boolean
+      default: false
+    language:
+      type: string
+      nullable: true
+    days_ahead:
+      type: integer
+      default: 7
+      constraints:
+        values:
+        - 1
+        - 3
+        - 7
+    max_doctors:
+      type: integer
+      default: 10
+      constraints:
+        positive: true
+        bounded: true
+  HealthAppointmentResult:
+    provider_platform:
+      type: string
+      required: true
+    name:
+      type: string
+      required: true
+    address:
+      type: string
+      required: true
+    speciality:
+      type: string
+      nullable: true
+    visit_motive:
+      type: string
+      required: true
+    service_name:
+      type: string
+      nullable: true
+    slot_datetime:
+      type: timestamp
+      required: true
+    insurance:
+      type: enum
+      values:
+      - public
+      - private
+      - unknown
+    allows_new_patients:
+      type: boolean
+      nullable: true
+    telehealth:
+      type: boolean
+      nullable: true
+    languages:
+      type: array
+      nullable: true
+    practice_url:
+      type: string
+      nullable: true
+    booking_url:
+      type: string
+      nullable: true
+    gps_coordinates:
+      type: object
+      nullable: true
+    additional_slot_datetimes:
+      type: array
+      items: timestamp
+    additional_slot_count:
+      type: integer
+    rating:
+      type: number
+      nullable: true
+    photo_url:
+      type: string
+      nullable: true
+  HealthSearchResultGroup:
+    id:
+      type: string
+      required: true
+    results:
+      type: array
+      items: HealthAppointmentResult
+    error:
+      type: string
+      nullable: true
+    provider_outcomes:
+      type: object
+      constraints:
+        observable_states:
+        - success
+        - no_match
+        - filtered_out
+        - unsupported
+        - failed
+        wire_representation: existing envelope or additive metadata
+assertions:
+- id: health-search-appointments.input.validated
+  type: behavior
+  must: 'Validate each request against the published schema before provider work: a nonempty request batch,
+    nonempty speciality and city, supported provider/category/insurance values, days_ahead of 1, 3 or
+    7, a boolean telehealth flag and a positive bounded max_doctors. Preserve batch request identities
+    and per-request results/errors; an invalid item must not be silently assigned invented search criteria.'
+  depends_on:
+  - models
+  - examples.input_validation
+- id: health-search-appointments.providers.requested
+  type: invariant
+  must: 'Honor provider_platform: doctolib_de queries only Doctolib Germany, jameda only Jameda Germany,
+    and both queries both supported providers. Do not silently substitute an unrequested provider. Attribute
+    every result to its actual provider; describe bounded search coverage without claiming all appointments
+    in Germany were checked.'
+  depends_on:
+  - models
+  - examples.provider_selection
+- id: health-search-appointments.purpose.initial-consultation
+  type: behavior
+  must: An initial-consultation request must return only service types supported by the provider as consultations
+    or initial examinations, not a treatment, follow-up or unrelated screening substituted because it
+    is earlier. A speciality-only structured search without an explicit procedure or visit category uses
+    general-consultation eligibility. If no such services match, return no matching appointments instead
+    of broadening to unrelated services. This defines observable search behavior, not how agent prompts
+    express or extract the request.
+  depends_on:
+  - models
+  - examples.initial_consultation
+- id: health-search-appointments.purpose.explicit
+  type: behavior
+  must: Preserve explicitly requested supported visit categories (general, checkup, vaccination, followup)
+    and supported procedures expressed through speciality. Match the actual provider service rather than
+    the doctor title alone. Do not replace an explicit procedure with the default consultation, treat
+    a negated category mention as a match, or treat a consultation about an unrelated procedure as a general
+    examination.
+  depends_on:
+  - models
+  - examples.explicit_purpose
+- id: health-search-appointments.eligibility.location-speciality
+  type: invariant
+  must: Normalize supported city and speciality aliases without changing the requested place or doctor
+    type. Reject known city or speciality mismatches before returning availability; missing provider detail
+    cannot be invented. A matching speciality alone does not establish that the offered service fits the
+    visit purpose.
+  depends_on:
+  - models
+  - examples.location_speciality
+- id: health-search-appointments.eligibility.insurance-patients
+  type: invariant
+  must: Respect service-specific insurance and patient eligibility. When public insurance is requested,
+    reject explicitly private-only, self-pay or additional-fee services rather than presenting them as
+    covered. Preserve unknown coverage as unknown and require provider confirmation without inferring
+    coverage from a doctor name. For an initial/new-patient consultation, reject services explicitly limited
+    to existing patients; an explicit follow-up may retain them.
+  depends_on:
+  - models
+  - examples.insurance_patients
+- id: health-search-appointments.eligibility.modality-language
+  type: invariant
+  must: Honor requested telehealth-only and language filters using provider evidence. A provider that
+    cannot establish a requested constraint must not contribute unverified matches; expose that provider
+    limitation or unsupported-filter outcome. Do not convert unknown language or consultation modality
+    into a positive match. With no such filter, retain missing metadata as unknown rather than inventing
+    it.
+  depends_on:
+  - models
+  - examples.modality_language
+- id: health-search-appointments.availability.window-order
+  type: invariant
+  must: Constrain provider retrieval and returned slots to the requested look-ahead window, defaulting
+    to seven days. Compare offset-aware timestamps as actual instants, omit past slots and retain provider
+    local-time information. Only eligible services participate in earliest-availability comparisons; an
+    earlier incompatible treatment cannot displace a consultation. The bounded search must not claim the
+    globally earliest appointment.
+  depends_on:
+  - models
+  - examples.window_order
+- id: health-search-appointments.results.grouping
+  type: invariant
+  must: Preserve the service, doctor, location and source provider when grouping alternate slots. Do not
+    merge different treatments, doctors or provider booking identities into one appointment. Keep earliest-first
+    ordering within the existing bounded insurance groups and label coverage distinctions; presenting
+    groups must not imply that the first displayed group is an exhaustive global earliest ranking.
+  depends_on:
+  - models
+  - examples.result_grouping
+- id: health-search-appointments.results.booking-provenance
+  type: invariant
+  must: Keep availability, service name, material restrictions and booking links tied to the same provider
+    service and practice. Results and their presentation cannot relabel a treatment as an initial examination,
+    manufacture coverage or booking confirmation, or imply that observed availability is guaranteed. Distinguish
+    a direct slot booking link from a practice availability page; preserve the correct provider destination
+    and do not route result links to app settings.
+  depends_on:
+  - models
+  - examples.booking_provenance
+- id: health-search-appointments.results.maps-enrichment
+  type: invariant
+  must: When reliable result coordinates exist, map pins and detail views identify the same doctor/practice
+    location as the appointment. Missing coordinates produce a usable details view without an invented
+    pin. Optional photos, ratings, contact data and map enrichment retain source attribution and cannot
+    change the booked service, visit purpose or provider link; enrichment failure must not hide otherwise
+    usable appointment details.
+  depends_on:
+  - models
+  - examples.maps_enrichment
+- id: health-search-appointments.outcomes.explicit
+  type: failure
+  must: Distinguish invalid input, unsupported filters, successful search with no available slots, exclusion
+    of incompatible candidates, and provider failure. If one selected provider fails while another returns
+    eligible results, retain usable results and disclose partial coverage; do not claim the failed provider
+    completed successfully. Keep failures safe and visible under the inherited execution contract, without
+    raw errors, fabricated appointments or silent relaxation of criteria.
+  depends_on:
+  - models
+  - examples.explicit_outcomes
+- id: health-search-appointments.surface-parity
+  type: parity
+  must: REST API, CLI, npm/pip SDKs and web/Apple GUI preserve the same request constraints, eligible
+    services, provider provenance, time and insurance semantics, booking targets, and empty/partial/error
+    outcomes. Visual layout may differ; supported clients must not silently weaken a skill guarantee.
+    Existing execution authentication, credits, budgets, output safety and encryption boundaries are inherited,
+    not redefined by this skill.
+  depends_on:
+  - models
+  - examples.surface_parity
+applies_to:
+  rest_api:
+    required: true
+  cli:
+    required: true
+  sdks:
+    required: true
+    parity: strict
+    implementations:
+      npm:
+        required: true
+      pip:
+        required: true
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web:
+        required: true
+      apple:
+        required: true
+    exceptions: []
+examples:
+  file: examples.yml
+  required_groups:
+  - input_validation
+  - provider_selection
+  - initial_consultation
+  - explicit_purpose
+  - location_speciality
+  - insurance_patients
+  - modality_language
+  - window_order
+  - result_grouping
+  - booking_provenance
+  - maps_enrichment
+  - explicit_outcomes
+  - surface_parity

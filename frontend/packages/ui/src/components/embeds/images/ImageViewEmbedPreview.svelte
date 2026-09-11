@@ -31,9 +31,10 @@
   import {
     fetchAndDecryptImage,
     getCachedImageUrl,
-    retainCachedImage,
-    releaseCachedImage,
+    createImageUrlOwner,
   } from './imageEmbedCrypto';
+  const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
+
 
   interface Props {
     /** Unique embed ID for this skill-use embed */
@@ -119,6 +120,7 @@
   });
 
   onDestroy(() => {
+    releaseOwnedImages();
     if (retainedS3Key) {
       releaseCachedImage(retainedS3Key);
       retainedS3Key = undefined;
@@ -186,8 +188,8 @@
 
     try {
       console.debug('[ImageViewEmbedPreview] Loading preview image from S3:', previewS3Key);
-      const blob = await fetchAndDecryptImage(s3BaseUrl, previewS3Key, aesKey, aesNonce);
-      imageUrl = URL.createObjectURL(blob);
+      await fetchAndDecryptImage(s3BaseUrl, previewS3Key, aesKey, aesNonce);
+      imageUrl = getCachedImageUrl(previewS3Key)!;
       if (retainedS3Key && retainedS3Key !== previewS3Key) releaseCachedImage(retainedS3Key);
       retainedS3Key = previewS3Key;
       retainCachedImage(previewS3Key);
@@ -353,7 +355,8 @@
 
   .skeleton-line {
     height: 12px;
-    background: var(--color-grey-15, #f0f0f0);
+    /* Preserve the existing fallback; grey-15 is not a defined theme token. */
+    background: #f0f0f0;
     border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }

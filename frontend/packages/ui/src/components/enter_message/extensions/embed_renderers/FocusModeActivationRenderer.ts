@@ -19,75 +19,14 @@
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
-import { mount, unmount } from "svelte";
+import { mount, unmount, disposeEmbedTree } from "./mountedEmbedLifecycle";
 import FocusModeActivationEmbed from "../../../embeds/focus_mode/FocusModeActivationEmbed.svelte";
 import { activeChatStore } from "../../../../stores/activeChatStore";
 import { chatMetadataCache } from "../../../../services/chatMetadataCache";
-import { chatKeyManager } from "../../../../services/encryption/ChatKeyManager";
-import { chatSyncService } from "../../../../services/chatSyncService";
 import { chatDB } from "../../../../services/db";
-import { webSocketService } from "../../../../services/websocketService";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
-
-async function handleLocalFocusActivation(chatId: string, focusId: string): Promise<void> {
-  const chat = await chatDB.getChat(chatId);
-  if (!chat) {
-    console.warn(
-      "[handleLocalFocusActivation] Chat not found in IndexedDB:",
-      chatId,
-    );
-    return;
-  }
-
-  const chatKey = await chatKeyManager.getKey(chatId);
-  if (!chatKey) {
-    console.warn(
-      "[handleLocalFocusActivation] No chat key available for",
-      chatId,
-      "- skipping focus activation persistence",
-    );
-    return;
-  }
-
-  const { ensureChatKeySafeForWrite } = await import(
-    "../../../../services/chatKeyWriteGuard"
-  );
-  const isSafe = await ensureChatKeySafeForWrite(
-    chatId,
-    chatKey,
-    "active focus id encryption",
-    { allowMissingEncryptedChatKey: true },
-  );
-  if (!isSafe) {
-    console.warn(
-      "[handleLocalFocusActivation] Write guard rejected for",
-      chatId,
-      "- encrypted_chat_key validation failed or key unavailable",
-    );
-    return;
-  }
-
-  const { encryptWithChatKey } = await import(
-    "../../../../services/encryption/MessageEncryptor"
-  );
-  const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
-  chat.encrypted_active_focus_id = encryptedFocusId;
-  await chatDB.updateChat(chat);
-  chatMetadataCache.invalidateChat(chatId);
-
-  webSocketService.sendMessage("update_encrypted_active_focus_id", {
-    chat_id: chatId,
-    encrypted_active_focus_id: encryptedFocusId,
-  });
-
-  chatSyncService.dispatchEvent(
-    new CustomEvent("focusModeActivated", {
-      detail: { chat_id: chatId, focus_id: focusId },
-    }),
-  );
-}
 
 export class FocusModeActivationRenderer implements EmbedRenderer {
   type = "focus-mode-activation";
@@ -104,6 +43,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
       console.warn(
         "[FocusModeActivationRenderer] Missing focus_id in attrs, skipping render",
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = "";
       return;
     }
@@ -114,25 +54,20 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
     // `attrs.status` is the generic embed completion status, not the focus
     // activation state. A freshly suggested focus embed can be `finished` while
     // the user still has a chance to reject it.
+    const chatId = activeChatStore.get() || "";
     let alreadyActive = false;
     try {
-      const chatId = activeChatStore.get();
       if (chatId) {
         const chat = await chatDB.getChat(chatId);
         if (chat) {
           const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
           if (metadata?.activeFocusId === focusId) {
             alreadyActive = true;
-          } else if (chat.encrypted_active_focus_id && !metadata?.activeFocusId) {
-            // Existing chats can render the saved activation embed before the chat key
-            // finishes decrypting activeFocusId. Treat the encrypted field as enough
-            // evidence to avoid replaying the first-time activation countdown.
-            alreadyActive = true;
           }
         }
       }
     } catch (e) {
-      // Non-blocking: if we can't determine the active state, fall back to countdown
+      // Non-blocking: if we can't determine the active state, render inert historical content
       console.debug(
         "[FocusModeActivationRenderer] Could not check active focus state:",
         e,
@@ -161,6 +96,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Set data attributes for context menu detection in ChatMessage.svelte
@@ -179,7 +115,9 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
           appId,
           focusModeName,
           alreadyActive,
+          chatId,
           onReject: (rejectedFocusId: string, rejectedName: string) => {
+            if (activeChatStore.get() !== chatId) return;
             console.debug(
               "[FocusModeActivationRenderer] Focus mode rejected:",
               rejectedFocusId,
@@ -194,16 +132,13 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
                   focusModeName: rejectedName,
                   appId,
                   embedId: attrs.id,
+                  chatId,
                 },
               }),
             );
           },
-          onActivate: (activatedFocusId: string) => {
-            const chatId = activeChatStore.get();
-            if (!chatId) return;
-            void handleLocalFocusActivation(chatId, activatedFocusId);
-          },
           onDeactivate: (deactivatedFocusId: string) => {
+            if (activeChatStore.get() !== chatId) return;
             console.debug(
               "[FocusModeActivationRenderer] Focus mode deactivated:",
               deactivatedFocusId,
@@ -215,6 +150,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
                   focusId: deactivatedFocusId,
                   appId,
                   embedId: attrs.id,
+                  chatId,
                 },
               }),
             );
@@ -238,6 +174,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
             event: MouseEvent | TouchEvent,
             state: { isActivated: boolean; isRejected: boolean },
           ) => {
+            if (activeChatStore.get() !== chatId) return;
             console.debug(
               "[FocusModeActivationRenderer] Context menu requested:",
               { focusId, state },
@@ -250,6 +187,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
                   appId,
                   focusModeName,
                   embedId: attrs.id,
+                  chatId,
                   event,
                   isActivated: state.isActivated,
                   isRejected: state.isRejected,
@@ -266,6 +204,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
         "[FocusModeActivationRenderer] Error mounting component:",
         e,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = `<span style="color: var(--color-grey-50); font-size: 12px;">Focus mode: ${focusModeName}</span>`;
     }
   }

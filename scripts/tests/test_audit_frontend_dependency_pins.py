@@ -28,19 +28,20 @@ snapshots:
 """
 
 
+# contract-test: infrastructure
 def test_audit_accepts_expected_frontend_pins() -> None:
     lockfile = make_lockfile(
         """
-  '@sveltejs/kit@2.69.1':
+  '@sveltejs/kit@2.70.2':
     resolution: {{integrity: sha512-ok}}
 
-  '@tiptap/core@3.26.0':
+  '@tiptap/core@3.30.4':
     resolution: {{integrity: sha512-ok}}
 
-  '@tiptap/pm@3.26.0':
+  '@tiptap/pm@3.30.4':
     resolution: {{integrity: sha512-ok}}
 
-  '@tiptap/starter-kit@3.26.0':
+  '@tiptap/starter-kit@3.30.4':
     resolution: {{integrity: sha512-ok}}
 
   prosemirror-model@1.25.7:
@@ -54,13 +55,14 @@ def test_audit_accepts_expected_frontend_pins() -> None:
     assert audit_lockfile(lockfile) == []
 
 
+# contract-test: infrastructure
 def test_audit_rejects_duplicate_prosemirror_model_versions() -> None:
     lockfile = make_lockfile(
         """
-  '@sveltejs/kit@2.69.1':
+  '@sveltejs/kit@2.70.2':
     resolution: {{integrity: sha512-ok}}
 
-  '@tiptap/core@3.26.0':
+  '@tiptap/core@3.30.4':
     resolution: {{integrity: sha512-ok}}
 
   prosemirror-model@1.25.7:
@@ -79,13 +81,14 @@ def test_audit_rejects_duplicate_prosemirror_model_versions() -> None:
     assert any(issue.package == "prosemirror-model" for issue in issues)
 
 
+# contract-test: infrastructure
 def test_audit_rejects_tiptap_train_drift() -> None:
     lockfile = make_lockfile(
         """
-  '@sveltejs/kit@2.69.1':
+  '@sveltejs/kit@2.70.2':
     resolution: {{integrity: sha512-ok}}
 
-  '@tiptap/core@3.26.1':
+  '@tiptap/core@3.30.5':
     resolution: {{integrity: sha512-bad}}
 
   prosemirror-model@1.25.7:
@@ -101,13 +104,14 @@ def test_audit_rejects_tiptap_train_drift() -> None:
     assert any(issue.package == "@tiptap/core" for issue in issues)
 
 
+# contract-test: infrastructure
 def test_audit_rejects_sveltekit_asset_regression_version() -> None:
     lockfile = make_lockfile(
         """
   '@sveltejs/kit@2.65.0':
     resolution: {{integrity: sha512-bad}}
 
-  '@tiptap/core@3.26.0':
+  '@tiptap/core@3.30.4':
     resolution: {{integrity: sha512-ok}}
 
   prosemirror-model@1.25.7:

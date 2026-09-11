@@ -1,7 +1,7 @@
-"""Python SDK user task contract tests.
+"""Python SDK user Task Specification tests.
 
 Purpose: verify the pip SDK encrypts/decrypts task content behind plaintext
-task helpers, matching the CLI contract without real network calls.
+task helpers, matching the CLI Specification behavior without real network calls.
 Security: monkeypatches requests; no API keys or task payloads leave tests.
 Run: python3 -m pytest packages/openmates-python/tests/test_tasks.py
 """
@@ -52,7 +52,7 @@ def test_pip_sdk_manages_decrypted_task_activity(monkeypatch):
 
     def fake_delete(url, *, json, headers, timeout):
         assert "/activity/" in url
-        return FakeResponse({"entry": {**stored_activity, "kind": "tombstone", "encrypted_entry_key": None, "encrypted_message": None, "encrypted_embed_key_material": None, "embed_refs": [], "author_hash": "author-hash", "deleted_by_hash": "author-hash", "deleted_at": 101}})
+        return FakeResponse({"entry": {**stored_activity, "kind": "tombstone", "encrypted_message": None, "encrypted_embed_key_material": None, "embed_refs": [], "author_hash": "author-hash", "deleted_by_hash": "author-hash", "deleted_at": 101}})
 
     monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
@@ -210,7 +210,8 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
 
 
 # contract-test: direct surface=sdks.pip assertions=tasks.external-chat.encrypted-context,tasks.blocking.encrypted-reason,tasks.surface.semantic-parity
-def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch):
+@pytest.mark.parametrize("provider", ["codex", "opencode"])
+def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch, provider):
     master_key = bytes([10]) * 32
     api_key, material = _create_api_key_material("sdk external task parity", master_key)
     stored_task = None
@@ -241,7 +242,7 @@ def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch):
                 "key_iv": material["key_iv"],
             }})
         if url.endswith("/v1/user-tasks"):
-            assert json["external_chat_provider"] == "opencode"
+            assert json["external_chat_provider"] == provider
             assert len(json["external_chat_lookup_hash"]) == 64
             assert "ses_external_123" not in str(json)
             assert "OpenCode task bridge" not in str(json)
@@ -264,7 +265,7 @@ def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch):
             assert json["encrypted_external_chat_id"] is None
             assert json["encrypted_external_chat_title"] is None
         else:
-            assert json["external_chat_provider"] == "opencode"
+            assert json["external_chat_provider"] == provider
             assert "ses_external_456" not in str(json)
             assert "Updated OpenCode task bridge" not in str(json)
         stored_task = {**stored_task, **json}
@@ -277,28 +278,28 @@ def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch):
     client = OpenMates(api_key=api_key)
     created = client.tasks.create({
         "title": "Implement task bridge",
-        "external_chat": "opencode:ses_external_123",
+        "external_chat": f"{provider}:ses_external_123",
         "external_chat_title": "OpenCode task bridge",
     })
 
     assert created["external_chat"] == {
-        "provider": "opencode",
+        "provider": provider,
         "id": "ses_external_123",
         "title": "OpenCode task bridge",
     }
     edited = client.tasks.edit("TASK-EXT", {
         "external_chat": {
-            "provider": "opencode",
+            "provider": provider,
             "id": "ses_external_456",
             "title": "Updated OpenCode task bridge",
         },
     })
     assert edited["external_chat"] == {
-        "provider": "opencode",
+        "provider": provider,
         "id": "ses_external_456",
         "title": "Updated OpenCode task bridge",
     }
-    assert client.tasks.list(external_chat={"provider": "opencode", "id": "ses_external_456"})[0]["external_chat"] == edited["external_chat"]
+    assert client.tasks.list(external_chat={"provider": provider, "id": "ses_external_456"})[0]["external_chat"] == edited["external_chat"]
     blocked = client.tasks.block(
         "TASK-EXT",
         "missing_credentials",
@@ -315,14 +316,14 @@ def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch):
     assert native_patch["encrypted_external_chat_title"] is None
     assert any(
         request["method"] == "GET"
-        and "external_chat_provider=opencode" in request["url"]
+        and f"external_chat_provider={provider}" in request["url"]
         and "external_chat_lookup_hash=" in request["url"]
         and "ses_external_456" not in request["url"]
         for request in requests_seen
     )
     with pytest.raises(OpenMatesConfigError, match="both native chat and external chat"):
-        client.tasks.create({"title": "Invalid mixed context", "chat_id": "chat-1", "external_chat": "opencode:ses_external_123"})
-    with pytest.raises(OpenMatesConfigError, match="Only opencode"):
+        client.tasks.create({"title": "Invalid mixed context", "chat_id": "chat-1", "external_chat": f"{provider}:ses_external_123"})
+    with pytest.raises(OpenMatesConfigError, match="Unsupported external chat provider"):
         client.tasks.create({"title": "Unsupported provider", "external_chat": "other:session"})
 
 
@@ -358,7 +359,7 @@ def test_pip_sdk_keeps_workflow_projection_metadata(monkeypatch):
 
     def fake_get(url, *, headers, timeout):
         assert headers["Authorization"] == f"Bearer {api_key}"
-        assert url.endswith("/v1/user-tasks")
+        assert url.endswith("/v1/user-tasks?limit=500")
         return FakeResponse()
 
     monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
@@ -376,3 +377,15 @@ def test_pip_sdk_keeps_workflow_projection_metadata(monkeypatch):
     assert task["can_cancel"] is False
     assert task["can_delete"] is True
     assert task["read_only"] is True
+
+
+# contract-test: supporting surface=sdks.pip assertions=tasks.assignment.identity-separated,tasks.external-chat.encrypted-context
+def test_codex_provider_defaults_and_legacy_indexes_remain_distinct():
+    from openmates.sdk import _task_assignee, _normalize_external_chat_context
+    assert _task_assignee("external-ai") == ("external_ai", "codex", None)
+    assert _task_assignee("codex") == ("external_ai", "codex", None)
+    codex = _normalize_external_chat_context("codex:thread-1")
+    legacy = _normalize_external_chat_context("opencode:thread-1")
+    assert codex["provider"] == "codex"
+    assert legacy["provider"] == "opencode"
+    assert _external_chat_lookup_hash(bytes([2]) * 32, codex) != _external_chat_lookup_hash(bytes([2]) * 32, legacy)

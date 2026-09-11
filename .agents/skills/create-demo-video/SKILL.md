@@ -133,8 +133,8 @@ consent with text alone. Run `image_upload_command` and embed the cited frame be
 any visual-intent question.
 
 After a passed frame review, upload the approved proof video with its hash-bound WebVTT sidecar or representative
-proof screenshots with `python3 scripts/opencode_response_media.py <path> --alt
+proof screenshots with `python3 scripts/response_media.py <path> --alt
 "..."` and paste the returned image Markdown or `<video>` HTML in the final
-OpenCode response. Do not send proof media to Discord unless the user explicitly
+Codex response. Do not send proof media to Discord unless the user explicitly
 asks for a separate Discord mirror. Retain transcripts, captions,
 manifests, hashes, review evidence, and response-media publication state.

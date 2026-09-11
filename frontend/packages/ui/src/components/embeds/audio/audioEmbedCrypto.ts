@@ -92,10 +92,24 @@ const audioCache = new Map<
   string,
   {
     blobUrl: string;
+    bytes: number;
     refCount: number;
     revokeTimer: ReturnType<typeof setTimeout> | null;
   }
 >();
+
+type AudioCacheEntry = NonNullable<ReturnType<typeof audioCache.get>>;
+const pendingAudio = new Map<string, Promise<AudioCacheEntry>>();
+const MAX_CACHED_AUDIO_BYTES = 128 * 1024 * 1024;
+let cachedAudioBytes = 0;
+
+function evictUnusedAudio(key: string, entry: AudioCacheEntry): void {
+  if (audioCache.get(key) !== entry || entry.refCount > 0) return;
+  if (entry.revokeTimer) clearTimeout(entry.revokeTimer);
+  URL.revokeObjectURL(entry.blobUrl);
+  audioCache.delete(key);
+  cachedAudioBytes -= entry.bytes;
+}
 
 /** Grace period before revoking an unreferenced blob URL (ms). */
 const REVOKE_GRACE_MS = 60_000;
@@ -113,10 +127,13 @@ export function releaseCachedAudio(s3Key: string): void {
     entry.revokeTimer = setTimeout(() => {
       const current = audioCache.get(s3Key);
       if (current && current.refCount === 0) {
-        URL.revokeObjectURL(current.blobUrl);
-        audioCache.delete(s3Key);
+        evictUnusedAudio(s3Key, current);
       }
     }, REVOKE_GRACE_MS);
+    for (const [key, candidate] of Array.from(audioCache)) {
+      if (cachedAudioBytes <= MAX_CACHED_AUDIO_BYTES) break;
+      evictUnusedAudio(key, candidate);
+    }
   }
 }
 
@@ -146,6 +163,8 @@ export async function fetchAndDecryptAudio(
   // Return cached blob URL if available
   const cached = audioCache.get(s3Key);
   if (cached) {
+    audioCache.delete(s3Key);
+    audioCache.set(s3Key, cached);
     cached.refCount++;
     // Cancel pending revocation
     if (cached.revokeTimer) {
@@ -155,6 +174,27 @@ export async function fetchAndDecryptAudio(
     return cached.blobUrl;
   }
 
+  let pending = pendingAudio.get(s3Key);
+  if (!pending) {
+    pending = loadAudioBlob(s3Key, aesKeyBase64, nonceBase64, mimeType, variant);
+    pendingAudio.set(s3Key, pending);
+  }
+  try {
+    const entry = await pending;
+    entry.refCount++;
+    return entry.blobUrl;
+  } finally {
+    if (pendingAudio.get(s3Key) === pending) pendingAudio.delete(s3Key);
+  }
+}
+
+async function loadAudioBlob(
+  s3Key: string,
+  aesKeyBase64: string,
+  nonceBase64: string,
+  mimeType: string,
+  variant: unknown,
+): Promise<AudioCacheEntry> {
   // Fetch the encrypted blob via presigned URL (with automatic 403 retry).
   let encryptedData: ArrayBuffer;
   try {
@@ -190,7 +230,44 @@ export async function fetchAndDecryptAudio(
   // Create blob URL and cache it
   const blob = new Blob([decryptedData], { type: mimeType });
   const blobUrl = URL.createObjectURL(blob);
-  audioCache.set(s3Key, { blobUrl, refCount: 1, revokeTimer: null });
+  const entry = { blobUrl, bytes: blob.size, refCount: 0, revokeTimer: null };
+  audioCache.set(s3Key, entry);
+  cachedAudioBytes += blob.size;
+  return entry;
+}
 
-  return blobUrl;
+
+/** Own audio/video acquisitions across repeated effects and async unmount races. */
+export function createAudioUrlOwner() {
+  const owned = new Map<string, string>();
+  const pending = new Map<string, Promise<string>>();
+  let disposed = false;
+  return {
+    fetch(...args: Parameters<typeof fetchAndDecryptAudio>): Promise<string> {
+      if (disposed) return Promise.resolve("");
+      const key = args[1];
+      const existing = owned.get(key);
+      if (existing) return Promise.resolve(existing);
+      const inFlight = pending.get(key);
+      if (inFlight) return inFlight;
+      const request = fetchAndDecryptAudio(...args).then((url) => {
+        if (disposed) {
+          releaseCachedAudio(key);
+          return "";
+        }
+        owned.set(key, url);
+        return url;
+      }).finally(() => pending.delete(key));
+      pending.set(key, request);
+      return request;
+    },
+    release(key: string): void {
+      if (owned.delete(key)) releaseCachedAudio(key);
+    },
+    destroy(): void {
+      disposed = true;
+      for (const key of Array.from(owned.keys())) releaseCachedAudio(key);
+      owned.clear();
+    },
+  };
 }

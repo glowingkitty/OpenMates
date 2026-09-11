@@ -5,7 +5,7 @@
 # cache-bust: 2026-02-25b
 
 # --- Core framework (same as core API) ---
-fastapi==0.133.0
+fastapi==0.135.1
 uvicorn[standard]==0.41.0
 pydantic==2.12.5
 httpx==0.28.1

@@ -8,7 +8,11 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import { fetchAndDecryptAudio, releaseCachedAudio } from '../audio/audioEmbedCrypto';
+  import { createAudioUrlOwner } from '../audio/audioEmbedCrypto';
+  const audioUrlOwner = createAudioUrlOwner();
+  const fetchAndDecryptAudio = audioUrlOwner.fetch;
+  const releaseCachedAudio = audioUrlOwner.release;
+  onDestroy(audioUrlOwner.destroy);
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
 

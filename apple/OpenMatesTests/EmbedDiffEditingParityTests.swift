@@ -7,6 +7,33 @@ import XCTest
 @testable import OpenMates
 
 final class EmbedDiffEditingParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    @MainActor
+    func testChatOpeningHydratesSyncedEmbedTreeAfterLightweightSelectionMissesReferences() async throws {
+        let chat = try JSONDecoder().decode(Chat.self, from: Data("{\"id\":\"embed-cache-chat\",\"title\":\"Fixture\"}".utf8))
+        let parent = embed(id: "parent", type: "app-skill-use", data: ["type": "app_skill_use"], embedIds: "child")
+        let child = embed(id: "child", type: "web-website", data: ["title": "Result"], parentEmbedId: "parent")
+        let store = ChatStore()
+        store.upsertEmbeds([parent, child], for: chat.id)
+        let message = Message(id: "message", chatId: chat.id, role: .assistant,
+                              content: "Search result", encryptedContent: nil,
+                              createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+                              appId: nil, isStreaming: false,
+                              embedRefs: [EmbedRef(id: "parent", type: "app-skill-use", status: "finished", data: nil)])
+        let model = ChatViewModel()
+        model.configure(wsManager: nil, chatStore: store)
+        // The initial window can have no embeds because its encrypted messages
+        // did not expose references until decryption. No network is available.
+        await model.loadChat(id: chat.id, initialChat: chat, initialMessages: [message], initialEmbeds: [])
+        for _ in 0..<40 where model.embedRecords["child"] == nil {
+            try await Task.sleep(nanoseconds: 25_000_000)
+        }
+        XCTAssertEqual(model.embedRecords["child"]?.rawData?["title"]?.value as? String, "Result")
+        XCTAssertEqual(model.childEmbeds(for: parent).map(\.id), ["child"])
+        XCTAssertNil(model.error)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testRelatedRecordsDeduplicateLatestPayloadWhilePreservingFirstSeenOrder() throws {
         let parent = embed(
             id: "parent",
@@ -29,6 +56,7 @@ final class EmbedDiffEditingParityTests: XCTestCase {
         XCTAssertEqual(child.rawData?["title"]?.value as? String, "Current")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testRelatedRecordsResolveParentAndChildrenFromEitherRelationshipDirection() throws {
         let parent = embed(
             id: "parent",
@@ -58,6 +86,7 @@ final class EmbedDiffEditingParityTests: XCTestCase {
         XCTAssertEqual(fromChild.map(\.id), ["parent", "declared-child", "reverse-child"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testUnresolvedCompositeParentsRequireTheirDeclaredOrLinkedChildren() {
         let missingChildren = embed(
             id: "missing-parent",
@@ -114,6 +143,7 @@ final class EmbedDiffEditingParityTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testEmbedRecordDecodesVersionMetadataFromWebPayload() throws {
         let json = """
         {
@@ -143,6 +173,7 @@ final class EmbedDiffEditingParityTests: XCTestCase {
         XCTAssertEqual(record.versionHistory.last?.contentHash, "hash-v3")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testRestoreRequestEncodesSnakeCaseContract() throws {
         let request = EmbedVersionRestoreRequest(embedId: "embed-1", versionNumber: 1)
         let data = try JSONEncoder().encode(request)

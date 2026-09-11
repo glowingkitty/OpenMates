@@ -21,6 +21,7 @@
     import { contentCache } from '../utils/contentCache';
     import { locale } from 'svelte-i18n';
     import { Decoration, DecorationSet } from 'prosemirror-view';
+    import { piiVisibilityStore } from '../stores/piiVisibilityStore';
     import { getPIILabel } from '../components/enter_message/services/piiDetectionService';
     import type { PIIMapping } from '../types/chat';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
@@ -444,7 +445,18 @@
      * - mate-mention: data-id="<mateCategory>"
      * - generic-mention: data-mention-type, data-mention-syntax="@skill:appId:id" etc.
      */
+    function handlePIIInteraction(event: MouseEvent | KeyboardEvent): boolean {
+        const target = event.target instanceof Element ? event.target : null;
+        if (!chatId || !target?.closest('[data-pii-type][role="button"]')) return false;
+        if (event instanceof KeyboardEvent && event.key !== 'Enter' && event.key !== ' ') return false;
+        event.preventDefault();
+        event.stopPropagation();
+        piiVisibilityStore.toggle(chatId);
+        return true;
+    }
+
     function handleMentionClick(event: MouseEvent) {
+        if (handlePIIInteraction(event)) return;
         const target = event.target as HTMLElement;
 
         // Climb up to find the mention span (click may land on child node)
@@ -737,6 +749,7 @@
         editor.view.dom.addEventListener('touchcancel', handleTouchEnd as EventListener);
         // Handle clicks on mention spans for settings deep-linking
         editor.view.dom.addEventListener('click', handleMentionClick as EventListener);
+        editor.view.dom.addEventListener('keydown', handlePIIInteraction as EventListener);
         editorCreated = true;
         
         // Apply PII highlighting decorations after editor is created
@@ -925,6 +938,7 @@
                 return Decoration.inline(pos.from, pos.to, {
                     class: cssClass,
                     'data-pii-type': pos.type,
+                    ...(chatId ? { role: 'button', tabindex: '0', 'aria-label': $text(piiRevealed ? 'chat.pii_hide' : 'chat.pii_show') } : {}),
                     title: `${pos.label} ${titleSuffix}`
                 });
             });
@@ -1127,6 +1141,7 @@
             editor.view.dom.removeEventListener('touchend', handleTouchEnd as EventListener);
             editor.view.dom.removeEventListener('touchcancel', handleTouchEnd as EventListener);
             editor.view.dom.removeEventListener('click', handleMentionClick as EventListener);
+            editor.view.dom.removeEventListener('keydown', handlePIIInteraction as EventListener);
             // Clear any pending touch timers
             clearTouchTimer();
             if (streamFadeResetTimer) {
@@ -1608,6 +1623,12 @@
         font-size: inherit;
         letter-spacing: inherit;
         font-weight: 600;
+    }
+
+    :global(.read-only-message .pii-restored[role="button"]) { cursor: pointer; }
+    :global(.read-only-message .pii-restored[role="button"]:focus-visible) {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
     }
 
     /* REVEALED MODE: Orange/amber bold text — warns that sensitive data is exposed */

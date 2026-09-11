@@ -155,3 +155,67 @@ def test_main_does_not_fail_cli_capture_when_response_media_upload_fails(tmp_pat
     payload = module.json.loads(capsys.readouterr().out)
     assert payload["status"] == "passed"
     assert payload["manifest"]["response_media_error"].startswith("opencode_response_media:")
+
+
+def test_timeout_finalizes_video_and_keeps_failure_verdict(tmp_path, monkeypatch):
+    import io
+    from types import SimpleNamespace
+
+    module = load_module()
+    paths = {
+        name: tmp_path / name
+        for name in ("video", "transcript", "events", "output", "manifest")
+    }
+    for path in paths.values():
+        path.write_bytes(b"synthetic test evidence")
+    plan = SimpleNamespace(
+        output_dir=tmp_path,
+        display=":91",
+        xvfb_argv=["xvfb"],
+        ffmpeg_argv=["ffmpeg"],
+        terminal_argv=["terminal"],
+        video_path=paths["video"],
+        transcript_path=paths["transcript"],
+        events_path=paths["events"],
+        command_output_path=paths["output"],
+        manifest_path=paths["manifest"],
+    )
+    finalized = []
+
+    class Process:
+        def __init__(self, argv, **kwargs):
+            self.name = argv[0]
+            self.returncode = None
+            self.stderr = io.StringIO()
+            self.waits = 0
+
+        def poll(self):
+            return self.returncode
+
+        def wait(self, timeout=None):
+            self.waits += 1
+            if self.name == "terminal" and self.waits == 1:
+                raise module.subprocess.TimeoutExpired("terminal", timeout)
+            self.returncode = 0
+            return 0
+
+        def terminate(self):
+            self.returncode = -15
+
+        def kill(self):
+            self.returncode = -9
+
+        def send_signal(self, sig):
+            finalized.append(self.name)
+
+    monkeypatch.setattr(module, "build_capture_plan", lambda **k: plan)
+    monkeypatch.setattr(module.subprocess, "Popen", Process)
+    monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: None)
+    monkeypatch.setattr(module.time, "sleep", lambda *a: None)
+    result = module.capture_cli_video(
+        argv=["openmates", "chats", "list"],
+        output_dir=tmp_path,
+        target_environment="isolated-test",
+    )
+    assert result["exit_status"] == 124 and "ffmpeg" in finalized
+    assert paths["manifest"].is_file() and result["video_sha256"]

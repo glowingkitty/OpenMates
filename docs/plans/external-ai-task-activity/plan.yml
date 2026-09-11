@@ -1,0 +1,712 @@
+schema_version: 2
+id: external-ai-task-activity
+title: Named External-AI Task Assignment and Activity
+status: implementing
+
+goal: >
+  Distinguish native OpenMates, human, and named external-AI Task assignment;
+  create OpenCode Tasks atomically as external_ai/opencode; simplify unreleased
+  Activity encryption to use the Task key directly; generate lifecycle Activity
+  centrally for Task state changes; and make OpenCode post concise milestone and
+  learning summaries as ordinary encrypted comments.
+  OpenCode Task bridge calls also tolerate short dev-API restart windows through
+  bounded retries while permanent authentication and request errors fail immediately.
+
+specification_refs:
+  - id: feature.tasks
+    version: 4
+    role: primary
+    fingerprint: 5e7167beae96b903de9c67b65dc93bde4567846ea12cada88aa4333b44dac312
+
+specification_impact:
+  classification: approved_semantic_change
+  specification_update_required: false
+  affected_assertions:
+    - tasks.content.client-encrypted
+    - tasks.lifecycle.visible
+    - tasks.assignment.identity-separated
+    - tasks.external-chat.encrypted-context
+    - tasks.activity.client-encrypted
+    - tasks.activity.context-attribution
+    - tasks.activity.lifecycle-system-generated
+    - tasks.activity.task-scoped-authorization
+    - tasks.execution.capacity-scoped
+    - tasks.surface.semantic-parity
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-04T13:35:00Z"
+    fingerprint: 5e7167beae96b903de9c67b65dc93bde4567846ea12cada88aa4333b44dac312
+    confirmation: explicit_user_confirmation
+  plan:
+    status: approved
+    approved_at: "2026-09-04T13:45:00Z"
+    reason: User explicitly approved the validated external-ai-task-activity implementation Plan.
+
+implementation_state:
+  subject_commit: 8e585234e0bc3aabc147825cdf4001ebb277b9b9
+
+scope:
+  in:
+    - Replace assignee_type ai with user, openmates, external_ai, and unassigned semantics across persisted Tasks and every exposed client.
+    - Store a safe allowlisted assignee_identity and derive its display name and icon from one shared identity registry.
+    - Support openmates/OpenMates and opencode/OpenCode identities initially without accepting caller-defined display names.
+    - Create OpenCode-owned external-chat Tasks in one API mutation as external_ai/opencode; create explicitly human or real-world work as user-assigned.
+    - Restrict native OpenMates queue admission and capacity accounting to openmates-assigned Tasks.
+    - Remove encrypted_entry_key from the unreleased Activity format and encrypt comment text plus embed-key material directly with the Task key using unique AES-GCM nonces and bound AAD.
+    - Create one system lifecycle_update for Task creation and each actual status transition in the backend mutation boundary.
+    - Reuse created, status, comment_added, and comment_deleted event types; OpenCode milestones and learnings remain ordinary comments.
+    - Attribute trusted OpenCode comments as external_ai/opencode and render OpenCode in Task assignment and Activity UI.
+    - Update OpenCode bridge instructions and tests so milestone, learning, blocker, and completion summaries are posted without logging routine commands or retries.
+    - Retry Task bridge commands across bounded 502/503/504 and connection-unavailable windows caused by dev API restarts.
+  out:
+    - Backward-compatible Activity ciphertext decoding or migration; Task Activity has not shipped to production.
+    - Arbitrary third-party identity registration or caller-controlled assignee display names.
+    - OpenCode-specific lifecycle event types or client-generated status history.
+    - Posting every tool call, test, retry, heartbeat, or subagent message to Activity.
+    - Giving external_ai Tasks access to native OpenMates execution capacity.
+    - Recursive Tasks for internal OpenCode subagent work.
+
+context_discovery:
+  github_issues:
+    - No matching GitHub issue was found for named external-AI assignment or OpenCode Activity summaries.
+  specifications:
+    - feature.tasks@4 is approved at fingerprint 5e7167beae96b903de9c67b65dc93bde4567846ea12cada88aa4333b44dac312.
+  plans:
+    - docs/plans/opencode-external-task-bridge/plan.yml implements the current external-chat bridge but conflates native and external AI as assignee_type ai.
+    - docs/plans/task-activity-comments/plan.yml implements the unreleased per-entry wrapped-key Activity format and generic comment transport.
+    - docs/plans/task-queue-auto-continuation/plan.yml assumes assignee_type ai for native queue admission.
+  code_patterns:
+    - backend/core/api/app/services/user_task_service.py already accepts AI assignment during create; the two-step OpenCode workaround exists only in scripts/sessions.py.
+    - backend/core/api/app/services/directus/user_task_methods.py currently creates only user-authored comment_added Activity rows.
+    - Task queue and admission services identify native execution with assignee_type == ai and must move to openmates.
+    - Web and CLI Activity clients currently generate an entry key, wrap it with the Task key, then encrypt the comment with the entry key.
+    - Directus user_task_activity already supports comment, lifecycle_update, and tombstone kinds plus safe event metadata.
+    - OpenCode request instructions require Task creation and explicit completion but do not require meaningful Activity summaries.
+  tests:
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_task_activity_api.py
+    - backend/tests/test_user_task_admission.py
+    - backend/tests/test_task_queue_auto_continuation.py
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/tests/test_tasks.py
+    - frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    - scripts/tests/test_opencode_task_bridge.py
+    - scripts/tests/test_opencode_task_bridge_hook.mjs
+    - scripts/tests/test_opencode_runtime_config.py
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Assignment type and assignment identity are separate; external_ai/opencode renders OpenCode and openmates/openmates renders OpenMates.
+    reason: Execution ownership is semantic while identity controls trusted human-readable attribution.
+    decided_at: "2026-09-04T13:35:00Z"
+  - id: D-2
+    status: active
+    decision: OpenCode creates external_ai/opencode Tasks atomically, except explicitly human or real-world Tasks which remain user-assigned.
+    reason: The current create-as-user then edit-to-AI sequence leaves orphan Tasks when the second request fails.
+    decided_at: "2026-09-04T13:35:00Z"
+  - id: D-3
+    status: active
+    decision: Unreleased Activity comments and embed-key material are encrypted directly with the Task key; no compatibility decoder or migration is retained.
+    reason: Per-entry keys wrapped by the same Task key add complexity without a current independent-sharing, rotation, or revocation requirement.
+    decided_at: "2026-09-04T13:35:00Z"
+  - id: D-4
+    status: active
+    decision: Backend Task mutations generate lifecycle Activity; OpenCode never implements lifecycle history itself.
+    reason: Every client and automation path must produce identical authoritative history.
+    decided_at: "2026-09-04T13:35:00Z"
+  - id: D-5
+    status: active
+    decision: OpenCode progress summaries reuse comment_added and carry their meaning in encrypted prose rather than new event categories.
+    reason: Milestone and learning labels are agent workflow concepts, not durable Task event taxonomy.
+    decided_at: "2026-09-04T13:35:00Z"
+  - id: D-6
+    status: active
+    decision: The OpenCode Task bridge retries only recognizable transient API restart failures with bounded backoff; authentication, validation, authorization, and conflict failures remain terminal.
+    reason: A dev API container replacement must not falsely invalidate the CLI login or strand otherwise successful Task workflow updates.
+    decided_at: "2026-09-04T14:30:00Z"
+
+assumptions:
+  - id: A-1
+    text: Task Activity has no production records requiring ciphertext compatibility.
+    category: rollout
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: user_confirmation
+        summary: The user explicitly stated that backward compatibility is unnecessary because Task Activity is not rolled out to production.
+  - id: A-2
+    text: Existing development Task rows may be reset or mechanically normalized without a production data migration.
+    category: data
+    required_before: task_execution
+    status: checking
+    evidence: []
+  - id: A-3
+    text: The OpenCode CLI profile can be bound to a trusted first-party external-AI identity without accepting arbitrary actor metadata.
+    category: security
+    required_before: task_execution
+    status: checking
+    evidence: []
+
+risks:
+  - id: R-1
+    risk: Task mutations and lifecycle entries can diverge if implemented as two independent Directus requests.
+    mitigation: Add one transaction-capable persistence operation and test rollback plus idempotent retry behavior.
+  - id: R-2
+    risk: Replacing ai checks incompletely could admit external_ai work to native capacity or strand OpenMates Tasks.
+    mitigation: Centralize assignment predicates and add a repository audit that rejects semantic ai comparisons in Task runtime code.
+  - id: R-3
+    risk: Reusing a Task key with an AES-GCM nonce or the wrong authenticated context would weaken encryption integrity.
+    mitigation: Use existing combined-ciphertext helpers with fresh nonces and deterministic versioned AAD; cover nonce/AAD separation in client tests.
+  - id: R-4
+    risk: A general CLI credential could spoof OpenCode attribution.
+    mitigation: Derive external actor identity from an allowlisted authenticated client/profile binding and reject body-supplied display names.
+  - id: R-5
+    risk: Milestone instructions could generate noisy Activity streams.
+    mitigation: Define bounded posting criteria and deterministic output-quality tests that reject per-command or per-retry posting guidance.
+  - id: R-6
+    risk: Broad retries could hide permanent request failures or amplify invalid mutations.
+    mitigation: Match only gateway and connection-unavailable signatures, cap the retry window at five delays totaling 42 seconds, and test that conflicts fail after one attempt.
+
+scenarios:
+  - id: S-1
+    title: OpenCode creates its Task atomically
+    given:
+      - A non-trivial OpenCode session needs a Task.
+    when:
+      - The bridge calls the trusted CLI once.
+    then:
+      - The Task is created as external_ai with identity opencode and its encrypted external-chat context.
+      - The web UI shows OpenCode as assignee.
+      - No intermediate user-owned Task exists.
+      - The Task is excluded from native OpenMates admission and capacity.
+  - id: S-2
+    title: Explicit human work stays human-owned
+    given:
+      - The user asks for a Task they must perform personally or in the physical world.
+    when:
+      - OpenCode creates the Task.
+    then:
+      - The Task is assigned to the authenticated human identity.
+      - OpenCode does not claim or auto-complete it.
+  - id: S-3
+    title: Activity uses the Task key directly
+    given:
+      - An authorized client has the Task key and posts a comment with an embed.
+    when:
+      - It constructs the Activity request.
+    then:
+      - Comment ciphertext and embed-key ciphertext use independent fresh nonces and versioned bound AAD.
+      - No encrypted_entry_key is generated, accepted, returned, or stored.
+      - Authorized clients decrypt the same comment and embed keys with the Task key.
+  - id: S-4
+    title: Status mutation generates authoritative Activity
+    given:
+      - A Task is todo.
+    when:
+      - Any authorized surface changes it to in_progress.
+    then:
+      - The mutation atomically stores the new status and one system lifecycle_update using event_type status.
+      - The entry carries previous_status todo and next_status in_progress as safe metadata.
+      - A retry or no-op update does not duplicate the lifecycle entry.
+  - id: S-5
+    title: OpenCode records a meaningful summarized update
+    given:
+      - OpenCode completes a meaningful milestone or discovers a durable learning.
+    when:
+      - It invokes the Task bridge Activity action.
+    then:
+      - One ordinary encrypted comment_added entry is attributed to external_ai/opencode and rendered as OpenCode.
+      - Routine commands, retries, and internal subagent chatter are not posted.
+      - Status changes still generate separate backend-owned system entries.
+  - id: S-6
+    title: API restart does not strand Task bridge work
+    given:
+      - The dev API is briefly unavailable while its container restarts.
+    when:
+      - OpenCode invokes a Task bridge command during the unavailable window.
+    then:
+      - The CLI describes 502, 503, and 504 session checks as temporary rather than invalid login.
+      - The bridge retries with bounded backoff and returns the successful result once the API is ready.
+      - Authentication, validation, authorization, and conflict errors are not retried.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: REST and CLI create external_ai/opencode Tasks atomically and expose the trusted OpenCode display identity without an intermediate user assignment.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-API, T-CLI, T-OPENCODE]
+  - id: AC-2
+    scenario: S-1
+    text: Only openmates-assigned Tasks enter native OpenMates queue admission or capacity accounting.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-API]
+  - id: AC-3
+    scenario: S-2
+    text: OpenCode can create explicitly human-owned Tasks without treating them as external-AI execution units.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI, T-OPENCODE]
+  - id: AC-4
+    scenario: S-3
+    text: Every Activity client uses direct Task-key encryption with unique nonces and bound AAD, and encrypted_entry_key is absent from the Specification and schema.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-API, T-CLI, T-SDK-NPM, T-SDK-PIP, T-WEB-UNIT]
+  - id: AC-5
+    scenario: S-4
+    text: Creation and actual status transitions append exactly one atomic server-authored lifecycle Activity entry on every mutation path.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-API]
+  - id: AC-6
+    scenario: S-5
+    text: Trusted OpenCode comments use comment_added, external_ai/opencode attribution, and no OpenCode-specific event categories.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-API, T-CLI, T-OPENCODE, T-WEB-E2E]
+  - id: AC-7
+    scenario: S-1
+    text: Web Task cards, detail, and Activity render OpenCode from the allowlisted identity registry.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: ui_visual_smoke
+    verification_ids: [T-WEB-UNIT, T-WEB-E2E, T-UI-SMOKE]
+  - id: AC-8
+    scenario: S-6
+    text: OpenCode Task commands survive bounded dev API restart windows without misreporting an invalid session, while permanent errors fail immediately.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-OPENCODE]
+
+technical_boundaries:
+  assignment:
+    persisted_types: [user, openmates, external_ai, unassigned]
+    identity_registry:
+      openmates: OpenMates
+      opencode: OpenCode
+    native_execution_predicate: assignee_type == openmates
+  activity_encryption:
+    key: Task key
+    algorithm: existing client AES-GCM combined-ciphertext helper
+    nonce: fresh random nonce for every comment and embed-key payload
+    comment_aad: task_activity_comment:<task_id>:<entry_id>:v1
+    embed_aad: task_activity_embed_keys:<task_id>:<entry_id>:v1
+    removed_field: encrypted_entry_key
+  lifecycle:
+    actor_type: system
+    source_surface: system
+    creation_event: created
+    transition_event: status
+    status_metadata: [previous_status, next_status]
+    consistency: Task row and lifecycle row commit in one transaction-capable operation.
+
+data_flow_examples:
+  opencode_create:
+    - OpenCode calls openmates_task create with default ownership external_ai/opencode and its external chat context.
+    - sessions.py invokes one openmates tasks create JSON command containing assignment and encrypted context inputs.
+    - The API validates identity/type pairing and persists the Task plus created lifecycle entry atomically.
+  opencode_comment:
+    - OpenCode calls openmates_task activity_add with a concise summary.
+    - The CLI unlocks the Task key, encrypts the summary directly with bound AAD, and sends ciphertext.
+    - The API derives external_ai/opencode attribution from the trusted OpenCode client binding and stores comment_added.
+  status_transition:
+    - Any client sends an optimistic-version Task status mutation.
+    - The backend compares prior and next status and commits the Task row plus one system status lifecycle entry.
+    - Activity readers render the safe transition without decryption.
+
+contracts:
+  api:
+    access_model: first-party client surface only
+    routes:
+      - POST /v1/user-tasks
+      - PATCH /v1/user-tasks/{task_id}
+      - POST /v1/user-tasks/{task_id}/activity
+      - GET /v1/user-tasks/{task_id}/activity
+      - DELETE /v1/user-tasks/{task_id}/activity/{entry_id}
+    auth: Authenticated web session or approved first-party CLI/npm/pip device credential; owner or authorized Team role.
+    owner_team_scope: Existing Task read/mutation authorization; Team viewers remain read-only.
+    rate_limits: Existing Task read 60/minute and mutation 30/minute limits.
+    credit_budget: No credits; uploads and voice transcription retain their independent existing limits.
+    encryption_boundary: Activity routes accept and return Task-key ciphertext and opaque embed references only; no server-side Task-key or content decryption.
+    public_allowlist: The encrypted Activity surface remains unavailable to unauthenticated public or generic developer API clients.
+  cli:
+    assignment_inputs: [user, openmates, external-ai]
+    external_identity_input: Allowlisted identity opencode, inferred by the OpenCode bridge but represented explicitly in JSON.
+    activity: Existing list/add/delete commands retain generic event types and gain trusted external-AI attribution when invoked through the OpenCode binding.
+  sdks:
+    npm: Assignment identity and direct Task-key Activity encryption/decryption parity.
+    pip: Assignment identity and direct Task-key Activity encryption/decryption parity.
+  web:
+    assignment: Resolve safe identity keys through the shared registry and render OpenCode/OpenMates.
+    activity: Render named external-AI comments and backend lifecycle status entries in the existing final Activity section.
+  opencode:
+    source_of_truth: OpenMates Task CLI JSON output only.
+    create_default: external_ai/opencode for OpenCode work; user only for explicitly human or real-world work.
+    comments: Post one ordinary summarized comment at meaningful milestones, durable learnings/decisions, user-relevant blockers, and completion.
+    prohibited: Per-command updates, custom event categories, client-generated lifecycle entries, and internal-subagent Task duplication.
+
+documentation_impact:
+  generated:
+    - specifications/generated/registry.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+  user_docs:
+    - docs/user-guide/cli/tasks.md
+    - docs/architecture/apps/tasks.md
+  agent_docs:
+    - AGENTS.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/contributing/guides/agent-workflow-quickstart.md
+
+rollout:
+  production_migration: not_required
+  reason: Task Activity has not shipped to production and the user explicitly rejected backward compatibility for its unreleased ciphertext format.
+  development_state:
+    - Update the Directus schema and setup migration to remove encrypted_entry_key and add assignment identity plus lifecycle metadata.
+    - Reset or normalize disposable development Task/Activity fixtures as needed; do not add dual-read or dual-write behavior.
+  deployment:
+    - Rebuild/restart the local API and affected workers through openmates server commands.
+    - Prove REST, CLI, npm, and pip behavior against api.dev.openmates.org before deploying web.
+    - Deploy through sessions.py and run commit-scoped web verification before updating the validated OpenCode runtime.
+    - Audit active OpenCode sessions before restarting its server; do not interrupt busy chats.
+
+phase_gates:
+  api_websocket: {status: pending, reason: Assignment, Activity ciphertext, and lifecycle persistence change the first-party REST behavior.}
+  cli: {status: pending, reason: CLI assignment and Activity encryption must pass against the real dev API after the REST gate.}
+  sdk: {status: pending, reason: npm and pip parity follows the passing CLI gate.}
+  web: {status: pending, reason: Named assignment and Activity rendering follow REST/CLI/SDK verification.}
+  visual_smoke: {status: pending, reason: OpenCode attribution and lifecycle rows are visible on laptop and mobile Task detail.}
+  user_confirmation: {status: pending, reason: User confirmation follows deployed proof for the changed web Task surface.}
+  apple: {status: not_applicable, reason: No shipped Apple Task Activity counterpart exists in this slice.}
+
+apple_impact:
+  affected_files: [none]
+  parity_expectations:
+    - Apple has no shipped Task Activity or assignment UI counterpart in this slice.
+    - Future Apple Task support must consume feature.tasks@4 rather than the removed entry-key format.
+  verification:
+    - Apple not affected; shared schema compatibility is covered by Specification-linked API/client tests.
+  intentional_native_differences:
+    - Named external-AI assignment and Activity launch on web/CLI/SDK before a native Task surface exists.
+
+affected_files:
+  - {path: specifications/features/tasks/specification.yml, reason: Approved feature.tasks@4 product truth.}
+  - {path: specifications/features/tasks/examples.yml, reason: Assignment, encryption, lifecycle, and attribution examples.}
+  - {path: backend/core/directus/schemas/user_tasks.yml, reason: Assignment identity and simplified Activity/lifecycle fields.}
+  - {path: backend/core/directus/setup/migrate_user_task_indexes.sql, reason: Development schema normalization and Activity indexes.}
+  - {path: backend/core/api/app/routes/user_tasks.py, reason: Assignment validation and simplified Activity request format.}
+  - {path: backend/core/api/app/services/user_task_service.py, reason: Assignment semantics and lifecycle transaction orchestration.}
+  - {path: backend/core/api/app/services/directus/user_task_methods.py, reason: Persist assignment identity, direct ciphertext, and lifecycle entries.}
+  - {path: backend/core/api/app/services/user_task_admission_service.py, reason: Native execution predicate.}
+  - {path: backend/core/api/app/services/user_task_queue_service.py, reason: Native queue ownership semantics.}
+  - {path: frontend/packages/openmates-cli/src/tasksCli.ts, reason: Assignment identity and Task-key Activity crypto.}
+  - {path: frontend/packages/openmates-cli/src/client.ts, reason: REST models and Activity Specification behavior.}
+  - {path: frontend/packages/openmates-cli/src/sdk.ts, reason: npm SDK parity.}
+  - {path: packages/openmates-python/openmates/sdk.py, reason: pip SDK parity.}
+  - {path: frontend/packages/ui/src/services/userTaskService.ts, reason: Web models, identity registry, and Task-key Activity crypto.}
+  - {path: frontend/packages/ui/src/components/tasks/TaskActivity.svelte, reason: External-AI and lifecycle rendering.}
+  - {path: frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte, reason: Named assignee rendering.}
+  - {path: scripts/sessions.py, reason: Atomic OpenCode create and Activity comment bridge action.}
+  - {path: .opencode/plugins/openmates-hooks.js, reason: Request instructions for concise Activity summaries.}
+  - {path: scripts/tests/test_opencode_task_bridge.py, reason: Bridge ownership and comment Specification behavior.}
+
+tasks:
+  - id: TASK-1
+    title: Write failing backend assignment, encryption, and lifecycle Specification tests
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-4, AC-5, AC-6]}
+    expected_files: [backend/tests/test_user_tasks_api.py, backend/tests/test_user_task_activity_api.py, backend/tests/test_user_task_admission.py, backend/tests/test_task_queue_auto_continuation.py, docs/plans/external-ai-task-activity/plan.yml]
+    dependencies: []
+    ownership: {files: [backend/tests/test_user_tasks_api.py, backend/tests/test_user_task_activity_api.py, backend/tests/test_user_task_admission.py, backend/tests/test_task_queue_auto_continuation.py, docs/plans/external-ai-task-activity/plan.yml], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    verification: [T-API]
+    verification_ids: [T-API]
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement Directus and backend assignment plus lifecycle persistence
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-4, AC-5, AC-6]}
+    expected_files: [backend/core/directus/schemas/user_tasks.yml, backend/core/directus/setup/migrate_user_task_indexes.sql, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/user_task_service.py, backend/core/api/app/services/directus/user_task_methods.py, backend/core/api/app/services/user_task_admission_service.py, backend/core/api/app/services/user_task_queue_service.py]
+    dependencies: [TASK-1]
+    ownership: {files: [backend/core/directus/schemas/user_tasks.yml, backend/core/directus/setup/migrate_user_task_indexes.sql, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/user_task_service.py, backend/core/api/app/services/directus/user_task_methods.py, backend/core/api/app/services/user_task_admission_service.py, backend/core/api/app/services/user_task_queue_service.py], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    verification: [T-API]
+    verification_ids: [T-API]
+    independently_deployable: false
+  - id: TASK-3
+    title: Prove the first-party REST Specification behavior on the dev server
+    status: pending
+    phase: running_checks
+    covers: {scenarios: [S-1, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-4, AC-5, AC-6]}
+    expected_files: [docs/plans/external-ai-task-activity/plan.yml]
+    dependencies: [TASK-2]
+    ownership: {files: [docs/plans/external-ai-task-activity/plan.yml], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    verification: [T-API-DEV]
+    verification_ids: [T-API-DEV]
+    independently_deployable: true
+  - id: TASK-4
+    title: Update and prove the OpenMates CLI Specification behavior
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-5], acceptance_criteria: [AC-1, AC-3, AC-4, AC-6]}
+    expected_files: [frontend/packages/openmates-cli/src/tasksCli.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/tests/tasks.test.ts]
+    dependencies: [TASK-3]
+    ownership: {files: [frontend/packages/openmates-cli/src/tasksCli.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/tests/tasks.test.ts], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    verification: [T-CLI]
+    verification_ids: [T-CLI]
+    independently_deployable: false
+  - id: TASK-5
+    title: Update npm and pip SDK parity
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-3, S-5], acceptance_criteria: [AC-4, AC-6]}
+    expected_files: [frontend/packages/openmates-cli/src/sdk.ts, frontend/packages/openmates-cli/tests/sdk-tasks.test.ts, packages/openmates-python/openmates/sdk.py, packages/openmates-python/tests/test_tasks.py]
+    dependencies: [TASK-4]
+    ownership: {files: [frontend/packages/openmates-cli/src/sdk.ts, frontend/packages/openmates-cli/tests/sdk-tasks.test.ts, packages/openmates-python/openmates/sdk.py, packages/openmates-python/tests/test_tasks.py], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-6, TASK-7]
+    verification: [T-SDK-NPM, T-SDK-PIP, T-PARITY]
+    verification_ids: [T-SDK-NPM, T-SDK-PIP, T-PARITY]
+    independently_deployable: false
+  - id: TASK-6
+    title: Update web identity, Activity crypto, and lifecycle rendering
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-3, S-4, S-5], acceptance_criteria: [AC-4, AC-5, AC-6, AC-7]}
+    expected_files: [frontend/packages/ui/src/services/userTaskService.ts, frontend/packages/ui/src/services/__tests__/userTaskService.test.ts, frontend/packages/ui/src/components/tasks/TaskActivity.svelte, frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte, frontend/packages/ui/src/components/tasks/TaskActivity.preview.ts, frontend/apps/web_app/tests/task-activity.spec.ts]
+    dependencies: [TASK-5]
+    ownership: {files: [frontend/packages/ui/src/services/userTaskService.ts, frontend/packages/ui/src/services/__tests__/userTaskService.test.ts, frontend/packages/ui/src/components/tasks/TaskActivity.svelte, frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte, frontend/packages/ui/src/components/tasks/TaskActivity.preview.ts, frontend/apps/web_app/tests/task-activity.spec.ts], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    verification: [T-WEB-UNIT, T-WEB-E2E, T-UI-SMOKE]
+    verification_ids: [T-WEB-UNIT, T-WEB-E2E, T-UI-SMOKE]
+    independently_deployable: false
+  - id: TASK-7
+    title: Update OpenCode bridge actions and instructions
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-5, S-6], acceptance_criteria: [AC-1, AC-3, AC-6, AC-8]}
+    expected_files: [scripts/sessions.py, .opencode/plugins/openmates-hooks.js, AGENTS.md, docs/contributing/guides/agent-workflow-quickstart.md, scripts/tests/test_opencode_task_bridge.py, scripts/tests/test_opencode_task_bridge_hook.mjs, scripts/tests/test_opencode_runtime_config.py]
+    dependencies: [TASK-5]
+    ownership: {files: [scripts/sessions.py, .opencode/plugins/openmates-hooks.js, AGENTS.md, docs/contributing/guides/agent-workflow-quickstart.md, scripts/tests/test_opencode_task_bridge.py, scripts/tests/test_opencode_task_bridge_hook.mjs, scripts/tests/test_opencode_runtime_config.py], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    verification: [T-OPENCODE, T-TOOLING-AUDITS]
+    verification_ids: [T-OPENCODE, T-TOOLING-AUDITS]
+    independently_deployable: false
+  - id: TASK-8
+    title: Deploy, verify observable surfaces, and reconcile the validated OpenCode runtime
+    status: pending
+    phase: running_checks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]}
+    expected_files: [docs/plans/external-ai-task-activity/plan.yml]
+    dependencies: [TASK-6, TASK-7]
+    ownership: {files: [docs/plans/external-ai-task-activity/plan.yml], shared_files: []}
+    blockers: []
+    follow_up_tasks: []
+    verification: [T-WEB-E2E, T-UI-SMOKE, T-PROOF, T-OPENCODE]
+    verification_ids: [T-WEB-E2E, T-UI-SMOKE, T-PROOF, T-OPENCODE]
+    independently_deployable: true
+
+tests:
+  - id: T-API
+    type: pytest
+    file: backend/tests/test_user_tasks_api.py backend/tests/test_user_task_activity_api.py backend/tests/test_user_task_admission.py backend/tests/test_task_queue_auto_continuation.py
+    command: python3 -m pytest backend/tests/test_user_tasks_api.py backend/tests/test_user_task_activity_api.py backend/tests/test_user_task_admission.py backend/tests/test_task_queue_auto_continuation.py
+    covers: [AC-1, AC-2, AC-4, AC-5, AC-6]
+    assertions:
+      - Assignment identity/type combinations are validated and only openmates enters native execution.
+      - Activity requests omit encrypted_entry_key and lifecycle changes commit exactly once with the Task mutation.
+      - Trusted external-AI comments derive opencode attribution while arbitrary identity claims are rejected.
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_user_tasks_api.py backend/tests/test_user_task_activity_api.py backend/tests/test_user_task_admission.py backend/tests/test_task_queue_auto_continuation.py -q", run_id: "local-red-20260904", subject_commit: "8e585234e+worktree", timestamp: "2026-09-04T13:50:00Z", reason: "25 assertions failed on the removed ai assignment semantics, per-entry key format, missing identity, and lifecycle behavior; 75 passed."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_user_tasks_api.py backend/tests/test_user_task_activity_api.py backend/tests/test_user_task_admission.py backend/tests/test_task_queue_auto_continuation.py -q", run_id: "local-green-20260904", subject_commit: "8e585234e+worktree", timestamp: "2026-09-04T14:00:00Z", notes: "100 focused API, Activity, admission, and queue tests passed; the wider affected backend suite later passed 171 tests with 25 environment-skipped."}}
+  - id: T-API-DEV
+    type: manual
+    file: scripts/test_openmates_cli_tasks.py
+    command: python3 scripts/test_openmates_cli_tasks.py --api-url https://api.dev.openmates.org
+    covers: [AC-1, AC-4, AC-5, AC-6]
+    assertions:
+      - Authenticated dev API creates and reads the new assignment and Activity Specification behavior.
+      - Unauthorized and forbidden Activity requests retain existing visible failures.
+    red_phase: {required: false, expected: not_applicable, evidence: {status: not_required, reason: Real authenticated dev-server gate follows backend implementation and restart.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts", run_id: "local-cli-20260904", subject_commit: "8e585234e+worktree", timestamp: "2026-09-04T14:08:00Z", notes: "13 CLI Task tests passed, including atomic external_ai/opencode input, direct Task-key AAD encryption, and moved-entry authentication failure."}}
+  - id: T-CLI
+    type: unit
+    file: frontend/packages/openmates-cli/tests/tasks.test.ts
+    command: pnpm --filter openmates-cli test -- tasks.test.ts
+    covers: [AC-1, AC-3, AC-4, AC-6]
+    assertions:
+      - CLI creates user, openmates, and external-ai assignments with validated identities.
+      - Activity ciphertext uses the Task key directly and trusted OpenCode comments retain comment_added.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-tasks.test.ts", run_id: "local-npm-sdk-20260904", subject_commit: "8e585234e+worktree", timestamp: "2026-09-04T14:08:00Z", notes: "4 npm SDK Task tests passed."}}
+  - id: T-SDK-NPM
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    command: pnpm --filter openmates-cli test -- sdk-tasks.test.ts
+    covers: [AC-4, AC-6]
+    assertions:
+      - npm SDK exposes assignment identity and direct Task-key Activity parity.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "PYTHONPATH=packages/openmates-python python3 -m pytest packages/openmates-python/tests/test_tasks.py -q", run_id: "local-pip-sdk-20260904", subject_commit: "8e585234e+worktree", timestamp: "2026-09-04T14:06:00Z", notes: "5 pip SDK Task tests passed."}}
+  - id: T-SDK-PIP
+    type: pytest
+    file: packages/openmates-python/tests/test_tasks.py
+    command: python3 -m pytest packages/openmates-python/tests/test_tasks.py
+    covers: [AC-4, AC-6]
+    assertions:
+      - pip SDK exposes assignment identity and the simplified Activity payload without encrypted_entry_key.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "local-sdk-parity-20260904", subject_commit: "8e585234e+worktree", timestamp: "2026-09-04T14:10:00Z", notes: "89 CLI command entries and four workflow transports passed parity."}}
+  - id: T-PARITY
+    type: lint
+    file: scripts/audit_sdk_cli_parity.py
+    command: python3 scripts/audit_sdk_cli_parity.py
+    covers: [AC-1, AC-3, AC-4, AC-6]
+    assertions:
+      - CLI, npm, and pip expose matching assignment and Activity semantics.
+    red_phase: {required: false, expected: not_applicable, evidence: {status: not_required, reason: Audit is meaningful after surface updates.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "pnpm --dir frontend/packages/ui exec vitest run src/services/__tests__/userTaskService.test.ts", run_id: "local-web-unit-20260904", subject_commit: "8e585234e+worktree", timestamp: "2026-09-04T14:11:00Z", notes: "7 browser Task service tests passed."}}
+  - id: T-WEB-UNIT
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    command: pnpm --filter @openmates/ui test -- userTaskService.test.ts
+    covers: [AC-4, AC-7]
+    assertions:
+      - Web encrypts and decrypts Activity directly with the Task key.
+      - Web resolves opencode to OpenCode without accepting arbitrary display labels.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_opencode_task_bridge.py scripts/tests/test_opencode_runtime_config.py -q && node --test scripts/tests/test_opencode_task_bridge_hook.mjs", run_id: "local-opencode-20260904", subject_commit: "8e585234e+worktree", timestamp: "2026-09-04T14:04:00Z", notes: "17 Python bridge/runtime tests and 8 hook tests passed."}}
+  - id: T-WEB-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/task-activity.spec.ts
+    command: python3 scripts/tests.py run --spec task-activity.spec.ts --gate-deploy --expected-commit <SUBJECT_COMMIT>
+    target: app.dev.openmates.org
+    covers: [AC-6, AC-7]
+    assertions:
+      - Task assignment and external-AI Activity attribution render OpenCode.
+      - Status changes render separate system lifecycle entries in chronological Activity.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+  - id: T-UI-SMOKE
+    type: manual
+    file: frontend/packages/ui/src/components/tasks/TaskActivity.preview.ts
+    command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/dev/preview/task-activity?chrome=0 --session 31f7
+    covers: [AC-7]
+    assertions:
+      - Laptop and mobile Task Activity layouts show readable named assignee and lifecycle attribution without clipping or overflow.
+    viewports: [laptop, mobile]
+    red_phase: {required: false, expected: not_applicable, evidence: {status: not_required, reason: Reviewed smoke is a post-deploy visual gate.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-OPENCODE
+    type: unit
+    file: scripts/tests/test_opencode_task_bridge.py scripts/tests/test_opencode_task_bridge_hook.mjs scripts/tests/test_opencode_runtime_config.py
+    command: python3 -m pytest scripts/tests/test_opencode_task_bridge.py scripts/tests/test_opencode_runtime_config.py && node --test scripts/tests/test_opencode_task_bridge_hook.mjs
+    covers: [AC-1, AC-3, AC-6, AC-8]
+    assertions:
+      - Bridge creation is one external_ai/opencode command and human work remains user-assigned.
+      - Bridge Activity action posts ordinary comments and instructions limit summaries to meaningful events.
+      - Transient API restart failures retry with bounded backoff while permanent failures execute once.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_opencode_task_bridge.py scripts/tests/test_opencode_runtime_config.py -q && node --test scripts/tests/test_opencode_task_bridge_hook.mjs", run_id: "local-opencode-retry-20260904", subject_commit: "8e585234e+worktree", timestamp: "2026-09-04T14:35:00Z", notes: "20 Python bridge/runtime tests and 8 hook tests passed, including bounded transient restart retry, exhausted retry reporting, and immediate permanent-error failure."}}
+  - id: T-TOOLING-AUDITS
+    type: lint
+    file: scripts/audit_opencode_output_quality.py scripts/audit_agent_tooling_parity.py
+    command: python3 scripts/audit_opencode_output_quality.py && python3 scripts/audit_agent_tooling_parity.py
+    covers: [AC-6]
+    assertions:
+      - OpenCode instruction and hook surfaces remain synchronized and satisfy output-quality checks.
+    red_phase: {required: false, expected: not_applicable, evidence: {status: not_required, reason: Audits validate final synchronized instruction coverage.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PROOF
+    type: manual
+    file: frontend/apps/web_app/tests/task-activity.spec.ts
+    command: python3 scripts/proof_video_workflow.py start --current --spec task-activity.spec.ts
+    covers: [AC-6, AC-7]
+    assertions:
+      - Approved phone and laptop recordings show OpenCode assignment, OpenCode comment attribution, and automatic lifecycle entries.
+    red_phase: {required: false, expected: not_applicable, evidence: {status: not_required, reason: Proof follows passing deployed Playwright.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+
+demonstration:
+  eligibility:
+    status: required
+    reason: Named OpenCode assignment, attributed comments, and lifecycle entries are observable Task web UI changes.
+    surface: visual
+    classified_at: "2026-09-04T13:35:00Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show a Task assigned to the named external-AI identity.
+      expected_proof: Task card and detail display OpenCode rather than External AI or OpenMates.
+      scenario_ids: [S-1]
+      acceptance_criteria: [AC-1, AC-7]
+    - id: NARR-2
+      purpose: Show narrative and lifecycle Activity as separate generic entries.
+      expected_proof: An OpenCode-attributed comment uses the ordinary comment presentation and a status change produces a system lifecycle entry automatically.
+      scenario_ids: [S-4, S-5]
+      acceptance_criteria: [AC-5, AC-6, AC-7]
+  evidence:
+    status: pending
+    privacy_status: pending
+    audio_status: not_required
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-7
+    approach: Create every OpenCode Task as user-owned and separately edit it to AI-owned.
+    outcome: rejected
+    recorded_at: "2026-09-04T13:35:00Z"
+    reason: The non-atomic sequence produced orphan user-owned Tasks when assignment failed and conflated native OpenMates with external AI.
+  - id: ATTEMPT-2
+    task_id: TASK-2
+    approach: Wrap one random entry key per Activity comment and wrap each entry key with the Task key.
+    outcome: rejected
+    recorded_at: "2026-09-04T13:35:00Z"
+    reason: The unreleased feature has no per-entry sharing, revocation, or rotation requirement that justifies the extra envelope layer.
+
+handoff:
+  current_task_id: TASK-3
+  next_action: Deploy the implemented Specification behavior, rebuild CMS/API services, and run the authenticated dev API gate.
+  command: 'python3 scripts/sessions.py deploy --session 31f7 --title "feat: add named external AI task activity"'
+  expected_outcome: The dev API accepts atomic external_ai/opencode Tasks and direct Task-key Activity comments with automatic lifecycle rows.
+  blocker: null
+  last_verified_commit: 8e585234e0bc3aabc147825cdf4001ebb277b9b9
+
+open_questions: []

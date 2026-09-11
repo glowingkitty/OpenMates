@@ -3411,13 +3411,34 @@ async def _generate_fake_stream_for_simple_message(
     except Exception as e:
         logger.error(f"{log_prefix} Error charging credits for system message: {e}", exc_info=True)
 
+    # Error responses need the same sealed completion as normal/harmful responses.
+    # The client persists ciphertext only after receiving a recovery job identifier.
+    # See docs/architecture/core/chat-encryption-implementation.md.
+    category = "general_knowledge"
+    recovery_job = None
+    if _recovery_inference_task_id(request_data):
+        if directus_service is None:
+            raise RuntimeError("Epoch-1 simple response is missing Directus recovery service")
+        recovery_job = await _persist_sealed_recovery_job(
+            directus_service=directus_service,
+            request_data=request_data,
+            task_id=task_id,
+            content=message_text,
+            category=category,
+            model_name=model_name,
+        )
+
     final_payload = _create_redis_payload(
         task_id, request_data, message_text, 2, is_final=True, model_name=model_name,
         prompt_tokens=billing_info.get("prompt_tokens", 0),
         completion_tokens=billing_info.get("completion_tokens", 0),
         total_credits=billing_info.get("total_credits", 0),
-        rejection_reason=rejection_reason
+        rejection_reason=rejection_reason,
+        category=category,
     )
+    if recovery_job:
+        final_payload["recovery_job_id"] = recovery_job["job_id"]
+        final_payload["recovery_protocol_version"] = 1
     await _publish_to_redis(
         cache_service, redis_channel, final_payload, log_prefix,
         f"Published final marker to '{redis_channel}'"
@@ -3428,7 +3449,6 @@ async def _generate_fake_stream_for_simple_message(
     # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
     # EXTERNAL REQUESTS skip this.
     if not request_data.is_external and directus_service and cache_service and message_text:
-        category = "general_knowledge"  # Default category for simple messages
         timestamp = _assistant_response_created_at(request_data, int(time.time()))
         content_tiptap = message_text  # Send as markdown
 
@@ -5315,7 +5335,9 @@ async def _consume_main_processing_stream(
     
     # Debug metadata captured from main_processor (system prompt, tools, message history)
     # Yielded early before the LLM call loop and returned to ask_skill_task for debug caching
-    debug_metadata: Optional[Dict[str, Any]] = None
+    # Permission pauses may precede the model's debug metadata frame.
+    # They must leave the authorized turn resumable rather than failing it.
+    debug_metadata: Dict[str, Any] = {}
     
     pre_main_scope = ai_phase_span("pre_main")
     pre_main_scope.__enter__()
@@ -9648,6 +9670,16 @@ async def _consume_main_processing_stream(
         total_credits=billing_info.get("total_credits"),
         category=preprocessing_result.category or "general_knowledge"
     )
+    if getattr(request_data, "is_anonymous", False):
+        anonymous_embeds = [
+            embed
+            for tool_call in tool_calls_info or []
+            if isinstance(tool_call, dict)
+            for embed in tool_call.get("anonymous_embeds") or []
+            if isinstance(embed, dict)
+        ]
+        if anonymous_embeds:
+            final_payload["anonymous_embeds"] = anonymous_embeds
     if recovery_job:
         final_payload["recovery_job_id"] = recovery_job["job_id"]
         final_payload["recovery_protocol_version"] = 1

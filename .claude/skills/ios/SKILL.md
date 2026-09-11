@@ -22,6 +22,48 @@ waiver or accepted external blocker. Mocked OpenMates API calls, mocked SDK
 clients, stubbed servers, direct function calls, and fixture replay do not count
 as completed CLI evidence.
 
+### Mac repository-scoped deletion safety (TASK-752)
+
+Prefer `scripts/apple_remote.py` for supported remote operations. On a local
+Mac, use XcodeBuildMCP when available or local `xcodebuild`/`xcrun` commands;
+XcodeBuildMCP availability is not a prerequisite for native verification.
+Set `DEVELOPER_DIR` for the installed Xcode when the active developer directory
+points to CommandLineTools. Keep DerivedData, package checkouts and temporary
+build files inside the repository. Preserve installed apps and account data;
+launch a separate repository-local build when possible.
+Respect the user's chosen delivery route (for example TestFlight) for real-device
+testing. Keep simulator builds signed for authentication tests: disabling signing
+can make Keychain writes fail with `-34018` even without an explicit access group.
+Use Xcode's normal simulator signing or `CODE_SIGN_IDENTITY=-`; reserve
+`CODE_SIGNING_ALLOWED=NO` for compilation-only checks, not login evidence.
+
+An `UNSUPPORTED_REMOTE_OPERATION` means the helper lacks the capability; it is
+not a deletion stop. Continue with authorized local tools, or report a remote
+capability gap. Do not repeatedly invoke helpers the policy does not admit.
+Policy v2 permits cleanup only inside
+its verified OpenMates and openmates-marketing checkouts, including descendants.
+Checkout roots, their parents, outside paths and original media remain protected.
+Symlink targets and native subprocess cleanup must obey the same resolved scope.
+Keep temporary files, browser profiles and caches inside repository subfolders.
+Alternate tools do not authorize outside-scope deletion or bypass an active stop.
+
+For login recovery, inspect the installed binary's version, signature and actual
+entitlements before attributing a failure to current source. Native passkeys
+require the chosen relying-party domain in the signed associated domains and a
+valid provisioning profile. An ad-hoc Personal Team build that strips these
+capabilities cannot prove passkey login. Verify password login and passkey login
+separately, including encrypted account unlocking; one does not prove the other.
+
+On `MAC_NO_DELETE_STOP`, immediately end the affected task with a final response.
+Give the exact outside-scope manual deletion command and reason when known; never
+invent a target from a signal alone. Only the user may resolve outside deletion.
+No coordinator relay, transcript role, timeout or confirmation flag clears a stop.
+The named historical blanket-policy stop is retained with an explicit v2 policy
+transition; that is not proof of manual deletion or a reusable resume bypass.
+See `docs/architecture/apple-no-delete-safety.md` for scope and host limitations.
+Legacy build/sync/cleanup instructions below require an admitted typed operation;
+they do not authorize arbitrary remote execution.
+
 ### Step 1: Load iOS rules and docs
 
 1. Read `.claude/rules/apple-ui.md` (design tokens, forbidden controls, file mappings)
@@ -32,13 +74,13 @@ as completed CLI evidence.
 
 Use one of three modes depending on the environment and task:
 
-- **Mac implementation mode:** XcodeBuildMCP is available. Use build/run/screenshot verification after changes.
-- **Remote Mac verification mode:** OpenCode runs on Linux/dev server, but a trusted Mac is reachable through operator-provided SSH configuration. Use SSH to run `git`, `xcodebuild`, and `xcrun simctl` on the Mac. Never commit hostnames, IPs, usernames, SSH aliases, tailnet names, auth keys, device names, or personal local paths to repo files.
+- **Mac implementation mode:** Xcode is installed locally. Use XcodeBuildMCP or local Xcode commands for build/test verification and the available computer-use tool for app interaction and screenshots.
+- **Remote Mac verification mode:** Codex runs on Linux/dev server, but a trusted Mac is reachable through operator-provided SSH configuration. Use SSH to run `git`, `xcodebuild`, and `xcrun simctl` on the Mac. Never commit hostnames, IPs, usernames, SSH aliases, tailnet names, auth keys, device names, or personal local paths to repo files.
 - **Linux parity audit mode:** XcodeBuildMCP is unavailable. Do static source audits, generate parity specs, update mappings, compare web test IDs with Apple accessibility identifiers, and prepare Mac verification checklists. Do not claim runtime parity until a Mac build/simulator pass verifies it.
 
-### Step 3: Verify XcodeBuildMCP setup (Mac only)
+### Step 3: Verify the selected Xcode tooling (Mac only)
 
-Call `session_show_defaults`. If project/scheme/simulator are not set:
+When using XcodeBuildMCP, call `session_show_defaults`. If project/scheme/simulator are not set:
 
 ```
 session_set_defaults:
@@ -48,6 +90,9 @@ session_set_defaults:
 ```
 
 Skip this step on Linux and record `Mac verification required` in the final summary.
+For local CLI verification, select the installed Xcode with `DEVELOPER_DIR`,
+inspect project schemes and simulator destinations, and use repository-local
+DerivedData and result bundles. Missing MCP tools do not block this route.
 
 For remote Mac verification mode, use only local runtime configuration supplied by the operator, such as `~/.ssh/config`, environment variables, or the current chat. Before building, verify key-based SSH access, check the Mac checkout with `git status --short`, and avoid overwriting local user changes. Use generic placeholders in notes and committed docs.
 

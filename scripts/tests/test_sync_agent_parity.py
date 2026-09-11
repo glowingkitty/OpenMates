@@ -64,22 +64,18 @@ def test_non_check_sync_repairs_codex_hook_mirrors(tmp_path: Path, monkeypatch) 
     assert module.sync_hooks(check=True) == []
 
 
-def test_proof_video_reviewer_is_callable_as_primary_and_subagent(tmp_path: Path) -> None:
+def test_sync_preserves_codex_safety_without_recreating_opencode(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
-    source = tmp_path / "proof-video-reviewer.md"
-    source.write_text(
-        "---\nname: proof-video-reviewer\ndescription: Review frames.\ntools: Read\n---\nReview every frame.\n",
-        encoding="utf-8",
-    )
-
-    rendered = module.render_opencode_agent(source)
-
-    assert "mode: all" in rendered
-    assert '"*": deny' in rendered
-    assert '"test-results/proof-videos/**/review-prompt-round-*.json": allow' in rendered
-    assert '"test-results/proof-videos/**/frames/*": allow' in rendered
-    assert "grep: deny" in rendered
-    assert "glob: deny" in rendered
-    assert "task: deny" in rendered
-    assert "bash: deny" in rendered
-    assert "edit: deny" in rendered
+    source_dir = tmp_path / ".claude" / "agents"
+    source_dir.mkdir(parents=True)
+    source = source_dir / "proof-video-reviewer.md"
+    source.write_text("---\nname: proof-video-reviewer\ndescription: Review frames.\ntools: Read\n---\nReview every frame.\n")
+    monkeypatch.setattr(module, "CLAUDE_AGENTS_DIR", source_dir)
+    monkeypatch.setattr(module, "CODEX_AGENTS_DIR", tmp_path / ".codex" / "agents")
+    assert module.sync_agents(check=False) == []
+    rendered = (tmp_path / ".codex/agents/proof-video-reviewer.toml").read_text()
+    assert 'sandbox_mode = "read-only"' in rendered
+    assert "Review every frame." in rendered
+    assert "model =" not in rendered
+    assert module.sync_agents(check=True) == []
+    assert not (tmp_path / ".opencode").exists()

@@ -510,16 +510,13 @@
     let previousHeight = 0;
     let forceDraftActionsVisible = $state(false);
 
-    const MESSAGE_FIELD_MIN_HEIGHT = 100;
-    const MESSAGE_FIELD_MIN_HEIGHT_COMPACT = 60;
     const MESSAGE_FIELD_MAX_HEIGHT = 350;
     const MESSAGE_FIELD_MAPS_HEIGHT = 400;
     const MESSAGE_FIELD_RECORDING_HEIGHT = 220;
     const MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH = 0.65;
     const MESSAGE_FIELD_TRANSITION_DURATION_MS = 300;
-    const MESSAGE_FIELD_TRANSITION_BUFFER_MS = 70;
     const FULLSCREEN_TOP_GUTTER_PX = 20;
-    let panelHeightTransitionOverride = $state<string | null>(null);
+    let panelTransitionOverride = $state<string | null>(null);
     let suppressHeightChangeDispatch = $state(false);
     
     type DraftEmbedKind = 'audio' | 'image' | 'pdf' | 'website' | 'video' | 'map' | 'code' | 'document' | 'sheet' | 'file' | 'app' | 'embed';
@@ -744,7 +741,7 @@
         )
     );
     let showBaseEmptyInputAffordances = $derived(
-        !startNewChatOnClick && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch
+        !startNewChatOnClick && !shouldShowActionButtons && !isFullscreen && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch
     );
 
     // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
@@ -2110,7 +2107,7 @@
         if ($recordingState.showRecordAudioUI || $recordingState.isRecordingActive) {
             return `height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px; max-height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px;`;
         }
-        if (inlineCompact && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI) {
+        if (inlineCompact && !shouldShowActionButtons && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI) {
             return 'height: 48px; max-height: 48px;';
         }
         return `height: auto; max-height: ${MESSAGE_FIELD_MAX_HEIGHT}px;`;
@@ -2576,7 +2573,8 @@
             editor.commands.setContent(`<p>${msgText.replace(/\n/g, '<br>')}</p>`);
             hasContent = true;
             refreshDraftPreviewState(editor);
-            editor.commands.focus('end');
+            // Expand the draft preview before focusing its otherwise hidden editor.
+            focus();
             if (autoSend) {
                 // Short delay to let the editor render the content
                 setTimeout(() => handleSendMessage(), 100);
@@ -3784,11 +3782,17 @@
             // and clears the progressive processing phase. Without this, the thinking animation
             // keeps spinning until the backend confirms cancellation. The backend will also fire
             // aiTaskEnded when it confirms, but that second fire is harmless (idempotent).
+            const activeTask = chatSyncService.activeAITasks.get(chatId);
             chatSyncService.dispatchEvent(
                 new CustomEvent('aiTaskEnded', {
                     detail: {
                         chatId,
                         taskId: taskId,
+                        // Only pair the optimistic cancel with a user turn when the
+                        // currently tracked task is the task being cancelled.
+                        userMessageId: activeTask?.taskId === taskId
+                            ? activeTask.userMessageId
+                            : undefined,
                         status: 'cancelled',
                     },
                 }),
@@ -4386,103 +4390,75 @@
     }
     function checkScrollable() { if (scrollableContent) isScrollable = scrollableContent.scrollHeight > scrollableContent.clientHeight; }
 
-    function getCollapsedTargetHeight(): number {
-        if (showMaps || showCamera) return MESSAGE_FIELD_MAPS_HEIGHT;
-        const minHeight = shouldShowActionButtons ? MESSAGE_FIELD_MIN_HEIGHT : MESSAGE_FIELD_MIN_HEIGHT_COMPACT;
-        const messageField = messageInputWrapper?.querySelector('.message-field') as HTMLElement | null;
-        const measuredContentHeight = messageField?.scrollHeight ?? minHeight;
-        return Math.min(Math.max(measuredContentHeight, minHeight), MESSAGE_FIELD_MAX_HEIGHT);
-    }
-
-    function getFullscreenTargetHeight(): number {
-        if (containerRect && typeof window !== 'undefined') {
-            return Math.max(containerRect.height - FULLSCREEN_TOP_GUTTER_PX, MESSAGE_FIELD_MIN_HEIGHT);
-        }
-        if (typeof window !== 'undefined') {
-            return Math.max(Math.round(window.innerHeight * MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH), MESSAGE_FIELD_MIN_HEIGHT);
-        }
-        return Math.max(MESSAGE_FIELD_MAPS_HEIGHT, MESSAGE_FIELD_MIN_HEIGHT);
-    }
-
-    async function waitForMessageFieldHeightTransition(messageField: HTMLElement): Promise<void> {
-        const fallbackMs = MESSAGE_FIELD_TRANSITION_DURATION_MS + MESSAGE_FIELD_TRANSITION_BUFFER_MS;
-        await new Promise<void>((resolve) => {
-            let settled = false;
-            const settle = () => {
-                if (settled) return;
-                settled = true;
-                messageField.removeEventListener('transitionend', onTransitionEnd);
-                resolve();
-            };
-            const onTransitionEnd = (event: TransitionEvent) => {
-                if (event.target !== messageField) return;
-                const animatedProps = new Set(['height', 'max-height', 'top', 'right', 'bottom', 'left', 'transform']);
-                if (!animatedProps.has(event.propertyName)) return;
-                settle();
-            };
-            messageField.addEventListener('transitionend', onTransitionEnd);
-            setTimeout(settle, fallbackMs);
-        });
-    }
-
     async function toggleFullscreen() {
+        // Serialize toggles so a second click cannot measure an intermediate frame.
+        if (suppressHeightChangeDispatch) return;
         const messageField = messageInputWrapper?.querySelector('.message-field') as HTMLElement | null;
+
+        // Keep the existing TipTap selection; focus('end') would move the caret.
+        // Overlay controls must retain their own focus instead of opening the keyboard.
+        if (!showMaps && !showCamera && !showSketch && !$recordingState.showRecordAudioUI) {
+            if (blurTimeoutId) {
+                clearTimeout(blurTimeoutId);
+                blurTimeoutId = null;
+            }
+            isMessageFieldFocused = true;
+            isFocused = true;
+            editor?.commands.focus(undefined, { scrollIntoView: false });
+        }
         if (!messageField) {
             isFullscreen = !isFullscreen;
             dispatch('fullscreenToggle', isFullscreen);
-            tick().then(checkScrollable);
+            await tick();
+            checkScrollable();
             return;
         }
 
-        const wasFullscreen = isFullscreen;
         suppressHeightChangeDispatch = true;
-
+        let animation: Animation | undefined;
         try {
-            if (!wasFullscreen && containerRect && typeof window !== 'undefined') {
-                const firstRect = messageField.getBoundingClientRect();
-
-                isFullscreen = true;
-                dispatch('fullscreenToggle', isFullscreen);
-                await tick();
-
-                const lastRect = messageField.getBoundingClientRect();
-                const deltaX = firstRect.left - lastRect.left;
-                const deltaY = firstRect.top - lastRect.top;
-                const scaleX = lastRect.width > 0 ? firstRect.width / lastRect.width : 1;
-                const scaleY = lastRect.height > 0 ? firstRect.height / lastRect.height : 1;
-
-                messageField.style.transition = 'none';
-                messageField.style.transformOrigin = 'top left';
-                messageField.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
-                void messageField.getBoundingClientRect();
-
-                messageField.style.transition = `transform ${MESSAGE_FIELD_TRANSITION_DURATION_MS}ms ease-in-out, border-radius ${MESSAGE_FIELD_TRANSITION_DURATION_MS}ms ease-in-out`;
-                messageField.style.transform = 'translate(0px, 0px) scale(1, 1)';
-
-                await waitForMessageFieldHeightTransition(messageField);
-                messageField.style.transition = '';
-                messageField.style.transform = '';
-                messageField.style.transformOrigin = '';
-                checkScrollable();
-                return;
-            }
-
-            const startHeight = Math.round(messageField.getBoundingClientRect().height);
-            panelHeightTransitionOverride = `height: ${startHeight}px; max-height: ${startHeight}px;`;
+            const firstRect = messageField.getBoundingClientRect();
+            const firstRadius = getComputedStyle(messageField).borderRadius;
+            // Measure the actual destination, including natural draft height, with
+            // CSS transitions disabled. Both directions animate the same geometry;
+            // scaling the editor distorts text, controls, and rounded corners.
+            panelTransitionOverride = 'transition: none;';
             await tick();
-
             isFullscreen = !isFullscreen;
             dispatch('fullscreenToggle', isFullscreen);
-
             await tick();
-            const targetHeight = isFullscreen ? getFullscreenTargetHeight() : getCollapsedTargetHeight();
-            panelHeightTransitionOverride = `height: ${targetHeight}px; max-height: ${targetHeight}px;`;
-
-            await waitForMessageFieldHeightTransition(messageField);
-            panelHeightTransitionOverride = null;
+            const lastRect = messageField.getBoundingClientRect();
+            const lastRadius = getComputedStyle(messageField).borderRadius;
+            const frame = (rect: DOMRect, borderRadius: string) => ({
+                position: 'fixed',
+                top: `${rect.top}px`,
+                left: `${rect.left}px`,
+                right: 'auto',
+                bottom: 'auto',
+                width: `${rect.width}px`,
+                height: `${rect.height}px`,
+                minHeight: '0px',
+                maxHeight: 'none',
+                maxWidth: 'none',
+                borderRadius,
+                zIndex: '200',
+            });
+            animation = messageField.animate(
+                [frame(firstRect, firstRadius), frame(lastRect, lastRadius)],
+                {
+                    duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                        ? 0 : MESSAGE_FIELD_TRANSITION_DURATION_MS,
+                    easing: 'ease-in-out',
+                },
+            );
+            await animation.finished;
             checkScrollable();
         } finally {
+            animation?.cancel();
+            panelTransitionOverride = null;
             suppressHeightChangeDispatch = false;
+            await tick();
+            updateHeight();
         }
     }
 
@@ -5226,8 +5202,6 @@
     }
 
     function handleModelDetails(event: CustomEvent<{ modelId: string }>): void {
-        isMessageFieldFocused = false;
-        isFocused = false;
         settingsDeepLink.set(`ai/model/${event.detail.modelId}`);
         panelState.openSettings();
     }
@@ -5767,8 +5741,8 @@
     // view renders at a tiny default height.
     // These aliases exist so the template references remain unchanged.
     let containerStyle = $derived(
-        panelHeightTransitionOverride
-            ? `${messagePanelStyle} ${panelHeightTransitionOverride}`
+        panelTransitionOverride
+            ? `${messagePanelStyle} ${panelTransitionOverride}`
             : messagePanelStyle
     );
     let scrollableStyle = $derived(messagePanelScrollableStyle);
@@ -6137,7 +6111,7 @@
         data-focused={isMessageFieldFocused}
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
-        class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI}
+        class:inline-compact={inlineCompact && !isFullscreen && !shouldShowActionButtons && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI}
         class:placeholder-fading={isPlaceholderFading}
         class:empty-welcome-field={showEmptyInputAffordances}
         style={containerStyle}
@@ -6283,6 +6257,8 @@
         {#if !startNewChatOnClick && (isFullscreen || hasSendableDraft || isMessageFieldFocused) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
             <button
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
+                type="button"
+                onmousedown={(event) => event.preventDefault()}
                 onclick={toggleFullscreen}
                 aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
                 use:tooltip
@@ -6353,7 +6329,7 @@
                     forceUnauthenticatedCta={anonymousFileAttachmentPending}
                     reserveTrailingControlSpace={showStopProcessingButton && !hasSendableDraft}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
-                    micPermissionState={$recordingState.micPermissionState}
+                    blockedMicAttempt={$recordingState.blockedMicAttempt}
                     {highlightPressHold}
                     isSketchOpen={showSketch}
                     {modelSelection}
@@ -6384,21 +6360,6 @@
         {#if queuedMessageText}
             <div class="queued-message-indicator" transition:fade={{ duration: 200 }}>
                 {queuedMessageText}
-            </div>
-        {/if}
-
-        <!-- Mic permission hint — shown below action buttons.
-             · denied → always-visible error telling user to unblock in settings
-             · prompt/unknown + showRecordHint → timed hint to allow mic access
-             · granted + single tap → handled by highlightPressHold prop on ActionButtons
-               (no separate hint div needed; the inline label flashes instead) -->
-        {#if $recordingState.micPermissionState === 'denied'}
-            <div class="queued-message-indicator mic-permission-hint mic-permission-blocked" transition:fade={{ duration: 200 }}>
-                {$text('enter_message.record_audio.microphone_blocked')}
-            </div>
-        {:else if $recordingState.showRecordHint && $recordingState.micPermissionState !== 'granted'}
-            <div class="queued-message-indicator mic-permission-hint" transition:fade={{ duration: 200 }}>
-                {$text('enter_message.record_audio.allow_microphone_access')}
             </div>
         {/if}
 
@@ -6512,7 +6473,7 @@
 	.message-field.empty-welcome-field {
 		min-height: 64px;
 		padding: 0 64px;
-		border-radius: var(--radius-full, 9999px);
+		border-radius: 32px;
 	}
 
     .message-field.inline-compact.empty-welcome-field {
@@ -6520,7 +6481,7 @@
         min-height: 48px;
         max-height: 48px;
         padding: 0 56px;
-        transition: border-radius 0.3s ease-in-out;
+        border-radius: 24px;
     }
 
     .message-field.empty-welcome-field .scrollable-content {

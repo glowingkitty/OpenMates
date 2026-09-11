@@ -1,0 +1,5 @@
+{
+  "kind": "critical",
+  "environment": "development",
+  "incident": {"package": "synthetic-package", "ecosystem": "pypi", "current_versions": ["1.2.3"], "aliases": ["CVE-2026-0001"], "opened_at": "2026-09-06T08:00:00Z"}
+}

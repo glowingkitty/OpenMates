@@ -1,0 +1,73 @@
+id: codex-daily-orchestration
+title: Reliable Codex daily meeting and orchestration
+status: verified
+goal: 'Implement the approved orchestration design and corrected daily meeting sequence:
+  priorities first, research previous and current work plus saved priorities and OpenMates
+  CLI Tasks, four clarification rounds, then proposed focus and assignments.'
+approvals:
+  specification:
+    status: not_required
+    reason: Engineering workflow only; no product API changes.
+  implementation:
+    status: approved
+    source: User approved proposal R2 and all ten clarified decisions on 2026-09-08.
+      User approved the priorities-first and full-context meeting corrections on 2026-09-08.
+scope:
+  in:
+  - Role-scoped linked reporting and OpenMates CLI Task context.
+  - Durable adaptive reviews, one coordinator, progress evidence and parking.
+  - S3 recording delivery independent of test success.
+  - Previous working day Codex history and commits, source-bound nightly coverage.
+  - Private per-day meeting records, current-day Codex/commit inputs, CLI Tasks and
+    four-answer proposal gate.
+  out:
+  - OpenCode restoration, shared Docker admission, product fixes, production changes.
+  - Worker limits, daily clock cutoff, unsolicited launches or external notifications.
+handoff:
+  proposal: logs/workflow-reviews/2026-09-07-ad0b/orchestration-proposal-r2.md
+  state: 'Meeting corrections verified: 3 original gaps reproduced; all 81 focused
+    tests pass. No live observer activated.'
+  current_task_id: TASK-86
+  next_action: Source implementation verified. Live unattended activation and notification
+    cutover remain explicitly excluded.
+  runtime_limitations:
+  - No atomic idle-only start; observer tool output can queue into a concurrently
+    active coordinator turn, without becoming a human message.
+  - No per-commentary output hook; final format correction is bounded to one per turn.
+  - Generic render event subscriptions and unattended service activation require explicit
+    integration.
+  - Email/Discord migration gap diagnosed; notifications not sent or cut over.
+verifications:
+- id: V-1
+  kind: deterministic_check
+  phase: final
+  required_for_done: true
+  evidence:
+    status: passed
+    command: python3 -m pytest scripts/tests/test_codex_orchestration.py scripts/tests/test_codex_meeting.py
+      scripts/tests/test_codex_evidence.py scripts/tests/test_codex_hook_context.py
+      scripts/tests/test_ci_results.py scripts/tests/test_ci_dispatch.py scripts/tests/test_cli_video_capture.py
+      -q
+    result: 81 passed
+    timestamp: '2026-09-08T14:14:15.311431+00:00'
+    subject_commit: 9703fbce4d1b90a550aae32aed6dff05621b9b3d + session ad0b meeting
+      corrections
+- id: V-2
+  kind: deterministic_check
+  phase: final
+  required_for_done: true
+  evidence:
+    status: passed
+    command: python3 scripts/sync_agent_parity.py --check; python3 scripts/audit_agent_tooling_parity.py;
+      python3 scripts/specifications.py check-generated
+    timestamp: '2026-09-08'
+- id: V-3
+  kind: manual
+  phase: final
+  required_for_done: true
+  evidence:
+    status: passed
+    command: python3 scripts/codex_meeting.py --timezone Etc/UTC --output /tmp/ad0b-meeting-canary.json
+    result: 'Live read-only inventory: 11 tasks and 70 commits on September 7; coverage
+      gaps explicit. CLI linked task lookup found TASK-86.'
+    timestamp: '2026-09-08'

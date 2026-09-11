@@ -27,6 +27,7 @@ from typing import Any, Optional, Dict
 
 from backend.shared.python_utils.object_storage_regions import (
     endpoint_for_region,
+    object_url_for_region,
     is_retryable_storage_error,
     parse_storage_regions,
     resolve_regional_bucket_name,
@@ -295,12 +296,14 @@ class S3UploadService:
         region_secret = await self.secrets_manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_region_name")
         self.region_name = region_secret if region_secret else 'nbg1'
         configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+        if os.getenv("S3_ENDPOINT_URL") and len(configured_regions) != 1:
+            raise ValueError("An explicit S3 endpoint requires exactly one S3_REGIONS entry")
         if self.region_name not in configured_regions:
             raise ValueError("Active S3 region must be present in S3_REGIONS")
         logger.info("Using active S3 region %s from configured regions %s", self.region_name, configured_regions)
         
         # Build endpoint URL based on region name
-        self.endpoint_url = endpoint_for_region(self.region_name)
+        self.endpoint_url = endpoint_for_region(self.region_name, endpoint_override=os.getenv("S3_ENDPOINT_URL"))
         
         # Store the base domain for URL generation
         parsed_url = urlparse(self.endpoint_url)
@@ -318,7 +321,7 @@ class S3UploadService:
             region: boto3.client(
                 's3',
                 region_name=region,
-                endpoint_url=endpoint_for_region(region),
+                endpoint_url=endpoint_for_region(region, endpoint_override=os.getenv("S3_ENDPOINT_URL")),
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
                 config=s3v4_config,
@@ -339,7 +342,7 @@ class S3UploadService:
             region: boto3.client(
                 's3',
                 region_name=region,
-                endpoint_url=endpoint_for_region(region),
+                endpoint_url=endpoint_for_region(region, endpoint_override=os.getenv("S3_ENDPOINT_URL")),
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
                 config=upload_config,
@@ -614,9 +617,7 @@ class S3UploadService:
             The S3 URL of the file
         """
         selected_region = region or self.region_name
-        regional_bucket = resolve_regional_bucket_name(bucket_name, selected_region)
-        base_domain = urlparse(endpoint_for_region(selected_region)).netloc
-        return f"https://{regional_bucket}.{base_domain}/{file_key}"
+        return object_url_for_region(bucket_name, file_key, selected_region, endpoint_override=os.getenv("S3_ENDPOINT_URL"))
 
     def generate_presigned_url(self, bucket_name: str, file_key: str, expiration: int = 3600, region: str | None = None) -> str:
         """
@@ -891,7 +892,7 @@ class S3UploadService:
                     current_upload_client = boto3.client(
                         's3',
                         region_name=selected_region,
-                        endpoint_url=endpoint_for_region(selected_region),
+                        endpoint_url=endpoint_for_region(selected_region, endpoint_override=os.getenv("S3_ENDPOINT_URL")),
                         aws_access_key_id=self._upload_access_key,
                         aws_secret_access_key=self._upload_secret_key,
                         config=retry_config

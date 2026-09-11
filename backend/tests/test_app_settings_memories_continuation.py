@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_app_settings_memories_continuation.py
 #
 # Regression tests for app settings/memories permission continuations.
@@ -43,6 +44,11 @@ class _FakeCache:
         assert chat_id == "chat-1"
         return {
             "task_id": "original-task-1",
+            "recovery_inference_task_id": "original-task-1",
+            "recovery_preflight_id": "preflight-1",
+            "recovery_turn_id": "turn-1",
+            "recovery_public_key": "public-key-1",
+            "chat_key_version": 1,
             "chat_id": "chat-1",
             "message_id": "message-1",
             "user_id_hash": "user-hash-1",
@@ -90,6 +96,7 @@ class _FakeEncryption:
         return "Use my code preferences."
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
 def test_app_settings_memories_continuation_preserves_request_context(monkeypatch):
     fake_task = _FakeApplyAsyncTask()
     fake_task_module = ModuleType("backend.apps.ai.tasks.ask_skill_task")
@@ -123,3 +130,10 @@ def test_app_settings_memories_continuation_preserves_request_context(monkeypatc
     assert request_payload["app_settings_memories_metadata"] == ["code-preferred_technologies"]
     assert request_payload["is_app_settings_memories_continuation"] is True
     assert cache.deleted == [("chat-1", "user-1")]
+
+    assert request_payload["recovery_inference_task_id"] == "original-task-1"
+    assert request_payload["recovery_preflight_id"] == "preflight-1"
+    assert request_payload["recovery_turn_id"] == "turn-1"
+    assert request_payload["recovery_public_key"] == "public-key-1"
+    assert request_payload["chat_key_version"] == 1
+    assert not request_payload.get("recovery_task_id")

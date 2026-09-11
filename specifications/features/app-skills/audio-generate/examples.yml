@@ -121,6 +121,10 @@ boundary_cases:
     input: {requests: [{prompt: soft upward message sent tick, provider: elevenlabs, duration_seconds: 0.8}]}
     expect: {initial_status: processing, audio_base64_absent: true, completed_result_has_encrypted_files: true, upload_files_indexed: true}
 
+  - id: cli-download-owned-sound-effect
+    command: openmates apps audio generate "soft upward message sent tick" --output-dir ./sounds --filename sent.mp3
+    expect: {initial_status: processing, owner_can_poll_completed_result: true, local_path: ./sounds/sent.mp3, download_flags_sent_to_provider: false, automatic_sdk_file_write: false}
+
 safety_rejections:
   - id: named-person-voice-sfx
     input: {requests: [{prompt: Taylor Swift saying ding in her voice}]}

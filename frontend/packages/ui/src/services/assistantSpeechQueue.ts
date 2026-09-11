@@ -31,6 +31,7 @@ export type AssistantSpeechQueueStatus =
   | "paused"
   | "waiting_for_more"
   | "stopped"
+  | "completed"
   | "blocked_by_autoplay"
   | "failed";
 
@@ -52,7 +53,7 @@ export interface AssistantSpeechWaveformRegion {
 }
 
 interface SpeechAudio {
-  addEventListener(event: "ended", listener: () => void): void;
+  addEventListener(event: "ended" | "error" | "waiting" | "playing", listener: () => void): void;
   pause(): void;
   play(): Promise<void>;
 }
@@ -92,6 +93,8 @@ export class AssistantSpeechQueue {
   private pendingSegmentId: string | null = null;
   private readonly completedSegmentIds = new Set<string>();
   private autoplayPending = true;
+  private playGeneration = 0;
+  private complete = false;
   private readonly onStateChange?: (state: AssistantSpeechQueueState) => void;
 
   state: AssistantSpeechQueueState = { ...DEFAULT_STATE };
@@ -154,6 +157,7 @@ export class AssistantSpeechQueue {
     }
     this.stopCurrentAudio();
     this.autoplayPending = true;
+    this.complete = false;
     this.segments.clear();
     this.audioBySegmentId.clear();
     this.completedSegmentIds.clear();
@@ -170,7 +174,24 @@ export class AssistantSpeechQueue {
     if (!this.state.responseId || this.state.status === "stopped") {
       return;
     }
+    const previous = this.segments.get(segment.id);
+    // Late queued acknowledgements must not erase already resolved ready audio.
+    if (previous?.status === "ready" && segment.status === "generating") return;
+    if (previous?.status === "ready" && segment.status === "ready" && !segment.audioUrl) {
+      segment = { ...segment, audioUrl: previous.audioUrl, waveform: previous.waveform };
+    }
     this.segments.set(segment.id, segment);
+    if (previous?.status === "failed" && segment.status === "ready" && segment.id === this.state.activeSegmentId) {
+      this.setState({ ...this.state, status: this.autoplayPending ? "waiting_for_segment" : "paused" });
+    }
+    if (segment.status === "failed" && (segment.id === this.state.activeSegmentId || segment.id === this.pendingSegmentId)) {
+      this.stopCurrentAudio();
+      this.setState({ ...this.state, activeSegmentId: segment.id, status: "failed" });
+      return;
+    }
+    if (previous?.status === "failed" && segment.status === "generating" && segment.id === this.state.activeSegmentId) {
+      this.setState({ ...this.state, status: "waiting_for_segment" });
+    }
     const cachedAudio = this.audioBySegmentId.get(segment.id);
     if (cachedAudio && cachedAudio.url !== segment.audioUrl) {
       cachedAudio.audio.pause();
@@ -185,7 +206,7 @@ export class AssistantSpeechQueue {
       }
     }
     if (!this.state.activeSegmentId || this.completedSegmentIds.has(this.state.activeSegmentId)) {
-      this.setState({ ...this.state, activeSegmentId: null, status: "waiting_for_segment" });
+      this.setState({ ...this.state, activeSegmentId: null, status: this.autoplayPending ? "waiting_for_segment" : "paused" });
       this.activateFirstSegment();
       return;
     }
@@ -213,6 +234,7 @@ export class AssistantSpeechQueue {
       return;
     }
     this.autoplayPending = false;
+    this.playGeneration += 1;
     this.currentAudio?.pause();
     this.setState({ ...this.state, status: "paused" });
   }
@@ -222,11 +244,30 @@ export class AssistantSpeechQueue {
       return;
     }
     this.autoplayPending = true;
+    if (this.state.status === "completed") {
+      this.completedSegmentIds.clear();
+      this.setState({ ...this.state, activeSegmentId: null, status: "waiting_for_segment" });
+    }
+    if (this.state.activeSegmentId && this.completedSegmentIds.has(this.state.activeSegmentId)) {
+      this.setState({ ...this.state, activeSegmentId: null, status: "waiting_for_segment" });
+    }
     if (!this.state.activeSegmentId) {
       this.activateFirstSegment();
       return;
     }
     await this.playActiveSegment();
+  }
+
+  markComplete(): void {
+    this.complete = true;
+    if (this.state.status === "waiting_for_more" && this.orderedSegments.every((segment) => this.completedSegmentIds.has(segment.id))) {
+      this.setState({ ...this.state, status: "completed" });
+    }
+  }
+
+  fail(): void {
+    this.stopCurrentAudio();
+    this.setState({ ...this.state, status: "failed" });
   }
 
   stop(): void {
@@ -253,8 +294,10 @@ export class AssistantSpeechQueue {
     }
     this.stopCurrentAudio();
     this.pendingSegmentId = null;
-    this.autoplayPending = this.state.status !== "paused";
-    this.setState({ ...this.state, activeSegmentId: segment.id, status: "waiting_for_segment" });
+    this.completedSegmentIds.delete(segment.id);
+    this.setState({ ...this.state, activeSegmentId: segment.id,
+      status: segment.status === "failed" ? "failed" : this.autoplayPending ? "waiting_for_segment" : "paused",
+    });
     if (segment.status === "ready") {
       if (this.autoplayPending) await this.playActiveSegment();
     }
@@ -298,7 +341,9 @@ export class AssistantSpeechQueue {
       return;
     }
     this.setState({ ...this.state, activeSegmentId: firstSegment.id });
-    if (firstSegment.status === "ready") {
+    if (firstSegment.status === "failed") {
+      this.setState({ ...this.state, status: "failed" });
+    } else if (firstSegment.status === "ready" && this.autoplayPending) {
       void this.playActiveSegment();
     }
   }
@@ -316,6 +361,10 @@ export class AssistantSpeechQueue {
 
   private async playActiveSegment(): Promise<void> {
     const segment = this.activeSegment;
+    if (segment?.status === "failed") {
+      this.setState({ ...this.state, status: "failed" });
+      return;
+    }
     if (!segment || segment.status !== "ready" || !segment.audioUrl) {
       this.setState({ ...this.state, status: "waiting_for_segment" });
       return;
@@ -323,14 +372,15 @@ export class AssistantSpeechQueue {
     const audio = this.getAudio(segment);
     this.currentAudio = audio;
 
+    const generation = ++this.playGeneration;
     try {
       await audio.play();
-      if (!this.isCurrentAudio(segment.id, audio)) {
+      if (generation !== this.playGeneration || !this.isCurrentAudio(segment.id, audio)) {
         return;
       }
       this.setState({ ...this.state, status: "playing" });
     } catch (error) {
-      if (!this.isCurrentAudio(segment.id, audio)) {
+      if (generation !== this.playGeneration || !this.isCurrentAudio(segment.id, audio)) {
         return;
       }
       if (this.isAutoplayBlocked(error)) {
@@ -349,6 +399,22 @@ export class AssistantSpeechQueue {
     }
     const audio = this.audioFactory(segment.audioUrl!);
     audio.addEventListener("ended", () => this.handleSegmentEnded(segment.id, audio));
+    audio.addEventListener("error", () => {
+      if (!this.isCurrentAudio(segment.id, audio)) return;
+      console.error("[AssistantSpeechQueue] Audio element reported a playback error");
+      this.stopCurrentAudio();
+      this.setState({ ...this.state, status: "failed" });
+    });
+    audio.addEventListener("waiting", () => {
+      if (this.isCurrentAudio(segment.id, audio) && this.autoplayPending) {
+        this.setState({ ...this.state, status: "waiting_for_segment" });
+      }
+    });
+    audio.addEventListener("playing", () => {
+      if (this.isCurrentAudio(segment.id, audio) && this.autoplayPending) {
+        this.setState({ ...this.state, status: "playing" });
+      }
+    });
     this.audioBySegmentId.set(segment.id, { audio, url: segment.audioUrl! });
     return audio;
   }
@@ -362,6 +428,14 @@ export class AssistantSpeechQueue {
     const activeIndex = segments.findIndex((segment) => segment.id === segmentId);
     const nextSegment = segments[activeIndex + 1];
     this.currentAudio = null;
+    if (!nextSegment && this.complete) {
+      this.setState({ ...this.state, status: "completed" });
+      return;
+    }
+    if (nextSegment?.status === "failed") {
+      this.setState({ ...this.state, activeSegmentId: nextSegment.id, status: "failed" });
+      return;
+    }
     if (!nextSegment || nextSegment.status !== "ready") {
       this.pendingSegmentId = nextSegment?.id ?? null;
       this.setState({ ...this.state, status: "waiting_for_more" });
@@ -376,6 +450,7 @@ export class AssistantSpeechQueue {
   }
 
   private stopCurrentAudio(): void {
+    this.playGeneration += 1;
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio = null;

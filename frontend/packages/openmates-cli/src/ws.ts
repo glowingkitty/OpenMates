@@ -135,7 +135,7 @@ export interface TaskProposalEvent {
   title: string;
   description?: string | null;
   status?: "backlog" | "todo" | "in_progress" | "blocked" | "done";
-  assignee_type?: "ai" | "user";
+  assignee_type?: "openmates" | "user";
 }
 
 export interface TaskUpdateProposalEvent {
@@ -143,7 +143,7 @@ export interface TaskUpdateProposalEvent {
   title?: string | null;
   description?: string | null;
   status?: "backlog" | "todo" | "in_progress" | "blocked" | "done" | null;
-  assignee_type?: "ai" | "user" | null;
+  assignee_type?: "openmates" | "user" | null;
 }
 
 export interface TaskEventFrame {
@@ -201,7 +201,7 @@ const SUB_CHAT_COMPLETION_TIMEOUT_MS = 10 * 60_000;
 const CLIENT_UPDATE_REQUIRED_GUIDANCE =
   "OpenMates CLI update required. Run `openmates upgrade` and retry.";
 const TASK_STATUSES = new Set(["backlog", "todo", "in_progress", "blocked", "done"]);
-const TASK_ASSIGNEES = new Set(["ai", "user"]);
+const TASK_ASSIGNEES = new Set(["openmates", "user"]);
 
 export class WebSocketProtocolError extends Error {
   readonly code: string;
@@ -529,6 +529,16 @@ export class OpenMatesWsClient {
     return () => this.socket.off("message", onMessage);
   }
 
+  onProjectTaskSync(handler: (type: string, payload: unknown) => void): () => void {
+    const onMessage = (rawData: RawData) => {
+      let parsed: WsEnvelope<unknown>;
+      try { parsed = JSON.parse(rawData.toString()); } catch { return; }
+      if (parsed.type === "project_task_sync" || parsed.type === "project_task_sync_error") handler(parsed.type, parsed.payload);
+    };
+    this.socket.on("message", onMessage);
+    return () => this.socket.off("message", onMessage);
+  }
+
   onProjectRemoteAccessRequest(
     handler: (payload: ProjectRemoteAccessRequestFrame) => void | Promise<void>,
   ): () => void {
@@ -756,6 +766,8 @@ export class OpenMatesWsClient {
     chatSummary: string | null;
     chatTags: string[];
     updatedChatTitle: string | null;
+    generatedTitle: string | null;
+    generatedIcon: string | null;
     taskProposals: TaskProposalEvent[];
     taskUpdateProposals: TaskUpdateProposalEvent[];
     taskEvents: TaskEventFrame[];
@@ -786,6 +798,8 @@ export class OpenMatesWsClient {
       let chatSummary: string | null = null;
       let chatTags: string[] = [];
       let updatedChatTitle: string | null = null;
+      let generatedTitle: string | null = null;
+      let generatedIcon: string | null = null;
       let taskProposals: TaskProposalEvent[] = [];
       let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
       const taskEvents: TaskEventFrame[] = [];
@@ -898,6 +912,8 @@ export class OpenMatesWsClient {
             chatSummary,
             chatTags,
             updatedChatTitle,
+            generatedTitle,
+            generatedIcon,
             taskProposals,
             taskUpdateProposals,
             taskEvents,
@@ -930,6 +946,8 @@ export class OpenMatesWsClient {
               chatSummary,
               chatTags,
               updatedChatTitle,
+              generatedTitle,
+              generatedIcon,
               taskProposals,
               taskUpdateProposals,
               taskEvents,
@@ -958,6 +976,8 @@ export class OpenMatesWsClient {
           chatSummary,
           chatTags,
           updatedChatTitle,
+          generatedTitle,
+          generatedIcon,
           taskProposals,
           taskUpdateProposals,
           taskEvents,
@@ -1274,7 +1294,14 @@ export class OpenMatesWsClient {
 
           // Typing started — fires before content chunks arrive
           if (type === "ai_typing_started") {
+            if (p.chat_id !== chatId) return;
             capture(p);
+            // Preprocessing owns the initial title; post-processing only retitles
+            // conversations that drift. Preserve both until encrypted persistence.
+            if (typeof p.title === "string" && p.title.trim()) generatedTitle = p.title.trim();
+            if (Array.isArray(p.icon_names)) {
+              generatedIcon = p.icon_names.find((icon): icon is string => typeof icon === "string" && icon.trim().length > 0) ?? generatedIcon;
+            }
             onStream?.({
               kind: "typing",
               content: "",
@@ -1350,6 +1377,8 @@ export class OpenMatesWsClient {
             chatSummary,
             chatTags,
             updatedChatTitle,
+            generatedTitle,
+            generatedIcon,
             taskProposals,
             taskUpdateProposals,
             taskEvents,

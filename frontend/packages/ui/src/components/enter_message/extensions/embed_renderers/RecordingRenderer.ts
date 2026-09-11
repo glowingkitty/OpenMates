@@ -44,15 +44,20 @@
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
-import { mount, unmount } from "svelte";
+import { mount, unmount, disposeEmbedTree, onEmbedCleanup, isEmbedTargetDisposed } from "./mountedEmbedLifecycle";
 import { get } from "svelte/store";
 import RecordingEmbedPreview from "../../../embeds/audio/RecordingEmbedPreview.svelte";
 import { authStore } from "../../../../stores/authStore";
 import { embedStore } from "../../../../services/embedStore";
+import { chatSyncService } from "../../../../services/chatSyncService";
 import { resolveEmbed } from "../../../../services/embedResolver";
 import type { AudioWaveformData } from "../../../../utils/audioWaveform";
 
 // Track mounted Svelte components for cleanup (keyed by the DOM element)
+const recordingCleanupTargets = new WeakSet<HTMLElement>();
+const recordingSubscriptions = new WeakMap<HTMLElement, () => void>();
+const recordingLoads = new WeakMap<HTMLElement, object>();
+
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 
 /**
@@ -107,6 +112,10 @@ export class RecordingRenderer implements EmbedRenderer {
   render(context: EmbedRenderContext): void | Promise<void> {
     const { content } = context;
     const attrs = context.attrs as RecordingEmbedAttrs;
+    recordingSubscriptions.get(content)?.();
+    const loadToken = {};
+    recordingLoads.set(content, loadToken);
+    const isCurrent = () => recordingLoads.get(content) === loadToken && !isEmbedTargetDisposed(content);
 
     // -----------------------------------------------------------------------
     // Context A: Editor context — blobUrl is present (in-memory, pre-send).
@@ -127,7 +136,28 @@ export class RecordingRenderer implements EmbedRenderer {
     // -----------------------------------------------------------------------
     if (attrs.contentRef && attrs.contentRef.startsWith("embed:")) {
       // Show a loading placeholder while fetching from EmbedStore
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div class="recording-embed-loading" style="display:flex;align-items:center;justify-content:center;min-height:80px;padding:8px;"><div class="loading-spinner" style="width:20px;height:20px;border:2px solid var(--color-grey-20,#eaeaea);border-top-color:var(--color-app-audio,#e05555);border-radius:50%;animation:spin 0.8s linear infinite;"></div></div>`;
+
+      const embedId = attrs.contentRef.slice('embed:'.length);
+      const handleUpdate = (event: Event) => {
+        const updatedId = (event as CustomEvent<{ embed_id?: string }>).detail?.embed_id?.replace(/^embed:/, '');
+        if (updatedId === embedId && isCurrent()) void this.render(context);
+      };
+      const cleanup = () => {
+        chatSyncService.removeEventListener('embedUpdated', handleUpdate);
+        if (recordingSubscriptions.get(content) === cleanup) recordingSubscriptions.delete(content);
+      };
+      chatSyncService.addEventListener('embedUpdated', handleUpdate);
+      recordingSubscriptions.set(content, cleanup);
+      // One cleanup owner per target; subsequent renders replace its subscription.
+      if (!recordingCleanupTargets.has(content)) {
+        recordingCleanupTargets.add(content);
+        onEmbedCleanup(content, () => {
+          recordingSubscriptions.get(content)?.();
+          recordingLoads.delete(content);
+        });
+      }
 
       return embedStore
         .get(attrs.contentRef)
@@ -139,6 +169,7 @@ export class RecordingRenderer implements EmbedRenderer {
             }
           }
 
+          if (!isCurrent()) return;
           if (!embedData || typeof embedData === "string" || !embedData["content"]) {
             // EmbedStore miss — try requesting from server (non-blocking WebSocket)
             console.warn(
@@ -192,6 +223,7 @@ export class RecordingRenderer implements EmbedRenderer {
           const mimeType = (parsed.mime_type as string) || attrs.mimeType;
           const model = (parsed.model as string) || undefined;
 
+          if (!isCurrent()) return;
           const restoredAttrs: RecordingEmbedAttrs = {
             ...attrs,
             s3Files,
@@ -226,6 +258,7 @@ export class RecordingRenderer implements EmbedRenderer {
           );
         })
         .catch((err) => {
+          if (!isCurrent()) return;
           console.error(
             "[RecordingRenderer] Failed to load read-only recording from EmbedStore:",
             err,
@@ -269,6 +302,8 @@ export class RecordingRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -390,6 +425,7 @@ export class RecordingRenderer implements EmbedRenderer {
         "[RecordingRenderer] Error mounting RecordingEmbedPreview:",
         error,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:8px;font-size:12px;color:var(--color-grey-50)">Voice note unavailable</div>`;
     }
   }

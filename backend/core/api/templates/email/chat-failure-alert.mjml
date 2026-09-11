@@ -1,0 +1,13 @@
+<mjml>
+  <mj-head><mj-title>Chat processing failed</mj-title></mj-head>
+  <mj-body>
+    <mj-section><mj-column>
+      <mj-text font-size="24px">A chat failed on {{ environment }}</mj-text>
+      <mj-text>The backend could not finish processing a chat request.</mj-text>
+      <mj-text>Stage: {{ stage }}<br />Failure category: {{ category }}<br />Deployed revision: {{ revision }}</mj-text>
+      <mj-text>Today's detected failures: {{ failures }}<br />Suppressed by the daily cap: {{ suppressed }}<br />Email attempt: {{ slot }} of {{ daily_limit }}</mj-text>
+      <mj-text>{% if cap_reached %}The daily email cap is now reached. Further failures will be counted and logged without email until midnight UTC.{% else %}Each server sends at most five chat-failure emails per UTC day.{% endif %}</mj-text>
+      <mj-text>Inspect the server's request traces and error logs for this stage and deployed revision. This email contains no chat content or user identifiers.</mj-text>
+    </mj-column></mj-section>
+  </mj-body>
+</mjml>

@@ -57,7 +57,8 @@ import type { LoginResult, LogoutCallbacks } from "./authTypes";
 import { getSessionId } from "../utils/sessionId";
 
 // Login session generation counter.
-// Incremented on every successful login. The background logout IIFE captures the
+// Incremented on every successful login and when explicit logout starts.
+// The background logout IIFE captures the
 // current value when it starts; before doing destructive operations (server logout
 // fetch with credentials, cookie deletion) it re-checks the counter. If a new
 // login happened in the meantime the counter will have changed, so the IIFE skips
@@ -83,6 +84,11 @@ export function bumpLoginSessionGeneration(): void {
   console.debug(
     `[AuthStore] Bumped loginSessionGeneration to ${loginSessionGeneration} (external login path)`,
   );
+}
+
+/** Session checks use the same boundary counter as background logout cleanup. */
+export function getLoginSessionGeneration(): number {
+  return loginSessionGeneration;
 }
 
 export function resetLocalLogoutState(): void {
@@ -545,10 +551,9 @@ export async function login(
  * @returns True if local logout initiated successfully, false otherwise.
  */
 export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
-  // Capture login session generation BEFORE any async work.
-  // Both the happy-path and error-recovery background IIFEs use this to detect
-  // whether a new login() call succeeded while they were in flight.
-  const logoutGeneration = loginSessionGeneration;
+  // Invalidate older session checks before any await, then capture this logout's
+  // generation so its server revocation still runs unless a newer login wins.
+  const logoutGeneration = ++loginSessionGeneration;
 
   try {
     // --- Pre-request cleanup (non-cookie items) ---

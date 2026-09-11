@@ -7,8 +7,10 @@
 
 import { mount, tick, unmount } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { userProfile } from "../../../stores/userProfile";
 import EmbedsMapView from "../EmbedsMapView.svelte";
 import UnifiedEmbedPreview from "../UnifiedEmbedPreview.svelte";
+import { chatSyncService } from "../../../services/chatSyncService";
 
 const embedResolverMocks = vi.hoisted(() => ({
   resolveEmbed: vi.fn(),
@@ -58,7 +60,7 @@ async function flush(target?: HTMLElement): Promise<void> {
   await tick();
   if (!target) return;
   await vi.waitFor(() => {
-    expect(target.querySelector('[data-testid="embeds-map-view"]')?.getAttribute('data-loading')).toBe('false');
+    expect(target.querySelector('[data-testid="embeds-map-view-resolution"]')?.getAttribute('data-loading')).toBe('false');
   });
 }
 
@@ -238,6 +240,8 @@ describe("EmbedsMapView", () => {
           app_id: "maps",
           skill_id: "place",
           displayName: "Factory Berlin",
+          lat: 52.496,
+          lon: 13.444,
           formattedAddress: "Lohmuehlenstrasse 65, Berlin",
         };
       }
@@ -311,6 +315,48 @@ describe("EmbedsMapView", () => {
       }
       return null;
     });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  it('removes the view when its last valid location disappears', async () => {
+    let valid = true;
+    embedResolverMocks.resolveEmbed.mockImplementation(async () => ({ type: 'place', content: valid ? 'valid-location' : 'empty-location' }));
+    embedResolverMocks.decodeToonContent.mockImplementation(async () => valid ? { title: 'A place', lat: 52, lon: 13 } : { title: 'A place' });
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, { target, props: { id: 'removed-location', embedRefs: ['entry'], sourceRefs: [], highlightRefs: [] } });
+    await flush(target);
+    expect(target.querySelector('[data-testid="embeds-map-view"]')).not.toBeNull();
+    valid = false;
+    chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', { detail: { embed_id: 'entry' } }));
+    await vi.waitFor(() => expect(target.querySelector('[data-testid="embeds-map-view"]')).toBeNull());
+    unmount(component);
+    target.remove();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  it.each([
+    [{ title: 'No location or date' }, false],
+    [{ title: 'Invalid coordinates', lat: 100, lon: 200 }, false],
+    [{ title: 'Invalid date', date: '2026-02-30' }, false],
+    [{ title: 'Date only', date: '2026-09-20' }, true],
+  ])('only renders eligible dated or located entries: %j', async (data, visible) => {
+    embedResolverMocks.resolveEmbed.mockResolvedValue({ type: 'event', content: 'eligibility-content' });
+    embedResolverMocks.decodeToonContent.mockResolvedValue(data);
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, { target, props: { id: 'eligibility', embedRefs: ['entry'], sourceRefs: [], highlightRefs: [] } });
+    await flush(target);
+    expect(Boolean(target.querySelector('[data-testid="embeds-map-view"]'))).toBe(visible);
+    if (visible) {
+      expect(target.querySelector('[data-testid="embeds-results-view-calendar-date-only"]')?.textContent).toContain('Date only');
+      expect(target.querySelector('[data-testid="embeds-map-view-map"]')).toBeNull();
+      expect(target.querySelector('[data-testid="embeds-results-view-calendar-item"]')).toBeNull();
+      expect(target.querySelector('.calendar-time-column')).toBeNull();
+      expect(target.querySelector('.calendar-items')).toBeNull();
+    }
+    unmount(component);
+    target.remove();
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
@@ -442,6 +488,104 @@ describe("EmbedsMapView", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+  it("preserves calendar durations and times, including overlaps and overnight entries", async () => {
+    const records: Record<string, Record<string, unknown>> = {
+      morning: { title: "Morning workshop", date_start: "2026-09-12T10:00:00+02:00", date_end: "2026-09-12T12:00:00+02:00", venue: { name: "Studio" } },
+      overlap: { title: "Overlapping workshop", date_start: "2026-09-12T11:00:00+02:00", date_end: "2026-09-12T13:00:00+02:00" },
+      evening: { title: "Evening workshop", date_start: "2026-09-12T18:30:00+02:00", date_end: "2026-09-12T22:00:00+02:00" },
+      overnight: { title: "Overnight connection", departure: "2026-09-12T23:00:00+02:00", arrival: "2026-09-13T01:00:00+02:00" },
+    };
+    embedStoreMocks.resolveByRefDeep.mockImplementation(async (ref: string) => ref);
+    embedResolverMocks.resolveEmbed.mockImplementation(async (ref: string) => ({ embed_id: ref, type: 'events-event', status: 'finished', content: ref }));
+    embedResolverMocks.decodeToonContent.mockImplementation(async (ref: string) => records[ref]);
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, { target, props: { id: 'calendar-geometry', embedRefs: Object.keys(records) } });
+    await flush(target);
+    const items = Array.from(target.querySelectorAll<HTMLElement>('[data-testid="embeds-results-view-calendar-item"]'));
+    const morning = items.find((item) => item.textContent?.includes('Morning workshop'))!;
+    const overlap = items.find((item) => item.textContent?.includes('Overlapping workshop'))!;
+    const evening = items.find((item) => item.textContent?.includes('Evening workshop'))!;
+    expect(morning.style.getPropertyValue('--calendar-item-height-hours')).toBe('2');
+    expect(overlap.style.getPropertyValue('--calendar-item-top-hours')).toBe('11');
+    expect(morning.style.getPropertyValue('--calendar-item-columns')).toBe('2');
+    expect(overlap.style.getPropertyValue('--calendar-item-column')).toBe('1');
+    expect(evening.style.getPropertyValue('--calendar-item-height-hours')).toBe('3.5');
+    expect(evening.style.getPropertyValue('--calendar-item-columns')).toBe('1');
+    expect(morning.getAttribute('aria-label')).toBe('Morning workshop, 10:00 - 12:00, Studio');
+    expect(morning.textContent).not.toContain('08:00');
+    expect(target.querySelector('[data-testid="embeds-results-view-calendar-week-label"]')?.textContent).toContain('Week 37 2026');
+    expect(target.querySelector<HTMLElement>('.calendar-week')?.style.getPropertyValue('--calendar-timeline-hours')).toBe('24');
+    const overnight = items.filter((item) => item.textContent?.includes('Overnight connection'));
+    expect(overnight).toHaveLength(2);
+    expect(overnight.map((item) => item.style.getPropertyValue('--calendar-item-height-hours'))).toEqual(['1', '1']);
+    expect(overnight.map((item) => item.dataset.startMinutes)).toEqual(['1380', '0']);
+    unmount(component);
+    target.remove();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+  it("navigates only calendar weeks with filtered entries and skips empty weeks", async () => {
+    const records: Record<string, Record<string, unknown>> = {
+      overnight: { title: "Sunday overnight", departure: "2026-09-13T23:00:00+02:00", arrival: "2026-09-14T01:00:00+02:00", provider: "early" },
+      midnight: { title: "Ends at midnight", date_start: "2026-09-20T23:00:00+02:00", date_end: "2026-09-21T00:00:00+02:00", provider: "early" },
+      later: { title: "October date only", date_start: "2026-10-01", provider: "later" },
+    };
+    embedStoreMocks.resolveByRefDeep.mockImplementation(async (ref: string) => ref);
+    embedResolverMocks.resolveEmbed.mockImplementation(async (ref: string) => ({ embed_id: ref, type: "events-event", status: "finished", content: ref }));
+    embedResolverMocks.decodeToonContent.mockImplementation(async (ref: string) => records[ref]);
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, { target, props: { id: "calendar-weeks", embedRefs: Object.keys(records) } });
+    await flush(target);
+
+    const previous = () => target.querySelector<HTMLButtonElement>('[aria-label="Previous week"]')!;
+    const next = () => target.querySelector<HTMLButtonElement>('[aria-label="Next week"]')!;
+    const week = () => target.querySelector('[data-testid="embeds-results-view-calendar-week-label"]')?.textContent;
+    expect(week()).toContain("Week 37 2026");
+    expect(previous().disabled).toBe(true);
+    expect(next().disabled).toBe(false);
+
+    next().click();
+    await tick();
+    expect(week()).toContain("Week 38 2026");
+    expect(target.querySelector('[data-testid="embeds-results-view-calendar"]')?.textContent).toContain("Sunday overnight");
+    next().click();
+    await tick();
+    // The event ending at Monday midnight creates no event in week 39.
+    expect(week()).toContain("Week 40 2026");
+    expect(target.querySelector('[data-testid="embeds-results-view-calendar-date-only"]')?.textContent).toContain("October date only");
+    expect(next().disabled).toBe(true);
+    previous().click();
+    await tick();
+    expect(week()).toContain("Week 38 2026");
+    next().click();
+    await tick();
+
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-filter-button"]')!.click();
+    await tick();
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-option-provider-later"]')!.click();
+    await tick();
+    // Removing the active week's only entry immediately selects a populated week.
+    expect(week()).toContain("Week 37 2026");
+    expect(previous().disabled).toBe(true);
+    next().click();
+    await tick();
+    expect(week()).toContain("Week 38 2026");
+    expect(next().disabled).toBe(true);
+
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-clear-filters"]')!.click();
+    await tick();
+    expect(week()).toContain("Week 38 2026");
+    expect(next().disabled).toBe(false);
+    next().click();
+    await tick();
+    expect(week()).toContain("Week 40 2026");
+    unmount(component);
+    target.remove();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("switches from the map state to the full weekly calendar state", async () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
@@ -534,11 +678,15 @@ describe("EmbedsMapView", () => {
 
     await flush(target);
 
-    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
-    expect(target.textContent).toContain("Global AI Livestream");
+    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(1);
+    expect(target.querySelector('[data-testid="embeds-map-view-list"]')?.textContent).not.toContain("Global AI Livestream");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-marker-count")).toBe("1");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
 
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-results-view-tab-calendar"]')!.click();
+    await tick();
+    expect(target.querySelector('[data-testid="embeds-results-view-calendar"]')?.textContent).toContain('Global AI Livestream');
+    expect(target.querySelectorAll('[data-testid="embeds-results-view-calendar-item"]')).toHaveLength(2);
     unmount(component);
     target.remove();
   });
@@ -639,7 +787,9 @@ describe("EmbedsMapView", () => {
     target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-clear-filters"]')?.click();
     await tick();
 
-    target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-option-provider-deutsche_bahn"]')?.click();
+    for (const option of target.querySelectorAll<HTMLButtonElement>('[data-testid^="embeds-map-view-option-provider-"]')) {
+      if (option.dataset.testid !== 'embeds-map-view-option-provider-deutsche_bahn') option.click();
+    }
     await tick();
 
     expect(target.querySelector('[data-testid="embeds-map-view-filter-summary"]')?.textContent).toContain("1 of 2 results remain");
@@ -763,7 +913,8 @@ describe("EmbedsMapView", () => {
     });
 
     await flush(target);
-    expect(target.textContent).toContain("Waiting for source results");
+    expect(target.querySelector('[data-testid="embeds-map-view"]')).toBeNull();
+    expect(target.textContent).not.toContain("Waiting for source results");
 
     sourceAvailable = true;
     const emitAvailability = (globalThis as typeof globalThis & { __emitMapViewEmbedAvailability?: (value: number) => void }).__emitMapViewEmbedAvailability;
@@ -810,5 +961,35 @@ describe("EmbedsMapView", () => {
       requestIdleCallback: originalRequestIdleCallback,
       cancelIdleCallback: originalCancelIdleCallback,
     });
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+describe('invalid results-view audience handling', () => {
+  it.each([false, true])('shows diagnostics only when server admin is %s', async (isAdmin) => {
+    userProfile.update((profile) => ({ ...profile, is_admin: isAdmin }));
+    const pre = document.createElement('pre');
+    const target = document.createElement('div');
+    pre.append(target);
+    document.body.append(pre);
+    const component = mount(EmbedsMapView, { target, props: { id: 'empty-descriptor', title: 'Invalid', embedRefs: [], sourceRefs: [] } });
+    try {
+      await flush(target);
+      expect(target.querySelector('[data-testid="embeds-map-view"]')).toBeNull();
+      expect(Boolean(target.querySelector('[data-testid="results-view-admin-error"]'))).toBe(isAdmin);
+      expect(target.querySelector('[data-result-view-visible]')?.getAttribute('data-result-view-visible')).toBe(String(isAdmin));
+      expect(pre.classList.contains('results-view-protocol-host')).toBe(true);
+      if (isAdmin) {
+        expect(target.textContent).toContain('no usable embed references');
+        (target.querySelector('[data-testid="results-view-admin-hide"]') as HTMLButtonElement).click();
+        await tick();
+        expect(target.querySelector('[data-testid="results-view-admin-error"]')).toBeNull();
+        expect(target.querySelector('[data-result-view-visible]')?.getAttribute('data-result-view-visible')).toBe('false');
+      }
+    } finally {
+      unmount(component);
+      pre.remove();
+      userProfile.update((profile) => ({ ...profile, is_admin: false }));
+    }
   });
 });

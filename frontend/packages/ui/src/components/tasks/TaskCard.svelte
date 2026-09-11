@@ -8,6 +8,7 @@
 <script lang="ts">
   import {
     isWorkflowRunTaskProjectionViewModel,
+    taskAssigneeDisplayName,
     type TasksBoardItem,
     type UserTaskStatus,
   } from '../../services/userTaskService';
@@ -87,7 +88,7 @@
   {/if}
 
   <footer class="task-card-footer">
-    <span class="assignee" data-assignee={task.assigneeType}>{workflowRun ? 'Workflow run' : task.assigneeType === 'ai' ? 'AI task' : 'My task'}</span>
+    <span class="assignee" data-assignee={task.assigneeType}>{workflowRun ? 'Workflow run' : taskAssigneeDisplayName(task.assigneeIdentity) || (task.assigneeType === 'unassigned' ? 'Unassigned' : 'My task')}</span>
     {#if task.dueAt}
       <span class="due">Due {new Date(task.dueAt * 1000).toLocaleDateString()}</span>
     {/if}
@@ -120,7 +121,7 @@
       {#if task.status !== 'backlog'}
         <button type="button" onclick={() => onSkip(task)} data-testid="task-skip-button">Skip</button>
       {/if}
-      {#if task.assigneeType !== 'ai' || task.status !== 'in_progress'}
+      {#if task.assigneeType !== 'openmates' || task.status !== 'in_progress'}
       <button class="ai-action" type="button" onclick={() => onStartAI(task)} data-testid="task-start-ai">Start with AI</button>
       {/if}
       <button class="danger-action" type="button" onclick={() => onDelete(task)} data-testid="task-delete-button">Delete</button>

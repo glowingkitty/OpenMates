@@ -622,6 +622,7 @@ export async function decryptBundle(params: {
 export async function decryptWithAesGcmCombined(
   encryptedWithIvB64: string,
   rawKeyBytes: Uint8Array,
+  associatedData?: string,
 ): Promise<string | null> {
   try {
     const combined = base64ToBytes(encryptedWithIvB64);
@@ -649,7 +650,11 @@ export async function decryptWithAesGcmCombined(
       ["decrypt"],
     );
     const decrypted = await cryptoApi.subtle.decrypt(
-      { name: "AES-GCM", iv: toArrayBuffer(iv) },
+      {
+        name: "AES-GCM",
+        iv: toArrayBuffer(iv),
+        ...(associatedData ? { additionalData: toArrayBuffer(new TextEncoder().encode(associatedData)) } : {}),
+      },
       key,
       toArrayBuffer(ciphertext),
     );
@@ -782,6 +787,7 @@ export async function encryptBytesWithAesGcm(
 export async function encryptWithAesGcmCombined(
   plaintext: string,
   rawKeyBytes: Uint8Array,
+  associatedData?: string,
 ): Promise<string> {
   const iv = cryptoApi.getRandomValues(new Uint8Array(AES_GCM_IV_LENGTH));
   const key = await cryptoApi.subtle.importKey(
@@ -792,7 +798,11 @@ export async function encryptWithAesGcmCombined(
     ["encrypt"],
   );
   const encrypted = await cryptoApi.subtle.encrypt(
-    { name: "AES-GCM", iv: toArrayBuffer(iv) },
+    {
+      name: "AES-GCM",
+      iv: toArrayBuffer(iv),
+      ...(associatedData ? { additionalData: toArrayBuffer(new TextEncoder().encode(associatedData)) } : {}),
+    },
     key,
     new TextEncoder().encode(plaintext),
   );

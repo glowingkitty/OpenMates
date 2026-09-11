@@ -3,7 +3,7 @@
 
 Produces a durable JSON + Markdown report from read-only source analysis. The
 scan is intentionally heuristic: it ranks maintainability risk so the follow-up
-OpenCode audit can propose the five most valuable improvement steps.
+agent audit can propose the five most valuable improvement steps.
 """
 
 from __future__ import annotations

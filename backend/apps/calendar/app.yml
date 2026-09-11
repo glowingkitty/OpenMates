@@ -5,6 +5,18 @@ icon_image: |
 category: work
 settings_and_memories: []
 embed_types:
+  - id: calendars
+    category: app-skill-use
+    skill_id: list-calendars
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    preview_component: calendar/CalendarActionEmbedPreview.svelte
+    fullscreen_component: calendar/CalendarActionEmbedFullscreen.svelte
+    icon: calendar
+    gradient_var: "--color-app-calendar"
+    i18n_namespace: embeds.calendar.calendars
   - id: events
     category: app-skill-use
     skill_id: get-events
@@ -54,6 +66,42 @@ embed_types:
     gradient_var: "--color-app-calendar"
     i18n_namespace: embeds.calendar.event_delete
 skills:
+  - id: list-calendars
+    external_data: true
+    name_translation_key: app_skills.calendar.list_calendars
+    description_translation_key: app_skills.calendar.list_calendars.description
+    icon_image: calendar.svg
+    class_path: backend.apps.calendar.skills.list_calendars_skill.ListCalendarsSkill
+    providers:
+      - name: Google
+        no_api_key: true
+    preprocessor_hint: >
+      List calendars in an authorized connected Google account before selecting a calendar for event operations.
+      Return calendar IDs, names, timezones, access roles and continuation tokens. Do not guess a primary calendar for writes.
+    api_config:
+      expose_post: false
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: object
+            properties:
+              page_token:
+                type: string
+                maxLength: 4096
+              show_hidden:
+                type: boolean
+                default: false
+              max_results:
+                type: integer
+                minimum: 1
+                maximum: 250
+                default: 100
+      required: [requests]
   - id: get-events
     name_translation_key: app_skills.calendar.get_events
     description_translation_key: app_skills.calendar.get_events.description

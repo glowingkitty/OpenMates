@@ -22,7 +22,7 @@
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
-import { mount, unmount } from "svelte";
+import { mount, unmount, disposeEmbedTree } from "./mountedEmbedLifecycle";
 import PDFEmbedPreview from "../../../embeds/pdf/PDFEmbedPreview.svelte";
 
 // Track mounted Svelte components for cleanup on re-renders
@@ -64,6 +64,8 @@ export class PdfRenderer implements EmbedRenderer {
         console.warn("[PdfRenderer] Error unmounting existing preview:", e);
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -159,6 +161,7 @@ export class PdfRenderer implements EmbedRenderer {
       });
     } catch (error) {
       console.error("[PdfRenderer] Error mounting PDFEmbedPreview:", error);
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:8px;font-size:12px;color:var(--color-grey-50)">PDF unavailable</div>`;
     }
   }

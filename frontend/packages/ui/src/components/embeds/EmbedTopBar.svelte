@@ -2,19 +2,24 @@
   frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
 
   Action button row rendered at the top of every embed fullscreen view.
-  Lives in normal document flow (not absolutely positioned) so the scrollable
-  content area — including the gradient header banner — always starts below it.
+  Overlays the scrollable header and content. Shared overlap detection switches
+  controls to translucent backgrounds and white icons while over the banner.
 
   Layout:
-  - Left side: Chat, Share, Copy, Download, Report Issue, PII toggle buttons
-  - Right side: Minimize (close) button
+  - Left side: Report issue, responsive Share, and More with secondary actions
+  - Right side: Close button
 
   All buttons use the same pill-wrapper + circular-icon design as the new-chat
   button in ActiveChat.svelte.
 -->
 
 <script lang="ts">
+  import { getContext } from 'svelte';
+  import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../../types/embedFullscreen';
+  import { tooltip } from '../../actions/tooltip';
+  import HeaderActionMenu from '../HeaderActionMenu.svelte';
   import { text } from '@repo/ui';
+  import { headerOverlayControls } from '../../actions/headerOverlayControls';
 
   interface Props {
     /** Whether to show the "restore chat" button (ultra-wide side-by-side mode). */
@@ -96,176 +101,265 @@
     onTogglePII,
     onIncludeOriginalPII,
   }: Props = $props();
+  const chatContext = getContext<EmbedChatContext | undefined>(EMBED_CHAT_CONTEXT);
+  const canRestoreChat = $derived(chatContext?.showChatButton ?? showChatButton);
+  const restoreChatHandler = $derived(chatContext?.onShowChat ?? onShowChat);
+  const secondaryActionCount = $derived([
+    (showCopy && onCopy),
+    (showDownload && onDownload),
+    (showCalendar && onCalendar),
+    (showRun && onRun),
+    (showPreview && onTogglePreview),
+    (showDebug && onToggleDebug),
+    (showPIIIncludeOriginal && onIncludeOriginalPII)
+  ].filter(Boolean).length);
 </script>
 
-<div class="embed-top-bar">
-  <!-- Left: action buttons -->
-  <div class="top-bar-left">
-    <!-- Restore chat (ultra-wide side-by-side mode) -->
-    {#if showChatButton && onShowChat}
+<div class="embed-top-bar" use:headerOverlayControls>
+  <HeaderActionMenu hasShare={showShare} hasPriorityAction={Boolean(showPIIToggle && onTogglePII)} actionCount={secondaryActionCount}>
+    {#snippet report()}
+      <!-- Report Issue (always shown) -->
       <div class="button-wrapper">
         <button
-          class="clickable-icon icon_chat top-button"
-          onclick={onShowChat}
-          aria-label={$text('chat.show_chat')}
-          title={$text('chat.show_chat')}
-        ></button>
+          data-testid="embed-report-issue-button"
+          class="header-action"
+          use:tooltip
+          onclick={onReportIssue}
+          aria-label={$text('header.report_issue')}
+          ><span class="clickable-icon icon_bug top-button" aria-hidden="true"
+          ></span><span class="action-label"
+            >{$text('header.report_issue')}</span
+          ></button
+        >
       </div>
-    {/if}
-
-    <!-- Share -->
-    {#if showShare}
-      <div class="button-wrapper">
-        <button
-          class="clickable-icon icon_share top-button"
-          data-testid="embed-share-button"
-          onclick={onShare}
-          aria-label={$text('chat.share')}
-          title={$text('chat.share')}
-        ></button>
-      </div>
-    {/if}
-
-    <!-- Copy -->
-    {#if showCopy && onCopy}
-      <div class="button-wrapper">
-        <button
-          class="clickable-icon icon_copy top-button"
-          onclick={onCopy}
-          aria-label="Copy"
-          title="Copy"
-        ></button>
-      </div>
-    {/if}
-
-    <!-- Download -->
-    {#if showDownload && onDownload}
-      <div class="button-wrapper">
-        {#if downloadHref}
-          <a
-            class="clickable-icon icon_download top-button"
-            data-testid="embed-download-button"
-            href={downloadHref}
-            download={downloadFilename}
-            aria-label="Download"
-            title="Download"
-          ></a>
-        {:else}
+    {/snippet}
+    {#snippet share()}
+      <!-- Share -->
+      {#if showShare}
+        <div class="button-wrapper">
           <button
-            class="clickable-icon icon_download top-button"
-            data-testid="embed-download-button"
-            onclick={onDownload}
-            aria-label="Download"
-            title="Download"
-          ></button>
-        {/if}
-      </div>
-    {/if}
+            class="header-action"
+            use:tooltip
+            data-testid="embed-share-button"
+            onclick={onShare}
+            aria-label={$text('chat.share')}
+            ><span
+              class="clickable-icon icon_share top-button"
+              aria-hidden="true"
+            ></span><span class="action-label">{$text('chat.share')}</span
+            ></button
+          >
+        </div>
+      {/if}
+    {/snippet}
+    {#snippet priorityAction()}
+      <!-- PII toggle -->
+      {#if showPIIToggle && onTogglePII}
+        <div class="button-wrapper">
+          <button
+            data-testid="embed-pii-toggle"
+            data-pii-revealed={piiRevealed ? 'true' : 'false'}
+            class="header-action"
+            use:tooltip
+            onclick={onTogglePII}
+            aria-label={piiRevealed
+              ? $text('embeds.pii_hide')
+              : $text('embeds.pii_show')}
+            ><span
+              class="clickable-icon {piiRevealed
+                ? 'icon_visible'
+                : 'icon_hidden'} top-button"
+              aria-hidden="true"
+            ></span><span class="action-label"
+              >{piiRevealed
+                ? $text('embeds.pii_hide')
+                : $text('embeds.pii_show')}</span
+            ></button
+          >
+        </div>
+      {/if}
 
-    <!-- Add to calendar -->
-    {#if showCalendar && onCalendar}
+    {/snippet}
+    {#snippet restoreChat()}
+      <!-- Restore chat (ultra-wide side-by-side mode) -->
+      {#if canRestoreChat && restoreChatHandler}
+        <div class="button-wrapper">
+          <button
+            class="header-action"
+            use:tooltip
+            data-testid="embed-show-chat-button"
+            onclick={restoreChatHandler}
+            aria-label={$text('chat.show_chat')}
+            ><span
+              class="clickable-icon icon_chat top-button"
+              aria-hidden="true"
+            ></span><span class="action-label">{$text('chat.show_chat')}</span
+            ></button
+          >
+        </div>
+      {/if}
+
+    {/snippet}
+    {#snippet actions()}
+      <!-- Copy -->
+      {#if showCopy && onCopy}
+        <div class="button-wrapper">
+          <button
+            class="header-action"
+            use:tooltip
+            onclick={onCopy}
+            aria-label={$text('common.copy')}
+            ><span
+              class="clickable-icon icon_copy top-button"
+              aria-hidden="true"
+            ></span><span class="action-label">{$text('common.copy')}</span
+            ></button
+          >
+        </div>
+      {/if}
+
+      <!-- Download -->
+      {#if showDownload && onDownload}
+        <div class="button-wrapper">
+          {#if downloadHref}
+            <a
+              class="header-action"
+              use:tooltip
+              data-testid="embed-download-button"
+              href={downloadHref}
+              download={downloadFilename}
+              aria-label={$text('common.download')}
+              ><span
+                class="clickable-icon icon_download top-button"
+                aria-hidden="true"
+              ></span><span class="action-label"
+                >{$text('common.download')}</span
+              ></a
+            >
+          {:else}
+            <button
+              class="header-action"
+              use:tooltip
+              data-testid="embed-download-button"
+              onclick={onDownload}
+              aria-label={$text('common.download')}
+              ><span
+                class="clickable-icon icon_download top-button"
+                aria-hidden="true"
+              ></span><span class="action-label"
+                >{$text('common.download')}</span
+              ></button
+            >
+          {/if}
+        </div>
+      {/if}
+
+      <!-- Add to calendar -->
+      {#if showCalendar && onCalendar}
+        <div class="button-wrapper">
+          <button
+            class="header-action"
+            use:tooltip
+            data-testid="embed-calendar-button"
+            onclick={onCalendar}
+            aria-label="Add to calendar"
+            ><span
+              class="clickable-icon icon_calendar top-button"
+              aria-hidden="true"
+            ></span><span class="action-label">Add to calendar</span></button
+          >
+        </div>
+      {/if}
+
+      <!-- Run code in sandbox -->
+      {#if showRun && onRun}
+        <div class="button-wrapper" class:run-active={runActive}>
+          <button
+            class="header-action"
+            use:tooltip
+            data-testid="embed-run-button"
+            onclick={onRun}
+            aria-label={$text('app_skills.code.run')}
+            ><span
+              class="clickable-icon icon_play top-button"
+              aria-hidden="true"
+            ></span><span class="action-label"
+              >{$text('app_skills.code.run')}</span
+            ></button
+          >
+        </div>
+      {/if}
+
+      <!-- Preview / Render (for markdown/HTML code embeds) -->
+      {#if showPreview && onTogglePreview}
+        <div class="button-wrapper" class:preview-active={previewActive}>
+          <button
+            class="header-action"
+            use:tooltip
+            data-testid="embed-preview-button"
+            onclick={onTogglePreview}
+            aria-label={previewActive ? 'Hide preview' : 'Show preview'}
+            ><span
+              class="clickable-icon icon_preview top-button"
+              aria-hidden="true"
+            ></span><span class="action-label"
+              >{previewActive ? 'Hide preview' : 'Show preview'}</span
+            ></button
+          >
+        </div>
+      {/if}
+
+      <!-- Debug toggle (admin-only, controlled by parent) -->
+      {#if showDebug && onToggleDebug}
+        <div class="button-wrapper">
+          <button
+            data-testid="embed-toggle-debug"
+            class="header-action"
+            use:tooltip
+            class:debug-mode-active={debugActive}
+            onclick={onToggleDebug}
+            aria-label={debugActive ? 'End debugging' : 'Start debugging'}
+            ><span
+              class="clickable-icon icon_task top-button"
+              aria-hidden="true"
+            ></span><span class="action-label"
+              >{debugActive ? 'End debugging' : 'Start debugging'}</span
+            ></button
+          >
+        </div>
+      {/if}
+
+      {#if showPIIIncludeOriginal && onIncludeOriginalPII}
+        <div class="button-wrapper pii-include-original">
+          <button
+            data-testid="embed-pii-include-original"
+            class="header-action"
+            use:tooltip
+            onclick={onIncludeOriginalPII}
+            aria-label={$text('embeds.pii_include_original')}
+            ><span
+              class="clickable-icon icon_lock top-button"
+              aria-hidden="true"
+            ></span><span class="action-label"
+              >{$text('embeds.pii_include_original')}</span
+            ></button
+          >
+        </div>
+      {/if}{/snippet}
+    {#snippet close()}
       <div class="button-wrapper">
         <button
-          class="clickable-icon icon_calendar top-button"
-          data-testid="embed-calendar-button"
-          onclick={onCalendar}
-          aria-label="Add to calendar"
-          title="Add to calendar"
-        ></button>
-      </div>
-    {/if}
-
-    <!-- Run code in sandbox -->
-    {#if showRun && onRun}
-      <div class="button-wrapper" class:run-active={runActive}>
-        <button
-          class="clickable-icon icon_play top-button"
-          data-testid="embed-run-button"
-          onclick={onRun}
-          aria-label={$text('app_skills.code.run')}
-          title={$text('app_skills.code.run')}
-        ></button>
-      </div>
-    {/if}
-
-    <!-- Preview / Render (for markdown/HTML code embeds) -->
-    {#if showPreview && onTogglePreview}
-      <div class="button-wrapper" class:preview-active={previewActive}>
-        <button
-          class="clickable-icon icon_preview top-button"
-          data-testid="embed-preview-button"
-          onclick={onTogglePreview}
-          aria-label={previewActive ? 'Hide preview' : 'Show preview'}
-          title={previewActive ? 'Hide preview' : 'Show preview'}
-        ></button>
-      </div>
-    {/if}
-
-    <!-- Report Issue (always shown) -->
-    <div class="button-wrapper">
-      <button
-        data-testid="embed-report-issue-button"
-        class="clickable-icon icon_bug top-button"
-        onclick={onReportIssue}
-        aria-label={$text('header.report_issue')}
-        title={$text('header.report_issue')}
-      ></button>
-    </div>
-
-    <!-- Debug toggle (admin-only, controlled by parent) -->
-    {#if showDebug && onToggleDebug}
-      <div class="button-wrapper">
-        <button
-          data-testid="embed-toggle-debug"
-          class="clickable-icon icon_task top-button"
-          class:debug-mode-active={debugActive}
-          onclick={onToggleDebug}
-          aria-label={debugActive ? 'End debugging' : 'Start debugging'}
-          title={debugActive ? 'End debugging' : 'Start debugging'}
-        ></button>
-      </div>
-    {/if}
-
-    <!-- PII toggle -->
-    {#if showPIIToggle && onTogglePII}
-      <div class="button-wrapper">
-        <button
-          data-testid="embed-pii-toggle"
-          data-pii-revealed={piiRevealed ? 'true' : 'false'}
-          class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'} top-button"
-          class:pii-toggle-active={piiRevealed}
-          onclick={onTogglePII}
-          aria-label={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
-          title={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
-        ></button>
-      </div>
-    {/if}
-
-    {#if showPIIIncludeOriginal && onIncludeOriginalPII}
-      <div class="button-wrapper pii-include-original">
-        <button
-          data-testid="embed-pii-include-original"
-          class="clickable-icon icon_lock top-button"
-          onclick={onIncludeOriginalPII}
-          aria-label={$text('embeds.pii_include_original')}
-          title={$text('embeds.pii_include_original')}
-        ></button>
-      </div>
-    {/if}
-  </div>
-
-  <!-- Right: minimize / close -->
-  <div class="top-bar-right">
-    <div class="button-wrapper">
-      <button
-        class="clickable-icon icon_minimize top-button"
-        data-testid={closeTestId}
-        onclick={onClose}
-        aria-label="Minimize"
-        title="Minimize"
-      ></button>
-    </div>
-  </div>
+          class="header-action"
+          use:tooltip
+          data-testid={closeTestId}
+          onclick={onClose}
+          aria-label={$text('common.close')}
+          ><span class="clickable-icon icon_close top-button" aria-hidden="true"
+          ></span><span class="action-label">{$text('common.close')}</span
+          ></button
+        >
+      </div>{/snippet}
+  </HeaderActionMenu>
 </div>
 
 <style>
@@ -296,16 +390,6 @@
     color: var(--color-primary) !important;
   }
 
-  .top-bar-left,
-  .top-bar-right {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    gap: var(--spacing-4);
-    align-items: center;
-    pointer-events: auto;
-  }
-
   /* Pill wrapper — matches .new-chat-button-wrapper in ActiveChat.svelte */
   .button-wrapper {
     position: relative;
@@ -317,7 +401,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
+    transition:
+      background-color var(--duration-normal) var(--easing-in-out),
+      transform var(--duration-fast) var(--easing-in-out),
+      box-shadow var(--duration-fast) var(--easing-in-out);
     cursor: pointer;
     pointer-events: auto;
   }
@@ -353,11 +440,6 @@
   /* Preview toggle: primary tint when preview mode is active */
   .preview-active {
     background-color: rgba(99, 102, 241, 0.25) !important;
-  }
-
-  /* PII toggle: amber tint when sensitive data is revealed — matches ActiveChat.svelte */
-  .pii-toggle-active {
-    background-color: rgba(245, 158, 11, 0.3) !important;
   }
 
   :global(.clickable-icon.icon_calendar) {

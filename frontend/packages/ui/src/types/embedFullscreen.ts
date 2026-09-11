@@ -37,3 +37,16 @@ export interface EmbedFullscreenCommonProps {
 	showChatButton?: boolean;
 	onShowChat?: () => void;
 }
+
+/** Workspace-owned restoration state, inherited by nested fullscreen results. */
+export const EMBED_CHAT_CONTEXT = Symbol('embed-chat-context');
+export interface EmbedChatContext {
+	readonly showChatButton: boolean;
+	/** Split movement belongs to the workspace, including nested result panes. */
+	readonly isSplitPane?: boolean;
+	/** Parent already resolved this embed before mounting its fullscreen. */
+	readonly resolvedEmbedId?: string | null;
+	/** This exact viewer replaces an already-visible host frame; skip its entrance. */
+	readonly presentedEmbedId?: string | null;
+	onShowChat: () => void;
+}

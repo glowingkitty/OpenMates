@@ -5,7 +5,7 @@ Purpose: exercise CLI-first account export gates against dev/prod API targets.
 Architecture: docs/specs/account-export-v1/spec.yml.
 Security: uses the existing local CLI session or OPENMATES_API_KEY; never prints
 tokens, cookies, or exported personal data.
-Privacy: writes archives only under /tmp/opencode unless --output-dir is given.
+Privacy: writes archives only under /tmp/openmates unless --output-dir is given.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ def main() -> int:
     args = parser.parse_args()
 
     api_url = (args.api_url or os.getenv("OPENMATES_API_URL") or (DEFAULT_DEV_API_URL if args.env == "dev" else DEFAULT_PROD_API_URL)).rstrip("/")
-    output_root = Path(args.output_dir) if args.output_dir else Path(tempfile.mkdtemp(prefix="account-export-cli-", dir="/tmp/opencode"))
+    output_root = Path(args.output_dir) if args.output_dir else Path(tempfile.mkdtemp(prefix="account-export-cli-", dir=None))
     output_root.mkdir(parents=True, exist_ok=True)
 
     if not CLI_DIST.exists():

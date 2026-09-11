@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-02'
-generated_at: '2026-09-03T00:20:22+00:00'
+generated_at: '2026-09-07T00:48:33+00:00'
 range:
   since: '2026-09-02T00:00:00+00:00'
   until: '2026-09-03T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 0
     internal: 6
     other: 3
-  newsletter_ready_items: 0
+  newsletter_ready_items: 27
   user_facing_items: 29
-  dev_only_items: 77
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -185,16 +185,16 @@ sections:
     - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
     - frontend/packages/ui/src/i18n/sources/settings/main.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: refine SEO product description'
     section: features
     commits:
@@ -210,16 +210,16 @@ sections:
     - specifications/features/landing-onboarding/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: add Gemini 3.8 Flash model'
     section: features
     commits:
@@ -228,7 +228,7 @@ sections:
     changed_paths:
     - backend/providers/google.yml
     - backend/tests/test_model_selection.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -236,7 +236,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: retire legacy intro chats'
     section: features
     commits:
@@ -332,8 +332,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -356,7 +356,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'feat: add encrypted external task context'
     section: features
     commits:
@@ -394,8 +395,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -411,7 +412,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:tasks'
   - title: 'feat: update landing page positioning'
     section: features
     commits:
@@ -422,16 +424,16 @@ sections:
     - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
     - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: add reviewed public speech example'
     section: features
     commits:
@@ -450,16 +452,16 @@ sections:
     - scripts/run_test_account_cli.py
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: add historical assistant speech playback'
     section: features
     commits:
@@ -492,16 +494,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   bug_fixes:
   - title: Fix speech test recording cleanup focus
     section: bug_fixes
@@ -510,16 +512,16 @@ sections:
     authored_at: '2026-09-02T23:59:17+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/assistant-response-speech.spec.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: isolate session security state'
     section: bug_fixes
     commits:
@@ -543,16 +545,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: review runtime proof artifacts'
     section: bug_fixes
     commits:
@@ -561,7 +563,7 @@ sections:
     changed_paths:
     - scripts/proof_video_workflow.py
     - scripts/tests/test_proof_video_workflow.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -569,7 +571,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: accept control-plane proof runs'
     section: bug_fixes
     commits:
@@ -578,7 +580,7 @@ sections:
     changed_paths:
     - scripts/proof_video_workflow.py
     - scripts/tests/test_proof_video_workflow.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -586,7 +588,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Fix mobile speech chapter controls
     section: bug_fixes
     commits:
@@ -594,16 +596,16 @@ sections:
     authored_at: '2026-09-02T20:57:36+00:00'
     changed_paths:
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: complete API key scope proof'
     section: bug_fixes
     commits:
@@ -614,16 +616,16 @@ sections:
     - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
     - scripts/proof_video_workflow.py
     - scripts/tests/test_proof_video_workflow.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep proof review artifacts in control plane'
     section: bug_fixes
     commits:
@@ -632,7 +634,7 @@ sections:
     changed_paths:
     - scripts/tests.py
     - scripts/tests/test_phone_proof_video_safari.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -640,7 +642,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Fix speech proof timestamp
     section: bug_fixes
     commits:
@@ -649,16 +651,16 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep tall component previews scrollable'
     section: bug_fixes
     commits:
@@ -666,16 +668,16 @@ sections:
     authored_at: '2026-09-02T18:57:43+00:00'
     changed_paths:
     - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: use registered API key scope icons (Vercel build)'
     section: bug_fixes
     commits:
@@ -683,16 +685,16 @@ sections:
     authored_at: '2026-09-02T18:43:58+00:00'
     changed_paths:
     - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: align API key scope smoke'
     section: bug_fixes
     commits:
@@ -701,16 +703,16 @@ sections:
     changed_paths:
     - backend/core/api/app/routes/settings.py
     - scripts/api_tests/test_rest_api_security_hardening.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: include pending API key devices'
     section: bug_fixes
     commits:
@@ -720,16 +722,16 @@ sections:
     - backend/core/api/app/routes/settings.py
     - docs/plans/api-key-scopes-v1/plan.yml
     - scripts/api_tests/test_rest_api_security_hardening.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Fix speech navigation and dark mode
     section: bug_fixes
     commits:
@@ -740,16 +742,16 @@ sections:
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.preview.ts
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Fix assistant speech projection types
     section: bug_fixes
     commits:
@@ -757,7 +759,7 @@ sections:
     authored_at: '2026-09-02T16:41:56+00:00'
     changed_paths:
     - frontend/packages/assistantSpeechProjection.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -765,7 +767,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: make exact test dispatch and component previews reliable'
     section: bug_fixes
     commits:
@@ -791,7 +793,7 @@ sections:
     - scripts/tests/test_opencode_output_quality_audit.py
     - scripts/tests/test_run_tests_account_policy.py
     - scripts/tests/test_tests_control.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -799,7 +801,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: aggregate plan validation errors'
     section: bug_fixes
     commits:
@@ -808,7 +810,7 @@ sections:
     changed_paths:
     - scripts/plan_validate.py
     - scripts/tests/test_plan_workflow_validation.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -816,7 +818,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: mount required cms setup migrations'
     section: bug_fixes
     commits:
@@ -825,7 +827,7 @@ sections:
     changed_paths:
     - backend/core/docker-compose.yml
     - backend/tests/test_user_work_control_migration.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -833,7 +835,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: isolate nightly storage audit output'
     section: bug_fixes
     commits:
@@ -844,7 +846,7 @@ sections:
     - scripts/run_tests.py
     - scripts/sessions.py
     - scripts/tests/test_storage_audit_runtime_isolation.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -852,7 +854,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: isolate OpenCode skill discovery'
     section: bug_fixes
     commits:
@@ -861,7 +863,7 @@ sections:
     changed_paths:
     - scripts/start-opencode-server.sh
     - scripts/tests/test_opencode_runtime_config.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -869,7 +871,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: remove legacy OpenCode specification skill'
     section: bug_fixes
     commits:
@@ -878,7 +880,7 @@ sections:
     changed_paths:
     - scripts/sync_opencode_runtime_hook.py
     - scripts/tests/test_sync_opencode_runtime_hook.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -886,7 +888,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: aggregate assistant speech billing'
     section: bug_fixes
     commits:
@@ -913,9 +915,9 @@ sections:
     - specifications/features/assistant-response-speech/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -937,7 +939,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:audio'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: mirror specification skill into OpenCode'
     section: bug_fixes
     commits:
@@ -946,7 +948,7 @@ sections:
     changed_paths:
     - scripts/sync_opencode_runtime_hook.py
     - scripts/tests/test_sync_opencode_runtime_hook.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -954,7 +956,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: play speech for rendered example responses'
     section: bug_fixes
     commits:
@@ -963,16 +965,16 @@ sections:
     changed_paths:
     - frontend/packages/ui/src/components/ActiveChat.svelte
     - frontend/packages/ui/src/components/ChatHistory.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: delay legacy appointment cards'
     section: bug_fixes
     commits:
@@ -981,7 +983,7 @@ sections:
     changed_paths:
     - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
     - frontend/packages/ui/src/services/continueCarouselService.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -989,7 +991,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: restore specification workflow skills'
     section: bug_fixes
     commits:
@@ -1014,7 +1016,7 @@ sections:
     - .agents/skills/tasks-from-plan/SKILL.md
     - .agents/skills/verify-plan/SKILL.md
     - .claude/skills/clarify/SKILL.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1022,7 +1024,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: gate continue cards by item time'
     section: bug_fixes
     commits:
@@ -1035,9 +1037,9 @@ sections:
     - frontend/packages/ui/src/services/continueCarouselService.ts
     - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:health
@@ -1059,7 +1061,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:health, embed:health:search_appointments'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: expose speech action in public examples'
     section: bug_fixes
     commits:
@@ -1067,16 +1069,16 @@ sections:
     authored_at: '2026-09-02T10:48:42+00:00'
     changed_paths:
     - frontend/packages/ui/src/components/ChatHistory.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: suppress empty model restore warning'
     section: bug_fixes
     commits:
@@ -1084,7 +1086,7 @@ sections:
     authored_at: '2026-09-02T10:35:49+00:00'
     changed_paths:
     - frontend/packages/ui/src/services/chatModelSelection.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1092,7 +1094,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: harden CLI pairing and task lifecycle'
     section: bug_fixes
     commits:
@@ -1105,16 +1107,16 @@ sections:
     - frontend/packages/openmates-cli/tests/client.test.ts
     - frontend/packages/openmates-cli/tests/tasks.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: defer speech sync until first message'
     section: bug_fixes
     commits:
@@ -1124,7 +1126,7 @@ sections:
     - frontend/packages/ui/src/services/__tests__/assistantSpeechPreference.test.ts
     - frontend/packages/ui/src/services/assistantSpeechPreference.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1132,7 +1134,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: send active voice drafts as new chats'
     section: bug_fixes
     commits:
@@ -1142,16 +1144,16 @@ sections:
     - frontend/packages/ui/src/components/enter_message/handlers/sendClassification.ts
     - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: recreate voice-only drafts with durable keys'
     section: bug_fixes
     commits:
@@ -1162,16 +1164,16 @@ sections:
     - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
     - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve chat key for voice-first messages'
     section: bug_fixes
     commits:
@@ -1182,16 +1184,16 @@ sections:
     - frontend/packages/ui/src/services/__tests__/assistantSpeechPreference.test.ts
     - frontend/packages/ui/src/services/assistantSpeechPreference.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep pair-login session active'
     section: bug_fixes
     commits:
@@ -1201,16 +1203,16 @@ sections:
     - frontend/packages/openmates-cli/src/client.ts
     - frontend/packages/openmates-cli/tests/client.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements: []
   docs:
   - title: 'docs: align agentic operating system slogan'
@@ -1231,7 +1233,7 @@ sections:
     - specifications/features/landing-onboarding/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1239,7 +1241,7 @@ sections:
     feature_metadata_changed: true
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: record assistant speech billing proof'
     section: docs
     commits:
@@ -1247,7 +1249,7 @@ sections:
     authored_at: '2026-09-02T13:14:55+00:00'
     changed_paths:
     - docs/plans/assistant-response-speech/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1255,7 +1257,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'test: stabilize API key proof states'
     section: tests
@@ -1265,7 +1267,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1273,7 +1275,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Decouple speech flow from recording upload
     section: tests
     commits:
@@ -1281,7 +1283,7 @@ sections:
     authored_at: '2026-09-02T21:27:27+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/assistant-response-speech.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1289,7 +1291,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Correct speech proof claim mapping
     section: tests
     commits:
@@ -1297,7 +1299,7 @@ sections:
     authored_at: '2026-09-02T20:40:22+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1305,7 +1307,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: separate initial API-key proof interval'
     section: tests
     commits:
@@ -1313,7 +1315,7 @@ sections:
     authored_at: '2026-09-02T20:12:46+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1321,7 +1323,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: group API-key proof selection transition'
     section: tests
     commits:
@@ -1329,7 +1331,7 @@ sections:
     authored_at: '2026-09-02T20:00:27+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1337,7 +1339,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: attach API-key scope proof timeline'
     section: tests
     commits:
@@ -1345,7 +1347,7 @@ sections:
     authored_at: '2026-09-02T19:34:24+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1353,7 +1355,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Document speech waveform proof
     section: tests
     commits:
@@ -1361,7 +1363,7 @@ sections:
     authored_at: '2026-09-02T18:25:51+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1369,7 +1371,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Verify adjacent speech chapters
     section: tests
     commits:
@@ -1377,7 +1379,7 @@ sections:
     authored_at: '2026-09-02T18:22:04+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1385,7 +1387,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: stabilize blocked task proof evidence'
     section: tests
     commits:
@@ -1393,7 +1395,7 @@ sections:
     authored_at: '2026-09-02T17:18:54+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/task-blocked-reason.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1401,7 +1403,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: verify encrypted external tasks live'
     section: tests
     commits:
@@ -1411,7 +1413,7 @@ sections:
     - frontend/apps/web_app/tests/task-blocked-reason.spec.ts
     - scripts/approve_test_api_key_device.mjs
     - scripts/verify_sdk_tasks_live_smoke.mjs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1419,7 +1421,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: clear guest draft before reload'
     section: tests
     commits:
@@ -1428,7 +1430,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1436,7 +1438,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: preserve guest draft contract'
     section: tests
     commits:
@@ -1445,7 +1447,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1453,7 +1455,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: fix assistant speech proof contract'
     section: tests
     commits:
@@ -1461,7 +1463,7 @@ sections:
     authored_at: '2026-09-02T15:53:37+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1469,7 +1471,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: define assistant speech player redesign'
     section: tests
     commits:
@@ -1484,7 +1486,7 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1492,7 +1494,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: harden assistant speech live verifier'
     section: tests
     commits:
@@ -1501,7 +1503,7 @@ sections:
     changed_paths:
     - backend/tests/test_assistant_speech_live_verifier.py
     - scripts/verify_assistant_speech_live_smoke.mjs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1509,7 +1511,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: cover assistant speech billing dispatch'
     section: tests
     commits:
@@ -1518,7 +1520,7 @@ sections:
     changed_paths:
     - backend/tests/test_assistant_speech_api.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1526,7 +1528,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: align assistant speech billing coverage'
     section: tests
     commits:
@@ -1536,7 +1538,7 @@ sections:
     - backend/tests/test_assistant_speech_api.py
     - backend/tests/test_assistant_speech_projection.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1544,7 +1546,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: harden continue timing coverage'
     section: tests
     commits:
@@ -1553,7 +1555,7 @@ sections:
     changed_paths:
     - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1561,7 +1563,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: define continue carousel timing'
     section: tests
     commits:
@@ -1574,7 +1576,7 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1582,7 +1584,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: navigate model selector cleanup'
     section: tests
     commits:
@@ -1590,7 +1592,7 @@ sections:
     authored_at: '2026-09-02T10:41:46+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1598,7 +1600,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: cover model restore read failure'
     section: tests
     commits:
@@ -1607,7 +1609,7 @@ sections:
     changed_paths:
     - frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1615,7 +1617,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: cover empty chat model preference'
     section: tests
     commits:
@@ -1623,7 +1625,7 @@ sections:
     authored_at: '2026-09-02T10:08:34+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1631,7 +1633,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: preserve voice recording before first send'
     section: tests
     commits:
@@ -1640,7 +1642,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/assistant-response-speech.spec.ts
     - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1648,7 +1650,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: cover voice-first assistant speech chat'
     section: tests
     commits:
@@ -1656,7 +1658,7 @@ sections:
     authored_at: '2026-09-02T00:15:03+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/assistant-response-speech.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1664,7 +1666,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure: []
   internal:
   - title: Stabilize speech proof checkpoints
@@ -1675,7 +1677,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1683,7 +1685,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as internal work from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Align speech proof action count
     section: internal
     commits:
@@ -1692,7 +1694,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1700,7 +1702,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as internal work from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Stabilize speech control transition test
     section: internal
     commits:
@@ -1709,7 +1711,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1717,7 +1719,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as internal work from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Finalize speech player controls
     section: internal
     commits:
@@ -1726,7 +1728,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1734,7 +1736,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as internal work from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Implement speech waveform carousel
     section: internal
     commits:
@@ -1743,7 +1745,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1751,7 +1753,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as internal work from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Correct assistant speech player layout
     section: internal
     commits:
@@ -1760,7 +1762,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1768,7 +1770,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as internal work from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   other:
   - title: Smooth speech playback controls
     section: other
@@ -1777,16 +1779,16 @@ sections:
     authored_at: '2026-09-02T18:31:55+00:00'
     changed_paths:
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as other changes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Render speech carousel controls
     section: other
     commits:
@@ -1795,16 +1797,16 @@ sections:
     changed_paths:
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.preview.ts
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as other changes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Redesign assistant speech playback
     section: other
     commits:
@@ -1824,628 +1826,40 @@ sections:
     - frontend/packages/ui/src/services/assistantSpeechQueue.ts
     - frontend/packages/ui/src/utils/audioWaveform.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as other changes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
 unreleased_progress:
-  dev_only:
-  - title: Fix speech test recording cleanup focus
-    commits:
-    - fca1ef954
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: isolate session security state'
-    commits:
-    - a700420fe
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: stabilize API key proof states'
-    commits:
-    - 178a678ed
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Decouple speech flow from recording upload
-    commits:
-    - da90b38a2
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: review runtime proof artifacts'
-    commits:
-    - 3a6e56809
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: accept control-plane proof runs'
-    commits:
-    - 8ec9b4f83
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Fix mobile speech chapter controls
-    commits:
-    - 4dcb0c26d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: complete API key scope proof'
-    commits:
-    - b351ced61
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: Correct speech proof claim mapping
-    commits:
-    - b034f2fcf
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Stabilize speech proof checkpoints
-    commits:
-    - a6023ef9a
-    section: internal
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: keep proof review artifacts in control plane'
-    commits:
-    - 381d26255
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Align speech proof action count
-    commits:
-    - abdd3fa39
-    section: internal
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: separate initial API-key proof interval'
-    commits:
-    - 71a6a06e4
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Fix speech proof timestamp
-    commits:
-    - 4f6a8585a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: group API-key proof selection transition'
-    commits:
-    - a93d86162
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: attach API-key scope proof timeline'
-    commits:
-    - 977dd7fbd
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Stabilize speech control transition test
-    commits:
-    - e442ceca2
-    section: internal
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: keep tall component previews scrollable'
-    commits:
-    - 4d3b37f89
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: use registered API key scope icons (Vercel build)'
-    commits:
-    - 0ce027304
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: align API key scope smoke'
-    commits:
-    - 064b8a617
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: Smooth speech playback controls
-    commits:
-    - b9b44bbf1
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: Document speech waveform proof
-    commits:
-    - 6d7e90ffd
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: include pending API key devices'
-    commits:
-    - 447e0ef58
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: Verify adjacent speech chapters
-    commits:
-    - 07b6b9e50
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Fix speech navigation and dark mode
-    commits:
-    - f95eb58b2
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: enforce granular API key scopes'
-    commits:
-    - c52957353
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: Finalize speech player controls
-    commits:
-    - 32f01f564
-    section: internal
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Render speech carousel controls
-    commits:
-    - 115467c1f
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: Implement speech waveform carousel
-    commits:
-    - 9fd413c2d
-    section: internal
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: stabilize blocked task proof evidence'
-    commits:
-    - c46b964ee
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: align agentic operating system slogan'
-    commits:
-    - 4ef0ccb58
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Correct assistant speech player layout
-    commits:
-    - d3bfef0b8
-    section: internal
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: refine SEO product description'
-    commits:
-    - 7966ed8b8
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: add Gemini 3.8 Flash model'
-    commits:
-    - 3cd4ae11a
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: verify encrypted external tasks live'
-    commits:
-    - 4bbe5aeb5
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Fix assistant speech projection types
-    commits:
-    - 12e0f5c86
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Redesign assistant speech playback
-    commits:
-    - e88438aff
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: make exact test dispatch and component previews reliable'
-    commits:
-    - 6ebe0ce6e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: clear guest draft before reload'
-    commits:
-    - 82c05122f
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: preserve guest draft contract'
-    commits:
-    - fc715a3d8
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: fix assistant speech proof contract'
-    commits:
-    - 45dcc97a3
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: retire legacy intro chats'
-    commits:
-    - c10679f69
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'feat: add encrypted external task context'
-    commits:
-    - 1c461ed10
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:tasks
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'test: define assistant speech player redesign'
-    commits:
-    - 2138dd9ef
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: record assistant speech billing proof'
-    commits:
-    - da71169e1
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: harden assistant speech live verifier'
-    commits:
-    - 7888e1ba9
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: update landing page positioning'
-    commits:
-    - 10fb65626
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: aggregate plan validation errors'
-    commits:
-    - 8c857aa78
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: mount required cms setup migrations'
-    commits:
-    - a2afdd18a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: isolate nightly storage audit output'
-    commits:
-    - 26d87e159
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: cover assistant speech billing dispatch'
-    commits:
-    - 64a0d0203
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: align assistant speech billing coverage'
-    commits:
-    - 370f47326
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: isolate OpenCode skill discovery'
-    commits:
-    - 5ac1d1870
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: harden continue timing coverage'
-    commits:
-    - 1df42606e
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: remove legacy OpenCode specification skill'
-    commits:
-    - 46832e6e9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: aggregate assistant speech billing'
-    commits:
-    - 98f3daa5a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:audio
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/audio/app.yml
-  - title: 'fix: mirror specification skill into OpenCode'
-    commits:
-    - '810560515'
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: play speech for rendered example responses'
-    commits:
-    - 498ac0a33
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: delay legacy appointment cards'
-    commits:
-    - d425f7851
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: restore specification workflow skills'
-    commits:
-    - b982b7530
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: gate continue cards by item time'
-    commits:
-    - 0ce9cc4ab
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:health
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/health/app.yml
-    - id: embed:health:search_appointments
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:health
-      source: backend/apps/health/app.yml
-  - title: 'fix: expose speech action in public examples'
-    commits:
-    - 9a9acb4db
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: define continue carousel timing'
-    commits:
-    - 96dbf5016
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: navigate model selector cleanup'
-    commits:
-    - 829c68ef7
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: suppress empty model restore warning'
-    commits:
-    - b68f2ff5e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: cover model restore read failure'
-    commits:
-    - 7c3a2ddcf
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: harden CLI pairing and task lifecycle'
-    commits:
-    - a46d00f01
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: add reviewed public speech example'
-    commits:
-    - 6b4d3e0f1
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: cover empty chat model preference'
-    commits:
-    - 5dc9e597c
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: defer speech sync until first message'
-    commits:
-    - c978b6af2
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: send active voice drafts as new chats'
-    commits:
-    - 0c689bae5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: preserve voice recording before first send'
-    commits:
-    - 78f0ae383
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: recreate voice-only drafts with durable keys'
-    commits:
-    - 940dbd1f2
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: add historical assistant speech playback'
-    commits:
-    - b257eb243
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: preserve chat key for voice-first messages'
-    commits:
-    - bdccc7e8a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: keep pair-login session active'
-    commits:
-    - fa8729447
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: cover voice-first assistant speech chat'
-    commits:
-    - 90c41a7a5
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'docs: align agentic operating system slogan'
     commits:
     - 4ef0ccb58
     section: docs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features: []
   - title: 'feat: refine SEO product description'
     commits:
     - 7966ed8b8
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'feat: retire legacy intro chats'
     commits:
     - c10679f69
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -2465,8 +1879,8 @@ unreleased_progress:
     commits:
     - 0ce9cc4ab
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:health
       kind: app
@@ -2483,134 +1897,351 @@ unreleased_progress:
       parent_id: app:health
       source: backend/apps/health/app.yml
 marketing_candidates:
-  newsletter: []
+  newsletter:
+  - title: Fix speech test recording cleanup focus
+    commits:
+    - fca1ef954
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: isolate session security state'
+    commits:
+    - a700420fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: Fix mobile speech chapter controls
+    commits:
+    - 4dcb0c26d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: complete API key scope proof'
+    commits:
+    - b351ced61
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: Fix speech proof timestamp
+    commits:
+    - 4f6a8585a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep tall component previews scrollable'
+    commits:
+    - 4d3b37f89
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use registered API key scope icons (Vercel build)'
+    commits:
+    - 0ce027304
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align API key scope smoke'
+    commits:
+    - 064b8a617
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: Smooth speech playback controls
+    commits:
+    - b9b44bbf1
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include pending API key devices'
+    commits:
+    - 447e0ef58
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: Fix speech navigation and dark mode
+    commits:
+    - f95eb58b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: enforce granular API key scopes'
+    commits:
+    - c52957353
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: Render speech carousel controls
+    commits:
+    - 115467c1f
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: refine SEO product description'
+    commits:
+    - 7966ed8b8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: Redesign assistant speech playback
+    commits:
+    - e88438aff
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: update landing page positioning'
+    commits:
+    - 10fb65626
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: aggregate assistant speech billing'
+    commits:
+    - 98f3daa5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+  - title: 'fix: play speech for rendered example responses'
+    commits:
+    - 498ac0a33
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: gate continue cards by item time'
+    commits:
+    - 0ce9cc4ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - title: 'fix: expose speech action in public examples'
+    commits:
+    - 9a9acb4db
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden CLI pairing and task lifecycle'
+    commits:
+    - a46d00f01
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add reviewed public speech example'
+    commits:
+    - 6b4d3e0f1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: send active voice drafts as new chats'
+    commits:
+    - 0c689bae5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recreate voice-only drafts with durable keys'
+    commits:
+    - 940dbd1f2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add historical assistant speech playback'
+    commits:
+    - b257eb243
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve chat key for voice-first messages'
+    commits:
+    - bdccc7e8a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep pair-login session active'
+    commits:
+    - fa8729447
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
   social_or_video:
   - title: Fix speech test recording cleanup focus
     commits:
     - fca1ef954
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: isolate session security state'
     commits:
     - a700420fe
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: Fix mobile speech chapter controls
     commits:
     - 4dcb0c26d
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: complete API key scope proof'
     commits:
     - b351ced61
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: Fix speech proof timestamp
     commits:
     - 4f6a8585a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: keep tall component previews scrollable'
     commits:
     - 4d3b37f89
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: use registered API key scope icons (Vercel build)'
     commits:
     - 0ce027304
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: align API key scope smoke'
     commits:
     - 064b8a617
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: Smooth speech playback controls
     commits:
     - b9b44bbf1
     section: other
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: include pending API key devices'
     commits:
     - 447e0ef58
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: Fix speech navigation and dark mode
     commits:
     - f95eb58b2
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: enforce granular API key scopes'
     commits:
     - c52957353
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: Render speech carousel controls
     commits:
     - 115467c1f
     section: other
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: refine SEO product description'
     commits:
     - 7966ed8b8
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: Redesign assistant speech playback
     commits:
     - e88438aff
     section: other
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: retire legacy intro chats'
     commits:
     - c10679f69
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -2631,8 +2262,8 @@ marketing_candidates:
     commits:
     - 1c461ed10
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:tasks
       kind: platform
@@ -2646,16 +2277,16 @@ marketing_candidates:
     commits:
     - 10fb65626
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: aggregate assistant speech billing'
     commits:
     - 98f3daa5a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2671,21 +2302,21 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/audio/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: play speech for rendered example responses'
     commits:
     - 498ac0a33
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: gate continue cards by item time'
     commits:
     - 0ce9cc4ab
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:health
       kind: app
@@ -2701,71 +2332,71 @@ marketing_candidates:
       override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: expose speech action in public examples'
     commits:
     - 9a9acb4db
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: harden CLI pairing and task lifecycle'
     commits:
     - a46d00f01
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: add reviewed public speech example'
     commits:
     - 6b4d3e0f1
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: send active voice drafts as new chats'
     commits:
     - 0c689bae5
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: recreate voice-only drafts with durable keys'
     commits:
     - 940dbd1f2
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: add historical assistant speech playback'
     commits:
     - b257eb243
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: preserve chat key for voice-first messages'
     commits:
     - bdccc7e8a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: keep pair-login session active'
     commits:
     - fa8729447
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -2777,7 +2408,7 @@ sources:
     short_sha: fca1ef954
     authored_at: '2026-09-02T23:59:17+00:00'
     subject: Fix speech test recording cleanup focus
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-response-speech.spec.ts
@@ -2786,7 +2417,7 @@ sources:
     short_sha: a700420fe
     authored_at: '2026-09-02T23:53:29+00:00'
     subject: 'fix: isolate session security state'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/auth_routes/auth_2fa_verify.py
@@ -2811,7 +2442,7 @@ sources:
     short_sha: 178a678ed
     authored_at: '2026-09-02T21:44:03+00:00'
     subject: 'test: stabilize API key proof states'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
@@ -2821,7 +2452,7 @@ sources:
     short_sha: da90b38a2
     authored_at: '2026-09-02T21:27:27+00:00'
     subject: Decouple speech flow from recording upload
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-response-speech.spec.ts
@@ -2830,7 +2461,7 @@ sources:
     short_sha: 3a6e56809
     authored_at: '2026-09-02T21:21:38+00:00'
     subject: 'fix: review runtime proof artifacts'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/proof_video_workflow.py
@@ -2840,7 +2471,7 @@ sources:
     short_sha: 8ec9b4f83
     authored_at: '2026-09-02T21:17:46+00:00'
     subject: 'fix: accept control-plane proof runs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/proof_video_workflow.py
@@ -2850,7 +2481,7 @@ sources:
     short_sha: 4dcb0c26d
     authored_at: '2026-09-02T20:57:36+00:00'
     subject: Fix mobile speech chapter controls
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
@@ -2859,7 +2490,7 @@ sources:
     short_sha: b351ced61
     authored_at: '2026-09-02T20:53:44+00:00'
     subject: 'fix: complete API key scope proof'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
@@ -2871,7 +2502,7 @@ sources:
     short_sha: b034f2fcf
     authored_at: '2026-09-02T20:40:22+00:00'
     subject: Correct speech proof claim mapping
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -2880,7 +2511,7 @@ sources:
     short_sha: a6023ef9a
     authored_at: '2026-09-02T20:28:08+00:00'
     subject: Stabilize speech proof checkpoints
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -2890,7 +2521,7 @@ sources:
     short_sha: 381d26255
     authored_at: '2026-09-02T20:25:56+00:00'
     subject: 'fix: keep proof review artifacts in control plane'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/tests.py
@@ -2900,7 +2531,7 @@ sources:
     short_sha: abdd3fa39
     authored_at: '2026-09-02T20:17:41+00:00'
     subject: Align speech proof action count
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -2910,7 +2541,7 @@ sources:
     short_sha: 71a6a06e4
     authored_at: '2026-09-02T20:12:46+00:00'
     subject: 'test: separate initial API-key proof interval'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
@@ -2919,7 +2550,7 @@ sources:
     short_sha: 4f6a8585a
     authored_at: '2026-09-02T20:02:12+00:00'
     subject: Fix speech proof timestamp
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -2929,7 +2560,7 @@ sources:
     short_sha: a93d86162
     authored_at: '2026-09-02T20:00:27+00:00'
     subject: 'test: group API-key proof selection transition'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
@@ -2938,7 +2569,7 @@ sources:
     short_sha: 977dd7fbd
     authored_at: '2026-09-02T19:34:24+00:00'
     subject: 'test: attach API-key scope proof timeline'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
@@ -2947,7 +2578,7 @@ sources:
     short_sha: e442ceca2
     authored_at: '2026-09-02T19:29:51+00:00'
     subject: Stabilize speech control transition test
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -2957,7 +2588,7 @@ sources:
     short_sha: 4d3b37f89
     authored_at: '2026-09-02T18:57:43+00:00'
     subject: 'fix: keep tall component previews scrollable'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
@@ -2966,7 +2597,7 @@ sources:
     short_sha: 0ce027304
     authored_at: '2026-09-02T18:43:58+00:00'
     subject: 'fix: use registered API key scope icons (Vercel build)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
@@ -2975,7 +2606,7 @@ sources:
     short_sha: 064b8a617
     authored_at: '2026-09-02T18:35:38+00:00'
     subject: 'fix: align API key scope smoke'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/settings.py
@@ -2985,7 +2616,7 @@ sources:
     short_sha: b9b44bbf1
     authored_at: '2026-09-02T18:31:55+00:00'
     subject: Smooth speech playback controls
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
@@ -2994,7 +2625,7 @@ sources:
     short_sha: 6d7e90ffd
     authored_at: '2026-09-02T18:25:51+00:00'
     subject: Document speech waveform proof
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -3003,7 +2634,7 @@ sources:
     short_sha: 447e0ef58
     authored_at: '2026-09-02T18:23:57+00:00'
     subject: 'fix: include pending API key devices'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/settings.py
@@ -3014,7 +2645,7 @@ sources:
     short_sha: 07b6b9e50
     authored_at: '2026-09-02T18:22:04+00:00'
     subject: Verify adjacent speech chapters
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -3023,7 +2654,7 @@ sources:
     short_sha: f95eb58b2
     authored_at: '2026-09-02T18:18:14+00:00'
     subject: Fix speech navigation and dark mode
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -3035,7 +2666,7 @@ sources:
     short_sha: c52957353
     authored_at: '2026-09-02T18:10:23+00:00'
     subject: 'feat: enforce granular API key scopes'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/apps_api.py
@@ -3060,7 +2691,7 @@ sources:
     short_sha: 32f01f564
     authored_at: '2026-09-02T18:00:59+00:00'
     subject: Finalize speech player controls
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -3070,7 +2701,7 @@ sources:
     short_sha: 115467c1f
     authored_at: '2026-09-02T17:48:57+00:00'
     subject: Render speech carousel controls
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/AssistantSpeechPlayer.preview.ts
@@ -3080,7 +2711,7 @@ sources:
     short_sha: 9fd413c2d
     authored_at: '2026-09-02T17:22:42+00:00'
     subject: Implement speech waveform carousel
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -3090,7 +2721,7 @@ sources:
     short_sha: c46b964ee
     authored_at: '2026-09-02T17:18:54+00:00'
     subject: 'test: stabilize blocked task proof evidence'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/task-blocked-reason.spec.ts
@@ -3099,7 +2730,7 @@ sources:
     short_sha: 4ef0ccb58
     authored_at: '2026-09-02T17:15:44+00:00'
     subject: 'docs: align agentic operating system slogan'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - README.md
@@ -3119,7 +2750,7 @@ sources:
     short_sha: d3bfef0b8
     authored_at: '2026-09-02T17:05:37+00:00'
     subject: Correct assistant speech player layout
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -3129,7 +2760,7 @@ sources:
     short_sha: 7966ed8b8
     authored_at: '2026-09-02T16:58:41+00:00'
     subject: 'feat: refine SEO product description'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/retire-legacy-intro-chats/plan.yml
@@ -3146,7 +2777,7 @@ sources:
     short_sha: 3cd4ae11a
     authored_at: '2026-09-02T16:56:40+00:00'
     subject: 'feat: add Gemini 3.8 Flash model'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/providers/google.yml
@@ -3156,7 +2787,7 @@ sources:
     short_sha: 4bbe5aeb5
     authored_at: '2026-09-02T16:43:47+00:00'
     subject: 'test: verify encrypted external tasks live'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/task-blocked-reason.spec.ts
@@ -3167,7 +2798,7 @@ sources:
     short_sha: 12e0f5c86
     authored_at: '2026-09-02T16:41:56+00:00'
     subject: Fix assistant speech projection types
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/assistantSpeechProjection.ts
@@ -3176,7 +2807,7 @@ sources:
     short_sha: e88438aff
     authored_at: '2026-09-02T16:34:14+00:00'
     subject: Redesign assistant speech playback
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/assistantSpeechProjection.ts
@@ -3197,7 +2828,7 @@ sources:
     short_sha: 6ebe0ce6e
     authored_at: '2026-09-02T16:26:00+00:00'
     subject: 'fix: make exact test dispatch and component previews reliable'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/create-demo-video/SKILL.md
@@ -3224,7 +2855,7 @@ sources:
     short_sha: 82c05122f
     authored_at: '2026-09-02T16:17:05+00:00'
     subject: 'test: clear guest draft before reload'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
@@ -3234,7 +2865,7 @@ sources:
     short_sha: fc715a3d8
     authored_at: '2026-09-02T16:00:24+00:00'
     subject: 'test: preserve guest draft contract'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
@@ -3244,7 +2875,7 @@ sources:
     short_sha: 45dcc97a3
     authored_at: '2026-09-02T15:53:37+00:00'
     subject: 'test: fix assistant speech proof contract'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
@@ -3253,7 +2884,7 @@ sources:
     short_sha: c10679f69
     authored_at: '2026-09-02T15:39:52+00:00'
     subject: 'feat: retire legacy intro chats'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - README.md
@@ -3352,7 +2983,7 @@ sources:
     short_sha: 1c461ed10
     authored_at: '2026-09-02T15:34:35+00:00'
     subject: 'feat: add encrypted external task context'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/user_tasks.py
@@ -3392,7 +3023,7 @@ sources:
     short_sha: 2138dd9ef
     authored_at: '2026-09-02T15:30:45+00:00'
     subject: 'test: define assistant speech player redesign'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/assistant-response-speech/plan.yml
@@ -3408,7 +3039,7 @@ sources:
     short_sha: da71169e1
     authored_at: '2026-09-02T13:14:55+00:00'
     subject: 'docs: record assistant speech billing proof'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/assistant-response-speech/plan.yml
@@ -3417,7 +3048,7 @@ sources:
     short_sha: 7888e1ba9
     authored_at: '2026-09-02T13:10:00+00:00'
     subject: 'test: harden assistant speech live verifier'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/tests/test_assistant_speech_live_verifier.py
@@ -3427,7 +3058,7 @@ sources:
     short_sha: 10fb65626
     authored_at: '2026-09-02T12:59:57+00:00'
     subject: 'feat: update landing page positioning'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
@@ -3439,7 +3070,7 @@ sources:
     short_sha: 8c857aa78
     authored_at: '2026-09-02T12:56:11+00:00'
     subject: 'fix: aggregate plan validation errors'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/plan_validate.py
@@ -3449,7 +3080,7 @@ sources:
     short_sha: a2afdd18a
     authored_at: '2026-09-02T12:38:52+00:00'
     subject: 'fix: mount required cms setup migrations'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/docker-compose.yml
@@ -3459,7 +3090,7 @@ sources:
     short_sha: 26d87e159
     authored_at: '2026-09-02T12:36:57+00:00'
     subject: 'fix: isolate nightly storage audit output'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/merge_storage_audits.py
@@ -3471,7 +3102,7 @@ sources:
     short_sha: 64a0d0203
     authored_at: '2026-09-02T11:46:35+00:00'
     subject: 'test: cover assistant speech billing dispatch'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/tests/test_assistant_speech_api.py
@@ -3481,7 +3112,7 @@ sources:
     short_sha: 370f47326
     authored_at: '2026-09-02T11:36:45+00:00'
     subject: 'test: align assistant speech billing coverage'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/tests/test_assistant_speech_api.py
@@ -3492,7 +3123,7 @@ sources:
     short_sha: 5ac1d1870
     authored_at: '2026-09-02T11:29:25+00:00'
     subject: 'fix: isolate OpenCode skill discovery'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/start-opencode-server.sh
@@ -3502,7 +3133,7 @@ sources:
     short_sha: 1df42606e
     authored_at: '2026-09-02T11:27:47+00:00'
     subject: 'test: harden continue timing coverage'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
@@ -3512,7 +3143,7 @@ sources:
     short_sha: 46832e6e9
     authored_at: '2026-09-02T11:24:29+00:00'
     subject: 'fix: remove legacy OpenCode specification skill'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/sync_opencode_runtime_hook.py
@@ -3522,7 +3153,7 @@ sources:
     short_sha: 98f3daa5a
     authored_at: '2026-09-02T11:23:23+00:00'
     subject: 'fix: aggregate assistant speech billing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/assistant_speech/streaming.py
@@ -3552,7 +3183,7 @@ sources:
     short_sha: '810560515'
     authored_at: '2026-09-02T11:20:37+00:00'
     subject: 'fix: mirror specification skill into OpenCode'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/sync_opencode_runtime_hook.py
@@ -3562,7 +3193,7 @@ sources:
     short_sha: 498ac0a33
     authored_at: '2026-09-02T11:19:26+00:00'
     subject: 'fix: play speech for rendered example responses'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/ActiveChat.svelte
@@ -3572,7 +3203,7 @@ sources:
     short_sha: d425f7851
     authored_at: '2026-09-02T11:07:34+00:00'
     subject: 'fix: delay legacy appointment cards'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
@@ -3582,7 +3213,7 @@ sources:
     short_sha: b982b7530
     authored_at: '2026-09-02T11:04:28+00:00'
     subject: 'fix: restore specification workflow skills'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/add-api/SKILL.md
@@ -3608,7 +3239,7 @@ sources:
     short_sha: 0ce9cc4ab
     authored_at: '2026-09-02T10:59:06+00:00'
     subject: 'fix: gate continue cards by item time'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/health/app.yml
@@ -3624,7 +3255,7 @@ sources:
     short_sha: 9a9acb4db
     authored_at: '2026-09-02T10:48:42+00:00'
     subject: 'fix: expose speech action in public examples'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/ChatHistory.svelte
@@ -3633,7 +3264,7 @@ sources:
     short_sha: 96dbf5016
     authored_at: '2026-09-02T10:45:50+00:00'
     subject: 'test: define continue carousel timing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
@@ -3647,7 +3278,7 @@ sources:
     short_sha: 829c68ef7
     authored_at: '2026-09-02T10:41:46+00:00'
     subject: 'test: navigate model selector cleanup'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
@@ -3656,7 +3287,7 @@ sources:
     short_sha: b68f2ff5e
     authored_at: '2026-09-02T10:35:49+00:00'
     subject: 'fix: suppress empty model restore warning'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/services/chatModelSelection.ts
@@ -3665,7 +3296,7 @@ sources:
     short_sha: 7c3a2ddcf
     authored_at: '2026-09-02T10:29:14+00:00'
     subject: 'test: cover model restore read failure'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
@@ -3675,7 +3306,7 @@ sources:
     short_sha: a46d00f01
     authored_at: '2026-09-02T10:25:38+00:00'
     subject: 'fix: harden CLI pairing and task lifecycle'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-cli/src/cli.ts
@@ -3689,7 +3320,7 @@ sources:
     short_sha: 6b4d3e0f1
     authored_at: '2026-09-02T10:15:52+00:00'
     subject: 'feat: add reviewed public speech example'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/add-example-chat/SKILL.md
@@ -3709,7 +3340,7 @@ sources:
     short_sha: 5dc9e597c
     authored_at: '2026-09-02T10:08:34+00:00'
     subject: 'test: cover empty chat model preference'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
@@ -3718,7 +3349,7 @@ sources:
     short_sha: c978b6af2
     authored_at: '2026-09-02T04:32:25+00:00'
     subject: 'fix: defer speech sync until first message'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/services/__tests__/assistantSpeechPreference.test.ts
@@ -3729,7 +3360,7 @@ sources:
     short_sha: 0c689bae5
     authored_at: '2026-09-02T04:08:20+00:00'
     subject: 'fix: send active voice drafts as new chats'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/enter_message/handlers/sendClassification.ts
@@ -3740,7 +3371,7 @@ sources:
     short_sha: 78f0ae383
     authored_at: '2026-09-02T03:42:51+00:00'
     subject: 'test: preserve voice recording before first send'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-response-speech.spec.ts
@@ -3750,7 +3381,7 @@ sources:
     short_sha: 940dbd1f2
     authored_at: '2026-09-02T01:00:06+00:00'
     subject: 'fix: recreate voice-only drafts with durable keys'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/enter_message/handlers/sendClassification.ts
@@ -3762,7 +3393,7 @@ sources:
     short_sha: b257eb243
     authored_at: '2026-09-02T00:51:11+00:00'
     subject: 'feat: add historical assistant speech playback'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/assistant_speech_handler.py
@@ -3796,7 +3427,7 @@ sources:
     short_sha: bdccc7e8a
     authored_at: '2026-09-02T00:42:16+00:00'
     subject: 'fix: preserve chat key for voice-first messages'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-response-speech.spec.ts
@@ -3808,7 +3439,7 @@ sources:
     short_sha: fa8729447
     authored_at: '2026-09-02T00:17:14+00:00'
     subject: 'fix: keep pair-login session active'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-cli/src/client.ts
@@ -3819,152 +3450,173 @@ sources:
     short_sha: 90c41a7a5
     authored_at: '2026-09-02T00:15:03+00:00'
     subject: 'test: cover voice-first assistant speech chat'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/assistant-response-speech.spec.ts
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on a significant expansion of Assistant Speech capabilities, including historical playback and
-    a redesigned player UI. The update also introduced granular security controls for API keys and refined the landing page
-    positioning and SEO metadata.
-  released_changes: []
-  bug_fixes:
-  - text: OpenMates improved Assistant Speech billing by aggregating usage data across streaming and worker tasks.
+  overview: OpenMates introduced major updates to assistant speech capabilities, including historical playback and a redesigned
+    player interface. Security was a primary focus, with the introduction of granular API key scopes and isolated session
+    security states. Additionally, the project refined its landing page positioning and SEO metadata while stabilizing developer
+    tools and internal testing infrastructure.
+  released_changes:
+  - text: OpenMates added historical assistant speech playback and a redesigned player with waveform carousel controls.
+    evidence:
+      commits:
+      - b257eb243
+      - e88438aff
+      - 115467c1f
+    release_status: released_main
+  - text: The project now enforces granular API key scopes, allowing developers to restrict keys to specific apps or actions.
+    evidence:
+      commits:
+      - c52957353
+    release_status: released_main
+  - text: Updated the landing page and SEO descriptions to better reflect the project's positioning as an agentic operating
+      system.
+    evidence:
+      commits:
+      - 7966ed8b8
+      - 10fb65626
+    release_status: released_main
+  - text: Enhanced public example chats with reviewed speech responses and visible speech actions.
+    evidence:
+      commits:
+      - 6b4d3e0f1
+      - 498ac0a33
+      - 9a9acb4db
+    release_status: released_main
+  - text: Implemented aggregated billing for assistant speech usage.
     evidence:
       commits:
       - 98f3daa5a
-    release_status: dev_only
-  - text: The Assistant Speech player received several refinements, including fixed mobile chapter controls, improved dark
-      mode support, and smoother playback transitions.
+    release_status: released_main
+  bug_fixes:
+  - text: Hardened session security by isolating security states between different device sessions.
+    evidence:
+      commits:
+      - a700420fe
+    release_status: released_main
+  - text: Resolved several issues with assistant speech playback, including mobile chapter controls, dark mode visibility,
+      and playback smoothness.
     evidence:
       commits:
       - 4dcb0c26d
       - f95eb58b2
       - b9b44bbf1
-    release_status: dev_only
-  - text: Voice-first chat interactions were stabilized by ensuring durable keys for voice-only drafts and preserving chat
-      keys during the initial message sync.
+    release_status: released_main
+  - text: Fixed API key management issues related to icon rendering, pending device inclusion, and smoke test alignment.
     evidence:
       commits:
-      - 940dbd1f2
-      - bdccc7e8a
-      - 0c689bae5
-    release_status: dev_only
-  - text: Session security was hardened by isolating security states between different device sessions.
-    evidence:
-      commits:
-      - a700420fe
-    release_status: dev_only
-  - text: The CLI pairing process and task lifecycle management were updated to maintain active sessions more reliably.
+      - 0ce027304
+      - 447e0ef58
+      - 064b8a617
+    release_status: released_main
+  - text: Improved CLI stability by hardening pairing workflows and ensuring pair-login sessions remain active.
     evidence:
       commits:
       - a46d00f01
       - fa8729447
-    release_status: dev_only
-  - text: Component previews in the developer environment now correctly support scrolling for tall UI elements.
-    evidence:
-      commits:
-      - 4d3b37f89
-    release_status: dev_only
-  - text: Continue carousel cards are now gated by item time to ensure relevant content is displayed.
+    release_status: released_main
+  - text: Gated health-related continue cards by item time to ensure relevant content is displayed in the carousel.
     evidence:
       commits:
       - 0ce9cc4ab
-    release_status: dev_only
+    release_status: released_main
   unreleased_progress:
-  - text: OpenMates added historical playback for Assistant Speech and introduced a redesigned playback UI featuring a waveform
-      carousel and improved controls.
-    evidence:
-      commits:
-      - b257eb243
-      - 6b4d3e0f1
-      - e88438aff
-      - 115467c1f
-    release_status: dev_only
-  - text: Granular API key scopes were implemented to allow more precise control over developer access, supported by new UI
-      in the developer settings.
-    evidence:
-      commits:
-      - c52957353
-      - 447e0ef58
-      - 0ce027304
-    release_status: dev_only
-  - text: The landing page and onboarding experience were refreshed, including the retirement of legacy intro chats and alignment
-      of the project's slogan.
+  - text: Work continued on retiring legacy intro chats, currently gated by disabled iOS and macOS platform features.
     evidence:
       commits:
       - c10679f69
-      - 7966ed8b8
-      - 10fb65626
-      - 4ef0ccb58
-    release_status: dev_only
-  - text: Support for encrypted external task context was added to the task system, though the tasks platform remains disabled.
+    release_status: released_main
+  - text: Added support for encrypted external task context, which remains unreleased while the tasks platform is disabled.
     evidence:
       commits:
       - 1c461ed10
-    release_status: dev_only
-  - text: The Gemini 3.8 Flash model was added to the available provider configurations.
+    release_status: released_main
+  - text: Integrated the Gemini 3.8 Flash model into the backend provider configuration.
     evidence:
       commits:
       - 3cd4ae11a
-    release_status: dev_only
+    release_status: released_main
   internal_progress:
-  - text: The OpenCode development environment was updated with improved skill discovery, mirrored specification skills, and
-      more reliable test dispatching.
+  - text: Refined internal development workflows, including more reliable component previews, aggregated plan validation,
+      and isolated storage audits.
     evidence:
       commits:
       - 6ebe0ce6e
-      - 5ac1d1870
-      - '810560515'
-      - b982b7530
-    release_status: dev_only
-  - text: The project expanded its use of automated 'proof' workflows, which generate video evidence and checkpoints to verify
-      UI changes and feature implementations.
+      - 8c857aa78
+      - 26d87e159
+    release_status: released_main
+  - text: Updated OpenCode runtime hooks and restored specification workflow skills for agentic development.
     evidence:
       commits:
-      - b351ced61
+      - 5ac1d1870
+      - 46832e6e9
+      - '810560515'
+      - b982b7530
+    release_status: released_main
+  - text: Stabilized automated test suites for API keys and assistant speech to ensure consistent proof-of-work artifacts.
+    evidence:
+      commits:
+      - 178a678ed
+      - da90b38a2
+      - b034f2fcf
       - a6023ef9a
       - abdd3fa39
       - e442ceca2
-      - 9fd413c2d
-    release_status: dev_only
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: Assistant Speech historical playback and player redesign.
+    include:
+    - text: Historical assistant speech playback and redesigned player interface.
       evidence:
         commits:
         - b257eb243
         - e88438aff
         - 115467c1f
-      reason: Assistant Speech playback features and the player redesign are currently in development and not yet released
-        to the main branch.
-    - text: Granular API key scopes for developers.
+      reason: Major user-facing feature update with a complete UI redesign.
+    - text: Granular API key scopes for enhanced access control.
       evidence:
         commits:
         - c52957353
-      reason: Granular API key scopes are currently in development.
-    - text: Landing page positioning and onboarding refresh.
+      reason: Significant security improvement for developers.
+    - text: Refined landing page positioning and SEO descriptions.
+      evidence:
+        commits:
+        - 7966ed8b8
+        - 10fb65626
+      reason: Updates to the public-facing landing page and SEO.
+    exclude:
+    - text: Retirement of legacy intro chats.
       evidence:
         commits:
         - c10679f69
-        - 7966ed8b8
-        - 10fb65626
-      reason: Landing page and onboarding updates are currently in development.
-    rationale: All user-facing features and improvements from this period are currently in development (dev_only) and have
-      not yet reached the main branch for public release.
+      reason: Related to disabled platforms (iOS and macOS).
+    - text: Encrypted external task context.
+      evidence:
+        commits:
+        - 1c461ed10
+      reason: Related to the disabled tasks platform.
+    - text: Addition of Gemini 3.8 Flash model.
+      evidence:
+        commits:
+        - 3cd4ae11a
+      reason: Internal model update not intended for direct public communication.
+    rationale: The update focuses on significant improvements to the assistant speech experience and developer security, which
+      are ready for public announcement. Features tied to disabled platforms or internal model updates are excluded.
   social_video_recommendations:
-  - idea: Demonstrate the new Assistant Speech player redesign featuring the waveform carousel and historical playback.
+  - idea: A demo showing the new assistant speech player, highlighting the waveform carousel and the ability to play back
+      historical responses.
     priority: high
-    reason: The speech player redesign and historical playback offer a strong visual and audio product story that is ready
-      for internal demonstration.
+    reason: This is a highly visual and auditory update that demonstrates product polish and new functionality.
     evidence:
       commits:
+      - b257eb243
       - e88438aff
       - 115467c1f
-      - b257eb243
   quality_notes:
-  - The project is heavily utilizing automated 'proof' workflows to verify UI and feature changes.
-  - Significant work was done to stabilize voice-first chat drafts and session security isolation.
+  - Security hardening for sessions and API keys significantly reduces the attack surface for user accounts.
+  - Assistant speech playback reliability has been improved across mobile and desktop environments.
+  - Internal tooling for 'OpenCode' and agentic workflows continues to be refined for better development parity.
   validation_warnings: []

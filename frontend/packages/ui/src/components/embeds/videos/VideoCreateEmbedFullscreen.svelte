@@ -15,7 +15,11 @@
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import VideoTimeline from './VideoTimeline.svelte';
   import { parseRemotionTimeline } from '../../../utils/remotionTimelineParser';
-  import { fetchAndDecryptAudio, releaseCachedAudio } from '../audio/audioEmbedCrypto';
+  import { createAudioUrlOwner } from '../audio/audioEmbedCrypto';
+  const audioUrlOwner = createAudioUrlOwner();
+  const fetchAndDecryptAudio = audioUrlOwner.fetch;
+  const releaseCachedAudio = audioUrlOwner.release;
+  onDestroy(audioUrlOwner.destroy);
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 

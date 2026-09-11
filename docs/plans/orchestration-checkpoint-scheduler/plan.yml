@@ -1,0 +1,173 @@
+schema_version: 2
+id: orchestration-checkpoint-scheduler
+title: Durable orchestration checkpoints
+status: verified
+goal: 'Fix the orchestration chat stopping after announcing further work, with a supported persistent
+  checkpoint scheduler, deduplicated wake-ups, explicit stop handling, and worker blockers separate from
+  coordinator monitoring.
+
+  '
+scope:
+  in:
+  - Persist per-worker cadence and expiry in existing session metadata.
+  - Deliver due checkpoints through the existing OpenCode continuation queue and heartbeat.
+  - Preserve schedules across user turns and runtime restarts; suppress delivery while busy or awaiting
+    input.
+  - Keep coordinator task continuation paced by its monitor and retain worker-specific blockers.
+  - Verify cadence, delivery deduplication, user questions, stops, expiry and restart recovery.
+  out:
+  - New services, cron jobs, or a replacement task system.
+  - Changing worker assignments or product task scheduling.
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-09-07T14:35:58.202715+00:00'
+    actor: user
+    basis: User explicitly approved the proposed fix before implementation.
+  plan:
+    status: approved
+    approved_at: '2026-09-07T14:35:58.202715+00:00'
+    actor: user
+    basis: User explicitly approved the proposed fix before implementation.
+scenarios:
+- id: S-1
+  title: Coordinator keeps scheduled supervision
+  given:
+  - Approved workers are running with a registered schedule
+  when:
+  - A worker blocks, a user asks a question, or the runtime restarts
+  then:
+  - Due checkpoints resume without duplicate prompts; explicit stop and nightly expiry prevent further
+    wake-ups
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Schedules survive turns and restarts, remain paced, and honor stop and expiry.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - V-1
+  - V-LIVE
+tests:
+- id: T-1
+  type: pytest
+  file: scripts/tests/test_orchestration_monitor.py
+  command: python3 -m pytest scripts/tests/test_orchestration_monitor.py scripts/tests/test_sessions_continuation.py
+    scripts/tests/test_opencode_task_bridge.py scripts/tests/test_spawn_chat_opencode.py scripts/tests/test_opencode_runtime_release.py
+    -q
+  assertions:
+  - Cadence, persistence, deduplication, explicit stop and coordinator task handling are verified
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: Existing live failure documented in conversation
+    evidence: {}
+  green_phase:
+    required: false
+    expected: pass
+    evidence: &id002
+      command: python3 -m pytest scripts/tests/test_orchestration_monitor.py scripts/tests/test_sessions_continuation.py
+        scripts/tests/test_opencode_task_bridge.py scripts/tests/test_spawn_chat_opencode.py scripts/tests/test_opencode_runtime_release.py
+        -q
+      run_id: orchestration-deployed-python-59-node-19
+      recorded_at: '2026-09-07T14:54:48.705868+00:00'
+      subject_commit: 5850ea83a8cc93bf9670f1edaf797b389ff1887c
+      summary: 59 Python and 19 hook tests passed against the deployed OpenCode runtime checkout; packaged
+        hook/tool guard probe passed.
+tasks:
+- id: TASK-1
+  title: Implement and verify durable monitor continuation
+  status: done
+  phase: complete
+  expected_files: &id001
+  - scripts/_orchestration_monitor.py
+  - scripts/sessions.py
+  - .opencode/plugins/openmates-hooks.js
+  verification_ids:
+  - V-1
+  - V-LIVE
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id001
+    shared_files: []
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+implementation_state:
+  phase: complete
+  subject_commit: 5850ea83a8cc93bf9670f1edaf797b389ff1887c
+  active_task: TASK-1
+  last_updated: '2026-09-07T14:54:48.705868+00:00'
+decisions:
+- id: D-1
+  status: active
+  decision: Reuse the existing session metadata, continuation queue and heartbeat.
+  reason: Avoid a second task system or detached service.
+  decided_at: '2026-09-07T14:35:58.202715+00:00'
+attempts:
+- id: ATT-1
+  task_id: TASK-1
+  outcome: succeeded
+  approach: Implemented the scheduler and task guard; 59 Python and 19 hook tests passed against the deployed
+    source. Managed restart restored four captured chats. The first real scheduled checkpoint was delivered
+    and the coordinator read all five worker chats.
+  recorded_at: '2026-09-07T14:54:48.705868+00:00'
+handoff:
+  current_task_id: TASK-1
+  next_action: Continue observation; the live coordinator owns the registered schedules until the 23:00
+    UTC deadline.
+  command: python3 scripts/sessions.py monitor status --session 2fea
+  expected_outcome: Durable monitor remains active and checkpoints advance after acknowledged delivery.
+  last_verified_commit: 5850ea83a8cc93bf9670f1edaf797b389ff1887c
+  blocker: null
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: Internal scheduler state and runtime hook change; deterministic tests and live metadata/message
+      delivery verify the contract.
+    classified_at: '2026-09-07T14:39:32.970786+00:00'
+    classified_by: agent
+    verification_ids:
+    - V-1
+verifications:
+- id: V-1
+  kind: automated_test
+  phase: green
+  status: passed
+  required_for_done: true
+  command: python3 -m pytest scripts/tests/test_orchestration_monitor.py scripts/tests/test_sessions_continuation.py
+    scripts/tests/test_opencode_task_bridge.py scripts/tests/test_spawn_chat_opencode.py scripts/tests/test_opencode_runtime_release.py
+    -q
+  run_id: orchestration-python-34
+  recorded_at: '2026-09-07T14:54:48.705868+00:00'
+  subject_commit: 5850ea83a8cc93bf9670f1edaf797b389ff1887c
+  summary: 59 Python and 19 hook tests passed against the deployed OpenCode runtime checkout; packaged
+    hook/tool guard probe passed.
+  covers:
+  - AC-1
+  evidence: *id002
+- id: V-LIVE
+  kind: deterministic_check
+  phase: final
+  status: passed
+  required_for_done: true
+  covers:
+  - AC-1
+  evidence:
+    command: Read scoped OpenCode presence, coordinator messages and sessions.py monitor status after
+      managed restart
+    run_id: msg_07c598e70001X0BjyujJy67C1b
+    recorded_at: '2026-09-07T14:54:48.705868+00:00'
+    subject_commit: 5850ea83a8cc93bf9670f1edaf797b389ff1887c
+    summary: Running hook SHA-256 matched 29f14b018608f116df12a30d701f4b7577cc375c4cff660b57d0017dd034c00b.
+      At 14:50:39 UTC, one monitor_ready prompt was accepted; at 14:51:07 the coordinator read all five
+      worker chats. The schedule advanced and TASK-6370 returned to in_progress. Restart manifest opencode-restart-20260907T144855Z.json
+      verified all four captured chats resumed.

@@ -107,9 +107,9 @@ def main() -> int:
             cli(home, args.api_url, ["plans", "dependencies", "add", plan_id, "--target", f"task:{task_id}"])
             cli(home, args.api_url, ["plans", "dependencies", "list", plan_id])
             cli(home, args.api_url, ["plans", "dependencies", "remove", plan_id, "--target", f"task:{task_id}"])
-            assumption = cli(home, args.api_url, ["plans", "assumptions", "create", plan_id, "--id", "proof", "--text", "typed proof", "--sub-chat", "opencode:verification", "--proof-file", "docs/plans/opencode-openmates-work-control/plan.yml:1:2", "--proof-url", "https://example.invalid/proof", "--proof-embed", "embed-proof"])
+            assumption = cli(home, args.api_url, ["plans", "assumptions", "create", plan_id, "--id", "proof", "--text", "typed proof", "--sub-chat", "codex:verification", "--proof-file", "docs/plans/opencode-openmates-work-control/plan.yml:1:2", "--proof-url", "https://example.invalid/proof", "--proof-embed", "embed-proof"])
             assumption_id = identifier(assumption, "assumption_id")
-            cli(home, args.api_url, ["plans", "assumptions", "update", plan_id, "--assumption", assumption_id, "--status", "checking", "--sub-chat", "opencode:verification", "--proof-file", "docs/plans/opencode-openmates-work-control/plan.yml:1:2", "--proof-url", "https://example.invalid/proof", "--proof-embed", "embed-proof"])
+            cli(home, args.api_url, ["plans", "assumptions", "update", plan_id, "--assumption", assumption_id, "--status", "checking", "--sub-chat", "codex:verification", "--proof-file", "docs/plans/opencode-openmates-work-control/plan.yml:1:2", "--proof-url", "https://example.invalid/proof", "--proof-embed", "embed-proof"])
             cli(home, args.api_url, ["plans", "revisions", "submit-for-review", plan_id])
             cli(home, args.api_url, ["plans", "revisions", "status", plan_id])
             cli(home, args.api_url, ["plans", "revisions", "list", plan_id])
@@ -134,7 +134,7 @@ def main() -> int:
             if restored.get("restored") is not True:
                 raise RuntimeError("recovery restore did not report semantic verification")
             plan_id, task_id = restored_plan_id, restored_task_id
-            operations = ["create", "dependency_add_list_remove", "typed_proof_with_opencode_sub_chat", "revision_submit_status_list", "project_scoped_lists", "recovery_full_sync_validate_dry_run_confirm_restore_cleanup"]
+            operations = ["create", "dependency_add_list_remove", "typed_proof_with_codex_sub_chat", "revision_submit_status_list", "project_scoped_lists", "recovery_full_sync_validate_dry_run_confirm_restore_cleanup"]
         finally:
             cleanup(home, args.api_url, task_id, plan_id, project_id)
     print(json.dumps({"status": "passed", "operations": operations, "approval": "not_invoked"}, sort_keys=True))

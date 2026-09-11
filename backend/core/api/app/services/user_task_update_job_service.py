@@ -20,9 +20,11 @@ TASK_UPDATE_JOB_PENDING = "PENDING"
 TASK_UPDATE_JOB_LEASED = "LEASED"
 TASK_UPDATE_JOB_TERMINAL = "TERMINAL"
 ALLOWED_CLIENT_PAYLOAD_SAFE_KEYS = {
+    "slug_lookup_hash",
     "ai_execution_state",
     "assignee_hash",
     "assignee_type",
+    "assignee_identity",
     "blocked_reason_code",
     "created_at",
     "due_at",

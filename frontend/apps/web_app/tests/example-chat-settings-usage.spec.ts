@@ -38,11 +38,6 @@ const STATIC_FILE_CASES = [
 		metadata: 'Code file'
 	},
 	{
-		chatId: 'example-private-workspace-demo-video',
-		filename: 'video-generate-1.mp4',
-		metadata: 'Video'
-	},
-	{
 		chatId: 'example-launch-readiness-checklist-doc',
 		filename: 'Launch_Readiness_Checklist.docx',
 		metadata: 'Document'

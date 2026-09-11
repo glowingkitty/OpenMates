@@ -1,0 +1,212 @@
+# Disposable application tests, independent of the shared dev server.
+# Dispatches come from scripts/ci_coordinator.py and bind an exact source SHA.
+# The same runner contract serves candidate and nightly test batches.
+name: Isolated application tests
+run-name: "Isolated tests ${{ inputs.mode }} ${{ inputs.dispatch_token }}"
+on:
+  push:
+    branches: [dev]
+    paths: ['.github/workflows/isolated-tests.yml']
+  workflow_dispatch:
+    inputs:
+      checkout_ref:
+        required: true
+        type: string
+      specs_json:
+        required: true
+        type: string
+        default: '[]'
+      mode:
+        type: choice
+        options: [e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke]
+        default: e2e
+      dispatch_token:
+        required: true
+        type: string
+      proof_video_profile:
+        type: string
+        default: ''
+permissions:
+  contents: read
+jobs:
+  test:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.mode == 'selfhost' && 90 || 60 }}
+    defaults:
+      run:
+        working-directory: subject
+    env:
+      CI_TEST_MODE: ${{ inputs.mode }}
+      CI: 'true'
+      OPENMATES_CI_ISOLATED: '1'
+      OPENMATES_CI_SOURCE_ROOT: ${{ github.workspace }}/subject
+      CI_HARNESS_COMMIT: ${{ github.sha }}
+      CI_SPECS_JSON: ${{ inputs.specs_json }}
+      PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile }}
+      PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
+      OPENMATES_E2E_API_URL: http://localhost:8000
+      OPENMATES_API_URL: http://localhost:8000
+      VITE_API_URL: http://localhost:8000
+      VITE_UPLOAD_URL: http://localhost:5173
+      VITE_ENV: self_hosted
+      E2E_USE_MOCKS: '1'
+      E2E_USE_LIVE_MOCKS: '1'
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref }}
+          path: subject
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: tooling
+          sparse-checkout: scripts
+          persist-credentials: false
+      - name: Verify exact source and isolated endpoints
+        env:
+          EXPECTED_SOURCE: ${{ inputs.checkout_ref }}
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess
+          expected = os.environ['EXPECTED_SOURCE']
+          assert re.fullmatch('[0-9a-f]{40}', expected), 'Full source SHA required'
+          assert subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip() == expected
+          PY
+          echo "BUILD_COMMIT_SHA=$EXPECTED_SOURCE" >> "$GITHUB_ENV"
+          echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
+          echo '127.0.0.1 storage.ci.test' | sudo tee -a /etc/hosts
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: subject/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: subject/pnpm-lock.yaml
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: ${{ inputs.mode == 'pytest' && 'pip' || '' }}
+          cache-dependency-path: |
+            subject/backend/requirements-dev.txt
+            subject/backend/core/api/requirements.txt
+            subject/packages/openmates-python/pyproject.toml
+      - name: Install workspace dependencies
+        if: inputs.mode != 'pytest'
+        run: pnpm install --frozen-lockfile
+      - name: Prepare isolated stack
+        id: runtime
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        run: |
+          node frontend/packages/ui/scripts/build-translations.js
+          python3 ../tooling/scripts/ci_environment.py prepare
+      - uses: docker/setup-buildx-action@v3
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+      - name: Build cached API dependencies and current source
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./subject
+          file: ./subject/backend/core/api/Dockerfile
+          load: true
+          tags: openmates-ci-api:local
+          cache-from: type=gha,scope=ci-api
+          cache-to: type=gha,scope=ci-api,mode=max
+      - name: Build cached upload dependencies and current source
+        if: inputs.mode == 'e2e' && steps.runtime.outputs.uploads == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./subject
+          file: ./subject/backend/upload/Dockerfile
+          load: true
+          tags: openmates-ci-upload:local
+          cache-from: type=gha,scope=ci-upload
+          cache-to: type=gha,scope=ci-upload,mode=max
+      - name: Build current Directus extensions
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./subject/backend/core/directus
+          load: true
+          tags: openmates-ci-cms:local
+          cache-from: type=gha,scope=ci-cms
+          cache-to: type=gha,scope=ci-cms,mode=max
+      - name: Build current schema initializer
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./subject/backend/core/directus/setup
+          load: true
+          tags: openmates-ci-setup:local
+          cache-from: type=gha,scope=ci-setup
+          cache-to: type=gha,scope=ci-setup,mode=max
+      - name: Build local web app and CLI
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        run: |
+          pnpm --filter openmates build
+          cp frontend/apps/web_app/svelte.config.docker.js frontend/apps/web_app/svelte.config.js
+          pnpm --filter web_app build
+      - name: Start isolated backend
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        run: |
+          python3 ../tooling/scripts/ci_environment.py start
+          python3 ../tooling/scripts/ci_environment.py verify
+      - name: Install browser
+        if: inputs.mode == 'e2e' || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke'
+        working-directory: subject/frontend/apps/web_app
+        run: |
+          npx playwright install --with-deps chromium
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+      - name: Provision empty runner-local Codex thread
+        if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts'))
+        run: node ../tooling/scripts/ci_codex_fixture.mjs start
+      - name: Install installer workflow parser
+        if: inputs.mode == 'selfhost'
+        run: python3 -m pip install pyyaml==6.0.2
+      - name: Run selected checks
+        env:
+          CI_TEST_MODE: ${{ inputs.mode }}
+          CI_SPECS_JSON: ${{ inputs.specs_json }}
+        run: python3 ../tooling/scripts/ci_run_tests.py
+      - name: Stop runner-private Codex daemon
+        if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts')))
+        run: node ../tooling/scripts/ci_codex_fixture.mjs stop
+      - name: Collect bounded stack diagnostics
+        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke')
+        run: python3 ../tooling/scripts/ci_environment.py logs
+      - name: Remove disposable containers and databases
+        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke')
+        run: python3 ../tooling/scripts/ci_environment.py stop
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: isolated-test-results
+          retention-days: 7
+          path: |
+            subject/test-results/ci-environment.json
+            subject/test-results/ci-stack.log
+            subject/test-results/ci-stack-spec-*.log
+            subject/test-results/ci-results.json
+            subject/test-results/ci-codex.json
+            subject/test-results/ci-cleanup.json
+            subject/test-results/ci-selfhost-steps.json
+            subject/test-results/ci-spec-*.json
+            subject/test-results/ci-pytest.json
+            subject/test-results/ci-unit-*
+            subject/test-results/ci-visual-smoke/
+            subject/test-results/ci-web.log
+            subject/frontend/apps/web_app/test-results/
+          if-no-files-found: error
+      - name: Retain original documentation screenshot output
+        if: always() && contains(inputs.specs_json, 'docs-screenshot-generator.spec.ts')
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-screenshots
+          retention-days: 7
+          path: subject/docs/images/user-guide/apps/**/*.jpg

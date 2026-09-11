@@ -1,0 +1,117 @@
+id: apple-daily-use-recovery
+title: Restore the Apple daily-use chat flow
+status: implementing
+goal: >-
+  Ensure passkey login and email/password login to the personal dev test account
+  work, load the chats visible in the web app efficiently, and support reliable
+  conversations with the same core UI flow, using iPhone simulator workflows as
+  the primary debugging loop and TestFlight for real-device verification.
+authorization:
+  product_scope: User approved the five-step recovery proposal on 2026-09-11.
+  local_tools: User explicitly authorized local debugging tools and updating the ios skill.
+  real_device_delivery: User requested TestFlight for testing builds beyond the simulator.
+scope:
+  - Installed-build identity, signing and passkey relying-party configuration.
+  - Password and passkey session establishment and encrypted account unlock.
+  - Complete progressive history, opening chats, streaming and persistence.
+  - Relaunch and reconnect; targeted iPhone and iPad verification.
+  - After chat loading/rendering/scrolling is verified, validate push delivery and notification replies reaching the correct chat through the normal send flow.
+  - After recovery and TestFlight delivery, extend development-only Apple component previews and fixtures using existing infrastructure, with confirmed web previews as visual references, and update Apple/iOS development guidance.
+non_goals:
+  - Full web parity, unrelated settings, new embeds or Watch recovery.
+  - Backend authentication changes or weakening encryption/signing requirements.
+specification_refs:
+  - specifications/features/auth/specification.yml
+  - specifications/architecture/sync/specification.yml
+  - specifications/features/chats/specification.yml
+affected_assertions:
+  - auth.login.method-convergence
+  - auth.passkey.origin-prf-bound
+  - auth.session.lifecycle
+  - sync.startup.bounded-phases
+  - sync.surface.semantic-parity
+  - chats.persistence.client-encrypted
+  - chats.message.identity-idempotent
+acceptance:
+  - Both real login methods unlock existing encrypted chats.
+  - Chat identities match the web account, including beyond the first recent window.
+  - Recent history becomes usable before all historical message content is loaded.
+  - New chats and follow-ups stream, persist after relaunch and appear on the web.
+  - Reconnection does not lose messages, duplicate sends or leave loading stuck.
+  - Physical iPhone authentication/lifecycle and iPad layout are checked explicitly.
+  - Push delivery and notification replies are verified across foreground/background, reconnect and relaunch; replies reach the intended chat and follow the normal web-equivalent message processing path.
+evidence:
+  - Installed v0.17 build 64 rejects dev passkey RP because signed dev associated domain is absent.
+  - Personal dev email/password login succeeds in installed build and displays decrypted recent titles.
+  - Installed auth controls render but disappear from the macOS accessibility tree.
+  - Current source contains the dev associated domain; the installed TestFlight build now passes user-confirmed Mac passkey authentication.
+  - Isolated SwiftData tests reproduce account and server cache leakage; same-scope persistence passes.
+  - Metadata decoder regression reproduces dropped explicit server tombstones.
+  - Native REST pagination sends offset to an endpoint that always reads offset zero.
+  - Startup phased_sync_request omitted the mandatory personal context_epoch field.
+  - Unsigned simulator builds compile but fail Keychain writes with missing entitlement status -34018.
+  - Ad-hoc signed simulator completes password unlock and receives a complete streamed assistant response.
+  - Initial streaming UI assertion queried the wrong accessibility element type; selector corrected.
+  - Twenty focused native sync/isolation regressions pass with session race guards.
+  - Signed XCUITest password plus OTP login and complete assistant response passes in 80 seconds.
+  - Initial live pagination reproduced zero of 425 chats; after dev fix 32ebe840ca48770bc96764f2089fd4f5ee2211fc it returns all 426 unique chats and matches the authoritative count in 13.2 seconds including login.
+  - Server pagination indexes a sparse cache containing a draft-only ID, returning an empty page despite existing database history.
+  - Relaunch history test exposes a post-send draft-save race producing a stray draft-only row.
+  - Eleven native draft encryption tests pass, including deterministic cancellation of a save suspended before clearDraft.
+  - Backend pagination regression plus two existing scope tests pass; coordinated dev restart completed.
+  - iPhone relaunch reopens the exact new conversation with both user and assistant messages intact.
+  - Live follow-up reproduced existing_chat_metadata_forbidden when title version was zero; native preflight now uses message existence to distinguish new chats, with passing regression.
+  - Local draft save and receipt notifications no longer trigger composer reloads; origin and stale-read regressions pass.
+  - Live typing still reproduces identical text corruption after draft guards; UIKit adapter rejects keyboard edits while manually changing storage and selection.
+  - Eight native text adapter tests pass after allowing UIKit to commit edits; v11 live exact prompt and relaunch persistence pass.
+  - v11 follow-up reproduces missing original-request history after durable preflight; obsolete native history resend is rejected while the web includes history in the committed original request.
+  - Signed iPhone simulator chat-core-v14 on 2026-09-11 passes recovery regressions and full password/OTP, exact typing, streamed response, relaunch, exact-chat reopen, and follow-up recalling Osaka from persisted history (146.6 seconds total test session).
+  - Signed iPad Pro simulator chat-ipad-v3 passes nine adapter regressions and the full password/OTP, exact typing, response, relaunch, reopened messages, and context-aware follow-up workflow on 2026-09-11.
+  - iPad video showed complete typed text but stale accessibility value; removed the UIKit value override and verified native accessibility reporting.
+  - Web reference session currently stalls before sending phased sync; exact cross-client history proof remains pending.
+  - macOS TestFlight 0.18.0 build 65 uploaded, reached VALID status, and was installed on the Mac.
+  - User confirmed Touch ID passkey login succeeds in the installed Mac build; the signed-in account shows decrypted titles and completed sync.
+  - iOS TestFlight 0.18.0 build 65 export/upload succeeded and reached VALID status; physical-device everyday usability remains under verification.
+  - User reports slow Mac chat opening and header/embed presentation differences for an iPhone-created chat; investigate these remaining core-flow issues.
+  - Continuation chat policy now distinguishes draft-only cards from established chats and aligns pinned/draft/recent ordering; reminder and saved-embed priority items remain outside this core recovery scope.
+  - Build 65 user reports severe Mac/iOS UI stalls; the symbolicated Mac sample identifies a non-advancing InlineMarkdownTokenizer fallback on unsupported special characters, now fixed with focused regressions.
+  - Mac diagnostic records an unresponsive interval of 69 seconds and about 90 CPU seconds over 117 seconds; no separate termination crash report was found.
+  - recovery-performance-v1 passes 24 focused parser/date/sync/embed unit tests; embed-live-v4 passes the expanded 25-test unit set and real password/OTP login plus initial sync.
+  - embed-live-v4 stops before chat search because the SwiftUI accessibility tree replaces the Search button identifier with the panel identifier; only the UI test selector was updated to accept the actual Search label, with v5 verification pending.
+  - embed-live-v5 passes 25 focused units, fresh password/OTP, sync and search opening; only a text-field accessibility selector blocks the workflow, with placeholder fallback added to the test.
+  - embed-live-v6 passes 25 units and opens the exact configured iPhone conversation with user/assistant content and hydrated fullscreen search-result embeds; second-chat navigation stops because the test assumes normal sidebar rows while search remains open.
+  - The v7 test preserves search state and clears the previous query; no product source change was needed for this harness correction.
+  - User prioritizes completing chat loading/rendering/scrolling before push delivery and notification-reply validation; existing complete messaging workflows already passed on iPhone and iPad simulators.
+  - Preliminary notification source review finds a memory-only pending reply and an absent-chat fallback that may not retrieve the target; lifecycle, reconnect and durability behavior remain to be verified before changes.
+  - embed-live-v10 passes 25 focused unit tests and the live GTA history/embed workflow in 47.46 seconds with an existing authenticated test session: exact chat identity, user and assistant content, preview opening, and minimize all pass.
+  - Private v10 screenshot inspection confirms real search-result titles/snippets/favicons in the opened embed; earlier v6 independently verified the configured iPhone conversation and populated fullscreen embeds.
+  - v7-v9 failures involved search/preview hit targets; the non-recording preview button now defines its full rectangular hit area. v10 validates that targeted interaction fix.
+  - v9 sampling no longer shows the tokenizer or formatter loop, but this is not a formal scrolling performance budget; installed build 66 validation remains pending.
+  - User-provided simulator watchdog report identifies Apple's MobileCal scene-creation process rather than an OpenMates crash; preserve this distinction when assessing stability.
+  - Core history/rendering/search recovery deployed to dev as f5cc5d74f1d33cd26ab289cdd2157c8aa486787b through the scoped session workflow; specification and lint gates pass, with no backend runtime restart.
+  - macOS TestFlight build 66 upload succeeded at 17:35:23 on 2026-09-11 and reached VALID (ASC build 888ec29c-b7be-4ce3-a550-04ae2bb45019); TestFlight automatic update installed build 66, confirmed from the application plist, while preserving the signed-in account.
+  - Installed Mac build 66 search finds the exact OpenAI Astral news updates conversation; user and assistant messages and embeds load, three page-down actions and return-to-top respond, and the inline CNBC reference opens the matching article and source snippets.
+  - A 15-second installed Mac build 66 sample has only two tokenizer samples among 1169 main-thread samples, compared with continuous tokenizer activity in build 65; observed memory footprint is about 128 MB. This supports the specific hang fix rather than full performance or web-parity certification.
+  - iOS/iPadOS build 66 archive and upload succeeded at 17:42:13 on 2026-09-11 and reached VALID (ASC build ff1a98ca-4f4f-4c8c-979b-982461b8017a); TestFlight notes are updated and the user was notified build 66 is available.
+  - Installed Mac build 66 APNs registration fails because its signature lacks the macOS-specific APNs entitlement despite a provisioning profile allowing it; a dedicated Mac entitlements file and conditional build configuration are prepared, pending validation.
+  - Notification recovery source now prepares an account/server-bound protected-Keychain pending ledger with stable callback deduplication and persisted original preflight/commit payload, exact target metadata/history hydration, and startup/reconnect/foreground replay; focused tests are running and deployment is held.
+  - User-provided full OpenMates build 66 hang report confirms an Astral conversation stall when scrolling through to the final message; the earlier three-page-down Mac check was insufficient and must not be treated as full-depth stability evidence.
+  - Current unreleased scroll recovery replaces per-row absolute-frame preferences with visibility-based tracking, removes row-appearance animation, caches inline markdown layout, avoids unused attributed parsing, and limits the chat-header timeline to decorative views. Full-depth Astral UI and focused unit verification are running.
+  - Notification replay ownership has moved to the app-scoped push service, with receipt-aware original-payload retry and WebSocket generation guards; its workflow validation is on hold until full-depth chat scrolling is proven.
+  - fullscroll-v1 reproduces the exact final-answer hang in the current simulator: all 6497 sampled main-thread stacks show the lazy-layout loop at full CPU, proving the first scroll optimizations insufficient.
+  - Controlled follow-up replaces the transcript lazy stack with an ordinary VStack and skills HStack while preserving rows, fixes exact markdown child-proposal reuse during placement with a regression, and pauses decorative header animation offscreen/inactive.
+  - fullscroll-v2 stops at accessibility-identifier propagation in the harness, not a demonstrated render failure; the corrected v3 completes its first full traversal to the final answer and back, with repeated traversals still pending.
+  - The initial 50-message render window is not a lifetime bound: loading older messages expands the rendered transcript, so full-history traversal must remain part of acceptance.
+  - The notification disconnect regression now checks the actual disconnection error rather than an unstable sub-500-millisecond timing assertion.
+  - fullscroll-v3 passes three complete Astral traversals from beginning to final message, plus embed opening/minimize, in 237.287 seconds without reproducing the hang.
+  - The successful v3 sample contains 6446 main-thread samples, including 3133 waiting and 1185 XCTest/accessibility samples; footprint is 151.6 MB with a 174.9 MB peak. This validates the exercised deep-scroll workflow, with installed-device confirmation still pending.
+  - Final regression run covers 79 focused unit tests plus BackgroundChatNotificationUITests; results are pending and deployment remains held.
+  - recovery-final-v1 passes all 79 focused unit tests in 2.456 seconds. Notification foreground deduplication, warm notification tap and cold notification tap route to the exact target chat successfully.
+  - The notification workflow stops at inline reply-control discovery before text entry; reply delivery and background reply completion are not yet proven. This harness limitation does not invalidate the independent fullscroll-v3 three-traversal and embed interaction pass.
+  - Urgent scrolling recovery is authorized for scoped dev integration while the notification reply selector is diagnosed separately; Mac build 67 archive is running from the stable application source.
+  - Full-depth scrolling and notification lifecycle source deployed to dev as 9fbba00f73ca4feef2a029a37d847df294038d90; specification/lint gates pass and no backend runtime restart was performed.
+  - The inline-reply test selector now accepts SpringBoard's observed Click here to respond label. This test-only correction has not been rerun; end-to-end notification reply delivery remains unverified.
+  - User requested stopping after the current dev and TestFlight delivery to conserve usage; further notification validation and development-only component preview work remain deferred.
+handoff:
+  current: Deliver the verified full-depth scrolling recovery and build 67, verify installed responsiveness and Mac APNs signing, then finish inline notification reply-control discovery and end-to-end reply delivery validation.
+  verification: Preserve passing iPhone/iPad simulator evidence; validate remaining chat-opening fixes with focused regressions and installed TestFlight workflows.

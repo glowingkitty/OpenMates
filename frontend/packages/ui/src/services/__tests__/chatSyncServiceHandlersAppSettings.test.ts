@@ -109,6 +109,7 @@ function resetHoistedMocks(): void {
 }
 
 import {
+  saveAppSettingsMemoriesRequestMessage,
   handleWorkflowChatDeliveriesAvailableImpl,
   handlePendingAIResponseImpl,
 } from "../chatSyncServiceHandlersAppSettings";
@@ -1229,5 +1230,34 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
       expect.objectContaining({ messages_v: 3 }),
     );
+  });
+});
+
+
+describe("memory consent request persistence", () => {
+  beforeEach(() => {
+    resetHoistedMocks();
+    mocks.chatKeyManager.getKey.mockResolvedValue("chat-key");
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
+    mocks.encryptWithChatKey.mockResolvedValue("client-ciphertext");
+    mocks.chatDB.saveMessage.mockResolvedValue(undefined);
+  });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.conversation.request-convergence,app-memories.privacy.client-encrypted
+  it("reuses the server request identity on repeated web delivery and sends only ciphertext", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    for (let delivery = 0; delivery < 2; delivery++) {
+      await saveAppSettingsMemoriesRequestMessage(service, "chat-1", "user-1", "request-1", ["mail-writing_styles"], [{ appId: "mail", itemType: "writing_styles", entryCount: 1 }]);
+    }
+    expect(mocks.webSocketService.sendMessage).toHaveBeenCalledTimes(2);
+    for (const [event, payload] of mocks.webSocketService.sendMessage.mock.calls) {
+      expect(event).toBe("chat_system_message_added");
+      expect(payload.message.message_id).toBe("request-1");
+      expect(payload.message.encrypted_content).toBe("client-ciphertext");
+      expect(payload.message.content).toBeUndefined();
+    }
+    const plaintext = JSON.parse(mocks.encryptWithChatKey.mock.calls[0][0]);
+    expect(plaintext.categories[0].entryCount).toBe(1);
+    expect(plaintext.action).toBeUndefined();
   });
 });

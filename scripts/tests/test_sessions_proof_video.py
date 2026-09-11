@@ -56,6 +56,7 @@ def fake_proof_workflow(**functions: object) -> ModuleType:
     module.require_clean_worktree = functions.get("require_clean_worktree", lambda *_args: None)
     module.require_recorded_approval = functions.get("require_recorded_approval", lambda **_kwargs: {})
     module.resolve_deployed_run = functions.get("resolve_deployed_run", lambda **_kwargs: {})
+    module.bound_browser_tutorial_plan = functions.get("bound_browser_tutorial_plan", lambda *_args, **_kwargs: None)
     return module
 
 
@@ -551,8 +552,8 @@ def test_proof_video_publish_uploads_response_media_without_discord(
     output = capsys.readouterr().out
     publication = json.loads((run_dir / "publication.json").read_text(encoding="utf-8"))
 
-    assert "opencode_response_media.py" in " ".join(observed_command)
-    assert publication["delivery_kind"] == "opencode_response_media"
+    assert "response_media.py" in " ".join(observed_command)
+    assert publication["delivery_kind"] == "response_media"
     assert publication["snippet_html"].startswith("<video")
     assert "snippet_html" in output
     assert secret not in output
@@ -658,7 +659,7 @@ def write_passed_manifest(tmp_path: Path, *, subject_commit: str = "abc1234") ->
     return manifest_path
 
 
-def test_proof_video_gate_blocks_feature_runtime_changes_without_video(
+def test_proof_video_gate_blocks_explicit_deliverable_without_video(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -668,7 +669,7 @@ def test_proof_video_gate_blocks_feature_runtime_changes_without_video(
     with pytest.raises(SystemExit):
         sessions._enforce_proof_video_end_gate(
             "abcd",
-            {"mode": "feature"},
+            {"mode": "feature", "proof_video_required": True},
             ["frontend/packages/ui/src/components/NewFeature.svelte"],
         )
 
@@ -682,7 +683,7 @@ def test_proof_video_deploy_records_pending_without_failing_plain_deploy(
     saved: dict[str, object] = {}
 
     def mutate(callback: object) -> None:
-        data = {"sessions": {"abcd": {"mode": "feature"}}}
+        data = {"sessions": {"abcd": {"mode": "feature", "proof_video_required": True}}}
         callback(data)
         saved.update(data)
 
@@ -692,7 +693,7 @@ def test_proof_video_deploy_records_pending_without_failing_plain_deploy(
 
     sessions._record_proof_video_deploy_pending(
         "abcd",
-        {"mode": "feature"},
+        {"mode": "feature", "proof_video_required": True},
         ["frontend/packages/ui/src/components/NewFeature.svelte"],
     )
 
@@ -751,7 +752,7 @@ def test_cmd_deploy_records_proof_pending_without_failing_plain_deploy(
                 "locks": {},
                 "sessions": {
                     "abcd": {
-                        "mode": "feature",
+                        "mode": "feature", "proof_video_required": True,
                         "task": "proof pending deploy",
                         "modified_files": [runtime_file],
                         "proof_video_pending": [
@@ -840,7 +841,7 @@ def test_cmd_deploy_end_hard_blocks_without_proof_video(
                 "locks": {},
                 "sessions": {
                     "abcd": {
-                        "mode": "feature",
+                        "mode": "feature", "proof_video_required": True,
                         "task": "proof blocked deploy end",
                         "modified_files": [runtime_file],
                     }
@@ -915,7 +916,7 @@ def test_proof_video_gate_ignores_docs_and_scripts_only_feature(monkeypatch: pyt
 
     sessions._enforce_proof_video_end_gate(
         "abcd",
-        {"mode": "feature"},
+        {"mode": "feature", "proof_video_required": True},
         ["scripts/spec_demo.py", "docs/plans/example/plan.yml"],
     )
 
@@ -928,7 +929,7 @@ def test_proof_video_gate_accepts_current_delivered_manifest(
     monkeypatch.setattr(sessions, "_current_head", lambda: "abc1234")
     monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: True)
     session = {
-        "mode": "feature",
+        "mode": "feature", "proof_video_required": True,
         "proof_videos": [
             {
                 "status": "passed",
@@ -955,7 +956,7 @@ def test_proof_video_gate_accepts_prior_video_when_later_pending_cleanup_is_dev_
     monkeypatch.setattr(sessions, "_current_head", lambda: cleanup_commit)
     monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: False)
     session = {
-        "mode": "feature",
+        "mode": "feature", "proof_video_required": True,
         "proof_videos": [
             {
                 "status": "passed",
@@ -996,7 +997,7 @@ def test_proof_video_gate_blocks_prior_video_when_later_pending_product_change_r
     monkeypatch.setattr(sessions, "_current_head", lambda: product_commit)
     monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: False)
     session = {
-        "mode": "feature",
+        "mode": "feature", "proof_video_required": True,
         "proof_videos": [
             {
                 "status": "passed",
@@ -1065,7 +1066,7 @@ def test_proof_video_record_requires_blocker_image_for_failed_review(tmp_path: P
     blocker_media = record["blocker_media"]
     assert blocker_media["media_status"] == "missing"
     assert blocker_media["video_path"] == str(tmp_path / "demo.mp4")
-    assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["upload_command"].startswith("python3 scripts/response_media.py ")
     assert "image_upload_command" not in blocker_media
 
 

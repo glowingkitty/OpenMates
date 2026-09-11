@@ -1,0 +1,109 @@
+schema_version: 1
+id: architecture.security-reporting
+version: 1
+status: draft
+title: Deterministic Daily Security Reporting
+summary: >
+  Repository security scans continue hourly without per-scan emails or AI
+  summary chats. Operators receive one deterministic daily security email and
+  deduplicated immediate alerts for newly observed critical findings.
+
+scope:
+  includes:
+    - Dependabot and EU/OSV/NVD dependency scan outcomes on the development maintenance host.
+    - Latest structured security-audit and red-team results with source dates.
+    - Daily email aggregation, immediate critical alerts, durable notification state, and scanner coverage.
+  excludes:
+    - Changes to scan frequency, vulnerability remediation policy, or permissions.
+    - Replacing substantive security audits or remediation agents with deterministic analysis.
+    - Changes to reliability digests, operational digests, or unrelated cron notifications.
+    - New public APIs, SDK methods, web or Apple screens, or Discord delivery.
+    - Claiming development fixes are deployed to production without production evidence.
+
+models:
+  SecurityScanRun:
+    run_id: {type: stable_id, required: true}
+    source: {type: enum, values: [dependabot, eu_vulns, security_audit, redteam], required: true}
+    environment: {type: string, required: true}
+    subject_commit: {type: string, required: true}
+    completed_at: {type: timestamp, nullable: true}
+    outcome:
+      type: enum
+      values: [findings, no_new_findings, incomplete, failed, skipped]
+      required: true
+    coverage: {type: object, required: true, constraints: {expected_and_completed_stages: required, sanitized_failure_codes: required}}
+    findings: {type: array, required: true}
+  SecurityFinding:
+    identity: {type: stable_id, required: true, constraints: {environment_and_affected_dependency_scoped: true, aliases_normalized: true, source_independent: true}}
+    advisory_aliases: {type: array, required: true}
+    severity: {type: enum, values: [critical, high, medium, low, unknown], required: true}
+    state: {type: enum, values: [open, resolved, unknown], required: true}
+    first_seen_at: {type: timestamp, required: true}
+    last_seen_at: {type: timestamp, required: true}
+    remediation: {type: object, required: true, constraints: {dispatch_is_not_resolution: true}}
+  SecurityReport:
+    report_id: {type: stable_id, required: true, constraints: {environment_and_window_scoped: true}}
+    window_start: {type: timestamp, required: true}
+    window_end: {type: timestamp, required: true}
+    generated_at: {type: timestamp, required: true}
+    content_hash: {type: string, required: true}
+    delivery_state: {type: enum, values: [pending, queued, accepted, failed, unknown, unavailable], required: true}
+
+assertions:
+  - id: security-reporting.processing.deterministic
+    type: invariant
+    must: Scan recording, finding normalization, deduplication, severity-based notification decisions, aggregation, and email rendering are deterministic and invoke no AI inference or reporting-only agent session. Clean dependency scans and no-change audit checks do not spawn summary chats. Existing substantive audit and remediation execution remains separate and is neither triggered nor awaited solely to produce a report.
+    depends_on: [examples.deterministic_processing]
+  - id: security-reporting.notifications.daily-not-per-scan
+    type: behavior
+    must: Dependabot, EU vulnerability, security-audit, and red-team routine results do not send individual generic cron-session emails. One security digest is scheduled every day including weekends at 08:30 UTC, summarizes the half-open preceding 24-hour window, and is sent even when no new findings exist. Exactly one scheduler owns this digest. Dependabot remains hourly at minute 30 and EU vulnerability scans at minute 35; audit and red-team schedules and unrelated notification policies remain unchanged. Coverage counts scheduled slots in the window while monitoring was enabled, counts a successful retry once for its original slot, and labels unobserved pre-activation history separately rather than assuming success.
+    depends_on: [models.SecurityReport, examples.daily_digest]
+  - id: security-reporting.findings.canonical-lifecycle
+    type: invariant
+    must: Known aliases for the same advisory on the same affected dependency and environment identify one finding across scanners. Reports distinguish new, still-open, and resolved findings, including findings opened and resolved within the window. Scan absence, failed collection, missing audit output, agent completion, and remediation dispatch alone never establish resolution. Dependency resolution requires a complete current inventory proving the affected dependency was removed or all installed instances are outside the recorded affected version ranges, with subject revision and verification time recorded. Audit and red-team resolutions require a structured resolution record referencing a passed deterministic check for that finding and revision; otherwise status stays open or unknown. Unknown severity or status remains explicit rather than inferred by AI.
+    depends_on: [models.SecurityFinding, examples.finding_lifecycle]
+  - id: security-reporting.alerts.new-critical-only
+    type: behavior
+    must: A newly observed critical finding, or an existing open finding first escalating to critical, initiates an immediate deterministic email alert independent of daily digest timing and remediation execution. Repeated observations, aliases, scanner overlap, restarts, and remediation redispatch do not create another alert for that open incident. A verified resolution followed by recurrence opens a new incident. Noncritical findings and routine scan failures wait for the digest; critical findings also remain in the digest.
+    depends_on: [models.SecurityFinding, examples.critical_alerts]
+  - id: security-reporting.coverage.no-false-clean
+    type: failure
+    must: Failed inventory or required source queries, malformed or partial responses, and missing required classification data produce explicit incomplete or failed outcomes, retaining any confirmed findings. Optional enrichment failures are labeled without discarding findings or pretending enrichment succeeded. A successful scan with no new findings is not a claim of no open vulnerabilities. Missing, locked-out, skipped, stale, and failed runs are not counted as completed scans; audit freshness respects each source's own cadence.
+    depends_on: [models.SecurityScanRun, examples.scan_health]
+  - id: security-reporting.digest.actionable-content
+    type: behavior
+    must: Each daily email labels its environment, subject revision and UTC window; shows new, open and resolved finding counts by severity, affected packages and advisory references, recorded remediation outcomes, hourly scan coverage and failures, and latest security-audit and red-team dates. Repeated findings are consolidated, absent or unstructured audit findings are labeled unavailable rather than inferred from prose, and counts remain complete even when detail lists are bounded. Missed reporting periods and first-run partial history are explicit; successful catch-up sends at most one current digest rather than a backlog email burst.
+    depends_on: [models.SecurityReport, examples.daily_digest, examples.scan_health]
+  - id: security-reporting.delivery.durable-observable
+    type: invariant
+    must: Scan history and notification state survive process restarts and concurrent jobs independently of remediation tracking. Accepted reports and critical incidents are not resent on rerun; failed attempts remain retryable under the same stable identifier with bounded backoff. Queue acceptance is labeled queued, not email-provider acceptance or inbox delivery. Ambiguous send outcomes are recorded as unknown and reconciled or retried with provider-supported idempotency rather than blindly replayed. Missing configuration, failed delivery, missed reports and insufficient retained history are visible. Dry-run and summary modes neither send notifications nor mutate persistent state.
+    depends_on: [models.SecurityReport, examples.delivery]
+  - id: security-reporting.content.operator-boundary
+    type: privacy
+    must: Reports, alerts, and receipts contain allowlisted security metadata and safe advisory or investigation links, not raw agent transcripts, user data, credentials, private payloads, or raw provider errors. All rendered external text is escaped and bounded. Links are built from validated advisory or investigation identifiers using configured trusted HTTPS origins; arbitrary source-provided URLs, credentials in URLs, and non-HTTPS schemes never become clickable links. Email recipients resolve from server-owner then admin notification configuration, never from scanned content; missing both records unavailable and sends nothing. Environment-specific history and delivery identities remain isolated; internal delivery retains service authentication and no public endpoint is introduced.
+    depends_on: [models.SecurityScanRun.environment, examples.privacy]
+
+applies_to:
+  rest_api:
+    required: false
+    role: Host-local reporting may reuse authenticated internal email infrastructure; no public or developer API behavior changes.
+  cli:
+    required: false
+    role: Engineering scheduler and verification scripts only; no new OpenMates CLI product surface.
+  sdks:
+    required: false
+    role: No npm or pip SDK surface.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: false
+    role: Operator email output only, not a web or Apple product screen.
+    implementations:
+      web: {required: false}
+      apple: {required: false}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [deterministic_processing, daily_digest, finding_lifecycle, critical_alerts, scan_health, delivery, privacy]

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { taskMutationStore, type TaskMutation } from "./taskMutationDelivery.js";
 /*
  * OpenMates CLI command entry.
  *
@@ -9,6 +10,8 @@
  * Tests: frontend/packages/openmates-cli/tests/
  */
 
+import {downloadGeneratedFiles, generatedFileOptions, GENERATED_FILE_HELP, fetchGeneratedFile} from "./generatedFiles.js";
+import { codexResumeArguments, assertCodexClaimCaller, readCodexThread, taskOwnerConflict, resumeCodexTask } from "./codexConnection.js";
 import {
   OpenMatesClient,
   INTEREST_TAG_IDS,
@@ -61,6 +64,9 @@ import { OpenMates, OpenMatesApiError, type ChatResponse, type EncryptedChatMeta
 import { WebSocketProtocolError, type PendingTaskUpdateJobFrame, type StreamEvent, type SubChatEvent, type TaskEventFrame } from "./ws.js";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import { readActivityHistory } from "./taskActivityHistory.js";
+import { TaskDeliveryPending } from "./taskDelivery.js";
+import { activityDeliveryStore } from "./taskActivityDelivery.js";
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
@@ -69,6 +75,7 @@ import { arch, platform } from "node:os";
 import { parse as parseYaml } from "yaml";
 import WebSocket from "ws";
 import {
+  resolveStateDir,
   assertTrustedAccountId,
   loadTrustedAccountId,
   saveTrustedAccountId,
@@ -152,7 +159,7 @@ import {
 } from "./remoteAccess.js";
 import { buildProtonWriteWarning, runProtonBridgeConnector } from "./protonBridgeConnector.js";
 import { ProjectRequesterError, requestProjectRemoteOperation } from "./projectRequester.js";
-import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./selfUpdate.js";
+import { getCliPackageVersion, buildSelfUpdatePlan, checkSelfUpdateStatus, persistSelfUpdateChannel, pinSelfUpdatePlan, runSelfUpdate } from "./selfUpdate.js";
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import {
   buildCreateUserTaskInput,
@@ -248,6 +255,16 @@ async function main(): Promise<void> {
   if (accountGuardRequired && parsed.flags.help !== true) {
     assertTrustedAccountGuardEnvironment(parsed.flags);
     assertTrustedAccountCommandAllowed(command);
+  }
+  if (parsed.flags.profile !== undefined) {
+    const profile = parsed.flags.profile;
+    if (typeof profile !== "string" || !profile) throw new Error("--profile requires a profile name");
+    // Validate before loading keys or session state. Never silently fall back.
+    resolveStateDir({ profile, stateDir: "" });
+    if (process.env.OPENMATES_STATE_DIR?.trim()) {
+      throw new Error("--profile cannot be combined with OPENMATES_STATE_DIR");
+    }
+    process.env.OPENMATES_PROFILE = profile;
   }
   const client = OpenMatesClient.load({
     apiUrl:
@@ -502,7 +519,7 @@ async function main(): Promise<void> {
     if (parsed.flags.json === true) {
       printJson(user);
     } else {
-      printWhoAmI(user as Record<string, unknown>);
+      await printWhoAmI(user as Record<string, unknown>, client);
     }
     return;
   }
@@ -675,6 +692,9 @@ export function assertTrustedAccountGuardEnvironment(
   flags: Record<string, string | boolean>,
   environment: NodeJS.ProcessEnv = process.env,
 ): void {
+  if (flags.profile !== undefined && flags.profile !== TRUST_GUARD_PROFILE) {
+    throw new Error(`Trusted OpenCode CLI commands cannot override profile ${TRUST_GUARD_PROFILE}.`);
+  }
   if (environment.OPENMATES_PROFILE !== TRUST_GUARD_PROFILE) {
     throw new Error(`Trusted OpenCode CLI commands require OPENMATES_PROFILE=${TRUST_GUARD_PROFILE}.`);
   }
@@ -717,13 +737,19 @@ function handleSupport(flags: Record<string, string | boolean>): void {
 }
 
 function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): void {
-  const plan = buildSelfUpdatePlan(flags);
+  let plan = buildSelfUpdatePlan(flags);
   const status = checkSelfUpdateStatus(plan);
-  const shouldInstall = status.updateAvailable !== false;
+  if (status.checkError) throw new Error(`Update check failed: ${status.checkError}`);
+  const shouldInstall = status.updateAvailable === true;
+  if (!plan.dryRun && shouldInstall && status.latestVersion) {
+    plan = pinSelfUpdatePlan(plan, status.latestVersion);
+  }
   if (flags.json === true) {
     if (!plan.dryRun && shouldInstall) runSelfUpdate(plan, { verbose: flags.verbose === true });
+    persistSelfUpdateChannel(plan);
     printJson({
       command,
+      channel: plan.channel,
       status: status.updateAvailable === false ? "up_to_date" : plan.dryRun ? "planned" : "success",
       current_version: plan.currentVersion,
       latest_version: status.latestVersion,
@@ -740,6 +766,7 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
   console.log("");
   console.log("Checking for updates...");
   console.log("");
+  console.log(`Release channel: ${plan.channel}`);
   console.log(`Current version: ${plan.currentVersion}`);
   console.log(`Latest version:  ${status.latestVersion ?? "unknown"}`);
   if (status.checkError) {
@@ -755,11 +782,13 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
     return;
   }
   if (status.updateAvailable === false) {
+    persistSelfUpdateChannel(plan);
     console.log("OpenMates CLI is already up to date.");
     return;
   }
   console.log(`Updating OpenMates CLI with ${plan.packageManager}...`);
   runSelfUpdate(plan, { verbose: flags.verbose === true });
+  persistSelfUpdateChannel(plan);
   console.log(`Installed OpenMates CLI ${status.latestVersion ?? plan.target}.`);
   console.log("");
   console.log("OpenMates is up to date.");
@@ -773,6 +802,7 @@ function handleCliVersion(flags: Record<string, string | boolean>): void {
   if (flags.json === true) {
     printJson({
       command: "version",
+      channel: plan.channel,
       current_version: status.currentVersion,
       latest_version: status.latestVersion,
       update_available: status.updateAvailable,
@@ -782,6 +812,7 @@ function handleCliVersion(flags: Record<string, string | boolean>): void {
     return;
   }
   console.log(`OpenMates CLI ${status.currentVersion}`);
+  console.log(`Release channel: ${plan.channel}`);
   if (status.checkError) {
     console.log(`Update check failed: ${status.checkError}`);
     return;
@@ -798,6 +829,22 @@ function handleCliVersion(flags: Record<string, string | boolean>): void {
 // User tasks
 // ---------------------------------------------------------------------------
 
+async function queuedTaskMutation(client: OpenMatesClient, flags: Record<string, string | boolean>, mutation: TaskMutation, teamId?: string | null): Promise<UserTaskRecord | null> {
+  const session = client.getSession();
+  try {
+    const result = await taskMutationStore([session.apiUrl, session.hashedEmail, teamId || "personal"]).deliver(
+      String(flags["delivery-id"]), async () => mutation, client);
+    if (!("status" in result)) throw new Error("Expected Task mutation acknowledgement.");
+    return result;
+  } catch (error) {
+    if (!(error instanceof TaskDeliveryPending)) throw error;
+    const delivery = { status: "pending", delivery_id: flags["delivery-id"], retry_at: error.retryAt, persistent: error.persistent };
+    if (flags.json === true) printJson({ delivery });
+    else console.log(`${error.message} Delivery ID: ${flags["delivery-id"]}`);
+    return null;
+  }
+}
+
 async function handleTasks(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -810,39 +857,132 @@ async function handleTasks(
     return;
   }
 
+  // Codex mutations persist before transport even when the agent omits a flag.
+  // Reuse the returned delivery ID after an uncertain outcome; do not resubmit
+  // a new invocation. The foreground bridge retries the original ciphertext.
+  if (process.env.CODEX_THREAD_ID && !flags["delivery-id"] &&
+      (["create", "edit", "connect", "release", "done"].includes(subcommand) || subcommand === "activity" && rest[0] === "add")) {
+    flags = {...flags, "delivery-id": randomBytes(32).toString("hex")};
+  }
   const masterKey = client.getMasterKeyBytes();
   const scope = await resolveTaskScope(client, masterKey, flags, taskScopeFromFlags(flags, masterKey));
+
+  if (subcommand === "release") {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "release");
+    if (!task.primaryChatId && !task.externalChat) { printTaskOutput(task, flags); return; }
+    if (process.env.CODEX_THREAD_ID && (task.externalChat?.provider !== "codex" || task.externalChat.id !== process.env.CODEX_THREAD_ID)) {
+      if (task.primaryChatId) {
+        const owner = await client.getChatMetadata(task.primaryChatId, scope);
+        throw new Error(taskOwnerConflict({provider: "openmates", id: owner.id, title: owner.title}));
+      }
+      throw new Error(taskOwnerConflict(task.externalChat!));
+    }
+    const patch = await buildUpdateUserTaskInput(task, masterKey, {chatId: null, status: task.status === "in_progress" ? "todo" : undefined});
+    Object.assign(patch, {queue_state: "none", ai_execution_state: null});
+    const released = flags["delivery-id"]
+      ? await queuedTaskMutation(client, flags, {kind: "update", taskId: task.taskId, input: patch, ownerHash: task.encrypted.external_chat_lookup_hash ?? undefined}, scope.teamId)
+      : await client.updateUserTask(task.taskId, patch, {teamId: scope.teamId, personal: scope.personal});
+    if (released) printTaskOutput(await decryptUserTask(released, masterKey), flags);
+    return;
+  }
+
+  if (["connect", "connection", "resume"].includes(subcommand)) {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, subcommand);
+    if (task.source === "workflow_run") throw new Error("Workflow projections cannot connect to external agents.");
+    if (subcommand === "connect") {
+      if (typeof flags.thread !== "string") throw new Error("Usage: openmates tasks connect <task-id> --thread <codex-thread-uuid>");
+      if (task.primaryChatId) {
+        const owner = await client.getChatMetadata(task.primaryChatId, scope);
+        throw new Error(taskOwnerConflict({ provider: "openmates", id: owner.id, title: owner.title }));
+      }
+      if (task.externalChat) {
+        if (task.externalChat.provider === "codex" && task.externalChat.id === flags.thread) {
+          printTaskOutput(task, flags);
+          return;
+        }
+        throw new Error(taskOwnerConflict(task.externalChat));
+      }
+      assertCodexClaimCaller(flags.thread);
+      const connection = await readCodexThread(flags.thread);
+      const patch = await buildUpdateUserTaskInput(task, masterKey, {
+        assign: "codex", externalChat: { provider: "codex", id: connection.id, title: connection.title },
+      });
+      const updated = flags["delivery-id"]
+        ? await queuedTaskMutation(client, flags, {kind: "update", taskId: task.taskId, input: patch}, scope.teamId)
+        : await client.updateUserTask(task.taskId, patch, {teamId: scope.teamId, personal: scope.personal});
+      if (updated) printTaskOutput(await decryptUserTask(updated, masterKey), flags);
+      return;
+    }
+    if (!task.externalChat) throw new Error("This Task has no external connection. Use tasks connect first.");
+    codexResumeArguments(task.externalChat);
+    if (subcommand === "resume") {
+      await resumeCodexTask(task.externalChat);
+      return;
+    }
+    const connection = await readCodexThread(task.externalChat.id);
+    if (flags.json === true) printJson({ task_id: task.taskId, connection });
+    else console.log(`${task.shortId}: Codex ${connection.status} — ${connection.url}`);
+    return;
+  }
 
   if (subcommand === "activity") {
     const action = rest[0] ?? "list";
     const task = await requiredResolvedTask(client, masterKey, rest[1], scope, `activity ${action}`);
     const context = { teamId: scope.teamId, personal: scope.personal };
-    if (action === "list") {
-      const records = [];
-      let cursor: string | undefined;
-      do {
-        const page = await client.listUserTaskActivity(task.taskId, {
-          ...context,
-          cursor,
-          limit: typeof flags.limit === "string" ? Number(flags.limit) : undefined,
-        });
-        records.push(...page.entries);
-        cursor = page.next_cursor ?? undefined;
-      } while (cursor);
-      const entries = await decryptTaskActivityEntries(task, masterKey, records);
-      if (flags.json === true) printJson({ entries: entries.map(taskActivityToJson) });
-      else console.log(renderTaskActivityList(entries));
+    const actor = flags["as-assignee"] === true ? "assignee" : "user";
+    const ownerHash = actor === "assignee" && task.externalChat ? task.encrypted.external_chat_lookup_hash ?? undefined : undefined;
+    if (actor === "assignee" && task.externalChat?.provider === "codex" && process.env.CODEX_THREAD_ID && task.externalChat.id !== process.env.CODEX_THREAD_ID) {
+      throw new Error(taskOwnerConflict(task.externalChat));
+    }
+    const delivery = () => activityDeliveryStore(JSON.stringify([
+      client.getSession().apiUrl, client.getSession().hashedEmail, scope.teamId || "personal", task.taskId, actor,
+    ]), undefined, Date.now, ownerHash);
+    const createActivity = (input: Parameters<typeof client.createUserTaskActivity>[1], expectedOwnerHash = ownerHash) => client.createUserTaskActivity(task.taskId, input, {
+      ...context, ...(actor === "assignee" ? { actorMode: "assignee" as const, expectedOwnerHash } : {}),
+    });
+    if (action === "flush") {
+      printJson(await delivery().flush(createActivity));
+      return;
+    }
+    if (action === "list" || action === "search") {
+      const pending = flags["flush-pending"] === true ? await delivery().flush(createActivity) : undefined;
+      const history = await readActivityHistory({
+        maxEntries: typeof flags["max-entries"] === "string" ? Number(flags["max-entries"]) : action === "search" ? 200 : undefined,
+        pageSize: typeof flags.limit === "string" ? Number(flags.limit) : 100,
+        cursor: typeof flags.cursor === "string" ? flags.cursor : undefined,
+        ...(action === "search" ? { query: typeof flags.query === "string" ? flags.query : "" } : {}),
+        page: async (cursor, limit) => {
+          const page = await client.listUserTaskActivity(task.taskId, {
+            ...context, cursor, limit, newestFirst: flags["newest-first"] === true,
+          });
+          return { entries: await decryptTaskActivityEntries(task, masterKey, page.entries), next_cursor: page.next_cursor };
+        },
+      });
+      if (flags.json === true) printJson({ ...history, entries: history.entries.map(taskActivityToJson), delivery: pending });
+      else {
+        console.log(renderTaskActivityList(history.entries));
+        if (history.truncated) console.log(`Activity history truncated. Search all history: openmates tasks activity search ${task.shortId} --query "text" --max-entries 200`);
+        if (history.next_cursor) console.log(`Next cursor: ${history.next_cursor}`);
+      }
       return;
     }
     if (action === "add") {
       const message = typeof flags.message === "string" ? flags.message : rest.slice(2).join(" ");
       if (!message.trim()) throw new Error("Missing comment. Usage: openmates tasks activity add <task-id> --message <text>");
-      const input = await buildCreateTaskActivityInput(task, masterKey, { message });
-      const entry = await decryptTaskActivityEntry(
-        task,
-        masterKey,
-        await client.createUserTaskActivity(task.taskId, input, context),
-      );
+      const deliveryId = typeof flags["delivery-id"] === "string" ? flags["delivery-id"] : undefined;
+      const build = () => buildCreateTaskActivityInput(task, masterKey, { message, ...(deliveryId ? { entryId: deliveryId } : {}) });
+      let record: Awaited<ReturnType<typeof createActivity>>;
+      try {
+        record = deliveryId ? await delivery().deliver(deliveryId, build, createActivity) : await createActivity(await build());
+      } catch (error) {
+        if (!(error instanceof TaskDeliveryPending)) throw error;
+        const delivery = { status: "pending", delivery_id: deliveryId, retry_at: error.retryAt, persistent: error.persistent };
+        if (flags.json === true) printJson({ delivery });
+        else console.log(error.message);
+        return;
+      }
+      const entry = await decryptTaskActivityEntry(task, masterKey, record);
+      if (entry.message !== message) throw new Error("Activity delivery id already belongs to a different milestone message");
       if (flags.json === true) printJson({ entry: taskActivityToJson(entry) });
       else console.log(renderTaskActivityList([entry]));
       return;
@@ -859,7 +999,7 @@ async function handleTasks(
       else console.log(renderTaskActivityList([entry]));
       return;
     }
-    throw new Error("Usage: openmates tasks activity list|add|delete <task-id> [<entry-id>] [--message <text>]");
+    throw new Error("Usage: openmates tasks activity list|search|add|flush|delete <task-id> [<entry-id>] [--message <text>]");
   }
 
   if (rest[0] === "add-to-project") {
@@ -867,8 +1007,11 @@ async function handleTasks(
     const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
     const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "add-to-project");
     const linkedProjectIds = appendUniqueId(task.linkedProjectIds, project.projectId);
-    const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: linkedProjectIds });
-    const updated = await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
+    const patch = await client.prepareUserTaskUpdate(task, { projectIds: linkedProjectIds }, scope);
+    const updated = flags["delivery-id"]
+      ? await queuedTaskMutation(client, flags, { kind: "update", taskId: task.taskId, input: patch, ownerHash: task.encrypted.external_chat_lookup_hash ?? undefined }, scope.teamId)
+      : await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
+    if (!updated) return;
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
   }
@@ -877,7 +1020,7 @@ async function handleTasks(
     rejectRemoteCopyFlags(flags);
     const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
     const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "remove-from-project");
-    const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: removeId(task.linkedProjectIds, project.projectId) });
+    const patch = await client.prepareUserTaskUpdate(task, { projectIds: removeId(task.linkedProjectIds, project.projectId) }, scope);
     const updated = await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
@@ -917,14 +1060,14 @@ async function handleTasks(
       return;
     }
     const tasks = await loadTasks(client, masterKey, scope);
-    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson) });
+    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson), complete: true });
     else console.log(renderTaskList(tasks));
     return;
   }
 
   if (subcommand === "board") {
     const tasks = await loadTasks(client, masterKey, scope);
-    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson) });
+    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson), complete: true });
     else console.log(renderTaskBoard(tasks));
     return;
   }
@@ -1003,7 +1146,20 @@ async function handleTasks(
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
     }));
-    const created = await client.createUserTask(input);
+    // resolveTaskCreateOptions already verified the actual calling Codex chat.
+    // Register that genuine creator in the same mutation so a fresh account
+    // needs neither a hidden bootstrap Task nor an extra eligibility request.
+    let creator: "codex" | undefined = input.external_chat_provider === "codex" ? "codex" : undefined;
+    if (flags["as-assignee"] === true) {
+      const external = externalChatFromFlags(flags);
+      if (!external || external.provider !== "codex") throw new Error("Codex creator attribution requires --external-chat codex:<thread-uuid>.");
+      // Caller and runtime title were verified while resolving the creation input.
+      creator = "codex";
+    }
+    const created = flags["delivery-id"]
+      ? await queuedTaskMutation(client, flags, { kind: "create", taskId: input.task_id, input, creator }, scope.teamId)
+      : await client.createUserTask(input, { creator });
+    if (!created) return;
     printTaskOutput(await decryptUserTask(created, masterKey), flags);
     return;
   }
@@ -1012,7 +1168,7 @@ async function handleTasks(
     const id = rest[0];
     if (!id) throw new Error("Missing task ID. Usage: openmates tasks edit <task-id> [--title ...]");
     const task = await resolveTask(client, masterKey, id, taskEditLookupScope(scope));
-    const patch = await buildUpdateUserTaskInput(task, masterKey, await resolveTaskUpdateOptions(client, masterKey, flags, {
+    const patch = await client.prepareUserTaskUpdate(task, await resolveTaskUpdateOptions(client, masterKey, flags, {
       title: typeof flags.title === "string" ? flags.title : undefined,
       description: typeof flags.description === "string" ? flags.description : undefined,
       labels: flags.label || flags.labels || flags.tag || flags.tags ? labelFlags(flags) : undefined,
@@ -1026,9 +1182,11 @@ async function handleTasks(
       planId: flags.plan === true ? null : typeof flags.plan === "string" ? flags.plan : undefined,
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
-    }));
-    const updated = await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
-    printTaskOutput(await decryptUserTask(updated, masterKey), flags);
+    }), scope);
+    const updated = flags["delivery-id"]
+      ? await queuedTaskMutation(client, flags, {kind: "update", taskId: task.taskId, input: patch, ownerHash: task.encrypted.external_chat_lookup_hash ?? undefined}, scope.teamId)
+      : await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
+    if (updated) printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
   }
 
@@ -1056,6 +1214,7 @@ async function handleTasks(
 
   if (subcommand === "start") {
     const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "start");
+    if (task.assigneeType === "external_ai") throw new Error("Use tasks resume for an explicitly connected Codex Task; tasks start runs OpenMates AI.");
     const started = await client.startUserTaskWithAI(task.taskId, {
       version: task.version,
       primary_chat_id: task.primaryChatId ?? undefined,
@@ -1080,6 +1239,11 @@ async function handleTasks(
         reasonCode,
         reasonText: typeof flags["reason-text"] === "string" ? flags["reason-text"] : undefined,
       });
+    }
+    if (subcommand === "done" && flags["delivery-id"]) {
+      const completed = await queuedTaskMutation(client, flags, {kind: "complete", taskId: task.taskId, input: {version: task.version}, ownerHash: task.encrypted.external_chat_lookup_hash ?? undefined}, scope.teamId);
+      if (completed) printTaskOutput(await decryptUserTask(completed, masterKey), flags);
+      return;
     }
     const updated = subcommand === "block"
       ? await client.blockUserTask(task.taskId, payload)
@@ -1109,7 +1273,7 @@ async function handleTasks(
   throw new Error(`Unknown tasks command '${subcommand}'. Run 'openmates tasks --help'.`);
 }
 
-function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: "opencode"; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
+function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: "codex" | "opencode"; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
   const externalChat = externalChatFromFlags(flags);
   return {
     status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
@@ -1126,7 +1290,7 @@ function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: 
   };
 }
 
-function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: "opencode"; id: string; title?: string } | undefined {
+function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: "codex" | "opencode"; id: string; title?: string } | undefined {
   if (typeof flags["external-chat"] !== "string") return undefined;
   const ref = parseExternalChatRef(flags["external-chat"]);
   return {
@@ -1159,6 +1323,11 @@ async function resolveTaskCreateOptions(
   flags: Record<string, string | boolean>,
   input: TaskCreateOptions,
 ): Promise<TaskCreateOptions> {
+  if (input.externalChat?.provider === "codex") {
+    assertCodexClaimCaller(input.externalChat.id);
+    const connection = await readCodexThread(input.externalChat.id);
+    input = { ...input, assign: input.assign ?? "codex", externalChat: { provider: "codex", id: connection.id, title: connection.title } };
+  }
   const chatId = input.chatId ? (await client.resolveChatKeyForContext(input.chatId, teamContextFromFlags(flags))).chatId : input.chatId;
   const projectIds: string[] = [];
   for (const projectId of input.projectIds ?? []) {
@@ -1174,6 +1343,11 @@ async function resolveTaskUpdateOptions(
   flags: Record<string, string | boolean>,
   input: TaskUpdateOptions,
 ): Promise<TaskUpdateOptions> {
+  if (input.externalChat?.provider === "codex") {
+    assertCodexClaimCaller(input.externalChat.id);
+    const connection = await readCodexThread(input.externalChat.id);
+    input = { ...input, externalChat: { provider: "codex", id: connection.id, title: connection.title } };
+  }
   const chatId = input.chatId ? (await client.resolveChatKeyForContext(input.chatId, teamContextFromFlags(flags))).chatId : input.chatId;
   const projectIds = input.projectIds
     ? await Promise.all(input.projectIds.map(async (projectId) => (await requiredResolvedProject(client, masterKey, projectId, flags)).projectId))
@@ -1190,6 +1364,7 @@ async function loadTasks(
 ): Promise<DecryptedUserTask[]> {
   const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, externalChatProvider: scope.externalChatProvider, externalChatLookupHash: scope.externalChatLookupHash, priority: scope.priority, teamId: scope.teamId, personal: scope.personal, limit });
   const tasks = await decryptUserTasksForCli(records, masterKey, console.error);
+  if (tasks.length !== records.length) throw new Error("TASK_LIST_INCOMPLETE: one or more records could not be decrypted.");
   return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
 }
 
@@ -1200,6 +1375,15 @@ async function resolveTask(
   scope: TaskLookupScope,
 ): Promise<DecryptedUserTask> {
   const candidates: DecryptedUserTask[] = [];
+  const exactId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const filtered = scope.status || scope.chatId || scope.projectId || scope.planId || scope.labelHashes?.length || scope.externalChatProvider || scope.priority !== undefined;
+  if (exactId && !filtered) {
+    for (const lookupScope of taskLookupScopes(scope)) {
+      const record = await client.getUserTask(id, {teamId: lookupScope.teamId, personal: lookupScope.personal});
+      if (record) return decryptUserTask(record, masterKey);
+    }
+    throw new Error(`Task not found: ${id}`);
+  }
   for (const lookupScope of taskLookupScopes(scope)) {
     const tasks = await loadTasks(client, masterKey, lookupScope, 500);
     const exactMatch = tasks.find((task) => task.taskId === id);
@@ -4057,6 +4241,7 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
     latest_instruction: task.latestInstruction,
     status: task.status,
     assignee_type: task.assigneeType,
+    assignee_identity: task.assigneeIdentity,
     assignee_hash: task.assigneeHash,
     primary_chat_id: task.primaryChatId,
     external_chat: task.externalChat ? {
@@ -4085,11 +4270,14 @@ function taskActivityToJson(entry: DecryptedTaskActivityEntry): Record<string, u
     kind: entry.kind,
     actor_type: entry.actorType,
     actor_hash: entry.actorHash,
+    actor_identity: entry.actorIdentity,
     actor_display_name: entry.actorDisplayName,
     actor_profile_image_url: entry.actorProfileImageUrl,
     author_hash: entry.authorHash,
     event_type: entry.eventType,
     source_surface: entry.sourceSurface,
+    previous_status: entry.previousStatus,
+    next_status: entry.nextStatus,
     created_at: entry.createdAt,
     deleted_at: entry.deletedAt,
     deleted_by_hash: entry.deletedByHash,
@@ -4258,6 +4446,11 @@ async function handleRemoteAccess(
             bindings,
             signal: controller.signal,
             confirmedTakeover,
+            taskCacheRoot: typeof flags["task-cache"] === "string" ? flags["task-cache"] : undefined,
+            onTaskSync: (event) => {
+              if (flags.json === true) printJson({ type: "project_task_sync", ...event });
+              else if (event.status !== "synced") console.warn(`Task sync: ${event.status}. Pending data will be reconciled automatically.`);
+            },
             onLifecycle: (event) => {
               if (flags.json === true) printJson({ type: "remote_access_lifecycle", ...event });
               else if (event.state === "connected") console.log("Remote access connected.");
@@ -4359,12 +4552,23 @@ async function resolveRemoteAccessBindings(
     if (flags.json === true || !process.stdin.isTTY) {
       throw new Error(`Remote access needs interactive Project review for: ${unresolved.join(", ")}`);
     }
-    console.log("The following folders need OpenMates Projects:");
-    unresolved.forEach((rootPath) => console.log(`  - ${rootPath}`));
-    const answer = (await promptLine(`Create ${unresolved.length} missing Project${unresolved.length === 1 ? "" : "s"}? [y/N] `)).trim().toLowerCase();
-    if (answer !== "y" && answer !== "yes") throw new Error("Remote access Project creation cancelled.");
+    const available = projects.filter((project) => !project.archived);
     for (const rootPath of unresolved) {
-      const project = await createEncryptedRemoteAccessProject(client, masterKey, basename(rootPath), context);
+      console.log(`Choose the OpenMates Project for ${rootPath}:`);
+      available.forEach((project, index) => console.log(`  ${index + 1}. ${JSON.stringify(project.name)} (${project.projectId})`));
+      console.log("  new. Create a new Project");
+      const answer = (await promptLine("Project number, 'new', or Enter to cancel: ")).trim();
+      let project: DecryptedProject;
+      if (answer.toLowerCase() === "new") {
+        project = await createEncryptedRemoteAccessProject(client, masterKey, basename(rootPath), context);
+        available.push(project);
+      } else {
+        const index = Number(answer) - 1;
+        if (!/^[1-9][0-9]*$/.test(answer) || !Number.isSafeInteger(index) || !available[index]) {
+          throw new Error("Remote access Project selection cancelled or invalid; no Project was created.");
+        }
+        project = available[index];
+      }
       resolved.push({ rootPath, project, sourceId: randomUUID() });
     }
   }
@@ -5561,6 +5765,7 @@ async function handleChats(
         id,
         durationSeconds,
         password,
+        { includeSensitiveData: flags["include-sensitive-data"] === true },
       );
       if (flags.json === true) {
         printJson({
@@ -6814,6 +7019,7 @@ async function handleGeneratedAppSkillCommand(
   }
 
   const inputData = buildGeneratedAppSkillInput(command, positionals, flags);
+  const downloadOptions = generatedFileOptions(flags, inputData);
   try {
     const result = await client.runSkill({
       app: command.app_id,
@@ -6822,10 +7028,16 @@ async function handleGeneratedAppSkillCommand(
       apiKey,
       promptInjectionProtection: flags["disable-prompt-injection-protection"] === true ? false : undefined,
     });
+    const localFiles = await downloadGeneratedFiles(result, downloadOptions, async (url) => {
+      if (url.startsWith("/")) {const raw = await client.getRaw(url, apiKey);return new Response(Buffer.from(raw.data));}
+      return fetchGeneratedFile(url);
+    });
     if (flags.json === true) {
-      printJson(result);
+      printJson(localFiles.length ? {...result as Record<string, unknown>, local_files: localFiles} : result);
     } else {
-      printSkillResult(command.app_id, command.skill_id, result);
+      if (localFiles.length) header(`${capitalise(command.app_id)} › ${capitalise(command.skill_id)} · ${localFiles.length} file${localFiles.length === 1 ? "" : "s"} generated`);
+      else printSkillResult(command.app_id, command.skill_id, result);
+      for (const file of localFiles) console.log(`Saved ${file.path}`);
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -6876,7 +7088,7 @@ function buildGeneratedAppSkillValue(
   const value: Record<string, unknown> = {};
   const consumedPositionals = applyPrimaryPositionals(command, shape, value, positionals);
   for (const [name, schema] of Object.entries(shape.properties)) {
-    if (value[name] !== undefined || name === "requests") continue;
+    if (value[name] !== undefined || ["requests", "output", "output_dir", "filename", "no_download"].includes(name)) continue;
     const raw = readFlag(flags, name);
     if (raw === undefined) continue;
     value[name] = coerceAppSkillFlagValue(name, raw, schema);
@@ -7100,6 +7312,8 @@ function printGeneratedAppSkillCommandHelp(command: GeneratedAppSkillCommand): v
   const key = `${command.app_id}/${command.skill_id}`;
   const examples = APP_SKILL_COMMAND_EXAMPLES[key] ?? [buildGeneratedAppSkillExample(command, shape)];
   for (const example of examples) console.log(`  ${example}`);
+  console.log(`\n${GENERATED_FILE_HELP}`);
+  if (command.app_id === "code" && command.skill_id === "run") console.log("  --source-filename <name>  Name the inline source code file (default follows --language).");
   console.log("\nInspect metadata:");
   console.log(`  openmates apps skill-info ${command.app_id} ${command.skill_id}`);
 }
@@ -7636,7 +7850,7 @@ async function handleCodeRun(
   const requests = await buildCodeRunRequestsFromFlags({
     code: typeof flags.code === "string" ? flags.code : undefined,
     language: typeof flags.language === "string" ? flags.language : undefined,
-    filename: typeof flags.filename === "string" ? flags.filename : undefined,
+    filename: typeof flags["source-filename"] === "string" ? flags["source-filename"] : undefined,
     entry: typeof flags.entry === "string" ? flags.entry : undefined,
     file: typeof flags.file === "string" ? flags.file : undefined,
     dir: typeof flags.dir === "string" ? flags.dir : undefined,
@@ -7656,6 +7870,7 @@ async function handleCodeRun(
     }
   }
 
+  const downloadOptions = generatedFileOptions(flags, {requests});
   const response = await client.runSkill({
     app: "code",
     skill: "run",
@@ -7682,24 +7897,41 @@ async function handleCodeRun(
     try {
       finalStatus = await streamCodeRunToTerminal(url, flags.json === true);
     } catch (err) {
-      if (!streamAuth.fallbackToken || streamAuth.fallbackToken === streamAuth.token) throw err;
-      const fallbackUrl = buildCodeRunStreamUrl({
-        apiUrl: client.apiUrl,
-        executionId: result.execution_id,
-        sessionId: streamAuth.sessionId,
-        token: streamAuth.fallbackToken,
-      });
-      finalStatus = await streamCodeRunToTerminal(fallbackUrl, flags.json === true);
+      try {
+        if (!streamAuth.fallbackToken || streamAuth.fallbackToken === streamAuth.token) throw err;
+        const fallbackUrl = buildCodeRunStreamUrl({
+          apiUrl: client.apiUrl,
+          executionId: result.execution_id,
+          sessionId: streamAuth.sessionId,
+          token: streamAuth.fallbackToken,
+        });
+        finalStatus = await streamCodeRunToTerminal(fallbackUrl, flags.json === true);
+      } catch {
+        // Recover the existing job through the independently authenticated status route.
+        usedStream = false;
+        process.stderr.write(`Code Run live stream unavailable; polling execution ${result.execution_id}. No new run started.\n`);
+        finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
+      }
     }
   } else {
     finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
   }
 
+  // Stream updates may omit signed artifact URLs; retrieve the complete owner-authorized result.
+  if (usedStream) finalStatus = await client.getCodeRunStatus(result.status_path, apiKey);
+  const localFiles = finalStatus.status === "finished" && finalStatus.exit_code === 0
+    ? await downloadGeneratedFiles(finalStatus, downloadOptions) : [];
   if (flags.json === true) {
-    printJson({ ...result, final: finalStatus });
+    printJson({ ...result, final: finalStatus, ...(localFiles.length ? {local_files: localFiles} : {}) });
   } else {
     const finalOutput = formatCodeRunFinalStatusOutput(finalStatus, { includeOutput: !usedStream });
     if (finalOutput) process.stdout.write(finalOutput);
+    for (const file of localFiles) console.log(`Saved ${file.path}`);
+  }
+  const finalExitCode = typeof finalStatus.exit_code === "number" ? finalStatus.exit_code : null;
+  const finalState = typeof finalStatus.status === "string" ? finalStatus.status : "unknown";
+  if (finalState !== "finished" || finalExitCode !== 0) {
+    throw new Error(`Code Run ${finalState} with exit code ${finalExitCode ?? "unknown"}.`);
   }
 }
 
@@ -9628,7 +9860,7 @@ async function handleSettings(
     if (flags.json === true) {
       printJson(user);
     } else {
-      printWhoAmI(user as Record<string, unknown>);
+      await printWhoAmI(user as Record<string, unknown>, client);
     }
     return;
   }
@@ -10545,7 +10777,8 @@ function parseArgs(argv: string[]): CliArgs {
   const flags: Record<string, string | boolean> = {};
 
   for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
+    // Preserve the legacy version spellings through the canonical flag parser.
+    const arg = ["-v", "-version"].includes(argv[i]) ? "--version" : argv[i];
     if (!arg.startsWith("--")) {
       positionals.push(arg);
       continue;
@@ -11418,7 +11651,7 @@ async function acceptChatTaskProposals(
     title: string;
     description?: string | null;
     status?: UserTaskStatus;
-    assignee_type?: "ai" | "user";
+    assignee_type?: "openmates" | "user";
   }>,
   fallbackText: string,
 ): Promise<Array<Record<string, unknown>>> {
@@ -12557,32 +12790,52 @@ function formatEventPrice(item: Record<string, unknown>): string | null {
 
 // ---------------------------------------------------------------------------
 
-function printWhoAmI(user: Record<string, unknown>): void {
-  header("Account\n");
-  const show = (k: string, label?: string) => {
-    const v = user[k];
-    if (v !== undefined && v !== null && v !== "") kv(label ?? k, String(v));
-  };
-  show("username", "Username");
-  show("id", "User ID");
-  show("is_admin", "Admin");
-  show("credits", "Credits");
-  show("language", "Language");
-  show("subscription_status", "Subscription");
-  // Any remaining keys
-  const shown = new Set([
-    "username",
-    "id",
-    "is_admin",
-    "credits",
-    "language",
-    "subscription_status",
-  ]);
-  for (const [k, v] of Object.entries(user)) {
-    if (!shown.has(k) && v !== null && v !== undefined && v !== "") {
-      kv(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+/** Keep account output curated; complete API fields remain available with --json. */
+export async function printWhoAmI(
+  user: Record<string, unknown>,
+  client: Pick<OpenMatesClient, "apiUrl" | "getActiveTeamId" | "searchChats">,
+): Promise<void> {
+  const profile = process.env.OPENMATES_PROFILE?.trim();
+  const command = profile ? `openmates --profile ${profile}` : "openmates";
+  header("Account");
+  kv("Username", String(user.username ?? "Unknown"));
+  if (typeof user.credits === "number") kv("Credits", user.credits.toLocaleString("en-US"));
+  if (user.subscription_status) kv("Subscription", String(user.subscription_status));
+  if (typeof user.tfa_enabled === "boolean") kv("Two-factor auth", user.tfa_enabled ? "Enabled" : "Disabled");
+  if (user.language) kv("Language", String(user.language));
+  if (user.is_admin === true) kv("Role", "Administrator");
+
+  header("\nConnection");
+  kv("Profile", profile || "default");
+  kv("Server", client.apiUrl);
+  kv("Context", client.getActiveTeamId() ? "Team" : "Personal");
+
+  header("\nLast chat");
+  // Current profiles store a UUID; older profiles can store a chat route.
+  // Never interpret signup/settings routes or the new-chat screen as a saved chat.
+  const lastOpened = typeof user.last_opened === "string" ? user.last_opened : "";
+  const chatId = /^(?:(?:\/chat\/)|(?:#chat-id=))?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(lastOpened)?.[1];
+  if (chatId) {
+    try {
+      const chats = await client.searchChats(chatId);
+      const chat = chats.find((item) => item.id === chatId);
+      if (chat) {
+        kv("Title", chat.title?.trim() || "Untitled chat");
+        kv("Read", `${command} chats show ${chatId}`);
+        kv("Resume", `${command} chats send --chat ${chatId} "Your message"`);
+      } else {
+        console.log("  Last chat is unavailable in the current context.");
+        kv("Browse", `${command} chats list`);
+      }
+    } catch (error) {
+      console.error(`Could not load last chat: ${error instanceof Error ? error.message : String(error)}`);
+      kv("Retry", `${command} whoami`);
     }
+  } else {
+    console.log("  No saved chat to resume.");
+    kv("Browse", `${command} chats list`);
   }
+  console.log(`\nFull account details: ${command} whoami --json`);
 }
 
 /**
@@ -13272,7 +13525,11 @@ Use @mentions in chat messages:
 }
 
 function printHelp(): void {
-  console.log(`OpenMates CLI
+  const version = getCliPackageVersion();
+  // npm prereleases come from dev; stable packages come from main (publish-cli.yml).
+  const releaseBranch = version === "unknown" ? "unknown" : version.includes("-") ? "dev" : "main";
+  console.log(`OpenMates CLI ${version}
+Release branch: ${releaseBranch}
 
 Commands:
   openmates login                            Pair-auth login
@@ -13313,9 +13570,9 @@ Commands:
 
 Flags:
   --json          Output raw JSON instead of formatted output
-  --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
+  --profile <name>        Use an isolated login profile (also OPENMATES_PROFILE)\n  --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
-  --version       Show CLI version and update availability
+  --version, -v, -version  Show CLI version and update availability
   --help          Show contextual help for any command`);
 }
 
@@ -13323,6 +13580,8 @@ function printVersionHelp(): void {
   console.log(`OpenMates CLI version command:
   openmates version [--json]
   openmates --version [--json]
+  openmates -v [--json]
+  openmates -version [--json]
 
 Prints the installed CLI version, checks the latest npm version, and shows the
 upgrade command when an update is available.
@@ -13336,29 +13595,35 @@ function printSelfUpdateHelp(): void {
   openmates update [--version <version|tag>] [--package-manager <name>] [--dry-run] [--verbose] [--json]
   openmates upgrade [--version <version|tag>] [--package-manager <name>] [--dry-run] [--verbose] [--json]
 
-Updates the globally installed openmates package. The default target is latest.
+Updates the globally installed openmates package using the saved release channel.
+Stable installations default to stable; prereleases default to dev.
+Channel changes persist only after a successful update or up-to-date check.
 
 Options:
-  --version <version|tag>       Install a specific npm version or dist-tag (default: latest)
+  --version <version|tag>       Install a specific npm version or dist-tag (one-time override)
   --package-manager <name>      npm, pnpm, yarn, or bun (default: detect, then npm)
   --dry-run                     Print the package-manager command without running it
+  --channel <dev|stable|main>    Save release channel (dev uses npm alpha; stable/main uses latest)
+  --allow-downgrade             Explicitly allow installing an older version
   --verbose                     Stream package-manager output during installation
   --json                        Output the update plan/result as JSON`);
 }
 
 function printRemoteAccessHelp(): void {
   console.log(`Remote access command:
-  openmates remote-access [--path <folder>]... [--json]
+  openmates remote-access [--path <folder>]... [--task-cache <folder>] [--json]
 
 Behavior:
   Discovers repository Projects below the current working directory by default.
-  Repeated --path values replace default discovery. Missing Projects are created
-  only after interactive review. The command remains connected in the foreground;
+  Repeated --path values replace default discovery. For an unlinked folder, select
+  an existing Project or explicitly choose 'new' to create one. The command remains connected in the foreground;
   keep the terminal open or use zellij, tmux, or screen.
 
 Security:
   Source metadata is stored locally under ~/.openmates/remote-sources.json.
   Preview cache defaults to ~/.openmates/remote-cache/<source-id>.
+  Task cache defaults to ~/.openmates/project-task-cache, separated by account and Project.
+  --task-cache selects a different private cache folder; Task sync uses the same live connection.
   Project metadata and bridge payloads are encrypted automatically. List, search,
   and text preview stay inside approved roots and exclude protected, ignored,
   binary, symlink-escaped, and out-of-root paths.`);
@@ -13540,7 +13805,7 @@ function printChatsHelp(): void {
   openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>' [--json] [--accept-task-proposals]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
-  openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
+  openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--include-sensitive-data] [--json]
   openmates chats incognito <message> [--json] [--no-pii-detection]
   openmates chats incognito-history [--json]      Deprecated: incognito stores no history
   openmates chats incognito-clear                 Deprecated: incognito stores no history
@@ -13668,18 +13933,21 @@ Examples:
 
 function printTasksHelp(): void {
   console.log(`Tasks commands:
-  openmates tasks list [--status <status>] [--chat <id>|--external-chat opencode:<session-id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
-  openmates tasks board [--chat <id>|--external-chat opencode:<session-id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks list [--status <status>] [--chat <id>|--external-chat codex:<thread-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks board [--chat <id>|--external-chat codex:<thread-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]
   openmates tasks show <task-id|short-id> [--json]
   openmates tasks <task-id|short-id> add-to-project <project-id> [--json]
   openmates tasks <task-id|short-id> remove-from-project <project-id> [--json]
   openmates tasks history <task-id|short-id> [--limit <n>] [--json]
   openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
-  openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
-  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|ai] [--status <status>] [--json]
+  openmates tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat codex:<thread-uuid> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat codex:<thread-uuid> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--json]
   openmates tasks delete <task-id|short-id> --confirm [--json]
   openmates tasks start <task-id|short-id> [--json]
   openmates tasks status [<task-id|short-id>] [--json]
+  openmates tasks connect <task-id|short-id> --thread <codex-thread-uuid> [--json]
+  openmates tasks connection <task-id|short-id> [--json]
+  openmates tasks resume <task-id|short-id>
   openmates tasks block <task-id|short-id> --reason-code <code> [--reason-text <private-text>] [--json]
   openmates tasks unblock <task-id|short-id> [--json]
   openmates tasks skip <task-id|short-id> [--json]
@@ -13687,8 +13955,10 @@ function printTasksHelp(): void {
   openmates tasks reorder <task-id|short-id> [--before <task-id>] [--after <task-id>] [--position <n>] [--status <status>] [--json]
   openmates tasks dependencies list <task-id|short-id> [--json]
   openmates tasks dependencies add|remove <task-id|short-id> --target plan:<id>|task:<id> [--recovery-root <external-root>] [--json]
-  openmates tasks activity list <task-id|short-id> [--limit <n>] [--json]
-  openmates tasks activity add <task-id|short-id> --message <text> [--json]
+  openmates tasks activity list <task-id|short-id> [--max-entries <1-200>] [--cursor <cursor>] [--newest-first] [--json]
+  openmates tasks activity search <task-id|short-id> --query <text> [--max-entries <1-200>] [--json]
+  openmates tasks activity add <task-id|short-id> --message <text> [--as-assignee] [--delivery-id <sha256>] [--json]
+  openmates tasks activity flush <task-id|short-id> [--as-assignee] [--json]
   openmates tasks activity delete <task-id|short-id> <entry-id> [--json]
 
 Chat-scoped aliases:
@@ -13934,7 +14204,7 @@ Examples:
   openmates apps math calculate "sqrt(144)" --mode numeric --json
   openmates apps code get_docs --library React --question "How do I use useState?" --json
   openmates apps examples travel search_connections
-  openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'
+  openmates apps code run --language python --source-filename hello.py --code 'print("Hello from CLI")'
   openmates apps images detect-ai --file ./image.png --json
   openmates apps models3d search --query benchy --count 2 --providers Printables --json
   openmates apps design search_icons --query home --count 12 --json

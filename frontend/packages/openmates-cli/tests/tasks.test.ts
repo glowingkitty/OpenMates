@@ -1,7 +1,7 @@
 /**
  * Unit tests for OpenMates user task CLI client methods.
  *
- * Purpose: lock the shared encrypted /v1/user-tasks contract without a real API.
+ * Purpose: lock the shared encrypted /v1/user-tasks Specification behavior without a real API.
  * Security: uses a local HTTP server and synthetic session only; no account data
  * or task ciphertext leaves the process.
  * Run: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts
@@ -9,7 +9,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createHmac, hkdfSync } from "node:crypto";
+import { createHash, createHmac, hkdfSync } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import {
@@ -30,12 +30,14 @@ import {
   findTask,
   normalizeBlockedReasonCode,
   parseExternalChatRef,
+  parseAssignee,
   renderTaskActivityList,
   taskEditLookupScope,
   taskLookupScopes,
   type DecryptedUserTask,
   workflowProjectionDeleteGuidance,
 } from "../src/tasksCli.ts";
+import { encryptBytesWithAesGcm, decryptBytesWithAesGcm } from "../src/crypto.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
@@ -110,7 +112,7 @@ describe("OpenMatesClient user tasks", () => {
       createdAt: 100,
     });
     assert.doesNotMatch(JSON.stringify(activityInput), /First line|Second line/);
-    assert.ok(activityInput.encrypted_entry_key);
+    assert.equal("encrypted_entry_key" in activityInput, false);
     assert.ok(activityInput.encrypted_message);
 
     const stored: UserTaskActivityRecord = {
@@ -124,6 +126,10 @@ describe("OpenMatesClient user tasks", () => {
     };
     const decrypted = await decryptTaskActivityEntry(task, masterKey, stored);
     assert.equal(decrypted.message, "First line\nSecond line");
+    await assert.rejects(
+      decryptTaskActivityEntry(task, masterKey, { ...stored, entry_id: "activity-moved" }),
+      /Failed to decrypt Task Activity entry/,
+    );
 
     const tombstone: UserTaskActivityRecord = {
       entry_id: "activity-1",
@@ -137,7 +143,6 @@ describe("OpenMatesClient user tasks", () => {
       created_at: 100,
       deleted_at: 101,
       deleted_by_hash: "deleter-hash",
-      encrypted_entry_key: null,
       encrypted_message: null,
       encrypted_embed_key_material: null,
       embed_refs: [],
@@ -166,6 +171,18 @@ describe("OpenMatesClient user tasks", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=tasks.assignment.identity-separated,tasks.surface.semantic-parity
+  it("separates assignment type from allowlisted identity", async () => {
+    const masterKey = Buffer.alloc(32, 3);
+    const external = await buildCreateUserTaskInput(masterKey, { title: "External work", assign: "external-ai" });
+    const native = await buildCreateUserTaskInput(masterKey, { title: "Native work", assign: "openmates" });
+    const human = await buildCreateUserTaskInput(masterKey, { title: "Human work", assign: "user" });
+
+    assert.deepEqual([external.assignee_type, external.assignee_identity], ["external_ai", "codex"]);
+    assert.deepEqual([native.assignee_type, native.assignee_identity], ["openmates", "openmates"]);
+    assert.deepEqual([human.assignee_type, human.assignee_identity], ["user", null]);
+  });
+
   // contract-test: direct surface=cli assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.surface.semantic-parity
   it("lists, creates, updates, and starts encrypted user tasks", async () => {
     const task = encryptedTaskInput();
@@ -190,7 +207,7 @@ describe("OpenMatesClient user tasks", () => {
         })).task_id, "task-1");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1&limit=1000"],
+          ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1&limit=500"],
           ["POST", "/v1/user-tasks"],
           ["PATCH", "/v1/user-tasks/task-1"],
           ["PATCH", "/v1/user-tasks/team-task?team_id=team-1"],
@@ -333,7 +350,7 @@ describe("OpenMatesClient user tasks", () => {
 
         assert.equal(
           seen[0]?.url,
-          `/v1/user-tasks?external_chat_provider=opencode&external_chat_lookup_hash=${lookupHash}`,
+          `/v1/user-tasks?external_chat_provider=opencode&external_chat_lookup_hash=${lookupHash}&limit=500`,
         );
         assert.doesNotMatch(seen[0]?.url ?? "", /ses_private_456/);
       },
@@ -436,5 +453,131 @@ describe("OpenMatesClient user tasks", () => {
       "│  Assignee: openmates",
       "└─ openmates tasks show TASK-42",
     ]);
+  });
+});
+
+
+describe("Codex Task provider compatibility", () => {
+  // contract-test: supporting surface=cli assertions=tasks.assignment.identity-separated,tasks.external-chat.encrypted-context
+  it("defaults external assignment to Codex and keeps provider-specific encrypted indexes", async () => {
+    assert.equal(parseAssignee("external-ai").assigneeIdentity, "codex");
+    assert.equal(parseAssignee("codex").assigneeIdentity, "codex");
+    const masterKey = Buffer.alloc(32, 4);
+    const id = "00000000-0000-4000-8000-000000000001";
+    const codex = parseExternalChatRef(`codex:${id}`);
+    const legacy = parseExternalChatRef(`opencode:${id}`);
+    assert.notEqual(externalChatLookupHash(masterKey, codex), externalChatLookupHash(masterKey, legacy));
+    const input = await buildCreateUserTaskInput(masterKey, {
+      title: "Codex task", assign: "external-ai", externalChat: { ...codex, title: "Private thread title" },
+    });
+    assert.equal(input.assignee_identity, "codex");
+    assert.equal(input.external_chat_provider, "codex");
+    assert.doesNotMatch(JSON.stringify(input), /00000000-0000-4000-8000-000000000001|Private thread title/);
+    const task = await decryptUserTask(input, masterKey);
+    assert.equal(task.externalChat?.id, id);
+    assert.equal(task.externalChat?.provider, "codex");
+    assert.throws(() => parseExternalChatRef("unknown:thread"), /Unsupported/);
+  });
+});
+
+// contract-test: supporting surface=cli assertions=tasks.assignment.identity-separated
+it("declares Codex creator only on explicit creation and never on a later ordinary request", async () => {
+  const creators: Array<string | string[] | undefined> = [];
+  const actors: Array<string | string[] | undefined> = [];
+  await withServer((request, body) => {
+    creators.push(request.headers["x-openmates-task-creator"]);
+    actors.push(request.headers["x-openmates-task-actor"]);
+    return { task: body };
+  }, async (apiUrl) => {
+    const client = new OpenMatesClient({ apiUrl, session: testSession() });
+    await client.createUserTask(encryptedTaskInput(), { creator: "codex" });
+    await client.createUserTask(encryptedTaskInput());
+  });
+  assert.deepEqual(creators, ["codex", undefined]);
+  assert.deepEqual(actors, ["assignee", undefined]);
+});
+
+// contract-test: supporting surface=cli assertions=tasks.project-links.encrypted,tasks.content.client-encrypted,tasks.external-chat.encrypted-context
+it("replaces project wrappers on add/remove while retaining task ownership and other access", async () => {
+  const masterKey = new Uint8Array(32).fill(1);
+  const projectKey = new Uint8Array(32).fill(2);
+  const task = await decryptUserTask(await buildCreateUserTaskInput(masterKey, {
+    title: "Project relink fixture", externalChat: {provider: "codex", id: "fixture-chat"},
+  }), masterKey);
+  const taskKey = await decryptBytesWithAesGcm(task.encrypted.encrypted_task_key!, masterKey);
+  assert.ok(taskKey);
+  const teamWrapper = {key_type: "team", hashed_team_id: "a".repeat(64), team_key_epoch: 1,
+    encrypted_task_key: await encryptBytesWithAesGcm(taskKey, new Uint8Array(32).fill(3)), created_at: 1};
+  const context = { keyWrappers: [teamWrapper], projectKeys: new Map([["project-new", projectKey]]) };
+  const added = await buildUpdateUserTaskInput(task, masterKey, {projectIds: ["project-new"]}, context);
+  assert.ok(added.key_wrappers, "project relink requires replacement wrappers");
+  assert.deepEqual(added.key_wrappers.map(w => w.key_type).sort(), ["master", "project", "team"]);
+  const projectWrapper = added.key_wrappers.find(w => w.key_type === "project")!;
+  assert.equal(projectWrapper.hashed_project_id, createHash("sha256").update("project-new").digest("hex"));
+  assert.deepEqual(await decryptBytesWithAesGcm(projectWrapper.encrypted_task_key as string, projectKey), taskKey);
+  assert.equal(added.primary_chat_id, undefined);
+  assert.equal(added.external_chat_lookup_hash, undefined);
+  const relinked = await decryptUserTask({...task.encrypted, ...added}, masterKey);
+  assert.deepEqual(relinked.externalChat, task.externalChat);
+  assert.deepEqual(relinked.linkedProjectIds, ["project-new"]);
+  const removed = await buildUpdateUserTaskInput(relinked, masterKey, {projectIds: []}, {
+    keyWrappers: added.key_wrappers, projectKeys: new Map(),
+  });
+  assert.deepEqual(removed.key_wrappers?.map(w => w.key_type).sort(), ["master", "team"]);
+  assert.equal((await decryptUserTask({...relinked.encrypted, ...removed}, masterKey)).title, task.title);
+  await assert.rejects(buildUpdateUserTaskInput(task, masterKey, {projectIds: ["missing"]}, {
+    keyWrappers: [], projectKeys: new Map(),
+  }), /project key/i);
+});
+
+// contract-test: supporting surface=cli assertions=tasks.key-wrappers.context-scoped,tasks.project-links.encrypted
+it("preserves native chat and plan wrappers and rejects incomplete access", async () => {
+  const masterKey = new Uint8Array(32).fill(4);
+  const chatKey = new Uint8Array(32).fill(5);
+  const task = await decryptUserTask(await buildCreateUserTaskInput(masterKey, {
+    title: "Native fixture", chatId: "chat-1", planId: "plan-1",
+  }), masterKey);
+  const taskKey = await decryptBytesWithAesGcm(task.encrypted.encrypted_task_key!, masterKey);
+  assert.ok(taskKey);
+  const hash = (id: string) => createHash("sha256").update(id).digest("hex");
+  const wrappers = [
+    {key_type: "chat", hashed_chat_id: hash("chat-1"), encrypted_task_key: await encryptBytesWithAesGcm(taskKey, chatKey)},
+    {key_type: "plan", hashed_plan_id: hash("plan-1"), encrypted_task_key: "unchanged-plan-wrapper"},
+  ];
+  const patch = await buildUpdateUserTaskInput(task, masterKey, {projectIds: []}, {keyWrappers: wrappers, projectKeys: new Map()});
+  assert.equal(patch.primary_chat_id, undefined);
+  assert.equal(patch.plan_id, undefined);
+  assert.deepEqual(await decryptBytesWithAesGcm(patch.key_wrappers!.find(w => w.key_type === "chat")!.encrypted_task_key as string, chatKey), taskKey);
+  await assert.rejects(buildUpdateUserTaskInput(task, masterKey, {projectIds: []}, {keyWrappers: [], projectKeys: new Map()}), /primary chat key wrapper/);
+  await assert.rejects(buildUpdateUserTaskInput(task, masterKey, {projectIds: []}, {keyWrappers: wrappers.slice(0, 1), projectKeys: new Map()}), /plan key wrapper/);
+});
+
+// contract-test: supporting surface=cli assertions=tasks.project-links.encrypted,tasks.key-wrappers.context-scoped,tasks.external-chat.encrypted-context
+it("prepares add/remove project commands through authorized project key lookup", async () => {
+  const session = testSession();
+  const masterKey = Buffer.from(session.masterKeyExportedB64, "base64");
+  const projectKey = new Uint8Array(32).fill(9);
+  const encryptedProjectKey = await encryptBytesWithAesGcm(projectKey, masterKey);
+  const task = await decryptUserTask(await buildCreateUserTaskInput(masterKey, {
+    title: "CLI relink", externalChat: {provider: "codex", id: "owner"},
+  }), masterKey);
+  let wrappers: Array<Record<string, unknown>> = [];
+  await withServer((request, body) => {
+    if (request.url?.endsWith("/key-wrappers")) return {key_wrappers: wrappers};
+    if (request.url?.startsWith("/v1/projects/")) return {project: {project_id: "project-1", encrypted_project_key: encryptedProjectKey}};
+    return {task: {...task.encrypted, ...body as object}};
+  }, async (apiUrl, seen) => {
+    const client = new OpenMatesClient({apiUrl, session});
+    await assert.rejects(client.prepareUserTaskUpdate(task, {projectIds: []}, {teamId: "team-1"}), /Team Task project relinking is not supported/);
+    await assert.rejects(client.prepareUserTaskUpdate({...task, encrypted: {...task.encrypted, encrypted_task_key: null}}, {projectIds: []}, {personal: true}), /missing encrypted task key/);
+    assert.equal(seen.length, 0, "unsupported scope or missing master wrapper must fail before requests");
+    const add = await client.prepareUserTaskUpdate(task, {projectIds: ["project-1"]}, {personal: true});
+    const added = await client.updateUserTask(task.taskId, add, {personal: true});
+    wrappers = add.key_wrappers!;
+    const remove = await client.prepareUserTaskUpdate(await decryptUserTask(added, masterKey), {projectIds: []}, {personal: true});
+    await client.updateUserTask(task.taskId, remove, {personal: true});
+    assert.equal(seen.filter(r => r.url?.startsWith("/v1/projects/")).length, 1);
+    assert.deepEqual(remove.key_wrappers!.map(w => w.key_type), ["master"]);
+    assert.equal(JSON.stringify(seen).includes(Buffer.from(projectKey).toString("base64")), false);
   });
 });

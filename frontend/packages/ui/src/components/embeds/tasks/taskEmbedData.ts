@@ -47,6 +47,7 @@ export function taskStatusLabel(status?: string): string {
 
 export function taskAssigneeLabel(value?: string): string {
   if (!value) return 'Unassigned';
-  if (value === 'openmates' || value === 'ai') return 'OpenMates';
+  if (value === 'openmates') return 'OpenMates';
+  if (value === 'opencode') return 'OpenCode';
   return value.replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase());
 }

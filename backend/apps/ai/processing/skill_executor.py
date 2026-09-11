@@ -60,6 +60,7 @@ from backend.apps.ai.processing.task_tool_executor import should_keep_tasks_crea
 from backend.shared.python_utils.app_skill_output_safety import (  # noqa: E402
     AppSkillOutputSafetyContext,
     APP_SKILL_SURFACE_ASSISTANT,
+    central_app_skill_dispatch,
     is_external_data_skill,
     sanitize_app_skill_output,
 )
@@ -288,10 +289,11 @@ async def execute_skill(
 
             # In-process dispatch with a hard per-attempt timeout so a hung
             # skill (e.g. external API not responding) can't block forever.
-            result = await asyncio.wait_for(
-                registry.dispatch_skill(app_id, skill_id, request_body),
-                timeout=timeout,
-            )
+            with central_app_skill_dispatch():
+                result = await asyncio.wait_for(
+                    registry.dispatch_skill(app_id, skill_id, request_body),
+                    timeout=timeout,
+                )
 
             # Check cancellation post-execution
             if skill_task_id and cache_service:

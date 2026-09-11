@@ -2,7 +2,7 @@
 """Synchronize OpenMates agent-tool compatibility files.
 
 Claude Code remains the canonical authoring format for project skills,
-subagents, and Codex hook scripts. This helper generates the Codex/OpenCode
+subagents, and Codex hook scripts. This helper generates the Codex
 mirror files that use different metadata formats while preserving the same
 workflow instructions. Run with `--check` in validation paths to detect drift.
 """
@@ -20,32 +20,10 @@ CLAUDE_SKILLS_DIR = REPO_ROOT / ".claude" / "skills"
 AGENT_SKILLS_DIR = REPO_ROOT / ".agents" / "skills"
 CLAUDE_AGENTS_DIR = REPO_ROOT / ".claude" / "agents"
 CODEX_AGENTS_DIR = REPO_ROOT / ".codex" / "agents"
-OPENCODE_AGENTS_DIR = REPO_ROOT / ".opencode" / "agents"
 CLAUDE_HOOKS_DIR = REPO_ROOT / ".claude" / "hooks"
 CODEX_HOOKS_DIR = REPO_ROOT / ".codex" / "hooks"
 CODEX_HOOK_BRIDGE = CODEX_HOOKS_DIR / "claude-hook-bridge.sh"
 FRONTMATTER_BOUNDARY = "---"
-OPENCODE_REASONING_EFFORT = "medium"
-OPENCODE_AGENT_MODELS = {
-    "apple-native-debugger": "openai/gpt-5.6-sol",
-    "apple-parity-auditor": "openai/gpt-5.6-terra",
-    "apple-performance-detective": "openai/gpt-5.6-sol",
-    "chat-sync-detective": "openai/gpt-5.6-sol",
-    "code-reviewer": "openai/gpt-5.6-terra",
-    "specification-verifier": "openai/gpt-5.6-terra",
-    "e2e-test-investigator": "openai/gpt-5.6-terra",
-    "embed-rendering-investigator": "openai/gpt-5.6-terra",
-    "encryption-flow-tracer": "openai/gpt-5.6-sol",
-    "issue-forensics": "openai/gpt-5.6-sol",
-    "legal-compliance-auditor": "openai/gpt-5.6-sol",
-    "main-processor-guru": "openai/gpt-5.6-sol",
-    "proof-video-reviewer": "openai/gpt-5.6-terra",
-    "seo-auditor": "openai/gpt-5.6-luna",
-    "settings-ui-consistency-checker": "openai/gpt-5.6-luna",
-    "skill-integration-doctor": "openai/gpt-5.6-terra",
-    "test-failure-triager": "openai/gpt-5.6-luna",
-}
-OPENCODE_ALL_MODE_AGENTS = {"proof-video-reviewer"}
 NON_CLAUDE_HOOK_COMMANDS = {
     "lint-design-tokens.sh": REPO_ROOT / "scripts" / "lint-design-tokens.sh",
     "lint-swift-design-tokens.sh": REPO_ROOT / "scripts" / "lint-swift-design-tokens.sh",
@@ -161,85 +139,19 @@ def render_codex_agent(source: Path) -> str:
     return "\n".join(content).rstrip() + "\n"
 
 
-def yaml_scalar(value: str) -> str:
-    return '"' + value.replace('"', '\\"') + '"'
-
-
-def render_opencode_agent(source: Path) -> str:
-    metadata, body = parse_markdown(source)
-    description = metadata.get("description")
-    if not description:
-        raise ParityError(f"{source} is missing a description")
-
-    tools = {tool.strip() for tool in metadata.get("tools", "").split(",") if tool.strip()}
-    model = OPENCODE_AGENT_MODELS.get(source.stem)
-    if not model:
-        raise ParityError(f"{source} is missing an explicit OpenCode model route")
-    lines = [
-        FRONTMATTER_BOUNDARY,
-        f"description: {yaml_scalar(description)}",
-        f"mode: {'all' if source.stem in OPENCODE_ALL_MODE_AGENTS else 'subagent'}",
-        f"model: {model}",
-        "options:",
-        f"  reasoningEffort: {OPENCODE_REASONING_EFFORT}",
-    ]
-
-    if max_turns := metadata.get("maxTurns"):
-        lines.append(f"steps: {max_turns}")
-
-    lines.append("permission:")
-    if source.stem == "proof-video-reviewer":
-        lines.extend(
-            [
-                "  read:",
-                '    "*": deny',
-                '    "test-results/proof-videos/**/review-prompt-round-*.json": allow',
-                '    "test-results/proof-videos/**/frames/*": allow',
-                "  grep: deny",
-                "  glob: deny",
-                "  task: deny",
-                "  external_directory: deny",
-            ]
-        )
-    else:
-        lines.extend(["  read: allow", "  grep: allow", "  glob: allow"])
-    lines.extend(
-        [
-            f"  bash: {'allow' if 'Bash' in tools else 'deny'}",
-            f"  edit: {'allow' if {'Write', 'Edit'} & tools else 'deny'}",
-            FRONTMATTER_BOUNDARY,
-            "",
-            body,
-        ]
-    )
-    return "\n".join(lines).rstrip() + "\n"
-
-
 def sync_agents(*, check: bool) -> list[str]:
     problems: list[str] = []
     CODEX_AGENTS_DIR.mkdir(parents=True, exist_ok=True)
-    OPENCODE_AGENTS_DIR.mkdir(parents=True, exist_ok=True)
 
     claude_names = {path.stem for path in CLAUDE_AGENTS_DIR.glob("*.md")}
     codex_names = {path.stem for path in CODEX_AGENTS_DIR.glob("*.toml")}
-    opencode_names = {path.stem for path in OPENCODE_AGENTS_DIR.glob("*.md")}
-
-    for missing_name in sorted(claude_names - OPENCODE_AGENT_MODELS.keys()):
-        problems.append(f"missing OpenCode model route: {missing_name}")
-    for stale_name in sorted(OPENCODE_AGENT_MODELS.keys() - claude_names):
-        problems.append(f"stale OpenCode model route: {stale_name}")
 
     for stale_name in sorted(codex_names - claude_names):
         problems.append(f"stale Codex agent mirror: {CODEX_AGENTS_DIR / (stale_name + '.toml')}")
-    for stale_name in sorted(opencode_names - claude_names):
-        problems.append(f"stale OpenCode agent mirror: {OPENCODE_AGENTS_DIR / (stale_name + '.md')}")
-
     for source in sorted(CLAUDE_AGENTS_DIR.glob("*.md")):
         codex_target = CODEX_AGENTS_DIR / f"{source.stem}.toml"
-        opencode_target = OPENCODE_AGENTS_DIR / source.name
         expected = {
             codex_target: render_codex_agent(source),
-            opencode_target: render_opencode_agent(source),
         }
 
         for target, rendered in expected.items():
@@ -327,7 +239,7 @@ def main() -> int:
     if args.check:
         print("Agent-tool parity is up to date.")
     else:
-        print("Synchronized Agent Skills, Codex agents, OpenCode agents, and Codex hook mirrors.")
+        print("Synchronized Agent Skills, Codex agents, and Codex hook mirrors.")
     return 0
 
 

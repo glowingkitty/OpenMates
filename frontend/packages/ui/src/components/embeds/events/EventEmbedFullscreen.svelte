@@ -434,7 +434,7 @@
   {mapCenter}
   mapZoom={13}
   {mapMarkers}
-  onCalendar={$authStore.isAuthenticated && event.date_start ? handleAddToCalendar : undefined}
+  onCalendar={event.date_start ? handleAddToCalendar : undefined}
   currentEmbedId={embedId}
 >
   {#snippet embedHeaderCta()}
@@ -584,7 +584,7 @@
     border-radius: 100px;
     font-size: 0.75rem;
     font-weight: 500;
-    background: var(--color-grey-15);
+    background: var(--color-grey-20);
     color: var(--color-font-secondary);
     border: 1px solid var(--color-grey-25);
   }

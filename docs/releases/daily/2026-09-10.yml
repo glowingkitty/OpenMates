@@ -1,0 +1,3052 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-10'
+generated_at: '2026-09-11T00:20:21+00:00'
+range:
+  since: '2026-09-10T00:00:00+00:00'
+  until: '2026-09-11T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 40
+  section_counts:
+    features: 5
+    bug_fixes: 34
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 0
+  user_facing_items: 38
+  dev_only_items: 40
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: publish the approved privacy plumber example'
+    section: features
+    commits:
+    - 9deecd843
+    authored_at: '2026-09-10T18:51:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/private-plumber-email.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/private_plumber_email.yml
+    - scripts/extract-shared-chat.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: email admins about managed-server chat failures'
+    section: features
+    commits:
+    - 3dcd167f1
+    authored_at: '2026-09-10T15:50:03+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/chat_failure_email_task.py
+    - backend/core/api/templates/email/chat-failure-alert.mjml
+    - backend/requirements-dev.txt
+    - backend/shared/python_utils/chat_failure_notifications.py
+    - backend/tests/test_chat_failure_notifications.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/architecture/core/chat-failure-notifications.md
+    - docs/investigations/2026-09-10-example-chat-failures.md
+    - docs/plans/chat-failure-alerts/plan.yml
+    - specifications/architecture/operational-monitoring/examples.yml
+    - specifications/architecture/operational-monitoring/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: clarify Spec flow identity and linked Check previews'
+    section: features
+    commits:
+    - b97e9758d
+    authored_at: '2026-09-10T13:55:23+00:00'
+    changed_paths:
+    - docs/implementation/codex-workflow-rebuild/requirements.md
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationDocument.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: simplify chat and embed header actions'
+    section: features
+    commits:
+    - 0d3fa0ce4
+    authored_at: '2026-09-10T12:45:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/common.yml
+    - frontend/packages/ui/src/styles/theme.css
+    - frontend/packages/ui/src/utils/iconNameResolver.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add Specification fullscreen design preview'
+    section: features
+    commits:
+    - 199e72c1e
+    authored_at: '2026-09-10T12:36:51+00:00'
+    changed_paths:
+    - docs/implementation/codex-workflow-rebuild/requirements.md
+    - frontend/apps/web_app/tests/components/specification-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationDocument.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: update Svelte runtime to release stale chat subscriptions'
+    section: bug_fixes
+    commits:
+    - b47b66905
+    authored_at: '2026-09-10T18:12:37+00:00'
+    changed_paths:
+    - docs/architecture/web-memory-lifetimes.md
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: release cached imagery across remaining embed previews'
+    section: bug_fixes
+    commits:
+    - 14881b508
+    authored_at: '2026-09-10T17:53:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PdfViewEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:models3d:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: embed:weather:rain_radar
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:code:application, embed:models3d:generate, embed:pdf:pdf, embed:weather:rain_radar'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: release web embed resources and bound recoverable caches'
+    section: bug_fixes
+    commits:
+    - 5ac2744f8
+    authored_at: '2026-09-10T17:50:20+00:00'
+    changed_paths:
+    - docs/architecture/web-memory-lifetimes.md
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/audioEmbedCrypto.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageViewEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/imageEmbedCrypto.ts
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/MapLocationRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/MathPlotRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/PdfRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/SubChatBatchRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/mountedEmbedLifecycle.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/searchService.ts
+    - frontend/packages/ui/src/utils/boundedCache.ts
+    - frontend/packages/ui/src/utils/contentCache.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:videos:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:audio:generate, embed:audio:recording, embed:audio:speak, embed:images:generate,
+      embed:images:generate_draft, embed:images:image, embed:music:generate, embed:videos:create, embed:videos:generate'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use available spacing for chat toolbar fade'
+    section: bug_fixes
+    commits:
+    - f18399815
+    authored_at: '2026-09-10T17:38:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve email preview link behavior'
+    section: bug_fixes
+    commits:
+    - 0e41b33b9
+    authored_at: '2026-09-10T17:36:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/SensitiveText.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:mail:email, embed:mail:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expand composer when following message links'
+    section: bug_fixes
+    commits:
+    - 0ebe52d05
+    authored_at: '2026-09-10T17:29:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep scrolled chat text clear of narrow toolbar'
+    section: bug_fixes
+    commits:
+    - bbe82798c
+    authored_at: '2026-09-10T17:27:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: improve shared chat privacy controls and action suggestions'
+    section: bug_fixes
+    commits:
+    - 68ba9f6af
+    authored_at: '2026-09-10T17:16:45+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_app_deep_linking_instruction.md
+    - backend/apps/ai/instructions/base_settings_memories_deep_link_instruction.md
+    - backend/tests/test_ai_instruction_contracts.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/SensitiveText.preview.ts
+    - frontend/packages/ui/src/components/SensitiveText.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, embed:mail:email, embed:mail:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clarify empty image results and improve chat header actions'
+    section: bug_fixes
+    commits:
+    - 3bf756a38
+    authored_at: '2026-09-10T16:41:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/embedPreviewHydration.ts
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/utils/chatHeaderImageRefs.test.js
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:images:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render web search child images and website fullscreen images'
+    section: bug_fixes
+    commits:
+    - 79cea2e09
+    authored_at: '2026-09-10T16:36:44+00:00'
+    changed_paths:
+    - docs/architecture/messaging/embeds.md
+    - frontend/packages/ui/src/components/embeds/SearchThumbnailStrip.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
+    - frontend/packages/ui/src/utils/searchPreviewImages.test.js
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:news:search, embed:web:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore legacy news thumbnails in previews and fullscreen'
+    section: bug_fixes
+    commits:
+    - df809eb3f
+    authored_at: '2026-09-10T16:12:53+00:00'
+    changed_paths:
+    - docs/architecture/messaging/embeds.md
+    - frontend/packages/ui/src/components/embeds/news/NewsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/news/NewsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/utils/searchPreviewImages.test.js
+    - frontend/packages/ui/src/utils/searchPreviewImages.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:news:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve playback controls when a later chapter fails'
+    section: bug_fixes
+    commits:
+    - df456ebe8
+    authored_at: '2026-09-10T16:07:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechController.test.ts
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve CLI chat identity and explicit PII sharing'
+    section: bug_fixes
+    commits:
+    - 68a79174e
+    authored_at: '2026-09-10T16:04:42+00:00'
+    changed_paths:
+    - docs/user-guide/cli/chats.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show blocked microphone feedback only on recording attempts'
+    section: bug_fixes
+    commits:
+    - 03be165c0
+    authored_at: '2026-09-10T16:01:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/recordingHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/recordingStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve historical chat embeds before global fallback'
+    section: bug_fixes
+    commits:
+    - 158fa51d2
+    authored_at: '2026-09-10T15:58:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStoreRefRepair.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore assistant speech and natural source attribution'
+    section: bug_fixes
+    commits:
+    - ba6205cf1
+    authored_at: '2026-09-10T15:54:21+00:00'
+    changed_paths:
+    - backend/apps/ai/assistant_speech/projection.py
+    - backend/apps/ai/instructions/base_embed_referencing_instruction.md
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/utils/embed_display_text.py
+    - backend/tests/test_assistant_speech_projection.py
+    - backend/tests/test_embed_link_fixes.py
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
+    - frontend/packages/assistantSpeechProjection.ts
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.preview.ts
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechController.test.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechPlayback.test.mjs
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    - frontend/packages/ui/src/styles/animations.css
+    - frontend/packages/ui/src/utils/embedDisplayText.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore event child reference rendering'
+    section: bug_fixes
+    commits:
+    - 12effe35a
+    authored_at: '2026-09-10T15:33:29+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedReferencePreview.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render search images in previews and fade loaded header images'
+    section: bug_fixes
+    commits:
+    - 96777e723
+    authored_at: '2026-09-10T15:26:19+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_search_preview_images.py
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/embeds/SearchThumbnailStrip.preview.ts
+    - frontend/packages/ui/src/components/embeds/SearchThumbnailStrip.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/utils/searchPreviewImages.test.js
+    - frontend/packages/ui/src/utils/searchPreviewImages.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:images:search, embed:news:search, embed:web:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expose calendar downloads for guest and date-only entries'
+    section: bug_fixes
+    commits:
+    - 36750c21a
+    authored_at: '2026-09-10T14:57:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/utils/calendarDownload.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:events:search, embed:fitness:search_classes, embed:fitness:search_locations'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore guest workspace slide when closing chat'
+    section: bug_fixes
+    commits:
+    - 23bd4d8e9
+    authored_at: '2026-09-10T14:48:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove unwanted chats and compact sidebar events'
+    section: bug_fixes
+    commits:
+    - 2b015adb7
+    authored_at: '2026-09-10T14:44:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/openmates-workspace-welcome.ts
+    - frontend/packages/ui/src/demo_chats/data/who_develops_openmates.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/who_develops_openmates.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_workspace_welcome.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: smooth composer resizing and retain editor focus'
+    section: bug_fixes
+    commits:
+    - 3a3a4e74d
+    authored_at: '2026-09-10T14:35:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align split panes with workspace edges'
+    section: bug_fixes
+    commits:
+    - e32f0232f
+    authored_at: '2026-09-10T14:25:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: smoothly slide split chat beside expanding embed'
+    section: bug_fixes
+    commits:
+    - 7d16f1c27
+    authored_at: '2026-09-10T14:06:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve Spec icons through the shared app icon map'
+    section: bug_fixes
+    commits:
+    - bcbde2c02
+    authored_at: '2026-09-10T14:04:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hide empty header overflow menus'
+    section: bug_fixes
+    commits:
+    - cd45d602c
+    authored_at: '2026-09-10T13:59:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve embed when closing split-view chat'
+    section: bug_fixes
+    commits:
+    - 94db67fd9
+    authored_at: '2026-09-10T13:39:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: close chats without focusing the composer'
+    section: bug_fixes
+    commits:
+    - 5f30d7720
+    authored_at: '2026-09-10T13:35:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep composer send button text white across themes'
+    section: bug_fixes
+    commits:
+    - 68125fd20
+    authored_at: '2026-09-10T13:32:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: initialize header controls before color transitions'
+    section: bug_fixes
+    commits:
+    - 54fd7a99e
+    authored_at: '2026-09-10T13:17:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/actions/headerOverlayControls.ts
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/styles/icons.css
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: polish header overflow menu interactions and styling'
+    section: bug_fixes
+    commits:
+    - 1b87ba4d6
+    authored_at: '2026-09-10T13:12:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/actions/headerOverlayControls.ts
+    - frontend/packages/ui/src/actions/tooltip.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/styles/theme.css
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render Spec flows with shared preview and fullscreen UI'
+    section: bug_fixes
+    commits:
+    - ec1e59188
+    authored_at: '2026-09-10T12:49:56+00:00'
+    changed_paths:
+    - docs/implementation/codex-workflow-rebuild/requirements.md
+    - frontend/apps/web_app/tests/components/specification-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use fullscreen preview data contract for Specifications'
+    section: bug_fixes
+    commits:
+    - aa53a78d4
+    authored_at: '2026-09-10T12:40:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete header overlay controls and chat close navigation'
+    section: bug_fixes
+    commits:
+    - 36e8da229
+    authored_at: '2026-09-10T11:57:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/styles/icons.css
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'style: adapt fullscreen controls to header overlap'
+    section: other
+    commits:
+    - fde4cb5f3
+    authored_at: '2026-09-10T11:42:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/actions/headerOverlayControls.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/styles/icons.css
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'feat: publish the approved privacy plumber example'
+    commits:
+    - 9deecd843
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: update Svelte runtime to release stale chat subscriptions'
+    commits:
+    - b47b66905
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: release cached imagery across remaining embed previews'
+    commits:
+    - 14881b508
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:models3d:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: embed:weather:rain_radar
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+  - title: 'fix: release web embed resources and bound recoverable caches'
+    commits:
+    - 5ac2744f8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:videos:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - title: 'fix: use available spacing for chat toolbar fade'
+    commits:
+    - f18399815
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve email preview link behavior'
+    commits:
+    - 0e41b33b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+  - title: 'fix: expand composer when following message links'
+    commits:
+    - 0ebe52d05
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep scrolled chat text clear of narrow toolbar'
+    commits:
+    - bbe82798c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: improve shared chat privacy controls and action suggestions'
+    commits:
+    - 68ba9f6af
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+  - title: 'fix: clarify empty image results and improve chat header actions'
+    commits:
+    - 3bf756a38
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - title: 'fix: render web search child images and website fullscreen images'
+    commits:
+    - 79cea2e09
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: restore legacy news thumbnails in previews and fullscreen'
+    commits:
+    - df809eb3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+  - title: 'fix: preserve playback controls when a later chapter fails'
+    commits:
+    - df456ebe8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve CLI chat identity and explicit PII sharing'
+    commits:
+    - 68a79174e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: show blocked microphone feedback only on recording attempts'
+    commits:
+    - 03be165c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: resolve historical chat embeds before global fallback'
+    commits:
+    - 158fa51d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore assistant speech and natural source attribution'
+    commits:
+    - ba6205cf1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: email admins about managed-server chat failures'
+    commits:
+    - 3dcd167f1
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: restore event child reference rendering'
+    commits:
+    - 12effe35a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+  - title: 'fix: render search images in previews and fade loaded header images'
+    commits:
+    - 96777e723
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: expose calendar downloads for guest and date-only entries'
+    commits:
+    - 36750c21a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+  - title: 'fix: restore guest workspace slide when closing chat'
+    commits:
+    - 23bd4d8e9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: remove unwanted chats and compact sidebar events'
+    commits:
+    - 2b015adb7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: smooth composer resizing and retain editor focus'
+    commits:
+    - 3a3a4e74d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: align split panes with workspace edges'
+    commits:
+    - e32f0232f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: smoothly slide split chat beside expanding embed'
+    commits:
+    - 7d16f1c27
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: resolve Spec icons through the shared app icon map'
+    commits:
+    - bcbde2c02
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hide empty header overflow menus'
+    commits:
+    - cd45d602c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: clarify Spec flow identity and linked Check previews'
+    commits:
+    - b97e9758d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve embed when closing split-view chat'
+    commits:
+    - 94db67fd9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: close chats without focusing the composer'
+    commits:
+    - 5f30d7720
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep composer send button text white across themes'
+    commits:
+    - 68125fd20
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: initialize header controls before color transitions'
+    commits:
+    - 54fd7a99e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: polish header overflow menu interactions and styling'
+    commits:
+    - 1b87ba4d6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: render Spec flows with shared preview and fullscreen UI'
+    commits:
+    - ec1e59188
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: simplify chat and embed header actions'
+    commits:
+    - 0d3fa0ce4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: use fullscreen preview data contract for Specifications'
+    commits:
+    - aa53a78d4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add Specification fullscreen design preview'
+    commits:
+    - 199e72c1e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: complete header overlay controls and chat close navigation'
+    commits:
+    - 36e8da229
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'style: adapt fullscreen controls to header overlap'
+    commits:
+    - fde4cb5f3
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: restore event child reference rendering'
+    commits:
+    - 12effe35a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: publish the approved privacy plumber example'
+    commits:
+    - 9deecd843
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: update Svelte runtime to release stale chat subscriptions'
+    commits:
+    - b47b66905
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: release cached imagery across remaining embed previews'
+    commits:
+    - 14881b508
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:models3d:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: embed:weather:rain_radar
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    newsletter_ready: false
+  - title: 'fix: release web embed resources and bound recoverable caches'
+    commits:
+    - 5ac2744f8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:videos:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    newsletter_ready: false
+  - title: 'fix: use available spacing for chat toolbar fade'
+    commits:
+    - f18399815
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve email preview link behavior'
+    commits:
+    - 0e41b33b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    newsletter_ready: false
+  - title: 'fix: expand composer when following message links'
+    commits:
+    - 0ebe52d05
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep scrolled chat text clear of narrow toolbar'
+    commits:
+    - bbe82798c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: improve shared chat privacy controls and action suggestions'
+    commits:
+    - 68ba9f6af
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    newsletter_ready: false
+  - title: 'fix: clarify empty image results and improve chat header actions'
+    commits:
+    - 3bf756a38
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: false
+  - title: 'fix: render web search child images and website fullscreen images'
+    commits:
+    - 79cea2e09
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore legacy news thumbnails in previews and fullscreen'
+    commits:
+    - df809eb3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve CLI chat identity and explicit PII sharing'
+    commits:
+    - 68a79174e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: show blocked microphone feedback only on recording attempts'
+    commits:
+    - 03be165c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore assistant speech and natural source attribution'
+    commits:
+    - ba6205cf1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: email admins about managed-server chat failures'
+    commits:
+    - 3dcd167f1
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore event child reference rendering'
+    commits:
+    - 12effe35a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: render search images in previews and fade loaded header images'
+    commits:
+    - 96777e723
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: expose calendar downloads for guest and date-only entries'
+    commits:
+    - 36750c21a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore guest workspace slide when closing chat'
+    commits:
+    - 23bd4d8e9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: remove unwanted chats and compact sidebar events'
+    commits:
+    - 2b015adb7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: smooth composer resizing and retain editor focus'
+    commits:
+    - 3a3a4e74d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align split panes with workspace edges'
+    commits:
+    - e32f0232f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: smoothly slide split chat beside expanding embed'
+    commits:
+    - 7d16f1c27
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: resolve Spec icons through the shared app icon map'
+    commits:
+    - bcbde2c02
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hide empty header overflow menus'
+    commits:
+    - cd45d602c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: clarify Spec flow identity and linked Check previews'
+    commits:
+    - b97e9758d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve embed when closing split-view chat'
+    commits:
+    - 94db67fd9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: close chats without focusing the composer'
+    commits:
+    - 5f30d7720
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep composer send button text white across themes'
+    commits:
+    - 68125fd20
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: initialize header controls before color transitions'
+    commits:
+    - 54fd7a99e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: polish header overflow menu interactions and styling'
+    commits:
+    - 1b87ba4d6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render Spec flows with shared preview and fullscreen UI'
+    commits:
+    - ec1e59188
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: simplify chat and embed header actions'
+    commits:
+    - 0d3fa0ce4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: use fullscreen preview data contract for Specifications'
+    commits:
+    - aa53a78d4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add Specification fullscreen design preview'
+    commits:
+    - 199e72c1e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: complete header overlay controls and chat close navigation'
+    commits:
+    - 36e8da229
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'style: adapt fullscreen controls to header overlap'
+    commits:
+    - fde4cb5f3
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 9deecd84356c7c8bb44caaef70519d514b2d462f
+    short_sha: 9deecd843
+    authored_at: '2026-09-10T18:51:36+00:00'
+    subject: 'feat: publish the approved privacy plumber example'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/private-plumber-email.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/private_plumber_email.yml
+    - scripts/extract-shared-chat.mjs
+    related_feature_ids: []
+  - sha: b47b66905e1eb95fe3fb291aa7b22f93f856a965
+    short_sha: b47b66905
+    authored_at: '2026-09-10T18:12:37+00:00'
+    subject: 'fix: update Svelte runtime to release stale chat subscriptions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/web-memory-lifetimes.md
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: 14881b508f3a23d018124e306d4780f56f3b4ac1
+    short_sha: 14881b508
+    authored_at: '2026-09-10T17:53:39+00:00'
+    subject: 'fix: release cached imagery across remaining embed previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PdfViewEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.svelte
+    related_feature_ids:
+    - embed:code:application
+    - embed:models3d:generate
+    - embed:pdf:pdf
+    - embed:weather:rain_radar
+  - sha: 5ac2744f8cfd275e2d281b4f9ed03fe24b90612f
+    short_sha: 5ac2744f8
+    authored_at: '2026-09-10T17:50:20+00:00'
+    subject: 'fix: release web embed resources and bound recoverable caches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/web-memory-lifetimes.md
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/audioEmbedCrypto.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageViewEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/imageEmbedCrypto.ts
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/MapLocationRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/MathPlotRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/PdfRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/SubChatBatchRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/mountedEmbedLifecycle.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/searchService.ts
+    - frontend/packages/ui/src/utils/boundedCache.ts
+    - frontend/packages/ui/src/utils/contentCache.ts
+    related_feature_ids:
+    - embed:audio:generate
+    - embed:audio:recording
+    - embed:audio:speak
+    - embed:images:generate
+    - embed:images:generate_draft
+    - embed:images:image
+    - embed:music:generate
+    - embed:videos:create
+    - embed:videos:generate
+  - sha: f183998150e7c8b246caf6cc06ae44280292a28f
+    short_sha: f18399815
+    authored_at: '2026-09-10T17:38:55+00:00'
+    subject: 'fix: use available spacing for chat toolbar fade'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 0e41b33b9c1249cc87edb0a5c3f4d8be930f6bce
+    short_sha: 0e41b33b9
+    authored_at: '2026-09-10T17:36:02+00:00'
+    subject: 'fix: preserve email preview link behavior'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/SensitiveText.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    related_feature_ids:
+    - embed:mail:email
+    - embed:mail:search
+  - sha: 0ebe52d05c09ce60680b274ac951f22aeea19907
+    short_sha: 0ebe52d05
+    authored_at: '2026-09-10T17:29:40+00:00'
+    subject: 'fix: expand composer when following message links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: bbe82798c5cffb6da5edd32935368974bdb3dc21
+    short_sha: bbe82798c
+    authored_at: '2026-09-10T17:27:35+00:00'
+    subject: 'fix: keep scrolled chat text clear of narrow toolbar'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 68ba9f6aff88a58e7b06059b6489242e788216c5
+    short_sha: 68ba9f6af
+    authored_at: '2026-09-10T17:16:45+00:00'
+    subject: 'fix: improve shared chat privacy controls and action suggestions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_app_deep_linking_instruction.md
+    - backend/apps/ai/instructions/base_settings_memories_deep_link_instruction.md
+    - backend/tests/test_ai_instruction_contracts.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/SensitiveText.preview.ts
+    - frontend/packages/ui/src/components/SensitiveText.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    related_feature_ids:
+    - app:ai
+    - embed:mail:email
+    - embed:mail:search
+  - sha: 3bf756a385ee27ecbb49250e2d8bc625cf9a6eee
+    short_sha: 3bf756a38
+    authored_at: '2026-09-10T16:41:41+00:00'
+    subject: 'fix: clarify empty image results and improve chat header actions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/embedPreviewHydration.ts
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/utils/chatHeaderImageRefs.test.js
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:images:search
+  - sha: 79cea2e090acd0ebf01662ae6b702e2921fb1a42
+    short_sha: 79cea2e09
+    authored_at: '2026-09-10T16:36:44+00:00'
+    subject: 'fix: render web search child images and website fullscreen images'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/messaging/embeds.md
+    - frontend/packages/ui/src/components/embeds/SearchThumbnailStrip.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
+    - frontend/packages/ui/src/utils/searchPreviewImages.test.js
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:news:search
+    - embed:web:search
+  - sha: df809eb3f6212030137875c209e554d930c63ef1
+    short_sha: df809eb3f
+    authored_at: '2026-09-10T16:12:53+00:00'
+    subject: 'fix: restore legacy news thumbnails in previews and fullscreen'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/messaging/embeds.md
+    - frontend/packages/ui/src/components/embeds/news/NewsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/news/NewsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/utils/searchPreviewImages.test.js
+    - frontend/packages/ui/src/utils/searchPreviewImages.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:news:search
+  - sha: df456ebe8535e1ad1434ebdfed95bc58dcf06f6b
+    short_sha: df456ebe8
+    authored_at: '2026-09-10T16:07:52+00:00'
+    subject: 'fix: preserve playback controls when a later chapter fails'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechController.test.ts
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 68a79174e3bb3e81550b85fd4e7b2358f34eaf9e
+    short_sha: 68a79174e
+    authored_at: '2026-09-10T16:04:42+00:00'
+    subject: 'fix: preserve CLI chat identity and explicit PII sharing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/cli/chats.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 03be165c08928fc722a295781d949e60023ab2bd
+    short_sha: 03be165c0
+    authored_at: '2026-09-10T16:01:59+00:00'
+    subject: 'fix: show blocked microphone feedback only on recording attempts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/recordingHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/recordingStore.ts
+    related_feature_ids: []
+  - sha: 158fa51d2b6e5d563c231f6198b561ecc8339ddc
+    short_sha: 158fa51d2
+    authored_at: '2026-09-10T15:58:55+00:00'
+    subject: 'fix: resolve historical chat embeds before global fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStoreRefRepair.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: ba6205cf12441838c199e36fc487d8e59dc9f0b9
+    short_sha: ba6205cf1
+    authored_at: '2026-09-10T15:54:21+00:00'
+    subject: 'fix: restore assistant speech and natural source attribution'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/assistant_speech/projection.py
+    - backend/apps/ai/instructions/base_embed_referencing_instruction.md
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/utils/embed_display_text.py
+    - backend/tests/test_assistant_speech_projection.py
+    - backend/tests/test_embed_link_fixes.py
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
+    - frontend/packages/assistantSpeechProjection.ts
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.preview.ts
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechController.test.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechPlayback.test.mjs
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    - frontend/packages/ui/src/styles/animations.css
+    - frontend/packages/ui/src/utils/embedDisplayText.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 3dcd167f13d4232d4f23b0638ee2e42c91be1999
+    short_sha: 3dcd167f1
+    authored_at: '2026-09-10T15:50:03+00:00'
+    subject: 'feat: email admins about managed-server chat failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/chat_failure_email_task.py
+    - backend/core/api/templates/email/chat-failure-alert.mjml
+    - backend/requirements-dev.txt
+    - backend/shared/python_utils/chat_failure_notifications.py
+    - backend/tests/test_chat_failure_notifications.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/architecture/core/chat-failure-notifications.md
+    - docs/investigations/2026-09-10-example-chat-failures.md
+    - docs/plans/chat-failure-alerts/plan.yml
+    - specifications/architecture/operational-monitoring/examples.yml
+    - specifications/architecture/operational-monitoring/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 12effe35a3e20191e5f28df39c0f6b3dfa036239
+    short_sha: 12effe35a
+    authored_at: '2026-09-10T15:33:29+00:00'
+    subject: 'fix: restore event child reference rendering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedReferencePreview.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:events
+  - sha: 96777e723d2381ba79a53119058a4f417480ce65
+    short_sha: 96777e723
+    authored_at: '2026-09-10T15:26:19+00:00'
+    subject: 'fix: render search images in previews and fade loaded header images'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_search_preview_images.py
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/embeds/SearchThumbnailStrip.preview.ts
+    - frontend/packages/ui/src/components/embeds/SearchThumbnailStrip.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/utils/searchPreviewImages.test.js
+    - frontend/packages/ui/src/utils/searchPreviewImages.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:images:search
+    - embed:news:search
+    - embed:web:search
+  - sha: 36750c21afc3a6076dba32df1948fabba14dafe7
+    short_sha: 36750c21a
+    authored_at: '2026-09-10T14:57:24+00:00'
+    subject: 'fix: expose calendar downloads for guest and date-only entries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/utils/calendarDownload.ts
+    related_feature_ids:
+    - embed:events:search
+    - embed:fitness:search_classes
+    - embed:fitness:search_locations
+  - sha: 23bd4d8e939615fb9108d5eb50eaacc302f17df5
+    short_sha: 23bd4d8e9
+    authored_at: '2026-09-10T14:48:19+00:00'
+    subject: 'fix: restore guest workspace slide when closing chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 2b015adb7013b9eefb0961fd5f5b50c9284abcde
+    short_sha: 2b015adb7
+    authored_at: '2026-09-10T14:44:17+00:00'
+    subject: 'fix: remove unwanted chats and compact sidebar events'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/openmates-workspace-welcome.ts
+    - frontend/packages/ui/src/demo_chats/data/who_develops_openmates.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/who_develops_openmates.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_workspace_welcome.yml
+    related_feature_ids: []
+  - sha: 3a3a4e74d53a3a327a1b2f304298da2efee01613
+    short_sha: 3a3a4e74d
+    authored_at: '2026-09-10T14:35:53+00:00'
+    subject: 'fix: smooth composer resizing and retain editor focus'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: e32f0232f8f680b3602b3dffdbf437464310c6ae
+    short_sha: e32f0232f
+    authored_at: '2026-09-10T14:25:48+00:00'
+    subject: 'fix: align split panes with workspace edges'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 7d16f1c2715532a9850767a9dd5c30c83918e669
+    short_sha: 7d16f1c27
+    authored_at: '2026-09-10T14:06:17+00:00'
+    subject: 'fix: smoothly slide split chat beside expanding embed'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: bcbde2c02a096f0658d3acab2655fbd5f796686a
+    short_sha: bcbde2c02
+    authored_at: '2026-09-10T14:04:07+00:00'
+    subject: 'fix: resolve Spec icons through the shared app icon map'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: cd45d602ca199f41c5f92896423acb28b64709e6
+    short_sha: cd45d602c
+    authored_at: '2026-09-10T13:59:08+00:00'
+    subject: 'fix: hide empty header overflow menus'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    related_feature_ids: []
+  - sha: b97e9758db0bdba9440d373db7b583c62dd3fbd5
+    short_sha: b97e9758d
+    authored_at: '2026-09-10T13:55:23+00:00'
+    subject: 'feat: clarify Spec flow identity and linked Check previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/implementation/codex-workflow-rebuild/requirements.md
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationDocument.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 94db67fd9c5729c59fc95b0f03f301355357d348
+    short_sha: 94db67fd9
+    authored_at: '2026-09-10T13:39:21+00:00'
+    subject: 'fix: preserve embed when closing split-view chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    related_feature_ids: []
+  - sha: 5f30d772002f929c4bc0b71ec527ad98dcf79213
+    short_sha: 5f30d7720
+    authored_at: '2026-09-10T13:35:50+00:00'
+    subject: 'fix: close chats without focusing the composer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 68125fd207b7f3da389b7b0cff8e011d42636c87
+    short_sha: 68125fd20
+    authored_at: '2026-09-10T13:32:04+00:00'
+    subject: 'fix: keep composer send button text white across themes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    related_feature_ids: []
+  - sha: 54fd7a99e89923a35ccb90ae9eeff3f09b2fe9e0
+    short_sha: 54fd7a99e
+    authored_at: '2026-09-10T13:17:19+00:00'
+    subject: 'fix: initialize header controls before color transitions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/actions/headerOverlayControls.ts
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/styles/icons.css
+    related_feature_ids: []
+  - sha: 1b87ba4d69bab2a657c03ee04b00fb29c6fd960b
+    short_sha: 1b87ba4d6
+    authored_at: '2026-09-10T13:12:22+00:00'
+    subject: 'fix: polish header overflow menu interactions and styling'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/actions/headerOverlayControls.ts
+    - frontend/packages/ui/src/actions/tooltip.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/styles/theme.css
+    related_feature_ids: []
+  - sha: ec1e59188b27dbf44eafa277c499001e91e65f3b
+    short_sha: ec1e59188
+    authored_at: '2026-09-10T12:49:56+00:00'
+    subject: 'fix: render Spec flows with shared preview and fullscreen UI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/implementation/codex-workflow-rebuild/requirements.md
+    - frontend/apps/web_app/tests/components/specification-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 0d3fa0ce472540b548275e9fa56c167edc487d96
+    short_sha: 0d3fa0ce4
+    authored_at: '2026-09-10T12:45:03+00:00'
+    subject: 'feat: simplify chat and embed header actions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/common.yml
+    - frontend/packages/ui/src/styles/theme.css
+    - frontend/packages/ui/src/utils/iconNameResolver.ts
+    related_feature_ids: []
+  - sha: aa53a78d4773053b85cb52f4514c4de1c5bfb1d8
+    short_sha: aa53a78d4
+    authored_at: '2026-09-10T12:40:52+00:00'
+    subject: 'fix: use fullscreen preview data contract for Specifications'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 199e72c1e552cf85d575bf173c89b135f1eb7717
+    short_sha: 199e72c1e
+    authored_at: '2026-09-10T12:36:51+00:00'
+    subject: 'feat: add Specification fullscreen design preview'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/implementation/codex-workflow-rebuild/requirements.md
+    - frontend/apps/web_app/tests/components/specification-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationDocument.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids: []
+  - sha: 36e8da229eebcd318be1979e09963e354f9b6810
+    short_sha: 36e8da229
+    authored_at: '2026-09-10T11:57:38+00:00'
+    subject: 'fix: complete header overlay controls and chat close navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/styles/icons.css
+    related_feature_ids: []
+  - sha: fde4cb5f3eeb25b920775deac0b018b53a14885e
+    short_sha: fde4cb5f3
+    authored_at: '2026-09-10T11:42:44+00:00'
+    subject: 'style: adapt fullscreen controls to header overlap'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/actions/headerOverlayControls.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/styles/icons.css
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on significant UI refinements for chat headers and toolbars, alongside the introduction of design
+    previews for Specification documents. The update also includes critical memory management fixes for web embeds and restorations
+    for assistant speech attribution.
+  released_changes: []
+  bug_fixes:
+  - text: Refined workspace navigation and chat interactions, including improved split-pane alignment, smoother transitions
+      when closing chats, and better handling of header overflow menus.
+    evidence:
+      commits:
+      - cd45d602c
+      - 5f30d7720
+      - e32f0232f
+      - 7d16f1c27
+      - 94db67fd9
+      - 36e8da229
+    release_status: dev_only
+  - text: Resolved issues with image rendering in search results, restored legacy news thumbnails, and improved the display
+      of empty search states.
+    evidence:
+      commits:
+      - 79cea2e09
+      - df809eb3f
+      - 96777e723
+      - 3bf756a38
+    release_status: dev_only
+  - text: Optimized web memory usage by updating the Svelte runtime to release stale chat subscriptions and clearing cached
+      imagery across embed previews.
+    evidence:
+      commits:
+      - b47b66905
+      - 14881b508
+      - 5ac2744f8
+    release_status: dev_only
+  - text: Restored assistant speech attribution and ensured playback controls remain active even if specific audio chapters
+      fail to load.
+    evidence:
+      commits:
+      - ba6205cf1
+      - df456ebe8
+    release_status: dev_only
+  - text: Improved privacy controls for shared chats and preserved link behavior within email previews.
+    evidence:
+      commits:
+      - 68ba9f6af
+      - 68a79174e
+      - 0e41b33b9
+    release_status: dev_only
+  unreleased_progress:
+  - text: Development of a new Specification document system, including fullscreen design previews, shared UI for flows, and
+      icon resolution through the app map.
+    evidence:
+      commits:
+      - 199e72c1e
+      - b97e9758d
+      - ec1e59188
+      - aa53a78d4
+      - bcbde2c02
+    release_status: dev_only
+  - text: Implementation of admin email alerts for managed-server chat failures to improve operational monitoring.
+    evidence:
+      commits:
+      - 3dcd167f1
+    release_status: dev_only
+  - text: Addition of a new privacy-focused example chat featuring a plumber email scenario.
+    evidence:
+      commits:
+      - 9deecd843
+    release_status: dev_only
+  internal_progress:
+  - text: Updated CI coverage manifests and added component tests for new specification UI.
+    evidence:
+      commits:
+      - 199e72c1e
+    release_status: dev_only
+  - text: Added scripts for extracting shared chat data to support example content generation.
+    evidence:
+      commits:
+      - 9deecd843
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: New Specification document fullscreen design and UI flows.
+      evidence:
+        commits:
+        - 199e72c1e
+        - b97e9758d
+        - ec1e59188
+        - aa53a78d4
+        - bcbde2c02
+      reason: Specification document features are currently in development and not yet merged to the main branch.
+    - text: Simplified chat and embed header action menus.
+      evidence:
+        commits:
+        - 0d3fa0ce4
+        - 1b87ba4d6
+        - 54fd7a99e
+        - fde4cb5f3
+      reason: UI refinements for headers and toolbars are still undergoing testing in the dev branch.
+    rationale: All changes from this period are currently restricted to the development branch and have not yet reached the
+      main release branch.
+  social_video_recommendations:
+  - idea: A walkthrough of the new Specification document fullscreen view, highlighting how technical requirements and assertions
+      are visualized.
+    priority: medium
+    reason: The new Specification UI provides a high-quality visual story for technical users.
+    evidence:
+      commits:
+      - 199e72c1e
+      - b97e9758d
+  - idea: A short clip showing the polished workspace transitions, specifically how chats slide to accommodate expanding embeds.
+    priority: low
+    reason: Demonstrates the high level of UI polish and 'feel' of the workspace.
+    evidence:
+      commits:
+      - 0d3fa0ce4
+      - 36e8da229
+      - 7d16f1c27
+  quality_notes:
+  - Extensive work on memory lifecycle management (web-memory-lifetimes.md) suggests a focus on long-term application stability.
+  - The 'codex-workflow-rebuild' project is driving significant changes to how technical specifications are rendered.
+  validation_warnings: []

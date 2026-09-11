@@ -6,6 +6,9 @@ remain runnable even when optional provider dependencies are absent from the
 local Python environment.
 """
 
+# contract-test-file: tooling
+# Static prompt/source lint only; these checks do not claim runtime behavior coverage.
+
 from pathlib import Path
 
 
@@ -96,3 +99,13 @@ def test_software_development_mate_uses_application_preview_for_runnable_web_app
     assert "runnable frontend web app" in prompt
     assert "global `application_preview` bundle format" in prompt
     assert "one runnable application embed" in prompt
+
+
+def test_action_suggestions_use_editable_message_links() -> None:
+    instruction_dir = CODE_BLOCK_INSTRUCTION_PATH.parent
+    for name in ("base_app_deep_linking_instruction.md", "base_settings_memories_deep_link_instruction.md"):
+        instruction = (instruction_dir / name).read_text(encoding="utf-8")
+        assert "](/#message=" in instruction
+        assert "](/#settings/" not in instruction
+        assert "edit" in instruction
+        assert "focus" in instruction

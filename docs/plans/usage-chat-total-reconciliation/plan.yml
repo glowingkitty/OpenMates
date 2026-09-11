@@ -1,0 +1,228 @@
+schema_version: 2
+id: usage-chat-total-reconciliation
+title: Usage Chat Total Reconciliation
+status: implementing
+
+specification_refs:
+  - id: feature.billing
+    role: primary
+    fingerprint: 4e117abca429900b5223ae9be2231cd72607646e34d291c3f1079c5a43310336
+
+specification_impact:
+  classification: implementation_fix
+  specification_update_required: false
+  affected_assertions:
+    - billing.surface.semantic-parity
+  reason: Existing billing semantics require summary totals to match authoritative usage entries.
+
+goal: >
+  Fix incorrect per-chat credit totals in Usage by reconciling the signed-in user's
+  recent response totals from authoritative raw usage only when that user opens Usage.
+
+scope:
+  in:
+    - Reconcile recent per-chat daily overview response totals when Usage is opened.
+    - Scope reads and writes to the authenticated user.
+    - Aggregate descendant usage under its recorded root chat.
+    - Verify overview totals equal the sum of chat detail entries on deployed dev.
+  out:
+    - Background or global migrations.
+    - Changes to prices, balances, raw usage rows, or charge settlement.
+    - New API routes or background/global projection writes.
+
+clarification:
+  rounds:
+    - question: Should existing incorrect totals be repaired, or only future totals?
+      answer: Repair existing totals, but only when the user opens Usage settings.
+  vision_summary: >
+    Usage performs bounded, user-scoped lazy repair; no global or background data update runs.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 713b7534b297a588a5b61e3f2cdd30686c86ff37
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-01T15:39:51+00:00"
+    fingerprint: 4e117abca429900b5223ae9be2231cd72607646e34d291c3f1079c5a43310336
+  plan:
+    status: approved
+    approved_at: "2026-09-04"
+    reason: User approved the recommended lazy, Usage-open repair scope.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Reconcile only when the authenticated user opens Usage settings.
+    reason: Repairs visible historical drift without a global migration or background scan.
+    decided_at: "2026-09-04"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Reproduce a stale projection response with deterministic backend tests.
+    outcome: planned
+    recorded_at: "2026-09-04"
+
+context_discovery:
+  github_issues: []
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+  contracts:
+    - specifications/features/billing/specification.yml
+  code_patterns:
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/api/app/routes/settings.py
+  tests:
+    - backend/tests/test_usage_summary_write_race.py
+    - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+
+contracts:
+  api:
+    - route: GET /v1/settings/usage/daily-overview
+      access: Existing authenticated session or developer API-key REST surface
+      auth: Existing session or approved API-key authentication; reconciliation is scoped by the authenticated user hash.
+      rate_limit: Existing 30 requests per minute.
+      credit_budget: Read-only request; no credits charged.
+      encrypted_data: Raw encrypted credit values are decrypted server-side with the authenticated user's vault key for reconciliation and are not exposed beyond the existing response totals.
+  data:
+    - Raw usage rows remain authoritative; daily summary rows remain optional fast projections.
+
+apple_impact:
+  affected_files: [none]
+  parity_expectations:
+    - The existing shared backend endpoint returns corrected totals without native source changes.
+  verification:
+    - Shared backend contract only; Apple UI is not changed.
+  intentional_native_differences: [none]
+
+scenarios:
+  - id: S-1
+    title: Opening Usage repairs an undercounted chat summary
+    given:
+      - The authenticated user has multiple raw usage rows for one root chat.
+      - Its daily summary is stale or undercounted.
+    when:
+      - The user opens Usage and the daily overview endpoint runs.
+    then:
+      - Only that user's recent summaries are reconciled.
+      - The overview chat total equals the sum of its detail entries.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Usage-open reconciliation repairs stale recent chat totals from authoritative raw rows for only the authenticated user.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PYTEST-001, T-E2E-001]
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_usage_summary_write_race.py
+    command: python3 -m pytest backend/tests/test_usage_summary_write_race.py
+    covers: [AC-1]
+    assertions:
+      - Usage-open reconciliation replaces stale user-scoped projections from authoritative rows.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: pending}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    command: python3 scripts/tests.py run --spec usage-token-breakdown.spec.ts --gate-deploy --expected-commit <sha>
+    target: app.dev.openmates.org
+    assertions:
+      - The first overview chat total equals the sum of its displayed detail entry credits.
+    covers: [AC-1]
+    red_phase:
+      required: false
+      expected: fail
+      evidence: {status: pending}
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: {status: pending}
+
+implementation_notes:
+  plan_path: docs/plans/usage-chat-total-reconciliation/plan.yml
+  existing_patterns:
+    - Raw usage rows are authoritative and projections are rebuildable.
+    - The daily overview endpoint runs only when Usage settings requests it.
+  architecture: >
+    Keep the existing endpoint and UI, but let the browser Usage request opt into bounded,
+    authenticated-user response reconciliation from authoritative raw rows.
+  data_flow:
+    - Opening Usage calls the existing authenticated daily overview endpoint.
+    - The endpoint reconciles bounded recent summary projections from the user's raw usage rows.
+    - The endpoint returns corrected daily chat totals to the existing UI.
+  affected_files:
+    - path: backend/core/api/app/services/directus/usage.py
+      reason: User-scoped response reconciliation.
+    - path: backend/core/api/app/routes/settings.py
+      reason: Supply the authenticated user's vault key to lazy reconciliation.
+    - path: backend/tests/test_usage_summary_write_race.py
+      reason: Deterministic race and stale-summary regression coverage.
+    - path: frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+      reason: Deployed UI total reconciliation assertion.
+  verification_strategy:
+    - Run focused backend regression tests red and green through scripts/tests.py.
+    - Deploy API and spec changes, then run usage-token-breakdown.spec.ts against the exact dev commit.
+  verification_order:
+    - Focused backend contract test.
+    - Existing endpoint on the local dev API after API restart.
+    - Deployed web Playwright spec.
+
+tasks:
+  - id: TASK-1
+    title: Add red regression coverage
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
+    expected_files:
+      - backend/tests/test_usage_summary_write_race.py
+      - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    verification: [T-PYTEST-001]
+    verification_ids: [T-PYTEST-001]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/tests/test_usage_summary_write_race.py
+        - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+      shared_files: []
+  - id: TASK-2
+    title: Implement lazy Usage-open reconciliation
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
+    expected_files:
+      - backend/core/api/app/services/directus/usage.py
+      - backend/core/api/app/routes/settings.py
+    verification: [T-PYTEST-001, T-E2E-001]
+    verification_ids: [T-PYTEST-001, T-E2E-001]
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/services/directus/usage.py
+        - backend/core/api/app/routes/settings.py
+      shared_files: []
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Add and run the deterministic red regression tests.
+  command: python3 -m pytest backend/tests/test_usage_summary_write_race.py
+  expected_outcome: The lazy reconciliation test fails before implementation.
+  blocker: null
+  last_verified_commit: 713b7534b297a588a5b61e3f2cdd30686c86ff37

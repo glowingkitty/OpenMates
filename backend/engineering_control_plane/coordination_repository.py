@@ -13,7 +13,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable
 from uuid import uuid4
 
-from backend.engineering_control_plane.coordination import DispatchSpec, SessionEventType, _validate_event_payload
+from backend.engineering_control_plane.coordination import (
+    DispatchSpec,
+    SessionEventType,
+    _validate_event_payload,
+    event_handoff_idempotency_key,
+)
 from backend.engineering_control_plane.database import connect
 
 
@@ -641,7 +646,32 @@ class PostgresCoordinationRepository:
         if target_type not in {"session", "task", "dispatch", "lease", "runtime_operation"}:
             raise ValueError(f"unsupported event target type: {target_type}")
         event_key = f"event-{uuid4().hex}"
+        idempotency_key = event_handoff_idempotency_key(
+            event_type=event_type,
+            target_type=target_type,
+            target_key=target_key,
+            subject_key=subject_key,
+            payload=payload,
+        )
         with connect(self.database_url) as connection:
+            if idempotency_key:
+                lock_key = "\x1f".join(idempotency_key)
+                connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (lock_key,))
+                existing = connection.execute(
+                    """
+                    SELECT event_key FROM control_plane_session_events
+                    WHERE event_type = %s
+                      AND target_type = %s
+                      AND target_key = %s
+                      AND subject_key = %s
+                      AND payload ->> 'handoff_key' = %s
+                    ORDER BY cursor
+                    LIMIT 1
+                    """,
+                    idempotency_key,
+                ).fetchone()
+                if existing is not None:
+                    return self._event_row(connection, existing[0])
             connection.execute(
                 """
                 INSERT INTO control_plane_session_events
@@ -830,3 +860,4 @@ class PostgresCoordinationRepository:
         from psycopg.types.json import Jsonb
 
         return Jsonb(value)
+

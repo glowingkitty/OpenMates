@@ -1,0 +1,111 @@
+schema_version: 1
+specification: architecture.security-reporting@1
+
+deterministic_processing:
+  - id: clean-day-needs-no-agent
+    given: {dependabot_runs: 24, eu_vulnerability_runs: 24, new_findings: 0}
+    expect: {reporting_ai_calls: 0, summary_chats: 0, per_scan_emails: 0, daily_security_emails: 1}
+  - id: reporting-does-not-replace-remediation
+    given: {new_high_finding: true, remediation_dispatch_eligible: true, email_service_available: false}
+    expect: {existing_remediation_policy_preserved: true, report_delivery: unavailable, reporting_ai_calls: 0}
+
+daily_digest:
+  - id: weekend-window
+    given: {scheduled_at: '2026-09-06T08:30:00Z'}
+    expect: {window_start_inclusive: '2026-09-05T08:30:00Z', window_end_exclusive: '2026-09-06T08:30:00Z', digest_attempts: 1}
+  - id: unchanged-medium-is-digest-only
+    given: {open_medium_findings: 1, repeated_observations: 24}
+    expect: {immediate_emails: 0, digest_open_medium_count: 1, per_scan_emails: 0}
+  - id: bounded-detail-preserves-totals
+    given: {open_findings: 80, detail_limit: 20}
+    expect: {open_count: 80, displayed_details: 20, omitted_count: 60}
+  - id: first-start-and-catch-up
+    given: {retained_history_hours: 6, missed_reporting_days: 2}
+    expect: {history: partial, missing_periods_labeled: true, current_digest_count: 1, backlog_email_burst: false}
+
+finding_lifecycle:
+  - id: shared-alias-is-one-finding
+    given:
+      dependabot: {package: sample-lib, version: '1.0.0', aliases: [GHSA-example, CVE-example]}
+      osv: {package: sample-lib, version: '1.0.0', aliases: [CVE-example]}
+    expect: {canonical_findings: 1, contributing_sources: 2}
+  - id: same-day-fix-is-not-lost
+    given: {observed_at: '2026-09-05T10:35:00Z', verified_resolved_at: '2026-09-05T12:35:00Z'}
+    expect: {next_digest_new_count: 1, next_digest_resolved_count: 1, next_digest_open_count: 0}
+  - id: dispatch-is-not-resolution
+    given: {remediation_agent_exit_code: 0, verified_fix: false}
+    expect: {finding_resolved: false, remediation_execution_result_shown: true}
+  - id: complete-inventory-proves-fixed-version
+    given: {inventory_complete: true, installed_versions: ['1.0.2'], affected_range: '<1.0.2', subject_commit_recorded: true}
+    expect: {finding_resolved: true, resolution_time_recorded: true}
+  - id: one-vulnerable-instance-remains
+    given: {inventory_complete: true, installed_versions: ['1.0.0', '1.0.2'], affected_range: '<1.0.2'}
+    expect: {finding_resolved: false}
+  - id: no-new-does-not-mean-no-open
+    given: {scan_outcome: no_new_findings, existing_open_findings: 3}
+    expect: {new_count: 0, open_count: 3, all_clear_claim: false}
+
+critical_alerts:
+  - id: critical-overlap-and-restart
+    given: {new_critical_findings: 1, sources: [dependabot, eu_vulns], repeated_observations: 24, process_restarted: true, email_provider_accepted: true}
+    expect: {immediate_critical_emails: 1, digest_includes_finding: true}
+  - id: escalation
+    given: {prior_severity: high, current_severity: critical, finding_state: open}
+    expect: {new_critical_incidents: 1, immediate_alert_attempted: true}
+  - id: verified-recurrence
+    given: {prior_critical_incident: verified_resolved, newly_vulnerable_again: true}
+    expect: {new_incident: true, immediate_alert_attempted: true}
+  - id: critical-rejected-then-accepted
+    given: {incident_id: unchanged, first_provider_result: rejected, retry_provider_result: accepted, later_observations: 3}
+    expect: {incident_records: 1, provider_attempts: 2, accepted_emails: 1, later_sends: 0}
+  - id: critical-unknown-outcome
+    given: {incident_id: unchanged, first_provider_result: unknown, provider_idempotency_available: false, later_observations: 3}
+    expect: {incident_records: 1, provider_attempts: 1, delivery_state: unknown, reconciliation_required: true}
+
+scan_health:
+  - id: failed-osv-batch
+    given: {osv_batches_expected: 3, osv_batches_completed: 2, confirmed_findings: 1}
+    expect: {scan_outcome: incomplete, confirmed_findings_retained: 1, clean_claim: false}
+  - id: all-queries-failed
+    given: {osv_batches_expected: 3, osv_batches_completed: 0}
+    expect: {scan_outcome: failed, no_findings_claim: false, failure_in_digest: true}
+  - id: optional-enrichment-unavailable
+    given: {osv_complete: true, advisory_severity: critical, optional_nvd_enrichment: failed}
+    expect: {critical_alert_eligible: true, enrichment_status: unavailable}
+  - id: older-audit-not-daily-failure
+    given: {audit_cadence: twice_weekly, last_audit_within_cadence: true, new_audit_today: false}
+    expect: {latest_audit_date_shown: true, audit_falsely_marked_failed: false}
+  - id: missing-hourly-slot
+    given: {monitoring_enabled_hours: 24, dependabot_expected_slots: 24, dependabot_successful_slots: 23, missing_slot: 1}
+    expect: {dependabot_coverage: '23/24', missing_slots: 1, all_scans_completed_claim: false}
+  - id: unstructured-audit-result
+    given: {audit_agent_completed: true, structured_findings_missing: true}
+    expect: {audit_findings: unavailable, prose_inference_calls: 0, zero_findings_claim: false}
+
+delivery:
+  - id: concurrent-digest-retry
+    given: {report_id: same_window, concurrent_workers: 2, previously_accepted: true}
+    expect: {additional_provider_sends: 0}
+  - id: queue-is-not-provider-acceptance
+    given: {internal_api_response: queued, provider_result: pending}
+    expect: {delivery_state: queued, delivered_claim: false}
+  - id: uncertain-provider-outcome
+    given: {send_request_timed_out: true, provider_acceptance: unknown, provider_idempotency_available: false}
+    expect: {delivery_state: unknown, blind_retry: false, operator_visible: true}
+  - id: dry-run-no-side-effects
+    given: {mode: dry_run, new_critical_findings: 1}
+    expect: {emails: 0, persistent_writes: 0, reporting_ai_calls: 0}
+
+privacy:
+  - id: untrusted-advisory-content
+    given: {advisory_contains_html: true, raw_agent_transcript_available: true, credentials_in_raw_error: true}
+    expect: {html_escaped: true, transcript_in_email: false, raw_error_in_email: false, credentials_in_receipt: false}
+  - id: environment-and-recipient-isolation
+    given: {environment: development, server_owner_email_configured: true, advisory_requests_other_recipient: true}
+    expect: {recipient_source: server_owner_configuration, production_fix_claim: false, content_selected_recipient: false}
+  - id: malicious-link-is-not-clickable
+    given: {source_urls: ['javascript:alert(1)', 'https://untrusted.example/phish', 'https://user:password@trusted.example/']}
+    expect: {source_urls_rendered_as_links: 0, credentials_in_email: false}
+  - id: no-recipient
+    given: {server_owner_email_configured: false, admin_notify_email_configured: false}
+    expect: {emails: 0, delivery_state: unavailable, missing_configuration_visible: true}

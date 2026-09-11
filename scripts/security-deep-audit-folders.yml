@@ -1,7 +1,8 @@
 # =============================================================================
 # Security Deep Audit — Folder Configuration
 #
-# Defines which folders are audited by security-deep-audit.sh.
+# Historical AI audit folder requirements retained for TASK-8338.
+# The automatic security-deep-audit.sh launcher was removed under TASK-7543.
 # Each entry is a folder path (relative to project root) with metadata.
 #
 # Fields:

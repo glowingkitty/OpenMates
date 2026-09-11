@@ -9,10 +9,26 @@ argument-hint: "<feature or existing specification ID>"
 
 1. Search `specifications/generated/registry.yml`, existing Specifications,
    semantic pages, Plans, tests, source surfaces, and tracker context before
-   drafting. Reuse shared models and architecture assertions rather than copying.
+   drafting. Prefer extending an existing Specification for the owning feature,
+   app skill, or shared behavior before creating a separate bundle. Record the
+   closest existing contracts and why they cannot cover the behavior when a new
+   bundle is necessary. Reuse shared models and architecture assertions rather
+   than copying; individual focus-mode contracts reference the shared lifecycle.
 2. Create or edit `specification.yml` plus `examples.yml` only in the active
    session worktree. Keep `specification.yml` compact; examples remain separate
-   and are loaded for ambiguity and test derivation.
+   and are loaded for ambiguity and test derivation. Every new or changed
+   requirement/assertion must have one or two concrete examples in `examples.yml`
+   mapped via case `assertion_ids: [<id>]` or assertion
+   `depends_on: [examples.<group>]` (one or two cases in that group), with realistic inputs or state, the action,
+   and observable expected behavior. Write examples for the person approving the
+   requirement: short natural-language `given`, `when`, `then` sentences, or a
+   concrete `input: {language: sh, code: ...}` command and readable `expect` output.
+   Do not use dictionaries of internal flags, fixture IDs and booleans as the
+   human-facing example. Keep machine fixtures in tests. A reader must understand
+   the scenario without decoding field names or nested tables.
+   Reuse and update suitable examples where
+   possible. Check coverage against the changed assertions before validation;
+   an unrelated example elsewhere in the bundle does not satisfy this rule.
 3. Validate with `python3 scripts/specifications.py validate <bundle>`, then run
    `python3 scripts/specifications.py generate`.
 4. Generate and privately upload the exact-fingerprint approval document:
@@ -23,6 +39,11 @@ argument-hint: "<feature or existing specification ID>"
 
    Paste the returned Markdown PDF link into the chat before asking for approval.
    The PDF must contain the complete `specification.yml` and `examples.yml`.
+   Inspect representative rendered PDF pages: each requirement must show its
+   concrete examples directly beneath it as paragraphs or code blocks, with readable inputs and expected
+   results. Flattened field/value tables are not acceptable examples. YAML counts or a detached examples appendix do not prove this.
+   The renderer checks coverage for added/changed requirements when generating
+   new reviews; do not alter existing approved semantics to satisfy this check.
    Before asking for approval, verify that the review artifact shows changed text using inline green `+`
    insertions and inline red `-` deletions while unchanged text stays neutral.
 5. Briefly explain affected assertions, surfaces, and evidence invalidation next
@@ -43,6 +64,10 @@ argument-hint: "<feature or existing specification ID>"
 ## Rules
 
 - Specifications define durable truth; never modify one merely to match code or tests.
+- Describe observable agent behavior in the owning product contract when it is a
+  promised outcome; keep prompt wording and implementation tactics in the app's
+  instruction sources. Backfilling documents current behavior without treating
+  known defects as approved truth.
 - New features and semantic changes require approval. Implementation-only work
   references an existing approved Specification and refreshes evidence.
 - Canonical surfaces are REST API, CLI, SDKs (npm/pip), and GUI (web/Apple).

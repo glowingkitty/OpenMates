@@ -1,0 +1,96 @@
+schema_version: 1
+specification: architecture.connected-accounts@2
+connection_surfaces:
+  - id: provision-in-cli-use-in-sdk
+    given: {connection_provisioned_via: cli, sdk: pip, first_party_authorization_valid: true}
+    action: execute_connected_skill
+    expect: {real_product_execution: true, sdk_oauth_flow: false}
+  - id: sdk-missing-connection
+    given: {sdk: npm, connected_account_available: false}
+    expect: {provider_called: false, connect_via_cli_or_web_required: true, sdk_connection_method: false}
+  - id: sdk-scope-upgrade
+    given: {sdk: pip, connection_exists: true, provider_scope_insufficient: true}
+    expect: {reconnect_via_cli_or_web_required: true, sdk_oauth_start: false, raw_token_workaround: false}
+connection:
+  - id: reuse-account-not-permissions
+    given: {provider: google, connected_apps: [calendar], requested_app: mail}
+    expect: {account_reusable: true, mail_access_automatic: false, additional_consent_if_required: true}
+  - id: callback-replay-or-wrong-owner
+    given: {oauth_state: already_consumed_or_other_owner}
+    expect: {rejected: true, credentials_disclosed: false}
+permissions:
+  - id: default-mutation
+    given: {action: update, runtime_mode: always_ask}
+    expect: {provider_called_before_approval: false, exact_change_review: true}
+  - id: stale-approval
+    given: {approved_calendar: calendar_a, current_requested_calendar: calendar_b}
+    expect: {old_approval_usable: false}
+  - id: automatic-action-no-surprise-prompt
+    given: {runtime_mode: allow_automatically, within_effective_access: true}
+    expect: {extra_approval_prompt: false, technical_checks_enforced: true}
+interactive:
+  - id: key-alone
+    given: {developer_key: true, client_account_authorization: false}
+    expect: {connected_account_execution: denied}
+  - id: complete-active-turn-not-next-week
+    given: {valid_submitted_turn_ref: true, device_disconnected: true}
+    expect: {current_scoped_action_may_finish: true, future_scheduled_run_authorized: false}
+  - id: partial-broker-failure
+    given: {first_ref_created: true, second_input_invalid: true}
+    expect: {provider_called: false, first_ref_cleaned: true, safe_error: true}
+lifecycle:
+  - id: revoked-provider-grant
+    given: {provider_response: invalid_grant}
+    expect: {reconnect_action: true, infinite_refresh_retry: false, raw_token_logged: false}
+  - id: rotation-race
+    given: {parallel_refreshes: 2, rotating_provider: true}
+    expect: {refresh_coordinated: true, latest_valid_credential_preserved: true}
+workflow_consent:
+  - id: select-versus-enable
+    given: {workflow_state: draft}
+    action: select_connected_account
+    expect: {inline_title: Runs even when your devices are offline, server_grant_created: false}
+  - id: single-activation-review
+    given: {selected_account: synthetic_account, resources: [synthetic_calendar], actions: [read], activation_valid: true}
+    action: review_access_then_enable_workflow
+    expect: {grant_created: true, extra_consent_modal: false, expiry_default: until_revoked_or_deleted}
+  - id: failed-activation
+    given: {activation_valid: false}
+    action: enable_workflow
+    expect: {usable_new_grant: false}
+workflow_privacy:
+  - id: minimal-weekly-summary
+    given: {calendar: synthetic_calendar, window_days: 14, needed_fields: [title, start, end]}
+    expect: {unneeded_descriptions_fetched: false, ai_destination_disclosed_if_used: true, retained_private_content_encrypted: true}
+  - id: honest-google-boundary
+    given: {provider_scope: broader_than_selected_calendar}
+    expect: {details_distinguish_provider_and_openmates_enforcement: true, zero_server_access_claim: false}
+workflow_lifecycle:
+  - id: pause-and-resume
+    action: pause_workflow
+    expect: {new_runs_stopped: true, authorization_retained: true, retention_visible: true}
+  - id: expanded-authority
+    given: {old_actions: [read], new_actions: [read, write]}
+    expect: {new_review_required: true, old_grant_cannot_write: true}
+  - id: cosmetic-change
+    action: rename_workflow
+    expect: {reapproval_required: false}
+  - id: independent-revocation
+    given: {credential_used_by: [workflow_a, workflow_b]}
+    action: delete_workflow_a
+    expect: {workflow_a_calls_denied: true, workflow_b_grant_preserved: true}
+  - id: last-grant-revoked
+    given: {retained_grant_count: 1}
+    action: revoke_grant
+    expect: {server_credential_removed: true, queued_provider_calls_denied: true, completed_effects_undone: false}
+workflow_offline:
+  - id: scheduled-provider-execution-without-client
+    given: {grant_enabled: true, authorizing_clients_connected: false, client_per_run_token: false, isolated_resource_authorized: true}
+    action: scheduled_real_provider_read_and_bounded_synthetic_write
+    expect: {worker_execution_confirmed: true, provider_effect_verified_after_observer_reconnect: true, retained_results_encrypted: true, cleanup_verified: true}
+  - id: paused-workflow-does-not-dispatch
+    given: {workflow_paused: true, schedule_due: true}
+    expect: {new_provider_call: false, grant_retained: true}
+  - id: revoke-before-queued-operation
+    given: {queued_operation: true, grant_revoked_before_dispatch: true}
+    expect: {provider_called: false, retry_authorized: false}

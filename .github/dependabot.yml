@@ -1,27 +1,94 @@
 version: 2
+
+# Security updates are enabled in repository settings and bypass these cooldowns.
+# Routine releases wait here so newly published malicious or withdrawn artifacts
+# do not enter OpenMates merely because they are the latest available version.
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    target-branch: "dev"
+  - package-ecosystem: npm
+    directory: /
+    target-branch: dev
     schedule:
-      interval: "daily"
+      interval: weekly
+      day: monday
       time: "04:30"
-      timezone: "Etc/UTC"
-    open-pull-requests-limit: 5
-    cooldown:
-      default-days: 2
-      semver-major-days: 14
-      semver-minor-days: 2
-      semver-patch-days: 2
+      timezone: Etc/UTC
+    open-pull-requests-limit: 10
+    labels: [dependencies, javascript]
+    cooldown: &safe-cooldown
+      default-days: 14
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 14
     groups:
-      npm-routine:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-      npm-major:
-        patterns:
-          - "*"
-        update-types:
-          - "major"
+      tiptap:
+        patterns: ["@tiptap/*", "prosemirror-*"]
+        update-types: [minor, patch]
+      opentelemetry:
+        patterns: ["@opentelemetry/*"]
+        update-types: [minor, patch]
+      remotion:
+        patterns: [remotion, "@remotion/*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: pip
+    directories:
+      - /backend
+      - /backend/admin_sidecar
+      - /backend/apps/pdf
+      - /backend/core/api
+      - /backend/core/vault/setup
+      - /backend/engineering_control_plane
+      - /backend/preview
+      - /backend/status
+      - /backend/upload
+      - /scripts/finance
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:40"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 10
+    labels: [dependencies, python]
+    cooldown: *safe-cooldown
+
+  - package-ecosystem: docker
+    directories:
+      - /
+      - /backend/admin_sidecar
+      - /backend/core
+      - /backend/core/api
+      - /backend/core/directus
+      - /backend/core/directus/setup
+      - /backend/core/vault/setup
+      - /backend/engineering_control_plane
+      - /backend/preview
+      - /backend/status
+      - /backend/upload
+      - /backend/upload/vault
+      - /deployment/engineering_control_plane
+      - /frontend/apps/web_app
+      - /frontend/packages/openmates-cli/templates/core
+      - /frontend/packages/openmates-cli/templates/preview
+      - /frontend/packages/openmates-cli/templates/upload
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:50"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 10
+    labels: [dependencies, docker]
+    cooldown: *safe-cooldown
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 10
+    labels: [dependencies, github-actions]
+    cooldown: *safe-cooldown

@@ -1,5 +1,4 @@
 import type { DemoChat } from "./types";
-import { whoDevelopsOpenmatesChat } from "./data/who_develops_openmates";
 import { LEGAL_CHATS } from "../legal";
 import {
   getNewsletterChatById as _getNewsletterChatById,
@@ -79,10 +78,7 @@ export { loadDefaultInspirations } from "./loadDefaultInspirations";
  * IMPORTANT: ALL intro chats use translation keys from i18n/locales/{locale}.json
  * You MUST use translateDemoChat() or translateDemoChats() to resolve translations at runtime.
  */
-export const INTRO_CHATS: DemoChat[] = [
-  whoDevelopsOpenmatesChat,
-  // Legal Privacy, Terms, and Imprint are not intro chats; they are accessed via /legal/* routes.
-].sort((a, b) => a.metadata.order - b.metadata.order);
+export const INTRO_CHATS: DemoChat[] = [];
 
 // Legacy alias for backwards compatibility - prefer using INTRO_CHATS
 export const DEMO_CHATS = INTRO_CHATS;

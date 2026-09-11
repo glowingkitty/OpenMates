@@ -9,7 +9,7 @@ from typing import Any
 
 
 SHARED_TASK_FIELDS = (
-    "task_id,status,assignee_type,assignee_hash,primary_chat_id,plan_id,"
+    "task_id,status,assignee_type,assignee_identity,assignee_hash,primary_chat_id,plan_id,"
     "task_type,verification_id,due_at,priority,position,queue_state,version,created_at,"
     "updated_at,started_at,completed_at,blocked_reason_code,ai_execution_state,"
     "encrypted_title,encrypted_description,encrypted_tags,encrypted_linked_project_ids,"

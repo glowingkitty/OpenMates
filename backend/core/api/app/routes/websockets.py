@@ -597,7 +597,7 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent connected-account receipt {action_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account receipt {action_id}")
-                    elif event_type == "focus_mode_activated":
+                    elif event_type in ("focus_mode_activated", "focus_mode_pending"):
                         # Focus mode was auto-confirmed after countdown. Push the activation
                         # event to all connected devices so the client can update its local
                         # metadata (e.g., context menu focus indicator) in real-time.
@@ -612,10 +612,11 @@ async def listen_for_cache_events(app: FastAPI):
                                     try:
                                         await manager.send_personal_message(
                                             {
-                                                "type": "focus_mode_activated",
+                                                "type": event_type,
                                                 "payload": {
                                                     "chat_id": chat_id,
                                                     "focus_id": focus_id,
+                                                    **({"embed_id": payload.get("embed_id"), "expires_at": payload.get("expires_at")} if event_type == "focus_mode_pending" else {}),
                                                 }
                                             },
                                             user_id,
@@ -3438,6 +3439,14 @@ async def websocket_endpoint(
                         f"{user_id}/{device_fingerprint_hash}: {list(payload.keys())}"
                     )
 
+            elif message_type == "project_task_sync_subscribe":
+                try:
+                    await websocket.app.state.project_task_sync.subscribe(websocket, user_id, payload)
+                except Exception as exc:
+                    logger.warning("Task sync subscription rejected: %s", type(exc).__name__)
+                    code = "access_revoked" if isinstance(exc, PermissionError) or type(exc).__name__ == "TeamPermissionError" else "sync_deferred"
+                    await websocket.send_json({"type": "project_task_sync_error", "payload": {"code": code}})
+
             elif message_type == "project_remote_access_register":
                 await handle_project_remote_access_register(
                     websocket=websocket,
@@ -3450,6 +3459,7 @@ async def websocket_endpoint(
                 )
 
             elif message_type == "project_remote_access_heartbeat":
+                websocket.app.state.project_task_sync.reconcile(websocket)
                 await handle_project_remote_access_heartbeat(
                     websocket=websocket,
                     cache_service=cache_service,
@@ -3529,6 +3539,8 @@ async def websocket_endpoint(
             # Ensure cleanup happens even with unexpected errors, passing the reason.
             manager.disconnect(websocket, reason=unexpected_error_reason)
     finally:
+        if hasattr(websocket.app.state, "project_task_sync"):
+            websocket.app.state.project_task_sync.disconnect(websocket)
         for task in list(phased_sync_tasks):
             if not task.done():
                 task.cancel()

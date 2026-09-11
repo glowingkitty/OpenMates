@@ -11,32 +11,22 @@
 //   Phase 2 — subsequent press when permission is 'granted':
 //     Recording starts immediately, no popup.
 //
-//   'denied' state:
-//     mousedown/touchstart is a no-op; the hint in the UI already explains
-//     the user must enable the mic in browser settings.
-//
-// No alert() calls — all feedback is through the store's showRecordHint /
-// micPermissionState fields which drive reactive UI in MessageInput.
+// Blocked attempts show a regular notification and trigger button feedback.
+// Permission observation alone never displays a warning.
 
 import { get } from "svelte/store";
+import { text } from "../../../i18n/translations";
+import { notificationStore } from "../../../stores/notificationStore";
 import { recordingState, updateRecordingState } from "../recordingStore";
 
-// --- Module-level timers ---
-let recordHintTimeout: ReturnType<typeof setTimeout> | null = null;
-
-// --- Helpers ---
-
-/**
- * Show a hint below the action buttons for `durationMs`, then hide it.
- * Cancels any previously scheduled hint dismissal.
- */
-function showHintFor(durationMs = 2500) {
-  updateRecordingState({ showRecordHint: true });
-  clearTimeout(recordHintTimeout ?? undefined);
-  recordHintTimeout = setTimeout(() => {
-    updateRecordingState({ showRecordHint: false });
-    recordHintTimeout = null;
-  }, durationMs);
+/** Give feedback only in response to an explicit recording attempt. */
+function showBlockedMicrophone() {
+  updateRecordingState({
+    isRecordButtonPressed: false,
+    showRecordHint: false,
+    blockedMicAttempt: get(recordingState).blockedMicAttempt + 1,
+  });
+  notificationStore.warning(get(text)("enter_message.record_audio.microphone_blocked"));
 }
 
 // --- Permission ---
@@ -77,7 +67,6 @@ export function startRecording(x: number, y: number) {
     showRecordAudioUI: true,
     showRecordHint: false,
   });
-  clearTimeout(recordHintTimeout ?? undefined);
 }
 
 export function stopRecordAttempt(
@@ -96,8 +85,6 @@ export function handleStopRecordingCleanup(): void {
     isRecordButtonPressed: false,
     isRecordingActive: false,
   });
-  clearTimeout(recordHintTimeout ?? undefined);
-  recordHintTimeout = null;
 }
 
 // --- Event Handlers ---
@@ -108,8 +95,7 @@ export async function handleRecordMouseDown(event: MouseEvent) {
   const { micPermissionState } = get(recordingState);
 
   if (micPermissionState === "denied") {
-    // Permission permanently blocked — hint is already shown by the UI reactively.
-    // No-op: user must go to browser settings.
+    showBlockedMicrophone();
     return;
   }
 
@@ -125,8 +111,7 @@ export async function handleRecordMouseDown(event: MouseEvent) {
   if (granted) {
     startRecording(event.clientX, event.clientY);
   } else {
-    updateRecordingState({ isRecordButtonPressed: false });
-    showHintFor(2500);
+    showBlockedMicrophone();
   }
 }
 
@@ -156,7 +141,10 @@ export async function handleRecordTouchStart(event: TouchEvent) {
 
   const { micPermissionState } = get(recordingState);
 
-  if (micPermissionState === "denied") return;
+  if (micPermissionState === "denied") {
+    showBlockedMicrophone();
+    return;
+  }
 
   if (micPermissionState === "granted") {
     if (event.touches.length > 0) {
@@ -172,8 +160,7 @@ export async function handleRecordTouchStart(event: TouchEvent) {
   if (granted && event.touches.length > 0) {
     startRecording(event.touches[0].clientX, event.touches[0].clientY);
   } else {
-    updateRecordingState({ isRecordButtonPressed: false });
-    showHintFor(2500);
+    showBlockedMicrophone();
   }
 }
 

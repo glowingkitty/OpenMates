@@ -12,7 +12,7 @@ or settings/memories category. OpenMates memories are user-facing, app-scoped
 encrypted data categories that users can manage in Settings > Apps and share
 with a mate only after per-conversation permission.
 
-This is not for OpenCode memory, agent memory, browser storage, or generic notes.
+This is not for Codex memory, agent memory, browser storage, or generic notes.
 
 ## Core Product Rule: Keep Memory Schemas Minimal
 

@@ -9,7 +9,11 @@
   import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  import { fetchAndDecryptAudio, releaseCachedAudio } from '../audio/audioEmbedCrypto';
+  import { createAudioUrlOwner } from '../audio/audioEmbedCrypto';
+  const audioUrlOwner = createAudioUrlOwner();
+  const fetchAndDecryptAudio = audioUrlOwner.fetch;
+  const releaseCachedAudio = audioUrlOwner.release;
+  onDestroy(audioUrlOwner.destroy);
   import { getModelDisplayName } from '../../../utils/modelDisplayName';
 
   interface MusicFileVariant {

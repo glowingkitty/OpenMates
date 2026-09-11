@@ -23,7 +23,8 @@ def _task(task_id: str, **overrides):
         "id": f"row-{task_id}",
         "task_id": task_id,
         "status": "todo",
-        "assignee_type": "ai",
+        "assignee_type": "openmates",
+        "assignee_identity": "openmates",
         "priority": 0,
         "position": 0,
         "version": 1,
@@ -43,6 +44,19 @@ def _service(tasks, *, policy=None, plans=None):
     plan_methods = AsyncMock()
     plan_methods.get_plan.side_effect = lambda plan_id, _user_id, _team_id=None: (plans or {}).get(plan_id)
     return TaskAdmissionService(methods, policy=policy), methods, plan_methods
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated,tasks.execution.capacity-scoped
+@pytest.mark.asyncio
+async def test_external_ai_tasks_never_enter_native_openmates_admission() -> None:
+    service, methods, _plans = _service([
+        _task("opencode", assignee_type="external_ai", assignee_identity="opencode"),
+    ])
+
+    result = await service.admit_available("user-1", now=200)
+
+    assert result["admitted_task_ids"] == []
+    methods.claim_ai_task.assert_not_awaited()
 
 
 # contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped

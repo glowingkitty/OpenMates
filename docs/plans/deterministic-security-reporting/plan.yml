@@ -1,0 +1,533 @@
+schema_version: 2
+id: deterministic-security-reporting
+title: Deterministic Daily Security Reporting
+status: implementing
+goal: 'Stop emails for every hourly security scan, consolidate results into a daily security issues email, retain
+  deduplicated immediate critical alerts, and use no AI inference for work that can be performed reliably and deterministically.
+
+  '
+specifications:
+- id: architecture.security-reporting
+  version: 1
+  status: approved
+  fingerprint: c83d857845771131cc1d9278b500e71078b93c3662e2d7cab0cfa543f7221516
+  assertions:
+  - security-reporting.processing.deterministic
+  - security-reporting.notifications.daily-not-per-scan
+  - security-reporting.findings.canonical-lifecycle
+  - security-reporting.alerts.new-critical-only
+  - security-reporting.coverage.no-false-clean
+  - security-reporting.digest.actionable-content
+  - security-reporting.delivery.durable-observable
+  - security-reporting.content.operator-boundary
+scope:
+  in:
+  - Durable scan outcomes, canonical findings, critical incidents and email receipts.
+  - Daily 08:30 UTC email including weekends and clean days.
+  - Structured audit/red-team snapshots with dates and explicit unavailable states.
+  - Removal of reporting-only agents and routine security completion emails.
+  out:
+  - Changing substantive audits, scan frequency, remediation eligibility or permissions.
+  - Unrelated cron notifications, reliability/operational digests or Discord delivery.
+  - Public APIs, product CLI commands, SDKs, web/Apple screens or production rollout.
+context_discovery:
+  tracker: Original parent TASK-3626; preserve TASK-1300 ledger and TASK-2749 delivery slice attribution. Actual
+    Codex URL recorded in Task activity.
+  docs:
+  - docs/architecture/infrastructure/cronjobs.md
+  - docs/plans/dependency-supply-chain-hardening/plan.yml
+  code_patterns:
+  - scripts/_eu_vuln_helper.py
+  - scripts/_dependabot_helper.py
+  - scripts/_security_helper.py
+  - scripts/_nightly_report.py
+  - scripts/_opencode_utils.py
+  - scripts/dependency_security_schedule.py
+  tests:
+  - backend/tests/test__eu_vuln_helper.py
+  - backend/tests/test_dependency_security_schedule.py
+  - scripts/tests/test_dependency_update_policy.py
+  findings:
+  - Clean EU scans currently launch a reporting agent and generic completion email.
+  - OSV batch failures can become an empty finding list; collection completeness must be explicit.
+  - Scanner runtime state already has isolated paths and atomic writes; preserve remediation state.
+  - Latest-only nightly reports are insufficient for a day's transitions.
+  - Internal queue acceptance is not email-provider acceptance.
+implementation_state:
+  subject_commit: 7638181d2db14e13654f1c77af2e87db050b8530
+  worktree_evidence: test-results/security-reporting/offline/evidence.json
+  note: Subject commit is the preserved baseline; evidence additionally binds current uncommitted source hashes.
+    Replace with integrated commit evidence before final verification.
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-09-05'
+    review_artifact: /tmp/opencode/specification-approvals/architecture.security-reporting-c83d857845771131.approval.json
+    verification_command: python3 scripts/specifications.py check-approval specifications/architecture/security-reporting
+      --session 7261
+    note: Exact-hash approval is stored by the control-plane approval ledger; approve does not rewrite the reviewed
+      YAML status or fingerprint.
+  plan:
+    status: approved
+    approved_at: '2026-09-05'
+decisions:
+- id: D-1
+  status: active
+  decision: Separate deterministic reporting from substantive audit and remediation agents.
+  reason: Approved requirement removes reporting inference without changing remediation policy.
+  decided_at: '2026-09-05'
+- id: D-2
+  status: active
+  decision: 'September 7 user hold supersedes preserved hourly scanner/agent scheduling: no automatic OpenCode launches,
+    no scheduler activation by this task; coordinator owns scheduling. Workflow migration remains TASK-8338 for
+    September 14.'
+  reason: Explicit continuation instructions; preserve all original Specification and Plan approvals.
+  decided_at: '2026-09-07'
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  approach: Add failing collector tests before any scanner behavior changes.
+  outcome: planned
+  recorded_at: '2026-09-05'
+handoff:
+  current_task_id: TASK-3
+  next_action: Coordinator review of the exact no-agent collection configuration and admission for current-data
+    collection/labeled test delivery; complete scoped integration and deployed email-artifact proof after admission.
+  command: python3 scripts/verify_security_reporting.py --prepare-test --output test-results/security-reporting/private-review
+  expected_outcome: Frozen private review artifact from real collected data, without sending. Empty history is refused.
+  last_verified_commit: 7638181d2db14e13654f1c77af2e87db050b8530
+  blocker: null
+  offline_evidence: test-results/security-reporting/offline/evidence.json
+  coordinator_handoff: /home/superdev/projects/OpenMates/logs/codex-orchestration/2026-09-07-6989/7261-execution-handoff.md
+scenarios:
+- id: S-1
+  title: Quiet scans with truthful history
+  given:
+  - Hourly dependency scans remain enabled.
+  when:
+  - Scans return complete
+  - incomplete
+  - failed or unchanged results.
+  then:
+  - Record outcomes without reporting inference and preserve remediation.
+- id: S-2
+  title: Critical alert deduplication
+  given:
+  - Two scanners observe aliases of the same critical finding.
+  when:
+  - Concurrent runs
+  - restarts and delivery retries occur.
+  then:
+  - Keep one canonical incident and never resend accepted delivery.
+- id: S-3
+  title: One actionable daily report
+  given:
+  - The UTC window contains findings
+  - resolutions and missing scan slots.
+  when:
+  - The daily timer fires or catches up.
+  then:
+  - Send one current digest with truthful counts and coverage.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: No reporting inference; preserve remediation and dry-run immutability; record partial failures and positive
+    resolution evidence.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-STATE
+- id: AC-2
+  scenario: S-2
+  text: Alias overlap, concurrency, escalation, recurrence, rejected sends and unknown outcomes follow approved
+    incident and privacy rules.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-DELIVERY
+  - V-LIVE
+- id: AC-3
+  scenario: S-3
+  text: One daily UTC digest includes weekends, bounded detail with complete totals and partial history, without
+    routine security emails or unrelated notification regressions.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DIGEST
+  - V-LIVE
+  - V-EMAIL
+  - V-DEPLOY
+technical_boundaries:
+  persistence: 'Use private host-local SQLite under logs/security-reporting, with transactions, schema versioning
+    and bounded lock waits. Keep run IDs, alias mappings, transitions, immutable report payloads and delivery claims
+    separate from remediation tracking. Retain open incidents and pending/unknown deliveries; prune only completed
+    history beyond 30 days. Do not fabricate historical runs.
+
+    '
+  collection: 'Persist scan results before remediation dispatch and record dispatch outcomes separately. Preserve
+    findings from partially failed scans. Verify resolution against complete inventories and affected version ranges.
+    Ingest structured audit snapshots by source/timestamp; missing structure remains unavailable.
+
+    '
+  delivery: 'Reuse existing configured email transport/rendering after verifying acceptance and idempotency semantics.
+    Persist queued versus provider-accepted states; unknown outcomes require reconciliation, not blind retries.
+    If an internal receipt extension is needed, retain service-token authentication, bounded payloads, stable idempotency
+    keys and configured recipients. No public access, user data, ciphertext, user credits or arbitrary recipient
+    input is involved. Definite failures use bounded backoff independently of scan observations. Before implementation
+    of retries, verify transport idempotency/reconciliation capability. Persist provider message ID when available,
+    stable request key, payload hash, attempt timestamp and outcome. Reconcile unknown outcomes using provider lookup
+    or retry the same supported idempotency key; if neither is supported keep unknown visible for operator reconciliation
+    and do not resend.
+
+    '
+  scheduling: 'One host systemd daily timer at 08:30 UTC with persistent catch-up owns digest generation; a bounded
+    retry tick sends pending attempts, never extra digests. Preserve hourly scanner cron entries at minutes 30 and
+    35 and all unrelated schedules. Installer check mode verifies ownership without mutating state.
+
+    '
+  rollout: 'Deploy collection and delivery infrastructure first. Verify a labeled dev email and durable receipt
+    before enabling the timer and suppressing generic security emails. Remove clean/no-change summary agents in
+    the cutover. Keep state on rollback and stop only the new reporting timers, never scans or remediation. Document
+    missing history and missed windows rather than sending a backlog burst. Record the deployed commit before claiming
+    completion.
+
+    '
+tests:
+- id: T-STATE
+  type: pytest
+  file: scripts/tests/test_security_reporting.py
+  command: python3 -m pytest scripts/tests/test_security_reporting.py scripts/tests/test_security_scan_reporting.py
+    backend/tests/test__eu_vuln_helper.py backend/tests/test__dependabot_helper.py scripts/tests/test_dependency_update_policy.py
+    -q
+  covers:
+  - AC-1
+  assertions:
+  - No reporting agent invocation
+  - dry-run immutability
+  - partial OSV failures
+  - canonical aliases
+  - resolution evidence
+  - durable history
+  - failed inventory
+  - malformed responses
+  - missing severity data
+  - optional enrichment failure labeled
+  - unstructured audit and red-team results unavailable
+  - source-specific freshness
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed
+      command: python3 -m pytest scripts/tests/test_security_reporting.py scripts/tests/test_security_scan_reporting.py
+        scripts/tests/test_security_reporting_schedule.py backend/tests/test__eu_vuln_helper.py -q --disable-warnings
+        --tb=short
+      run_id: codex-tool-2029e9
+      timestamp: '2026-09-07T18:52:53.924869+00:00'
+      subject_commit: 7638181d2db14e13654f1c77af2e87db050b8530
+      summary: Observed local red regressions before fixes in this Codex transcript; initial collector/schedule
+        run had 8 failures, delivery readiness run had 3. Timestamp records this evidence entry; transcript tool
+        IDs identify original output. Historical delivery-slice evidence remains separate.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_security_reporting.py scripts/tests/test_security_scan_reporting.py
+        scripts/tests/test_security_reporting_runner.py scripts/tests/test_security_reporting_schedule.py scripts/tests/test_security_digest.py
+        scripts/tests/test_security_report_delivery.py backend/tests/test__eu_vuln_helper.py backend/tests/test__dependabot_helper.py
+        scripts/tests/test_dependency_update_policy.py -q --tb=short --color=no
+      run_id: 7261-offline-2026-09-07T19:00:04.452177+00:00
+      timestamp: '2026-09-07T19:00:04.452177+00:00'
+      subject_commit: 7638181d2db14e13654f1c77af2e87db050b8530
+      artifact: test-results/security-reporting/offline/evidence.json
+      summary: 92 offline tests pass; working source hashes recorded. Not deployed/live/email proof.
+- id: T-DELIVERY
+  type: pytest
+  file: scripts/tests/test_security_report_delivery.py
+  command: python3 -m pytest scripts/tests/test_security_report_delivery.py scripts/tests/test_security_reporting_runner.py
+    scripts/tests/test_security_reporting_schedule.py -q
+  covers:
+  - AC-2
+  assertions:
+  - Concurrent claims
+  - escalation and recurrence
+  - no resend after acceptance
+  - unknown outcome reconciliation
+  - bounded rejection retries
+  - safe links and recipients
+  - unknown with supported idempotency reuses request key
+  - unknown without idempotency never resends
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed
+      command: python3 -m pytest scripts/tests/test_security_reporting_runner.py backend/tests/test__eu_vuln_helper.py
+        -q --tb=short --color=no
+      run_id: codex-tool-d99c19
+      timestamp: '2026-09-07T18:52:53.924869+00:00'
+      subject_commit: 7638181d2db14e13654f1c77af2e87db050b8530
+      summary: Observed local red regressions before fixes in this Codex transcript; initial collector/schedule
+        run had 8 failures, delivery readiness run had 3. Timestamp records this evidence entry; transcript tool
+        IDs identify original output. Historical delivery-slice evidence remains separate.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_security_reporting.py scripts/tests/test_security_scan_reporting.py
+        scripts/tests/test_security_reporting_runner.py scripts/tests/test_security_reporting_schedule.py scripts/tests/test_security_digest.py
+        scripts/tests/test_security_report_delivery.py backend/tests/test__eu_vuln_helper.py backend/tests/test__dependabot_helper.py
+        scripts/tests/test_dependency_update_policy.py -q --tb=short --color=no
+      run_id: 7261-offline-2026-09-07T19:00:04.452177+00:00
+      timestamp: '2026-09-07T19:00:04.452177+00:00'
+      subject_commit: 7638181d2db14e13654f1c77af2e87db050b8530
+      artifact: test-results/security-reporting/offline/evidence.json
+      summary: 92 offline tests pass; working source hashes recorded. Not deployed/live/email proof.
+- id: T-DIGEST
+  type: pytest
+  file: scripts/tests/test_security_digest.py
+  command: python3 -m pytest scripts/tests/test_security_digest.py scripts/tests/test_security_reporting.py scripts/tests/test_security_reporting_runner.py
+    scripts/tests/test_security_reporting_schedule.py -q
+  covers:
+  - AC-3
+  assertions:
+  - UTC half-open windows
+  - same-day resolution
+  - missing slots
+  - partial first-run history
+  - one catch-up digest
+  - bounded complete totals
+  - dated audit results
+  - unrelated mail preserved
+  - idempotent scheduler install
+  - all four source notification paths suppressed only after cutover
+  - missing delivery receipt blocks cutover
+  - rollback preserves state and scans
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed
+      command: python3 -m pytest scripts/tests/test_security_reporting.py scripts/tests/test_security_scan_reporting.py
+        scripts/tests/test_security_reporting_schedule.py backend/tests/test__eu_vuln_helper.py -q --disable-warnings
+        --tb=short
+      run_id: codex-tool-2029e9
+      timestamp: '2026-09-07T18:52:53.924869+00:00'
+      subject_commit: 7638181d2db14e13654f1c77af2e87db050b8530
+      summary: Observed local red regressions before fixes in this Codex transcript; initial collector/schedule
+        run had 8 failures, delivery readiness run had 3. Timestamp records this evidence entry; transcript tool
+        IDs identify original output. Historical delivery-slice evidence remains separate.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_security_reporting.py scripts/tests/test_security_scan_reporting.py
+        scripts/tests/test_security_reporting_runner.py scripts/tests/test_security_reporting_schedule.py scripts/tests/test_security_digest.py
+        scripts/tests/test_security_report_delivery.py backend/tests/test__eu_vuln_helper.py backend/tests/test__dependabot_helper.py
+        scripts/tests/test_dependency_update_policy.py -q --tb=short --color=no
+      run_id: 7261-offline-2026-09-07T19:00:04.452177+00:00
+      timestamp: '2026-09-07T19:00:04.452177+00:00'
+      subject_commit: 7638181d2db14e13654f1c77af2e87db050b8530
+      artifact: test-results/security-reporting/offline/evidence.json
+      summary: 92 offline tests pass; working source hashes recorded. Not deployed/live/email proof.
+verifications:
+- id: V-LIVE
+  kind: deterministic_check
+  phase: green
+  required_for_done: true
+  covers:
+  - AC-2
+  - AC-3
+  status: pending
+  command: python3 scripts/verify_security_reporting.py --env dev --send-test
+  evidence:
+    status: pending
+    summary: 'Implement verifier: labeled current-data dev digest, provider receipt, same-ID replay without resend,
+      scoped suppression and timer checks.'
+- id: V-EMAIL
+  kind: artifact_review
+  phase: final
+  required_for_done: true
+  covers:
+  - AC-3
+  status: pending
+  command: python3 scripts/verify_security_reporting.py --render-proof --fixtures scripts/tests/fixtures/security-reporting
+    --output test-results/security-reporting/proof
+  evidence:
+    status: pending
+    summary: Synthetic production HTML/MIME and spec-owned proof timeline prepared; no video dispatch, frame review
+      or publication yet.
+  proof_contract:
+    producer: Implement the verifier to render production MIME/HTML using committed synthetic clean, findings, critical
+      and incomplete fixtures; capture the same HTML without rebuilding UI.
+    profiles:
+    - name: phone
+      width: 390
+      height: 844
+    - name: laptop
+      width: 1440
+      height: 900
+    artifacts: Hash-bound HTML/MIME, captioned videos and frame-review manifest under test-results/security-reporting/proof.
+    checks:
+    - Complete counts and dates
+    - incomplete status visible
+    - safe links
+    - readable bounded detail
+    - no clipping
+    - no private findings
+    - no generic resume-command boilerplate
+    delivery: Use create-demo-video and response-media delivery for the exact produced email artifacts; no generic
+      CLI terminal proof or new product route.
+  spec: security-reporting-email-proof.spec.ts
+  dispatch_commands:
+  - python3 scripts/tests.py run --spec security-reporting-email-proof.spec.ts --gate-deploy --expected-commit <integrated-sha>
+    --proof-video-profile web-phone
+  - python3 scripts/tests.py run --spec security-reporting-email-proof.spec.ts --gate-deploy --expected-commit <integrated-sha>
+    --proof-video-profile web-laptop
+- id: V-DEPLOY
+  kind: deterministic_check
+  phase: final
+  required_for_done: true
+  covers:
+  - AC-3
+  status: pending
+  command: 'python3 scripts/sessions.py deploy --session 7261 --title "feat: consolidate security notifications
+    into daily digest" --message "Use deterministic history and deduplicated critical alerts."'
+  evidence:
+    status: pending
+    summary: Record scoped dev commit, installed schedule check, live collector receipt and cutover. No production
+      rollout.
+  cutover_check_command: python3 scripts/verify_security_reporting.py --env dev --check-cutover
+  ordered_checks:
+  - Require initialized durable state and a provider-accepted labeled test receipt before enabling reporting.
+  - Verify exactly one daily timer and bounded retry ownership before switching generic mail suppression.
+  - Exercise dependabot, eu-vulns, security and redteam paths with a no-send transport; verify no reporting agents
+    or routine generic emails and unchanged substantive dispatch behavior.
+  - Exercise rollback against isolated scheduler/state fixtures; stop only reporting timers and retain scanner schedules
+    and persisted records.
+verification_order:
+- Focused deterministic collector and transport red/green tests first.
+- Authenticated internal API/worker acceptance checks against dev if delivery changes them; no public REST/WebSocket
+  changes.
+- CLI and npm/pip SDK phases not applicable; no product command changes.
+- Wire focused regression discovery into existing CI/daily tests after local and applicable internal dev checks.
+- Review generated email artifacts with phone/laptop captioned proof; no new product UI or preview route.
+- Scoped dev deployment then live reporting/scheduler checks and user email appearance confirmation.
+- Apple not affected.
+apple_impact:
+  affected_files:
+  - none
+  parity_expectations:
+  - Operator email reporting has no Apple counterpart.
+  verification:
+  - Not applicable.
+  intentional_native_differences:
+  - none
+tasks:
+- id: TASK-1
+  title: Record deterministic scan and finding history
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files: &id001
+  - scripts/security_reporting.py
+  - scripts/_eu_vuln_helper.py
+  - scripts/_dependabot_helper.py
+  - scripts/_security_helper.py
+  - scripts/tests/test_security_reporting.py
+  - backend/tests/test__eu_vuln_helper.py
+  ownership:
+    files: *id001
+    shared_files: []
+  verification_ids:
+  - T-STATE
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  implementation_notes: ' Offline implementation and regressions preserved; full completion depends on real integration/cutover
+    evidence.'
+- id: TASK-2
+  title: Render reports and deliver durable critical alerts
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-2
+    - S-3
+    acceptance_criteria:
+    - AC-2
+    - AC-3
+  expected_files: &id002
+  - scripts/security_report_delivery.py
+  - scripts/security_digest.py
+  - scripts/tests/test_security_report_delivery.py
+  - scripts/tests/test_security_digest.py
+  - scripts/tests/fixtures/security-reporting
+  ownership:
+    files: *id002
+    shared_files:
+    - scripts/security_reporting.py
+  verification_ids:
+  - T-DELIVERY
+  - T-DIGEST
+  - V-EMAIL
+  dependencies:
+  - TASK-1
+  blockers: []
+  follow_up_tasks: []
+  implementation_notes: ' Offline implementation and regressions preserved; full completion depends on real integration/cutover
+    evidence.'
+- id: TASK-3
+  title: Verify delivery and cut over notifications
+  implementation_notes: Explicitly cover _security_helper.run_audit and run_redteam plus Dependabot/EU callers;
+    use source job types rather than matching human titles. Extend the verifier with an allowlist-based reporting-call
+    guard and the ordered cutover checks. Offline implementation and regressions preserved; full completion depends
+    on real integration/cutover evidence.
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+  expected_files: &id003
+  - scripts/security_reporting_schedule.py
+  - scripts/verify_security_reporting.py
+  - scripts/_opencode_utils.py
+  - scripts/_eu_vuln_helper.py
+  - scripts/_security_helper.py
+  - docs/architecture/infrastructure/cronjobs.md
+  ownership:
+    files: *id003
+    shared_files:
+    - scripts/security_reporting.py
+    - scripts/security_report_delivery.py
+    - scripts/security_digest.py
+  verification_ids:
+  - T-STATE
+  - T-DELIVERY
+  - T-DIGEST
+  - V-LIVE
+  - V-DEPLOY
+  - V-EMAIL
+  dependencies:
+  - TASK-2
+  blockers: []
+  follow_up_tasks: []

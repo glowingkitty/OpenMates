@@ -27,6 +27,7 @@ struct ShowMoreChatsButton: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, .spacing3)
             }
+            .accessibilityIdentifier("load-more-chats")
             .disabled(isLoading)
             .accessibleButton(
                 isLoading ? "Loading more chats" : "Load \(min(remainingCount, 20)) more chats",

@@ -77,6 +77,7 @@ In a normal terminal, plain `openmates` enters the full-screen chat UI. Use `/ex
 |----------|-------------|-----|
 | `signup`, `login`, `logout`, `whoami` | Account creation, authentication, and session | [authentication.md](./authentication.md) |
 | `chats` | List, search, show, send, share, download, delete, incognito | [chats.md](./chats.md) |
+| `tasks` | Create, assign, update, and comment on encrypted Tasks | [tasks.md](./tasks.md) |
 | `apps` | List apps, run skills, view skill info | [apps-and-skills.md](./apps-and-skills.md) |
 | `settings`, `learning-mode` | Predefined settings commands, Learning Mode controls, invoices, notifications, mates, newsletter, memories | [settings.md](./settings.md) |
 | `benchmark` | Run real product-path model benchmarks, comparisons, and judged case suites | [benchmarks.md](./benchmarks.md) |

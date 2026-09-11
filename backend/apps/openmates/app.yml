@@ -72,6 +72,7 @@ skills:
         - language
 
   - id: get-docs
+    default_enabled: false
     name_translation_key: openmates_app.get_docs
     description_translation_key: openmates_app.get_docs.description
     icon_image: library.svg

@@ -1,0 +1,390 @@
+title:
+  context: "Title of example chat: Write a plumber message with protected contact details"
+  en: "Write a plumber message with protected contact details"
+  de: "Eine Nachricht an einen Klempner mit geschützten Kontaktdaten schreiben"
+  zh: "Write a plumber message with protected contact details"
+  es: "Write a plumber message with protected contact details"
+  fr: "Write a plumber message with protected contact details"
+  pt: "Write a plumber message with protected contact details"
+  ru: "Write a plumber message with protected contact details"
+  ja: "Write a plumber message with protected contact details"
+  ko: "Write a plumber message with protected contact details"
+  it: "Write a plumber message with protected contact details"
+  tr: "Write a plumber message with protected contact details"
+  vi: "Write a plumber message with protected contact details"
+  id: "Write a plumber message with protected contact details"
+  pl: "Write a plumber message with protected contact details"
+  nl: "Write a plumber message with protected contact details"
+  ar: "Write a plumber message with protected contact details"
+  hi: "Write a plumber message with protected contact details"
+  th: "Write a plumber message with protected contact details"
+  cs: "Write a plumber message with protected contact details"
+  sv: "Write a plumber message with protected contact details"
+  he: "Write a plumber message with protected contact details"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Write a plumber message with protected contact details"
+  en: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  de: "Eine Reparaturanfrage für die Küchenspüle verfassen und dabei eine fiktive E-Mail-Adresse und Telefonnummer schützen."
+  zh: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  es: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  fr: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  pt: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  ru: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  ja: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  ko: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  it: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  tr: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  vi: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  id: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  pl: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  nl: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  ar: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  hi: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  th: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  cs: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  sv: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  he: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Write a plumber message with protected contact details. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  de: "Hilf mir, eine Nachricht an einen Klempner zu schreiben. Meine Küchenspüle ist seit gestern undicht, und ich habe morgen Nachmittag Zeit. Bitte ihn, mich unter [EMAIL_1_com] oder [PHONE_1_147] zu kontaktieren, um einen Besuch zu vereinbaren."
+  zh: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  es: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  fr: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  pt: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  ru: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  ja: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  ko: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  it: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  tr: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  vi: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  id: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  pl: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  nl: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  ar: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  hi: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  th: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  cs: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  sv: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  he: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Write a plumber message with protected contact details. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  de: "Hier ist eine höfliche und direkte Nachricht, die du deinem Klempner schicken kannst:\n\n```json\n{\"type\": \"mail\", \"embed_id\": \"aa8bee97-be75-43c8-b96c-779c4c36624f\"}\n```\n\n\n\nSoll ich dir helfen, örtliche Sanitärdienste zu finden, oder brauchst du noch Unterstützung bei etwas anderem?"
+  zh: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  es: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  fr: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  pt: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  ru: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  ja: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  ko: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  it: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  tr: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  vi: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  id: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  pl: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  nl: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  ar: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  hi: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  th: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  cs: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  sv: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  he: |
+    Here is a polite and direct message you can send to your plumber:
+
+    ```json
+    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
+    ```
+
+    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Find local emergency plumbers near me"
+  de: "Finde Sanitärnotdienste in meiner Nähe"
+  zh: "Find local emergency plumbers near me"
+  es: "Find local emergency plumbers near me"
+  fr: "Find local emergency plumbers near me"
+  pt: "Find local emergency plumbers near me"
+  ru: "Find local emergency plumbers near me"
+  ja: "Find local emergency plumbers near me"
+  ko: "Find local emergency plumbers near me"
+  it: "Find local emergency plumbers near me"
+  tr: "Find local emergency plumbers near me"
+  vi: "Find local emergency plumbers near me"
+  id: "Find local emergency plumbers near me"
+  pl: "Find local emergency plumbers near me"
+  nl: "Find local emergency plumbers near me"
+  ar: "Find local emergency plumbers near me"
+  hi: "Find local emergency plumbers near me"
+  th: "Find local emergency plumbers near me"
+  cs: "Find local emergency plumbers near me"
+  sv: "Find local emergency plumbers near me"
+  he: "Find local emergency plumbers near me"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how to prepare for a plumber’s visit"
+  de: "Erkläre, wie ich mich auf den Besuch eines Klempners vorbereiten kann"
+  zh: "Explain how to prepare for a plumber’s visit"
+  es: "Explain how to prepare for a plumber’s visit"
+  fr: "Explain how to prepare for a plumber’s visit"
+  pt: "Explain how to prepare for a plumber’s visit"
+  ru: "Explain how to prepare for a plumber’s visit"
+  ja: "Explain how to prepare for a plumber’s visit"
+  ko: "Explain how to prepare for a plumber’s visit"
+  it: "Explain how to prepare for a plumber’s visit"
+  tr: "Explain how to prepare for a plumber’s visit"
+  vi: "Explain how to prepare for a plumber’s visit"
+  id: "Explain how to prepare for a plumber’s visit"
+  pl: "Explain how to prepare for a plumber’s visit"
+  nl: "Explain how to prepare for a plumber’s visit"
+  ar: "Explain how to prepare for a plumber’s visit"
+  hi: "Explain how to prepare for a plumber’s visit"
+  th: "Explain how to prepare for a plumber’s visit"
+  cs: "Explain how to prepare for a plumber’s visit"
+  sv: "Explain how to prepare for a plumber’s visit"
+  he: "Explain how to prepare for a plumber’s visit"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Search for plumbers with same-day availability"
+  de: "Suche nach Klempnern mit verfügbaren Terminen am selben Tag"
+  zh: "Search for plumbers with same-day availability"
+  es: "Search for plumbers with same-day availability"
+  fr: "Search for plumbers with same-day availability"
+  pt: "Search for plumbers with same-day availability"
+  ru: "Search for plumbers with same-day availability"
+  ja: "Search for plumbers with same-day availability"
+  ko: "Search for plumbers with same-day availability"
+  it: "Search for plumbers with same-day availability"
+  tr: "Search for plumbers with same-day availability"
+  vi: "Search for plumbers with same-day availability"
+  id: "Search for plumbers with same-day availability"
+  pl: "Search for plumbers with same-day availability"
+  nl: "Search for plumbers with same-day availability"
+  ar: "Search for plumbers with same-day availability"
+  hi: "Search for plumbers with same-day availability"
+  th: "Search for plumbers with same-day availability"
+  cs: "Search for plumbers with same-day availability"
+  sv: "Search for plumbers with same-day availability"
+  he: "Search for plumbers with same-day availability"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List questions to ask a plumber before hiring"
+  de: "Liste Fragen auf, die ich einem Klempner vor der Beauftragung stellen sollte"
+  zh: "List questions to ask a plumber before hiring"
+  es: "List questions to ask a plumber before hiring"
+  fr: "List questions to ask a plumber before hiring"
+  pt: "List questions to ask a plumber before hiring"
+  ru: "List questions to ask a plumber before hiring"
+  ja: "List questions to ask a plumber before hiring"
+  ko: "List questions to ask a plumber before hiring"
+  it: "List questions to ask a plumber before hiring"
+  tr: "List questions to ask a plumber before hiring"
+  vi: "List questions to ask a plumber before hiring"
+  id: "List questions to ask a plumber before hiring"
+  pl: "List questions to ask a plumber before hiring"
+  nl: "List questions to ask a plumber before hiring"
+  ar: "List questions to ask a plumber before hiring"
+  hi: "List questions to ask a plumber before hiring"
+  th: "List questions to ask a plumber before hiring"
+  cs: "List questions to ask a plumber before hiring"
+  sv: "List questions to ask a plumber before hiring"
+  he: "List questions to ask a plumber before hiring"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Compare reviews for top-rated plumbers in my area"
+  de: "Vergleiche Bewertungen der am besten bewerteten Klempner in meiner Umgebung"
+  zh: "Compare reviews for top-rated plumbers in my area"
+  es: "Compare reviews for top-rated plumbers in my area"
+  fr: "Compare reviews for top-rated plumbers in my area"
+  pt: "Compare reviews for top-rated plumbers in my area"
+  ru: "Compare reviews for top-rated plumbers in my area"
+  ja: "Compare reviews for top-rated plumbers in my area"
+  ko: "Compare reviews for top-rated plumbers in my area"
+  it: "Compare reviews for top-rated plumbers in my area"
+  tr: "Compare reviews for top-rated plumbers in my area"
+  vi: "Compare reviews for top-rated plumbers in my area"
+  id: "Compare reviews for top-rated plumbers in my area"
+  pl: "Compare reviews for top-rated plumbers in my area"
+  nl: "Compare reviews for top-rated plumbers in my area"
+  ar: "Compare reviews for top-rated plumbers in my area"
+  hi: "Compare reviews for top-rated plumbers in my area"
+  th: "Compare reviews for top-rated plumbers in my area"
+  cs: "Compare reviews for top-rated plumbers in my area"
+  sv: "Compare reviews for top-rated plumbers in my area"
+  he: "Compare reviews for top-rated plumbers in my area"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Describe signs of water damage to check before the visit"
+  de: "Beschreibe Anzeichen für Wasserschäden, auf die ich vor dem Besuch achten sollte"
+  zh: "Describe signs of water damage to check before the visit"
+  es: "Describe signs of water damage to check before the visit"
+  fr: "Describe signs of water damage to check before the visit"
+  pt: "Describe signs of water damage to check before the visit"
+  ru: "Describe signs of water damage to check before the visit"
+  ja: "Describe signs of water damage to check before the visit"
+  ko: "Describe signs of water damage to check before the visit"
+  it: "Describe signs of water damage to check before the visit"
+  tr: "Describe signs of water damage to check before the visit"
+  vi: "Describe signs of water damage to check before the visit"
+  id: "Describe signs of water damage to check before the visit"
+  pl: "Describe signs of water damage to check before the visit"
+  nl: "Describe signs of water damage to check before the visit"
+  ar: "Describe signs of water damage to check before the visit"
+  hi: "Describe signs of water damage to check before the visit"
+  th: "Describe signs of water damage to check before the visit"
+  cs: "Describe signs of water damage to check before the visit"
+  sv: "Describe signs of water damage to check before the visit"
+  he: "Describe signs of water damage to check before the visit"
+  verified_by_human: []
+

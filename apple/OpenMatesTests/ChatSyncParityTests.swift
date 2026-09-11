@@ -4,10 +4,78 @@
 // otherwise silently drop sub-chat or active-focus metadata during sync.
 
 import XCTest
+import CoreFoundation
 @testable import OpenMates
 
 @MainActor
 final class ChatSyncParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testSearchMetadataExpansionIncludesOlderEncryptedTitlesWithoutReplacingLiveRows() {
+        let live = makeChat(id: "loaded", title: "Current decrypted title")
+        let cachedOld = makeChat(id: "older", title: nil, encryptedTitle: "encrypted-title-fixture")
+        let stale = makeChat(id: "loaded", title: "Old cached title")
+        let privateChat = makeChat(id: "incognito-private", title: "Private")
+        let missing = ChatSearchMetadata.missingCachedChats([stale, cachedOld, cachedOld, privateChat], loaded: [live])
+        XCTAssertEqual(missing.map(\.id), ["older"])
+        XCTAssertEqual(missing.first?.encryptedTitle, "encrypted-title-fixture")
+        XCTAssertNil(missing.first?.title)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
+    func testChatSortDatesPreserveFractionsAndTimeZonesAcrossRepeatedReads() throws {
+        let precise = makeChat(id: "fractional", title: "Fixture", lastMessageAt: "2026-03-01T12:00:00.125Z")
+        let offset = makeChat(id: "offset", title: "Fixture", lastMessageAt: "2026-03-01T13:00:00+01:00")
+        let invalid = makeChat(id: "invalid", title: "Fixture", lastMessageAt: "not-a-date")
+        let timestamp = try XCTUnwrap(precise.lastMessageDate)
+        XCTAssertEqual(timestamp.timeIntervalSince(try XCTUnwrap(offset.lastMessageDate)), 0.125, accuracy: 0.001)
+        for _ in 0..<1000 { XCTAssertEqual(precise.lastMessageDate, timestamp) }
+        XCTAssertNil(invalid.lastMessageDate)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity
+    func testPersonalStartupSyncSendsRequiredIntegerContextEpoch() throws {
+        let request = WebSocketManager.phasedSyncMessage(clientChatIds: ["known-chat"])
+        let wire = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any]
+        let payload = try XCTUnwrap(wire?["payload"] as? [String: Any])
+        let epoch = try XCTUnwrap(payload["context_epoch"] as? NSNumber)
+        XCTAssertNotEqual(CFGetTypeID(epoch), CFBooleanGetTypeID(), "The server rejects boolean epochs")
+        XCTAssertEqual(epoch.intValue, 0)
+        XCTAssertNil(payload["team_id"], "Personal sync must not select a team")
+        XCTAssertEqual(payload["client_chat_ids"] as? [String], ["known-chat"])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity
+    func testOlderMetadataPagePreservesServerOrderAfterTheInitialWindow() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let page = try decoder.decode(ChatMetadataPage.self, from: Data("""
+        {"offset":2,"total_count":3,"has_more":false,"chats":[
+          {"chat_details":{"id":"older","created_at":1770000000}}
+        ]}
+        """.utf8))
+        let initial = try decoder.decode([Chat].self, from: Data("""
+        [{"id":"first","created_at":1770000000},{"id":"second","created_at":1770000000}]
+        """.utf8))
+        let store = ChatStore()
+        store.upsertChats(initial, serverSortOrder: initial.map(\.id))
+        let older = try XCTUnwrap(page.chats?.compactMap(\.chatDetails))
+        store.upsertChats(older, serverSortOrder: older.map(\.id), serverSortOffset: page.offset)
+        XCTAssertEqual(store.sortedChats.map(\.id), ["first", "second", "older"])
+        XCTAssertEqual(page.totalCount, 3)
+        XCTAssertEqual(page.hasMore, false)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=sync.deletion.partial-window-not-authoritative,sync.surface.semantic-parity
+    func testMetadataSyncRetainsExplicitServerTombstonesEvenForAnEmptyWindow() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let payload = try decoder.decode(PhaseBulkSyncPayload.self, from: Data("""
+        {"chats":[],"total_chat_count":150,"deleted_chat_ids":["deleted-while-offline"]}
+        """.utf8))
+        XCTAssertEqual(payload.deletedChatIds, ["deleted-while-offline"], "Metadata decoding must not discard explicit server deletions")
+        XCTAssertEqual(payload.totalChatCount, 150)
+    }
+
     // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity
     func testChatDecodesWebSubChatAndFocusFields() throws {
         let json = """
@@ -118,6 +186,34 @@ final class ChatSyncParityTests: XCTestCase {
 
         let recent = WelcomeScreenState.recentChats(from: [hidden, visible], excluding: nil)
         XCTAssertEqual(recent.map(\.id), ["visible-chat"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
+    func testContinuationMatchesPinnedDraftRecentOrderAndSkipsSubChats() {
+        let recent = makeChat(id: "recent", title: "Recent", lastMessageAt: "2026-03-01T00:00:00Z")
+        let draft = makeChat(id: "draft", title: nil, messagesV: 0, draftV: 2)
+        let pinned = makeChat(id: "pinned", title: "Pinned", isPinned: true)
+        let child = makeChat(id: "child", title: "Child", parentId: "recent", isSubChat: true)
+        let incognito = makeChat(id: "incognito-private", title: "Private")
+        let chats = [recent, child, incognito, draft, pinned]
+        XCTAssertEqual(WelcomeScreenState.recentChats(from: chats, excluding: nil).map(\.id), ["pinned", "draft", "recent"])
+        XCTAssertNil(WelcomeScreenState.resumeChat(from: chats, lastOpened: "draft"))
+        XCTAssertNil(WelcomeScreenState.resumeChat(from: chats, lastOpened: "child"))
+        XCTAssertEqual(WelcomeScreenState.resumeChat(from: chats, lastOpened: "recent")?.id, "recent")
+        XCTAssertEqual(WelcomeScreenState.recentChats(from: chats, excluding: "recent").map(\.id), ["pinned", "draft"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent,drafts.persistence.local-first-encrypted
+    func testContinuationDraftCardUsesPreviewWithoutMisclassifyingUntitledMessages() {
+        let draft = makeChat(id: "draft", title: nil, messagesV: 0, draftV: 1)
+        let existing = makeChat(id: "existing", title: nil, messagesV: 2, draftV: 1)
+        let preview = String(repeating: "a", count: 90)
+        let card = WelcomeScreenState.cardData(for: draft, draftPreview: preview)
+        XCTAssertTrue(card.isDraftOnly)
+        XCTAssertEqual(card.title, AppStrings.draftBadge)
+        XCTAssertEqual(card.draftPreview, String(repeating: "a", count: 80) + "…")
+        XCTAssertFalse(WelcomeScreenState.cardData(for: existing, draftPreview: "Unsent follow-up").isDraftOnly)
+        XCTAssertEqual(WelcomeScreenState.resumeChat(from: [existing], lastOpened: "existing")?.id, "existing")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.local-state.precedence
@@ -256,7 +352,10 @@ final class ChatSyncParityTests: XCTestCase {
         lastMessageAt: String = "2026-01-01T00:00:00Z",
         isArchived: Bool = false,
         isHidden: Bool? = nil,
-        isHiddenCandidate: Bool? = nil
+        isHiddenCandidate: Bool? = nil,
+        isPinned: Bool = false,
+        draftV: Int? = nil,
+        encryptedTitle: String? = nil
     ) -> Chat {
         Chat(
             id: id,
@@ -265,12 +364,13 @@ final class ChatSyncParityTests: XCTestCase {
             createdAt: "2026-01-01T00:00:00Z",
             updatedAt: "2026-01-01T00:00:00Z",
             isArchived: isArchived,
-            isPinned: false,
+            isPinned: isPinned,
             appId: "ai",
-            encryptedTitle: nil,
+            encryptedTitle: encryptedTitle,
             encryptedChatKey: nil,
             messagesV: messagesV,
             titleV: title == nil ? 0 : 1,
+            draftV: draftV,
             metadataV: metadataV,
             parentId: parentId,
             isSubChat: isSubChat,

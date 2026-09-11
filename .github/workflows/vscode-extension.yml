@@ -71,6 +71,11 @@ jobs:
       - name: Package internal VSIX
         run: pnpm --filter openmates-vscode-extension package
 
+      - name: Reject retired shared-dev login smoke
+        run: |
+          echo "::error::Installed VSIX login coverage is held pending its runner-local API/account profile. Shared-dev fallback is forbidden."
+          exit 1
+
       - name: Install VSIX and run webview login smoke
         env:
           OPENMATES_VSCODE_API_BASE_URL: https://api.dev.openmates.org

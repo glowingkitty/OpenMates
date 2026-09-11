@@ -1,48 +1,27 @@
 #!/usr/bin/env python3
 """
-scripts/_dependabot_helper.py
+Collect Dependabot observations for the deterministic security ledger.
 
-Python helper for check-dependabot-daily.sh.
-
-Handles the complex dedup, state tracking, and claude dispatch logic for
-Dependabot security alerts. Called by the shell script via:
-
-    python3 scripts/_dependabot_helper.py process-alerts
-
-Environment variables (set by the shell script):
-    ALERTS_JSON_FILE        — path to temp file containing JSON array of GitHub Dependabot alerts
-    TRACKING_FILE_PATH      — absolute path to scripts/dependabot-processed.json
-    PROJECT_ROOT            — absolute path to the repo root
-    REDISPATCH_AFTER_DAYS   — number of days before re-dispatching an unresolved alert
-    DRY_RUN                 — "true" to skip actual OpenCode invocation
-    PROMPT_TEMPLATE_PATH    — absolute path to scripts/prompts/dependabot-analysis.md
-    TODAY_DATE              — current date as YYYY-MM-DD
-
-Tracking file format (scripts/dependabot-processed.json):
-{
-  "last_run": "2026-03-17T04:00:00Z",
-  "processed": [
-    {
-      "ghsa_id": "GHSA-wfv2-pwc8-crg5",
-      "severity": "critical",
-      "package": "jspdf",
-      "summary": "jsPDF has HTML Injection in New Window paths",
-      "alert_numbers": [111, 112],
-      "first_seen_at": "2026-03-17T04:00:00Z",
-      "last_dispatched_at": "2026-03-17T04:00:00Z",
-      "re_dispatch_count": 0,
-      "resolved_via_commit": null
-    }
-  ]
-}
+The process-alerts command normalizes all fetched alerts and preserves coverage
+and incomplete-data reporting. DRY_RUN and SUMMARY_ONLY do not persist reports.
+Legacy tracking utilities remain for existing records. Automatic agent
+remediation and redispatch were removed under TASK-7543; TASK-8338 owns future
+workflow requirements. See docs/architecture/infrastructure/cronjobs.md.
 """
 
 import json
 import os
+import re
 import subprocess
 
-from _opencode_utils import run_opencode_session, start_sessions_py, end_sessions_py
-from _nightly_report import write_nightly_report
+try:
+    from .audit_frontend_dependency_pins import collect_package_versions
+    from ._nightly_report import write_nightly_report
+    from .security_scan_reporting import report_scan
+except ImportError:
+    from audit_frontend_dependency_pins import collect_package_versions
+    from _nightly_report import write_nightly_report
+    from security_scan_reporting import report_scan
 import sys
 from datetime import datetime, timedelta, timezone
 
@@ -52,10 +31,20 @@ PROCESS_SEVERITIES = {"critical", "high", "medium"}
 
 # Severity sort order for prompt grouping
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "unknown": 4}
+SEMVER_PREFIX_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)")
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _current_commit(project_root: str) -> str:
+    try:
+        return subprocess.run(
+            ["git", "-C", project_root, "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10,
+        ).stdout.strip() or "unknown"
+    except Exception:
+        return "unknown"
 
 
 def _load_tracking(tracking_file: str) -> dict:
@@ -127,9 +116,42 @@ def _check_ghsa_in_git(ghsa_id: str, project_root: str) -> str | None:
         if output:
             return output.splitlines()[0].split()[0]
         return None
-    except Exception as e:
-        print(f"[dependabot] WARNING: git log search failed for {ghsa_id}: {e}", file=sys.stderr)
+    except Exception as error:
+        print(
+            f"[dependabot] WARNING: git log search failed for {ghsa_id}: {error}",
+            file=sys.stderr,
+        )
         return None
+
+
+def _semver_prefix(version: str) -> tuple[int, int, int] | None:
+    match = SEMVER_PREFIX_RE.match(version.split("(", 1)[0])
+    if not match:
+        return None
+    return tuple(int(part) for part in match.groups())
+
+
+def _alert_is_fixed_in_project(alert: dict, project_root: str) -> bool:
+    """Return whether every resolved dev npm version meets the advisory floor."""
+    if alert.get("ecosystem", "").lower() != "npm":
+        return False
+    package = alert.get("package", "")
+    fixed_version = _semver_prefix(alert.get("fixed_version", ""))
+    lockfile = os.path.join(project_root, "pnpm-lock.yaml")
+    if not package or fixed_version is None or not os.path.isfile(lockfile):
+        return False
+
+    try:
+        with open(lockfile, encoding="utf-8") as file:
+            versions = collect_package_versions(file.read()).get(package, set())
+    except OSError as error:
+        print(f"[dependabot] WARNING: could not inspect dev lockfile: {error}", file=sys.stderr)
+        return False
+
+    parsed_versions = [_semver_prefix(version) for version in versions]
+    return bool(parsed_versions) and all(
+        version is not None and version >= fixed_version for version in parsed_versions
+    )
 
 
 def _deduplicate_by_ghsa(alerts: list[dict]) -> dict[str, dict]:
@@ -188,6 +210,40 @@ def _deduplicate_by_ghsa(alerts: list[dict]) -> dict[str, dict]:
     return merged
 
 
+def _reportable_alerts(alerts: list[dict]) -> tuple[list[dict], list[str]]:
+    """Normalize all alert records before remediation filtering loses context."""
+    findings, missing = [], []
+    if not isinstance(alerts, list):
+        return [], ["dependabot_payload_not_array"]
+    for index, alert in enumerate(alerts):
+        if not isinstance(alert, dict) or any(not isinstance(alert.get(key) or {}, dict) for key in ("security_advisory", "security_vulnerability", "dependency")):
+            missing.append(f"alert_{index}_malformed")
+            continue
+        if not isinstance((alert.get("dependency") or {}).get("package") or {}, dict):
+            missing.append(f"alert_{index}_package_malformed")
+            continue
+        advisory = alert.get("security_advisory") or {}
+        vulnerability = alert.get("security_vulnerability") or {}
+        package = (alert.get("dependency") or {}).get("package") or {}
+        ghsa_id = advisory.get("ghsa_id")
+        name, ecosystem = package.get("name"), package.get("ecosystem")
+        for key, value in (("ghsa_id", ghsa_id), ("package", name), ("ecosystem", ecosystem)):
+            if not value:
+                missing.append(f"alert_{index}_missing_{key}")
+        severity = advisory.get("severity") or vulnerability.get("severity") or "unknown"
+        if severity not in {"critical", "high", "medium", "low"}:
+            missing.append(f"alert_{index}_severity_unavailable")
+        findings.append({
+            "vuln_id": ghsa_id, "aliases": [value for value in [advisory.get("cve_id")] if value],
+            "severity": str(advisory.get("severity") or vulnerability.get("severity") or "unknown").lower(),
+            "package": name or "unknown", "ecosystem": ecosystem or "unknown",
+            "current_version": "unknown",
+            "affected_version_range": vulnerability.get("vulnerable_version_range"),
+            "remediation": {"dependabot_alert_numbers": [alert.get("number")]},
+        })
+    return findings, missing
+
+
 def _build_alert_summary(alerts_to_dispatch: list[dict]) -> str:
     """
     Build the alert summary section for the claude prompt.
@@ -225,16 +281,14 @@ def _build_alert_summary(alerts_to_dispatch: list[dict]) -> str:
 
 def process_alerts() -> None:
     """
-    Main entry point: process Dependabot alerts, update tracking, run claude if needed.
+    Collect Dependabot observations through the retained deterministic ledger adapter.
     """
     # Read env vars set by the shell script
     alerts_json_file = os.environ.get("ALERTS_JSON_FILE", "")
     tracking_file = os.environ.get("TRACKING_FILE_PATH", "")
     project_root = os.environ.get("PROJECT_ROOT", "")
-    redispatch_days = int(os.environ.get("REDISPATCH_AFTER_DAYS", "7"))
     dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
-    prompt_template_path = os.environ.get("PROMPT_TEMPLATE_PATH", "")
-    today_date = os.environ.get("TODAY_DATE", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+    summary_only = os.environ.get("SUMMARY_ONLY", "false").lower() == "true"
 
     if not tracking_file:
         print("[dependabot] ERROR: TRACKING_FILE_PATH not set.", file=sys.stderr)
@@ -254,203 +308,25 @@ def process_alerts() -> None:
 
     print(f"[dependabot] Processing {len(raw_alerts)} raw alert(s)...")
 
-    # Step 1: Deduplicate by GHSA ID and filter by severity
-    deduplicated = _deduplicate_by_ghsa(raw_alerts)
-    print(
-        f"[dependabot] After dedup + severity filter: {len(deduplicated)} unique GHSA ID(s) "
-        f"(critical/high/medium only, low skipped)"
+    all_findings, missing = _reportable_alerts(raw_alerts)
+    report_scan(
+        project_root=project_root or os.getcwd(), source="dependabot", findings=all_findings,
+        outcome="incomplete" if missing else ("findings" if all_findings else "no_new_findings"),
+        subject_commit=_current_commit(project_root or os.getcwd()),
+        coverage={"expected_and_completed_stages": {"dependabot_alert_payload": [1, 1]}, "sanitized_failure_codes": []},
+        inventory={"raw_alerts": len(raw_alerts), "missing_required_data": missing},
+        dry_run=dry_run, summary_only=summary_only,
     )
 
-    if not deduplicated:
-        print("[dependabot] No processable alerts after filtering — done.")
-        write_nightly_report(
-            job="dependabot",
-            status="ok",
-            summary="No processable alerts after severity filtering.",
-        )
+    if missing or summary_only or os.environ.get("SECURITY_REPORTING_COLLECTION_ONLY", "").lower() == "true":
+        print(json.dumps({"source": "dependabot", "total_findings": len(all_findings), "missing_required_data": missing}))
         return
 
-    # Step 2: Load tracking state
-    tracking = _load_tracking(tracking_file)
-    processed_map: dict[str, dict] = {e["ghsa_id"]: e for e in tracking.get("processed", [])}
-
-    now = datetime.now(timezone.utc)
-    now_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    # Step 3: For each GHSA, determine action
-    to_dispatch: list[dict] = []
-    skip_count = 0
-    resolve_count = 0
-
-    for ghsa_id, alert in deduplicated.items():
-        # Check if resolved in git
-        commit_sha = _check_ghsa_in_git(ghsa_id, project_root)
-        if commit_sha:
-            print(f"[dependabot] {ghsa_id} resolved via commit {commit_sha} — marking resolved.")
-            # Update or create tracking entry
-            if ghsa_id in processed_map:
-                processed_map[ghsa_id]["resolved_via_commit"] = commit_sha
-            else:
-                processed_map[ghsa_id] = {
-                    "ghsa_id": ghsa_id,
-                    "severity": alert["severity"],
-                    "package": alert["package"],
-                    "summary": alert["summary"],
-                    "alert_numbers": alert["alert_numbers"],
-                    "first_seen_at": now_iso,
-                    "last_dispatched_at": None,
-                    "re_dispatch_count": 0,
-                    "resolved_via_commit": commit_sha,
-                }
-            resolve_count += 1
-            continue
-
-        # Not resolved — check tracking state
-        existing = processed_map.get(ghsa_id)
-
-        if existing is None:
-            # Never seen before → dispatch now
-            print(f"[dependabot] {ghsa_id} [{alert['severity']}] {alert['package']} — NEW, will dispatch.")
-            dispatch_entry = {**alert, "re_dispatch_count": 0}
-            to_dispatch.append(dispatch_entry)
-            processed_map[ghsa_id] = {
-                "ghsa_id": ghsa_id,
-                "severity": alert["severity"],
-                "package": alert["package"],
-                "summary": alert["summary"],
-                "alert_numbers": alert["alert_numbers"],
-                "first_seen_at": now_iso,
-                "last_dispatched_at": now_iso,  # Will be set after dispatch
-                "re_dispatch_count": 0,
-                "resolved_via_commit": None,
-            }
-        else:
-            # Previously seen — check if within grace period
-            last_dispatched_str = existing.get("last_dispatched_at")
-            if not last_dispatched_str:
-                # Was tracked but never dispatched (shouldn't normally happen)
-                print(f"[dependabot] {ghsa_id} [{alert['severity']}] — tracked but never dispatched, dispatching now.")
-                dispatch_entry = {**alert, "re_dispatch_count": 0}
-                to_dispatch.append(dispatch_entry)
-                existing["last_dispatched_at"] = now_iso
-            else:
-                try:
-                    last_dispatched = datetime.fromisoformat(last_dispatched_str.replace("Z", "+00:00"))
-                    days_since = (now - last_dispatched).days
-                except ValueError:
-                    days_since = redispatch_days + 1  # Force re-dispatch if date is unparseable
-
-                if days_since >= redispatch_days:
-                    re_count = existing.get("re_dispatch_count", 0) + 1
-                    print(
-                        f"[dependabot] {ghsa_id} [{alert['severity']}] — "
-                        f"still unresolved after {days_since} days, RE-DISPATCHING (count={re_count})."
-                    )
-                    dispatch_entry = {**alert, "re_dispatch_count": re_count}
-                    to_dispatch.append(dispatch_entry)
-                    existing["re_dispatch_count"] = re_count
-                    existing["last_dispatched_at"] = now_iso
-                else:
-                    remaining = redispatch_days - days_since
-                    print(
-                        f"[dependabot] {ghsa_id} [{alert['severity']}] — "
-                        f"within {redispatch_days}-day grace period ({remaining} day(s) remaining), skipping."
-                    )
-                    skip_count += 1
-
-    print(
-        f"[dependabot] Dispatch summary: {len(to_dispatch)} to dispatch, "
-        f"{skip_count} skipped (grace period), {resolve_count} resolved in git."
-    )
-
-    # Update tracking before dispatch (so state is saved even if claude fails)
-    tracking["last_run"] = now_iso
-    tracking["processed"] = list(processed_map.values())
-    _save_tracking(tracking_file, tracking)
-
-    if not to_dispatch:
-        print("[dependabot] Nothing to dispatch — done.")
-        _write_dependabot_report(tracking, "ok", "All alerts resolved or within grace period.")
-        return
-
-    # Sort by severity for the prompt
-    to_dispatch.sort(key=lambda a: SEVERITY_ORDER.get(a["severity"].lower(), 99))
-
-    # Step 4: Build the prompt
-    if not prompt_template_path or not os.path.isfile(prompt_template_path):
-        print(f"[dependabot] ERROR: Prompt template not found at {prompt_template_path}", file=sys.stderr)
-        sys.exit(1)
-
-    with open(prompt_template_path) as f:
-        prompt_template = f.read()
-
-    alert_summary = _build_alert_summary(to_dispatch)
-
-    # Step 5: Start a sessions.py session for proper deploy workflow
-    session_title = f"security: dependabot {today_date}"
-    sessions_py_id = None
-    if not dry_run:
-        sessions_py_id = start_sessions_py(
-            mode="bug",
-            task=f"Dependabot: fix {len(to_dispatch)} security alert(s)",
-            project_root=project_root,
-            log_prefix="[dependabot]",
-        )
-
-    # Inject session ID into prompt so OpenCode uses sessions.py deploy
-    deploy_instructions = ""
-    if sessions_py_id:
-        deploy_instructions = (
-            f"\n\n## Deploy Instructions\n\n"
-            f"Use `sessions.py deploy` to commit and push your changes:\n"
-            f"```bash\n"
-            f"python3 scripts/sessions.py deploy --session {sessions_py_id} "
-            f'--title "fix: <description> (<GHSA-ID>)" --end\n'
-            f"```\n"
-            f"Do NOT use raw `git commit` or `git push`.\n"
-        )
-
-    prompt = (
-        prompt_template
-        .replace("{{DATE}}", today_date)
-        .replace("{{ALERT_SUMMARY}}", alert_summary)
-    ) + deploy_instructions
-
+    # The deterministic collection/ledger path is the complete scan. Legacy
+    # agent remediation and redispatch are retired (TASK-7543/TASK-8338).
     if dry_run:
-        print("[dependabot] DRY RUN — would run OpenCode with the following prompt:")
-        print("-" * 60)
-        print(prompt[:2000])
-        print("-" * 60)
-        return
-
-    print(f"[dependabot] Starting OpenCode chat for {len(to_dispatch)} alert(s)...")
-
-    run_opencode_session(
-        prompt=prompt,
-        session_title=session_title,
-        project_root=project_root,
-        log_prefix="[dependabot]",
-        agent=None,    # build mode — fix the alerts
-        timeout=1800,
-        job_type="dependabot",
-        context_summary=f"{len(to_dispatch)} alert(s) dispatched for fix",
-        kill_on_exit=True,  # fully automated — no review needed
-        linear_task=False,
-        requires_human_approval=True,
-    )
-
-    # End session if OpenCode didn't deploy (cleanup)
-    if sessions_py_id:
-        end_sessions_py(sessions_py_id, project_root, "[dependabot]")
-
-    # Write nightly report with security disclosure details
-    _write_dependabot_report(
-        tracking,
-        "warning" if any(a["severity"] in ("critical", "high") for a in to_dispatch) else "ok",
-        f"Dispatched {len(to_dispatch)} alert(s) for fix. "
-        f"{resolve_count} resolved in git, {skip_count} in grace period.",
-        dispatched=to_dispatch,
-    )
+        print("[dependabot] DRY RUN — no reporting state persisted.")
+    print(json.dumps({"source": "dependabot", "total_findings": len(all_findings), "missing_required_data": missing}))
 
 
 def _write_dependabot_report(

@@ -35,7 +35,6 @@ from verify_projects_api import (
 
 
 ACTIVITY_CIPHERTEXT_FIELDS = {
-    "encrypted_entry_key",
     "encrypted_message",
     "encrypted_embed_key_material",
 }
@@ -45,11 +44,14 @@ ACTIVITY_SAFE_FIELDS = {
     "kind",
     "actor_type",
     "actor_hash",
+    "actor_identity",
     "actor_display_name",
     "actor_profile_image_url",
     "author_hash",
     "event_type",
     "source_surface",
+    "previous_status",
+    "next_status",
     "created_at",
     "deleted_at",
     "deleted_by_hash",
@@ -99,7 +101,6 @@ def task_payload(task_id: str) -> dict[str, Any]:
 def activity_payload(entry_id: str) -> dict[str, Any]:
     return {
         "entry_id": entry_id,
-        "encrypted_entry_key": opaque_ciphertext(),
         "encrypted_message": opaque_ciphertext(),
         "encrypted_embed_key_material": opaque_ciphertext(),
         "embed_refs": [str(uuid.uuid4())],

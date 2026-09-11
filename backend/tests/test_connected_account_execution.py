@@ -9,12 +9,45 @@
 from __future__ import annotations
 
 from typing import Any
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+import asyncio
 
 import pytest
 
 from backend.tests.test_token_broker_refs import FakeCache, FakeEncryption
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
+@pytest.mark.anyio
+@pytest.mark.parametrize("failure", [PermissionError("resolution failed"), asyncio.CancelledError()])
+async def test_prepare_cleans_created_handle_when_resolution_fails(monkeypatch, failure):
+    from backend.apps.ai.processing import connected_account_execution as execution
+
+    broker = SimpleNamespace(
+        exchange_turn_token_ref=AsyncMock(return_value=SimpleNamespace(access_token_handle="synthetic-handle")),
+        resolve_access_token_handle=AsyncMock(side_effect=failure),
+        delete_turn_artifacts=AsyncMock(),
+    )
+    monkeypatch.setattr(execution, "TokenBrokerService", lambda **kwargs: broker)
+    with pytest.raises(type(failure)):
+        await execution.prepare_connected_account_skill_execution(
+            app_id="calendar", skill_id="get-events",
+            skill_arguments={"requests": [{"calendar_id": "synthetic-calendar"}]},
+            connected_account_token_refs=[{
+                "app_id": "calendar", "allowed_actions": ["read"],
+                "turn_token_ref": "synthetic-ref", "provider_id": "google",
+            }],
+            user_id="synthetic-user", user_vault_key_id="synthetic-vault-key",
+            chat_id="synthetic-chat", message_id="synthetic-message",
+            cache_service=FakeCache(), encryption_service=FakeEncryption(),
+        )
+    broker.delete_turn_artifacts.assert_awaited_once_with(
+        turn_token_ref="synthetic-ref", access_token_handle="synthetic-handle",
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_prepare_connected_account_execution_injects_handles_and_cleans_up(monkeypatch) -> None:
     from backend.apps.ai.processing import connected_account_execution
@@ -116,6 +149,7 @@ async def test_prepare_connected_account_execution_injects_handles_and_cleans_up
     assert any(handle in key for key in cache.deleted)
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
 @pytest.mark.anyio
 async def test_prepare_connected_account_execution_accepts_legacy_calendar_token_ref_app_id(monkeypatch) -> None:
     from backend.apps.ai.processing import connected_account_execution
@@ -168,6 +202,7 @@ async def test_prepare_connected_account_execution_accepts_legacy_calendar_token
     assert context.skill_arguments["requests"][0]["access_token_handle"].startswith("ath_")
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.permissions.deterministic
 @pytest.mark.anyio
 async def test_prepare_connected_account_execution_rejects_missing_ref() -> None:
     from backend.apps.ai.processing.connected_account_execution import prepare_connected_account_skill_execution
@@ -187,6 +222,7 @@ async def test_prepare_connected_account_execution_rejects_missing_ref() -> None
         )
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.permissions.deterministic
 @pytest.mark.anyio
 async def test_prepare_connected_account_execution_requires_exact_mutation_scope(monkeypatch) -> None:
     from backend.apps.ai.processing import connected_account_execution
@@ -287,3 +323,34 @@ async def test_prepare_connected_account_execution_requires_exact_mutation_scope
         "calendar_id": "primary",
         "event_id": "event-1",
     }
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.permissions.deterministic,calendar.discovery.target
+@pytest.mark.parametrize("selected,expected", [("second", "ref-second"), ("missing", None), (None, None)])
+def test_account_selection_never_uses_another_or_ambiguous_account(selected, expected):
+    from backend.apps.ai.processing.connected_account_execution import _find_token_ref
+    from backend.shared.python_utils.connected_account_registry import connected_account_skill_config
+
+    refs = [{
+        "connected_account_id": account, "app_id": "calendar", "provider_id": "google",
+        "allowed_actions": ["read"], "turn_token_ref": f"ref-{account}",
+        "action_scope": {"provider": "google"},
+    } for account in ("first", "second")]
+    request = {"connected_account_id": selected} if selected else {}
+    found = _find_token_ref(
+        refs, app_id="calendar", action="read", request=request,
+        config=connected_account_skill_config("calendar", "list-calendars"), provider_id="google",
+    )
+    assert (found or {}).get("turn_token_ref") == expected
+
+
+# contract-test: supporting surface=rest_api assertions=calendar.discovery.target
+@pytest.mark.parametrize("skill_id", ["create-event", "update-event", "delete-event"])
+@pytest.mark.parametrize("calendar_id", [None, "", "   "])
+def test_calendar_mutation_scope_requires_explicit_calendar(skill_id, calendar_id):
+    from backend.shared.python_utils.connected_account_registry import action_scope_for_request, connected_account_skill_config
+
+    config = connected_account_skill_config("calendar", skill_id)
+    request = {} if calendar_id is None else {"calendar_id": calendar_id}
+    with pytest.raises(ValueError, match="calendar_id"):
+        action_scope_for_request(request, action=config.action, config=config)

@@ -17,6 +17,7 @@
 <script lang="ts">
   import SearchResultsTemplate from "../SearchResultsTemplate.svelte";
   import WebsiteEmbedPreview from "./WebsiteEmbedPreview.svelte";
+  import { searchResultImageUrl } from '../../../utils/searchPreviewImages';
   import WebsiteEmbedFullscreen from "./WebsiteEmbedFullscreen.svelte";
   import VideoEmbedPreview from "../videos/VideoEmbedPreview.svelte";
   import VideoEmbedFullscreen from "../videos/VideoEmbedFullscreen.svelte";
@@ -212,14 +213,7 @@
       "favicon_url",
       "meta_url_favicon",
     );
-    const thumbnailUrl = getNestedField(
-      content,
-      "thumbnail.original",
-      "thumbnail.src",
-      "preview_image_url",
-      "thumbnail_original",
-      "image",
-    );
+    const thumbnailUrl = searchResultImageUrl(content);
     const pageAge =
       (content.age as string) || (content.page_age as string) || undefined;
     const url = content.url as string;
@@ -282,14 +276,7 @@
             "favicon_url",
             "meta_url_favicon",
           ),
-        preview_image_url: getNestedField(
-          r,
-          "thumbnail.original",
-          "thumbnail.src",
-          "preview_image_url",
-          "thumbnail_original",
-          "image",
-        ),
+        preview_image_url: searchResultImageUrl(r),
         snippet: (r.snippet as string) || (r.description as string),
         description: r.description as string | undefined,
         extra_snippets: r.extra_snippets as string | string[] | undefined,
@@ -401,7 +388,11 @@
         image={result.preview_image_url}
         status="finished"
         isMobile={false}
-        onFullscreen={onSelect}
+        onFullscreen={(metadata) => {
+          // Keep metadata fetched by the card when opening its fullscreen result.
+          if (metadata.image) result.preview_image_url = metadata.image;
+          onSelect();
+        }}
       />
     {/if}
   {/snippet}

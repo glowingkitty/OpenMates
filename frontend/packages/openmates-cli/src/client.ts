@@ -38,6 +38,7 @@ import {
   type ChatCompletionRecoveryEnvelope,
   type SignupCryptoMaterial,
 } from "./crypto.js";
+import { buildMemoryRequestMessage, coalesceMemoryRequestMessages } from "../../ui/src/utils/appMemoryRequests.js";
 import { COMPRESSION_SUMMARY_CATEGORY } from "./accountImport.js";
 import { OpenMatesHttpClient, type HttpResponse } from "./http.js";
 import {
@@ -46,6 +47,7 @@ import {
   type CachedChat,
   loadSession,
   saveSession,
+  withSessionRefreshLock,
   purgeLocalPrivateData,
   loadSyncCache,
   saveSyncCache,
@@ -104,6 +106,7 @@ import {
   summarizeAssistantSpeech,
   type SpeechMessageResult,
 } from "./assistantSpeech.js";
+import { taskOwnerConflict } from "./codexConnection.js";
 import { containsCredentialLikeField, type ProtonLocalConnectorRegistration } from "./protonBridgeConnector.js";
 import {
   buildCreateUserTaskInput,
@@ -112,6 +115,7 @@ import {
   findTask,
   taskKeyFromRecord,
   type DecryptedUserTask,
+  type TaskUpdateOptions,
 } from "./tasksCli.js";
 import {
   decryptUserPlans,
@@ -699,7 +703,8 @@ export interface WorkflowNodeRun {
 }
 
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
-export type UserTaskAssigneeType = "ai" | "user";
+export type UserTaskAssigneeType = "user" | "openmates" | "external_ai" | "unassigned";
+export type UserTaskAssigneeIdentity = "openmates" | "codex" | "opencode";
 
 export type ProjectSourceType = "local_folder" | "local_git_repository" | "remote_folder" | "remote_git_repository";
 export type ProjectSourceCapability = "read" | "search" | "import" | "write_request";
@@ -842,13 +847,16 @@ export interface UserTaskRecord {
   encrypted_latest_instruction?: string | null;
   status: UserTaskStatus;
   assignee_type: UserTaskAssigneeType;
+  assignee_identity?: UserTaskAssigneeIdentity | null;
   assignee_hash?: string | null;
   primary_chat_id?: string | null;
-  external_chat_provider?: "opencode" | null;
+  external_chat_provider?: "codex" | "opencode" | null;
   external_chat_lookup_hash?: string | null;
   encrypted_external_chat_id?: string | null;
   encrypted_external_chat_title?: string | null;
+  key_wrappers?: Array<Record<string, unknown>>;
   linked_project_ids?: string[] | null;
+  linked_project_hashes?: string[] | null;
   parent_task_id?: string | null;
   plan_id?: string | null;
   task_type?: "work" | "verification" | null;
@@ -876,16 +884,18 @@ export interface UserTaskActivityRecord {
   kind: "comment" | "lifecycle_update" | "tombstone";
   actor_type: string;
   actor_hash: string;
+  actor_identity?: UserTaskAssigneeIdentity | null;
   actor_display_name?: string | null;
   actor_profile_image_url?: string | null;
   author_hash?: string | null;
   event_type: string;
   source_surface: string;
+  previous_status?: UserTaskStatus | null;
+  next_status?: UserTaskStatus | null;
   created_at: number;
   deleted_at?: number | null;
   deleted_by_hash?: string | null;
   deleted_by_display_name?: string | null;
-  encrypted_entry_key: string | null;
   encrypted_message: string | null;
   encrypted_embed_key_material: string | null;
   embed_refs: string[];
@@ -893,7 +903,6 @@ export interface UserTaskActivityRecord {
 
 export interface UserTaskActivityCreateInput {
   entry_id: string;
-  encrypted_entry_key: string;
   encrypted_message: string;
   encrypted_embed_key_material?: string | null;
   embed_refs?: string[];
@@ -916,7 +925,7 @@ export interface UserTaskProposalRecord {
   title: string;
   description?: string | null;
   status?: UserTaskStatus;
-  assignee_type?: UserTaskAssigneeType;
+  assignee_type?: "user" | "openmates";
 }
 
 export type UserTaskCreateInput = Omit<UserTaskRecord, "version" | "started_at" | "completed_at" | "blocked_reason_code" | "ai_execution_state"> & {
@@ -1532,48 +1541,7 @@ function normalizeStringArray(value: unknown): string[] {
   return Array.from(new Set(value.map((item) => String(item).trim()).filter(Boolean)));
 }
 
-function categoryFromMemoryKey(key: string): { appId: string; itemType: string } | null {
-  const separator = key.indexOf("-");
-  if (separator <= 0 || separator === key.length - 1) return null;
-  return {
-    appId: key.slice(0, separator),
-    itemType: key.slice(separator + 1),
-  };
-}
-
-export function buildAppSettingsMemoryRequestSystemMessage(params: {
-  userMessageId: string;
-  requestId: string;
-  requestedKeys: string[];
-  createdAt: number;
-}): AppSettingsMemorySystemMessage {
-  const seen = new Set<string>();
-  const categories: Array<{ appId: string; itemType: string; entryCount: number }> = [];
-  for (const key of params.requestedKeys) {
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const parsed = categoryFromMemoryKey(key);
-    if (!parsed) continue;
-    categories.push({
-      ...parsed,
-      entryCount: 0,
-    });
-  }
-
-  return {
-    message_id: params.requestId,
-    role: "system",
-    content: JSON.stringify({
-      type: "app_settings_memories_request",
-      user_message_id: params.userMessageId,
-      request_id: params.requestId,
-      requested_keys: params.requestedKeys,
-      categories,
-    }),
-    created_at: params.createdAt,
-    user_message_id: params.userMessageId,
-  };
-}
+export const buildAppSettingsMemoryRequestSystemMessage = buildMemoryRequestMessage;
 
 export function buildAppSettingsMemoryResponseSystemMessage(params: {
   userMessageId: string;
@@ -1680,7 +1648,7 @@ export function buildTaskUpdateJobPersistPayload(params: {
 
 function pruneAbsentTaskPersistFields(payload: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(payload).filter(([, value]) => value !== undefined && value !== null),
+    Object.entries(payload).filter(([key, value]) => value !== undefined && (value !== null || key === "primary_chat_id")),
   );
 }
 
@@ -1711,6 +1679,8 @@ function formatTaskEventSystemContent(event: TaskEventFrame): string {
 
 function assertTaskPersistPayloadEncrypted(payload: Record<string, unknown>): void {
   const allowedSafeKeys = new Set([
+    "slug_lookup_hash",
+    "assignee_identity",
     "assignee_hash",
     "assignee_type",
     "blocked_reason_code",
@@ -1824,38 +1794,6 @@ export interface MemoryTypeDef {
  * Auto-generated fields (added_date etc.) are excluded from user-visible fields.
  */
 export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
-  "ai/communication_style": {
-    appId: "ai",
-    itemType: "communication_style",
-    entryType: "single",
-    required: ["title", "tone", "verbosity"],
-    properties: {
-      title: { type: "string" },
-      tone: {
-        type: "string",
-        enum: ["formal", "casual", "friendly", "professional", "conversational"],
-      },
-      verbosity: { type: "string", enum: ["concise", "balanced", "detailed", "very_detailed"] },
-    },
-  },
-  "ai/learning_preferences": {
-    appId: "ai",
-    itemType: "learning_preferences",
-    entryType: "list",
-    required: ["title", "learning_type", "preference_strength"],
-    properties: {
-      title: { type: "string" },
-      learning_type: {
-        type: "string",
-        enum: ["visual", "auditory", "reading", "hands-on", "video", "interactive", "written", "discussion"],
-      },
-      preference_strength: {
-        type: "string",
-        enum: ["strongly_prefer", "prefer", "neutral", "avoid"],
-      },
-      notes: { type: "string" },
-    },
-  },
   "books/favorite_books": {
     appId: "books",
     itemType: "favorite_books",
@@ -2985,8 +2923,10 @@ export class OpenMatesClient {
   readonly apiUrl: string;
   private session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
+  private readonly explicitSession: boolean;
 
   constructor(options: OpenMatesClientOptions = {}) {
+    this.explicitSession = options.session !== undefined;
     const diskSession = options.session ?? this.getValidSessionFromDisk();
     this.apiUrl = (
       options.apiUrl ??
@@ -4320,33 +4260,41 @@ export class OpenMatesClient {
     await this.hydrateEmailEncryptionKey(session);
 
     this.session = session;
-    saveSession(session);
+    saveSession(session, { replace: true });
   }
 
   async whoAmI(): Promise<Record<string, unknown>> {
-    const session = this.requireSession();
-    const response = await this.http.post<{
-      success?: boolean;
-      message?: string;
-      re_auth_reason?: string;
-      user?: Record<string, unknown>;
-      ws_token?: string;
-    }>(
-      "/v1/auth/session",
-      { session_id: session.sessionId },
-      this.getCliRequestHeaders(),
-    );
-    if (!response.ok || !response.data.success) {
-      throw new Error(
-        `Session validation failed (HTTP ${response.status}): ${response.data.message ?? "invalid session"}${response.data.re_auth_reason ? ` (${response.data.re_auth_reason})` : ""}. Please run \`openmates login\`.`,
+    return this.withFreshStoredSession(async () => {
+      const session = this.requireSession();
+      const previousRefreshToken = session.cookies.auth_refresh_token;
+      const response = await this.http.post<{
+        success?: boolean;
+        message?: string;
+        re_auth_reason?: string;
+        user?: Record<string, unknown>;
+        ws_token?: string;
+      }>(
+        "/v1/auth/session",
+        { session_id: session.sessionId },
+        this.getCliRequestHeaders(),
       );
-    }
-    if (response.data.ws_token) {
-      session.wsToken = response.data.ws_token;
-    }
-    session.cookies = this.http.getCookieMap();
-    saveSession(session);
-    return response.data.user ?? {};
+      if (!response.ok || !response.data.success) {
+        if (response.status === 502 || response.status === 503 || response.status === 504) {
+          throw new Error(
+            `Session validation temporarily unavailable (HTTP ${response.status}). The API may be restarting; retry shortly.`,
+          );
+        }
+        throw new Error(
+          `Session validation failed (HTTP ${response.status}): ${response.data.message ?? "invalid session"}${response.data.re_auth_reason ? ` (${response.data.re_auth_reason})` : ""}. Please run \`${this.loginRecoveryCommand()}\`.`,
+        );
+      }
+      if (response.data.ws_token) {
+        session.wsToken = response.data.ws_token;
+      }
+      session.cookies = this.http.getCookieMap();
+      saveSession(session, { expectedRefreshToken: previousRefreshToken });
+      return response.data.user ?? {};
+    });
   }
 
   async getTopicPreferences(): Promise<TopicPreferencesPayload | null> {
@@ -4524,7 +4472,7 @@ export class OpenMatesClient {
       authorizerDeviceName: null,
       autoLogoutMinutes: null,
     };
-    saveSession(session);
+    saveSession(session, { replace: true });
     this.session = session;
     return {
       success: true,
@@ -5469,7 +5417,7 @@ export class OpenMatesClient {
       });
     }
     messages.sort((a, b) => a.createdAt - b.createdAt);
-    return messages;
+    return coalesceMemoryRequestMessages(messages);
   }
 
   private async resolveCachedChatForQuery(
@@ -5538,7 +5486,7 @@ export class OpenMatesClient {
   }
 
   /**
-   * Get the decrypted messages for a specific chat.
+   * Resolve decrypted chat metadata without fetching message history.
    *
    * Lookup order (most-recent-first for all title matches):
    * 1. Exact full UUID match
@@ -5548,6 +5496,15 @@ export class OpenMatesClient {
    *
    * @param query Full UUID, 8-char short ID, or chat title.
    */
+  async getChatMetadata(query: string, options: TeamContextOptions = {}): Promise<ChatListItem> {
+    const teamId = this.resolveTeamContext(options);
+    const cache = await this.ensureSynced(true, [], options);
+    const wrappingKey = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+    const found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    return this.decryptChatListItem(found, wrappingKey, cache, teamId);
+  }
+
+  /** Get decrypted messages for a chat resolved by UUID, prefix or title. */
   async getChatMessages(query: string, options: TeamContextOptions = {}): Promise<{
     chat: ChatListItem;
     messages: DecryptedMessage[];
@@ -6445,10 +6402,12 @@ export class OpenMatesClient {
     const shouldWaitForAi = shouldWaitForTeamAi(finalMessage, teamId);
 
     let availableMemories: DecryptedMemoryEntry[] = [];
+    let memoryCountsLoaded = false;
     let memoryMetadataKeys: string[] = [];
     if (!params.incognito) {
       try {
         availableMemories = await this.listMemories({ teamId });
+        memoryCountsLoaded = true;
         memoryMetadataKeys = [
           ...new Set(
             availableMemories
@@ -6515,6 +6474,7 @@ export class OpenMatesClient {
     // Saved chats must resolve their immutable raw key before constructing the
     // inference request because preflight commits the matching encrypted row.
     let chatKeyBytes: Uint8Array | null = null;
+    let activeFocusId: string | null = null;
     let encryptedChatKey: string | null = null;
     let chatSlugLookupKey: Uint8Array | null = null;
     let baselineMessagesV = 0;
@@ -6557,6 +6517,14 @@ export class OpenMatesClient {
           if (encKey) {
             chatKeyBytes = await decryptBytesWithAesGcm(encKey, wrappingKey);
             encryptedChatKey = encKey;
+            if (!chatKeyBytes) throw new Error("Could not decrypt the saved chat key.");
+            const encryptedFocusId = chat.details.encrypted_active_focus_id;
+            if (typeof encryptedFocusId === "string" && encryptedFocusId) {
+              activeFocusId = await decryptWithAesGcmCombined(encryptedFocusId, chatKeyBytes);
+              if (!activeFocusId) {
+                throw new Error("Could not decrypt the chat's active focus. Sync before sending again.");
+              }
+            }
           }
         }
         if (!chatKeyBytes || !encryptedChatKey) {
@@ -6564,6 +6532,22 @@ export class OpenMatesClient {
         }
       }
     }
+
+    // Persist authoritative live focus activation with the chat key, as the web
+    // client does. The next request restores this field; history is not authority.
+    let focusPersistence = Promise.resolve();
+    let focusPersistenceError: unknown = null;
+    ws.onMessageType<{ chat_id?: string; focus_id?: string }>("focus_mode_activated", (event) => {
+      if (event.chat_id !== chatId || !event.focus_id || !chatKeyBytes || params.incognito) return;
+      const focusId = event.focus_id;
+      const key = chatKeyBytes;
+      focusPersistence = focusPersistence.then(async () => {
+        const encryptedFocusId = await encryptWithAesGcmCombined(focusId, key);
+        await ws.sendAsync("update_encrypted_active_focus_id", {
+          chat_id: chatId, encrypted_active_focus_id: encryptedFocusId,
+        });
+      }).catch((error: unknown) => { focusPersistenceError = error; });
+    });
 
     // ── Inference request ──
     // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
@@ -6573,6 +6557,8 @@ export class OpenMatesClient {
       chat_id: chatId,
       ...(teamId ? { team_id: teamId } : {}),
       client_capabilities: clientCapabilities,
+      // Only decrypted current metadata restores focus; history is never authority.
+      active_focus_id: activeFocusId,
       is_incognito: Boolean(params.incognito),
       message: {
         message_id: messageId,
@@ -6997,6 +6983,7 @@ export class OpenMatesClient {
         userMessageId: messageId,
         requestId,
         requestedKeys: event.requestedKeys,
+        entryCounts: memoryCountsLoaded ? new Map(event.requestedKeys.map(key => [key, availableMemories.filter(memory => `${memory.app_id}-${memory.item_type}` === key).length])) : undefined,
         createdAt: Math.floor(Date.now() / 1000),
       }));
     };
@@ -7335,7 +7322,7 @@ export class OpenMatesClient {
             assistant,
             chatKeyBytes,
           );
-          const encryptedSenderName = await encryptWithAesGcmCombined("Assistant", chatKeyBytes);
+          const encryptedSenderName = await encryptWithAesGcmCombined(category ? MATE_NAMES[category] ?? "Assistant" : "Assistant", chatKeyBytes);
           const encryptedCategory = recovered.category
             ? await encryptWithAesGcmCombined(recovered.category, chatKeyBytes)
             : undefined;
@@ -7412,6 +7399,25 @@ export class OpenMatesClient {
             fallbackMessageId: assistantId,
             ownerId,
           });
+          // Chat-level identity is separate from assistant-message metadata.
+          // Use the same encrypted storage protocol as the web typing handler.
+          if (isNewChat && (resp.generatedTitle || resp.generatedIcon)) {
+            const metadataStored = ws.waitForMessage(
+              "encrypted_metadata_stored",
+              (payload) => (payload as Record<string, unknown>).chat_id === chatId,
+              20_000,
+            );
+            await ws.sendAsync("encrypted_chat_metadata", {
+              chat_id: chatId,
+              ...(teamId ? { team_id: teamId } : {}),
+              encrypted_chat_key: encryptedChatKey,
+              ...(resp.generatedTitle ? { encrypted_title: await encryptWithAesGcmCombined(resp.generatedTitle, chatKeyBytes) } : {}),
+              ...(category ? { encrypted_chat_category: await encryptWithAesGcmCombined(category, chatKeyBytes) } : {}),
+              ...(resp.generatedIcon ? { encrypted_icon: await encryptWithAesGcmCombined(resp.generatedIcon, chatKeyBytes) } : {}),
+              versions: { messages_v: terminalExpectedMessagesV + 1 },
+            });
+            await metadataStored;
+          }
           await this.persistPostProcessingMetadata({
             ws,
             chatId,
@@ -7442,8 +7448,10 @@ export class OpenMatesClient {
           clearSyncCache(teamId);
         }
       } finally {
+        await focusPersistence;
         ws.close();
       }
+      if (focusPersistenceError) throw focusPersistenceError;
     }
 
     const mateName = category ? (MATE_NAMES[category] ?? null) : null;
@@ -7688,7 +7696,7 @@ export class OpenMatesClient {
           description: typeof privatePatch.description === "string" ? privatePatch.description : "",
           status: typeof safeMetadata.status === "string" ? safeMetadata.status as UserTaskStatus : "todo",
           assign: typeof safeMetadata.assignee_type === "string" ? safeMetadata.assignee_type : "user",
-          chatId: typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : claim.chat_id ?? params.activeChatId,
+          chatId: safeMetadata.primary_chat_id === null ? undefined : typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : claim.chat_id ?? params.activeChatId,
         });
         encryptedTaskPayload = {
           ...input,
@@ -7766,6 +7774,37 @@ export class OpenMatesClient {
         .map((embed) => [embed.embed_id, embed]),
     );
     if (finalized.size === 0) return;
+
+    // A recovered parent can arrive without its source-file frames. Fetch the
+    // existing descendants before acknowledging complete artifact persistence.
+    // Never generate replacement content or silently omit an unavailable child.
+    for (const parent of finalized.values()) {
+      for (const childId of parent.embed_ids ?? []) {
+        if (finalized.has(childId)) continue;
+        const childResponse = params.ws.waitForMessage(
+          "send_embed_data",
+          (payload) => {
+            const frame = payload as Record<string, unknown>;
+            const nested = (frame.payload ?? frame) as Record<string, unknown>;
+            return nested.embed_id === childId;
+          },
+        );
+        await params.ws.sendAsync("request_embed", { embed_id: childId });
+        const envelope = (await childResponse).payload as Record<string, unknown>;
+        const child = (envelope.payload ?? envelope) as unknown as SendEmbedDataFrame;
+        if (child.parent_embed_id !== parent.embed_id || !child.content
+          || (child.status ?? "finished") !== "finished"
+          || (child.chat_id && child.chat_id !== params.chatId
+            && child.chat_id !== computeSHA256(params.chatId))) {
+          throw new Error(`Cannot persist referenced child embed ${childId}: original finished child data is unavailable.`);
+        }
+        // request_embed can return the stored message hash; avoid hashing twice.
+        if (child.message_id === computeSHA256(params.fallbackMessageId)) {
+          child.message_id = params.fallbackMessageId;
+        }
+        finalized.set(childId, child);
+      }
+    }
 
     const masterKey = this.getMasterKeyBytes();
     const parentKeys = new Map<string, Uint8Array>();
@@ -7881,8 +7920,9 @@ export class OpenMatesClient {
         );
         await params.ws.sendAsync("store_embed_keys", { request_id: keysRequestId, keys });
         await keysConfirmed;
-        parentKeys.set(embed.embed_id, embedKey);
       }
+      // Descendants inherit this same key even when their parent is a child.
+      parentKeys.set(embed.embed_id, embedKey);
 
       if (Array.isArray(embed.version_history_rows)) {
         for (const row of embed.version_history_rows) {
@@ -8121,7 +8161,7 @@ export class OpenMatesClient {
           await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
           continue;
         }
-        throw new Error(`Task polling failed with HTTP ${response.status}`);
+        throw new Error(`Task ${taskId} polling failed with HTTP ${response.status}. Generation was not retried; retain this task ID for recovery.`);
       }
       lastTransientError = null;
       if (response.data.status === "completed") {
@@ -9460,7 +9500,7 @@ export class OpenMatesClient {
   // User tasks
   // -------------------------------------------------------------------------
 
-  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "opencode"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "codex" | "opencode"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
     this.requireSession();
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
@@ -9470,7 +9510,9 @@ export class OpenMatesClient {
     if (filters.externalChatProvider) params.set("external_chat_provider", filters.externalChatProvider);
     if (filters.externalChatLookupHash) params.set("external_chat_lookup_hash", filters.externalChatLookupHash);
     if (filters.priority !== undefined) params.set("priority", String(filters.priority));
-    const limit = filters.limit;
+    const maximumTaskListPage = 500;
+    const limit = Math.min(filters.limit ?? maximumTaskListPage, maximumTaskListPage);
+    if (!Number.isSafeInteger(limit) || limit <= 0) throw new Error("Invalid task list limit");
     if (Number.isSafeInteger(limit) && limit !== undefined && limit > 0) params.set("limit", String(limit));
     const teamId = this.resolveTeamContext({ teamId: filters.teamId, personal: filters.personal });
     if (teamId) params.set("team_id", teamId);
@@ -9482,18 +9524,46 @@ export class OpenMatesClient {
     if (!response.ok) {
       throw new Error(`User task list failed with HTTP ${response.status}`);
     }
-    return response.data.tasks ?? [];
+    const tasks = response.data.tasks ?? [];
+    if (tasks.length >= limit) {
+      throw new Error(`TASK_LIST_INCOMPLETE: server limit ${limit} reached; refusing a truncated task inventory.`);
+    }
+    return tasks;
   }
 
-  async createUserTask(input: UserTaskCreateInput): Promise<UserTaskRecord> {
+  /** Submit a confirmed Codex runtime deletion, never a missing-list inference. */
+  async unlinkDeletedTaskChat(lookupHash: string, eventId: string, context: TeamContextOptions = {}): Promise<{unlinked_tasks: number; event_id: string}> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(context);
+    const response = await this.http.post<{unlinked_tasks: number; event_id: string}>("/v1/user-tasks/external-chat-deleted",
+      {external_chat_lookup_hash: lookupHash, event_id: eventId, ...(teamId ? {team_id: teamId} : {})}, this.getCliRequestHeaders());
+    if (!response.ok || response.data.event_id !== eventId) throw Object.assign(new Error(`Task chat deletion failed with HTTP ${response.status}`), {status: response.status, retryAfterMs: response.retryAfterMs});
+    return response.data;
+  }
+
+  /** Exact scoped lookup for queue reconciliation, without loading the task inventory. */
+  async getUserTask(taskId: string, context: TeamContextOptions = {}): Promise<UserTaskRecord | null> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(context);
+    const query = teamId ? `?team_id=${encodeURIComponent(teamId)}` : "";
+    const response = await this.http.get<{ task?: UserTaskRecord }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}${query}`, this.getCliRequestHeaders());
+    if (response.status === 404) return null;
+    if (!response.ok || !response.data.task) {
+      throw Object.assign(new Error(`User task read failed with HTTP ${response.status}`), { status: response.status, retryAfterMs: response.retryAfterMs });
+    }
+    return response.data.task;
+  }
+
+  async createUserTask(input: UserTaskCreateInput, context: { creator?: "codex" } = {}): Promise<UserTaskRecord> {
     this.requireSession();
     const response = await this.http.post<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
       "/v1/user-tasks",
       input,
-      this.getCliRequestHeaders(),
+      { ...this.getCliRequestHeaders(), ...(context.creator ? { "X-OpenMates-Task-Actor": "assignee", "X-OpenMates-Task-Creator": context.creator } : {}) },
     );
     if (!response.ok || !response.data.task) {
-      throw new Error(`User task create failed with HTTP ${response.status}`);
+      throw Object.assign(new Error(`User task create failed with HTTP ${response.status}`), { status: response.status, retryAfterMs: response.retryAfterMs });
     }
     response.data.task.history = response.data.history ?? null;
     return response.data.task;
@@ -9565,6 +9635,27 @@ export class OpenMatesClient {
     return response.data.proposed_tasks;
   }
 
+  /** Resolve membership-authorized Project keys before replacing task wrappers. */
+  async prepareUserTaskUpdate(task: DecryptedUserTask, input: TaskUpdateOptions, context: TeamContextOptions = {}): Promise<UserTaskUpdateInput> {
+    const masterKey = this.getMasterKeyBytes();
+    if (input.projectIds === undefined) return buildUpdateUserTaskInput(task, masterKey, input);
+    this.requireSession();
+    // The task wrapper endpoint currently authorizes Personal ownership only.
+    // Never mix a Personal wrapper read with Team Project membership.
+    if (this.resolveTeamContext(context)) throw new Error("Team Task project relinking is not supported by the task key-wrapper endpoint.");
+    await taskKeyFromRecord(task.encrypted, masterKey);
+    const response = await this.http.get<{ key_wrappers?: Array<Record<string, unknown>> }>(
+      `/v1/user-tasks/${encodeURIComponent(task.taskId)}/key-wrappers`, this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.key_wrappers)) throw new Error("Unable to load required task key wrappers.");
+    const projectKeys = new Map<string, Uint8Array>();
+    for (const projectId of new Set(input.projectIds)) {
+      const detail = await this.getProject(projectId, context);
+      projectKeys.set(projectId, await this.decryptProjectKey(detail.project, context));
+    }
+    return buildUpdateUserTaskInput(task, masterKey, input, {keyWrappers: response.data.key_wrappers, projectKeys});
+  }
+
   async updateUserTask(taskId: string, input: UserTaskUpdateInput, context: TeamContextOptions = {}): Promise<UserTaskRecord> {
     this.requireSession();
     const teamId = this.resolveTeamContext(context);
@@ -9575,7 +9666,28 @@ export class OpenMatesClient {
       this.getCliRequestHeaders(),
     );
     if (!response.ok || !response.data.task) {
-      throw new Error(`User task update failed with HTTP ${response.status}`);
+      let conflict: string | undefined;
+      // Only a rejected link needs this extra scoped read. Successful creation
+      // and claiming still use one mutation, and no inventory is downloaded.
+      if (response.status === 409 && (input.external_chat_provider || input.primary_chat_id)) {
+        try {
+          const current = await this.getUserTask(taskId, context);
+          if (current) {
+            const task = (await decryptUserTasks([current], this.getMasterKeyBytes()))[0];
+            if (task.externalChat && (current.external_chat_provider !== input.external_chat_provider || current.external_chat_lookup_hash !== input.external_chat_lookup_hash)) {
+              conflict = taskOwnerConflict(task.externalChat);
+            } else if (task.primaryChatId && task.primaryChatId !== input.primary_chat_id) {
+              const owner = await this.getChatMetadata(task.primaryChatId, context);
+              conflict = taskOwnerConflict({provider: "openmates", id: owner.id, title: owner.title});
+            }
+          }
+        } catch {
+          // Access may have been revoked concurrently. Preserve the conflict;
+          // an unavailable title is never invented and this does not retry it.
+          conflict = `Task claim conflicted; owner details are temporarily unavailable. Read task ${taskId} when access returns.`;
+        }
+      }
+      throw Object.assign(new Error(conflict ?? `User task update failed with HTTP ${response.status}`), { status: response.status, retryAfterMs: response.retryAfterMs, ownerConflict: conflict });
     }
     response.data.task.history = response.data.history ?? null;
     return response.data.task;
@@ -9603,12 +9715,12 @@ export class OpenMatesClient {
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
-      throw new Error(`User task delete failed with HTTP ${response.status}`);
+      throw Object.assign(new Error(`User task delete failed with HTTP ${response.status}`), { status: response.status, retryAfterMs: response.retryAfterMs });
     }
     return response.data;
   }
 
-  async listUserTaskActivity(taskId: string, context: TeamContextOptions & { cursor?: string; limit?: number } = {}): Promise<UserTaskActivityPage> {
+  async listUserTaskActivity(taskId: string, context: TeamContextOptions & { cursor?: string; limit?: number; newestFirst?: boolean } = {}): Promise<UserTaskActivityPage> {
     this.requireSession();
     const params = new URLSearchParams();
     const teamId = this.resolveTeamContext(context);
@@ -9617,6 +9729,7 @@ export class OpenMatesClient {
     if (Number.isSafeInteger(context.limit) && context.limit !== undefined && context.limit > 0) {
       params.set("limit", String(context.limit));
     }
+    if (context.newestFirst) params.set("newest_first", "true");
     const query = params.toString();
     const response = await this.http.get<UserTaskActivityPage>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}/activity${query ? `?${query}` : ""}`,
@@ -9628,17 +9741,25 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async createUserTaskActivity(taskId: string, input: UserTaskActivityCreateInput, context: TeamContextOptions = {}): Promise<UserTaskActivityRecord> {
+  async createUserTaskActivity(
+    taskId: string,
+    input: UserTaskActivityCreateInput,
+    context: TeamContextOptions & { actorMode?: "user" | "assignee"; expectedOwnerHash?: string } = {},
+  ): Promise<UserTaskActivityRecord> {
     this.requireSession();
     const teamId = this.resolveTeamContext(context);
     const query = teamId ? `?team_id=${encodeURIComponent(teamId)}` : "";
     const response = await this.http.post<{ entry?: UserTaskActivityRecord }>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}/activity${query}`,
       input,
-      this.getCliRequestHeaders(),
+      {
+        ...this.getCliRequestHeaders(),
+        ...(context.actorMode ? { "X-OpenMates-Task-Actor": context.actorMode } : {}),
+        ...(context.expectedOwnerHash ? { "X-OpenMates-Task-Owner": context.expectedOwnerHash } : {}),
+      },
     );
     if (!response.ok || !response.data.entry) {
-      throw new Error(`User task activity create failed with HTTP ${response.status}`);
+      throw Object.assign(new Error(`User task activity create failed with HTTP ${response.status}`), { status: response.status, retryAfterMs: response.retryAfterMs });
     }
     return response.data.entry;
   }
@@ -11055,8 +11176,9 @@ export class OpenMatesClient {
     const session = this.requireSession();
     const currentCookies = this.http.getCookieMap();
     if (JSON.stringify(session.cookies) !== JSON.stringify(currentCookies)) {
+      const previousRefreshToken = session.cookies.auth_refresh_token;
       session.cookies = currentCookies;
-      saveSession(session);
+      saveSession(session, { expectedRefreshToken: previousRefreshToken });
     }
     return session;
   }
@@ -11082,6 +11204,7 @@ export class OpenMatesClient {
     chatId: string,
     durationSeconds: ShareDuration = 0,
     password?: string,
+    options: { includeSensitiveData?: boolean } = {},
   ): Promise<string> {
     const session = this.requireSession();
     const masterKey = base64ToBytes(session.masterKeyExportedB64);
@@ -11142,6 +11265,7 @@ export class OpenMatesClient {
         summary: null,
         share_cta_text: null,
         is_shared: true,
+        share_pii: options.includeSensitiveData === true,
       },
     );
     if (!metadataResponse.ok || metadataResponse.data.success !== true) {
@@ -11614,9 +11738,32 @@ export class OpenMatesClient {
     );
   }
 
+  private async withFreshStoredSession<T>(operation: () => Promise<T>): Promise<T> {
+    return withSessionRefreshLock(async () => {
+      const previous = this.requireSession();
+      const current = loadSession();
+      if (!current && !this.explicitSession) {
+        throw new Error("Login session was removed. Log in to the current profile before retrying.");
+      }
+      if (current && !this.explicitSession) {
+        if (current.hashedEmail !== previous.hashedEmail || current.apiUrl !== previous.apiUrl) {
+          throw new Error("Login account changed in another process. Retry using the current profile.");
+        }
+        this.session = current;
+        this.http.replaceCookies(current.cookies);
+      }
+      return operation();
+    });
+  }
+
+  private loginRecoveryCommand(): string {
+    const profile = process.env.OPENMATES_PROFILE?.trim();
+    return profile ? `openmates --profile ${profile} login` : "openmates login";
+  }
+
   private requireSession(): OpenMatesSession {
     if (!this.session) {
-      throw new Error("Not logged in. Run `openmates login`.");
+      throw new Error(`Not logged in. Run \`${this.loginRecoveryCommand()}\`.`);
     }
     return this.session;
   }
@@ -11714,43 +11861,49 @@ export class OpenMatesClient {
    * This method fetches a fresh ws_token and captures any rotated cookies.
    */
   private async refreshWsToken(): Promise<string | null> {
-    const session = this.requireSession();
-    let res: HttpResponse<{
-      success?: boolean;
-      ws_token?: string;
-      user?: { id?: string; user_id?: string };
-    }>;
-    try {
-      res = await this.http.post<{
+    return this.withFreshStoredSession(async () => {
+      const session = this.requireSession();
+      const previousRefreshToken = session.cookies.auth_refresh_token;
+      let res: HttpResponse<{
         success?: boolean;
         ws_token?: string;
         user?: { id?: string; user_id?: string };
-      }>("/v1/auth/session", { session_id: session.sessionId }, this.getCliRequestHeaders());
-    } catch {
-      // Network failures are best-effort: proceed with the existing wsToken and
-      // let the WebSocket auth cookie fallback handle it. Explicit server
-      // invalidation below is different and must purge local private data.
-      return null;
-    }
+      }>;
+      try {
+        res = await this.http.post<{
+          success?: boolean;
+          ws_token?: string;
+          user?: { id?: string; user_id?: string };
+        }>("/v1/auth/session", { session_id: session.sessionId }, this.getCliRequestHeaders());
+      } catch {
+        // Network failures are best-effort: proceed with the existing wsToken and
+        // let the WebSocket auth cookie fallback handle it. Explicit server
+        // invalidation below is different and must purge local private data.
+        return null;
+      }
 
-    if (!res.ok || res.data.success === false) {
-      purgeLocalPrivateData();
-      this.session = null;
-      throw new Error("Session expired or invalid. Please run `openmates login` to re-authenticate.");
-    }
+      if (res.status >= 500) {
+        throw new Error(`Session validation temporarily unavailable (HTTP ${res.status}). Retry shortly.`);
+      }
+      if (!res.ok || res.data.success === false) {
+        purgeLocalPrivateData();
+        this.session = null;
+        throw new Error(`Session expired or invalid. Please run \`${this.loginRecoveryCommand()}\` to re-authenticate.`);
+      }
 
-    if (res.data.ws_token) {
-      session.wsToken = res.data.ws_token;
-    }
-    // Capture any rotated cookies from the response (HTTP client does this
-    // automatically via captureCookies — just persist the updated map).
-    session.cookies = this.http.getCookieMap();
-    saveSession(session);
-    return typeof res.data.user?.id === "string"
-      ? res.data.user.id
-      : typeof res.data.user?.user_id === "string"
-        ? res.data.user.user_id
-        : null;
+      if (res.data.ws_token) {
+        session.wsToken = res.data.ws_token;
+      }
+      // Capture any rotated cookies from the response (HTTP client does this
+      // automatically via captureCookies — just persist the updated map).
+      session.cookies = this.http.getCookieMap();
+      saveSession(session, { expectedRefreshToken: previousRefreshToken });
+      return typeof res.data.user?.id === "string"
+        ? res.data.user.id
+        : typeof res.data.user?.user_id === "string"
+          ? res.data.user.user_id
+          : null;
+    });
   }
 
   /**

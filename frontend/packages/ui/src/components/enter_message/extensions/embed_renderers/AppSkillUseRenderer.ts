@@ -34,7 +34,7 @@ import {
 } from "../../../../services/embedFullscreenResolver";
 import { resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
 import { normalizeEmbedType as registryNormalizeEmbedType } from "../../../../data/embedRegistry.generated";
-import { mount, unmount } from "svelte";
+import { mount, unmount, disposeEmbedTree, onEmbedCleanup, isEmbedTargetDisposed } from "./mountedEmbedLifecycle";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
 import MailSearchEmbedPreview from "../../../embeds/mail/MailSearchEmbedPreview.svelte";
 import NewsSearchEmbedPreview from "../../../embeds/news/NewsSearchEmbedPreview.svelte";
@@ -199,6 +199,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           });
         };
         chatSyncService.addEventListener("embedUpdated", decryptRetryHandler);
+        onEmbedCleanup(content, () => chatSyncService.removeEventListener("embedUpdated", decryptRetryHandler));
         // CRITICAL: Remove this embed from the processed-embeds set before requesting
         // fresh data. If the embed was processed in this session (e.g., during live
         // generation), `isEmbedAlreadyProcessed` would silently drop the incoming
@@ -218,6 +219,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           );
         }
         // Leave content empty (processing skeleton) while waiting for the server response.
+        disposeEmbedTree(content, false);
         content.innerHTML = "";
         return;
       }
@@ -270,6 +272,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
             });
           };
           chatSyncService.addEventListener("embedUpdated", retryHandler);
+        onEmbedCleanup(content, () => chatSyncService.removeEventListener("embedUpdated", retryHandler));
           console.debug(
             "[AppSkillUseRenderer] Embed not cached yet (finished status), waiting for embedUpdated:",
             embedId,
@@ -294,6 +297,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
                 embedId,
               );
               // Don't render this embed - it was replaced by multiple specific embeds
+              disposeEmbedTree(content, false);
               content.innerHTML = "";
               return;
             }
@@ -443,6 +447,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         `[AppSkillUseRenderer] Hiding error embed from user:`,
         attrs.contentRef || attrs.id,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = "";
       return;
     }
@@ -1092,6 +1097,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
   }
 
@@ -1313,6 +1319,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -1384,6 +1392,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -1476,6 +1486,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Mount the Svelte component
@@ -1571,6 +1582,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -1653,6 +1666,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -1724,6 +1739,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -1799,6 +1816,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -1879,6 +1898,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -1948,6 +1969,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -2015,6 +2038,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -2085,6 +2110,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -2163,6 +2190,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -2232,6 +2261,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -2338,6 +2369,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -2395,6 +2428,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         console.warn("[AppSkillUseRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
     try {
       const embedId = attrs.contentRef?.replace("embed:", "") || "";
@@ -2461,6 +2495,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -2545,6 +2581,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     try {
@@ -2624,6 +2661,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     try {
@@ -2698,6 +2736,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     try {
@@ -2801,6 +2840,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     try {
@@ -2893,6 +2933,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     try {
@@ -2953,6 +2994,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     try {
@@ -3030,6 +3072,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     try {
@@ -3099,6 +3142,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     try {
@@ -3172,6 +3216,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     try {
@@ -3239,6 +3284,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     try {
@@ -3367,6 +3413,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       </div>
     `;
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = html;
 
     // Add click handler for fullscreen
@@ -3423,6 +3471,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -3502,6 +3552,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Mount the Svelte component
@@ -3607,6 +3658,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       </div>
     `;
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = html;
 
     // Add click handler for fullscreen
@@ -3653,6 +3706,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Mount the Svelte component
@@ -3729,6 +3783,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -3808,6 +3864,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Mount the Svelte component
@@ -3911,6 +3968,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Mount the Svelte component
@@ -4003,6 +4061,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -4094,6 +4154,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -4181,6 +4243,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -4266,6 +4330,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -4317,6 +4383,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     if (existingComponent) {
       try { unmount(existingComponent); } catch (e) { console.warn("[AppSkillUseRenderer] Error unmounting existing component:", e); }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
     try {
       const embedId = attrs.contentRef?.replace("embed:", "") || "";
@@ -4396,6 +4463,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       </div>
     `;
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = html;
 
     // Add click handler for fullscreen
@@ -4421,7 +4490,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
    * 'embedUpdated' event and retries — preventing silent failures when the user
    * clicks the view embed card immediately after a fresh upload.
    */
-  private async openImageUploadFullscreen(embedId: string): Promise<void> {
+  private async openImageUploadFullscreen(embedId: string, content: HTMLElement): Promise<void> {
     if (!embedId) {
       console.warn(
         "[AppSkillUseRenderer] openImageUploadFullscreen: no embed_id",
@@ -4436,11 +4505,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const dispatchFullscreenEvent = async (
       uploadEmbed: any,
     ): Promise<boolean> => {
-      if (!uploadEmbed) return false;
+      if (!uploadEmbed || isEmbedTargetDisposed(content)) return false;
       const uploadContent = uploadEmbed.content
         ? await decodeToonContent(uploadEmbed.content)
         : null;
 
+      if (isEmbedTargetDisposed(content)) return false;
       const event = new CustomEvent("imagefullscreen", {
         detail: {
           src: undefined, // no local blob URL (this is a persisted embed)
@@ -4490,6 +4560,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           });
       };
       chatSyncService.addEventListener("embedUpdated", handler);
+        onEmbedCleanup(content, () => chatSyncService.removeEventListener("embedUpdated", handler));
     } catch (err) {
       console.error(
         "[AppSkillUseRenderer] Failed to open image upload fullscreen:",
@@ -4643,6 +4714,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -4650,7 +4723,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
       // On fullscreen click: open the ORIGINAL uploaded image's fullscreen
       const handleFullscreen = () => {
-        this.openImageUploadFullscreen(originalEmbedId);
+        this.openImageUploadFullscreen(originalEmbedId, content);
       };
 
       const component = mount(ImageViewEmbedPreview, {
@@ -4719,6 +4792,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
             });
         };
         chatSyncService.addEventListener("embedUpdated", imageViewRetryHandler);
+        onEmbedCleanup(content, () => chatSyncService.removeEventListener("embedUpdated", imageViewRetryHandler));
         console.debug(
           "[AppSkillUseRenderer] ImageView embed has no embed_id yet, waiting for embedUpdated:",
           embedId,
@@ -4778,6 +4852,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       } catch {
         // ignore
       }
+
+      disposeEmbedTree(content, false);
 
       content.innerHTML = "";
 
@@ -4845,6 +4921,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           });
       };
       chatSyncService.addEventListener("embedUpdated", handler);
+        onEmbedCleanup(content, () => chatSyncService.removeEventListener("embedUpdated", handler));
     } catch (err) {
       console.error(
         "[AppSkillUseRenderer] Error resolving original image embed for preview:",
@@ -4895,6 +4972,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -4995,6 +5074,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -5101,6 +5182,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -5199,6 +5282,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -5268,6 +5353,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -5326,6 +5413,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -5405,6 +5494,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -5481,6 +5572,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -5549,6 +5642,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -5724,6 +5819,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Mount a generic WebSearchEmbedPreview with processing status as fallback
@@ -5758,6 +5854,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         error,
       );
       // Ultimate fallback: simple HTML
+      disposeEmbedTree(content, false);
       content.innerHTML = `
         <div class="embed-app-icon web">
           <span class="icon icon_web"></span>

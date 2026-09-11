@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from backend.engineering_control_plane.coordination import (
+    event_handoff_idempotency_key,
     DispatchSpec,
     InMemoryCoordinationStore,
     LeaseConflict,
@@ -22,6 +23,18 @@ from backend.engineering_control_plane.coordination import (
     SessionEventType,
 )
 from backend.engineering_control_plane.coordination_repository import _validate_runtime_operation_transition
+
+
+@pytest.mark.parametrize("key", [" padded", "padded ", "", " ", 123])
+def test_handoff_identity_rejects_noncanonical_keys(key) -> None:
+    with pytest.raises(ValueError, match="handoff_key"):
+        event_handoff_idempotency_key(
+            event_type=SessionEventType.TASK_CHANGED,
+            target_type="session",
+            target_key="coordinator",
+            subject_key="task",
+            payload={"handoff_key": key},
+        )
 
 
 def test_shared_leases_coexist_but_exclusive_lease_waits() -> None:
@@ -302,3 +315,39 @@ def test_targeted_events_use_monotonic_cursors_and_idempotent_ack() -> None:
             payload={"credentials": "secret"},
             now=NOW,
         )
+
+
+def test_handoff_events_are_idempotent_by_target_subject_and_handoff_key() -> None:
+    store = InMemoryCoordinationStore()
+    first = store.publish_event(
+        event_type=SessionEventType.TASK_CHANGED,
+        target_type="session",
+        target_key="chat-a",
+        subject_key="task-1",
+        payload={"handoff_key": "task-1:v2:chat-a", "state": "ready"},
+        now=NOW,
+    )
+    duplicate = store.publish_event(
+        event_type=SessionEventType.TASK_CHANGED,
+        target_type="session",
+        target_key="chat-a",
+        subject_key="task-1",
+        payload={"handoff_key": "task-1:v2:chat-a", "state": "ready"},
+        now=NOW,
+    )
+    next_subject = store.publish_event(
+        event_type=SessionEventType.TASK_CHANGED,
+        target_type="session",
+        target_key="chat-a",
+        subject_key="task-2",
+        payload={"handoff_key": "task-1:v2:chat-a", "state": "ready"},
+        now=NOW,
+    )
+
+    assert duplicate.event_key == first.event_key
+    assert duplicate.cursor == first.cursor
+    assert next_subject.event_key != first.event_key
+    assert [event.event_key for event in store.read_events("session", "chat-a")] == [
+        first.event_key,
+        next_subject.event_key,
+    ]

@@ -29,6 +29,10 @@ class ConnectedAccountSkillConfig:
 
 
 CONNECTED_ACCOUNT_SKILL_CONFIGS: dict[tuple[str, str], ConnectedAccountSkillConfig] = {
+    ("calendar", "list-calendars"): ConnectedAccountSkillConfig(
+        app_id="calendar", skill_id="list-calendars", provider_id="google",
+        action="read", scope_kind="provider_account",
+    ),
     ("calendar", "get-events"): ConnectedAccountSkillConfig(
         app_id="calendar",
         skill_id="get-events",
@@ -124,6 +128,11 @@ def action_scope_for_request(
         return {"provider": config.provider_id}
 
     if config.scope_kind == "calendar_events":
+        if action != "read" and (
+            not isinstance(request.get("calendar_id"), str)
+            or not request["calendar_id"].strip()
+        ):
+            raise ValueError("calendar_id is required for Calendar mutations")
         scope: dict[str, Any] = {"calendar_id": request.get("calendar_id") or "primary"}
         if action in {"update", "delete"} and request.get("event_id"):
             scope["event_id"] = request["event_id"]

@@ -183,6 +183,9 @@ final class AppSessionCoordinator: ObservableObject {
     }
 
     func resetTransientRuntime() {
+        offlineBridgeStorage?.stopSession()
+        offlineBridgeStorage = nil
+        didStartNetworkMonitoring = false
         webSocketManager.disconnect()
         webSocketManager.recoveryCoordinator?.reset()
         chatStore.clearInMemory()
@@ -1085,6 +1088,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        PushNotificationManager.shared.configureForLaunch()
         application.shortcutItems = AppQuickAction.shortcutItems
         return true
     }
@@ -1125,6 +1129,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 #elseif os(macOS)
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        PushNotificationManager.shared.configureForLaunch()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }

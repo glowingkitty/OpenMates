@@ -44,7 +44,7 @@ private design JSON.
    is blocking when the task claims Figma/design alignment; do not record a pass
    from node JSON or DOM text alone.
 4. Upload the selected reference PNG with
-   `python3 scripts/opencode_response_media.py <path> --alt "Figma reference: <screen/frame>"`
+   `python3 scripts/response_media.py <path> --alt "Figma reference: <screen/frame>"`
    and paste the returned image Markdown in the next assistant progress response
    before editing or summarizing that screen. Repeat when switching target
    frames.
@@ -73,7 +73,7 @@ private design JSON.
 ## Failure Handling
 
 - A `403` means the MCP process is not using an authorized token or the token
-  cannot access the file. Verify `.env.figma.local`, then restart OpenCode because
+  cannot access the file. Verify `.env.figma.local`, then restart Codex because
   MCP configuration is loaded only at startup.
 - A `429` means the current plan/seat or endpoint bucket is exhausted. Run
   `python3 scripts/figma_access_doctor.py --node-id <node-id>`, respect

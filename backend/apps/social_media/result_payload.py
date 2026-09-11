@@ -9,12 +9,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol
-
-
-class _PostLike(Protocol):
-    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
-        """Pydantic post models expose model_dump()."""
+from typing import Any, Iterator
 
 
 def build_social_media_task_result(
@@ -32,13 +27,16 @@ def build_social_media_task_result(
     embed_id: str | None = None,
 ) -> dict[str, Any]:
     """Build the public Celery task result for REST/CLI and chat callers."""
+    if sum(len(getattr(group, "posts", []) or []) for group in results) != len(post_results):
+        raise ValueError("Social media sanitized post count does not match result groups")
+    sanitized_posts = iter(post_results)
     payload: dict[str, Any] = {
         "app_id": app_id,
         "skill_id": skill_id,
         "type": result_type,
         "status": status,
         "task_id": task_id,
-        "results": [_serialize_group(group) for group in results],
+        "results": [_serialize_group(group, sanitized_posts) for group in results],
         "items": post_results,
         "provider": request_metadata.get("provider", "Social Media"),
         "query": request_metadata.get("query"),
@@ -54,7 +52,7 @@ def build_social_media_task_result(
     return payload
 
 
-def _serialize_group(group: Any) -> dict[str, Any]:
+def _serialize_group(group: Any, sanitized_posts: Iterator[dict[str, Any]]) -> dict[str, Any]:
     posts = getattr(group, "posts", []) or []
     payload: dict[str, Any] = {
         "id": getattr(group, "id", None),
@@ -63,7 +61,9 @@ def _serialize_group(group: Any) -> dict[str, Any]:
         "request_count": getattr(group, "request_count", 0),
         "warnings": list(getattr(group, "warnings", []) or []),
         "errors": list(getattr(group, "errors", []) or []),
-        "results": [_serialize_post(post) for post in posts],
+        # `post_results` has already passed prompt-injection sanitization before
+        # this task payload can be persisted or returned to a programmatic caller.
+        "results": [next(sanitized_posts) for _ in posts],
     }
     page = getattr(group, "page", None)
     query = getattr(group, "query", None)
@@ -75,11 +75,3 @@ def _serialize_group(group: Any) -> dict[str, Any]:
     if sort is not None:
         payload["sort"] = sort
     return payload
-
-
-def _serialize_post(post: _PostLike | dict[str, Any]) -> dict[str, Any]:
-    if hasattr(post, "model_dump"):
-        return post.model_dump(mode="json")
-    if isinstance(post, dict):
-        return post
-    return dict(post)

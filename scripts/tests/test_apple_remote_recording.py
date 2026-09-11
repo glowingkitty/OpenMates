@@ -353,76 +353,31 @@ def module_source(relative_path: str) -> str:
     return (ROOT / relative_path).read_text(encoding="utf-8")
 
 
-def test_proof_broker_recipient_returns_only_public_certificate() -> None:
+def test_proof_broker_helpers_stop_before_credentials_or_dispatch() -> None:
     module = load_module()
-    certificate = b"-----BEGIN CERTIFICATE-----\npublic\n-----END CERTIFICATE-----\n"
-
+    config = module.RemoteConfig(target="macos-peer", repo_path="/repo", source="test")
     def runner(_command):
-        encoded = module.base64.b64encode(certificate).decode("ascii")
-        return subprocess.CompletedProcess([], 0, f"proof_broker_recipient_certificate_b64={encoded}\n", "")
-
-    result = module.proof_broker_recipient_certificate(
-        module.RemoteConfig(target="macos-peer", repo_path="/repo", source="test"),
-        runner=runner,
-    )
-
-    assert result == certificate
+        pytest.fail("broker must stop before any process or credential operation")
+    with pytest.raises(module.no_delete_guard.UnsupportedRemoteOperation):
+        module.proof_broker_recipient_certificate(config, runner=runner)
+    with pytest.raises(module.no_delete_guard.UnsupportedRemoteOperation):
+        module.proof_broker_relay_public_key(config, runner=runner)
+    with pytest.raises(module.no_delete_guard.UnsupportedRemoteOperation):
+        module.provision_github_proof_credentials(config, slot=14, expected_commit="a" * 40, runner=runner)
 
 
-def test_relay_identity_rejects_non_committed_public_key(tmp_path: Path, monkeypatch) -> None:
+def test_broker_recording_stops_before_provisioning_or_cleanup(monkeypatch) -> None:
     module = load_module()
-    root = tmp_path / "relay"
-    private_key = root / "relay-key.pem"
-    public_key = root / "relay-public.pem"
-    committed = tmp_path / "committed-public.pem"
-    root.mkdir()
-    private_key.write_bytes(b"private")
-    committed.write_bytes(b"expected-public")
-    monkeypatch.setattr(module, "APPLE_PROOF_BROKER_LOCAL_ROOT", root)
-    monkeypatch.setattr(module, "APPLE_PROOF_BROKER_RELAY_KEY", private_key)
-    monkeypatch.setattr(module, "APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY", public_key)
-    monkeypatch.setattr(module, "APPLE_PROOF_BROKER_COMMITTED_RELAY_PUBLIC_KEY", committed)
-
-    def runner(command):
-        if command[:2] == ["openssl", "pkey"]:
-            public_key.write_bytes(b"different-public")
-        return subprocess.CompletedProcess(command, 0, "", "")
-
-    with pytest.raises(module.AppleRemoteError, match="committed public key"):
-        module.proof_broker_relay_public_key(
+    monkeypatch.setattr(module, "local_test_account_env", lambda: pytest.fail("must not load credentials"))
+    monkeypatch.setattr(module, "provision_github_proof_credentials", lambda *a, **kw: pytest.fail("must not provision credentials"))
+    with pytest.raises(module.no_delete_guard.UnsupportedRemoteOperation):
+        module.run_recorded_ios_test(
             module.RemoteConfig(target="macos-peer", repo_path="/repo", source="configured"),
-            runner=runner,
+            simulator="iPhone 15 Pro", only_testing="OpenMatesUITests/Proof",
+            profile="apple-iphone-portrait", proof=True, expected_commit="a" * 40,
+            test_account_slot=14, github_secret_broker=True,
+            runner=lambda _command: pytest.fail("must not dispatch or clean up"),
         )
-
-
-def test_broker_mode_does_not_load_local_credentials(monkeypatch) -> None:
-    module = load_module()
-    monkeypatch.setattr(
-        module,
-        "local_test_account_env",
-        lambda: pytest.fail("broker mode must not load local credentials"),
-    )
-    monkeypatch.setattr(module, "provision_github_proof_credentials", lambda *_args, **_kwargs: "request")
-    calls = 0
-
-    def runner(command):
-        nonlocal calls
-        calls += 1
-        return subprocess.CompletedProcess(command, 1 if calls == 1 else 0, "", "")
-
-    result = module.run_recorded_ios_test(
-        module.RemoteConfig(target="macos-peer", repo_path="/repo", source="configured"),
-        simulator="iPhone 15 Pro",
-        only_testing="OpenMatesUITests/Proof",
-        profile="apple-iphone-portrait",
-        proof=True,
-        expected_commit="a" * 40,
-        test_account_slot=14,
-        github_secret_broker=True,
-        runner=runner,
-    )
-
-    assert result == 1
 
 
 def test_broker_expiry_cannot_delete_newer_credential_materialization() -> None:

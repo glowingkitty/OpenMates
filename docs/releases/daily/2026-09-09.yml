@@ -1,0 +1,1335 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-09'
+generated_at: '2026-09-10T00:20:21+00:00'
+range:
+  since: '2026-09-09T00:00:00+00:00'
+  until: '2026-09-10T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 18
+  section_counts:
+    features: 1
+    bug_fixes: 7
+    improvements: 0
+    docs: 6
+    tests: 2
+    infrastructure: 2
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 2
+  dev_only_items: 18
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: rebuild Codex orchestration around OpenMates Tasks'
+    section: features
+    commits:
+    - bd16c9eb0
+    authored_at: '2026-09-09T18:32:39+00:00'
+    changed_paths:
+    - .agents/skills/backfill-specification/SKILL.md
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .agents/skills/define-specification/SKILL.md
+    - .claude/skills/backfill-specification/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/define-specification/SKILL.md
+    - .codex/hooks.json
+    - .codex/hooks/claude-hook-bridge.sh
+    - AGENTS.md
+    - backend/apps/ai/processing/task_runtime_tools.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/apps/tasks/app.yml
+    - backend/apps/tasks/skills/create_skill.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/project_task_sync_service.py
+    - backend/core/api/app/services/user_task_update_job_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/extensions/project-task-sync/package.json
+    - backend/core/directus/extensions/project-task-sync/src/index.js
+    - backend/core/directus/extensions/project-task-sync/src/operations.js
+    - backend/core/directus/extensions/project-task-sync/test/operations.test.js
+    - backend/core/directus/setup/migrate_user_task_indexes.sql
+    - backend/tests/test_project_task_sync.py
+    - backend/tests/test_task_app_skill_embeds.py
+    - backend/tests/test_task_main_processor_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - docs/architecture/codex-task-cache.md
+    - docs/plans/codex-tasks-orchestration/architecture-refinements.md
+    - docs/plans/codex-tasks-orchestration/codex-rebuild-architecture.md
+    - docs/plans/codex-tasks-orchestration/plan.yml
+    - frontend/apps/web_app/tests/helpers/task-creator-e2e-helpers.ts
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    - frontend/apps/web_app/tests/project-task-sync.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/codexConnection.ts
+    - frontend/packages/openmates-cli/src/codexTaskBridge.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/projectTaskSync.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/taskActivityDelivery.ts
+    - frontend/packages/openmates-cli/src/taskCommandDelivery.ts
+    - frontend/packages/openmates-cli/src/taskDelivery.ts
+    - frontend/packages/openmates-cli/src/taskMutationDelivery.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/claimConflict.test.ts
+    - frontend/packages/openmates-cli/tests/cliTaskQueue.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/codexConnection.test.ts
+    - frontend/packages/openmates-cli/tests/projectTaskSync.test.ts
+    - frontend/packages/openmates-cli/tests/taskActivityDelivery.test.ts
+    - frontend/packages/openmates-cli/tests/taskCommandDelivery.test.ts
+    - frontend/packages/openmates-cli/tests/taskDelivery.test.ts
+    - frontend/packages/openmates-cli/tests/taskMutationDelivery.test.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/codex_cached_context.py
+    - scripts/codex_evidence.py
+    - scripts/codex_hook_context.py
+    - scripts/codex_orchestration.py
+    - scripts/codex_rpc.py
+    - scripts/codex_task_adapter.py
+    - scripts/codex_task_context.py
+    - scripts/codex_task_queue.py
+    - scripts/plan_validate.py
+    - scripts/plan_verify.py
+    - scripts/project_task_sync_live.mjs
+    - scripts/specification_approval_pdf.py
+    - scripts/tests/test_codex_cached_context.py
+    - scripts/tests/test_codex_evidence.py
+    - scripts/tests/test_codex_hook_context.py
+    - scripts/tests/test_codex_task_adapter.py
+    - scripts/tests/test_codex_task_queue.py
+    - scripts/tests/test_plan_ci_evidence.py
+    - scripts/tests/test_specification_approval_pdf.py
+    - specifications/features/plans/examples.yml
+    - specifications/features/plans/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/features/tasks/examples.yml
+    - specifications/features/tasks/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: embed:tasks:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:tasks:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:tasks, embed:tasks:create, platform:tasks, skill:tasks:create'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: enforce configured campaign worker limits'
+    section: bug_fixes
+    commits:
+    - 38a300ef3
+    authored_at: '2026-09-09T20:28:52+00:00'
+    changed_paths:
+    - docs/architecture/codex-task-cache.md
+    - scripts/codex_worker.py
+    - scripts/tests/test_codex_worker.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resume unloaded Codex workers before dispatch'
+    section: bug_fixes
+    commits:
+    - 36e5c3bfe
+    authored_at: '2026-09-09T20:22:12+00:00'
+    changed_paths:
+    - AGENTS.md
+    - scripts/codex_worker.py
+    - scripts/tests/test_codex_worker.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: provide durable remote Codex worker commands'
+    section: bug_fixes
+    commits:
+    - 501a1b048
+    authored_at: '2026-09-09T20:18:12+00:00'
+    changed_paths:
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/architecture/codex-task-cache.md
+    - scripts/codex_worker.py
+    - scripts/tests/test_codex_worker.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align Codex task and testing instructions with active runtime'
+    section: bug_fixes
+    commits:
+    - 22ee64095
+    authored_at: '2026-09-09T19:29:44+00:00'
+    changed_paths:
+    - .agents/skills/create-plan/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/tasks-from-plan/SKILL.md
+    - .claude/rules/task-management.md
+    - .claude/rules/testing.md
+    - .claude/skills/create-plan/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/tasks-from-plan/SKILL.md
+    - AGENTS.md
+    - docs/architecture/codex-task-lifecycle.md
+    - docs/contributing/guides/testing.md
+    - scripts/codex_hook_context.py
+    - scripts/codex_task_adapter.py
+    - scripts/tests/test_codex_hook_context.py
+    - scripts/tests/test_codex_task_adapter.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep live signup email smoke on dev host CLI only'
+    section: bug_fixes
+    commits:
+    - de018a5fe
+    authored_at: '2026-09-09T19:28:08+00:00'
+    changed_paths:
+    - .github/workflows/signup-email-live-smoke.yml
+    - docs/architecture/signup-email-live-smoke.md
+    - docs/plans/signup-email-live-smoke/plan.yml
+    - scripts/run-tests-daily.sh
+    - scripts/signup_email_live_smoke.py
+    - scripts/tests/test_signup_email_live_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve encrypted task access when relinking projects'
+    section: bug_fixes
+    commits:
+    - 653e698b5
+    authored_at: '2026-09-09T19:24:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/task-creator-e2e-helpers.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: verify Codex hook readiness before Task event activation'
+    section: bug_fixes
+    commits:
+    - 5a2547a30
+    authored_at: '2026-09-09T19:09:31+00:00'
+    changed_paths:
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - AGENTS.md
+    - docs/architecture/codex-task-cache.md
+    - scripts/codex_cached_context.py
+    - scripts/codex_orchestration.py
+    - scripts/tests/test_codex_cached_context.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: route dev orchestration through explicit-permission dispatch'
+    section: docs
+    commits:
+    - e432d6c0f
+    authored_at: '2026-09-09T20:24:51+00:00'
+    changed_paths:
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - AGENTS.md
+    - docs/architecture/codex-task-cache.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: reduce routine Codex task context and activity noise'
+    section: docs
+    commits:
+    - 34ac07a38
+    authored_at: '2026-09-09T19:47:26+00:00'
+    changed_paths:
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - AGENTS.md
+    - docs/architecture/codex-task-cache.md
+    - scripts/codex_cached_context.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: remove compulsory Codex process retrospectives'
+    section: docs
+    commits:
+    - ab2083cdf
+    authored_at: '2026-09-09T19:30:37+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - docs/contributing/guides/agent-workflow-core.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record live signup email smoke failure evidence'
+    section: docs
+    commits:
+    - b8c9a1fe4
+    authored_at: '2026-09-09T19:19:46+00:00'
+    changed_paths:
+    - docs/plans/signup-email-live-smoke/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: retire legacy Codex lifecycle instructions'
+    section: docs
+    commits:
+    - a7f3b4c12
+    authored_at: '2026-09-09T19:17:56+00:00'
+    changed_paths:
+    - .claude/rules/task-management.md
+    - docs/architecture/codex-orchestration.md
+    - docs/architecture/codex-task-lifecycle.md
+    - docs/plans/codex-tasks-orchestration/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: save approved Workflow MVP specifications'
+    section: docs
+    commits:
+    - 9c8100b74
+    authored_at: '2026-09-09T19:15:06+00:00'
+    changed_paths:
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: retain privacy proof states for caption reading'
+    section: tests
+    commits:
+    - 57dd049e5
+    authored_at: '2026-09-09T20:32:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: preserve isolated daily dispatch on email health failure'
+    section: tests
+    commits:
+    - 6a9ffc64a
+    authored_at: '2026-09-09T19:16:38+00:00'
+    changed_paths:
+    - scripts/tests/test_signup_email_live_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'ci: dispatch live email health from existing daily launcher'
+    section: infrastructure
+    commits:
+    - 99e6313f8
+    authored_at: '2026-09-09T19:12:55+00:00'
+    changed_paths:
+    - .github/workflows/signup-email-live-smoke.yml
+    - docs/architecture/signup-email-live-smoke.md
+    - scripts/run-tests-daily.sh
+    - scripts/signup_email_live_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: add daily live dev signup email health check'
+    section: infrastructure
+    commits:
+    - effdc6b85
+    authored_at: '2026-09-09T19:11:22+00:00'
+    changed_paths:
+    - .github/workflows/signup-email-live-smoke.yml
+    - docs/architecture/signup-email-live-smoke.md
+    - docs/plans/signup-email-live-smoke/plan.yml
+    - scripts/signup_email_live_smoke.py
+    - scripts/tests/test_signup_email_live_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: retain privacy proof states for caption reading'
+    commits:
+    - 57dd049e5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: enforce configured campaign worker limits'
+    commits:
+    - 38a300ef3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: route dev orchestration through explicit-permission dispatch'
+    commits:
+    - e432d6c0f
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: resume unloaded Codex workers before dispatch'
+    commits:
+    - 36e5c3bfe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: provide durable remote Codex worker commands'
+    commits:
+    - 501a1b048
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: reduce routine Codex task context and activity noise'
+    commits:
+    - 34ac07a38
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: remove compulsory Codex process retrospectives'
+    commits:
+    - ab2083cdf
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align Codex task and testing instructions with active runtime'
+    commits:
+    - 22ee64095
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep live signup email smoke on dev host CLI only'
+    commits:
+    - de018a5fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve encrypted task access when relinking projects'
+    commits:
+    - 653e698b5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record live signup email smoke failure evidence'
+    commits:
+    - b8c9a1fe4
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: retire legacy Codex lifecycle instructions'
+    commits:
+    - a7f3b4c12
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: preserve isolated daily dispatch on email health failure'
+    commits:
+    - 6a9ffc64a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: save approved Workflow MVP specifications'
+    commits:
+    - 9c8100b74
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: dispatch live email health from existing daily launcher'
+    commits:
+    - 99e6313f8
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: add daily live dev signup email health check'
+    commits:
+    - effdc6b85
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: verify Codex hook readiness before Task event activation'
+    commits:
+    - 5a2547a30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: rebuild Codex orchestration around OpenMates Tasks'
+    commits:
+    - bd16c9eb0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: embed:tasks:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:tasks:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: rebuild Codex orchestration around OpenMates Tasks'
+    commits:
+    - bd16c9eb0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: embed:tasks:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:tasks:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: preserve encrypted task access when relinking projects'
+    commits:
+    - 653e698b5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: rebuild Codex orchestration around OpenMates Tasks'
+    commits:
+    - bd16c9eb0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: embed:tasks:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:tasks:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 57dd049e5f51e8d8dd7f35d2ab8590cb12f86803
+    short_sha: 57dd049e5
+    authored_at: '2026-09-09T20:32:16+00:00'
+    subject: 'test: retain privacy proof states for caption reading'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 38a300ef30a4a7cda56e67e902024208d90f8ad2
+    short_sha: 38a300ef3
+    authored_at: '2026-09-09T20:28:52+00:00'
+    subject: 'fix: enforce configured campaign worker limits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/codex-task-cache.md
+    - scripts/codex_worker.py
+    - scripts/tests/test_codex_worker.py
+    related_feature_ids: []
+  - sha: e432d6c0ffa9e4ae9fa6a39fa8563e0d127cde02
+    short_sha: e432d6c0f
+    authored_at: '2026-09-09T20:24:51+00:00'
+    subject: 'docs: route dev orchestration through explicit-permission dispatch'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - AGENTS.md
+    - docs/architecture/codex-task-cache.md
+    related_feature_ids: []
+  - sha: 36e5c3bfe6bda622490c3b42dffd23653441312c
+    short_sha: 36e5c3bfe
+    authored_at: '2026-09-09T20:22:12+00:00'
+    subject: 'fix: resume unloaded Codex workers before dispatch'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - scripts/codex_worker.py
+    - scripts/tests/test_codex_worker.py
+    related_feature_ids: []
+  - sha: 501a1b048ba42ffd18340311cc88db2f52ce6293
+    short_sha: 501a1b048
+    authored_at: '2026-09-09T20:18:12+00:00'
+    subject: 'fix: provide durable remote Codex worker commands'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/architecture/codex-task-cache.md
+    - scripts/codex_worker.py
+    - scripts/tests/test_codex_worker.py
+    related_feature_ids: []
+  - sha: 34ac07a38949577096e88a48a4d2737b2d7f289b
+    short_sha: 34ac07a38
+    authored_at: '2026-09-09T19:47:26+00:00'
+    subject: 'docs: reduce routine Codex task context and activity noise'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - AGENTS.md
+    - docs/architecture/codex-task-cache.md
+    - scripts/codex_cached_context.py
+    related_feature_ids: []
+  - sha: ab2083cdf2d88f91bb83755bf068b62faf53be45
+    short_sha: ab2083cdf
+    authored_at: '2026-09-09T19:30:37+00:00'
+    subject: 'docs: remove compulsory Codex process retrospectives'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - docs/contributing/guides/agent-workflow-core.md
+    related_feature_ids: []
+  - sha: 22ee6409536345857a0ad7aefc5cca66cc571bb7
+    short_sha: 22ee64095
+    authored_at: '2026-09-09T19:29:44+00:00'
+    subject: 'fix: align Codex task and testing instructions with active runtime'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-plan/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/tasks-from-plan/SKILL.md
+    - .claude/rules/task-management.md
+    - .claude/rules/testing.md
+    - .claude/skills/create-plan/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/tasks-from-plan/SKILL.md
+    - AGENTS.md
+    - docs/architecture/codex-task-lifecycle.md
+    - docs/contributing/guides/testing.md
+    - scripts/codex_hook_context.py
+    - scripts/codex_task_adapter.py
+    - scripts/tests/test_codex_hook_context.py
+    - scripts/tests/test_codex_task_adapter.py
+    related_feature_ids: []
+  - sha: de018a5fe385e9c4779de185070d0383dbd230e7
+    short_sha: de018a5fe
+    authored_at: '2026-09-09T19:28:08+00:00'
+    subject: 'fix: keep live signup email smoke on dev host CLI only'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/signup-email-live-smoke.yml
+    - docs/architecture/signup-email-live-smoke.md
+    - docs/plans/signup-email-live-smoke/plan.yml
+    - scripts/run-tests-daily.sh
+    - scripts/signup_email_live_smoke.py
+    - scripts/tests/test_signup_email_live_smoke.py
+    related_feature_ids: []
+  - sha: 653e698b5a712ac8eea9f5fbfafbf5555cb0b030
+    short_sha: 653e698b5
+    authored_at: '2026-09-09T19:24:17+00:00'
+    subject: 'fix: preserve encrypted task access when relinking projects'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/task-creator-e2e-helpers.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: b8c9a1fe483d62e6ec726b9d2a9bcf0cff6f7010
+    short_sha: b8c9a1fe4
+    authored_at: '2026-09-09T19:19:46+00:00'
+    subject: 'docs: record live signup email smoke failure evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/signup-email-live-smoke/plan.yml
+    related_feature_ids: []
+  - sha: a7f3b4c12b1f49c463fb8504220212600068ad98
+    short_sha: a7f3b4c12
+    authored_at: '2026-09-09T19:17:56+00:00'
+    subject: 'docs: retire legacy Codex lifecycle instructions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/task-management.md
+    - docs/architecture/codex-orchestration.md
+    - docs/architecture/codex-task-lifecycle.md
+    - docs/plans/codex-tasks-orchestration/plan.yml
+    related_feature_ids: []
+  - sha: 6a9ffc64a1589f86a5c0439d532ad977ad0b447d
+    short_sha: 6a9ffc64a
+    authored_at: '2026-09-09T19:16:38+00:00'
+    subject: 'test: preserve isolated daily dispatch on email health failure'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests/test_signup_email_live_smoke.py
+    related_feature_ids: []
+  - sha: 9c8100b748127aa455a4034781214b66d6766aa0
+    short_sha: 9c8100b74
+    authored_at: '2026-09-09T19:15:06+00:00'
+    subject: 'docs: save approved Workflow MVP specifications'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 99e6313f83c43ab5e05c42f7c6c6556be9126cb0
+    short_sha: 99e6313f8
+    authored_at: '2026-09-09T19:12:55+00:00'
+    subject: 'ci: dispatch live email health from existing daily launcher'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/signup-email-live-smoke.yml
+    - docs/architecture/signup-email-live-smoke.md
+    - scripts/run-tests-daily.sh
+    - scripts/signup_email_live_smoke.py
+    related_feature_ids: []
+  - sha: effdc6b85650e089c705077b05ecf8203a09f1d5
+    short_sha: effdc6b85
+    authored_at: '2026-09-09T19:11:22+00:00'
+    subject: 'ci: add daily live dev signup email health check'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/signup-email-live-smoke.yml
+    - docs/architecture/signup-email-live-smoke.md
+    - docs/plans/signup-email-live-smoke/plan.yml
+    - scripts/signup_email_live_smoke.py
+    - scripts/tests/test_signup_email_live_smoke.py
+    related_feature_ids: []
+  - sha: 5a2547a30b88e1f6c380b6d3932bb5617e04cf41
+    short_sha: 5a2547a30
+    authored_at: '2026-09-09T19:09:31+00:00'
+    subject: 'fix: verify Codex hook readiness before Task event activation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - AGENTS.md
+    - docs/architecture/codex-task-cache.md
+    - scripts/codex_cached_context.py
+    - scripts/codex_orchestration.py
+    - scripts/tests/test_codex_cached_context.py
+    related_feature_ids: []
+  - sha: bd16c9eb06c5affdd0d2b538449831cbad5292c6
+    short_sha: bd16c9eb0
+    authored_at: '2026-09-09T18:32:39+00:00'
+    subject: 'feat: rebuild Codex orchestration around OpenMates Tasks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/backfill-specification/SKILL.md
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .agents/skills/define-specification/SKILL.md
+    - .claude/skills/backfill-specification/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/define-specification/SKILL.md
+    - .codex/hooks.json
+    - .codex/hooks/claude-hook-bridge.sh
+    - AGENTS.md
+    - backend/apps/ai/processing/task_runtime_tools.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/apps/tasks/app.yml
+    - backend/apps/tasks/skills/create_skill.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/project_task_sync_service.py
+    - backend/core/api/app/services/user_task_update_job_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/extensions/project-task-sync/package.json
+    - backend/core/directus/extensions/project-task-sync/src/index.js
+    - backend/core/directus/extensions/project-task-sync/src/operations.js
+    - backend/core/directus/extensions/project-task-sync/test/operations.test.js
+    - backend/core/directus/setup/migrate_user_task_indexes.sql
+    - backend/tests/test_project_task_sync.py
+    - backend/tests/test_task_app_skill_embeds.py
+    - backend/tests/test_task_main_processor_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - docs/architecture/codex-task-cache.md
+    - docs/plans/codex-tasks-orchestration/architecture-refinements.md
+    - docs/plans/codex-tasks-orchestration/codex-rebuild-architecture.md
+    - docs/plans/codex-tasks-orchestration/plan.yml
+    - frontend/apps/web_app/tests/helpers/task-creator-e2e-helpers.ts
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    - frontend/apps/web_app/tests/project-task-sync.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/codexConnection.ts
+    - frontend/packages/openmates-cli/src/codexTaskBridge.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/projectTaskSync.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/taskActivityDelivery.ts
+    - frontend/packages/openmates-cli/src/taskCommandDelivery.ts
+    - frontend/packages/openmates-cli/src/taskDelivery.ts
+    - frontend/packages/openmates-cli/src/taskMutationDelivery.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/claimConflict.test.ts
+    - frontend/packages/openmates-cli/tests/cliTaskQueue.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/codexConnection.test.ts
+    - frontend/packages/openmates-cli/tests/projectTaskSync.test.ts
+    - frontend/packages/openmates-cli/tests/taskActivityDelivery.test.ts
+    - frontend/packages/openmates-cli/tests/taskCommandDelivery.test.ts
+    - frontend/packages/openmates-cli/tests/taskDelivery.test.ts
+    - frontend/packages/openmates-cli/tests/taskMutationDelivery.test.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/codex_cached_context.py
+    - scripts/codex_evidence.py
+    - scripts/codex_hook_context.py
+    - scripts/codex_orchestration.py
+    - scripts/codex_rpc.py
+    - scripts/codex_task_adapter.py
+    - scripts/codex_task_context.py
+    - scripts/codex_task_queue.py
+    - scripts/plan_validate.py
+    - scripts/plan_verify.py
+    - scripts/project_task_sync_live.mjs
+    - scripts/specification_approval_pdf.py
+    - scripts/tests/test_codex_cached_context.py
+    - scripts/tests/test_codex_evidence.py
+    - scripts/tests/test_codex_hook_context.py
+    - scripts/tests/test_codex_task_adapter.py
+    - scripts/tests/test_codex_task_queue.py
+    - scripts/tests/test_plan_ci_evidence.py
+    - scripts/tests/test_specification_approval_pdf.py
+    - specifications/features/plans/examples.yml
+    - specifications/features/plans/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/features/tasks/examples.yml
+    - specifications/features/tasks/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:tasks
+    - embed:tasks:create
+    - platform:tasks
+    - skill:tasks:create
+llm_summary:
+  overview: OpenMates focused on a significant architectural rebuild of the Codex orchestration system, transitioning it to
+    utilize the OpenMates Tasks framework. Internal infrastructure was also strengthened with the introduction of automated
+    health checks for the signup email flow and refinements to developer documentation.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: The project began rebuilding Codex orchestration around the OpenMates Tasks framework, introducing new runtime tools,
+      API routes, and improved worker durability.
+    evidence:
+      commits:
+      - bd16c9eb0
+      - 5a2547a30
+      - 22ee64095
+      - 501a1b048
+      - 36e5c3bfe
+      - 38a300ef3
+    release_status: dev_only
+  - text: A fix was developed to ensure encrypted task access is preserved when projects are relinked.
+    evidence:
+      commits:
+      - 653e698b5
+    release_status: dev_only
+  - text: Specifications for the Workflow MVP were finalized and integrated into the project registry.
+    evidence:
+      commits:
+      - 9c8100b74
+    release_status: dev_only
+  - text: Developer experience was improved by retiring legacy lifecycle instructions, reducing routine context noise, and
+      moving to explicit-permission dispatch for orchestration.
+    evidence:
+      commits:
+      - 34ac07a38
+      - a7f3b4c12
+      - ab2083cdf
+      - e432d6c0f
+    release_status: dev_only
+  internal_progress:
+  - text: OpenMates added a daily live health check for the signup email flow to the CI pipeline to ensure reliable user onboarding.
+    evidence:
+      commits:
+      - effdc6b85
+      - 99e6313f8
+      - de018a5fe
+      - 6a9ffc64a
+      - b8c9a1fe4
+    release_status: dev_only
+  - text: Testing utilities now retain privacy proof states to facilitate caption reading during automated verification.
+    evidence:
+      commits:
+      - 57dd049e5
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Codex orchestration rebuild and Task-based infrastructure.
+      evidence:
+        commits:
+        - bd16c9eb0
+        - 5a2547a30
+        - 22ee64095
+        - 501a1b048
+        - 36e5c3bfe
+        - 38a300ef3
+      reason: These changes relate to internal Codex orchestration and the disabled Tasks feature.
+    - text: Encrypted task access preservation.
+      evidence:
+        commits:
+        - 653e698b5
+      reason: This fix relates to the disabled Tasks and Projects features.
+    - text: Workflow MVP specifications.
+      evidence:
+        commits:
+        - 9c8100b74
+      reason: Workflows are currently a disabled feature.
+    rationale: No changes from this period have been released to the main branch or marked as ready for public communication.
+      Major updates involve features that are currently disabled in the application configuration, such as Tasks and Workflows.
+  social_video_recommendations:
+  - idea: A technical deep dive into how OpenMates is rebuilding its AI orchestration (Codex) to be powered by its own internal
+      Task system.
+    priority: low
+    reason: While a significant architectural milestone, the feature is currently disabled and internal-facing.
+    evidence:
+      commits:
+      - bd16c9eb0
+  quality_notes:
+  - The transition to Task-based orchestration for Codex represents a major shift in how agent activities are managed and
+    tracked.
+  - Increased CI coverage for live email flows improves the reliability of the core signup experience.
+  - Documentation updates streamline the developer workflow by removing redundant retrospective requirements and reducing
+    context noise.
+  validation_warnings: []

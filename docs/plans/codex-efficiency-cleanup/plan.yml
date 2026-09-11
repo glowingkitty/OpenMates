@@ -1,0 +1,10 @@
+id: codex-efficiency-cleanup
+title: Simplify Codex instructions and repository coordination
+status: verified
+goal: >-
+  Implement the approved Codex efficiency audit: clean obsolete runtime paths,
+  shorten instructions, lighten sessions.py, use concise outputs, prevent polling
+  and deployment retry waste, and maintain E2E coverage with bounded debugging.
+# User approved implementation in codex://threads/01a08fff-fdcb-7270-97bf-76e608bed3b5.
+# OpenMates Task d09c6689-178f-42e0-aa49-08c2e06b6328 owns progress and dependencies.
+# Engineering workflow change: product Specification not required.

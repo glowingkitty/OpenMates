@@ -78,6 +78,7 @@ ECONOMICAL_MODELS = {
 # These are model_id values from leaderboard (without provider prefix)
 PREMIUM_MODELS = {
     "gpt-6-astra",                    # Most capable GPT
+    "claude-fable-5-1",               # Latest max-capability Claude
     "claude-fable-5",                 # Most capable Claude
     "claude-opus-5",                  # Latest Opus
     "claude-sonnet-5",                # Latest Sonnet

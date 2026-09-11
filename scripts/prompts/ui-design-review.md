@@ -7,7 +7,7 @@ You are running a read-only UI design/code review for OpenMates.
 - Do not edit files, commit, deploy, or start other sessions.
 - The current codebase is the source of truth. You must inspect actual files under the paths below before making recommendations.
 - Recent git commits are only prioritization context. Do not base findings only on commit messages.
-- Return a concise prioritized report in this OpenCode chat.
+- Return a concise prioritized report in this Codex task.
 
 ## Context
 

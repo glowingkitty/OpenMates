@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 1
+version: 2
 status: draft
 title: Workflows Web UI
 summary: >
@@ -113,6 +113,8 @@ models:
         title_and_description: light_high_contrast
         workflow_icon: prominent_assigned_icon
         enabled_toggle: blue_or_violet_pill_with_switch
+        enabled_toggle_controls_schedule_only: true
+        no_schedule_shows_manual_execution: true
         metadata: compact
     continuity:
       type: stable_detail_identity
@@ -174,7 +176,7 @@ models:
     add_controls:
       type: canvas_end_actions
       required: true
-      constraints: {actions: [add_action, add_decision], centered: true, icon_above_or_beside_label: true, divided_group: true}
+      constraints: {actions: [add_action, add_check, add_filter], centered: true, icon_above_or_beside_label: true, divided_group: true}
 
   WorkflowDirtyState:
     actions:
@@ -234,7 +236,7 @@ models:
       required: true
       constraints:
         baseline_with_ticks: true
-        states: [next, accepted, running, waiting_for_input, completed, failed, cancelled]
+        states: [next, accepted, running, completed, failed, cancelled]
         completed_marker: green_check_with_text
         failed_marker: red_warning_pill_with_text
         next_marker: blue_time_pill_with_text
@@ -299,7 +301,7 @@ assertions:
     depends_on: [models.WorkflowWorkspaceStart.composer_behavior, models.WorkflowDirtyState.persistence, examples.workspace_start]
   - id: workflows-ui.detail.stable-visual-header
     type: behavior
-    must: Workflow detail keeps a prominent low-radius category-gradient header with upper-inline-start Back, orange New workflow, Share, and Report Issue actions and the centered assigned Workflow icon, title, enabled toggle, description, and time metadata; this identity remains visually and structurally stable across Template and Runs.
+    must: Workflow detail keeps a prominent low-radius category-gradient header with upper-inline-start Back, orange New workflow, Share, and Report Issue actions and the centered assigned Workflow icon, title, schedule-only enabled toggle when scheduled (manual-execution indication otherwise), description, and time metadata; this identity remains visually and structurally stable across Template and Runs.
     depends_on: [models.WorkflowDetailHeader, models.WorkflowIdentityMetadata, examples.detail_header]
   - id: workflows-ui.detail.shared-template-runs-tabs
     type: behavior
@@ -319,12 +321,51 @@ assertions:
     depends_on: [models.WorkflowVersionView, examples.version_history]
   - id: workflows-ui.runs.timeline-execution-detail
     type: behavior
-    must: Runs presents a centered timestamp selector and a horizontally reachable ticked timeline with explicit Next, completed, failed, active, waiting, and cancelled states; selecting a persisted run renders its executed graph with overlaid node statuses and available grouped input, output, source, branch, and error detail, while unavailable content is explained without hiding status and cancellation is confirmed and contextual.
+    must: Runs presents a centered timestamp selector and a horizontally reachable ticked timeline with explicit Next, completed, failed, active, and cancelled states with separately visible pending chat delivery; selecting a persisted run renders its executed graph with overlaid node statuses and available grouped input, output, source, branch, and error detail, while unavailable content is explained without hiding status and cancellation is confirmed and contextual.
     depends_on: [models.WorkflowRunsView, examples.run_history]
   - id: workflows-ui.responsive-accessible-reachable
     type: behavior
     must: Workspace, Template, expanded-node, version, and Runs states remain operable at 1440x900 and 390x844 without clipped or overlapping primary controls or unintended page overflow; mobile forms stack, timelines scroll horizontally, bottom controls clear the safe area, and keyboard, touch, focus, status labels, dark mode, and reduced motion remain accessible.
     depends_on: [models.WorkflowResponsiveAccessibility, examples.responsive_accessibility]
+
+  - id: workflows-ui.mvp.authoring
+    type: behavior
+    must: The V1 editor offers Use app skill, Check (node type check), Filter, and Send message. Check shows
+      If true and If false sequences with Do nothing for an empty branch; Filter selects a typed earlier list
+      and returns matching items. Available fields come from accessible earlier output schemas even before a
+      live run, with all/any condition groups and a not-previously-delivered choice naming the destination. AI,
+      code, waits, loops and separate report/push/email actions are unavailable; a complete unscheduled workflow
+      offers Run now without inventing a visible trigger.
+    depends_on:
+    - examples.mvp_authoring
+  - id: workflows-ui.schedule.preview
+    type: behavior
+    must: Date/time authoring uses simple recurrence controls, digital time, explicit timezone, start/end dates
+      and optional active weekdays/window. Show a plain-language rule and next executions from the execution
+      calculator; calendar previews suit daily/weekly/monthly rules and a time list suits minute/hour intervals.
+      One-time and all supported recurring rule forms are selectable without cron or configuration code. Explain
+      missing dates, daylight-saving skips, excluded window end, overlap and missed-occurrence policy before
+      enablement.
+    depends_on:
+    - examples.schedule_preview
+  - id: workflows-ui.message-and-budget
+    type: behavior
+    must: Send message lets the owner select an existing chat or name a new chat, choose results and optionally
+      write introductory text; preview shows the standard deterministic result layout, embed references and run
+      link. No AI inference or custom template editor is required. Schedule enablement shows estimated credits
+      and unknown components, configurable day/week/month caps and explicit uncapped acknowledgement; budget
+      warnings link to costs and pending delivery never appears as a completed chat write.
+    depends_on:
+    - examples.message_budget
+  - id: workflows-ui.run-deletion-forgetting
+    type: behavior
+    must: Run detail exposes its remembered delivered-result count and destination without leaking private data
+      to notifications. Confirmed run deletion explains that it removes private run data and remembered-delivery
+      records, results may reappear, and existing chat/project outputs remain. Pending deletion is visible until
+      late writes are fenced. Distinguish payload-only expiry from complete run deletion; deleted-run links show
+      unavailable rather than broken navigation.
+    depends_on:
+    - examples.run_deletion
 
 applies_to:
   rest_api:
@@ -352,4 +393,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [visual_language, workflow_identity, workspace_start, detail_header, detail_tabs, template_editing, unsaved_navigation, version_history, run_history, responsive_accessibility]
+  required_groups: [visual_language, workflow_identity, workspace_start, detail_header, detail_tabs, template_editing, unsaved_navigation, version_history, run_history, responsive_accessibility, mvp_authoring, schedule_preview, message_budget, run_deletion]

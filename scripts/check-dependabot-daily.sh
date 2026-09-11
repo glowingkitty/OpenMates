@@ -1,59 +1,26 @@
 #!/usr/bin/env bash
-# =============================================================================
-# OpenMates Daily Dependabot Security Alert Checker
-#
-# Fetches open Dependabot security alerts from GitHub, deduplicates by GHSA ID,
-# checks git history for matching commits, and starts an OpenCode chat to fix
-# any unresolved alerts.
-#
-# Processing logic:
-#   1. Fetch all open Dependabot alerts via gh API (severity: critical, high, medium)
-#   2. Deduplicate by GHSA ID (same vuln across multiple manifests = one entry)
-#   3. Load scripts/dependabot-processed.json for state tracking
-#   4. For each unique GHSA:
-#      a. If commit referencing the GHSA ID exists in git → mark resolved, skip
-#      b. If never processed → dispatch now
-#      c. If previously dispatched → re-dispatch if last dispatch was >7 days ago
-#         (increment re_dispatch_count); skip if within 7-day grace period
-#   5. Build consolidated prompt for all new/re-dispatched alerts
-#   6. Run OpenCode to fix the alerts
-#   7. Update dependabot-processed.json
-#
-# Triggered by system crontab:
-#   0 4 * * * bash -c 'set -a && . /path/to/.env && set +a && /path/to/scripts/check-dependabot-daily.sh' >> /path/to/logs/dependabot-alerts.log 2>&1
-#
-# Can also be invoked manually:
-#   ./scripts/check-dependabot-daily.sh
-#   ./scripts/check-dependabot-daily.sh --dry-run   # show what would be dispatched, no OpenCode
-#
-# Requirements:
-#   - gh CLI installed and authenticated (gh auth status)
-#   - GITHUB_REPO env var set to "owner/repo" (e.g. "glowingkitty/OpenMates"), OR
-#     auto-detected from git remote
-#
-# Env vars (sourced from .env):
-#   GITHUB_REPO   — GitHub repo in "owner/repo" format (optional, auto-detected if not set)
-# =============================================================================
+# Fetch Dependabot alerts and report deterministic security observations.
+# Retains collection/reporting and existing manual arguments.
+# The automatic schedule is off. The legacy helper launch-tail removal is
+# prepared under TASK-7543 but awaiting supported source-base integration.
+# Digest collection explicitly selects SECURITY_REPORTING_COLLECTION_ONLY.
+# Dry runs do not persist security ledger reports. Existing schedules remain off.
+# Future workflow requirements: TASK-8338. No replacement scheduler is installed.
+# Architecture: docs/architecture/infrastructure/cronjobs.md
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-TRACKING_FILE="$SCRIPT_DIR/dependabot-processed.json"
+TRACKING_SEED="$SCRIPT_DIR/dependabot-processed.json"
+TRACKING_FILE="$PROJECT_ROOT/logs/dependabot-processed.json"
+LOCK_FILE="$PROJECT_ROOT/logs/dependabot-scanner.lock"
 PROMPT_TEMPLATE="$SCRIPT_DIR/prompts/dependabot-analysis.md"
 
-# Re-dispatch threshold: re-open an OpenCode chat if still unresolved after this many days
+# Re-dispatch threshold: re-open an agent chat if still unresolved after this many days
 REDISPATCH_AFTER_DAYS=7
 
 # Minimum severity to process (critical, high, medium — skip low)
 PROCESS_SEVERITIES=("critical" "high" "medium")
-
-# Source .env if present
-if [[ -f "$PROJECT_ROOT/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "$PROJECT_ROOT/.env"
-  set +a
-fi
 
 # --- Parse CLI args ---
 DRY_RUN=false
@@ -67,6 +34,23 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+if [[ "$DRY_RUN" != "true" ]]; then
+  # One persistent scanner instance owns its runtime state at a time.
+  mkdir -p "$(dirname "$LOCK_FILE")"
+  exec 200>"$LOCK_FILE"
+  if ! flock -n 200; then
+    echo "[dependabot] Another instance is already running. Exiting."
+    exit 0
+  fi
+  if [[ ! -f "$TRACKING_FILE" ]]; then
+    cp "$TRACKING_SEED" "$TRACKING_FILE"
+  fi
+elif [[ ! -f "$TRACKING_FILE" ]]; then
+  TRACKING_FILE="$TRACKING_SEED"
+fi
+
+export TRACKING_FILE_PATH="$TRACKING_FILE"
 
 echo "[dependabot] Starting Dependabot alert check at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
@@ -105,8 +89,9 @@ echo "[dependabot] Fetched $ALERT_COUNT open alert(s)."
 
 if [[ "$ALERT_COUNT" -eq 0 ]]; then
   echo "[dependabot] No open Dependabot alerts — done."
-  # Write nightly report (no alerts = clean)
-  PYTHONPATH="$SCRIPT_DIR" python3 -c "
+  if [[ "$DRY_RUN" != "true" ]]; then
+    # Write nightly report (no alerts = clean)
+    PYTHONPATH="$SCRIPT_DIR" python3 -c "
 from _nightly_report import write_nightly_report
 write_nightly_report(
     job='dependabot',
@@ -114,17 +99,12 @@ write_nightly_report(
     summary='No open Dependabot alerts.',
 )
 "
-  # Update last_run in tracking file
-  python3 - <<'PYEOF'
-import json, os, sys
+    # Update last_run in tracking file.
+    python3 - <<'PYEOF'
+import json, os, tempfile
 from datetime import datetime, timezone
 
-tracking_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dependabot-processed.json")
-tracking_file = tracking_file.replace("/scripts/../scripts", "/scripts")
-
-# Use the path from env since this heredoc doesn't have access to bash vars
-import sys
-tracking_file_path = os.environ.get("TRACKING_FILE_PATH", tracking_file)
+tracking_file_path = os.environ["TRACKING_FILE_PATH"]
 
 data = {"last_run": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "processed": []}
 if os.path.isfile(tracking_file_path):
@@ -136,11 +116,14 @@ if os.path.isfile(tracking_file_path):
     except Exception:
         pass
 
-with open(tracking_file_path, "w") as f:
+with tempfile.NamedTemporaryFile("w", dir=os.path.dirname(tracking_file_path), delete=False) as f:
     json.dump(data, f, indent=2)
     f.write("\n")
+    temporary_path = f.name
+os.replace(temporary_path, tracking_file_path)
 print("[dependabot] Updated last_run in tracking file.")
 PYEOF
+  fi
   exit 0
 fi
 
@@ -151,7 +134,6 @@ ALERTS_TMPFILE=$(mktemp /tmp/dependabot-alerts-XXXXXX.json)
 echo "$ALERTS_JSON" > "$ALERTS_TMPFILE"
 trap 'rm -f "$ALERTS_TMPFILE"' EXIT
 
-export TRACKING_FILE_PATH="$TRACKING_FILE"
 export ALERTS_JSON_FILE="$ALERTS_TMPFILE"
 export PROJECT_ROOT
 export REDISPATCH_AFTER_DAYS

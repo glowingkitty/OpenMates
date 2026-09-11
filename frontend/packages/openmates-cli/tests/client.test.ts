@@ -8,6 +8,7 @@
  * Run: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts
  */
 
+import { execFile } from "node:child_process";
 import { describe, it, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHash, webcrypto } from "node:crypto";
@@ -109,6 +110,29 @@ describe("OpenMatesClient session API URL", () => {
   beforeEach(() => {
     writeLegacySession();
     rmSync(serverConfigPath, { force: true });
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  it("shares original PII only with an explicit opt-in", async () => {
+    const client = OpenMatesClient.load();
+    const chatId = "11111111-1111-4111-8111-111111111111";
+    const encryptedChatKey = await encryptBytesWithAesGcm(new Uint8Array(32), new Uint8Array(32));
+    const internals = client as unknown as {
+      ensureSynced: () => Promise<unknown>;
+      http: { post: (path: string, body: Record<string, unknown>) => Promise<unknown> };
+    };
+    internals.ensureSynced = async () => ({ chats: [{ details: { id: chatId, encrypted_chat_key: encryptedChatKey } }] });
+    const requests: Record<string, unknown>[] = [];
+    internals.http.post = async (path, body) => {
+      assert.equal(path, "/v1/share/chat/metadata");
+      requests.push(body);
+      return { ok: true, data: { success: true } };
+    };
+    await client.createChatShareLink(chatId);
+    await client.createChatShareLink(chatId, 0, undefined, { includeSensitiveData: true });
+    await client.createChatShareLink(chatId);
+    assert.deepEqual(requests.map((body) => body.share_pii), [false, true, false]);
+    assert.equal(requests.some((body) => "piiMappings" in body), false);
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
@@ -378,6 +402,62 @@ describe("OpenMatesClient session API URL", () => {
       const saved = JSON.parse(readFileSync(sessionPath, "utf-8"));
       assert.strictEqual(saved.wsToken, "rotated-ws-token");
       assert.strictEqual(saved.cookies.auth_refresh_token, "rotated-refresh-token");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("serializes refreshes and reloads credentials for clients created before rotation", async () => {
+    let token = "test-refresh-token";
+    let rejected = 0;
+    const server = createServer((request, response) => {
+      const accepted = request.headers.cookie === `auth_refresh_token=${token}`;
+      if (accepted) token = `rotated-${Date.now()}-${Math.random()}`;
+      else rejected++;
+      const replacement = token;
+      setTimeout(() => {
+        response.setHeader("content-type", "application/json");
+        if (accepted) response.setHeader("set-cookie", `auth_refresh_token=${replacement}; Path=/; HttpOnly`);
+        response.end(JSON.stringify({ success: accepted, message: accepted ? "valid" : "Session expired", user: { id: "test-user" } }));
+      }, 30);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const clients = Array.from({ length: 4 }, () => OpenMatesClient.load());
+      await Promise.all(clients.map((client) => client.whoAmI()));
+      await Promise.all(Array.from({ length: 4 }, () => new Promise<void>((resolve, reject) => {
+        execFile(process.execPath, ["--experimental-strip-types", "--loader", "./tests/loader.mjs", "--input-type=module", "-e",
+          "import { OpenMatesClient } from './src/client.ts'; await OpenMatesClient.load().whoAmI();"],
+          { env: { ...process.env }, timeout: 30_000 }, (error) => error ? reject(error) : resolve());
+      })));
+      assert.equal(rejected, 0);
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, token);
+    } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+  });
+
+  // contract-test: supporting surface=cli assertions=tasks.surface.semantic-parity
+  it("reports gateway restarts as temporary instead of invalidating login", async () => {
+    const server = createServer((_request: IncomingMessage, response: ServerResponse) => {
+      response.writeHead(502, { "content-type": "application/json" });
+      response.end(JSON.stringify({ message: "invalid session" }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      await assert.rejects(
+        client.whoAmI(),
+        /temporarily unavailable \(HTTP 502\).*retry shortly/i,
+      );
+      assert.ok(loadStoredSession(), "transient gateway failure must preserve the login session");
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
@@ -1031,7 +1111,7 @@ describe("OpenMatesClient session API URL", () => {
               safe_metadata: {
                 status: "todo",
                 assignee_type: "user",
-                primary_chat_id: "chat-1",
+                primary_chat_id: null,
                 position: 1780000001,
                 created_at: 1780000001,
                 updated_at: 1780000001,
@@ -1085,6 +1165,7 @@ describe("OpenMatesClient session API URL", () => {
       assert.equal(serializedPersistPayload.includes("Reconnect task title"), false);
       assert.equal(serializedPersistPayload.includes("Reconnect task description"), false);
       assert.equal(captured.persistPayload.encrypted_task_payload.task_id, "task-reconnect-1");
+      assert.equal(captured.persistPayload.encrypted_task_payload.primary_chat_id, null);
       assert.ok(captured.persistPayload.encrypted_task_payload.encrypted_task_key);
       assert.ok(captured.persistPayload.encrypted_task_payload.encrypted_title);
       assert.ok(captured.persistPayload.encrypted_task_payload.encrypted_description);
@@ -1511,7 +1592,60 @@ describe("connected account payload builders", () => {
   });
 });
 
+import { coalesceMemoryRequestMessages, parseMemoryRequest, mergeMemoryRequests } from "../../ui/src/utils/appMemoryRequests.js";
+
 describe("memory request system messages", () => {
+  // contract-test: direct surface=cli assertions=app-memories.conversation.request-convergence
+  it("records actual available counts without implying consent", () => {
+    const message = buildAppSettingsMemoryRequestSystemMessage({
+      userMessageId: "user-message-id",
+      requestId: "request-id",
+      requestedKeys: ["mail-writing_styles"],
+      createdAt: 1780000000,
+      entryCounts: new Map([["mail-writing_styles", 1]]),
+    });
+    assert.equal(message.message_id, "request-id");
+    const payload = JSON.parse(message.content);
+    assert.equal(payload.categories[0].entryCount, 1);
+    assert.equal(payload.action, undefined);
+  });
+
+  // contract-test: direct surface=cli assertions=app-memories.conversation.request-convergence
+  it("represents an unavailable count as unknown rather than empty", () => {
+    const message = buildAppSettingsMemoryRequestSystemMessage({
+      userMessageId: "user-message-id",
+      requestId: "request-id",
+      requestedKeys: ["mail-writing_styles"],
+      createdAt: 1780000000,
+    });
+    assert.equal(JSON.parse(message.content).categories[0].entryCount, null);
+  });
+
+  // contract-test: direct surface=cli assertions=app-memories.conversation.request-convergence
+  it("converges legacy CLI/web duplicates in both orders without altering consent", () => {
+    const base = { type: "app_settings_memories_request", request_id: "request-id", user_message_id: "user-id", requested_keys: ["mail-writing_styles"] };
+    const legacyCli = { role: "system", clientMessageId: "request-id", content: JSON.stringify({ ...base, categories: [{ appId: "mail", itemType: "writing_styles", entryCount: 0 }] }) };
+    const legacyWeb = { role: "system", clientMessageId: "web-random-id", content: JSON.stringify({ ...base, categories: [{ appId: "mail", itemType: "writing_styles", entryCount: 1 }] }) };
+    const decision = { role: "system", clientMessageId: "decision-id", content: JSON.stringify({ type: "app_settings_memories_response", action: "rejected", user_message_id: "user-id" }) };
+    for (const pair of [[legacyCli, legacyWeb], [legacyWeb, legacyCli]]) {
+      const result = coalesceMemoryRequestMessages([...pair, decision]);
+      assert.equal(result.length, 2);
+      assert.equal(JSON.parse(result[0].content).categories[0].entryCount, 1);
+      assert.equal(result[1], decision);
+      assert.equal(JSON.parse(legacyCli.content).categories[0].entryCount, 0);
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=app-memories.conversation.request-convergence
+  it("keeps measured zero and distinct request identities separate", () => {
+    const first = buildAppSettingsMemoryRequestSystemMessage({ userMessageId: "user-id", requestId: "a", requestedKeys: ["mail-writing_styles"], entryCounts: new Map([["mail-writing_styles", 0]]), createdAt: 1 });
+    const second = buildAppSettingsMemoryRequestSystemMessage({ userMessageId: "user-id", requestId: "b", requestedKeys: ["mail-writing_styles"], createdAt: 2 });
+    assert.equal(parseMemoryRequest(first.content, "a")?.categories[0].entryCount, 0);
+    assert.equal(coalesceMemoryRequestMessages([first, second]).length, 2);
+    assert.throws(() => mergeMemoryRequests(JSON.parse(first.content), JSON.parse(second.content)), /distinct/);
+    assert.equal(parseMemoryRequest('{"type":"app_settings_memories_request","request_id":"a","user_message_id":"u","requested_keys":[],"categories":[null]}'), null);
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("builds the request artifact without approving memory content", () => {
     const message = buildAppSettingsMemoryRequestSystemMessage({
@@ -1532,7 +1666,7 @@ describe("memory request system messages", () => {
     assert.equal(payload.request_id, "request-id");
     assert.deepEqual(payload.requested_keys, ["books-currently_reading"]);
     assert.deepEqual(payload.categories, [
-      { appId: "books", itemType: "currently_reading", entryCount: 0 },
+      { appId: "books", itemType: "currently_reading", entryCount: null },
     ]);
     assert.notEqual(payload.type, "app_settings_memories_response");
     assert.equal(payload.action, undefined);
@@ -1818,6 +1952,7 @@ describe("CLI saved-chat recovery preflight", () => {
       messagePayload?: Record<string, unknown>;
       preflightPayload?: Record<string, unknown>;
       persistPayload?: Record<string, unknown>;
+      metadataPayload?: Record<string, unknown>;
       frameTypes: string[];
       preflightAcknowledged: boolean;
       terminalSent: boolean;
@@ -1898,6 +2033,10 @@ describe("CLI saved-chat recovery preflight", () => {
             }));
             setTimeout(() => {
               captured.terminalSent = true;
+              ws.send(JSON.stringify({ type: "ai_typing_started", payload: {
+                chat_id: frame.payload.chat_id, user_message_id: message.message_id,
+                title: "Contact a plumber", category: "general_knowledge", icon_names: ["wrench"],
+              }}));
               ws.send(JSON.stringify({
                 type: "ai_message_update",
                 payload: {
@@ -1917,6 +2056,10 @@ describe("CLI saved-chat recovery preflight", () => {
                 payload: { chat_id: frame.payload.chat_id },
               }));
             }, 10);
+          }
+          if (frame.type === "encrypted_chat_metadata") {
+            captured.metadataPayload = frame.payload;
+            ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: frame.payload.chat_id } }));
           }
           if (frame.type === "recovery_job_claim") {
             assert.equal(frame.payload.job_id, recoveryJobId);
@@ -1970,7 +2113,8 @@ describe("CLI saved-chat recovery preflight", () => {
 
       assert.ok(captured.preflightPayload);
       assert.equal(captured.frameTypes.indexOf("chat_turn_preflight") < captured.frameTypes.indexOf("chat_message_added"), true);
-      assert.equal(captured.frameTypes.includes("encrypted_chat_metadata"), false);
+      assert.equal(captured.frameTypes.indexOf("encrypted_chat_metadata") > captured.frameTypes.indexOf("recovery_job_persist"), true);
+      assert.equal(captured.metadataPayload?.message_id, undefined);
       const inferenceRequest = captured.preflightPayload.inference_request as Record<string, unknown>;
       const finalInferenceRequest = { ...captured.messagePayload };
       delete finalInferenceRequest.protocol_version;
@@ -1984,19 +2128,26 @@ describe("CLI saved-chat recovery preflight", () => {
         "created_at",
         "encrypted_content",
         "encrypted_pii_mappings",
+        "encrypted_sender_name",
         "role",
         "updated_at",
       ]);
       assert.equal(typeof encryptedUserMessage.encrypted_pii_mappings, "string");
+      assert.equal(typeof encryptedUserMessage.encrypted_sender_name, "string");
       assert.equal(JSON.stringify(encryptedUserMessage).includes("Email [EMAIL_1_com]"), false);
       assert.equal(JSON.stringify(encryptedUserMessage).includes("sarah@example.com"), false);
       const newChatMetadata = captured.preflightPayload.encrypted_chat_metadata as Record<string, unknown>;
       assert.deepEqual(Object.keys(newChatMetadata).sort(), [
         "created_at",
         "encrypted_chat_key",
+        "encrypted_slug",
         "encrypted_title",
+        "slug_lookup_hash",
         "updated_at",
       ]);
+      assert.equal(typeof newChatMetadata.encrypted_slug, "string");
+      assert.match(String(newChatMetadata.slug_lookup_hash), /^[0-9a-f]{64}$/);
+      assert.equal(JSON.stringify(newChatMetadata).includes("sarah@example.com"), false);
 
       const masterKey = Buffer.alloc(32);
       const encryptedChatKey = String(captured.preflightPayload.encrypted_chat_key);
@@ -2010,6 +2161,10 @@ describe("CLI saved-chat recovery preflight", () => {
         { placeholder: "[EMAIL_1_com]", original: "sarah@example.com", type: "EMAIL" },
         { placeholder: "[PHONE_1_567]", original: "+1 (555) 123-4567", type: "PHONE" },
       ]);
+      assert.ok(captured.metadataPayload);
+      assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_title), chatKey), "Contact a plumber");
+      assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_chat_category), chatKey), "general_knowledge");
+      assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_icon), chatKey), "wrench");
       assert.equal(captured.frameTypes.includes("ai_response_completed"), false);
       assert.equal(captured.frameTypes.includes("recovery_job_claim"), true);
       assert.equal(captured.frameTypes.includes("recovery_job_persist"), true);
@@ -2027,7 +2182,7 @@ describe("CLI saved-chat recovery preflight", () => {
       );
       assert.equal(
         await decryptWithAesGcmCombined(String(encryptedAssistant.encrypted_sender_name), chatKey),
-        "Assistant",
+        "George",
       );
       assert.equal(
         await decryptWithAesGcmCombined(String(encryptedAssistant.encrypted_category), chatKey),
@@ -2045,11 +2200,15 @@ describe("CLI saved-chat recovery preflight", () => {
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
-  it("persists streamed embeds when the recovery claim is already terminal", async () => {
+  for (const missingChild of [false, true, "unavailable"]) {
+  it(`persists terminal recovery embeds including missing children: ${missingChild}`, async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
     const recoveryJobId = "44444444-4444-4444-8444-444444444444";
     const embedId = "55555555-5555-4555-8555-555555555555";
+    const childId = "66666666-6666-4666-8666-666666666666";
+    const grandchildId = "77777777-7777-4777-8777-777777777777";
+    const storedIds: string[] = [];
     const captured: {
       preflightPayload?: Record<string, unknown>;
       frameTypes: string[];
@@ -2107,6 +2266,7 @@ describe("CLI saved-chat recovery preflight", () => {
                 type: "send_embed_data",
                 payload: {
                   embed_id: embedId,
+                  embed_ids: missingChild ? [childId] : [],
                   type: "code",
                   content: '{"type":"code","code":"<html></html>","status":"finished"}',
                   status: "finished",
@@ -2142,8 +2302,17 @@ describe("CLI saved-chat recovery preflight", () => {
               },
             }));
           }
+          if (frame.type === "request_embed" && [childId, grandchildId].includes(String(frame.payload.embed_id))) {
+            ws.send(JSON.stringify({type: "send_embed_data", payload: {
+              embed_id: frame.payload.embed_id, parent_embed_id: frame.payload.embed_id === childId ? embedId : childId, status: missingChild === "unavailable" ? "error" : "finished",
+              embed_ids: frame.payload.embed_id === childId ? [grandchildId] : [],
+              content: 'code: "original child bytes"', type: "code",
+              chat_id: captured.preflightPayload?.chat_id, message_id: assistantMessageId,
+            }}));
+          }
           if (frame.type === "store_embed") {
-            captured.storeEmbedPayload = frame.payload;
+            storedIds.push(String(frame.payload.embed_id));
+            if (frame.payload.embed_id === embedId) captured.storeEmbedPayload = frame.payload;
             ws.send(JSON.stringify({
               type: "store_embed_confirmed",
               payload: {
@@ -2170,9 +2339,15 @@ describe("CLI saved-chat recovery preflight", () => {
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      if (missingChild === "unavailable") {
+        await assert.rejects(client.sendMessage({ message: "Make HTML from this screenshot" }), /original finished child data is unavailable/);
+        assert.deepEqual(storedIds, []);
+        return;
+      }
       const result = await client.sendMessage({ message: "Make HTML from this screenshot" });
 
       assert.equal(result.assistant, "ok");
+      assert.deepEqual(storedIds, missingChild ? [embedId, childId, grandchildId] : [embedId]);
       assert.equal(captured.frameTypes.includes("recovery_job_persist"), false);
       assert.equal(captured.storeEmbedPayload?.embed_id, embedId);
       assert.equal(captured.storeEmbedPayload?.status, "finished");
@@ -2187,8 +2362,12 @@ describe("CLI saved-chat recovery preflight", () => {
     }
   });
 
+  }
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
-  it("lazily registers epoch-1 recovery material for an old saved chat", async () => {
+  // contract-test: supporting surface=cli assertions=focus-modes.full-instruction,focus-modes.restoration
+  for (const restoredFocus of ["jobs-career_insights", null]) {
+  it(`lazily registers epoch-1 recovery material for an old saved chat (${restoredFocus ?? "off"})`, async () => {
     const chatId = "11111111-1111-4111-8111-111111111111";
     const ownerId = "22222222-2222-4222-8222-222222222222";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
@@ -2200,7 +2379,8 @@ describe("CLI saved-chat recovery preflight", () => {
       totalChatCount: 1,
       loadedChatCount: 1,
       chats: [{
-        details: { id: chatId, encrypted_chat_key: encryptedChatKey, messages_v: 7 },
+        details: { id: chatId, encrypted_chat_key: encryptedChatKey, messages_v: 7,
+          encrypted_active_focus_id: restoredFocus ? await encryptWithAesGcmCombined(restoredFocus, rawChatKey) : null },
         messages: [],
       }],
       embeds: [],
@@ -2211,6 +2391,7 @@ describe("CLI saved-chat recovery preflight", () => {
       preflightPayload?: Record<string, unknown>;
       messagePayload?: Record<string, unknown>;
       persistPayload?: Record<string, unknown>;
+      focusUpdate?: Record<string, unknown>;
       frameTypes: string[];
     } = { frameTypes: [] };
     let sealedPayloadForTest: string | null = null;
@@ -2269,7 +2450,9 @@ describe("CLI saved-chat recovery preflight", () => {
               payload: { preflight_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", turn_id: frame.payload.turn_id },
             }));
           }
+          if (frame.type === "update_encrypted_active_focus_id") captured.focusUpdate = frame.payload;
           if (frame.type === "chat_message_added") {
+            ws.send(JSON.stringify({ type: "focus_mode_activated", payload: { chat_id: chatId, focus_id: "jobs-career_insights" } }));
             captured.messagePayload = frame.payload;
             const message = frame.payload.message as Record<string, unknown>;
             ws.send(JSON.stringify({
@@ -2339,8 +2522,12 @@ describe("CLI saved-chat recovery preflight", () => {
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
-      await client.sendMessage({ message: "Continue this old chat", chatId });
+      // This fixture tests request/recovery metadata; it has no phased-sync history server.
+      await client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [] });
 
+      assert.equal(captured.messagePayload?.active_focus_id, restoredFocus);
+      assert.equal(captured.focusUpdate?.chat_id, chatId);
+      assert.equal(await decryptWithAesGcmCombined(String(captured.focusUpdate?.encrypted_active_focus_id), rawChatKey), "jobs-career_insights");
       assert.ok(captured.preflightPayload);
       assert.equal(captured.preflightPayload.expected_messages_v, 7);
       assert.equal(captured.preflightPayload.encrypted_chat_key, encryptedChatKey);
@@ -2364,6 +2551,7 @@ describe("CLI saved-chat recovery preflight", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+  }
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("returns after confirmation for saved team messages that do not mention OpenMates", async () => {

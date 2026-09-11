@@ -26,6 +26,13 @@ final class AuthManager: ObservableObject {
         await MainActor.run { _shared?.currentUser?.id }
     }
 
+    /// Bind a cold-launch notification action before asynchronous session restore.
+    static var notificationSession: AuthManager { _shared ?? AuthManager() }
+
+    static var notificationAccountId: String? {
+        _shared?.currentUser?.id ?? cachedUser()?.id
+    }
+
     static func isRecoveryEligibleDevice() async -> Bool {
         await MainActor.run {
             _shared?.state == .authenticated && _shared?.sessionValidationState == .onlineAuthenticated
@@ -71,9 +78,19 @@ final class AuthManager: ObservableObject {
         Self._shared = self
     }
 
+    private var isCheckingSession = false
+
     // MARK: - Session check (app launch)
 
     func checkSession() async {
+        if isCheckingSession {
+            while isCheckingSession, !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            return
+        }
+        isCheckingSession = true
+        defer { isCheckingSession = false }
         Self._shared = self
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-test-authenticated-chat-navigation") {
@@ -140,6 +157,7 @@ final class AuthManager: ObservableObject {
                     await forceLocalLogout(reason: "missing_master_key")
                     return
                 }
+                try activateOfflineScope(for: user)
                 currentUser = user
                 webSocketToken = response.wsToken
                 sessionValidationState = .onlineAuthenticated
@@ -367,6 +385,7 @@ final class AuthManager: ObservableObject {
         }
 
         webSocketToken = response.wsToken
+        try activateOfflineScope(for: user)
         currentUser = user
         try await crypto.saveMasterKey(masterKey, for: user.id)
         await migrateLegacyComposerDrafts()
@@ -387,6 +406,7 @@ final class AuthManager: ObservableObject {
         }
 
         try await crypto.saveMasterKey(masterKey, for: user.id)
+        try activateOfflineScope(for: user)
         currentUser = user
         await migrateLegacyComposerDrafts()
         webSocketToken = response.wsToken
@@ -408,7 +428,9 @@ final class AuthManager: ObservableObject {
             )
         }
 
+        AppSessionCoordinator.shared.resetTransientRuntime()
         await clearComposerDraftsForLogout()
+        OfflineStore.shared.deactivate()
         if let userId = currentUser?.id {
             try? await crypto.deleteMasterKey(for: userId)
         }
@@ -428,7 +450,9 @@ final class AuthManager: ObservableObject {
 
     func forceLocalLogout(reason: String) async {
         print("[Auth] Forced local logout reason=\(reason)")
+        AppSessionCoordinator.shared.resetTransientRuntime()
         await clearComposerDraftsForLogout()
+        OfflineStore.shared.deactivate()
         if let userId = currentUser?.id {
             try? await crypto.deleteMasterKey(for: userId)
         } else {
@@ -473,6 +497,7 @@ final class AuthManager: ObservableObject {
         NativeDiagnostics.info("phase=passwordLogin.masterKeyUnwrapped", category: "auth")
         try await crypto.saveMasterKey(masterKey, for: user.id)
         NativeDiagnostics.info("phase=passwordLogin.masterKeySaved", category: "auth")
+        try activateOfflineScope(for: user)
         currentUser = user
         await migrateLegacyComposerDrafts()
         NativeDiagnostics.info("phase=passwordLogin.draftsMigrated", category: "auth")
@@ -501,6 +526,14 @@ final class AuthManager: ObservableObject {
             state = .unauthenticated
             return false
         }
+        do {
+            try activateOfflineScope(for: user)
+        } catch {
+            NativeDiagnostics.error("Offline account store could not be opened", category: "auth")
+            sessionValidationState = .unauthenticated
+            state = .unauthenticated
+            return false
+        }
         currentUser = user
         await migrateLegacyComposerDrafts()
         webSocketToken = nil
@@ -508,6 +541,18 @@ final class AuthManager: ObservableObject {
         state = .authenticated
         print("[Auth] Restored cached session for offline startup")
         return true
+    }
+
+    private func activateOfflineScope(for user: UserProfile) throws {
+        let apiBaseURL = ServerConfiguration.current.apiBaseURL
+        let store = OfflineStore.shared
+        let scope = OfflineStore.scopeId(userId: user.id, apiBaseURL: apiBaseURL)
+        if store.activeScopeId != scope {
+            AppSessionCoordinator.shared.resetTransientRuntime()
+            ChatKeyManager.shared.clearAll()
+            EmbedKeyManager.shared.clearAll()
+            try store.activate(userId: user.id, apiBaseURL: apiBaseURL)
+        }
     }
 
     private func migrateLegacyComposerDrafts() async {

@@ -156,7 +156,7 @@ def cleanup_stale_sessions(
             resume_body = (
                 f"**Session `{sid}` auto-cleaned** "
                 f"(no Linear activity for {hours_stale:.1f}h)\n\n"
-                f"**Resume:** reopen the OpenCode web chat or attached Zellij session.\n"
+                f"**Resume:** reopen the owning Codex task or attached terminal.\n"
             )
             if zellij_name:
                 resume_body += f"**Attach:** `zellij attach {zellij_name}`\n"
@@ -282,10 +282,10 @@ def cleanup_dead_poller_sessions(dry_run: bool = False) -> int:
         if issue_id:
             # Post completion comment
             mode = info.get("mode", "unknown")
-            opencode_sid = info.get("opencode_session_id")
+            codex_task = info.get("codex_task_id")
             resume_hint = ""
-            if opencode_sid:
-                resume_hint = f"**Resume:** reopen OpenCode Web chat `{opencode_sid}`\n"
+            if codex_task:
+                resume_hint = f"**Resume:** reopen Codex task `{codex_task}`\n"
 
             post_comment(
                 issue_id,

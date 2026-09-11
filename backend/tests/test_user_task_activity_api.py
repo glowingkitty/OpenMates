@@ -37,7 +37,6 @@ from backend.core.api.app.services.user_task_service import UserTaskConflictErro
 def activity_payload(**overrides: object) -> dict[str, object]:
     payload = {
         "entry_id": "activity-1",
-        "encrypted_entry_key": "cipher-entry-key",
         "encrypted_message": "cipher-message",
         "encrypted_embed_key_material": "cipher-embed-key",
         "embed_refs": ["embed-1"],
@@ -76,6 +75,9 @@ def test_activity_create_request_rejects_plaintext_and_unknown_private_extras() 
 
     with pytest.raises(ValidationError):
         activity_request(raw_entry_key="do not persist me")
+
+    with pytest.raises(ValidationError):
+        activity_request(encrypted_entry_key="obsolete-wrapped-key")
 
     request = activity_request()
     assert request.model_dump() == activity_payload()
@@ -127,13 +129,13 @@ async def test_create_activity_persists_only_ciphertext_with_personal_or_team_ta
     assert record["hashed_task_id"] == hash_id("task-1")
     assert record["hashed_user_id"] == hash_id("user-1")
     assert record["hashed_team_id"] == (hash_id(team_id) if team_id else None)
-    assert record["encrypted_entry_key"] == "cipher-entry-key"
     assert record["encrypted_message"] == "cipher-message"
     assert record["encrypted_embed_key_material"] == "cipher-embed-key"
     assert record["embed_refs"] == ["embed-1"]
     assert record["source_surface"] == "web"
     assert "plaintext_message" not in record
     assert "raw_entry_key" not in record
+    assert "encrypted_entry_key" not in record
     assert "raw_embed_key" not in record
 
 
@@ -179,6 +181,20 @@ async def test_activity_cursor_uses_stable_created_at_and_entry_id_order() -> No
     assert later_params["filter[created_at][_gt]"] == 100
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.activity.single-final-section,tasks.activity.task-scoped-authorization
+async def test_newest_activity_cursor_walks_backwards_with_timestamp_ties() -> None:
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[]))
+    methods = UserTaskMethods(directus)
+    await methods.list_task_activity("user-1", "task-1", cursor="100:activity-1", limit=20, newest_first=True)
+    same = directus.get_items.await_args_list[0].kwargs["params"]
+    earlier = directus.get_items.await_args_list[1].kwargs["params"]
+    assert same["sort"] == "-entry_id"
+    assert same["filter[entry_id][_lt]"] == "activity-1"
+    assert earlier["sort"] == "-created_at,-entry_id"
+    assert earlier["filter[created_at][_lt]"] == 100
+    assert earlier["limit"] == 20
+
+
 # contract-test: supporting surface=rest_api assertions=tasks.activity.client-encrypted,tasks.activity.task-scoped-authorization
 def test_activity_schema_setup_verifies_scoped_indexes_and_legacy_backfill() -> None:
     root = Path(__file__).parents[1]
@@ -194,6 +210,12 @@ def test_activity_schema_setup_verifies_scoped_indexes_and_legacy_backfill() -> 
         assert index in migration
     assert "DROP INDEX IF EXISTS user_task_activity_task_created_idx" in migration
     assert "UPDATE user_task_activity AS activity" in migration
+    assert "record_user_task_lifecycle_activity" in migration
+    assert "AFTER INSERT OR UPDATE OF status ON user_tasks" in migration
+    assert migration.count("id, task_id, hashed_task_id, entry_id") == 2
+    assert migration.count("gen_random_uuid(), NEW.task_id") == 2
+    assert "'lifecycle_update', 'system'" in migration
+    assert "'status', 'system', OLD.status, NEW.status" in migration
     assert "activity.task_id = tasks.task_id" in migration
 
 
@@ -229,7 +251,7 @@ async def test_activity_delete_allows_author_or_mutation_role_and_tombstones_cip
     assert patch["deleted_at"] == 200
     assert patch["deleted_by_hash"] == hash_id(deleter_id)
     assert patch["encrypted_message"] is None
-    assert patch["encrypted_entry_key"] is None
+    assert "encrypted_entry_key" not in patch
     assert patch["encrypted_embed_key_material"] is None
     assert patch["embed_refs"] == []
 
@@ -323,7 +345,6 @@ def test_activity_response_hides_storage_scope_and_derives_tombstone_author() ->
             "kind": "tombstone",
             "actor_hash": hash_id("author-1"),
             "deleted_by_hash": hash_id("deleter-1"),
-            "encrypted_entry_key": None,
             "encrypted_message": None,
             "encrypted_embed_key_material": None,
             "embed_refs": [],

@@ -32,6 +32,8 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits
 from backend.shared.python_utils.app_skill_output_safety import (
     AppSkillOutputSafetyContext,
     APP_SKILL_SURFACE_REST,
+    OUTPUT_SAFETY_ERROR_CODES,
+    central_app_skill_dispatch,
     is_external_data_skill,
     sanitize_app_skill_output,
     strip_request_security_controls,
@@ -826,6 +828,7 @@ async def call_app_skill(
     secrets_manager: SecretsManager | None = None,
     cache_service: CacheService | None = None,
     enforce_rest_exposure_policy: bool = True,
+    directus_service: DirectusService | None = None,
 ) -> Dict[str, Any]:
     """
     Dispatch a REST-API skill call via the in-process SkillRegistry.
@@ -873,6 +876,17 @@ async def call_app_skill(
     request_payload = skill_input_data.copy() if isinstance(skill_input_data, dict) else {}
     if not isinstance(request_payload, dict):
         request_payload = {}
+    if app_id == "ai" and skill_id == "ask":
+        from backend.shared.python_utils.rest_test_replay import prepare_rest_replay_messages
+
+        try:
+            request_payload["messages"] = await prepare_rest_replay_messages(
+                request_payload.get("messages", []), str(user_info["user_id"]),
+                cache_service, directus_service,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=403, detail="Invalid or unauthorized REST replay marker") from exc
+
     request_payload['_user_id'] = user_info['user_id']
     request_payload['_api_key_name'] = user_info.get('api_key_encrypted_name', '')
     request_payload['_api_key_hash'] = user_info.get('api_key_hash')
@@ -884,7 +898,8 @@ async def call_app_skill(
         request_payload['_secrets_manager'] = secrets_manager
 
     try:
-        result = await registry.dispatch_skill(app_id, skill_id, request_payload)
+        with central_app_skill_dispatch():
+            result = await registry.dispatch_skill(app_id, skill_id, request_payload)
         return await sanitize_app_skill_output(
             result,
             AppSkillOutputSafetyContext(
@@ -902,6 +917,17 @@ async def call_app_skill(
         # 4xx/5xx from inside the skill (validation, billing, missing skill, ...) —
         # propagate as-is so the REST handler returns the original status/detail.
         raise
+    except RuntimeError as exc:
+        if str(exc) in OUTPUT_SAFETY_ERROR_CODES:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        logger.error(
+            "In-process dispatch failed for %s/%s: %s",
+            app_id,
+            skill_id,
+            type(exc).__name__,
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
     except Exception as e:
         logger.error(
             f"In-process dispatch failed for {app_id}/{skill_id}: {type(e).__name__}: {e}",
@@ -2987,6 +3013,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 user_info=user_info,
                                 secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
                                 cache_service=cache_service,
+                                directus_service=directus_service,
                             )
                             
                             # Check if skill execution was successful before charging credits
@@ -3217,6 +3244,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 user_info=user_info,
                                 secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
                                 cache_service=cache_service,
+                                directus_service=directus_service,
                             )
                             
                             # Check if skill execution was successful before charging credits
@@ -3328,6 +3356,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 user_info=user_info,
                                 secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
                                 cache_service=cache_service,
+                                directus_service=directus_service,
                             )
                             
                             # Check if skill execution was successful before charging credits
@@ -3436,6 +3465,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 user_info=user_info,
                                 secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
                                 cache_service=cache_service,
+                                directus_service=directus_service,
                             )
                             
                             # Check if skill execution was successful before charging credits

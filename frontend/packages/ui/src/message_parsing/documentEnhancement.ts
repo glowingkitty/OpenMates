@@ -445,10 +445,6 @@ function findMatchingEmbedForCodeBlock(
     embedNodesCount: embedNodes.length,
   });
 
-  if (!codeText.trim()) {
-    return null;
-  }
-
   if (normalizedCodeBlockLanguage === "embeds_map_view" || normalizedCodeBlockLanguage === "embeds_results_view") {
     const matchingMapView = embedNodes.find(
       (node) => node.type === "embeds-map-view",
@@ -461,6 +457,8 @@ function findMatchingEmbedForCodeBlock(
       return PROTOCOL_EMBED_MARKER;
     }
   }
+
+  if (!codeText.trim()) return null;
 
   // Try to parse as JSON to check if it's an embed reference
   try {

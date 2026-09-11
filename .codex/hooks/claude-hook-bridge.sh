@@ -8,12 +8,46 @@ set -u
 
 EVENT="${1:-}"
 PROJECT_ROOT="/home/superdev/projects/OpenMates"
-HOOK_DIR="$PROJECT_ROOT/.claude/hooks"
+HOOK_DIR="${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/.claude/hooks"
 INPUT=$(cat)
 CALLER_CWD=$(echo "$INPUT" | jq -r --arg fallback "$PROJECT_ROOT" '.cwd // $fallback')
 
+# Codex child hooks carry the parent identity. Preserve it for shared auto-track
+# and stop hooks rather than relying on a shared terminal or inherited child ID.
+ROUTING_OUTPUT=""
+HOOK_RESULTS=""
+  CODEX_HOOK_TASK=$(echo "$INPUT" | jq -r '.session_id // empty')
+  if [ -n "$CODEX_HOOK_TASK" ]; then
+    export CODEX_THREAD_ID="$CODEX_HOOK_TASK"
+  fi
+  if [ "$EVENT" = "SessionStart" ] || [ "$EVENT" = "UserPromptSubmit" ] || [ "$EVENT" = "PreToolUse" ] || [ "$EVENT" = "PostToolUse" ] || [ "$EVENT" = "Stop" ]; then
+      ROUTING_OUTPUT=$(printf '%s' "$INPUT" | python3 "${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/scripts/codex_hook_context.py" "$EVENT")
+      ROUTING_STATUS=$?
+      [ "$ROUTING_STATUS" -eq 0 ] || exit "$ROUTING_STATUS"
+      if [ "$EVENT" = "PreToolUse" ] && [ -n "$ROUTING_OUTPUT" ]; then
+        INPUT=$(printf '%s' "$INPUT" | jq --argjson routed "$ROUTING_OUTPUT"           'if $routed.hookSpecificOutput.updatedInput then .tool_input = $routed.hookSpecificOutput.updatedInput else . end')
+      fi
+  fi
+
 if [ -z "$EVENT" ]; then
   exit 0
+fi
+
+# Check after tools as well as before: shell rejection must end the current turn.
+# Stop/SessionStart checks preserve the latch across interruptions and suppress
+# the normal uncommitted-work continuation hint while the task is latched.
+if [[ "$EVENT" =~ ^(PreToolUse|PostToolUse|Stop|SessionStart)$ ]]; then
+    # apple-no-delete-guard.sh policy applies to ALL tools, before retryable guards.
+    MAC_STOP=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR%/.claude/hooks}/scripts/apple_no_delete_guard.py" hook)
+    MAC_STATUS=$?
+    if [ "$MAC_STATUS" -ne 0 ]; then
+      printf '%s\n' "$MAC_STOP"
+      if [ "$MAC_STATUS" -eq 77 ]; then
+        exit 0
+      fi
+      printf '%s\n' 'MAC_NO_DELETE_STOP: Safety hook failed. Stop the task.' >&2
+      exit 2
+    fi
 fi
 
 tool_name() {
@@ -67,7 +101,7 @@ run_hook() {
   status=$?
 
   if [ -s "$stdout_file" ]; then
-    cat "$stdout_file"
+    HOOK_RESULTS+="$(cat "$stdout_file")"$'\n'
   fi
 
   if [ -s "$stderr_file" ]; then
@@ -92,7 +126,7 @@ payload_for_file() {
     --arg cwd "$CALLER_CWD" \
     --arg event "$event" \
     --arg file "$file" \
-    '{cwd: $cwd, hook_event_name: $event, tool_name: (.tool_name // "Edit"), tool_input: ((.tool_input // {}) + {file_path: $file})}'
+    '{session_id: .session_id, cwd: $cwd, hook_event_name: $event, tool_name: (.tool_name // "Edit"), tool_input: ((.tool_input // {}) + {file_path: $file})}'
 }
 
 payload_for_bash() {
@@ -123,12 +157,20 @@ run_for_files() {
   done
 }
 
+emit_codex_result() {
+  if [ -n "$HOOK_RESULTS" ] || [ -n "$ROUTING_OUTPUT" ]; then
+    printf '%s\n%s\n' "$HOOK_RESULTS" "$ROUTING_OUTPUT" | python3 "${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/scripts/codex_hook_context.py" --merge "$EVENT"
+  fi
+}
+
 case "$EVENT" in
   PreToolUse)
+    # apple-no-delete-guard.sh already ran for every tool above.
     TOOL=$(tool_name)
     if [ "$TOOL" = "Bash" ] || [ "$TOOL" = "bash" ]; then
       run_hook "bash-guard.sh" "$(payload_for_bash)" true
-      exit 0
+      emit_codex_result
+      exit $?
     fi
 
     case "$TOOL" in
@@ -156,8 +198,15 @@ case "$EVENT" in
     esac
     ;;
   Stop)
-    run_hook "check-uncommitted.sh" '{"cwd":"/home/superdev/projects/OpenMates","hook_event_name":"Stop","stop_hook_active":false}' false
+    # Opted-in cached Task delivery owns persistence independently of this turn.
+    # Do not make clarification/final wording trigger another model invocation.
+    if [ -n "${CODEX_THREAD_ID:-}" ] && python3 "${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/scripts/codex_cached_context.py" enabled --repository "$PROJECT_ROOT" --thread "$CODEX_THREAD_ID"; then
+      emit_codex_result
+      exit 0
+    fi
+    run_hook "check-uncommitted.sh" "$(printf '%s' "$INPUT" | jq '. + {hook_event_name: "Stop", stop_hook_active: false}')" false
     ;;
 esac
 
-exit 0
+emit_codex_result
+exit $?

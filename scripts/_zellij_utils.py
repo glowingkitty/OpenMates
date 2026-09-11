@@ -1,11 +1,7 @@
 """
 scripts/_zellij_utils.py
 
-Thin wrapper around legacy Zellij session management plus OpenCode chat launch.
-
-OpenCode worker chats are now persisted through the existing OpenCode Web
-server and appear in that project sidebar. Zellij helpers remain for legacy
-cleanup and manually attached terminals.
+Thin wrapper for legacy terminal session management and cleanup.
 
 All public functions are non-fatal: they print warnings to stderr and
 return None/False on failure. Callers should never crash due to Zellij
@@ -15,10 +11,8 @@ being unavailable.
 from __future__ import annotations
 
 import os
-import json
 import re
 import shlex
-import shutil
 import subprocess
 import sys
 import time
@@ -29,14 +23,6 @@ from typing import Dict, List, Optional
 
 ZELLIJ_BIN = "/usr/local/bin/zellij"
 ZELLIJ_WEB_URL = "http://localhost:8082"
-OPENCODE_SERVER_URL = os.environ.get("OPENCODE_SERVER_URL", "http://127.0.0.1:4096")
-OPENCODE_CONTROL_PLANE_RUNTIME = os.environ.get(
-    "OPENMATES_CONTROL_PLANE_RUNTIME",
-    str(Path(__file__).resolve().parent.parent),
-)
-OPENCODE_EXECUTE_MODEL = os.environ.get("OPENCODE_EXECUTE_MODEL", "openai/gpt-5.5")
-OPENCODE_EXECUTE_VARIANT = os.environ.get("OPENCODE_EXECUTE_VARIANT", "xhigh")
-OPENCODE_SPAWN_LOG_TAIL_CHARS = 2_000
 
 # Hard cap on concurrent Zellij sessions to prevent OOM on a 30GB server.
 # Each agent session uses ~500MB RAM. 6 sessions = ~3GB headroom.
@@ -50,15 +36,6 @@ MAX_CONCURRENT_SESSIONS = 6
 _PROTECTED_SESSION_RE = re.compile(r"^claude\d+$")
 
 
-def _resolve_opencode_bin() -> str | None:
-    """Resolve OpenCode even under the minimal PATH used by systemd services."""
-    configured = os.environ.get("OPENCODE_BIN")
-    candidates = [configured, str(Path.home() / ".npm-global" / "bin" / "opencode")]
-    candidates.append(shutil.which("opencode"))
-    for candidate in candidates:
-        if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
-            return candidate
-    return None
 
 
 def is_protected_session(session_name: str) -> bool:
@@ -572,7 +549,6 @@ def spawn_claude_session(
         return False
 
     # Brief wait to let session initialize, then clean up layout file
-    import time
     time.sleep(2)
     layout_path.unlink(missing_ok=True)
 
@@ -585,206 +561,6 @@ def spawn_claude_session(
     return False
 
 
-def spawn_opencode_session(
-    session_name: str,
-    prompt: str,
-    cwd: str,
-    permission_mode: str = "plan",
-    opencode_session_id: str | None = None,
-) -> bool:
-    """Spawn a persisted OpenCode chat through the already-running web server."""
-    session_name = _sanitize_session_name(session_name)
-    if permission_mode not in {"plan", "execute", "execute-readonly"}:
-        print(f"Warning: invalid OpenCode permission mode '{permission_mode}'.", file=sys.stderr)
-        return False
-    opencode_bin = _resolve_opencode_bin()
-    if not opencode_bin:
-        print("Warning: OpenCode binary not found.", file=sys.stderr)
-        return False
-
-    command = [
-        opencode_bin,
-        "run",
-        "--attach",
-        OPENCODE_SERVER_URL,
-        "--dir",
-        cwd,
-        "--format",
-        "json",
-    ]
-    if opencode_session_id:
-        command.extend(["--session", opencode_session_id])
-    else:
-        command.extend(["--title", session_name])
-    if permission_mode == "plan":
-        command.extend(["--agent", "plan"])
-    else:
-        command.extend([
-            "--agent",
-            "build",
-            "--model",
-            OPENCODE_EXECUTE_MODEL,
-            "--variant",
-            OPENCODE_EXECUTE_VARIANT,
-            "--auto",
-        ])
-    command.append(prompt)
-
-    tmp_dir = Path(cwd) / "scripts" / ".tmp"
-    tmp_dir.mkdir(parents=True, exist_ok=True)
-    log_path = tmp_dir / f"opencode-spawn-{session_name}-{int(time.time())}.jsonl"
-
-    run_env = os.environ.copy()
-    run_env["PATH"] = (
-        "/home/superdev/.local/bin:/home/superdev/.npm-global/bin:"
-        + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
-    )
-
-    try:
-        with log_path.open("ab") as log_handle:
-            process = subprocess.Popen(
-                command,
-                cwd=cwd,
-                stdout=log_handle,
-                stderr=subprocess.STDOUT,
-                env=run_env,
-                start_new_session=True,
-            )
-    except (FileNotFoundError, OSError) as exc:
-        print(f"Warning: OpenCode chat launch failed: {exc}", file=sys.stderr)
-        return False
-
-    time.sleep(1)
-    returncode = process.poll()
-    if returncode is None or returncode == 0:
-        return True
-
-    try:
-        output_tail = log_path.read_text(encoding="utf-8", errors="replace")[-OPENCODE_SPAWN_LOG_TAIL_CHARS:]
-    except OSError:
-        output_tail = ""
-    detail = f"\n{output_tail}" if output_tail else ""
-    print(f"Warning: OpenCode chat '{session_name}' exited with code {returncode}.{detail}", file=sys.stderr)
-    return False
-
-
-def resume_opencode_session(
-    session_name: str,
-    opencode_session_id: str,
-    cwd: str,
-    prompt: str = "The server restarted and this session was interrupted. Continue where you left off.",
-    permission_mode: str = "plan",
-    provider_id: str | None = None,
-    model_id: str | None = None,
-    variant: str | None = None,
-) -> bool:
-    """Send a continuation directly through the existing OpenCode Web API.
-
-    ``opencode run --attach --session`` can attach to the event stream without
-    ever submitting its positional prompt. The asynchronous prompt endpoint is
-    the server's deterministic resume primitive and returns as soon as the
-    generation has been accepted.
-    """
-    import urllib.error
-    import urllib.parse
-    import urllib.request
-
-    if permission_mode not in {"plan", "execute", "execute-readonly"}:
-        print(f"Warning: invalid OpenCode permission mode '{permission_mode}'.", file=sys.stderr)
-        return False
-    configured_provider_id, _separator, configured_model_id = OPENCODE_EXECUTE_MODEL.partition("/")
-    if provider_id is None:
-        provider_id = configured_provider_id
-    if model_id is None:
-        model_id = configured_model_id
-    if permission_mode != "plan" and (not provider_id or not model_id):
-        print(f"Warning: invalid OpenCode execute model '{OPENCODE_EXECUTE_MODEL}'.", file=sys.stderr)
-        return False
-    body: dict[str, object] = {
-        "agent": "plan" if permission_mode == "plan" else "build",
-        "parts": [{"type": "text", "text": prompt}],
-    }
-    if permission_mode != "plan":
-        body["model"] = {"providerID": provider_id, "modelID": model_id}
-        body["variant"] = variant or OPENCODE_EXECUTE_VARIANT
-    # The server selects project-local plugins from this directory. Always
-    # start resumed generations from the clean deployed runtime so old source
-    # worktrees cannot load stale orchestration code; the hook routes product
-    # tools back to ``cwd`` using the durable session mapping.
-    query = urllib.parse.urlencode({"directory": OPENCODE_CONTROL_PLANE_RUNTIME})
-    request = urllib.request.Request(
-        f"{OPENCODE_SERVER_URL}/session/{urllib.parse.quote(opencode_session_id, safe='')}/prompt_async?{query}",
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=15) as response:
-            accepted = 200 <= int(response.status) < 300
-        if accepted and permission_mode != "plan":
-            subprocess.Popen(
-                [
-                    sys.executable,
-                    str(Path(__file__).resolve().parent / "opencode_permission_watcher.py"),
-                    "--server-url",
-                    OPENCODE_SERVER_URL,
-                    "--cwd",
-                    cwd,
-                    "--session",
-                    opencode_session_id,
-                ],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-        return accepted
-    except (OSError, urllib.error.URLError) as exc:
-        print(f"Warning: OpenCode continuation request failed: {exc}", file=sys.stderr)
-        return False
-
-
-def find_opencode_session_id(
-    session_title: str,
-    cwd: str,
-    *,
-    created_after_ms: int = 0,
-    limit: int = 50,
-    attempts: int = 5,
-) -> str | None:
-    """Poll for a newly created OpenCode session with the exact title."""
-    import time
-
-    opencode_bin = _resolve_opencode_bin()
-    if not opencode_bin:
-        return None
-    for attempt in range(attempts):
-        try:
-            result = subprocess.run(
-                [opencode_bin, "session", "list", "-n", str(limit), "--format", "json"],
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                timeout=15,
-                check=False,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            return None
-        if result.returncode == 0:
-            try:
-                sessions = json.loads(result.stdout)
-            except json.JSONDecodeError:
-                sessions = []
-            for session in sessions if isinstance(sessions, list) else []:
-                if (
-                    isinstance(session, dict)
-                    and session.get("title") == session_title
-                    and int(session.get("created") or 0) >= created_after_ms
-                ):
-                    return str(session.get("id") or "") or None
-        if attempt + 1 < attempts:
-            time.sleep(1)
-    return None
 
 
 def resume_claude_session(
@@ -871,7 +647,6 @@ def resume_claude_session(
         return False
 
     # Brief wait to let session initialize, then clean up layout file
-    import time
     time.sleep(2)
     layout_path.unlink(missing_ok=True)
 

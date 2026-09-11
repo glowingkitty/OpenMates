@@ -5,6 +5,7 @@
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/ChatHeader.svelte
+//          frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
 // CSS:     frontend/packages/ui/src/components/ChatHeader.svelte <style>
 //          .chat-header-banner { height:35vh; min-height:240px; border-radius:0 0 14px 14px }
 //          .is-mobile-header (measured width <=730px) { min-height:230px }
@@ -66,6 +67,8 @@ struct ChatBannerView: View {
 
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var isVisible = true
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.layoutDirection) private var layoutDirection
     @State private var shimmerPhase: CGFloat = 0
@@ -106,26 +109,25 @@ struct ChatBannerView: View {
     }
 
     var body: some View {
-        // TimelineView drives continuous animation for orbs + deco icons.
-        // The .animation schedule updates every frame for smooth motion.
-        TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil)) { timeline in
-            let now = timeline.date.timeIntervalSinceReferenceDate
-            GeometryReader { geo in
+        // Only decorative layers need animation ticks. Keeping text and geometry
+        // outside the timeline prevents per-frame formatting and layout churn.
+        GeometryReader { geo in
                 let _ = updateBannerWidth(geo.size.width)
                 ZStack {
                     // 1. Gradient background
                     gradientBackground
                         .frame(width: geo.size.width, height: bannerHeight)
 
-                    // 2. Living gradient orbs
-                    orbLayer(time: now)
+                    TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil, paused: reduceMotion || !isVisible || scenePhase != .active)) { timeline in
+                        let now = timeline.date.timeIntervalSinceReferenceDate
+                        ZStack {
+                            orbLayer(time: now)
+                            decoIcons(time: now)
+                        }
                         .frame(width: geo.size.width, height: bannerHeight)
                         .clipped()
-
-                    // 3. Decorative icons (loaded / incognito)
-                    decoIcons(time: now)
-                        .frame(width: geo.size.width, height: bannerHeight)
-                        .clipped()
+                    }
+                    .allowsHitTesting(false)
 
                     // 4. Center content
                     centerContent
@@ -155,12 +157,12 @@ struct ChatBannerView: View {
                             }
                         }
                 )
-            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: bannerHeight)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat-header-banner")
+        .modifier(ChatBannerVisibilityObserver(isVisible: $isVisible))
     }
 
     // MARK: - Gradient Background
@@ -538,16 +540,17 @@ struct ChatBannerView: View {
         summary: String?,
         isDraftOnly: Bool = false
     ) -> some View {
-        VStack(spacing: .spacing2) {
+        // Rendered desktop + 375px ChatHeader previews (2026-09-11): embedded
+        // WorkspaceDetailHeader uses a 10px inner gap; outer badge rows use 4px.
+        VStack(spacing: (isExampleChat || isDraftOnly) ? .spacing2 : .spacing5) {
             // Category icon (38px, white, raw shape — NOT a gradient circle)
-            bannerIcon(appId: appId, iconName: iconName, size: isMobileHeader ? 32 : 38)
+            bannerIcon(appId: appId, iconName: iconName, size: 38)
 
             Text(title)
-                .font(isMobileHeader ? .omLg : .omH3)
+                .font(.omH3)
                 .fontWeight(.bold)
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
                 .accessibilityIdentifier("chat-header-title")
 
             if isExampleChat || isDraftOnly {
@@ -569,9 +572,9 @@ struct ChatBannerView: View {
                     .fontWeight(.medium)
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
-                    .lineSpacing(2)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : (isMobileHeader ? 2 : 3))
-                    .padding(.top, .spacing1)
+                    .lineSpacing(loadedSummaryLineSpacing)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 3)
+                    .padding(.top, (isExampleChat || isDraftOnly) ? .spacing1 : 0)
                     .accessibilityIdentifier("chat-header-summary")
             }
 
@@ -580,13 +583,31 @@ struct ChatBannerView: View {
                     .font(.omSmall)
                     .fontWeight(.medium)
                     .foregroundStyle(.white.opacity(0.85))
-                    .padding(.top, .spacing1)
+                    .padding(.top, (isExampleChat || isDraftOnly) ? .spacing1 : 0)
             }
         }
         .frame(maxWidth: isMobileHeader ? 360 : 480)
         .padding(.horizontal, isMobileHeader ? .spacing10 : .spacing12)
-        .padding(.vertical, .spacing8)
+        .padding(.vertical, isMobileHeader ? .spacing6 : .spacing8)
     }
+
+    /// Web description line-height is 21px at the shared 14px medium font.
+    /// SwiftUI lineSpacing adds to native font metrics instead of setting CSS line-height.
+    private var loadedSummaryLineSpacing: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? 2 : Self.standardSummaryLineSpacing
+    }
+
+    private static let standardSummaryLineSpacing: CGFloat = {
+        #if os(iOS)
+        let naturalHeight = UIFont(name: "LexendDeca-Medium", size: 14)?.lineHeight ?? 17
+        #elseif os(macOS)
+        let font = NSFont(name: "LexendDeca-Medium", size: 14) ?? NSFont.systemFont(ofSize: 14, weight: .medium)
+        let naturalHeight = font.ascender - font.descender + font.leading
+        #else
+        let naturalHeight: CGFloat = 17
+        #endif
+        return max(0, 21 - naturalHeight)
+    }()
 
     @ViewBuilder
     private func bannerIcon(appId: String, iconName: String?, size: CGFloat) -> some View {
@@ -1230,5 +1251,19 @@ private class FullVideoPlayerHolder: ObservableObject {
         let p = AVPlayer(url: url)
         player = p
         p.play()
+    }
+}
+
+// Header decorations should not consume frames while reading later messages.
+private struct ChatBannerVisibilityObserver: ViewModifier {
+    @Binding var isVisible: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, macOS 15.0, *) {
+            content.onScrollVisibilityChange(threshold: 0.01) { isVisible = $0 }
+        } else {
+            content.onAppear { isVisible = true }.onDisappear { isVisible = false }
+        }
     }
 }

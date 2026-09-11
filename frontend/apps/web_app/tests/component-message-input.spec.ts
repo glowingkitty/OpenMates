@@ -14,6 +14,7 @@ const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-p
 
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const VIEWPORT_EDGE_TOLERANCE_PX = 1;
 
 const MESSAGE_INPUT_PROOF = defineVideoProof({
 	id: 'message-input-component-states',
@@ -24,43 +25,43 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 	transcript: [
 		{
 			id: 'minimized-state',
-			text: 'The minimized message field shows its grey AI affordance and microphone without expanded controls.',
+			text: 'The minimized composer shows only its AI affordance and microphone.',
 			checkpoint: 'minimized',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'expanded-state',
-			text: 'Focusing the message field expands the composer and reveals its action controls.',
+			text: 'Focusing expands the composer and keeps its controls and microphone guidance in view.',
 			checkpoint: 'expanded',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'speech-toggle-off',
-			text: 'The speech control starts with a visible mute glyph and no square background.',
+			text: 'Speech starts muted on a transparent control.',
 			checkpoint: 'speech-toggle-off',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'speech-toggle-on',
-			text: 'Clicking the speech control immediately replaces the mute glyph with the audio glyph.',
+			text: 'Clicking speech displays the audio glyph.',
 			checkpoint: 'speech-toggle-on',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'hover-state',
-			text: 'Hovering the model selector adds only the intended gentle interaction shadow.',
+			text: 'Hovering adds a gentle selector shadow.',
 			checkpoint: 'model-selector-hovered',
 			devices: ['web-laptop']
 		},
 		{
 			id: 'model-menu-state',
-			text: 'Clicking the model selector opens the model selection menu inside the isolated component.',
+			text: 'The selector opens the model menu.',
 			checkpoint: 'model-menu-open',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'model-row-selection',
-			text: 'Clicking a model row selects that exact model while opening its details.',
+			text: 'Clicking a model row selects it while opening details.',
 			checkpoint: 'model-row-selected',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -76,6 +77,12 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 			id: 'message-input.expanded-controls',
 			checkpoint: 'expanded',
 			visual: 'The expanded composer shows one action row and no duplicate empty-state microphone.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'message-input.layout.responsive-parity',
+			checkpoint: 'expanded',
+			visual: 'The complete microphone permission warning stays within the viewport beside the expanded composer.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -113,7 +120,7 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 });
 
 test.describe('MessageInput component preview', () => {
-	// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,assistant-speech.preference.chat-scoped-default-off,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions
+	// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.layout.responsive-parity,assistant-speech.preference.chat-scoped-default-off,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions
 	test('moves from minimized to expanded interactive states', async ({ page }, testInfo) => {
 		const proof = createVideoProofRuntime(MESSAGE_INPUT_PROOF, {
 			device: PROOF_DEVICE,
@@ -149,6 +156,21 @@ test.describe('MessageInput component preview', () => {
 			await expect(page.getByTestId('record-audio-button')).toBeVisible();
 			await expect(page.getByTestId('guest-cta-mic-button')).toHaveCount(0);
 			await expect(page.getByTestId('composer-model-selector')).toBeVisible();
+		});
+		await proof.assert('message-input.layout.responsive-parity', async () => {
+			const warning = page.getByText('Microphone blocked - enable it in browser settings', { exact: true });
+			await expect(warning).toBeVisible();
+			// Measure the text as well as the pill: a max-width pill can still let
+			// non-wrapping text paint outside the viewport.
+			const bounds = await warning.evaluate((element) => {
+				const range = document.createRange();
+				range.selectNodeContents(element);
+				const text = range.getBoundingClientRect();
+				const pill = element.getBoundingClientRect();
+				return { left: Math.min(text.left, pill.left), right: Math.max(text.right, pill.right), viewport: window.innerWidth };
+			});
+			expect(bounds.left, 'Microphone guidance must not overflow the left viewport edge').toBeGreaterThanOrEqual(-VIEWPORT_EDGE_TOLERANCE_PX);
+			expect(bounds.right, 'Complete microphone guidance must fit within the right viewport edge').toBeLessThanOrEqual(bounds.viewport + VIEWPORT_EDGE_TOLERANCE_PX);
 		});
 		await proof.checkpoint('expanded');
 
@@ -190,6 +212,16 @@ test.describe('MessageInput component preview', () => {
 		const modelMenu = page.getByTestId('composer-model-selector-menu');
 		await modelMenu.getByTestId('composer-model-provider-label').first().click();
 		const firstModelName = modelMenu.getByTestId('composer-model-name').first();
+		const firstModelIcon = modelMenu.getByTestId('composer-model-icon').first();
+		const firstModelCapability = modelMenu.getByTestId('composer-model-capability').first();
+		const [iconBox, capabilityBox] = await Promise.all([
+			firstModelIcon.boundingBox(),
+			firstModelCapability.boundingBox()
+		]);
+		expect(iconBox).not.toBeNull();
+		expect(capabilityBox).not.toBeNull();
+		expect(Math.abs(capabilityBox!.x + capabilityBox!.width / 2 - (iconBox!.x + iconBox!.width))).toBeLessThanOrEqual(1);
+		expect(Math.abs(capabilityBox!.y + capabilityBox!.height / 2 - (iconBox!.y + iconBox!.height))).toBeLessThanOrEqual(1);
 		const selectedModelName = (await firstModelName.textContent())?.trim();
 		expect(selectedModelName).toBeTruthy();
 		await proof.action('select-model-row', async () => firstModelName.click());

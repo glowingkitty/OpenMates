@@ -10,6 +10,153 @@ import XCTest
 
 @MainActor
 final class ChatSendPipelineParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
+    func testNotificationReplyDoesNotCommitAfterItsSessionChangesDuringPreflight() async throws {
+        let payloads = Self.notificationTurnPayloads()
+        let transport = NotificationReceiptTransport(state: "PREPARED")
+        var validationCount = 0
+        do {
+            try await ChatSendPipeline().sendSavedChatTurn(turnId: "turn-a",
+                preflightPayload: payloads.preflight, outboundPayload: payloads.outbound,
+                transport: transport, waitForInferenceReceipt: true,
+                validateRemoteSend: {
+                    validationCount += 1
+                    if validationCount == 2 { throw NotificationReplyError.accountChanged }
+                })
+            XCTFail("The old account's message/history must not be sent through the replacement session")
+        } catch NotificationReplyError.accountChanged {
+            XCTAssertEqual(validationCount, 2)
+            XCTAssertEqual(transport.waitedTypes, ["chat_turn_preflight_ack"])
+            XCTAssertTrue(transport.bareSentTypes.isEmpty)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
+    func testDisconnectCancelsPendingNotificationReceipt() async {
+        let transport = WebSocketManager()
+        let originalGeneration = transport.transportGeneration
+        let waiter = Task { @MainActor in
+            try await transport.waitForMessage("ai_task_initiated", timeout: .seconds(1)) { _ in true }
+        }
+        await Task.yield()
+        transport.disconnect()
+        do {
+            _ = try await waiter.value
+            XCTFail("A receipt waiter must not survive logout and consume the next account's traffic")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "WebSocket is not connected",
+                "Disconnect must reject the pending waiter as disconnected, rather than letting its request timeout fire")
+            XCTAssertNotEqual(transport.transportGeneration, originalGeneration)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent,apple-notifications.delivery.idempotent-visible
+    func testNotificationReplyWaitsForItsOwnInferenceReceipt() async throws {
+        let transport = NotificationReceiptTransport(state: "PREPARED")
+        let payloads = Self.notificationTurnPayloads()
+        var completed = false
+        let send = Task { @MainActor in
+            try await ChatSendPipeline().sendSavedChatTurn(turnId: "turn-a",
+                preflightPayload: payloads.preflight, outboundPayload: payloads.outbound,
+                transport: transport, waitForInferenceReceipt: true)
+            completed = true
+        }
+        for _ in 0..<1_000 where transport.receiptPredicate == nil { await Task.yield() }
+        let matches = try XCTUnwrap(transport.receiptPredicate)
+        XCTAssertFalse(completed, "A successful socket write must not complete the notification queue entry")
+        XCTAssertEqual(transport.waitedTypes, ["chat_turn_preflight_ack", "ai_task_initiated"])
+        XCTAssertTrue(transport.bareSentTypes.isEmpty)
+        XCTAssertFalse(matches(["chat_id": "another-chat", "user_message_id": "message-a", "ai_task_id": "task-a"]))
+        XCTAssertFalse(matches(["chat_id": "chat-a", "user_message_id": "another-message", "ai_task_id": "task-a"]))
+        XCTAssertFalse(matches(["chat_id": "chat-a", "user_message_id": "message-a"]))
+        XCTAssertFalse(matches(["code": "ai_dispatch_failed", "turn_id": "another-turn"]))
+        XCTAssertTrue(matches(["code": "ai_dispatch_failed", "turn_id": "turn-a"]))
+        transport.deliver(["chat_id": "chat-a", "user_message_id": "message-a", "ai_task_id": "task-a"])
+        try await send.value
+        XCTAssertTrue(completed)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testNotificationRetryDoesNotResubmitAnAlreadyAdmittedTurn() async throws {
+        let payloads = Self.notificationTurnPayloads()
+        for state in ["ENQUEUED", "RUNNING", "TERMINAL"] {
+            let transport = NotificationReceiptTransport(state: state)
+            try await ChatSendPipeline().sendSavedChatTurn(turnId: "turn-a",
+                preflightPayload: payloads.preflight, outboundPayload: payloads.outbound,
+                transport: transport, waitForInferenceReceipt: true)
+            XCTAssertEqual(transport.waitedTypes, ["chat_turn_preflight_ack"], state)
+            XCTAssertTrue(transport.bareSentTypes.isEmpty, "An interrupted completion must not dispatch another AI turn")
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent,apple-notifications.delivery.idempotent-visible
+    func testNotificationFailedTurnAndRejectedReceiptRemainFailures() async throws {
+        let payloads = Self.notificationTurnPayloads()
+        let failed = NotificationReceiptTransport(state: "FAILED")
+        do {
+            try await ChatSendPipeline().sendSavedChatTurn(turnId: "turn-a",
+                preflightPayload: payloads.preflight, outboundPayload: payloads.outbound,
+                transport: failed, waitForInferenceReceipt: true)
+            XCTFail("A saved turn whose inference failed must not become a successful notification reply")
+        } catch {
+            XCTAssertEqual(failed.waitedTypes, ["chat_turn_preflight_ack"])
+            XCTAssertTrue(failed.bareSentTypes.isEmpty)
+        }
+
+        let rejected = NotificationReceiptTransport(state: "LEGACY")
+        let send = Task { @MainActor in
+            try await ChatSendPipeline().sendSavedChatTurn(turnId: "turn-a",
+                preflightPayload: payloads.preflight, outboundPayload: payloads.outbound,
+                transport: rejected, waitForInferenceReceipt: true)
+        }
+        for _ in 0..<1_000 where rejected.receiptPredicate == nil { await Task.yield() }
+        XCTAssertNotNil(rejected.receiptPredicate)
+        rejected.deliver(["code": "ai_dispatch_failed", "chat_id": "chat-a", "user_message_id": "message-a"])
+        do {
+            try await send.value
+            XCTFail("A correlated admission failure must preserve the queued reply")
+        } catch NotificationReceiptTransport.ReceiptError.rejected {
+            // The transport's server error must propagate to the queue owner.
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent,apple-notifications.delivery.idempotent-visible
+    func testNotificationReplyLedgerSurvivesRestartAndSeparatesAccountsAndServers() throws {
+        var ledger = NotificationReplyLedger()
+        let first = NotificationReplyRequest(id: "notification-a", chatId: "old-chat", content: "Which city?",
+            accountId: "account-a", serverURL: "https://dev.example.test")
+        ledger.enqueue(first)
+        ledger.enqueue(first)
+        ledger.enqueue(NotificationReplyRequest(id: "notification-b", chatId: "another-chat", content: "Reply B",
+            accountId: "account-b", serverURL: first.serverURL))
+        ledger.enqueue(NotificationReplyRequest(id: "notification-c", chatId: first.chatId, content: "Reply C",
+            accountId: first.accountId, serverURL: "https://other.example.test"))
+        var restored = try JSONDecoder().decode(NotificationReplyLedger.self, from: JSONEncoder().encode(ledger))
+        XCTAssertEqual(restored.requests(accountId: first.accountId, serverURL: first.serverURL), [first])
+        restored.complete(first.id)
+        restored.enqueue(first)
+        XCTAssertTrue(restored.requests(accountId: first.accountId, serverURL: first.serverURL).isEmpty,
+            "A repeated system callback must not send an already completed reply twice")
+        XCTAssertEqual(restored.pending.count, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent,apple-notifications.delivery.idempotent-visible
+    func testNotificationReplyPersistsExactPreparedTurnForRetry() throws {
+        let inference: [String: Any] = ["turn_id": "turn-a", "chat_id": "old-chat", "message": ["message_id": "message-a", "content": "Which city?"]]
+        let preflight: [String: Any] = ["turn_id": "turn-a", "expected_messages_v": 8, "inference_request": inference]
+        var request = NotificationReplyRequest(id: "notification-a", chatId: "old-chat", content: "Which city?",
+            accountId: "account-a", serverURL: "https://dev.example.test")
+        request.preparedTurn = try NotificationPreparedTurn(turnId: "turn-a", preflight: preflight, outbound: inference)
+        let restored = try JSONDecoder().decode(NotificationReplyRequest.self, from: JSONEncoder().encode(request))
+        let prepared = try XCTUnwrap(restored.preparedTurn)
+        let payloads = try prepared.payloads()
+        XCTAssertEqual(prepared.turnId, "turn-a")
+        XCTAssertTrue(NSDictionary(dictionary: payloads.preflight).isEqual(to: preflight))
+        XCTAssertTrue(NSDictionary(dictionary: payloads.outbound).isEqual(to: inference),
+            "Reconnect must replay the committed message identity and history, not rebuild a new turn")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testDetectorRespectsWebSettingsAndCustomEntries() {
         let text = "Email alice@example.com, call +49 170 1234567, or send mail to 221B Baker Street in London."
         let options = PIIDetectionOptions(
@@ -34,6 +181,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(matches.first { $0.value == "221B Baker Street" }?.placeholder, "[HOME_ADDRESS]")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testPrivacySettingsStoreProducesDetectorOptionsForComposer() {
         let store = PIIPrivacySettingsStore(settings: PIIPrivacySettings(
             masterEnabled: true,
@@ -75,6 +223,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         ).isEmpty)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testApplePrivacySettingsStateProjectsWebEncryptedEntriesToDetectorSettings() {
         let now = 1_780_000_000
         let state = ApplePrivacySettingsState(
@@ -123,6 +272,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertFalse(matches.contains { $0.value == "Do Not Hide" })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testForegroundPIIRedactionKeepsExcludedFalsePositiveAndCreatesMappings() {
         let text = "Draft from max@posteo.de to sarah@proton.com. Call +49 170 1234567."
         let matches = PIIDetector.detect(in: text)
@@ -140,6 +290,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertTrue(result.mappings.contains { $0.original == "sarah@proton.com" && $0.type == "EMAIL" })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testSendTimeRedactionUsesCurrentPrivacySettingsInsteadOfCachedMatches() {
         let text = "Email alice@example.com about Project Orchid."
         let staleMatches = PIIDetector.detect(in: text)
@@ -165,6 +316,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(result.mappings.map(\.original), ["Project Orchid"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testPIIRestoreUsesMappingsForUserAndAssistantPlaceholders() {
         let mappings = [
             PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL"),
@@ -183,6 +335,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testTextAttachmentEmbedCarriesRedactedContentAndRestoresThroughMappings() throws {
         let mappings = [
             PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
@@ -229,6 +382,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(restored.rawData?["content"]?.value as? String, "Contact alice@example.com about launch")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testComposerAttachmentMappingsMergeWithForegroundTextMappings() {
         let pipeline = ChatSendPipeline()
         let textMapping = PIIMapping(placeholder: "[PHONE_1_567]", original: "+49 170 1234567", type: "PHONE")
@@ -270,6 +424,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(merged, [textMapping, attachmentMapping])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testKnownPIIRewriteUsesPriorMappingsBeforeSend() {
         let pipeline = ChatSendPipeline()
         let priorMappings = [
@@ -287,6 +442,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(result.piiMappings, priorMappings)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testKnownPIIRewritePrefersLongestOriginalAndDedupesMappings() {
         let pipeline = ChatSendPipeline()
         let short = PIIMapping(placeholder: "[MERCHANT_SOFTWARE_001]", original: "ACME", type: "MERCHANT_SOFTWARE")
@@ -302,6 +458,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(result.piiMappings, [long])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testKnownPIIRewriteRespectsCurrentSendExclusions() {
         let pipeline = ChatSendPipeline()
         let priorMapping = PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
@@ -319,6 +476,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(result.piiMappings, [currentMapping])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testKnownPIIRewriteProtectsEmbedReferenceBlocks() {
         let mapping = PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
         let content = """
@@ -336,6 +494,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(result.appliedMappings, [mapping])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testComposerDocumentRewriteUsesCurrentAttachmentMappingsBeforeDetection() throws {
         let attachmentMapping = PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
         let document = ComposerDocumentV1(
@@ -365,6 +524,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(mappings, [attachmentMapping])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testPrivacyFilterTokenDecoderBuildsExactSpansFromBIOESLabels() {
         let text = "Tell Ada Lovelace the token is hunter2."
         let nsText = text as NSString
@@ -385,6 +545,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(nsText.substring(with: spans[1].range), "hunter2")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testPrivacyFilterNativeDetectorRespectsSettingsScoreAndRanges() async throws {
         let text = "Email alice@example.com, account 42424242, and keep Project Orchid private."
         let nsText = text as NSString
@@ -410,6 +571,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(matches.first?.value, "Project Orchid")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testPrivacyFilterNativeDetectorKeepsRegexPrecedenceWhenMerging() async throws {
         let text = "Email alice@example.com about Project Orchid."
         let nsText = text as NSString
@@ -439,6 +601,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertTrue(redaction.mappings.contains { $0.original == "Project Orchid" && $0.type == "GENERIC_SECRET" })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testPrivacyFilterNativeDetectorDoesNotLoadModelForEmptyInput() async throws {
         let detector = PrivacyFilterNativeDetector(runner: ThrowingPrivacyFilterModelRunner())
 
@@ -447,6 +610,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertTrue(spans.isEmpty)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testEnhancedPIIFallsBackToRegexWhenModelUnavailable() async {
         let text = "Email alice@example.com before launch."
         let detector = EnhancedPIIDetector(modelDetector: nil)
@@ -458,6 +622,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertFalse(result.sanitizedStatus.contains("alice@example.com"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testEnhancedPIIComposerSuggestionBackoff() {
         var policy = EnhancedPIIRecommendationPolicy()
         let matches = PIIDetector.detect(in: "Email alice@example.com")
@@ -472,6 +637,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertTrue(policy.shouldRecommend(regexMatches: matches, modelStatus: .notDownloaded, now: now.addingTimeInterval(31 * 24 * 60 * 60)))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testEnhancedPIIModelSpansMergeIntoMappings() async {
         let text = "Email alice@example.com about Project Orchid."
         let nsText = text as NSString
@@ -497,6 +663,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertTrue(redaction.mappings.contains { $0.original == "Project Orchid" && $0.type == "GENERIC_SECRET" })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testEnhancedPIIModelTimeoutFallsBackToRegex() async {
         let text = "Email alice@example.com about Project Orchid."
         let nsText = text as NSString
@@ -519,6 +686,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertFalse(result.sanitizedStatus.contains("alice@example.com"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     func testCompletedAssistantVersionAdvancesPastUserMessageVersion() {
         let pipeline = ChatSendPipeline()
 
@@ -545,6 +713,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     func testAssistantCompletionPayloadContainsOnlyEncryptedContentAndAdvancedVersion() {
         let pipeline = ChatSendPipeline()
         let createdAt = 1_780_000_000
@@ -584,6 +753,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(versions?["last_edited_overall_timestamp"], createdAt)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     func testAssistantCompletionPersistenceUsesCanonicalEmbedMarkdown() {
         let canonicalContent = """
         Here is the result.
@@ -617,6 +787,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testNativeAttachEmbedsCreatesUserAudioPreviewRefsFromCanonicalJson() throws {
         let content = """
         ```json
@@ -645,6 +816,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(updated.renderDocumentForDisplay?.blocks.first?.kind, .embedGroup)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testNativeAttachEmbedsPreservesExistingInlineEmbedMarkersAsRefs() throws {
         let message = Message(
             id: "assistant-inline-1",
@@ -669,6 +841,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(blocks.flatMap(\.embedReferences).map(\.id), ["embed-inline", "embed-json", "embed-large"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery
     func testPendingAssistantResponseQueueStoresOnlyIdsAndDedupes() throws {
         let suiteName = "ChatSendPipelineParityTests"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -693,6 +866,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         queue.clear()
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.sync.key-gated-recovery
     func testCachedKeyWithProvidedWrappedKeyRequiresValidation() {
         let pipeline = ChatSendPipeline()
 
@@ -701,6 +875,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertFalse(pipeline.requiresCachedChatKeyValidation(cachedKeyExists: false, encryptedChatKey: "wrapped-key"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery
     func testPendingRetryInfersPrecedingUserMessageId() {
         let pipeline = ChatSendPipeline()
         let userMessage = Message(
@@ -734,6 +909,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.message.identity-idempotent
     func testEncryptedUserStorageClaimIsSharedAcrossPipelineInstancesAndRetryableAfterFailure() {
         let messageId = "claim-\(UUID().uuidString)"
         let firstPipeline = ChatSendPipeline()
@@ -747,6 +923,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         secondPipeline.releaseEncryptedUserStorage(messageId: messageId)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     func testIncognitoPayloadUsesRequestScopedHistoryWithoutEncryptedStorageFields() {
         let pipeline = ChatSendPipeline()
         let chat = Chat(
@@ -795,6 +972,12 @@ final class ChatSendPipelineParityTests: XCTestCase {
 }
 
 private extension ChatSendPipelineParityTests {
+    static func notificationTurnPayloads() -> (preflight: [String: Any], outbound: [String: Any]) {
+        let outbound: [String: Any] = ["turn_id": "turn-a", "chat_id": "chat-a",
+            "message": ["message_id": "message-a", "content": "Which city?"]]
+        return (["turn_id": "turn-a", "inference_request": outbound], outbound)
+    }
+
     static func userMessage(id: String, mappings: [PIIMapping]) -> Message {
         Message(
             id: id,
@@ -809,6 +992,52 @@ private extension ChatSendPipelineParityTests {
             embedRefs: nil,
             piiMappings: mappings
         )
+    }
+}
+
+@MainActor
+private final class NotificationReceiptTransport: ChatWebSocketTransport {
+    enum ReceiptError: Error { case rejected, unexpectedOperation }
+    let state: String
+    var waitedTypes: [String] = []
+    var bareSentTypes: [String] = []
+    var receiptPredicate: (([String: Any]) -> Bool)?
+    private var receiptContinuation: CheckedContinuation<WebSocketResponse, Error>?
+
+    init(state: String) { self.state = state }
+
+    func send(_ message: WSOutboundMessage) async throws { bareSentTypes.append(message.type) }
+
+    func sendAndWait(_ message: WSOutboundMessage, responseType: String, timeout: Duration,
+                     matching predicate: @escaping ([String: Any]) -> Bool) async throws -> WebSocketResponse {
+        waitedTypes.append(responseType)
+        if responseType == "chat_turn_preflight_ack" {
+            let fields: [String: Any] = ["turn_id": "turn-a", "preflight_id": "preflight-a", "state": state]
+            guard message.type == "chat_turn_preflight", predicate(fields) else { throw ReceiptError.unexpectedOperation }
+            return WebSocketResponse(fields: fields)
+        }
+        guard message.type == "chat_message_added", responseType == "ai_task_initiated" else {
+            throw ReceiptError.unexpectedOperation
+        }
+        return try await withCheckedThrowingContinuation { continuation in
+            receiptPredicate = predicate
+            receiptContinuation = continuation
+        }
+    }
+
+    func waitForMessage(_ type: String, timeout: Duration,
+                        matching predicate: @escaping ([String: Any]) -> Bool) async throws -> WebSocketResponse {
+        throw ReceiptError.unexpectedOperation
+    }
+
+    func deliver(_ fields: [String: Any]) {
+        guard receiptPredicate?(fields) == true, let continuation = receiptContinuation else { return }
+        receiptContinuation = nil
+        if fields["code"] != nil {
+            continuation.resume(throwing: ReceiptError.rejected)
+        } else {
+            continuation.resume(returning: WebSocketResponse(fields: fields))
+        }
     }
 }
 

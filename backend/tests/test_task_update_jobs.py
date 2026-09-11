@@ -114,7 +114,7 @@ def test_task_update_job_persist_accepts_only_client_encrypted_payload_and_is_id
         "encrypted_title": "cipher-title",
         "encrypted_description": "cipher-description",
         "status": "blocked",
-        "assignee_type": "ai",
+        "assignee_type": "openmates", "assignee_identity": "openmates",
         "assignee_hash": None,
         "primary_chat_id": "chat-1",
         "parent_task_id": "parent-task-1",
@@ -356,7 +356,7 @@ async def test_task_update_job_persist_accepts_already_applied_task_state() -> N
     encrypted_payload = {
         "encrypted_title": "cipher-title",
         "status": "todo",
-        "assignee_type": "ai",
+        "assignee_type": "openmates", "assignee_identity": "openmates",
         "assignee_hash": None,
         "primary_chat_id": "chat-1",
         "parent_task_id": "parent-task-1",

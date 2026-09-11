@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Launch the pinned Figma MCP server with the private local credential.
-# The token stays in .env.figma.local and is never embedded in OpenCode config,
+# The token stays in .env.figma.local and is never embedded in agent config,
 # command arguments, repository files, or generated design indexes.
 
 set -euo pipefail
@@ -36,5 +36,5 @@ export FIGMA_API_KEY="${FIGMA_ACCESS_TOKEN}"
 unset FIGMA_ACCESS_TOKEN
 
 # Newer releases resolve posthog-node versions that require Node 22.22+, while
-# the OpenCode host currently runs Node 22.19. Keep this working pin explicit.
+# the agent host currently runs Node 22.19. Keep this working pin explicit.
 exec npx -y figma-developer-mcp@0.9.0 --stdio

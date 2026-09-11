@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Response, Cookie
+from fastapi import HTTPException, APIRouter, Depends, Request, Response, Cookie
 import logging
 import time
 import hashlib
@@ -24,6 +24,7 @@ from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
 from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token, normalize_directus_cookie
 from backend.core.api.app.schemas.user import UserResponse
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS, TOKEN_REFRESH_THRESHOLD_SECONDS
+from backend.core.api.app.utils.session_refresh import refresh_session_token, complete_refresh_rotation
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.utils.invite_code import get_signup_requirements
@@ -332,7 +333,7 @@ async def get_session(
         # Step 8: If token expires soon, refresh it
         if expires_soon:
             logger.info(f"Token expires soon for user_id={user_id}, refreshing...")
-            success, auth_data, _ = await directus_service.refresh_token(refresh_token)
+            success, auth_data, _ = await refresh_session_token(cache_service, directus_service, refresh_token)
 
             if success and auth_data.get("cookies"):
                 new_refresh_token = extract_directus_refresh_token(auth_data["cookies"]) or refresh_token
@@ -384,6 +385,10 @@ async def get_session(
                 # token_expiry prevents the next /session call from immediately rotating again.
                 user_data["token_expiry"] = current_time + ACCESS_TOKEN_TTL_SECONDS
                 await cache_service.set_user(user_data, refresh_token=new_refresh_token, ttl=cache_ttl)
+                await complete_refresh_rotation(
+                    cache_service, old_refresh_token=refresh_token,
+                    new_refresh_token=new_refresh_token, user_id=user_id,
+                )
                 # Update refresh_token variable so Step 9 uses the NEW token, not the old rotated one.
                 refresh_token = new_refresh_token
                 logger.info(f"Token refreshed successfully for user_id={user_id} with stay_logged_in={stay_logged_in}, cache_ttl={cache_ttl}s")
@@ -485,6 +490,8 @@ async def get_session(
             session_meta_registered=session_meta_already_registered,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Session check error: {str(e)}", exc_info=True)
         return SessionResponse(success=False, message="Session error", token_refresh_needed=False, require_invite_code=require_invite_code)

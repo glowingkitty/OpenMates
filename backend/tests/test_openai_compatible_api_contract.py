@@ -29,10 +29,19 @@ class FakeConfigManager:
                     {
                         "id": "gpt-4o-mini",
                         "name": "GPT-4o Mini",
+                        "description": "Fast chat model",
                         "for_app_skill": "ai.ask",
                         "release_date": "2024-07-18",
+                        "capability_level": "low",
                         "input_types": ["text"],
                         "output_types": ["text"],
+                        "pricing": {
+                            "tokens": {
+                                "input": {"per_credit_unit": 200},
+                                "output": {"per_credit_unit": 45},
+                            }
+                        },
+                        "costs": {"input_per_million_token": {"max_context": 128000}},
                         "features": {"tool_use": True, "streaming": True},
                     },
                     {
@@ -75,22 +84,29 @@ class FakeSecretsManager:
         return "configured" if provider_id in self.configured else None
 
 
-def _client(config: FakeConfigManager | None = None, secrets_manager: FakeSecretsManager | None = None) -> TestClient:
+def _client(
+    config: FakeConfigManager | None = None,
+    secrets_manager: FakeSecretsManager | None = None,
+    *,
+    override_auth: bool = True,
+) -> TestClient:
     app = FastAPI()
     app.state.config_manager = config or FakeConfigManager()
     app.state.secrets_manager = secrets_manager or FakeSecretsManager()
     app.state.directus_service = object()
-    app.dependency_overrides[openai_compat.get_session_or_api_key_info] = lambda: {
-        "user_id": "user-1",
-        "api_key_encrypted_name": "test-key",
-        "api_key_hash": "hash-1",
-        "device_hash": None,
-    }
+    if override_auth:
+        app.dependency_overrides[openai_compat.get_session_or_api_key_info] = lambda: {
+            "user_id": "user-1",
+            "api_key_encrypted_name": "test-key",
+            "api_key_hash": "hash-1",
+            "device_hash": None,
+        }
     app.dependency_overrides[openai_compat.get_directus_service] = lambda: app.state.directus_service
     app.include_router(openai_compat.router)
     return TestClient(app)
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.catalog.public-read-only,ai-model-routing.catalog.capability-recommendation-variants
 def test_models_returns_openai_model_list_from_chat_provider_metadata() -> None:
     response = _client().get("/v1/models")
 
@@ -102,8 +118,37 @@ def test_models_returns_openai_model_list_from_chat_provider_metadata() -> None:
     assert data["data"][0]["object"] == "model"
     assert isinstance(data["data"][0]["created"], int)
     assert data["data"][0]["owned_by"] == "anthropic"
+    assert data["data"][1]["openmates"] == {
+        "name": "GPT-4o Mini",
+        "description": "Fast chat model",
+        "capability_level": "low",
+        "input_types": ["text"],
+        "output_types": ["text"],
+        "context_window_tokens": 128000,
+        "features": {"reasoning": False, "tool_use": True, "streaming": True},
+        "pricing": {"unit": "tokens_per_credit", "input": 200, "output": 45},
+    }
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.catalog.public-read-only,ai-model-routing.catalog.capability-recommendation-variants
+def test_model_catalog_is_public_without_session_or_api_key() -> None:
+    client = _client(override_auth=False)
+
+    catalog = client.get("/v1/models")
+    model = client.get("/v1/models/openai/gpt-4o-mini")
+    chat_route = next(
+        route for route in client.app.routes
+        if getattr(route, "path", None) == "/v1/chat/completions"
+    )
+
+    assert catalog.status_code == 200
+    assert model.status_code == 200
+    assert openai_compat.get_session_or_api_key_info in {
+        dependency.call for dependency in chat_route.dependant.dependencies
+    }
+
+
+# contract-test: direct surface=rest_api assertions=ai-model-routing.catalog.public-read-only
 def test_models_omits_chat_models_when_required_provider_key_is_missing(monkeypatch) -> None:
     monkeypatch.delenv("SECRET__ANTHROPIC__API_KEY", raising=False)
 
@@ -114,6 +159,7 @@ def test_models_omits_chat_models_when_required_provider_key_is_missing(monkeypa
     assert model_ids == ["openai/gpt-4o-mini"]
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.catalog.public-read-only
 def test_models_keep_no_api_key_provider_visible_without_secret() -> None:
     config = FakeConfigManager({
         "open_meteo": {
@@ -130,6 +176,7 @@ def test_models_keep_no_api_key_provider_visible_without_secret() -> None:
     assert [model["id"] for model in response.json()["data"]] == ["open_meteo/weather-chat"]
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.catalog.public-read-only
 def test_get_model_returns_one_model_or_openai_style_404() -> None:
     known = _client().get("/v1/models/openai/gpt-4o-mini")
     assert known.status_code == 200
@@ -147,6 +194,7 @@ def test_get_model_returns_one_model_or_openai_style_404() -> None:
     assert body["error"]["code"] == "model_not_found"
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.surface.semantic-parity
 def test_chat_completions_reuses_ai_ask_dispatch_for_plain_non_streaming(
     monkeypatch,
 ) -> None:
@@ -190,6 +238,7 @@ def test_chat_completions_reuses_ai_ask_dispatch_for_plain_non_streaming(
     assert captured["request_body"]["model"] == "openai/gpt-4o-mini"
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.surface.semantic-parity
 def test_chat_completions_accepts_opencode_prefixed_model_id(monkeypatch) -> None:
     captured: Dict[str, Any] = {}
 
@@ -222,6 +271,7 @@ def test_chat_completions_accepts_opencode_prefixed_model_id(monkeypatch) -> Non
     assert captured["model"] == "openai/gpt-4o-mini"
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.surface.semantic-parity
 def test_plain_chat_dispatch_forces_openmates_app_skills_off(monkeypatch) -> None:
     captured: Dict[str, Any] = {}
 
@@ -266,6 +316,7 @@ def test_plain_chat_dispatch_forces_openmates_app_skills_off(monkeypatch) -> Non
     assert captured["payload"]["allowed_apps"] == []
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.surface.semantic-parity
 def test_chat_completions_streaming_returns_openai_sse(monkeypatch) -> None:
     async def fake_dispatch(
         *,
@@ -296,6 +347,7 @@ def test_chat_completions_streaming_returns_openai_sse(monkeypatch) -> None:
     assert "data: [DONE]" in response.text
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.surface.semantic-parity
 def test_chat_completions_returns_openai_error_for_missing_model() -> None:
     response = _client().post(
         "/v1/chat/completions",
@@ -309,6 +361,7 @@ def test_chat_completions_returns_openai_error_for_missing_model() -> None:
     assert body["error"]["code"] == "missing_required_parameter"
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.surface.semantic-parity
 def test_chat_completions_returns_openai_error_for_malformed_messages() -> None:
     response = _client().post(
         "/v1/chat/completions",
@@ -321,6 +374,7 @@ def test_chat_completions_returns_openai_error_for_malformed_messages() -> None:
     assert body["error"]["param"] == "messages"
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.surface.semantic-parity
 def test_chat_completions_returns_openai_error_for_invalid_json() -> None:
     response = _client().post(
         "/v1/chat/completions",
@@ -334,6 +388,7 @@ def test_chat_completions_returns_openai_error_for_invalid_json() -> None:
     assert body["error"]["code"] == "invalid_json"
 
 
+# contract-test: direct surface=rest_api assertions=ai-model-routing.surface.semantic-parity
 def test_chat_completions_returns_openai_error_for_unavailable_model() -> None:
     response = _client().post(
         "/v1/chat/completions",
@@ -349,6 +404,7 @@ def test_chat_completions_returns_openai_error_for_unavailable_model() -> None:
     assert body["error"]["code"] == "model_not_found"
 
 
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.surface.semantic-parity
 def test_stream_contract_fixture_is_valid_json() -> None:
     payload = '{"object":"chat.completion.chunk","choices":[{"delta":{"content":"hi"}}]}'
     assert json.loads(payload)["object"] == "chat.completion.chunk"

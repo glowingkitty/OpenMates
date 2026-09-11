@@ -343,29 +343,63 @@ final class OfflineStore: ObservableObject {
     private var modelContainer: ModelContainer?
     private var modelContext: ModelContext?
 
-    private init() {
-        do {
-            let schema = Schema([
-                PersistedChat.self,
-                PersistedMessage.self,
-                PersistedEmbed.self,
-                PersistedEmbedKey.self,
-                PersistedComposerDraft.self,
-                PendingOfflineAction.self,
-            ])
-            let config = ModelConfiguration(
-                "OpenMatesOffline",
-                schema: schema,
-                isStoredInMemoryOnly: false
-            )
-            modelContainer = try ModelContainer(for: schema, configurations: [config])
-            modelContext = modelContainer?.mainContext
-        } catch {
-            NativeDiagnostics.error(
-                "phase=swiftDataContainer.failed errorType=\(type(of: error))",
-                category: "offline_store"
-            )
-        }
+    private(set) var activeScopeId: String?
+    private(set) var scopeGeneration = UUID()
+    private var storageDirectory: URL?
+
+    // Remain detached until authentication identifies the owner. The legacy
+    // unscoped store is deliberately preserved, never adopted or deleted.
+    private init() {}
+
+    init(directory: URL, userId: String, apiBaseURL: URL) throws {
+        storageDirectory = directory
+        try activate(userId: userId, apiBaseURL: apiBaseURL)
+    }
+
+    static func scopeId(userId: String, apiBaseURL: URL) -> String {
+        let identity = apiBaseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            + "\n" + userId
+        return SHA256.hash(data: Data(identity.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    func activate(userId: String, apiBaseURL: URL) throws {
+        let scope = Self.scopeId(userId: userId, apiBaseURL: apiBaseURL)
+        guard activeScopeId != scope else { return }
+        deactivate()
+        let directory = try storageDirectory ?? FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask,
+            appropriateFor: nil, create: true
+        ).appendingPathComponent("OpenMatesOfflineScopes", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let schema = Self.persistenceSchema
+        let config = ModelConfiguration(
+            "OpenMatesOffline-\(scope)", schema: schema,
+            url: directory.appendingPathComponent("\(scope).store")
+        )
+        let container = try ModelContainer(for: schema, configurations: [config])
+        modelContainer = container
+        modelContext = container.mainContext
+        activeScopeId = scope
+        updatePendingCount()
+    }
+
+    func deactivate() {
+        scopeGeneration = UUID()
+        modelContext = nil
+        modelContainer = nil
+        activeScopeId = nil
+        pendingActionCount = 0
+    }
+
+    private static var persistenceSchema: Schema {
+        Schema([
+            PersistedChat.self,
+            PersistedMessage.self,
+            PersistedEmbed.self,
+            PersistedEmbedKey.self,
+            PersistedComposerDraft.self,
+            PendingOfflineAction.self,
+        ])
     }
 
     init(modelContainer: ModelContainer) {

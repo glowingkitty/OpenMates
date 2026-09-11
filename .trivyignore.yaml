@@ -1,0 +1,16 @@
+misconfigurations:
+  - id: AVD-DS-0002
+    paths:
+      - backend/admin_sidecar/Dockerfile
+      - backend/core/api/Dockerfile
+      - backend/core/api/Dockerfile.selfhost
+      - backend/core/directus/Dockerfile
+      - backend/core/directus/setup/Dockerfile
+      - backend/core/vault/setup/Dockerfile
+      - backend/engineering_control_plane/Dockerfile
+      - backend/status/Dockerfile
+      - backend/upload/Dockerfile
+      - backend/upload/vault/Dockerfile
+      - frontend/apps/web_app/Dockerfile
+    expired_at: 2026-10-04
+    statement: Legacy images bootstrap or repair mounted files as root; migrate each runtime before this exception expires.

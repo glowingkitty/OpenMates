@@ -134,8 +134,8 @@ describe("OpenMatesClient Teams V1", () => {
         await client.listWorkflows({ teamId: "team-override" });
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["GET", "/v1/user-tasks?team_id=team-active"],
-          ["GET", "/v1/user-tasks"],
+          ["GET", "/v1/user-tasks?limit=500&team_id=team-active"],
+          ["GET", "/v1/user-tasks?limit=500"],
           ["GET", "/v1/workflows?team_id=team-override"],
         ]);
       },
@@ -295,7 +295,7 @@ describe("OpenMatesClient Teams V1", () => {
       (request, body) => {
         if (request.url === "/v1/projects?include_archived=true") return { projects: [project] };
         if (request.url === "/v1/projects/project-canonical") return { project, folders: [], items: [] };
-        if (request.url === "/v1/user-tasks?limit=1000") return { tasks: [task] };
+        if (request.url === "/v1/user-tasks?limit=500") return { tasks: [task] };
         if (request.url === "/v1/user-plans?active_only=false") return { plans: [plan] };
         if (request.url === "/v1/workflows") return { workflows: [workflow] };
         if (request.url === "/v1/workflows/workflow-canonical") return { workflow };

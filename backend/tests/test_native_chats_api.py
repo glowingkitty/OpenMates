@@ -79,6 +79,7 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
                 "encrypted_chat_summary": "cipher-summary",
                 "encrypted_chat_key": "wrapped-chat-key",
                 "chat_key_wrappers": [],
+                "encrypted_auto_speak_response": None,
                 "pinned": False,
                 "updated_at": "200",
                 "last_message_at": "190",
@@ -351,3 +352,22 @@ async def test_chat_message_window_around_anchor_passes_anchor_cursor() -> None:
         anchor_message_id="anchor",
         lower_bound_timestamp=None,
     )
+
+
+# contract-test: supporting surface=rest_api assertions=chats.fork.non-destructive-boundary,chats.persistence.client-encrypted
+@pytest.mark.parametrize("title_version", ["missing", None, 0, 4])
+@pytest.mark.parametrize("encrypted_title", [None, "cipher-title"])
+def test_fork_initializes_missing_title_version_without_rewriting_ciphertext(title_version, encrypted_title):
+    from backend.core.api.app.routes.sdk import SdkChatForkRequest, _validate_encrypted_fork_payload
+
+    metadata = {"encrypted_chat_key": "wrapped-key", "encrypted_title": encrypted_title}
+    if title_version != "missing":
+        metadata["title_v"] = title_version
+    payload = SdkChatForkRequest(
+        from_message_id="message-2", new_chat_id="fork-chat",
+        encrypted_chat_metadata=metadata, encrypted_messages=[{}, {}],
+    )
+    normalized = _validate_encrypted_fork_payload(payload, 2, "owner-hash")
+    assert normalized["title_v"] == (int(bool(encrypted_title)) if title_version in ("missing", None) else title_version)
+    assert normalized["encrypted_title"] == encrypted_title
+    assert payload.encrypted_chat_metadata == metadata

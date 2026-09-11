@@ -25,7 +25,8 @@
   } from '../../../services/applicationPreviewService';
   import { downloadApplicationProjectZip } from '../../../services/zipExportService';
   import { notificationStore } from '../../../stores/notificationStore';
-  import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from '../images/imageEmbedCrypto';
+  import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
+  const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
 
   interface FileRef {
     path?: string;
@@ -109,6 +110,7 @@
   });
 
   onDestroy(() => {
+    releaseOwnedImages();
     clearStatusPoll();
     if (retainedScreenshotKey) releaseCachedImage(retainedScreenshotKey);
   });
@@ -461,7 +463,7 @@
     color: var(--color-font-button);
     background: var(--color-app-code);
     box-shadow: 0 4px 14px rgb(0 0 0 / 20%);
-    font-size: 18px;
+    font-size: 1.125rem;
   }
 
   .resume-label {

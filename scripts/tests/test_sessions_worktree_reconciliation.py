@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import sqlite3
 import sys
 from argparse import Namespace
 from pathlib import Path
@@ -422,163 +421,14 @@ def test_legacy_cleanup_refuses_lower_idle_threshold(monkeypatch, capsys):
     assert "below 48" in capsys.readouterr().err
 
 
-def test_duplicate_chat_plan_keeps_only_most_recent_source_worktree():
-    sessions = load_sessions_module()
-    candidates = [
-        {
-            "session_id": "old1",
-            "path": "/tmp/agent-old1",
-            "worktree_kind": "source",
-            "chat_lineage": "ses_chat",
-            "lineage_created_ms": 10,
-        },
-        {
-            "session_id": "new1",
-            "path": "/tmp/agent-new1",
-            "worktree_kind": "source",
-            "chat_lineage": "ses_chat",
-            "lineage_created_ms": 20,
-        },
-        {
-            "session_id": "other",
-            "path": "/tmp/agent-other",
-            "worktree_kind": "source",
-            "chat_lineage": "ses_other",
-            "lineage_created_ms": 5,
-        },
-    ]
-
-    plan = sessions._plan_duplicate_chat_worktrees(candidates)
-
-    assert plan["duplicate_chat_count"] == 1
-    assert plan["retained"] == ["new1"]
-    assert plan["remove"] == ["old1"]
 
 
-def test_duplicate_chat_plan_never_groups_unknown_or_integration_worktrees():
-    sessions = load_sessions_module()
-    candidates = [
-        {
-            "session_id": "known",
-            "path": "/tmp/agent-known",
-            "worktree_kind": "source",
-            "chat_lineage": "ses_chat",
-            "lineage_created_ms": 10,
-        },
-        {
-            "session_id": "integration-known",
-            "path": "/tmp/integration-known-123",
-            "worktree_kind": "integration",
-            "chat_lineage": "ses_chat",
-            "lineage_created_ms": 20,
-        },
-        {
-            "session_id": "unknown",
-            "path": "/tmp/agent-unknown",
-            "worktree_kind": "source",
-            "chat_lineage": "",
-            "lineage_created_ms": 30,
-        },
-    ]
-
-    plan = sessions._plan_duplicate_chat_worktrees(candidates)
-
-    assert plan["duplicate_chat_count"] == 0
-    assert plan["retained"] == []
-    assert plan["remove"] == []
-    assert plan["lineage_unknown"] == ["unknown"]
-    assert plan["integration_excluded"] == ["integration-known"]
 
 
-def test_duplicate_chat_plan_keeps_newest_worktree_over_older_bound_event():
-    sessions = load_sessions_module()
-    candidates = [
-        {
-            "session_id": "bound",
-            "path": "/tmp/agent-bound",
-            "worktree_kind": "source",
-            "chat_lineage": "ses_chat",
-            "lineage_bound": True,
-            "lineage_created_ms": 10,
-        },
-        {
-            "session_id": "newer-unbound",
-            "path": "/tmp/agent-newer",
-            "worktree_kind": "source",
-            "chat_lineage": "ses_chat",
-            "lineage_bound": False,
-            "lineage_created_ms": 20,
-        },
-    ]
-
-    plan = sessions._plan_duplicate_chat_worktrees(candidates)
-
-    assert plan["retained"] == ["newer-unbound"]
-    assert plan["remove"] == ["bound"]
 
 
-def test_duplicate_chat_plan_excludes_newer_invalid_path_from_authoritative_selection():
-    sessions = load_sessions_module()
-    candidates = [
-        {
-            "session_id": "valid",
-            "path": "/tmp/agent-valid",
-            "worktree_kind": "source",
-            "chat_lineage": "ses_chat",
-            "lineage_path_valid": True,
-            "lineage_created_ms": 10,
-        },
-        {
-            "session_id": "invalid-newer",
-            "path": "/tmp/missing",
-            "worktree_kind": "source",
-            "chat_lineage": "ses_chat",
-            "lineage_path_valid": False,
-            "lineage_created_ms": 20,
-        },
-    ]
-
-    plan = sessions._plan_duplicate_chat_worktrees(candidates)
-
-    assert plan["duplicate_chat_count"] == 0
-    assert plan["authoritative"] == {"ses_chat": "valid"}
-    assert plan["remove"] == []
-    assert plan["invalid_path_excluded"] == ["invalid-newer"]
 
 
-def test_legacy_lineage_reconstruction_uses_top_level_chat_and_latest_creation(tmp_path):
-    sessions = load_sessions_module()
-    database = tmp_path / "opencode.db"
-    connection = sqlite3.connect(database)
-    connection.execute("CREATE TABLE session (id TEXT, parent_id TEXT)")
-    connection.execute("CREATE TABLE part (session_id TEXT, time_created INTEGER, data TEXT)")
-    connection.executemany(
-        "INSERT INTO session VALUES (?, ?)",
-        [("ses_parent", None), ("ses_child", "ses_parent")],
-    )
-    first = {
-        "type": "tool",
-        "state": {
-            "output": "== SESSION abcd ==\n  Worktree: /repo/.openmates-agent-worktrees/agent-abcd\n",
-        },
-    }
-    latest = {
-        "type": "tool",
-        "state": {
-            "output": "== SESSION ef12 ==\n  Worktree: /repo/.openmates-agent-worktrees/agent-ef12\n",
-        },
-    }
-    connection.executemany(
-        "INSERT INTO part VALUES (?, ?, ?)",
-        [("ses_child", 10, json.dumps(first)), ("ses_parent", 20, json.dumps(latest))],
-    )
-    connection.commit()
-    connection.close()
-
-    lineage = sessions._legacy_worktree_chat_lineage(database)
-
-    assert lineage["abcd"] == {"chat_lineage": "ses_parent", "lineage_created_ms": 10}
-    assert lineage["ef12"] == {"chat_lineage": "ses_parent", "lineage_created_ms": 20}
 
 
 def test_obsolete_approval_requires_matching_only_scope(monkeypatch, capsys):

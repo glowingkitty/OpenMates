@@ -10,6 +10,7 @@
 # - Files are downloaded via GET /v1/embeds/{embed_id}/file endpoint
 # - See docs/architecture/apps/images.md for full flow
 
+import asyncio
 import logging
 import hashlib
 from typing import Any, Dict, Optional
@@ -20,6 +21,8 @@ from celery.result import AsyncResult
 from backend.core.api.app.tasks.celery_config import app as celery_app
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.apps_api import SessionOrApiKeyAuth
+
+from backend.shared.python_utils.task_ownership import read_task_owner
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +101,9 @@ async def get_task_status(
         # Celery states: PENDING, STARTED, SUCCESS, FAILURE, REVOKED, RETRY
         # We map these to simpler strings for the public API
         raw_status = result.status
+        owner_hash = await asyncio.to_thread(read_task_owner, task_id, celery_app.conf.broker_url)
+        if owner_hash:
+            _assert_task_owner({"user_id_hash": owner_hash}, user_info)
         if raw_status == 'SUCCESS':
             status_str = 'completed'
         elif raw_status == 'FAILURE':
@@ -116,13 +122,15 @@ async def get_task_status(
         
         # If task is completed, include the result
         if raw_status == 'SUCCESS':
-            _assert_task_owner(result.result, user_info)
+            if not owner_hash:
+                _assert_task_owner(result.result, user_info)
             response.result = result.result
         elif raw_status == 'FAILURE' or raw_status == 'REVOKED':
-            _assert_task_owner(result.result, user_info)
+            if not owner_hash:
+                _assert_task_owner(result.result, user_info)
             # For failures, the 'result' property often contains the exception object
             # or a string representation of the error
-            response.error = str(result.result) if result.result else "Unknown error occurred during task execution"
+            response.error = "Task execution failed. Use the task ID when contacting support."
         
         return response
         

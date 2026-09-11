@@ -1,4 +1,3 @@
-# contract-test-file: infrastructure
 # backend/tests/test_skill_executor_registry_refresh.py
 #
 # Regression tests for app-skill dispatch from AI worker processes.
@@ -24,6 +23,7 @@ sys.modules["backend.core.api.app.services.skill_registry"] = skill_registry_mod
 
 from backend.apps.ai.processing import skill_executor  # noqa: E402
 from backend.apps.ai.processing.skill_executor import execute_skill  # noqa: E402
+from backend.shared.python_utils.app_skill_output_safety import is_central_app_skill_dispatch  # noqa: E402
 
 
 class FakeRegistry:
@@ -42,10 +42,12 @@ class FakeRegistry:
 
     async def dispatch_skill(self, app_id: str, skill_id: str, request_body: dict) -> dict:
         self.dispatch_calls.append((app_id, skill_id, request_body))
+        self.central_dispatch_active = is_central_app_skill_dispatch()
         return {"status": "ok", "app_id": app_id, "skill_id": skill_id}
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 async def test_execute_skill_refreshes_stale_registry_before_missing_skill_404(monkeypatch) -> None:
     stale_registry = FakeRegistry(skill_available=False)
     refreshed_registry = FakeRegistry(skill_available=True)
@@ -77,6 +79,7 @@ async def test_execute_skill_refreshes_stale_registry_before_missing_skill_404(m
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_execute_skill_passes_secrets_manager_only_as_server_context(monkeypatch) -> None:
     registry = FakeRegistry(skill_available=True)
     captured_contexts = []
@@ -114,9 +117,11 @@ async def test_execute_skill_passes_secrets_manager_only_as_server_context(monke
     assert captured_contexts[0].request_body == {"location": "Berlin"}
     assert captured_contexts[0].cache_service is cache_service
     assert captured_contexts[0].secrets_manager is secrets_manager
+    assert registry.central_dispatch_active is True
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
 async def test_execute_skill_does_not_redispatch_after_output_safety_failure(monkeypatch) -> None:
     registry = FakeRegistry(skill_available=True)
 

@@ -8,6 +8,7 @@
 import { get, writable } from "svelte/store";
 import type { AssistantSpeechPlayerState } from "../services/assistantSpeechController";
 
+const PREVIEW_GENERATION_DELAY_MS = 3_000;
 const readyWaveform = [32, 58, 82, 44, 72, 96, 54, 76, 38, 68, 88, 48];
 
 function createPreviewController() {
@@ -31,7 +32,7 @@ function createPreviewController() {
   });
 
   function updateStatus(status: AssistantSpeechPlayerState["status"]) {
-    player.update((state) => ({ ...state, status }));
+    player.update((state) => ({ ...state, status, error: status === "playing" ? null : state.error }));
   }
 
   async function activateSegment(segmentId: string) {
@@ -54,7 +55,7 @@ function createPreviewController() {
         status: state.activeSegmentId === segmentId ? "playing" : state.status,
         regions: state.regions.map((region) => region.segmentId === segmentId ? { ...region, status: "ready", waveform: readyWaveform } : region),
       }));
-    }, 500);
+    }, PREVIEW_GENERATION_DELAY_MS);
   }
 
   async function move(direction: -1 | 1) {
@@ -82,7 +83,16 @@ export default {
   onHeightChange: () => {},
 };
 
+function statusVariant(status: AssistantSpeechPlayerState["status"], error: string | null = null) {
+  const controller = createPreviewController();
+  controller.player.update((state) => ({ ...state, status, error }));
+  return { controller };
+}
+
 export const variants = {
+  awaitingAudio: statusVariant("waiting_for_segment"),
+  autoplayBlocked: statusVariant("blocked_by_autoplay"),
+  failed: statusVariant("failed", "Speech audio could not be loaded."),
   passiveConfirmation: {
     controller: (() => {
       const controller = createPreviewController();

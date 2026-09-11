@@ -14,7 +14,11 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import VideoTimeline from './VideoTimeline.svelte';
   import { parseRemotionTimeline, type VideoManifest } from '../../../utils/remotionTimelineParser';
-  import { fetchAndDecryptAudio, releaseCachedAudio } from '../audio/audioEmbedCrypto';
+  import { createAudioUrlOwner } from '../audio/audioEmbedCrypto';
+  const audioUrlOwner = createAudioUrlOwner();
+  const fetchAndDecryptAudio = audioUrlOwner.fetch;
+  const releaseCachedAudio = audioUrlOwner.release;
+  onDestroy(audioUrlOwner.destroy);
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
 
   interface VideoFileVariant { s3_key: string; mime_type?: string; duration_seconds?: number; aes_nonce?: string; encryption?: string; }

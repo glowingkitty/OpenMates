@@ -119,7 +119,7 @@ ADMIN_LOG_API_KEY              — for /status endpoint auth
 
 File: `deployment/openmates-deploy-agent.service`
 
-Follows the same pattern as `scripts/agent-trigger-watcher.service`:
+Uses a foreground systemd service:
 - `Type=simple` — script runs in foreground
 - `Restart=always`, `RestartSec=10` — auto-restart on crash
 - `EnvironmentFile` — loads `.env` for config

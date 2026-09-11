@@ -1424,10 +1424,14 @@ struct InlineMarkdownText: View {
         self.allEmbedRecords = allEmbedRecords
         self.onEmbedTap = onEmbedTap
         self.searchHighlightQuery = searchHighlightQuery
-        self.attributedContent = (try? AttributedString(markdown: content, options: .init(
-            interpretedSyntax: .inlineOnlyPreservingWhitespace
-        ))) ?? AttributedString(content)
         let shouldUseCustomInlineLayout = Self.shouldUseCustomInlineLayout(for: content)
+        // Citation paragraphs render their individual text/chip tokens below.
+        // Parsing a second attributed document here never contributed to their
+        // output and repeated Foundation markdown work as rows were updated.
+        self.attributedContent = shouldUseCustomInlineLayout ? AttributedString() :
+            ((try? AttributedString(markdown: content, options: .init(
+                interpretedSyntax: .inlineOnlyPreservingWhitespace
+            ))) ?? AttributedString(content))
         let tokens = shouldUseCustomInlineLayout ? InlineMarkdownTokenizer.parse(content) : []
         self.inlineTokens = tokens
         self.inlineTokenHighlightRanges = shouldUseCustomInlineLayout
@@ -1589,7 +1593,7 @@ struct InlineMarkdownText: View {
     }
 }
 
-private enum InlineMarkdownToken: Equatable {
+enum InlineMarkdownToken: Equatable {
     case text(String, isBold: Bool)
     case inlineCode(String)
     case wiki(displayText: String, wikiTitle: String, isBold: Bool)
@@ -1608,7 +1612,7 @@ private enum InlineMarkdownToken: Equatable {
     }
 }
 
-private enum InlineMarkdownTokenizer {
+enum InlineMarkdownTokenizer {
     static func parse(_ source: String) -> [InlineMarkdownToken] {
         var tokens: [InlineMarkdownToken] = []
         var index = source.startIndex
@@ -1654,7 +1658,10 @@ private enum InlineMarkdownTokenizer {
                 continue
             }
 
-            let nextSpecial = nextSpecialIndex(in: source, from: index) ?? source.endIndex
+            // An unrecognised '[' or unmatched backtick is literal text.
+            // Starting the fallback scan at the same character would return
+            // that index again forever and hang the UI thread on stored chats.
+            let nextSpecial = nextSpecialIndex(in: source, from: source.index(after: index)) ?? source.endIndex
             appendText(String(source[index..<nextSpecial]), isBold: isBold, to: &tokens)
             index = nextSpecial
         }
@@ -2011,38 +2018,56 @@ private struct MarkdownLinkChip: View {
     }
 }
 
-private struct InlineMarkdownFlowLayout: Layout {
-    let spacing: CGFloat
-    let lineSpacing: CGFloat
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        arrangeSubviews(proposal: proposal, subviews: subviews).size
+/// Geometry-only cache shared by measuring and placing one inline paragraph.
+/// A long answer may contain hundreds of text/chip children. Measuring each
+/// child twice during both phases made scrolling repeatedly reshape every word.
+/// Keep intrinsic sizes until SwiftUI invalidates the children, and only measure
+/// a constrained child when that child is wider than the entire line.
+struct InlineMarkdownFlowMeasurements {
+    struct Arrangement: Equatable {
+        let origins: [CGPoint]
+        let sizes: [CGSize]
+        /// Nil preserves the unspecified proposal used for intrinsic sizes.
+        /// A constrained chip can return a narrower width than it was offered;
+        /// using that returned width for placement can change its line breaks.
+        let proposedWidths: [CGFloat?]
+        let size: CGSize
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let arrangement = arrangeSubviews(proposal: ProposedViewSize(width: bounds.width, height: proposal.height), subviews: subviews)
-        for (index, origin) in arrangement.origins.enumerated() {
-            let size = arrangement.sizes[index]
-            subviews[index].place(
-                at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
-                proposal: ProposedViewSize(width: size.width, height: size.height)
-            )
-        }
+    private struct Proposal: Hashable {
+        let width: CGFloat
+        let spacing: CGFloat
+        let lineSpacing: CGFloat
     }
 
-    private func arrangeSubviews(
-        proposal: ProposedViewSize,
-        subviews: Subviews
-    ) -> (origins: [CGPoint], sizes: [CGSize], size: CGSize) {
-        let maxWidth = proposal.width ?? .infinity
+    let idealSizes: [CGSize]
+    private var arrangements: [Proposal: Arrangement] = [:]
+    private static let maximumCachedWidths = 3
+
+    init(idealSizes: [CGSize]) {
+        self.idealSizes = idealSizes
+    }
+
+    mutating func arrangement(
+        width: CGFloat?,
+        spacing: CGFloat,
+        lineSpacing: CGFloat,
+        measureConstrained: (Int, CGFloat) -> CGSize
+    ) -> Arrangement {
+        let maxWidth = width.map { max(0, $0) } ?? .infinity
+        let proposal = Proposal(width: maxWidth, spacing: spacing, lineSpacing: lineSpacing)
+        if let cached = arrangements[proposal] { return cached }
         var origins: [CGPoint] = []
         var sizes: [CGSize] = []
+        var proposedWidths: [CGFloat?] = []
+        origins.reserveCapacity(idealSizes.count)
+        sizes.reserveCapacity(idealSizes.count)
+        proposedWidths.reserveCapacity(idealSizes.count)
         var cursor = CGPoint.zero
         var lineHeight: CGFloat = 0
         var measuredWidth: CGFloat = 0
 
-        for subview in subviews {
-            let idealSize = subview.sizeThatFits(.unspecified)
+        for (index, idealSize) in idealSizes.enumerated() {
             if cursor.x > 0, cursor.x + idealSize.width > maxWidth {
                 cursor.x = 0
                 cursor.y += lineHeight + lineSpacing
@@ -2050,20 +2075,69 @@ private struct InlineMarkdownFlowLayout: Layout {
             }
             let availableWidth = maxWidth.isFinite ? max(0, maxWidth - cursor.x) : idealSize.width
             let proposedWidth = min(idealSize.width, availableWidth)
-            let size = subview.sizeThatFits(ProposedViewSize(width: proposedWidth, height: nil))
+            let isConstrained = proposedWidth < idealSize.width
+            let size = isConstrained
+                ? measureConstrained(index, proposedWidth)
+                : idealSize
 
             origins.append(cursor)
             sizes.append(size)
+            proposedWidths.append(isConstrained ? proposedWidth : nil)
             cursor.x += size.width + spacing
             lineHeight = max(lineHeight, size.height)
             measuredWidth = max(measuredWidth, cursor.x)
         }
 
-        return (
-            origins,
-            sizes,
-            CGSize(width: min(measuredWidth, maxWidth), height: cursor.y + lineHeight)
+        let arrangement = Arrangement(
+            origins: origins,
+            sizes: sizes,
+            proposedWidths: proposedWidths,
+            size: CGSize(width: min(measuredWidth, maxWidth), height: cursor.y + lineHeight)
         )
+        // SwiftUI commonly probes zero, unconstrained, and actual widths. Keep
+        // this per-paragraph cache bounded while the window is being resized.
+        if arrangements.count >= Self.maximumCachedWidths { arrangements.removeAll(keepingCapacity: true) }
+        arrangements[proposal] = arrangement
+        return arrangement
+    }
+}
+
+private struct InlineMarkdownFlowLayout: Layout {
+    let spacing: CGFloat
+    let lineSpacing: CGFloat
+
+    func makeCache(subviews: Subviews) -> InlineMarkdownFlowMeasurements {
+        InlineMarkdownFlowMeasurements(idealSizes: subviews.map { $0.sizeThatFits(.unspecified) })
+    }
+
+    func updateCache(_ cache: inout InlineMarkdownFlowMeasurements, subviews: Subviews) {
+        // Font, content, and chip changes invalidate the intrinsic dimensions.
+        cache = makeCache(subviews: subviews)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout InlineMarkdownFlowMeasurements) -> CGSize {
+        arrangement(width: proposal.width, subviews: subviews, cache: &cache).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout InlineMarkdownFlowMeasurements) {
+        // `proposal` is the same parent proposal that produced `bounds.size`.
+        // Bounds can be narrower than that proposal because this flow hugs its
+        // content. Rewrapping at bounds.width changes the measured row heights
+        // during placement, which can destabilize the enclosing lazy transcript.
+        let arrangement = arrangement(width: proposal.width, subviews: subviews, cache: &cache)
+        for (index, origin) in arrangement.origins.enumerated() {
+            subviews[index].place(
+                at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
+                anchor: .topLeading,
+                proposal: ProposedViewSize(width: arrangement.proposedWidths[index], height: nil)
+            )
+        }
+    }
+
+    private func arrangement(width: CGFloat?, subviews: Subviews, cache: inout InlineMarkdownFlowMeasurements) -> InlineMarkdownFlowMeasurements.Arrangement {
+        cache.arrangement(width: width, spacing: spacing, lineSpacing: lineSpacing) { index, proposedWidth in
+            subviews[index].sizeThatFits(ProposedViewSize(width: proposedWidth, height: nil))
+        }
     }
 }
 

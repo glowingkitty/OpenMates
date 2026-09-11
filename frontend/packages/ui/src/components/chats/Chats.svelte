@@ -340,7 +340,14 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		return endDate.getTime() < Date.now();
 	}
 
-	let visibleOpenMatesEvents = $derived(OPENMATES_EVENTS.filter(event => !hasEventEnded(event)));
+	const DEFAULT_EVENT_LIMIT = 3;
+	let visibleEventLimit = $state(DEFAULT_EVENT_LIMIT);
+	// Keep the nearest upcoming events first, independent of their source order.
+	let upcomingOpenMatesEvents = $derived(OPENMATES_EVENTS
+		.filter(event => !hasEventEnded(event))
+		.sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime()));
+	let visibleOpenMatesEvents = $derived(upcomingOpenMatesEvents.slice(0, visibleEventLimit));
+	let remainingEventsCount = $derived(Math.max(0, upcomingOpenMatesEvents.length - visibleEventLimit));
 
 	const DEFAULT_EXAMPLE_CHAT_LIMIT = 10;
 	const DEFAULT_ANNOUNCEMENT_CHAT_LIMIT = 3;
@@ -2338,6 +2345,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	}
 
 	onDestroy(() => {
+		searchController?.abort();
 		// Notify cache that sidebar was destroyed — event listeners are about to be
 		// removed, so any chatUpdated / LOCAL_CHAT_LIST_CHANGED_EVENT that fires while
 		// unmounted will not update the cache. The next getCache(_, isComponentRemount=true)
@@ -2558,6 +2566,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	 */
 	/** Track whether search index warm-up has been triggered this session */
 	let searchWarmUpTriggered = false;
+	let searchController: AbortController | null = null;
 
 	/**
 	 * Trigger search index warm-up on first search interaction.
@@ -2569,17 +2578,24 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		searchWarmUpTriggered = true;
 		const chatIds = allChatsFromDB.map(c => c.chat_id);
 		if (chatIds.length > 0) {
-			warmUpSearchIndex(chatIds).catch(err =>
+			warmUpSearchIndex(chatIds).then(() => {
+				if (searchState.isActive && searchState.query.trim() && !searchController?.signal.aborted) {
+					void handleSearchQuery(searchState.query);
+				}
+			}).catch(err =>
 				console.error('[Chats] Search index warm-up error:', err),
 			);
 		}
 	}
 
 	async function handleSearchQuery(query: string): Promise<void> {
+		searchController?.abort();
+		const controller = new AbortController();
+		searchController = controller;
 		setSearchQuery(query);
 		applyPendingCacheUpsertsToLocalList();
 		await tick();
-		triggerSearchWarmUpIfNeeded();
+		if (controller.signal.aborted) return;
 
 		if (!query || query.trim().length === 0) {
 			searchResults = null;
@@ -2588,6 +2604,8 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			searchTextHighlightStore.set(null);
 			return;
 		}
+
+		triggerSearchWarmUpIfNeeded();
 
 		// Update in-chat text highlighting with current query
 		searchTextHighlightStore.set(query.trim());
@@ -2607,13 +2625,15 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			unlocked,
 			$authStore.isAuthenticated,
 			$userProfile.is_admin,
+			controller.signal,
 		);
-			searchResults = results;
+			if (!controller.signal.aborted) searchResults = results;
 		} catch (error) {
+			if (controller.signal.aborted) return;
 			console.error('[Chats] Search error:', error);
 			searchResults = null;
 		} finally {
-			setSearching(false);
+			if (!controller.signal.aborted) setSearching(false);
 		}
 	}
 
@@ -2621,6 +2641,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	 * Handle search close — clears query and hides search results.
 	 */
 	function handleSearchClose(): void {
+		searchController?.abort();
 		closeSearch();
 		searchResults = null;
 		// Clear in-chat text highlighting when search closes
@@ -4410,6 +4431,18 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 								</span>
 							</button>
 						{/each}
+						{#if remainingEventsCount > 0}
+							<div class="load-more-container">
+								<button
+									type="button"
+									class="load-more-button"
+									data-testid="show-more-events"
+									onclick={() => visibleEventLimit += DEFAULT_EVENT_LIMIT}
+								>
+									{$text('chats.loadMore.button')}&nbsp;({remainingEventsCount})
+								</button>
+							</div>
+						{/if}
 					</div>
 				{/if}
 
@@ -4821,24 +4854,27 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     .load-more-container {
         display: flex;
-        justify-content: center;
-        padding: 10px 0;
-        margin-top: var(--spacing-5); /* Add some space above the button */
+        justify-content: flex-start;
+        padding: var(--spacing-1) var(--spacing-4);
     }
 
     .load-more-button {
-        padding: var(--spacing-4) var(--spacing-8);
-        border: 1px solid var(--color-grey-40);
-        background-color: var(--color-grey-20); /* Use a subtle background */
-        color: var(--color-text);
-        border-radius: var(--radius-2);
+        padding: var(--spacing-1) 0;
+        border: 0;
+        background: transparent;
+        color: var(--color-grey-70);
         cursor: pointer;
-        font-size: 0.9em;
-        transition: background-color var(--duration-normal) var(--easing-default);
+        font-size: 0.8rem;
+        line-height: 1.4;
     }
 
-    .load-more-button:hover {
-        background-color: var(--color-grey-25); /* Slightly darker on hover */
+    .load-more-button:hover:not(:disabled) {
+        color: var(--color-text);
+        text-decoration: underline;
+    }
+
+    .load-more-button:disabled {
+        cursor: default;
     }
 
     .load-more-button:focus-visible {

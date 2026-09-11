@@ -20,6 +20,7 @@
 -->
 
 <script lang="ts">
+  import { searchResultImageUrl } from '../../../utils/searchPreviewImages';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
@@ -38,7 +39,10 @@
     /** Favicon URL */
     favicon?: string;
     /** Thumbnail/preview image URL */
-    thumbnail?: string;
+    thumbnail?: string | { original?: string; src?: string };
+    thumbnail_src?: string;
+    preview_image_url?: string;
+    image_url?: string;
     /** Preview image URL (passed from NewsEmbedPreview on fullscreen open) */
     image?: string;
     /** Extra snippets (pipe-delimited string or array) */
@@ -73,6 +77,9 @@
     description,
     favicon,
     thumbnail,
+    thumbnail_src,
+    preview_image_url,
+    image_url,
     image,
     extra_snippets,
     meta_url_favicon,
@@ -241,7 +248,7 @@
   // If no image URL is available, we simply don't show a header image
   
   let imageUrl = $derived.by(() => {
-    const originalImageUrl = thumbnail_original || image || thumbnail;
+    const originalImageUrl = searchResultImageUrl({ thumbnail_original, thumbnail_src, preview_image_url, image_url, image, thumbnail });
     if (!originalImageUrl) {
       return null;
     }
@@ -365,7 +372,8 @@
   // share context and properly opens the settings panel (including on mobile).
   
   // Track image loading error to hide broken images
-  let imageError = $state(false);
+  let failedImageUrl = $state<string | null>(null);
+  let imageError = $derived(!!imageUrl && failedImageUrl === imageUrl);
 </script>
 
 <!-- 
@@ -408,8 +416,7 @@
             alt={displayTitle}
             class="header-image"
             loading="lazy"
-            crossorigin="anonymous"
-            onerror={(e) => { imageError = true; handleImageError(e.currentTarget as HTMLImageElement); }}
+            onerror={(e) => { failedImageUrl = imageUrl; handleImageError(e.currentTarget as HTMLImageElement); }}
           />
         </div>
       {/if}

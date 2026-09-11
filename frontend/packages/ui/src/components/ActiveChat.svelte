@@ -1,9 +1,12 @@
 <script lang="ts">
+    import HeaderActionMenu from './HeaderActionMenu.svelte';
+    import { headerOverlayControls } from '../actions/headerOverlayControls';
     import MessageInput from './enter_message/MessageInput.svelte';
     import { messageInputPlaceholderVariant } from './enter_message/extensions/Placeholder';
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
+    import ChatProcessingIndicator from './ChatProcessingIndicator.svelte';
     import AssistantSpeechPlayer from './AssistantSpeechPlayer.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
     import ChatSearchSuggestions from './ChatSearchSuggestions.svelte';
@@ -13,10 +16,12 @@
     import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore';
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
-    import { fade, fly, slide } from 'svelte/transition';
-    import { createEventDispatcher, tick, onMount, onDestroy, untrack } from 'svelte'; // Added onDestroy
+    import { fade, fly } from 'svelte/transition';
+    import { createEventDispatcher, tick, onMount, onDestroy, untrack, setContext } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
+    import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../types/embedFullscreen';
+    import EmbedFullscreenLoading from './embeds/EmbedFullscreenLoading.svelte';
     import { panelState } from '../stores/panelStateStore'; // Added import
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
@@ -74,6 +79,8 @@
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
     import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
     import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
+    import { getMatesById } from '../data/matesMetadata';
+    import { matchesProcessingFeedbackTerminal } from './activeChatProcessingFeedback';
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
@@ -196,30 +203,17 @@
     const GUEST_INPUT_LINK_ROTATION_MS = 6500;
     const GUEST_LANDING_DEFAULT_EXAMPLE_IDS = [
         'example-ai-workshops-meetups-berlin',
-        'example-privacy-first-local-ai',
-        'example-openmates-add-app-skill',
-        'example-private-workspace-demo-video',
     ];
     const GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION: Record<string, string[]> = {
         [GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID]: [
             'example-ai-workshops-meetups-berlin',
-            'example-urban-sports-fitness-studios',
-            'example-berlin-dermatology-appointments',
         ],
         'openmates-privacy-safety': [
-            'example-privacy-first-local-ai',
-            'example-pdf-search-encryption',
-            'example-privacy-first-product-launch',
+            'example-private-plumber-email',
         ],
         'openmates-mates-focus': [
-            'example-memory-ai-learning-preferences',
-            'example-frontend-developer-career-pivot',
-            'example-openmates-add-app-skill',
         ],
         'openmates-provider-cross-platform': [
-            'example-private-workspace-demo-video',
-            'example-openmates-add-app-skill',
-            'example-svelte-runes-docs',
         ],
     };
     const GuestAllExamplesBackIcon = getLucideIcon('grid-2x2');
@@ -648,6 +642,10 @@
     };
 
     type EmbedFullscreenState = {
+        /** A visible, cancellable shell while the parent embed resolves. */
+        isResolving?: boolean;
+        loadError?: boolean;
+        parentResolved?: boolean;
         embedId?: string | null;
         embedData?: EmbedDataRecord | null;
         decodedContent?: EmbedDecodedContent | null;
@@ -1476,6 +1474,7 @@
     // Add state for embed fullscreen
     let showEmbedFullscreen = $state(false);
     let embedFullscreenData = $state<EmbedFullscreenState>(null);
+    let fullscreenPanelEl: HTMLDivElement | undefined = $state();
 
     /**
      * Subscribe to the app-store skill example fullscreen store and mount
@@ -1757,6 +1756,33 @@
         const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange } = detail;
         const hasChatContext = detail.hasChatContext ?? (!showWelcome && !!currentChat?.chat_id);
 
+        // Ignore route echoes before starting another resolver or replacing the
+        // shell. Updates to the open embed arrive through its store subscription.
+        if (showEmbedFullscreen && embedFullscreenData?.embedId === embedId &&
+            (embedFullscreenData?.focusChildEmbedId ?? null) === (focusChildEmbedId ?? null) &&
+            (embedFullscreenData?.focusSheetRange ?? null) === (focusSheetRange ?? null) &&
+            JSON.stringify(embedFullscreenData?.focusLineRange ?? null) === JSON.stringify(focusLineRange ?? null)) return;
+
+        // Svelte reverses an unfinished outro by reusing its element. Restore
+        // normal layout and hit testing before that retained pane opens again.
+        if (fullscreenPanelEl?.dataset.workspaceExit === 'true') {
+            delete fullscreenPanelEl.dataset.workspaceExit;
+            for (const property of ['position', 'left', 'top', 'width', 'height', 'pointer-events']) {
+                fullscreenPanelEl.style.removeProperty(property);
+            }
+        }
+
+        embedFullscreenData = {
+            embedId, embedData, decodedContent, embedType, attrs,
+            focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange,
+            hasChatContext, isResolving: true
+        };
+        const openingData = embedFullscreenData;
+        const openingChatId = currentChat?.chat_id;
+        const stillOpening = () => showEmbedFullscreen && embedFullscreenData === openingData && currentChat?.chat_id === openingChatId;
+        fullscreenHasChatContext = hasChatContext;
+        showEmbedFullscreen = true;
+
         // Close any open Wikipedia fullscreen first (mutual exclusivity — only one at a time)
         if (showWikiFullscreen) {
             showWikiFullscreen = false;
@@ -1786,18 +1812,31 @@
             console.debug('[ActiveChat] Early URL hash guard set for embed:', embedId, 'chatId:', hasChatContext ? currentChat?.chat_id : null);
         }
         
+        // Cached imports/resolvers can complete in microtasks without yielding a
+        // paint. Let Safari present the closeable shell before decoding results
+        // or evaluating a cold viewer module. A second frame crosses a paint
+        // opportunity; tick alone only flushes Svelte's DOM updates.
+        await tick();
+        await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        });
+        if (!stillOpening()) return;
+
         // ALWAYS reload from EmbedStore when embedId is provided to ensure we get the latest data.
         // The embed might have been updated since the preview was rendered (e.g., processing -> finished).
         // The event's embedData/decodedContent might be stale (captured at render time before skill results arrived).
         let finalEmbedData = embedData;
         let finalDecodedContent = decodedContent;
+        let parentResolved = false;
         
         if (embedId) {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
                 const freshEmbedData = await resolveEmbed(embedId) as EmbedResolverData | null;
+                if (!stillOpening()) return;
                 
                 if (freshEmbedData) {
+                    parentResolved = true;
                     // Use fresh data from EmbedStore
                     finalEmbedData = freshEmbedData;
                     
@@ -1875,9 +1914,10 @@
                     } else {
                     // Only error if we have no data at all (neither from EmbedStore nor from event)
                     console.error('[ActiveChat] Embed not found in EmbedStore and no fallback data:', embedId);
-                    // Clean up the URL hash that was set eagerly before async resolution —
-                    // without this, the URL shows #embed-id=xxx but no fullscreen renders.
-                    clearFullscreenRoute();
+                    if (stillOpening()) {
+                        openingData.isResolving = false;
+                        openingData.loadError = true;
+                    }
                     return;
                     }
                 }
@@ -1885,8 +1925,10 @@
                 console.error('[ActiveChat] Error loading embed for fullscreen:', error);
                 // Fall back to event data if available
                 if (!finalEmbedData && !finalDecodedContent) {
-                    // Clean up the URL hash — resolution failed and no fallback data exists
-                    clearFullscreenRoute();
+                    if (stillOpening()) {
+                        openingData.isResolving = false;
+                        openingData.loadError = true;
+                    }
                     return;
                 }
             }
@@ -1973,164 +2015,17 @@
             }
         }
         
-        // If we already have this embed open with the same child focus target, ignore duplicate
-        // events (e.g. hashchange deep-link echoes). But if focusChildEmbedId differs — meaning
-        // the user clicked a different inline badge that points to a different child result of the
-        // same parent embed — allow the update through so the fullscreen can switch to that child.
-        const alreadyOpenSameChild =
-            showEmbedFullscreen &&
-            embedFullscreenData?.embedId === embedId &&
-            embedFullscreenData?.embedType === resolvedEmbedType &&
-            (embedFullscreenData?.focusChildEmbedId ?? null) === (focusChildEmbedId ?? null) &&
-            (embedFullscreenData?.focusSheetRange ?? null) === (focusSheetRange ?? null) &&
-            JSON.stringify(embedFullscreenData?.focusLineRange ?? null) === JSON.stringify(focusLineRange ?? null);
-        if (alreadyOpenSameChild) {
-            console.debug('[ActiveChat] Ignoring duplicate embedfullscreen event for already-open embed:', {
-                embedId,
-                resolvedEmbedType,
-                focusChildEmbedId
+        if (!stillOpening()) return;
+
+        // Child results belong to the fullscreen loader. Start its code fetch
+        // alongside the lightweight pane entrance, without resolving children twice.
+        const componentKey = resolveRegistryKey(resolvedEmbedType || '', finalDecodedContent ?? undefined);
+        if (componentKey && hasFullscreenComponent(componentKey)) {
+            void loadFullscreenComponent(componentKey).catch((error) => {
+                console.error('[ActiveChat] Could not preload fullscreen component:', error);
             });
-            return;
         }
-        
-        // For web search embeds, load child website embeds and transform to results array
-        // This is needed because parent embed only contains embed_ids, not the actual website data
-        if (resolvedEmbedType === 'app-skill-use' && finalDecodedContent) {
-            const appId = finalDecodedContent.app_id || '';
-            const skillId = finalDecodedContent.skill_id || '';
-            
-            // embed_ids can be in decoded content OR in the embed data itself
-            // embed_ids may be a pipe-separated string OR an array - normalize to array
-            const rawEmbedIds = finalDecodedContent.embed_ids || finalEmbedData?.embed_ids || [];
-            const childEmbedIds: string[] = typeof rawEmbedIds === 'string' 
-                ? rawEmbedIds.split('|').filter((id: string) => id.length > 0)
-                : Array.isArray(rawEmbedIds) ? rawEmbedIds : [];
-            
-            // DEBUG: Log embed_ids discovery for composite embeds
-            console.debug('[ActiveChat] Checking embed_ids for composite embed:', {
-                appId,
-                skillId,
-                decodedContentEmbedIds: finalDecodedContent.embed_ids,
-                embedDataEmbedIds: finalEmbedData?.embed_ids,
-                rawEmbedIds,
-                childEmbedIds,
-                childEmbedIdsCount: childEmbedIds.length
-            });
-            
-            if (appId === 'web' && skillId === 'search' && childEmbedIds.length > 0) {
-console.debug('[ActiveChat] Loading child website embeds for web search fullscreen:', childEmbedIds);
-                try {
-                    // Use loadEmbedsWithRetry to handle race condition where child embeds
-                    // might not be persisted yet (they arrive via websocket after parent)
-                    const { loadEmbedsWithRetry, decodeToonContent: decodeToon } = await import('../services/embedResolver');
-                    const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 8, 400);
-                    
-                    // Transform child embeds to WebSearchResult format
-                    const results = await Promise.all(childEmbeds.map(async (embed) => {
-                        const websiteContent = embed.content ? await decodeToon(embed.content) : null;
-                        if (!websiteContent) return null;
-                        
-                        // Extract favicon URL from multiple possible field formats:
-                        // 1. meta_url_favicon: TOON-flattened format (meta_url.favicon becomes meta_url_favicon)
-                        // 2. meta_url.favicon: Nested format (raw API or non-TOON encoded)
-                        // 3. favicon: Direct field (processed backend format)
-                        const faviconUrl = 
-                            websiteContent.meta_url_favicon ||  // TOON flattened format (most common)
-                            (websiteContent.meta_url as { favicon?: string } | undefined)?.favicon || 
-                            websiteContent.favicon || 
-                            '';
-                        
-                        // Extract preview image from multiple possible field formats:
-                        // 1. thumbnail_original: TOON-flattened format
-                        // 2. thumbnail.original: Nested format
-                        // 3. image: Direct field
-                        const previewImageUrl = 
-                            websiteContent.thumbnail_original ||  // TOON flattened format
-                            (websiteContent.thumbnail as { original?: string } | undefined)?.original ||
-                            websiteContent.image || 
-                            '';
-                        
-                        return {
-                            type: 'search_result' as const,
-                            title: websiteContent.title || '',
-                            url: websiteContent.url || '',
-                            snippet: websiteContent.description || websiteContent.extra_snippets || '',
-                            hash: embed.embed_id || '',
-                            // Include 'favicon' field for WebSearchEmbedPreview's getFaviconUrl()
-                            favicon: faviconUrl,
-                            favicon_url: faviconUrl,
-                            preview_image_url: previewImageUrl
-                        };
-                    }));
-                    
-                    // Filter out nulls and add to decoded content
-                    finalDecodedContent.results = results.filter(r => r !== null);
-                    const websiteResults = Array.isArray(finalDecodedContent.results) ? finalDecodedContent.results : [];
-                    console.info('[ActiveChat] Loaded', websiteResults.length, 'website results for web search fullscreen:', 
-                        websiteResults.map(r => ({ title: r?.title?.substring(0, 30), url: r?.url })));
-                } catch (error) {
-                    console.error('[ActiveChat] Error loading child embeds for web search:', error);
-                    // Continue without results - fullscreen will show "No results" message
-                }
-            } else if (appId === 'maps' && skillId === 'search' && childEmbedIds.length > 0) {
-                console.debug('[ActiveChat] Loading child place embeds for maps search fullscreen:', childEmbedIds);
-                try {
-                    // Use loadEmbedsWithRetry to handle race condition where child embeds
-                    // might not be persisted yet (they arrive via websocket after parent)
-                    const { loadEmbedsWithRetry, decodeToonContent: decodeToon } = await import('../services/embedResolver');
-                    const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 8, 400);
-                    
-                    // Transform child embeds to PlaceSearchResult format
-                    const results = await Promise.all(childEmbeds.map(async (embed) => {
-                        const placeContent = embed.content ? await decodeToon(embed.content) : null;
-                        if (!placeContent) return null;
-                        
-                        // Handle location - can be nested object or flattened fields
-                        let location = undefined;
-                        if (placeContent.location) {
-                            // Nested location object
-                            if (typeof placeContent.location === 'object' && 'latitude' in placeContent.location) {
-                                location = {
-                                    latitude: placeContent.location.latitude,
-                                    longitude: placeContent.location.longitude
-                                };
-                            }
-                        } else if (placeContent.location_latitude !== undefined || placeContent.location_longitude !== undefined) {
-                            // Flattened location fields (from TOON encoding)
-                            location = {
-                                latitude: placeContent.location_latitude,
-                                longitude: placeContent.location_longitude
-                            };
-                        }
-                        
-                        return {
-                            displayName: placeContent.name || placeContent.displayName || '',
-                            formattedAddress: placeContent.formatted_address || placeContent.formattedAddress || '',
-                            location: location,
-                            rating: placeContent.rating,
-                            userRatingCount: placeContent.user_rating_count || placeContent.userRatingCount,
-                            websiteUri: placeContent.website_uri || placeContent.websiteUri,
-                            placeId: placeContent.place_id || placeContent.placeId
-                        };
-                    }));
-                    
-                    // Filter out nulls and add to decoded content
-                    finalDecodedContent.results = results.filter(r => r !== null);
-                    const placeResults = Array.isArray(finalDecodedContent.results) ? finalDecodedContent.results : [];
-                    console.info('[ActiveChat] Loaded', placeResults.length, 'place results for maps search fullscreen:',
-                        placeResults.map((r: Record<string, unknown>) => ({ name: String(r?.displayName ?? '').substring(0, 30), address: r?.formattedAddress })));
-                } catch (error) {
-                    console.error('[ActiveChat] Error loading child embeds for maps search:', error);
-                    // Continue without results - fullscreen will show "No results" message
-                }
-            } else if (appId === 'web' && skillId === 'search') {
-                console.warn('[ActiveChat] Web search fullscreen opened but no embed_ids found:', {
-                    decodedContentEmbedIds: finalDecodedContent.embed_ids,
-                    embedDataEmbedIds: finalEmbedData?.embed_ids
-                });
-            }
-        }
-        
+
         // Store fullscreen data (moved below after all async operations)
         console.debug('[ActiveChat] Setting showEmbedFullscreen to true, embedFullscreenData:', {
             embedType: resolvedEmbedType,
@@ -2149,6 +2044,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         embedFullscreenData = {
             embedId,
             embedData: finalEmbedData,
+            parentResolved,
             decodedContent: finalDecodedContent,
             embedType: resolvedEmbedType,
             attrs,
@@ -2192,6 +2088,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // For video embeds, VideoEmbedFullscreen's handleClose handles video cleanup,
     // but this is a fallback in case it's called directly
     function handleCloseEmbedFullscreen() {
+        // Retain only the outgoing surface for its brief compositor transition.
+        // Removing it from flex layout lets the chat take its final width once.
+        if (hasSplitChatContext && fullscreenPanelEl) {
+            const node = fullscreenPanelEl;
+            const parent = node.offsetParent as HTMLElement | null;
+            const rect = node.getBoundingClientRect();
+            const parentRect = parent?.getBoundingClientRect();
+            node.dataset.workspaceExit = 'true';
+            Object.assign(node.style, {
+                position: 'absolute', left: `${rect.left - (parentRect?.left ?? 0)}px`,
+                top: `${rect.top - (parentRect?.top ?? 0)}px`,
+                width: `${rect.width}px`, height: `${rect.height}px`, pointerEvents: 'none'
+            });
+        }
         // Check if this was a video embed and clean up if needed
         // Note: VideoEmbedFullscreen's handleClose should handle this, but this is a safety net
         const wasVideoEmbed = embedFullscreenData?.embedType === 'videos-video';
@@ -2255,7 +2165,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
         }
 
-        void remountChatHeaderAfterFullscreenClose();
     }
     
     // ===========================================
@@ -3693,7 +3602,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         if (selectedTagIds.length === 0) {
-            return [...sharedMetas, ...orderMetasByPreferredIds(communityMetas, GUEST_LANDING_DEFAULT_EXAMPLE_IDS)];
+            return sharedMetas;
         }
 
         const rankedExampleIds = rankExampleChatIdsByInterests(
@@ -3777,6 +3686,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const requestId = ++nonAuthRecentChatsRequestId;
             loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed, guestInspirationId, preserveGuestInterestRanking).then((metas) => {
                 if (requestId !== nonAuthRecentChatsRequestId) return;
+                // Keep the last visible examples when this slide has no published
+                // examples yet. Preserve fresh shared-chat metadata separately.
+                if (guestTagsConfirmed && !metas.some((meta) => isExampleChat(meta.chat.chat_id))) {
+                    const previousExamples = nonAuthRecentChats.filter((meta) => isExampleChat(meta.chat.chat_id));
+                    const fallbackExamples = previousExamples.length > 0
+                        ? previousExamples
+                        : orderMetasByPreferredIds(getAllExampleChats().map(buildExampleChatMeta), GUEST_LANDING_DEFAULT_EXAMPLE_IDS);
+                    metas = [...metas, ...fallbackExamples];
+                }
                 nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
                 nonAuthRecentChats = metas;
                 centerFirstRecentChat();
@@ -4163,6 +4081,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // centered status indicator in ChatHistory.
     // Lifecycle: sending → processing (real-time step cards) → typing → null (streaming)
     let processingPhase = $state<ProcessingPhase>(null);
+    // The composer indicator starts only after the server accepts this exact turn.
+    // Keep it separate from the centered step-card phase so both surfaces can evolve
+    // without a delayed acknowledgement replacing known typing information.
+    let processingFeedbackTurn = $state<{ chatId: string; userMessageId: string; taskId: string } | null>(null);
+    const terminalProcessingFeedbackTurns = new Set<string>();
     // Whether the current message being processed is for a new chat (no title yet).
     // Determines the initial spinner text (new chat starts with "Generating chat title...").
     let isNewChatProcessing = $state(false);
@@ -4188,7 +4111,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Decrypted chat summary shown in the header below the title (available after post-processing).
     let activeChatDecryptedSummary = $state<string | null>(initialPublicChat?.chat_summary ?? null);
     // Bumped after closing embed fullscreen so ChatHeader remounts after layout classes settle.
-    let chatHeaderRenderKey = $state(0);
     // Mate name captured from the mate_selected preprocessing step, used for the
     // "{Mate} is typing..." spinner text after model_selected arrives.
     let selectedPreprocessingMateName = $state<string | null>(null);
@@ -4217,6 +4139,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // those are cleared explicitly on chat switch via resetChatHeaderState().
     }
 
+    function processingFeedbackTurnKey(chatId: string, userMessageId: string) {
+        return `${chatId}:${userMessageId}`;
+    }
+
+    function clearProcessingFeedback(chatId: string, userMessageId?: string | null, isTerminal = false) {
+        if (!processingFeedbackTurn || processingFeedbackTurn.chatId !== chatId) return;
+        if (userMessageId && processingFeedbackTurn.userMessageId !== userMessageId) return;
+        if (isTerminal) {
+            terminalProcessingFeedbackTurns.add(processingFeedbackTurnKey(
+                processingFeedbackTurn.chatId,
+                processingFeedbackTurn.userMessageId,
+            ));
+        }
+        processingFeedbackTurn = null;
+    }
+
     function rollbackAnonymousSend(chatId: string, userMessageId: string | null) {
         if (currentChat?.chat_id && currentChat.chat_id !== chatId) return;
         const rolledBackMessages = currentMessages.filter((message) => {
@@ -4225,6 +4163,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return true;
         });
         clearProcessingPhase();
+        if (userMessageId) {
+            clearProcessingFeedback(chatId, userMessageId, true);
+        }
         currentTypingStatus = null;
         aiTypingStore.clearTypingForChat(chatId);
 
@@ -4306,10 +4247,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             );
     }
 
-    async function remountChatHeaderAfterFullscreenClose() {
-        await tick();
-        chatHeaderRenderKey += 1;
-    }
 
     async function refreshActiveChatHeaderFromStoredChat(chatId: string, reason: string) {
         if (!currentChat || currentChat.chat_id !== chatId) return;
@@ -4612,6 +4549,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             showIcon: true,
             completedSteps: [],
         };
+    }
+
+    const processingMatesById = getMatesById();
+
+    function openProcessingMateDetails() {
+        const feedbackTurn = processingFeedbackTurn;
+        const category = currentTypingStatus?.category;
+        if (
+            !feedbackTurn
+            || feedbackTurn.chatId !== currentChat?.chat_id
+            || currentTypingStatus?.chatId !== feedbackTurn.chatId
+            || currentTypingStatus?.userMessageId !== feedbackTurn.userMessageId
+            || !category
+            || category === 'openmates_official'
+            || !processingMatesById[category]
+        ) return;
+
+        settingsDeepLink.set(`mates/${category}`);
+        panelState.openSettings();
     }
 
     /**
@@ -5006,7 +4962,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let chatSideEl = $state<HTMLElement | null>(null);
     let welcomeContentEl = $state<HTMLElement | null>(null);
     let messageInputContainerEl = $state<HTMLElement | null>(null);
-    let guestInterestTagsTop = $state<number | null>(null);
 
     /**
      * True when the new-chat suggestions would overlap the welcome / resume-chat
@@ -5073,28 +5028,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Used as the minimum clearance we require between the welcome block bottom
     // and the message-input top before we consider the layout "tight".
     const SUGGESTIONS_APPROX_HEIGHT = 150;
-    const GUEST_INTEREST_TAGS_PROMPT_GAP = 10;
-    const GUEST_INTEREST_TAGS_APPROX_HEIGHT = 70;
-
-    function recalculateGuestInterestTagsTop() {
-        if (!chatSideEl || !welcomeContentEl) {
-            guestInterestTagsTop = null;
-            return;
-        }
-
-        const chatRect = chatSideEl.getBoundingClientRect();
-        const welcomeRect = welcomeContentEl.getBoundingClientRect();
-        const desiredTop = welcomeRect.bottom - chatRect.top + GUEST_INTEREST_TAGS_PROMPT_GAP;
-        const inputHeight = Math.max(messageInputHeight + 60, 120);
-        const maxTop = chatRect.height - inputHeight - GUEST_INTEREST_TAGS_APPROX_HEIGHT;
-        guestInterestTagsTop = Math.max(0, Math.min(desiredTop, maxTop));
-    }
-
     /**
      * Re-measure whether suggestions would overlap the welcome content.
      * Called by the ResizeObserver and whenever relevant state changes.
      */
     function recalculateSuggestionsOverlap() {
+        if (!showWelcome) return;
         // While typing on touch devices, avoid overlap re-measurement churn that
         // can cause welcome/suggestions visibility oscillation during keyboard
         // animation on iOS Safari.
@@ -5104,7 +5043,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         if (!chatSideEl) {
             suggestionsWouldOverlapWelcome = false;
-            guestInterestTagsTop = null;
             return;
         }
 
@@ -5112,7 +5050,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
 
-        recalculateGuestInterestTagsTop();
 
         const containerRect = chatSideEl.getBoundingClientRect();
         const containerHeight = containerRect.height;
@@ -5242,105 +5179,70 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let fullscreenHasChatContext = $state(false);
     let wikiFullscreenHasChatContext = $state(false);
     
-    // Determine if we should use side-by-side layout for fullscreen embeds
-    // Only use side-by-side when ultra-wide AND the fullscreen was opened from a chat.
-    let showSideBySideFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData && wikiFullscreenHasChatContext))) && !forceOverlayMode);
-
-    // Determine if we should show the "Show Chat" button in fullscreen embed views
-    // Shows when ultra-wide screen has a fullscreen open but chat is hidden (forceOverlayMode)
-    let showChatButtonInFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData && wikiFullscreenHasChatContext))) && forceOverlayMode);
-    
-    // ===========================================
-    // Side-by-side Animation System
-    // ===========================================
-    // Controls smooth transitions between:
-    // 1. Full-width chat <-> side-by-side (chat + fullscreen panel)
-    // 2. Side-by-side <-> fullscreen only (chat minimized)
-    //
-    // Animation states track visual layout independently from logical state
-    // to allow exit animations to complete before elements are removed
-    
-    // Animation duration in ms (keep in sync with CSS)
-    const SIDE_BY_SIDE_ANIMATION_DURATION = 400;
-    
-    // Visual state for animations - may differ from logical state during transitions
-    let sideBySideVisualState = $state<'full-chat' | 'side-by-side' | 'full-embed'>('full-chat');
-    let sideBySideAnimating = $state(false);
-    let sideBySideAnimationDirection = $state<'enter' | 'exit' | 'minimize' | 'restore'>('enter');
-    
-    // Track previous logical state to detect changes
-    let prevShowSideBySideFullscreen = $state(false);
-    let prevForceOverlayMode = $state(false);
-    
-    // Effect to handle side-by-side transition animations
-    $effect(() => {
-        const currentSideBySide = showSideBySideFullscreen;
-        const currentForceOverlay = forceOverlayMode;
-        
-        // Detect state transitions
-        const wasFullChat = !prevShowSideBySideFullscreen;
-        const wasSideBySide = prevShowSideBySideFullscreen && !prevForceOverlayMode;
-        const wasFullEmbed = prevShowSideBySideFullscreen && prevForceOverlayMode;
-        
-        const isFullChat = !currentSideBySide && !currentForceOverlay;
-        const isSideBySide = currentSideBySide && !currentForceOverlay;
-        const isFullEmbed = currentSideBySide && currentForceOverlay;
-        
-        // Determine transition type
-        if (wasFullChat && isSideBySide) {
-            // Opening embed fullscreen: full-chat -> side-by-side
-            sideBySideAnimationDirection = 'enter';
-            sideBySideAnimating = true;
-            sideBySideVisualState = 'side-by-side';
-            setTimeout(() => { sideBySideAnimating = false; }, SIDE_BY_SIDE_ANIMATION_DURATION);
-        } else if (wasSideBySide && isFullChat) {
-            // Closing embed fullscreen: side-by-side -> full-chat
-            sideBySideAnimationDirection = 'exit';
-            sideBySideAnimating = true;
-            // Keep visual state as side-by-side during animation, then switch
-            setTimeout(() => { 
-                sideBySideAnimating = false;
-                sideBySideVisualState = 'full-chat';
-            }, SIDE_BY_SIDE_ANIMATION_DURATION);
-        } else if (wasSideBySide && isFullEmbed) {
-            // Minimizing chat: side-by-side -> full-embed
-            sideBySideAnimationDirection = 'minimize';
-            sideBySideAnimating = true;
-            setTimeout(() => { 
-                sideBySideAnimating = false;
-                sideBySideVisualState = 'full-embed';
-            }, SIDE_BY_SIDE_ANIMATION_DURATION);
-        } else if (wasFullEmbed && isSideBySide) {
-            // Restoring chat: full-embed -> side-by-side
-            sideBySideAnimationDirection = 'restore';
-            sideBySideAnimating = true;
-            sideBySideVisualState = 'side-by-side';
-            setTimeout(() => { sideBySideAnimating = false; }, SIDE_BY_SIDE_ANIMATION_DURATION);
-        } else if (!sideBySideAnimating) {
-            // Direct state change without animation (e.g., initial load, screen resize)
-            if (isSideBySide) {
-                sideBySideVisualState = 'side-by-side';
-            } else if (isFullEmbed) {
-                sideBySideVisualState = 'full-embed';
-            } else {
-                sideBySideVisualState = 'full-chat';
-            }
-        }
-        
-        prevShowSideBySideFullscreen = currentSideBySide;
-        prevForceOverlayMode = currentForceOverlay;
+    // Keep split capability separate from pane visibility. Hiding the chat must
+    // not become a full-chat -> split transition when it is shown again.
+    const hasSplitChatContext = $derived(Boolean(isUltraWide && (
+        (showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) ||
+        (showWikiFullscreen && wikiFullscreenData && wikiFullscreenHasChatContext)
+    )));
+    const showSideBySideFullscreen = $derived(hasSplitChatContext && !forceOverlayMode);
+    const showChatButtonInFullscreen = $derived(hasSplitChatContext && forceOverlayMode);
+    // Nested result overlays must restore the same workspace chat even when
+    // their app-specific adapters do not forward the optional toolbar props.
+    setContext<EmbedChatContext>(EMBED_CHAT_CONTEXT, {
+        get showChatButton() { return showChatButtonInFullscreen; },
+        get isSplitPane() { return hasSplitChatContext; },
+        get presentedEmbedId() { return embedFullscreenData?.embedId; },
+        get resolvedEmbedId() { return embedFullscreenData?.parentResolved ? embedFullscreenData.embedId : null; },
+        onShowChat: () => handleShowChat(),
     });
-    
-    // Derived states for template - based on visual state for smooth animations
-    let showSideBySideLayout = $derived(
-        sideBySideVisualState === 'side-by-side' || 
-        (sideBySideAnimating && (sideBySideAnimationDirection === 'enter' || sideBySideAnimationDirection === 'exit'))
-    );
-    let showChatInSideBySide = $derived(
-        sideBySideVisualState !== 'full-embed' ||
-        (sideBySideAnimating && sideBySideAnimationDirection === 'restore')
-    );
-    
+
+
+    // Matches the normal motion token. A fallback only handles interrupted or
+    // externally disabled animation; the real completion event owns cleanup.
+    const SIDE_BY_SIDE_ANIMATION_DURATION = 200;
+    const SPLIT_ANIMATION_FALLBACK_MS = 1000;
+    let sideBySideAnimating = $state(false);
+    let sideBySideAnimationDirection = $state<'enter' | 'exit'>('enter');
+    let previousSplitContext = false;
+    let splitAnimationFinishFrame: number | undefined;
+
+    // Only opening/closing the embed changes the structural layout. Pane toggles
+    // use interruptible CSS transitions, keeping chat DOM, width and scroll intact.
+    $effect(() => {
+        const split = hasSplitChatContext;
+        if (split === previousSplitContext) return;
+        previousSplitContext = split;
+        sideBySideAnimationDirection = split ? 'enter' : 'exit';
+        sideBySideAnimating = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!sideBySideAnimating) return;
+        const timeout = setTimeout(() => {
+            sideBySideAnimating = false;
+        }, SPLIT_ANIMATION_FALLBACK_MS);
+        return () => {
+            clearTimeout(timeout);
+            if (splitAnimationFinishFrame !== undefined) cancelAnimationFrame(splitAnimationFinishFrame);
+        };
+    });
+
+    const showSideBySideLayout = $derived(hasSplitChatContext);
+
+    function finishSplitAnimation(event: AnimationEvent) {
+        if (event.target !== event.currentTarget) return;
+        // Let both panes deliver their completion events before removing shared
+        // classes and mounting the prepared viewer on the following frame.
+        splitAnimationFinishFrame = requestAnimationFrame(() => {
+            splitAnimationFinishFrame = undefined;
+            sideBySideAnimating = false;
+        });
+    }
+
+    function exitFullscreenPane(node: HTMLElement) {
+        const animate = node.dataset.workspaceExit === 'true' &&
+            !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        return fly(node, { x: 16, duration: animate ? SIDE_BY_SIDE_ANIMATION_DURATION : 0 });
+    }
+
     // Effective narrow mode: True when chat container is narrow OR when in side-by-side mode
     // In side-by-side mode, the chat is limited to 400px which requires narrow/mobile styling
     // This is used for container-based responsive behavior instead of viewport-based
@@ -5475,6 +5377,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
           console.error(`[ActiveChat] Failed to update assistant speech preference for ${chatId}:`, error);
           throw error;
         }
+      }
+
+      function canSpeakAssistantMessage(messageId: string): boolean {
+        const chatId = currentChat?.chat_id;
+        if (!chatId || currentChat?.is_incognito) return false;
+        if (!isPublicChat(chatId)) return true;
+        // Public chats cannot generate speech: only published message fixtures
+        // can back the action, so an empty manifest must not expose a dead button.
+        const fixtures = currentChat?.public_speech?.[messageId] ?? [];
+        return fixtures.length > 0 && fixtures.every((fixture) => Boolean(fixture.public_url?.trim()));
       }
 
       async function speakAssistantMessage(messageId: string, content: string): Promise<void> {
@@ -5733,6 +5645,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let guestLandingIntroResetToken = $state(0);
     let guestInterestSignupSlideToken = $state(0);
     let guestSkipLandingIntro = $state(false);
+    let lastGuestWorkspaceSlideId = $state<string | null>(null);
+    let guestReturnSlideId = $state<string | null>(null);
     let guestLandingIntroOverlayActive = $derived(
         !$authStore.isAuthenticated && guestLandingIntroPhase !== 'regular'
     );
@@ -5853,6 +5767,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     function handleVisibleInspirationChange(inspiration: DailyInspiration) {
         if ($authStore.isAuthenticated) return;
+        lastGuestWorkspaceSlideId = inspiration.inspiration_id;
         activeGuestSurface = inspiration.surface ?? 'chats';
         const nextId = inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
             ? GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID
@@ -5876,6 +5791,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     function resetGuestLandingIntroState() {
+        lastGuestWorkspaceSlideId = null;
+        guestReturnSlideId = null;
         guestAllExamplesVisible = false;
         guestSkipLandingIntro = false;
         guestLandingIntroPhase = 'expanded';
@@ -6150,17 +6067,43 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     //   Line 1 (primary):   "{mate} is typing..."
     //   Line 2 (secondary): "Powered by {model_name}"
     //   Line 3 (tertiary):  "via {provider} {flag}"
+    let typingStatusMatchesProcessingFeedback = $derived(
+        currentTypingStatus?.isTyping === true
+        && currentTypingStatus.chatId === currentChat?.chat_id
+        && currentTypingStatus.userMessageId === processingFeedbackTurn?.userMessageId
+        && processingFeedbackTurn?.chatId === currentChat?.chat_id
+        && chatSyncService.getActiveAIUserMessageIdForChat(currentTypingStatus.chatId) === currentTypingStatus.userMessageId
+    );
+    let typingStatusIsTerminal = $derived(
+        currentTypingStatus?.isTyping === true
+        && !!currentTypingStatus.chatId
+        && !!currentTypingStatus.userMessageId
+        && terminalProcessingFeedbackTurns.has(processingFeedbackTurnKey(
+            currentTypingStatus.chatId,
+            currentTypingStatus.userMessageId,
+        ))
+    );
+
     let typingIndicatorLines = $derived((() => {
         // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
+
+        if (typingStatusIsTerminal) return [];
         
+        // The accepted-turn selection is composer-only. Once exact typing metadata
+        // arrives, it replaces selection there even while centered step cards remain.
+        // Require an accepted turn: two missing chat IDs also compare equal on the landing page.
+        if (processingFeedbackTurn && processingFeedbackTurn.chatId === currentChat?.chat_id && !typingStatusMatchesProcessingFeedback) {
+            return [$text('enter_message.status.selecting_mate_and_model')];
+        }
+
         // When the centered indicator is active (processingPhase is not null),
         // hide the bottom typing indicator to avoid duplicate text.
         // The centered overlay handles sending, processing steps, and typing phases.
         // Exception: 'compressing' phase shows the shimmer in the bottom indicator
         // since there is no centered overlay for compression.
-        if (processingPhase !== null && processingPhase.phase !== 'compressing') {
+        if (processingPhase !== null && processingPhase.phase !== 'compressing' && !typingStatusMatchesProcessingFeedback) {
             if (currentChat?.is_anonymous) {
                 return processingPhase.statusLines;
             }
@@ -6175,7 +6118,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Show detailed AI typing indicator once streaming has started
         // (processingPhase is null, meaning the centered indicator has faded out,
         //  but aiTypingStore still shows isTyping = true during streaming)
-        if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
+        if (
+            currentTypingStatus?.isTyping
+            && currentTypingStatus.chatId === currentChat?.chat_id
+            && currentTypingStatus.category
+            && (!processingFeedbackTurn || typingStatusMatchesProcessingFeedback)
+        ) {
             const mateName = $text('mates.' + currentTypingStatus.category);
             const modelName = currentTypingStatus.modelName || ''; 
             const providerName = currentTypingStatus.providerName || '';
@@ -6233,8 +6181,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // 'sending', 'processing', and 'waiting_for_user' are no longer shown at the bottom.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
+
+        if (typingStatusIsTerminal) return null;
         
         
+        if (processingFeedbackTurn && processingFeedbackTurn.chatId === currentChat?.chat_id) {
+            return typingStatusMatchesProcessingFeedback ? 'typing' : 'processing';
+        }
+
         // When centered indicator is active, bottom shows nothing
         // Exception: 'compressing' phase shows as 'typing' shimmer at the bottom
         if (processingPhase !== null && processingPhase.phase !== 'compressing') {
@@ -6344,6 +6298,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Detect if this is a system rejection message (e.g., insufficient credits)
             // These should be rendered as system notices, not as assistant bubbles
             const isRejectionMessage = !!chunk.rejection_reason;
+            if (isRejectionMessage) {
+                clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
+            }
             
             // Create a streaming AI message even if sequence is not 1 to avoid dropping chunks
             const fallbackCategory = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined;
@@ -6423,6 +6380,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (chunk.rejection_reason && targetMessage.role !== 'system') {
                 targetMessage.role = 'system';
                 targetMessage.status = 'waiting_for_user';
+                clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
             } else if (targetMessage.status !== 'streaming' && targetMessage.status !== 'synced' && !chunk.rejection_reason) {
                 targetMessage.status = 'streaming';
             }
@@ -6574,7 +6532,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (finalMessageInArray) {
                 // CRITICAL FIX: Ensure model_name is preserved in final message
                 const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
-                const finalModelName = finalMessageInArray.model_name || chunk.model_name || fallbackModelName;
+                const finalModelName = chunk.model_name || finalMessageInArray.model_name || fallbackModelName;
 
                 // Attach thinking metadata to the final message so it persists across devices.
                 const thinkingEntry = thinkingContentByTask.get(chunk.message_id);
@@ -7507,13 +7465,39 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         messageInputFieldRef?.focus();
     }
 
-    /**
-     * Handler for when the create icon is clicked.
-     */
+    // Closing returns to the parent or workspace without starting a new input session.
+    let closingChat = $state(false);
+
+    const showChatSettingsAction = $derived(!!(hasActiveChatDetailsSurface && currentChat?.chat_id && (isExampleChat(currentChat.chat_id) || $authStore.isAuthenticated || currentChat.is_shared_by_others)));
+    const showChatRemindersAction = $derived(!!(hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others));
+    const showChatPIIAction = $derived(!!(chatHasPII && !showWelcome));
+
+    async function handleCloseChat() {
+        // In split view, close only the pane; preserve the active chat and embed.
+        if (showSideBySideFullscreen) {
+            forceOverlayMode = true;
+            return;
+        }
+        if (closingChat) return;
+        closingChat = true;
+        try {
+            const chatId = currentChat?.chat_id;
+            const target = currentChat?.parent_id;
+            if (target && target !== chatId) {
+                await handleChatNavigate(target);
+            } else {
+                await handleNewChatClick();
+            }
+        } finally {
+            closingChat = false;
+        }
+    }
+
     async function handleNewChatClick() {
         loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
         const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
+        if (currentChat?.chat_id) clearProcessingFeedback(currentChat.chat_id);
         resetComposerWelcomeState(false);
         // Clear currentChat before the store so reactive sync cannot restore the old chat ID.
         currentChat = null;
@@ -7533,7 +7517,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         olderMessageWindowLoading = false;
         showWelcome = true; // Show welcome message for new chat
         if (!$authStore.isAuthenticated) {
-            if (isGuestExampleChat) {
+            guestReturnSlideId = closingChat ? lastGuestWorkspaceSlideId : null;
+            if (guestReturnSlideId) {
+                // Closing returns guests to their place in the workspace carousel.
+                guestSkipLandingIntro = false;
+                guestLandingIntroPhase = guestReturnSlideId === GUEST_DEFAULT_INTRO_INSPIRATION_ID ? 'expanded' : 'regular';
+            } else if (isGuestExampleChat) {
                 guestAllExamplesVisible = false;
                 guestSkipLandingIntro = true;
                 guestLandingIntroPhase = 'regular';
@@ -7592,9 +7581,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         messageInputHasContent = false;
         console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
         
-        // Auto-focus the message input field on desktop devices only
-        // On touch devices, users must manually tap to focus to avoid unwanted keyboard popups
-        if (($authStore.isAuthenticated || isGuestExampleChat) && isDesktop() && messageInputFieldRef) {
+        // Only the New chat action starts an input session. Close reuses the reset
+        // but leaves the workspace unfocused, including on desktop.
+        if (!closingChat && ($authStore.isAuthenticated || isGuestExampleChat) && isDesktop() && messageInputFieldRef) {
             // Use a small delay to ensure the editor is ready after clearing
             setTimeout(() => {
                 if (messageInputFieldRef) {
@@ -8568,17 +8557,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /**
-     * Handler for minimizing the chat in side-by-side mode.
-     * When in ultra-wide mode with side-by-side layout, this hides the chat
-     * and shows only the embed fullscreen in overlay mode.
-     * The user can restore the chat by clicking the "chat" button in the fullscreen view.
-     */
-    function handleMinimizeChat() {
-        console.debug('[ActiveChat] Minimize chat clicked - switching to overlay mode');
-        forceOverlayMode = true;
-    }
-    
-    /**
      * Handler for showing the chat from fullscreen view.
      * Called when user clicks the "chat" button in the embed fullscreen view.
      * Restores the side-by-side layout by disabling overlay mode.
@@ -8990,6 +8968,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
         console.debug('[ActiveChat] handleMessageStatusChanged: Processing event for active chat.');
 
+        const message = currentMessages.find((currentMessage) => currentMessage.message_id === messageId);
+        const relatedUserMessageId = message?.role === 'user'
+            ? message.message_id
+            : message?.user_message_id;
+        if (
+            (status === 'failed' || status === 'cancelled' || status === 'waiting_for_user')
+            && relatedUserMessageId === processingFeedbackTurn?.userMessageId
+        ) {
+            clearProcessingFeedback(chatId, relatedUserMessageId, true);
+        }
+
         if (chatMetadata) {
             console.debug('[ActiveChat] handleMessageStatusChanged: Updating currentChat with metadata from event:', chatMetadata);
             // Only update fields that are defined to avoid overwriting with undefined values
@@ -9317,7 +9306,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
           olderMessageWindowLoading = false;
 
          // Clear any active processing phase indicator from the previous chat
-         clearProcessingPhase();
+          if (currentChat?.chat_id && currentChat.chat_id !== chat.chat_id) {
+              clearProcessingFeedback(currentChat.chat_id);
+          }
+          clearProcessingPhase();
          // Reset the chat header state when switching to any chat.
          // For new chats, handleSendMessage will set isNewChatGeneratingTitle=true.
          // For existing chats, we decrypt title/category/icon below (after currentChat is set).
@@ -10516,7 +10508,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const { computeSHA256 } = await import('../message_parsing/utils');
                         
                         const hashedChatId = await computeSHA256(draftRestoreChatId);
-                        const chatEmbeds = await embedStore.getEmbedsByHashedChatId(hashedChatId);
+                        const persistedMessages = await chatDB.getMessagesForChat(draftRestoreChatId);
+                        if (!isCurrentDraftRestoreTarget()) return;
+                        // A chat-wide embed index is not a draft attachment manifest.
+                        // In an existing conversation it includes already-sent audio,
+                        // images and assistant results. Never turn those into a draft.
+                        const hasSentHistory = (draftRestoreChat.messages_v ?? 0) > 0 ||
+                            persistedMessages.length > 0 || currentMessages.length > 0;
+                        const chatEmbeds = hasSentHistory ? [] :
+                            (await embedStore.getEmbedsByHashedChatId(hashedChatId))
+                                .filter((embed) => !embed.hashed_message_id);
                         if (!isCurrentDraftRestoreTarget()) return;
                         
                         if (chatEmbeds && chatEmbeds.length > 0) {
@@ -11747,6 +11748,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const aiTaskInitiatedHandler = (async (event: CustomEvent<AITaskInitiatedPayload>) => {
             const { chat_id, user_message_id } = event.detail;
             if (chat_id === currentChat?.chat_id) {
+                const feedbackTurnKey = processingFeedbackTurnKey(chat_id, user_message_id);
+                const hasKnownTypingForTurn = currentTypingStatus?.isTyping
+                    && currentTypingStatus.chatId === chat_id
+                    && currentTypingStatus.userMessageId === user_message_id
+                    && chatSyncService.getActiveAIUserMessageIdForChat(chat_id) === user_message_id;
+                const latestPendingUserMessage = [...currentMessages].reverse().find((message) =>
+                    message.role === 'user' && (message.status === 'sending' || message.status === 'processing')
+                );
+                const isStaleAcknowledgementForAnotherTurn = !!processingFeedbackTurn
+                    && processingFeedbackTurn.userMessageId !== user_message_id
+                    && latestPendingUserMessage?.message_id !== user_message_id;
+                const isDelayedAcknowledgement = terminalProcessingFeedbackTurns.has(feedbackTurnKey)
+                    || hasKnownTypingForTurn
+                    || isStaleAcknowledgementForAnotherTurn;
+
+                // This is the server-accepted boundary. Set selection before any
+                // asynchronous persistence so it is immediate but never optimistic.
+                if (!isDelayedAcknowledgement) {
+                    processingFeedbackTurn = {
+                        chatId: chat_id,
+                        userMessageId: user_message_id,
+                        taskId: event.detail.ai_task_id,
+                    };
+                    startProcessingStepProgression(isNewChatProcessing);
+                }
+
                 const messageIndex = currentMessages.findIndex(m => m.message_id === user_message_id);
                 if (messageIndex !== -1) {
                     const updatedMessage = { ...currentMessages[messageIndex], status: 'processing' as const };
@@ -11768,18 +11795,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 }
                 
-                // ─── Progressive AI Status Indicator: Transition to 'processing' phase ─────
-                // Start the timed step progression with appropriate steps for new/existing chat
-                startProcessingStepProgression(isNewChatProcessing);
-                console.debug('[ActiveChat] Processing phase set to PROCESSING', { isNewChat: isNewChatProcessing });
+                if (!isDelayedAcknowledgement) {
+                    console.debug('[ActiveChat] Processing phase set to PROCESSING', { isNewChat: isNewChatProcessing });
+                }
                 
                 _aiTaskStateTrigger++;
             }
         }) as EventListenerCallback;
 
-        const aiTaskEndedHandler = (async (event: CustomEvent<{ chatId: string; status?: string }>) => {
+        const aiTaskEndedHandler = (async (event: CustomEvent<{
+            chatId: string;
+            taskId?: string;
+            userMessageId?: string;
+            status?: string;
+        }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
+                const feedbackTurn = processingFeedbackTurn;
+                if (feedbackTurn && !matchesProcessingFeedbackTerminal(feedbackTurn, event.detail)) return;
                 _aiTaskStateTrigger++;
+                if (feedbackTurn) {
+                    clearProcessingFeedback(event.detail.chatId, feedbackTurn.userMessageId, true);
+                }
                 
                 // ─── Progressive AI Status Indicator: Clear on task end (safety fallback) ─────
                 clearProcessingPhase();
@@ -11900,6 +11936,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } : null
             });
             if (chat_id === currentChat?.chat_id) {
+                if (
+                    processingFeedbackTurn
+                    && (
+                        processingFeedbackTurn.chatId !== chat_id
+                        || processingFeedbackTurn.userMessageId !== user_message_id
+                    )
+                ) return;
                 // NOTE: Do NOT call ensureThinkingPlaceholder here.
                 // Showing a placeholder ThinkingSection before any real thinking chunks arrive
                 // causes a blank/empty thinking block to flash in the UI. The thinking section
@@ -11951,10 +11994,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // for model/provider info, with the store as fallback. This avoids any potential
                     // timing/reactivity issues where the $state variable hasn't updated yet when
                     // the custom event handler fires.
-                    const resolvedCategory = category || currentTypingStatus?.category;
-                    const resolvedModelName = model_name || currentTypingStatus?.modelName;
-                    const resolvedProviderName = provider_name || currentTypingStatus?.providerName;
-                    const resolvedServerRegion = server_region || currentTypingStatus?.serverRegion;
+                    const typingStoreMatchesActiveTurn = currentTypingStatus?.isTyping
+                        && currentTypingStatus.chatId === chat_id
+                        && currentTypingStatus.userMessageId === user_message_id
+                        && chatSyncService.getActiveAIUserMessageIdForChat(chat_id) === user_message_id;
+                    const resolvedCategory = category || (typingStoreMatchesActiveTurn ? currentTypingStatus?.category : undefined);
+                    const resolvedModelName = model_name || (typingStoreMatchesActiveTurn ? currentTypingStatus?.modelName : undefined);
+                    const resolvedProviderName = provider_name || (typingStoreMatchesActiveTurn ? currentTypingStatus?.providerName : undefined);
+                    const resolvedServerRegion = server_region || (typingStoreMatchesActiveTurn ? currentTypingStatus?.serverRegion : undefined);
                     
                     console.log('[ActiveChat] Typing phase transition data', {
                         fromEvent: { category, model_name, provider_name, server_region },
@@ -11984,9 +12031,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.debug(`[ActiveChat] Delaying typing transition by ${remainingDelay}ms to show step cards`);
                             // Capture the current chat_id to avoid stale transitions after chat switch
                             const transitionChatId = chat_id;
+                            const transitionFeedbackTurn = processingFeedbackTurn;
                             setTimeout(() => {
                                 // Only apply if we're still on the same chat and in processing phase
                                 if (currentChat?.chat_id !== transitionChatId) return;
+                                if (
+                                    transitionFeedbackTurn
+                                    && (
+                                        processingFeedbackTurn?.chatId !== transitionFeedbackTurn.chatId
+                                        || processingFeedbackTurn?.userMessageId !== transitionFeedbackTurn.userMessageId
+                                    )
+                                ) return;
                                 if (processingPhase?.phase !== 'processing') return;
                                 applyTypingPhaseTransition(resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion);
                             }, remainingDelay);
@@ -12293,11 +12348,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // that interrupted an active AI stream, finalize any streaming messages in the current
         // chat by saving their current content to the DB and marking them as 'synced'.
         // The subsequent phased sync will deliver the server-persisted version.
-        const aiStreamInterruptedHandler = (async (event: CustomEvent) => {
-            const { chatId } = event.detail;
+        const aiStreamInterruptedHandler = (async (event: CustomEvent<{
+            chatId: string;
+            taskId?: string;
+            userMessageId?: string;
+        }>) => {
+            const { chatId, taskId, userMessageId } = event.detail;
             if (chatId !== currentChat?.chat_id) return;
 
+            if (
+                processingFeedbackTurn
+                && !matchesProcessingFeedbackTerminal(processingFeedbackTurn, { taskId, userMessageId })
+            ) return;
+
             console.warn(`[ActiveChat] AI stream interrupted for current chat ${chatId} - finalizing streaming/processing messages`);
+            if (processingFeedbackTurn) {
+                clearProcessingFeedback(chatId, processingFeedbackTurn.userMessageId, true);
+            }
             for (const msg of currentMessages) {
                 // Recover messages stuck in 'streaming' (stream was interrupted mid-flight)
                 // AND 'processing' (task was dispatched but worker never picked it up / crashed)
@@ -12773,16 +12840,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         >
             <!-- Main content wrapper that will handle the fullscreen layout -->
             <!-- When side-by-side mode is active, chat takes left portion with smooth transition -->
-            <!-- Animation classes control enter/exit/minimize/restore transitions -->
-            {#if showChatInSideBySide || !showSideBySideLayout}
+            <!-- Chat stays mounted at its split width while sliding out/in. -->
             <div 
                 class="chat-wrapper" 
                 class:fullscreen={isFullscreen} 
                 class:side-by-side-chat={showSideBySideLayout}
+                class:chat-pane-hidden={hasSplitChatContext && forceOverlayMode}
+                inert={hasSplitChatContext && forceOverlayMode}
+                aria-hidden={hasSplitChatContext && forceOverlayMode}
                 class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
                 class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
-                class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
-                class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
+                onanimationend={finishSplitAnimation}
                 class:landing-intro-overlay-active={showWelcome && guestLandingIntroOverlayActive}
                 class:landing-intro-content-covered={showWelcome && guestLandingIntroContentCovered}
                 style:--landing-intro-input-reserve={`${messageInputWrapperHeight}px`}
@@ -12826,6 +12894,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     landingIntroResetToken={guestLandingIntroResetToken}
                                     landingSignupSlideToken={guestInterestSignupSlideToken}
                                     skipLandingIntro={guestSkipLandingIntro}
+                                    restoreGuestSlideId={guestReturnSlideId}
                                 />
                             {/key}
                         </div>
@@ -12837,69 +12906,173 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          On the active chat screen (showWelcome=false): absolutely positioned at top. -->
                     <div
                         class="top-buttons"
+                        use:headerOverlayControls
                         data-testid="chat-top-actions"
                         class:top-buttons-flow={showWelcome}
                         class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
                         class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
                         inert={showWelcome && hideWelcomeForKeyboard}
                     >
-                        <!-- Left side buttons -->
-                        <div class="left-buttons">
-                            {#if hasActiveShareableChatSurface}
-                                <!-- Share button - opens settings menu with share submenu. -->
-                                <!-- Public example chats use the static public-link share panel. -->
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        class="clickable-icon icon_share top-button"
-                                        data-testid="chat-share-button"
-                                        aria-label={$text('chat.share')}
-                                        onclick={handleShareChat}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
-                            {/if}
-                            <div class="new-chat-button-wrapper" data-testid="report-issue-button-shell">
-                                <button
-                                    data-testid="report-issue-button"
-                                    class="clickable-icon icon_bug top-button"
-                                    aria-label={$text('header.report_issue')}
-                                    onclick={handleReportIssue}
-                                    use:tooltip
-                                >
-                                </button>
-                            </div>
-                            {#if isAdminUser}
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        data-testid="start-debugging-button"
-                                        class="clickable-icon icon_task top-button"
-                                        class:debug-mode-active={$chatDebugStore.rawTextMode}
-                                        aria-label={$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
-                                        onclick={handleToggleDebugMode}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
-                            {/if}
-                            <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
-                            {#if chatHasPII && !showWelcome}
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        data-testid="chat-pii-toggle"
-                                        data-pii-revealed={piiRevealed ? 'true' : 'false'}
-                                        class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'} top-button"
-                                        class:pii-toggle-active={piiRevealed}
-                                        aria-label={piiRevealed
-                                            ? $text('chat.pii_hide')
-                                            : $text('chat.pii_show')}
-                                        onclick={handleTogglePIIVisibility}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
-                            {/if}
-                        </div>
+                        <HeaderActionMenu
+                            resetKey={currentChat?.chat_id}
+                            hasShare={hasActiveShareableChatSurface}
+                            hasPriorityAction={showChatPIIAction}
+                            actionCount={[showChatSettingsAction, showChatRemindersAction, isAdminUser].filter(Boolean).length}
+                        >
+                  {#snippet report()}
+                    <div
+                      class="new-chat-button-wrapper"
+                      data-testid="report-issue-button-shell"
+                    >
+                      <button
+                        data-testid="report-issue-button"
+                        class="header-action"
+                        aria-label={$text('header.report_issue')}
+                        onclick={handleReportIssue}
+                        use:tooltip
+                        ><span
+                          class="clickable-icon icon_bug top-button"
+                          aria-hidden="true"
+                        ></span><span class="action-label"
+                          >{$text('header.report_issue')}</span
+                        ></button
+                      >
+                    </div>
+                  {/snippet}
+                  {#snippet share()}
+                    {#if hasActiveShareableChatSurface}
+                      <!-- Share button - opens settings menu with share submenu. -->
+                      <!-- Public example chats use the static public-link share panel. -->
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          class="header-action"
+                          data-testid="chat-share-button"
+                          aria-label={$text('chat.share')}
+                          onclick={handleShareChat}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon icon_share top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{$text('chat.share')}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                  {/snippet}
+                  {#snippet priorityAction()}
+                    <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
+                    {#if showChatPIIAction}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          data-testid="chat-pii-toggle"
+                          data-pii-revealed={piiRevealed ? 'true' : 'false'}
+                          class="header-action"
+                          aria-label={piiRevealed
+                            ? $text('chat.pii_hide')
+                            : $text('chat.pii_show')}
+                          onclick={handleTogglePIIVisibility}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon {piiRevealed
+                              ? 'icon_visible'
+                              : 'icon_hidden'} top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{piiRevealed
+                              ? $text('chat.pii_hide')
+                              : $text('chat.pii_show')}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                  {/snippet}
+                  {#snippet actions()}
+                    {#if showChatSettingsAction}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          class="header-action"
+                          data-testid="chat-details-button"
+                          aria-label={$text('common.settings')}
+                          onclick={() =>
+                            openChatDetailsSettings(
+                              currentChat?.chat_id &&
+                                isExampleChat(currentChat.chat_id)
+                                ? 'share'
+                                : 'tasks',
+                            )}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon icon_settings top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label">{$text('common.settings')}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                    {#if showChatRemindersAction}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          class="header-action"
+                          data-testid="chat-reminders-button"
+                          aria-label={$text('chat.reminders')}
+                          onclick={handleOpenReminders}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon icon_reminder top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{$text('chat.reminders')}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                    {#if isAdminUser}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          data-testid="start-debugging-button"
+                          class="header-action"
+                          class:debug-mode-active={$chatDebugStore.rawTextMode}
+                          aria-label={$chatDebugStore.rawTextMode
+                            ? $text('chats.context_menu.end_debugging')
+                            : $text('chats.context_menu.start_debugging')}
+                          onclick={handleToggleDebugMode}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon icon_task top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{$chatDebugStore.rawTextMode
+                              ? $text('chats.context_menu.end_debugging')
+                              : $text(
+                                  'chats.context_menu.start_debugging',
+                                )}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                  {/snippet}
+                  {#snippet close()}
+                    {#if !showWelcome}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          class="header-action"
+                          data-testid="chat-close-button"
+                          aria-label={$text('common.close')}
+                          disabled={closingChat}
+                          onclick={handleCloseChat}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon icon_close top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{$text('common.close')}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                  {/snippet}
+                </HeaderActionMenu>
 
                         {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
                             <div class="guest-all-examples-toolbar" data-testid="guest-all-examples-toolbar">
@@ -12924,60 +13097,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             </div>
                         {/if}
 
-                        <!-- Right side buttons -->
-                        <div class="right-buttons">
-                            {#if hasActiveChatDetailsSurface && currentChat?.chat_id && (isExampleChat(currentChat.chat_id) || $authStore.isAuthenticated || currentChat.is_shared_by_others)}
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        class="clickable-icon icon_settings top-button"
-                                        data-testid="chat-details-button"
-                                        aria-label="Chat details"
-                                        onclick={() => openChatDetailsSettings(currentChat?.chat_id && isExampleChat(currentChat.chat_id) ? 'share' : 'tasks')}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
-                            {/if}
-                            {#if hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others}
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        class="clickable-icon icon_reminder top-button"
-                                        data-testid="chat-reminders-button"
-                                        aria-label={$text('chat.reminders')}
-                                        onclick={handleOpenReminders}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
-                            {/if}
-                            <!-- Minimize chat button - only shows in side-by-side mode -->
-                            <!-- When clicked, hides the chat and shows only the embed fullscreen (overlay mode) -->
-                            {#if showSideBySideFullscreen}
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        class="clickable-icon icon_minimize top-button"
-                                        aria-label={$text('chat.minimize')}
-                                        onclick={handleMinimizeChat}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
-                            {/if}
-                            
-                            <!-- Activate buttons once features are implemented -->
-                            <!-- Video call button -->
-                            <!-- <button 
-                                class="clickable-icon icon_video_call top-button" 
-                                aria-label={$text('chat.start_video_call')}
-                                use:tooltip
-                            ></button> -->
-                            <!-- Audio call button -->
-                            <!-- <button 
-                                class="clickable-icon icon_call top-button" 
-                                aria-label={$text('chat.start_audio_call')}
-                                use:tooltip
-                            ></button> -->
-                        </div>
+
                     </div>
 
                     <AssistantSpeechPlayer onHeightChange={(height) => assistantSpeechOverlayHeight = height} />
@@ -13073,6 +13193,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {/if}
                                 </div>
                             </div>
+
+                        {#if !$authStore.isAuthenticated && guestInterestSelectorVisible}
+                            <div
+                                class="guest-interest-tags-overlay"
+                                class:welcome-hiding={hideWelcomeForKeyboard}
+                                inert={hideWelcomeForKeyboard}
+                            >
+                                <GuestInterestTags
+                                    shuffleToken={guestInterestShuffleToken}
+                                    onSelectionChange={handleGuestInterestSelectionChange}
+                                    onContinue={handleGuestInterestContinue}
+                                    onSkip={handleGuestInterestSkip}
+                                />
+                            </div>
+                        {/if}
 
                             <!-- Resume card + recent chats horizontal scroll (authenticated users) -->
                             {#if hasContinueItems}
@@ -13589,22 +13724,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {/if}
                         </div>
 
-                        {#if !$authStore.isAuthenticated && guestInterestSelectorVisible}
-                            <div
-                                class="guest-interest-tags-overlay"
-                                class:welcome-hiding={hideWelcomeForKeyboard}
-                                inert={hideWelcomeForKeyboard}
-                                style:--guest-interest-tags-top={guestInterestTagsTop === null ? undefined : `${guestInterestTagsTop}px`}
-                                transition:slide={{ duration: 320 }}
-                            >
-                                <GuestInterestTags
-                                    shuffleToken={guestInterestShuffleToken}
-                                    onSelectionChange={handleGuestInterestSelectionChange}
-                                    onContinue={handleGuestInterestContinue}
-                                    onSkip={handleGuestInterestSkip}
-                                />
-                            </div>
-                        {/if}
+
                     {/if}
 
                     {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
@@ -13652,7 +13772,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          chatIcon={activeChatDecryptedIcon}
                           chatSummary={activeChatDecryptedSummary}
                           isDraftOnly={isActiveDraftOnlyChat}
-                          {chatHeaderRenderKey}
                             chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (isActiveDraftOnlyChat ? currentChat.updated_at : currentChat.created_at) ?? null : activePublicChatCreatedAt}
                            chatTimeLabel={isActiveDraftOnlyChat ? 'saved' : currentChat && isPublicChat(currentChat.chat_id) ? 'published' : 'started'}
                           {isNewChatGeneratingTitle}
@@ -13671,6 +13790,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           onResend={handleResendAfterCreditsRestored}
                             onChatNavigate={handleChatNavigate}
                             onSpeakMessage={speakAssistantMessage}
+                            canSpeakMessage={canSpeakAssistantMessage}
                            followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                            {quickTipSlugs}
                            compressionCheckpoints={showWelcome ? [] : currentCompressionCheckpoints}
@@ -13737,16 +13857,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
                     {#if typingIndicatorLines.length > 0}
                         <div
-                            class="typing-indicator"
+                            class="typing-indicator-wrapper"
                             data-testid="typing-indicator"
-                            class:status-sending={typingIndicatorStatusType === 'sending'}
-                            class:status-processing={typingIndicatorStatusType === 'processing'}
-                            class:status-typing={typingIndicatorStatusType === 'typing'}
                             transition:fade={{ duration: 200 }}
                         >
-                            {#each typingIndicatorLines as line, index}
-                                <span class={index === 0 ? 'indicator-primary-line' : index === 1 ? 'indicator-secondary-line' : 'indicator-tertiary-line'}>{line}</span>
-                            {/each}
+                            <ChatProcessingIndicator
+                                lines={typingIndicatorLines}
+                                statusType={typingIndicatorStatusType}
+                                mateCategory={typingStatusMatchesProcessingFeedback ? currentTypingStatus?.category : null}
+                                onMateClick={openProcessingMateDetails}
+                            />
                         </div>
                     {/if}
 
@@ -13935,7 +14055,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 </div>
                 {/if}
             </div>
-            {/if}
 
             {#if showWikiFullscreen && wikiFullscreenData}
                 <div
@@ -13945,8 +14064,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     class:overlay-mode={!showSideBySideLayout}
                     class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
                     class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
-                    class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
-                    class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
+
+
                 >
                     <!-- Key on wikiTitle so clicking another wiki link remounts the fullscreen
                          with the new article (fresh fetch, reset state) — same pattern as
@@ -13960,6 +14079,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 displayText={wikiFullscreenData.displayText}
                                 thumbnailUrl={wikiFullscreenData.thumbnailUrl}
                                 description={wikiFullscreenData.description}
+                                showChatButton={showChatButtonInFullscreen}
+                                onShowChat={handleShowChat}
                                 onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; wikiFullscreenHasChatContext = false; }}
                             />
                             {:else}
@@ -14081,6 +14202,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             {/if}
             
             <!-- Embed fullscreen view (app-skill-use, website, etc.) -->
+            {#snippet fullscreenLoading(failed: boolean)}
+                <EmbedFullscreenLoading data={embedFullscreenData} {failed} onClose={handleCloseEmbedFullscreen} />
+            {/snippet}
             <!-- Container switches between overlay mode (default) and side panel mode (ultra-wide screens) -->
             <!-- Side-by-side mode shows embed next to chat for better large display usage -->
             <!-- Smooth transition: chat shrinks while fullscreen panel grows simultaneously -->
@@ -14088,13 +14212,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {@const fullscreenData = embedFullscreenData}
                 <div
                     data-testid="embed-fullscreen-container"
+                    bind:this={fullscreenPanelEl}
+                    out:exitFullscreenPane
                     class="fullscreen-embed-container"
                     class:side-panel={showSideBySideLayout}
                     class:overlay-mode={!showSideBySideLayout}
                     class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
                     class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
-                    class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
-                    class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
+
+
                 >
                 <!-- Sample data banner — shown only when previewing an app-store
                      skill example backed by synthetic fixture data (e.g. maps,
@@ -14106,6 +14232,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     </div>
                 {/if}
                 <!-- Key block forces complete recreation when embed changes -->
+                {#if fullscreenData.isResolving || fullscreenData.loadError || (sideBySideAnimating && sideBySideAnimationDirection === 'enter')}
+                    {@render fullscreenLoading(!!fullscreenData.loadError)}
+                {:else}
                 <!-- This resets internal component state (e.g., selectedWebsite in WebSearchEmbedFullscreen) -->
                 <!-- Without this, switching between same-type embeds would preserve stale child overlay state -->
                 <!-- Also key on focusChildEmbedId: clicking a different inline badge of the same parent embed
@@ -14145,11 +14274,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     />
                 {:else if registryKey && hasFullscreenComponent(registryKey)}
                     {#await loadFullscreenComponent(registryKey)}
-                        <div class="embed-fullscreen-loading" data-testid="embed-fullscreen-loading">
-                            <div class="fullscreen-content">
-                                <p>Loading fullscreen view...</p>
-                            </div>
-                        </div>
+                        {@render fullscreenLoading(false)}
                     {:then FullscreenComponent}
                         {#if FullscreenComponent}
                             <FullscreenComponent
@@ -14221,6 +14346,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     </div>
                 {/if}
                 {/key}
+                {/if}
                 </div>
             {/if}
             
@@ -14505,90 +14631,48 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     }
     
-    /* ENTER: Opening fullscreen - chat shrinks from full-width to 400px */
+    /* Set the final width once; only lightweight motion runs per frame.
+       See docs/architecture/frontend/embed-workspace-transitions.md. */
     .chat-wrapper.side-by-side-entering {
-        animation: chatShrink 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        animation: chatShrink var(--duration-normal) ease-out both;
+        transition: none;
     }
-    
-    /* EXIT: Closing fullscreen - chat expands from 400px back to full-width */
     .chat-wrapper.side-by-side-exiting {
-        animation: chatExpand 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        animation: chatExpand var(--duration-normal) ease-out both;
+        transition: none;
     }
-    
-    /* MINIMIZE: Hide chat - chat shrinks from 400px to 0 and fades out */
-    .chat-wrapper.side-by-side-minimizing {
-        animation: chatMinimize 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    .chat-wrapper.side-by-side-chat {
+        margin-right: 0;
+        transform: translateX(0);
+        opacity: 1;
+        transition: transform var(--duration-normal) ease-out,
+            opacity var(--duration-normal) ease-out;
     }
-    
-    /* RESTORE: Show chat - chat grows from 0 to 400px and fades in */
-    .chat-wrapper.side-by-side-restoring {
-        animation: chatRestore 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    .chat-wrapper.side-by-side-chat.chat-pane-hidden {
+        transform: translateX(calc(-100% - var(--spacing-5)));
+        opacity: 0;
+        /* Release layout space once, without resizing the embed every frame. */
+        margin-right: calc(-400px - var(--spacing-5));
+        pointer-events: none;
     }
-    
     @keyframes chatShrink {
-        from {
-            flex: 1 1 100%;
-            max-width: 100%;
-            min-width: 0;
-            border-radius: 0;
-            box-shadow: none;
-        }
-        to {
-            flex: 0 0 400px;
-            max-width: 400px;
-            min-width: 400px;
-            border-radius: 17px;
-            box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
-        }
+        from { opacity: 0.85; transform: translateX(12px); }
+        to { opacity: 1; transform: translateX(0); }
     }
-    
     @keyframes chatExpand {
-        from {
-            flex: 0 0 400px;
-            max-width: 400px;
-            min-width: 400px;
-            border-radius: 17px;
-            box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
-        }
-        to {
-            flex: 1 1 100%;
-            max-width: 100%;
-            min-width: 0;
-            border-radius: 0;
-            box-shadow: none;
+        from { opacity: 0.85; transform: translateX(-12px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .chat-wrapper.side-by-side-chat,
+        .chat-wrapper.side-by-side-entering,
+        .chat-wrapper.side-by-side-exiting,
+        .fullscreen-embed-container.side-panel.side-by-side-entering {
+            transition: none;
+            animation: none;
         }
     }
-    
-    @keyframes chatMinimize {
-        from {
-            flex: 0 0 400px;
-            max-width: 400px;
-            min-width: 400px;
-            opacity: 1;
-        }
-        to {
-            flex: 0 0 0px;
-            max-width: 0px;
-            min-width: 0px;
-            opacity: 0;
-        }
-    }
-    
-    @keyframes chatRestore {
-        from {
-            flex: 0 0 0px;
-            max-width: 0px;
-            min-width: 0px;
-            opacity: 0;
-        }
-        to {
-            flex: 0 0 400px;
-            max-width: 400px;
-            min-width: 400px;
-            opacity: 1;
-        }
-    }
-    
+
     /* Top buttons layout in side-by-side mode */
     /* Keep buttons at normal left position, span full width for space-between to work */
     .chat-wrapper.side-by-side-chat .top-buttons {
@@ -14601,7 +14685,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         padding: var(--spacing-5);
     }
     
-    .chat-wrapper.side-by-side-chat .typing-indicator {
+    .chat-wrapper.side-by-side-chat :global(.typing-indicator) {
         font-size: 0.75rem;
     }
     
@@ -14671,66 +14755,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
     }
     
-    /* ENTER: Panel reveals from left edge (grows leftward as chat shrinks) */
     .fullscreen-embed-container.side-panel.side-by-side-entering {
-        animation: panelReveal 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        animation: panelReveal var(--duration-normal) ease-out both;
     }
-    
-    /* EXIT: Panel hides to left edge (shrinks rightward as chat expands) */
-    .fullscreen-embed-container.side-panel.side-by-side-exiting {
-        animation: panelHide 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    }
-    
-    /* MINIMIZE: Panel expands to full width (chat is hidden) */
-    .fullscreen-embed-container.side-panel.side-by-side-minimizing {
-        animation: panelExpandFull 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    }
-    
-    /* RESTORE: Panel shrinks back to partial width (chat is shown) */
-    .fullscreen-embed-container.side-panel.side-by-side-restoring {
-        animation: panelShrinkPartial 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    }
-    
     @keyframes panelReveal {
-        from {
-            clip-path: inset(0 0 0 100%);
-            opacity: 0;
-        }
-        to {
-            clip-path: inset(0 0 0 0);
-            opacity: 1;
-        }
+        from { transform: translateX(16px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
-    
-    @keyframes panelHide {
-        from {
-            clip-path: inset(0 0 0 0);
-            opacity: 1;
-        }
-        to {
-            clip-path: inset(0 0 0 100%);
-            opacity: 0;
-        }
-    }
-    
-    @keyframes panelExpandFull {
-        from {
-            /* Panel already at flex: 1 */
-        }
-        to {
-            /* Panel stays at flex: 1, just gets more space as chat disappears */
-        }
-    }
-    
-    @keyframes panelShrinkPartial {
-        from {
-            /* Panel at full width */
-        }
-        to {
-            /* Panel returns to partial width */
-        }
-    }
-    
+
     /* Override UnifiedEmbedFullscreen overlay styles when in side panel mode */
     /* The :global is needed because the overlay class is in the child component */
     .fullscreen-embed-container.side-panel :global(.unified-embed-fullscreen-overlay) {
@@ -14761,10 +14793,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .active-chat-container.side-by-side-active {
         background-color: var(--color-grey-0); /* Lighter background to show separation */
         box-shadow: none; /* Remove shadow since child cards have shadows */
-        padding: var(--spacing-5); /* Add padding to show gap around cards */
+        /* Keep workspace edges identical across single-pane and split layouts.
+           The flex gap supplies separation only between the two cards. */
+        padding: 0;
     }
     
-    /* Ensure content-container fills the padded area */
+    /* Ensure content-container fills the workspace edge to edge */
     .active-chat-container.side-by-side-active .content-container {
         height: 100%;
     }
@@ -14894,19 +14928,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 	}
 
     .guest-interest-tags-overlay {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: var(--guest-interest-tags-top, calc(50% + 17.5vh + 58px));
-        z-index: var(--z-index-raised);
+        position: relative;
         width: 100%;
-        pointer-events: none;
-    }
-
-    @media (max-width: 730px) {
-        .guest-interest-tags-overlay {
-            top: var(--guest-interest-tags-top, calc(50% + 17.5vh + 48px));
-        }
+        flex-shrink: 0;
+        pointer-events: auto;
     }
 
     .guest-example-link-row {
@@ -15164,85 +15189,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         z-index: var(--z-index-dropdown);
     }
 
-    .typing-indicator {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-end;
-        gap: var(--spacing-1);
-        text-align: center;
-        font-size: 1rem;
-        color: var(--color-grey-60);
-        padding: var(--spacing-0) var(--spacing-8) var(--spacing-3);
-        font-style: italic;
-        /* Gradient background so the text remains readable when positioned over chat messages.
-           Uses the active chat background color (--color-grey-20) fading from transparent at the top
-           to match the chat area background seamlessly. Taller gradient to cover the larger text. */
-        background: linear-gradient(
-            to bottom,
-            transparent 0%,
-            transparent 14%,
-            var(--color-grey-20) 56%,
-            var(--color-grey-20) 100%
-        );
-        position: relative;
-        z-index: var(--z-index-raised);
-    }
-
-    .typing-indicator + .message-input-container {
+    .typing-indicator-wrapper + .message-input-container {
         padding-top: 0;
     }
-    
-    /* Primary line: "{mate} is typing..." — prominent */
-    .typing-indicator .indicator-primary-line {
-        font-size: 1rem;
-    }
-    
-    /* Secondary line: "Powered by {model}" — smaller, subtler */
-    .typing-indicator .indicator-secondary-line {
-        font-size: 0.7rem;
-        opacity: 0.8;
-    }
-    
-    /* Tertiary line: "via {provider} {flag}" — smallest, most subtle */
-    .typing-indicator .indicator-tertiary-line {
-        font-size: 0.65rem;
-        opacity: 0.65;
-    }
-    
-    /* Shimmer animation for the bottom typing indicator during streaming */
-    .typing-indicator.status-processing,
-    .typing-indicator.status-typing {
-        color: var(--color-grey-50);
-    }
-    
-    /* Apply shimmer to the text spans inside the typing indicator */
-    .typing-indicator.status-typing span,
-    .typing-indicator.status-processing span {
-        background: linear-gradient(
-            90deg,
-            var(--color-grey-60) 0%,
-            var(--color-grey-60) 40%,
-            var(--color-grey-40) 50%,
-            var(--color-grey-60) 60%,
-            var(--color-grey-60) 100%
-        );
-        background-size: 200% 100%;
-        background-clip: text;
-        -webkit-background-clip: text;
-        color: transparent;
-        animation: typing-indicator-shimmer 1.5s infinite linear;
-    }
-    
-    @keyframes typing-indicator-shimmer {
-        0% {
-            background-position: 200% 0;
-        }
-        100% {
-            background-position: -200% 0;
-        }
-    }
-    
     /* Horizontal scroll container for resume + recent chat cards */
     .recent-chats-scroll-container {
         display: flex;
@@ -16024,7 +15973,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         padding: var(--spacing-5);
     }
     
-    .active-chat-container.narrow .typing-indicator {
+    .active-chat-container.narrow :global(.typing-indicator) {
         font-size: 0.75rem;
     }
 
@@ -16280,14 +16229,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         z-index: var(--z-index-raised-2);
     }
 
-    .top-buttons.guest-all-examples-top-buttons .left-buttons {
-        justify-content: flex-start;
-    }
-
-    .top-buttons.guest-all-examples-top-buttons .right-buttons {
-        justify-content: flex-end;
-    }
-
     .top-buttons.guest-all-examples-top-buttons .guest-all-examples-toolbar,
     .top-buttons.guest-all-examples-top-buttons .guest-all-examples-action {
         pointer-events: auto;
@@ -16412,22 +16353,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         pointer-events: none !important;
     }
 
-    /* Add styles for left and right button containers */
-    .left-buttons {
-        display: flex;
-        gap: var(--spacing-5); /* Space between buttons */
-    }
-
-    .right-buttons {
-        display: flex;
-        gap: 25px; /* Space between buttons */
-    }
-
-    /* PII toggle button: subtle orange tint when PII is revealed (warns sensitive data exposed) */
-    .pii-toggle-active {
-        background-color: rgba(245, 158, 11, 0.3) !important;
-    }
-
     /* Admin debug mode button: highlighted while debug mode is active. */
     .debug-mode-active {
         background-color: var(--color-warning);
@@ -16442,7 +16367,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
+        transition: background-color var(--duration-normal) var(--easing-in-out), transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
         cursor: pointer;
         pointer-events: auto;
     }

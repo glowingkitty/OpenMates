@@ -66,7 +66,7 @@ async function approveSdkDevice() {
 
 function runCliTasks() {
   const suffix = Date.now();
-  const externalChat = `opencode:sdk-live-cli-${suffix}`;
+  const externalChat = `codex:sdk-live-cli-${suffix}`;
   const externalTitle = `SDK live CLI chat ${suffix}`;
   const blockedReason = "A temporary CLI live-smoke dependency is unavailable.";
   let shortId = null;
@@ -75,7 +75,7 @@ function runCliTasks() {
   try {
     const created = parseJson(run("node", [...cliArgs, "create", "--title", `SDK live CLI task ${suffix}`, "--external-chat", externalChat, "--external-chat-title", externalTitle, "--json"], { label: "CLI task create" })).task;
     shortId = created.short_id;
-    if (!shortId || created.external_chat?.id !== externalChat.slice("opencode:".length) || created.external_chat?.title !== externalTitle) {
+    if (!shortId || created.external_chat?.id !== externalChat.slice("codex:".length) || created.external_chat?.title !== externalTitle) {
       throw new Error("CLI task create did not return decrypted external context");
     }
     const listed = parseJson(run("node", [...cliArgs, "list", "--external-chat", externalChat, "--json"], { label: "CLI task list" })).tasks;
@@ -114,7 +114,7 @@ async function withApprovalRetry(label, fn) {
 async function runNpmTasks(apiKey) {
   const client = new OpenMates({ apiKey, apiUrl, deviceId: "sdk-tasks-live-npm" });
   const suffix = Date.now();
-  const externalChat = { provider: "opencode", id: `sdk-live-npm-${suffix}`, title: `SDK live npm chat ${suffix}` };
+  const externalChat = { provider: "codex", id: `sdk-live-npm-${suffix}`, title: `SDK live npm chat ${suffix}` };
   const filters = { externalChat };
   const blockedReason = "A temporary npm live-smoke dependency is unavailable.";
   let shortId = null;
@@ -180,7 +180,7 @@ api_url = os.environ["OPENMATES_API_URL"]
 api_key = os.environ["OPENMATES_API_KEY"]
 client = OpenMates(api_key=api_key, api_url=api_url, device_id="sdk-tasks-live-pip")
 suffix = int(time.time() * 1000)
-external_chat = {"provider": "opencode", "id": f"sdk-live-pip-{suffix}", "title": f"SDK live pip chat {suffix}"}
+external_chat = {"provider": "codex", "id": f"sdk-live-pip-{suffix}", "title": f"SDK live pip chat {suffix}"}
 blocked_reason = "A temporary pip live-smoke dependency is unavailable."
 short_id = None
 primary_error = None

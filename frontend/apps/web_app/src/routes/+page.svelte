@@ -92,6 +92,10 @@
 
 	// --- State ---
 	let isInitialLoad = $state(true);
+	// Match Settings.svelte's overlay breakpoint, including the 1100px boundary.
+	const SETTINGS_OVERLAY_MAX_WIDTH = 1100;
+	let viewportWidth = $state(0);
+	const settingsOverlayOpen = $derived($panelState.isSettingsOpen && viewportWidth > 0 && viewportWidth <= SETTINGS_OVERLAY_MAX_WIDTH);
 	// Developer console — activated via /#console-on hash, toggled off via close button
 	let devConsoleOpen = $state(false);
 	// Height (px) reserved for the dev console at the bottom of the viewport
@@ -3469,6 +3473,19 @@
 			await activeChat.resetToNewChat();
 		}
 	}
+
+	// Present the split layout before mounting the sidebar list. Cancel both
+	// frames on close/reopen; no hidden chat-list instance is retained.
+	let sidebarContentReady = $state(false);
+	$effect(() => {
+		if (!$panelState.isActivityHistoryOpen) { sidebarContentReady = false; return; }
+		let secondFrame = 0;
+		const firstFrame = requestAnimationFrame(() => {
+			secondFrame = requestAnimationFrame(() => { sidebarContentReady = true; });
+		});
+		return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame); };
+	});
+
 </script>
 
 <!-- SEO meta tags - client-side with translations -->
@@ -3496,7 +3513,7 @@
 	<link rel="canonical" href="https://openmates.org" />
 </svelte:head>
 
-<!-- Removed svelte:window binding for innerWidth -->
+<svelte:window bind:innerWidth={viewportWidth} />
 
 <!-- Accessibility: skip navigation link for keyboard users (WCAG 2.4.1) -->
 <a href="#main-chat" class="skip-link">{$text('navigation.skip_to_content')}</a>
@@ -3505,7 +3522,7 @@
 <NotificationStack />
 
 <div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
-	{#if $panelState.isActivityHistoryOpen}
+	{#if $panelState.isActivityHistoryOpen && sidebarContentReady}
 		<!-- Sidebar content - transition handled by parent sidebar transform -->
 		<div class="sidebar-content">
 			<Chats on:chatSelected={handleChatSelected} on:chatDeselected={handleChatDeselected} />
@@ -3533,7 +3550,17 @@
 	>
 		<div class="chat-wrapper" id="main-chat" tabindex="-1">
 			<!-- ActiveChat component - loads welcome chat via JS for PWA -->
-			<ActiveChat bind:this={activeChat} />
+			<div class="chat-interaction-surface" inert={settingsOverlayOpen}>
+				<ActiveChat bind:this={activeChat} />
+			</div>
+			{#if settingsOverlayOpen}
+				<button
+					class="settings-chat-backdrop"
+					data-testid="settings-chat-backdrop"
+					aria-label={$text('common.close')}
+					onclick={() => settingsMenuVisible.set(false)}
+				></button>
+			{/if}
 		</div>
 		<div class="settings-wrapper">
 			<Settings isLoggedIn={$authStore.isAuthenticated} on:chatSelected={handleChatSelected} />
@@ -3582,12 +3609,14 @@
 
 		/* Smooth transition for sidebar reveal/hide */
 		transition:
-			transform 0.3s ease,
-			opacity 0.3s ease,
-			visibility 0.3s ease;
+			opacity 0.12s ease-out;
 		transform: translateX(0);
 		opacity: 1;
 		visibility: visible;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.sidebar, .main-content { transition: none !important; }
 	}
 
 	.sidebar.closed {
@@ -3626,10 +3655,9 @@
 		bottom: 0;
 		background-color: var(--color-grey-0);
 		z-index: 11;
-		/* Smooth transitions for width changes (large screens) and slide animations (small screens) */
+		/* Commit desktop geometry once; only the narrow-screen translation animates. */
 		transition:
-			inset-inline-start 0.3s ease,
-			transform 0.3s ease;
+			transform 0.12s ease-out;
 	}
 
 	.main-content:has(:global(.fullscreen-embed-container.overlay-mode)) {
@@ -3685,7 +3713,7 @@
 		padding-inline-end: 20px;
 		/* Only apply gap transition on larger screens */
 		@media (min-width: 1100px) {
-			transition: gap 0.3s ease;
+			transition: none;
 		}
 	}
 
@@ -3784,16 +3812,34 @@
 	}
 
 	.chat-wrapper {
+		position: relative;
 		flex: 1;
 		display: flex;
 		min-width: 0;
 	}
 
+	.chat-interaction-surface {
+		display: flex;
+		flex: 1;
+		min-width: 0;
+	}
+
+	/* Catch pointer input before it reaches chat controls; Settings sits above
+	   this local stacking context and retains its existing close/reset path. */
+	.settings-chat-backdrop {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		border: 0;
+		padding: 0;
+		background: transparent;
+		cursor: pointer;
+	}
+
 	/* Smooth transition for main content */
 	.main-content {
 		transition:
-			inset-inline-start 0.3s ease,
-			transform 0.3s ease;
+			transform 0.12s ease-out;
 	}
 
 	.main-content.edge-dragging.menu-closed,

@@ -194,6 +194,8 @@
     dispatchEmbedFullscreen({
       embedId: targetEmbedId,
       embedType: 'app-skill-use', // default type; ActiveChat will look up the real type
+      // Reuse the badge identity immediately; resolving content stays on demand.
+      attrs: { appId: effectiveAppId, title: effectiveDisplayText },
       focusChildEmbedId,
       focusLineRange: focusLineStart != null
         ? { start: focusLineStart, end: focusLineEnd ?? focusLineStart }

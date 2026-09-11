@@ -12,6 +12,8 @@ import asyncio
 import base64
 import json
 import sys
+
+import pytest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -73,6 +75,7 @@ class FakeSkillRegistry:
         assert app_name == "ai"
         assert skill_name == "ask"
         assert self.manager.calls[0][0] == "set_active_chat"
+        self.manager.request_payload = request_payload
         self.manager.calls.append(("dispatch_skill", app_name, skill_name, request_payload["chat_id"]))
         return {"task_id": "task-123"}
 
@@ -88,7 +91,14 @@ class FakeNoTaskSkillRegistry:
         return {"status": "accepted_without_task"}
 
 
-def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypatch):
+# contract-test: supporting surface=rest_api assertions=chats.fork.non-destructive-boundary
+@pytest.mark.parametrize("chat_metadata", [
+    None,
+    {"messages_v": 0, "title_v": None},
+    {"messages_v": 0, "title_v": None, "encrypted_title": "cipher-title"},
+    {"messages_v": 0, "title_v": 0, "encrypted_title": "cipher-title"},
+])
+def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypatch, chat_metadata):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
     manager = FakeManager()
@@ -112,7 +122,7 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     )
     directus_service = SimpleNamespace(
         chat=SimpleNamespace(
-            get_chat_metadata=AsyncMock(return_value=None),
+            get_chat_metadata=AsyncMock(return_value=chat_metadata),
             check_chat_ownership=AsyncMock(return_value=True),
         ),
         get_user_profile=AsyncMock(),
@@ -163,6 +173,8 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
 
     assert manager.calls[0] == ("set_active_chat", "user-123", "device-123", "chat-123")
     assert ("dispatch_skill", "ai", "ask", "chat-123") in manager.calls
+    expected_title = bool(chat_metadata and chat_metadata.get("encrypted_title") and chat_metadata.get("title_v") is None)
+    assert manager.request_payload["chat_has_title"] is expected_title
     assert websocket.sent[0] == {
         "type": "chat_message_confirmed",
         "payload": {

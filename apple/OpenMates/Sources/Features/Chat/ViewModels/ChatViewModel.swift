@@ -512,7 +512,15 @@ final class ChatViewModel: ObservableObject {
             try? await Task.sleep(nanoseconds: 120_000_000)
             guard !Task.isCancelled, self.chat?.id == chatId, generation == self.loadGeneration else { return }
             let start = NativeSyncPerfLog.now()
-            let relatedSyncedEmbeds = self.relatedEmbeds(referencedIds: referencedIds, from: syncedEmbeds)
+            // Encrypted messages reveal embed references only after first paint.
+            // Re-read the scoped store now so its already-synced records are not
+            // lost by the initial lightweight (pre-decryption) selection.
+            let available = EmbedRecord.dictionaryById(
+                syncedEmbeds, context: "chatViewModel.hydrationSnapshot"
+            ).merging(EmbedRecord.dictionaryById(
+                self.chatStore?.embeds(for: chatId) ?? [], context: "chatViewModel.hydrationCache"
+            )) { _, cached in cached }
+            let relatedSyncedEmbeds = self.relatedEmbeds(referencedIds: referencedIds, from: Array(available.values))
             let decryptedSyncedEmbeds = await self.decryptEmbeds(
                 relatedSyncedEmbeds,
                 chatId: chatId,
@@ -733,6 +741,18 @@ final class ChatViewModel: ObservableObject {
 
         var decryptedEmbeds: [EmbedRecord] = []
         for embed in embeds {
+            // Metadata sync can republish the same ciphertext while a chat is
+            // open. Reuse its decoded payload instead of redoing crypto/parsing.
+            if let existing = existingRecords[embed.id], existing.rawData != nil,
+               embed.encryptedContent != nil,
+               existing.encryptedContent == embed.encryptedContent,
+               existing.encryptedType == embed.encryptedType,
+               existing.status == embed.status,
+               existing.versionNumber == embed.versionNumber {
+                decryptedEmbeds.append(existing)
+                allRecords[existing.id] = existing
+                continue
+            }
             guard embed.rawData == nil || embed.encryptedType != nil else {
                 decryptedEmbeds.append(embed)
                 continue
@@ -1727,36 +1747,35 @@ final class ChatViewModel: ObservableObject {
             return
         }
         do {
-            let data: Data = try await api.request(
-                .get, path: "/v1/chats/\(chatId)/embeds"
-            )
-            let response = try decodeChatEmbedsResponse(data)
-            guard chat?.id == chatId else { return }
-            EmbedKeyManager.shared.store(response.embedKeys, source: "chatEmbeds:\(chatId.prefix(8))")
-            let relatedEmbeds = relatedEmbeds(referencedIds: referencedEmbedIds, from: response.embeds)
+            // Personal encrypted embeds use the same scoped content-batch
+            // protocol as messages. There is no per-chat REST embeds endpoint.
+            guard let wsManager else { throw ChatContentHydrationError.websocketUnavailable }
+            let generation = loadGeneration
+            let scopeGeneration = OfflineStore.shared.scopeGeneration
+            let response = try await wsManager.requestChatContentBatch(chatId: chatId)
+            let batch = try ChatContentBatchPayload.decode(response.fields)
+            guard !Task.isCancelled, chat?.id == chatId, generation == loadGeneration,
+                  scopeGeneration == OfflineStore.shared.scopeGeneration else { return }
+            EmbedKeyManager.shared.store(batch.embedKeys, source: "chatEmbedContentBatch")
+            OfflineStore.shared.persistEmbedKeys(batch.embedKeys)
+            let fetchedEmbeds = batch.embeds(for: chatId)
+            let relatedEmbeds = relatedEmbeds(referencedIds: referencedEmbedIds, from: fetchedEmbeds)
             let decrypted = await decryptEmbeds(relatedEmbeds, chatId: chatId, existingRecords: embedRecords)
+            guard !Task.isCancelled, chat?.id == chatId, generation == loadGeneration,
+                  scopeGeneration == OfflineStore.shared.scopeGeneration else { return }
             for embed in decrypted {
                 embedRecords[embed.id] = embed
             }
+            chatStore?.upsertEmbeds(fetchedEmbeds, for: chatId)
             EmbedMediaOfflineCache.prefetchEmbeds(decrypted)
             let childLinked = decrypted.filter { $0.parentEmbedId != nil || !$0.childEmbedIds.isEmpty }.count
             let rawCount = decrypted.filter { $0.rawData != nil }.count
             NativeSyncPerfLog.info(
-                "phase=loadEmbedsFetched chat=\(chatId.prefix(8)) fetched=\(response.embeds.count) related=\(relatedEmbeds.count) keys=\(response.embedKeys.count) linked=\(childLinked) decryptedRaw=\(rawCount) totalRecords=\(embedRecords.count)"
+                "phase=loadEmbedsFetched chat=\(chatId.prefix(8)) fetched=\(fetchedEmbeds.count) related=\(relatedEmbeds.count) keys=\(batch.embedKeys.count) linked=\(childLinked) decryptedRaw=\(rawCount) totalRecords=\(embedRecords.count)"
             )
         } catch {
             print("[Chat] Failed to load embeds: \(error)")
         }
-    }
-
-    private func decodeChatEmbedsResponse(_ data: Data) throws -> ChatEmbedsResponse {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        if let object = try? decoder.decode(ChatEmbedsResponse.self, from: data) {
-            return object
-        }
-        let embeds = try decoder.decode([EmbedRecord].self, from: data)
-        return ChatEmbedsResponse(embeds: embeds, embedKeys: [])
     }
 
     func embeds(for message: Message) -> [EmbedRecord] {
@@ -2554,21 +2573,6 @@ private struct TranscribeSkillResponse: Decodable {
     let data: ResponseData
 }
 
-private struct ChatEmbedsResponse: Decodable {
-    let embeds: [EmbedRecord]
-    let embedKeys: [EmbedKeyRecord]
-
-    init(embeds: [EmbedRecord], embedKeys: [EmbedKeyRecord]) {
-        self.embeds = embeds
-        self.embedKeys = embedKeys
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case embeds
-        case embedKeys
-    }
-}
-
 @MainActor
 enum PublicChatContent {
     struct PublicChat {
@@ -2818,6 +2822,8 @@ enum PublicChatContent {
                 records[record.id] = record
             }
 
+            let extractedIds = Set(extracted.refs.map(\.id))
+            let refs = extracted.refs + (original.embedRefs ?? []).filter { !extractedIds.contains($0.id) }
             return Message(
                 id: original.id,
                 chatId: original.chatId,
@@ -2828,8 +2834,17 @@ enum PublicChatContent {
                 updatedAt: original.updatedAt,
                 appId: original.appId,
                 isStreaming: original.isStreaming,
-                embedRefs: extracted.refs.isEmpty ? nil : extracted.refs,
-                modelName: original.modelName
+                embedRefs: refs.isEmpty ? nil : refs,
+                modelName: original.modelName,
+                senderName: original.senderName, category: original.category,
+                encryptedSenderName: original.encryptedSenderName,
+                encryptedCategory: original.encryptedCategory,
+                encryptedModelName: original.encryptedModelName,
+                piiMappings: original.piiMappings, encryptedPIIMappings: original.encryptedPIIMappings,
+                thinkingContent: original.thinkingContent,
+                encryptedThinkingContent: original.encryptedThinkingContent,
+                encryptedThinkingSignature: original.encryptedThinkingSignature,
+                thinkingTokenCount: original.thinkingTokenCount
             )
         }
         return (updatedMessages, records)
@@ -3470,6 +3485,31 @@ final class ChatSendPipeline {
         }
     }
 
+    // Durable preflight commits history along with the current message. A cache-miss
+    // retry cannot append history to that immutable commitment afterward.
+    func savedChatHistoryPayload(_ messages: [Message], chatId: String, key: SymmetricKey) async throws -> [[String: Any]] {
+        var seen = Set<String>()
+        var history: [[String: Any]] = []
+        for message in messages.sorted(by: { $0.createdAt < $1.createdAt }) {
+            guard message.chatId == chatId, message.role != .system,
+                  message.isStreaming != true, seen.insert(message.id).inserted else { continue }
+            var content = message.content ?? ""
+            if content.isEmpty, let encrypted = message.encryptedContent {
+                content = try await crypto.decryptContent(base64String: encrypted, key: key)
+            }
+            guard !content.isEmpty else { throw ChatSendError.historyUnavailable }
+            var row: [String: Any] = [
+                "message_id": message.id, "chat_id": chatId,
+                "role": message.role.rawValue, "content": content,
+                "sender_name": message.senderName ?? (message.role == .user ? "User" : "Assistant"),
+                "created_at": Self.unixSeconds(from: message.createdAt)
+            ]
+            if let category = message.category ?? message.appId { row["category"] = category }
+            history.append(row)
+        }
+        return history
+    }
+
     func sendUserMessage(
         content: String,
         in chat: Chat,
@@ -3478,11 +3518,14 @@ final class ChatSendPipeline {
         chatStore: ChatStore?,
         activateChat: Bool = true,
         waitForRemoteSend: Bool = true,
+        waitForInferenceReceipt: Bool = false,
         composerEmbeds: [ComposerPendingEmbed] = [],
         piiMappings: [PIIMapping] = [],
         excludedPIIOriginals: Set<String> = [],
         excludedPIIPlaceholders: Set<String> = [],
-        broadcastToSiblings: Bool = false
+        broadcastToSiblings: Bool = false,
+        beforeRemoteSend: ((String, [String: Any], [String: Any]) throws -> Void)? = nil,
+        validateRemoteSend: (() throws -> Void)? = nil
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
         let now = Date()
@@ -3532,8 +3575,10 @@ final class ChatSendPipeline {
             encryptedPIIMappings: encryptedPIIMappings
         )
 
-        chatStore?.upsertChat(updatedChat)
-        chatStore?.appendMessage(message, to: chat.id)
+        let history = existingMessages.isEmpty ? [] : try await savedChatHistoryPayload(
+            existingMessages.filter { $0.id != message.id } + [message],
+            chatId: chat.id, key: keyMaterial.key
+        )
 
         var messagePayload: [String: Any] = [
             "message_id": messageId,
@@ -3552,6 +3597,7 @@ final class ChatSendPipeline {
             "message": messagePayload,
             "encrypted_chat_key": keyMaterial.encryptedChatKey
         ]
+        if !history.isEmpty { outboundPayload["message_history"] = history }
         outboundPayload.merge(
             chatContextPayloadFields(
                 for: chat,
@@ -3615,7 +3661,10 @@ final class ChatSendPipeline {
             encryptedUserMessage["encrypted_pii_mappings"] = encryptedPIIMappings
         }
         let encryptedTitle: String?
-        if (chat.titleV ?? 0) == 0 {
+        if Self.shouldIncludeInitialChatMetadata(
+            messagesVersion: chat.messagesV, titleVersion: chat.titleV,
+            existingMessageCount: existingMessages.count
+        ) {
             if let existingEncryptedTitle = chat.encryptedTitle {
                 encryptedTitle = existingEncryptedTitle
             } else {
@@ -3637,6 +3686,12 @@ final class ChatSendPipeline {
             createdAt: createdAtUnix
         )
 
+        // Notification actions persist this exact preflight/commit pair before
+        // local insertion, so interrupted retries cannot create another message.
+        try beforeRemoteSend?(turnId, preflightPayload, outboundPayload)
+        chatStore?.upsertChat(updatedChat)
+        chatStore?.appendMessage(message, to: chat.id)
+
         if waitForRemoteSend {
             try await sendRemoteUserMessage(
                 chatId: chat.id,
@@ -3644,7 +3699,9 @@ final class ChatSendPipeline {
                 wsManager: wsManager,
                 turnId: turnId,
                 preflightPayload: preflightPayload,
-                outboundPayload: outboundPayload
+                outboundPayload: outboundPayload,
+                waitForInferenceReceipt: waitForInferenceReceipt,
+                validateRemoteSend: validateRemoteSend
             )
         } else {
             Task { @MainActor in
@@ -3655,7 +3712,9 @@ final class ChatSendPipeline {
                         wsManager: wsManager,
                         turnId: turnId,
                         preflightPayload: preflightPayload,
-                        outboundPayload: outboundPayload
+                        outboundPayload: outboundPayload,
+                        waitForInferenceReceipt: waitForInferenceReceipt,
+                        validateRemoteSend: validateRemoteSend
                     )
                 } catch {
                     print("[ChatSendPipeline] Background send failed for chat \(chat.id.prefix(8)): \(error)")
@@ -3758,7 +3817,9 @@ final class ChatSendPipeline {
         wsManager: ChatWebSocketTransport,
         turnId: String,
         preflightPayload: [String: Any],
-        outboundPayload: [String: Any]
+        outboundPayload: [String: Any],
+        waitForInferenceReceipt: Bool = false,
+        validateRemoteSend: (() throws -> Void)? = nil
     ) async throws {
         if activateChat {
             try await wsManager.send(WSOutboundMessage(type: "set_active_chat", payload: ["chat_id": chatId]))
@@ -3767,7 +3828,9 @@ final class ChatSendPipeline {
             turnId: turnId,
             preflightPayload: preflightPayload,
             outboundPayload: outboundPayload,
-            transport: wsManager
+            transport: wsManager,
+            waitForInferenceReceipt: waitForInferenceReceipt,
+            validateRemoteSend: validateRemoteSend
         )
     }
 
@@ -3775,17 +3838,22 @@ final class ChatSendPipeline {
         turnId: String,
         preflightPayload: [String: Any],
         outboundPayload: [String: Any],
-        transport: ChatWebSocketTransport
+        transport: ChatWebSocketTransport,
+        waitForInferenceReceipt: Bool = false,
+        validateRemoteSend: (() throws -> Void)? = nil
     ) async throws {
+        try validateRemoteSend?()
         let acknowledgement = (try await transport.sendAndWait(
             WSOutboundMessage(type: "chat_turn_preflight", payload: preflightPayload),
             responseType: "chat_turn_preflight_ack"
         ) {
                 $0["turn_id"] as? String == turnId
         }).fields
+        // Account/socket ownership may change while waiting for preflight. Do not
+        // send this turn's plaintext history through a replacement session.
+        try validateRemoteSend?()
         guard let preflightId = acknowledgement["preflight_id"] as? String, !preflightId.isEmpty,
-              let state = acknowledgement["state"] as? String,
-              state == "PREPARED" || state == "LEGACY" else {
+              let state = acknowledgement["state"] as? String else {
             throw ChatSendError.webSocketUnavailable
         }
         guard let committedTurnId = outboundPayload["turn_id"] as? String,
@@ -3794,13 +3862,59 @@ final class ChatSendPipeline {
               NSDictionary(dictionary: preflightInference).isEqual(to: outboundPayload) else {
             throw ChatSendError.webSocketUnavailable
         }
+        // Retrying an exact durable turn returns its current server state, not
+        // necessarily PREPARED. A notification interrupted after admission must
+        // finish its queue entry without submitting another inference request.
+        // FAILED is not successful delivery to AI and stays visible to retry/error
+        // handling; the server cannot safely enqueue that same failed turn again.
+        // See backend/core/directus/extensions/chat-recovery-transaction/src/operations.js.
+        if waitForInferenceReceipt {
+            switch state {
+            case "ENQUEUED", "RUNNING", "TERMINAL":
+                return
+            case "FAILED":
+                throw ChatSendError.inferenceFailed
+            default:
+                break
+            }
+        }
+        guard state == "PREPARED" || state == "LEGACY" else {
+            throw ChatSendError.webSocketUnavailable
+        }
         var committedPayload = outboundPayload
         committedPayload["protocol_version"] = ChatCompletionRecoveryCoordinator.protocolVersion
         committedPayload["preflight_id"] = preflightId
-        try await transport.send(WSOutboundMessage(
-            type: "chat_message_added",
-            payload: committedPayload
-        ))
+        let commit = WSOutboundMessage(type: "chat_message_added", payload: committedPayload)
+        if waitForInferenceReceipt {
+            guard let chatId = outboundPayload["chat_id"] as? String, !chatId.isEmpty,
+                  let message = outboundPayload["message"] as? [String: Any],
+                  let messageId = message["message_id"] as? String, !messageId.isEmpty else {
+                throw ChatSendError.webSocketUnavailable
+            }
+            // Socket-write completion only means bytes left this client. Keep a
+            // background reply pending until AI admission is acknowledged. Register
+            // the waiter before sending so a fast server cannot outrun it.
+            _ = try await transport.sendAndWait(commit, responseType: "ai_task_initiated") { fields in
+                if fields["code"] as? String != nil {
+                    return fields["turn_id"] as? String == turnId ||
+                        (fields["chat_id"] as? String == chatId &&
+                         ((fields["user_message_id"] ?? fields["message_id"]) as? String) == messageId)
+                }
+                return fields["chat_id"] as? String == chatId &&
+                    fields["user_message_id"] as? String == messageId &&
+                    ((fields["ai_task_id"] ?? fields["task_id"]) as? String)?.isEmpty == false
+            }
+        } else {
+            try await transport.send(commit)
+        }
+    }
+
+    static func shouldIncludeInitialChatMetadata(
+        messagesVersion: Int?, titleVersion: Int?, existingMessageCount: Int
+    ) -> Bool {
+        // Title generation can lag behind a completed conversation. Existing
+        // messages make this an existing chat even while its title version is 0.
+        (messagesVersion ?? 0) == 0 && existingMessageCount == 0 && (titleVersion ?? 0) == 0
     }
 
     func savedChatPreflightPayload(
@@ -4383,6 +4497,8 @@ private enum ChatSendError: LocalizedError {
     case missingMasterKey
     case webSocketUnavailable
     case chatKeyMismatch
+    case historyUnavailable
+    case inferenceFailed
 
     var errorDescription: String? {
         switch self {
@@ -4390,6 +4506,10 @@ private enum ChatSendError: LocalizedError {
             return "Missing encryption key for this device. Please sign in again."
         case .webSocketUnavailable:
             return "Realtime connection is not ready. Please try again."
+        case .historyUnavailable:
+            return "Chat history could not be decrypted. Please reload this chat before sending."
+        case .inferenceFailed:
+            return "The message was saved, but its AI response failed. Open the chat to retry."
         case .chatKeyMismatch:
             return "Chat encryption keys are out of sync. Please reload this chat before sending."
         }

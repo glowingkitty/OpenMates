@@ -1,36 +1,13 @@
 #!/usr/bin/env python3
 """
-scripts/_security_helper.py
+Ingest retained security audit/red-team snapshots and manage historical findings.
 
-Python helper for security-audit.sh and red-teaming.sh.
-
-Manages security audit state, deduplication of findings, and the acknowledge
-workflow. Runs OpenCode chats for both the code-based security audit and
-the external red team probe.
-
-Commands:
-    run-audit       Run the security-focused code audit (top 5 issues)
-    run-redteam     Run the external red team probe (20 min cap, plan mode)
-    acknowledge     Mark a finding as acknowledged (won't report again)
-    list-findings   List all known findings and their status
-    reset           Clear all state (for fresh start)
-
-State files (.claude/ — gitignored):
-    .claude/security-audit-state.json      — finding state, file hashes, run history
-    .claude/security-acknowledged.json     — manually acknowledged risks
-
-Environment variables (set by shell wrappers):
-    DRY_RUN             — "true" to skip OpenCode, print prompt only
-    PROJECT_ROOT        — absolute path to repo root
-    TODAY_DATE          — current date as YYYY-MM-DD
-    PROMPT_TEMPLATE_PATH — path to the relevant prompt template
-    JOB_TYPE            — "audit" or "redteam"
-
-Not intended to be called directly; use security-audit.sh or red-teaming.sh.
-For acknowledge/list-findings/reset, call directly:
-    python3 scripts/_security_helper.py acknowledge --id "finding-001" --reason "Accepted risk"
-    python3 scripts/_security_helper.py list-findings
-    python3 scripts/_security_helper.py reset
+run-audit and run-redteam use the deterministic digest adapter, including its
+missing/stale snapshot checks; they never launch an AI review or live probe.
+acknowledge, list-findings and reset retain the existing manual state interface.
+DRY_RUN avoids report persistence; PROJECT_ROOT locates retained snapshots.
+Automatic agent review was removed under TASK-7543; see
+ docs/architecture/infrastructure/cronjobs.md and future workflow TASK-8338.
 """
 
 import argparse
@@ -42,10 +19,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Append scripts/ to path so we can import _opencode_utils
+# Append scripts/ to path so we can import shared helpers
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _opencode_utils import run_opencode_session
-from _nightly_report import write_nightly_report
+from security_scan_reporting import ingest_snapshot
 
 
 # ---------------------------------------------------------------------------
@@ -255,277 +231,25 @@ def _record_run(state: dict, job_type: str, sha: str, session_id: str | None) ->
 # ---------------------------------------------------------------------------
 
 def run_audit() -> None:
-    """Run the security-focused code audit."""
+    """Ingest the existing structured snapshot without starting an AI audit."""
     dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
     project_root = os.environ.get("PROJECT_ROOT", "")
-    today_date = os.environ.get("TODAY_DATE", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-    prompt_template_path = os.environ.get("PROMPT_TEMPLATE_PATH", "")
-
     if not project_root:
         print("[security] ERROR: PROJECT_ROOT not set.", file=sys.stderr)
         sys.exit(1)
-
-    state = _load_state(project_root)
-    acknowledged = _load_acknowledged(project_root)
-    current_sha = _get_current_sha(project_root)
-    last_sha = state.get("last_audit_sha")
-    last_date = state.get("last_audit_date") or "first run"
-
-    # Check if there are relevant changes
-    changed_files = _get_changed_files(project_root, last_sha)
-    force_full = _needs_full_sweep(state)
-
-    if "(no security-relevant files changed)" in changed_files and not force_full:
-        print(f"[security] No security-relevant files changed since last audit ({last_date}). Skipping.")
-        session_id = None
-        returncode = 0
-        if not dry_run:
-            prompt = f"""# Security Audit No-Change Summary — {today_date}
-
-The scheduled security audit checked for security-relevant changes since the
-last audit and found none.
-
-## Context
-
-- Current HEAD: {current_sha}
-- Last audit date: {last_date}
-- Result: no security-relevant files changed
-- Full sweep required: no
-
-This is a read-only reporting chat. Summarize the no-change result briefly,
-mention that no code changes are needed, and do not edit files, commit, or
-deploy.
-"""
-            print(f"[security] Starting OpenCode security audit summary chat (HEAD {current_sha})...")
-            returncode, session_id = run_opencode_session(
-                prompt=prompt,
-                session_title=f"security-audit: no relevant changes {today_date}",
-                project_root=project_root,
-                log_prefix="[security]",
-                agent="plan",
-                timeout=600,
-                job_type="security",
-                context_summary="Security audit found no security-relevant changed files.",
-                linear_task=False,
-            )
-        # Still update SHA so we don't re-check the same range
-        state["last_audit_sha"] = current_sha
-        state["last_audit_date"] = today_date
-        state["last_audit_session_id"] = session_id
-        _record_run(state, "audit", current_sha, session_id)
-        _save_state(project_root, state)
-        write_nightly_report(
-            job="security-audit",
-            status="error" if returncode != 0 else "skipped",
-            summary=f"No security-relevant files changed since last audit ({last_date}).",
-            details={
-                "last_audit_date": today_date,
-                "head_sha": current_sha,
-                "session_id": session_id,
-                "full_sweep": False,
-            },
-        )
-        if returncode != 0:
-            sys.exit(returncode)
-        return
-
-    if force_full:
-        print(f"[security] Full sweep triggered (last full sweep: {state.get('last_full_sweep_date', 'never')})")
-        changed_files = "(FULL SWEEP — reviewing all security-relevant code regardless of changes)"
-
-    print(f"[security] Running security audit (HEAD {current_sha}, last audit: {last_date})")
-
-    # Load prompt template
-    if not prompt_template_path or not os.path.isfile(prompt_template_path):
-        print(f"[security] ERROR: Prompt template not found: {prompt_template_path}", file=sys.stderr)
-        sys.exit(1)
-
-    with open(prompt_template_path) as f:
-        prompt_template = f.read()
-
-    # Build prompt
-    acknowledged_ids = set(acknowledged.keys())
-    known_findings = _format_known_findings(state.get("findings", {}), acknowledged_ids)
-    acknowledged_text = _format_acknowledged(acknowledged)
-
-    prompt = (
-        prompt_template
-        .replace("{{DATE}}", today_date)
-        .replace("{{GIT_SHA}}", current_sha)
-        .replace("{{LAST_AUDIT_DATE}}", last_date)
-        .replace("{{CHANGED_FILES}}", changed_files)
-        .replace("{{KNOWN_FINDINGS}}", known_findings)
-        .replace("{{ACKNOWLEDGED_FINDINGS}}", acknowledged_text)
-    )
-
-    if dry_run:
-        print("[security] DRY RUN — would run OpenCode with the following prompt:")
-        print("-" * 60)
-        print(prompt[:3000])
-        print(f"... ({len(prompt)} chars total)")
-        print("-" * 60)
-        state["last_audit_date"] = today_date
-        state["last_audit_sha"] = current_sha
-        if force_full:
-            state["last_full_sweep_date"] = today_date
-        _save_state(project_root, state)
-        return
-
-    session_title = f"security-audit: top 5 issues {today_date}"
-    print(f"[security] Starting OpenCode security audit chat (HEAD {current_sha})...")
-
-    returncode, session_id = run_opencode_session(
-        prompt=prompt,
-        session_title=session_title,
-        project_root=project_root,
-        log_prefix="[security]",
-        agent="plan",
-        timeout=2700,  # 45 min max — no hard limit, but cap to be safe
-        job_type="security",
-        linear_task=False,
-    )
-
-    # Update state
-    state["last_audit_date"] = today_date
-    state["last_audit_sha"] = current_sha
-    state["last_audit_session_id"] = session_id
-    if force_full:
-        state["last_full_sweep_date"] = today_date
-    _record_run(state, "audit", current_sha, session_id)
-    _save_state(project_root, state)
-
-    # Count findings for report
-    findings = state.get("findings", {})
-    total_findings = sum(len(v) if isinstance(v, list) else 1 for v in findings.values())
-
-    write_nightly_report(
-        job="security-audit",
-        status="error" if returncode != 0 else ("warning" if total_findings > 0 else "ok"),
-        summary=f"Security audit completed (HEAD {current_sha}). {total_findings} finding(s) tracked.",
-        details={
-            "last_audit_date": today_date,
-            "head_sha": current_sha,
-            "session_id": session_id,
-            "total_findings": total_findings,
-            "full_sweep": force_full,
-        },
-        security_disclosure={
-            "risk_summary": (
-                f"{total_findings} security finding(s) tracked. "
-                f"{'Full sweep performed.' if force_full else 'Incremental audit.'}"
-            ),
-        } if total_findings > 0 else None,
-    )
-
-    if returncode != 0:
-        print(f"[security] WARNING: audit session exited with code {returncode}", file=sys.stderr)
-        sys.exit(returncode)
-
-    print("[security] Security audit complete.")
+    ingest_snapshot(project_root=project_root, source="security_audit",
+                    path=Path(project_root) / "logs/nightly-reports/security-audit.json", dry_run=dry_run)
 
 
 def run_redteam() -> None:
-    """Run the external red team probe (20 min cap, plan mode)."""
+    """Ingest the existing structured snapshot without starting an AI audit."""
     dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
     project_root = os.environ.get("PROJECT_ROOT", "")
-    today_date = os.environ.get("TODAY_DATE", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-    prompt_template_path = os.environ.get("PROMPT_TEMPLATE_PATH", "")
-
     if not project_root:
         print("[redteam] ERROR: PROJECT_ROOT not set.", file=sys.stderr)
         sys.exit(1)
-
-    state = _load_state(project_root)
-    acknowledged = _load_acknowledged(project_root)
-    current_sha = _get_current_sha(project_root)
-    last_date = state.get("last_redteam_date") or "first run"
-
-    recent_commits = _get_recent_commits(project_root, count=30)
-
-    print(f"[redteam] Running red team probe (HEAD {current_sha}, last probe: {last_date})")
-
-    # Load prompt template
-    if not prompt_template_path or not os.path.isfile(prompt_template_path):
-        print(f"[redteam] ERROR: Prompt template not found: {prompt_template_path}", file=sys.stderr)
-        sys.exit(1)
-
-    with open(prompt_template_path) as f:
-        prompt_template = f.read()
-
-    # Build prompt
-    acknowledged_ids = set(acknowledged.keys())
-    known_findings = _format_known_findings(state.get("findings", {}), acknowledged_ids)
-    acknowledged_text = _format_acknowledged(acknowledged)
-
-    prompt = (
-        prompt_template
-        .replace("{{DATE}}", today_date)
-        .replace("{{GIT_SHA}}", current_sha)
-        .replace("{{LAST_AUDIT_DATE}}", last_date)
-        .replace("{{KNOWN_FINDINGS}}", known_findings)
-        .replace("{{ACKNOWLEDGED_FINDINGS}}", acknowledged_text)
-        .replace("{{RECENT_COMMITS}}", recent_commits)
-    )
-
-    if dry_run:
-        print("[redteam] DRY RUN — would run OpenCode with the following prompt:")
-        print("-" * 60)
-        print(prompt[:3000])
-        print(f"... ({len(prompt)} chars total)")
-        print("-" * 60)
-        state["last_redteam_date"] = today_date
-        state["last_redteam_sha"] = current_sha
-        _save_state(project_root, state)
-        return
-
-    session_title = f"redteam: external probe {today_date}"
-    print(f"[redteam] Starting OpenCode red team chat (HEAD {current_sha})...")
-
-    # 20 minute hard cap (1200 seconds) — plan mode only
-    returncode, session_id = run_opencode_session(
-        prompt=prompt,
-        session_title=session_title,
-        project_root=project_root,
-        log_prefix="[redteam]",
-        agent="plan",
-        timeout=1200,
-        allowed_tools=["Read", "Grep", "Glob", "Bash(curl *)"],
-        job_type="redteam",
-        linear_task=False,
-    )
-
-    # Update state
-    state["last_redteam_date"] = today_date
-    state["last_redteam_sha"] = current_sha
-    state["last_redteam_session_id"] = session_id
-    _record_run(state, "redteam", current_sha, session_id)
-    _save_state(project_root, state)
-
-    timed_out = returncode == 124
-    write_nightly_report(
-        job="red-teaming",
-        status="ok" if (returncode == 0 or timed_out) else "error",
-        summary=(
-            f"Red team probe completed (HEAD {current_sha}). "
-            f"{'Reached 20-min time limit (expected).' if timed_out else 'Session finished normally.'}"
-        ),
-        details={
-            "last_redteam_date": today_date,
-            "head_sha": current_sha,
-            "session_id": session_id,
-            "timed_out": timed_out,
-        },
-    )
-
-    if returncode != 0:
-        # Timeout (exit 124) is expected for red team — not an error
-        if timed_out:
-            print("[redteam] Session reached 20-minute time limit (expected).")
-        else:
-            print(f"[redteam] WARNING: red team session exited with code {returncode}", file=sys.stderr)
-            sys.exit(returncode)
-
-    print("[redteam] Red team probe complete.")
+    ingest_snapshot(project_root=project_root, source="redteam",
+                    path=Path(project_root) / "logs/nightly-reports/red-teaming.json", dry_run=dry_run)
 
 
 def acknowledge_finding() -> None:

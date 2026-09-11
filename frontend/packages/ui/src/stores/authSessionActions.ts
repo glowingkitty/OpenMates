@@ -23,6 +23,7 @@ import {
   logout,
   deleteAllCookies,
   bumpLoginSessionGeneration,
+  getLoginSessionGeneration,
   resetLocalLogoutState,
 } from "./authLoginLogoutActions"; // Import logout helpers
 import { setWebSocketToken, clearWebSocketToken } from "../utils/cookies"; // Import WebSocket token utilities
@@ -69,31 +70,48 @@ const RETIRED_INTRO_CHAT_HASHES = new Set([
   "#chat-id=demo-for-developers",
 ]);
 
+let activeAuthCheck: { generation: number; promise: Promise<boolean> } | null = null;
+
 /**
- * Checks the current authentication status by calling the session endpoint.
- * Updates auth state, user profile, and handles device verification requirements.
- * @param deviceSignals Optional device fingerprinting data.
- * @returns True if fully authenticated, false otherwise.
+ * Checks the session and updates authentication/profile state.
+ * Forced checks bypass cached initialization, but share any current check.
  */
-export async function checkAuth(
+export function checkAuth(
   deviceSignals?: Record<string, string | null>,
   force: boolean = false,
 ): Promise<boolean> {
-  captureReferralCodeFromUrl();
-  // Prevent check if already checking or initialized (unless forced)
-  // Allow check if needsDeviceVerification is true, as this indicates a pending state that needs resolution.
-  if (
-    !force &&
-    (get(isCheckingAuth) ||
-      (get(authStore).isInitialized && !get(needsDeviceVerification)))
-  ) {
-    console.debug(
-      "Auth check skipped (already checking or initialized, and not in device verification flow).",
-    );
-    return get(authStore).isAuthenticated;
+  const generation = getLoginSessionGeneration();
+  if (activeAuthCheck?.generation === generation) return activeAuthCheck.promise;
+  if (!force && get(authStore).isInitialized && !get(needsDeviceVerification)) {
+    return Promise.resolve(get(authStore).isAuthenticated);
   }
 
+  // Start on the next microtask so every reentrant caller sees the same flight.
+  const flight = {
+    generation,
+    promise: Promise.resolve(false),
+  };
+  flight.promise = Promise.resolve()
+    .then(() => performAuthCheck(deviceSignals, generation))
+    .finally(() => {
+      if (activeAuthCheck === flight) {
+        activeAuthCheck = null;
+        isCheckingAuth.set(false);
+      }
+    });
+  activeAuthCheck = flight;
   isCheckingAuth.set(true);
+  return flight.promise;
+}
+
+async function performAuthCheck(
+  deviceSignals: Record<string, string | null> | undefined,
+  generation: number,
+): Promise<boolean> {
+  const isCurrentSession = () => getLoginSessionGeneration() === generation;
+  const currentAuthResult = () => get(authStore).isAuthenticated;
+  if (!isCurrentSession()) return currentAuthResult();
+  captureReferralCodeFromUrl();
   needsDeviceVerification.set(false); // Reset verification need
   deviceVerificationType.set(null); // Reset verification type
   deviceVerificationReason.set(null); // Reset verification reason
@@ -104,59 +122,58 @@ export async function checkAuth(
 
     console.debug("Checking authentication with session endpoint...");
 
-    let response: Response;
     let data: SessionCheckResult;
 
     try {
-      // Use a 10-second AbortController timeout so that if the server is overloaded
-      // (accepts TCP but never responds), the fetch aborts and hits the offline-first
-      // catch block below instead of hanging indefinitely — which would leave
-      // isAuthenticated=false and prevent IndexedDB chats from loading.
+      // Bound both the cross-tab wait and network request. A stalled refresh must
+      // retain the existing offline-first behavior, not confirm a logout.
       const authAbortController = new AbortController();
-      const authTimeoutId = setTimeout(() => {
-        console.warn(
-          "[AuthSessionActions] Session check timed out after 10s — server may be overloaded, switching to offline-first mode",
-        );
-        authAbortController.abort();
-      }, 10000);
-
+      const authTimeoutId = setTimeout(() => authAbortController.abort(), 10000);
       try {
-        response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            Origin: window.location.origin,
-          },
-          body: JSON.stringify({
-            deviceSignals: deviceSignals || {},
-            session_id: getSessionId(), // Include session_id for device fingerprinting
-          }),
-          credentials: "include",
-          signal: authAbortController.signal,
-        });
+        const checkSession = async (): Promise<SessionCheckResult | null> => {
+          // A queued tab or an older login attempt may have been superseded.
+          if (!isCurrentSession()) return null;
+          const response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              Origin: window.location.origin,
+            },
+            body: JSON.stringify({
+              deviceSignals: deviceSignals || {},
+              session_id: getSessionId(),
+            }),
+            credentials: "include",
+            signal: authAbortController.signal,
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          return await response.json();
+        };
+
+        // Cookies are read when fetch starts under the lock, after the previous
+        // tab's Set-Cookie rotation has completed. No lock spans UI processing.
+        const result = typeof navigator !== "undefined" && navigator.locks
+          ? await navigator.locks.request(
+              "openmates:auth-session-refresh",
+              { signal: authAbortController.signal },
+              checkSession,
+            )
+          : await checkSession();
+        if (result == null || !isCurrentSession()) return currentAuthResult();
+        data = result;
       } finally {
         clearTimeout(authTimeoutId);
       }
-
-      // Check if response is OK (status 200-299)
-      // If not OK, treat as network/server error and be optimistic
-      if (!response.ok) {
-        console.warn(
-          `[AuthSessionActions] Session endpoint returned non-OK status: ${response.status} - treating as network error (offline-first mode)`,
-        );
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      data = await response.json();
-      console.debug("Session check response:", data);
     } catch (fetchError) {
-      // Network error, timeout, AbortError, or non-OK response - be optimistic
+      if (!isCurrentSession()) return currentAuthResult();
       console.warn(
         "[AuthSessionActions] Network error or non-OK response during auth check (offline-first):",
         fetchError,
       );
-      throw fetchError; // Re-throw to be caught by outer catch block
+      throw fetchError;
     }
 
     // Handle Device Verification Required (2FA OTP or passkey)
@@ -221,6 +238,7 @@ export async function checkAuth(
       const alreadyForcedLogout = get(forcedLogoutInProgress);
 
       const masterKey = await cryptoService.getKeyFromStorage(); // Use getKeyFromStorage (now async)
+      if (!isCurrentSession()) return currentAuthResult();
       if (!masterKey) {
         console.warn(
           "User is authenticated but master key is not found in storage. Forcing logout and clearing data.",
@@ -563,6 +581,7 @@ export async function checkAuth(
         }
 
         await userDB.saveUserData(data.user);
+        if (!isCurrentSession()) return currentAuthResult();
         const tfa_enabled = !!data.user.tfa_enabled;
         const consent_privacy =
           !!data.user.consent_privacy_and_apps_default_settings;
@@ -702,6 +721,7 @@ export async function checkAuth(
 
         try {
           await promoteGuestTopicPreferencesIfNeeded();
+          if (!isCurrentSession()) return currentAuthResult();
         } catch (error) {
           console.warn(
             "[AuthSessionActions] Failed to sync topic preferences after session restore:",
@@ -813,6 +833,7 @@ export async function checkAuth(
 
       // Check if master key was present before clearing (to determine if user was previously authenticated)
       const hadMasterKey = !!(await cryptoService.getKeyFromStorage());
+      if (!isCurrentSession()) return currentAuthResult();
 
       // Only logout and show notification if user was previously authenticated
       if (hadMasterKey) {
@@ -902,6 +923,7 @@ export async function checkAuth(
 
         // Clear master key and all email data from storage
         await cryptoService.clearKeyFromStorage();
+        if (!isCurrentSession()) return currentAuthResult();
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
 
         // Delete session ID and cookies
@@ -916,12 +938,14 @@ export async function checkAuth(
         // Use setTimeout to defer deletion and avoid blocking the auth initialization
         // The UI state has already been cleared via the event above
         setTimeout(async () => {
+          if (!isCurrentSession()) return;
           if (typeof localStorage !== "undefined") {
             localStorage.setItem("openmates_needs_cleanup", "true");
           }
 
           try {
             await userDB.deleteDatabase();
+            if (!isCurrentSession()) return;
             console.debug(
               "[AuthSessionActions] UserDB database deleted due to server logout response.",
             );
@@ -934,6 +958,7 @@ export async function checkAuth(
 
           try {
             await chatDB.deleteDatabase();
+            if (!isCurrentSession()) return;
             console.debug(
               "[AuthSessionActions] ChatDB database deleted due to server logout response.",
             );
@@ -972,6 +997,7 @@ export async function checkAuth(
           // This ensures the flag is reset even if logout was triggered by session expiration
           // Use a small delay to ensure all logout handlers have finished processing
           setTimeout(() => {
+            if (!isCurrentSession()) return;
             isLoggingOut.set(false);
             console.debug(
               "[AuthSessionActions] Reset isLoggingOut flag after session expiration logout cleanup",
@@ -1019,12 +1045,14 @@ export async function checkAuth(
 
         // Clear IndexedDB databases asynchronously without blocking UI
         setTimeout(async () => {
+          if (!isCurrentSession()) return;
           if (typeof localStorage !== "undefined") {
             localStorage.setItem("openmates_needs_cleanup", "true");
           }
 
           try {
             await userDB.deleteDatabase();
+            if (!isCurrentSession()) return;
             console.debug(
               "[AuthSessionActions] UserDB database deleted during orphaned cleanup.",
             );
@@ -1037,6 +1065,7 @@ export async function checkAuth(
 
           try {
             await chatDB.deleteDatabase();
+            if (!isCurrentSession()) return;
             console.debug(
               "[AuthSessionActions] ChatDB database deleted during orphaned cleanup.",
             );
@@ -1073,6 +1102,7 @@ export async function checkAuth(
 
           // CRITICAL: Reset isLoggingOut flag after cleanup completes
           setTimeout(() => {
+            if (!isCurrentSession()) return;
             isLoggingOut.set(false);
             console.debug(
               "[AuthSessionActions] Reset isLoggingOut flag after orphaned database cleanup",
@@ -1107,6 +1137,7 @@ export async function checkAuth(
       return false;
     }
   } catch (error) {
+    if (!isCurrentSession()) return currentAuthResult();
     // Network error or fetch failure - be optimistic and load local data
     console.warn(
       "[AuthSessionActions] Network error during auth check (offline-first):",
@@ -1123,9 +1154,11 @@ export async function checkAuth(
     try {
       // Load user profile from IndexedDB optimistically
       await loadUserProfileFromDB();
+      if (!isCurrentSession()) return currentAuthResult();
 
       // Check if we have local user data (master key and user profile)
       const masterKey = await cryptoService.getKeyFromStorage();
+      if (!isCurrentSession()) return currentAuthResult();
       const localProfile = get(userProfile);
       const hasLocalData = masterKey && localProfile && localProfile.username;
 
@@ -1252,6 +1285,7 @@ export async function checkAuth(
         return false;
       }
     } catch (loadError) {
+      if (!isCurrentSession()) return currentAuthResult();
       // If loading local data fails, fall back to not authenticated
       console.error(
         "[AuthSessionActions] Error loading local user data:",
@@ -1266,8 +1300,6 @@ export async function checkAuth(
 
       return false;
     }
-  } finally {
-    isCheckingAuth.set(false);
   }
 }
 

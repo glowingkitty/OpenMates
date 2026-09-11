@@ -48,6 +48,9 @@ final class NativeComposerTextView: NSObject {
     var onSubmit: @MainActor () -> Void
     private var actionsByEmbedID: [String: [AccessibilityAction]] = [:]
     private var isSynchronizing = false
+    #if canImport(UIKit)
+    private var isAwaitingUIKitEdit = false
+    #endif
     private var lastSynchronizedRevision: Int?
     private var lastAccessibilityNodes: [ComposerNodeV1] = []
     private var piiDecorations: [NativeComposerPIIDecoration] = []
@@ -90,6 +93,7 @@ final class NativeComposerTextView: NSObject {
     }
 
     func synchronize(_ textView: UITextView) {
+        guard !isAwaitingUIKitEdit else { return }
         isSynchronizing = true
         defer { isSynchronizing = false }
         if lastSynchronizedRevision != controller.revision,
@@ -98,12 +102,14 @@ final class NativeComposerTextView: NSObject {
         }
         lastSynchronizedRevision = controller.revision
         applyPIIDecorations(to: textView.textStorage)
-        textView.selectedRange = controller.selection
+        if textView.selectedRange != controller.selection {
+            textView.selectedRange = controller.selection
+        }
         textView.typingAttributes = textAttributes
         textView.accessibilityIdentifier = editorAccessibilityIdentifier
         textView.accessibilityLabel = editorAccessibilityLabel
         textView.accessibilityHint = editorAccessibilityHint
-        textView.accessibilityValue = textView.text
+        // UITextView exposes its current text to accessibility; do not freeze a snapshot.
         if rebuildEmbedAccessibilityElementsIfNeeded() {
             textView.accessibilityElements = embedAccessibilityElements.map { descriptor in
                 let element = UIAccessibilityElement(accessibilityContainer: textView)
@@ -296,42 +302,7 @@ final class NativeComposerTextView: NSObject {
         }
     }
 
-    #if canImport(UIKit)
-    private func applyIncrementalEdit(
-        to textView: UITextView,
-        range: NSRange,
-        replacement: String
-    ) {
-        isSynchronizing = true
-        defer { isSynchronizing = false }
-        textView.textStorage.beginEditing()
-        textView.textStorage.replaceCharacters(
-            in: range,
-            with: NSAttributedString(string: replacement, attributes: textAttributes)
-        )
-        textView.textStorage.endEditing()
-        if textView.textStorage.string != controller.attributedString.string {
-            textView.attributedText = styledAttributedString(controller.attributedString)
-        }
-        lastSynchronizedRevision = controller.revision
-        applyPIIDecorations(to: textView.textStorage)
-        textView.selectedRange = controller.selection
-        textView.typingAttributes = textAttributes
-        textView.accessibilityValue = textView.text
-        if rebuildEmbedAccessibilityElementsIfNeeded() {
-            textView.accessibilityElements = embedAccessibilityElements.map { descriptor in
-                let element = UIAccessibilityElement(accessibilityContainer: textView)
-                element.accessibilityIdentifier = descriptor.nodeID
-                element.accessibilityLabel = descriptor.label
-                element.accessibilityTraits = .button
-                element.accessibilityCustomActions = (actionsByEmbedID[descriptor.nodeID] ?? []).map { action in
-                    UIAccessibilityCustomAction(name: action.name) { _ in action.handler() }
-                }
-                return element
-            }
-        }
-    }
-    #elseif canImport(AppKit)
+    #if canImport(AppKit)
     private func applyIncrementalEdit(
         to textView: NSTextView,
         range: NSRange,
@@ -363,16 +334,24 @@ extension NativeComposerTextView: UITextViewDelegate {
         shouldChangeTextIn range: NSRange,
         replacementText text: String
     ) -> Bool {
-        let shouldApplyPlatformEdit = applyPlatformEdit(range: range, replacement: text)
-        if lastControllerError == nil {
-            applyIncrementalEdit(to: textView, range: range, replacement: text)
-            notifyCanonicalMarkdownChange()
-        }
-        return shouldApplyPlatformEdit
+        // UIKit owns the edit transaction, including autocorrection and its cursor.
+        // Mutating textStorage here and returning false cancels that transaction
+        // while the keyboard still has an outstanding replacement range.
+        _ = applyPlatformEdit(range: range, replacement: text)
+        isAwaitingUIKitEdit = lastControllerError == nil
+        return isAwaitingUIKitEdit
+    }
+
+    func textViewDidChange(_ textView: UITextView) {
+        guard !isSynchronizing else { return }
+        isAwaitingUIKitEdit = false
+        applyPlatformSelection(textView.selectedRange)
+        synchronize(textView)
+        notifyCanonicalMarkdownChange()
     }
 
     func textViewDidChangeSelection(_ textView: UITextView) {
-        guard !isSynchronizing else { return }
+        guard !isSynchronizing, !isAwaitingUIKitEdit else { return }
         applyPlatformSelection(textView.selectedRange)
     }
 

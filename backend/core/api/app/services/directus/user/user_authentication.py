@@ -248,7 +248,7 @@ async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Di
                         if decrypted_devices:
                             try:
                                 user_data["devices"] = json.loads(decrypted_devices)
-                            except json.JSONDecodeError:
+                            except json.JSONDecodeError as e:
                                 # Log error, but don't set default. Let it propagate.
                                 logger.error(f"Failed to decode decrypted devices JSON: {str(e)}")
                                 # If devices were present but failed decryption, remove? Or leave encrypted? Leave for now.
@@ -394,6 +394,8 @@ async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[s
     Returns (success, {"cookies": {...}, "data": {...}}, message)
     The response data may contain access_token in the JSON body.
     """
+    from backend.core.api.app.utils.session_refresh import SessionRefreshUnavailable
+
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
             response = await client.post(
@@ -421,6 +423,9 @@ async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[s
                     "data": response_data
                 }, "Token refreshed"
                 
+            if response.status_code == 429 or response.status_code >= 500:
+                raise SessionRefreshUnavailable()
+
             # 401 = expired/revoked refresh token. This is an expected user
             # state (session aged out, user signed out from another device,
             # browser cookie cleared, etc.) — not a code bug. Both callers
@@ -432,9 +437,12 @@ async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[s
                 logger.error(f"Token refresh failed: {response.status_code}")
             return False, None, "Token refresh failed"
             
-    except Exception as e:
-        logger.error(f"Error during token refresh: {str(e)}")
-        return False, None, str(e)
+    except SessionRefreshUnavailable:
+        raise
+    except Exception as error:
+        # Timeouts and transport failures are not proof of invalid credentials.
+        logger.warning("Directus session refresh temporarily unavailable")
+        raise SessionRefreshUnavailable() from error
 
 async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
@@ -463,7 +471,7 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
         users = data.get("data", [])
         
         if not users or len(users) == 0:
-            logger.info(f"No user found with matching hashed email")
+            logger.info("No user found with matching hashed email")
             return False, None, "login.email_or_password_wrong"
             
         user = users[0]
@@ -594,7 +602,7 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
                             if decrypted_devices:
                                 try:
                                     user_data["devices"] = json.loads(decrypted_devices)
-                                except json.JSONDecodeError:
+                                except json.JSONDecodeError as e:
                                     logger.error(f"Failed to decode decrypted devices JSON: {str(e)}")
                             else:
                                 logger.error("Devices decryption failed!")

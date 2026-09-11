@@ -11,6 +11,102 @@ import XCTest
 
 @MainActor
 final class ChatHistoryRenderDocumentTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chat-navigation.open.local-first-coherent
+    func testInlineFlowReusesMeasurementsAndPreservesWrapping() {
+        var cache = InlineMarkdownFlowMeasurements(idealSizes: [
+            CGSize(width: 40, height: 20),
+            CGSize(width: 50, height: 20),
+            CGSize(width: 30, height: 24)
+        ])
+        var constrainedMeasurements = 0
+        let measure: (Int, CGFloat) -> CGSize = { _, width in
+            constrainedMeasurements += 1
+            return CGSize(width: width, height: 20)
+        }
+
+        let measured = cache.arrangement(width: 100, spacing: 0, lineSpacing: 2, measureConstrained: measure)
+        let placed = cache.arrangement(width: 100, spacing: 0, lineSpacing: 2, measureConstrained: measure)
+
+        XCTAssertEqual(measured, placed)
+        XCTAssertEqual(measured.origins, [CGPoint(x: 0, y: 0), CGPoint(x: 40, y: 0), CGPoint(x: 0, y: 22)])
+        XCTAssertEqual(measured.size, CGSize(width: 90, height: 46))
+        XCTAssertEqual(constrainedMeasurements, 0, "Ordinary text/chips should use their intrinsic size without a second measurement")
+
+        let resized = cache.arrangement(width: 130, spacing: 0, lineSpacing: 2, measureConstrained: measure)
+        XCTAssertEqual(resized.origins, [CGPoint(x: 0, y: 0), CGPoint(x: 40, y: 0), CGPoint(x: 90, y: 0)])
+        XCTAssertEqual(resized.size, CGSize(width: 120, height: 24))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chat-navigation.open.local-first-coherent
+    func testInlineFlowConstrainsOversizedChipOncePerLayoutProposal() {
+        var cache = InlineMarkdownFlowMeasurements(idealSizes: [
+            CGSize(width: 200, height: 20),
+            CGSize(width: 20, height: 20)
+        ])
+        var constrainedMeasurements = 0
+        let measure: (Int, CGFloat) -> CGSize = { index, width in
+            XCTAssertEqual(index, 0)
+            constrainedMeasurements += 1
+            return CGSize(width: width, height: 40)
+        }
+
+        let measured = cache.arrangement(width: 100, spacing: 0, lineSpacing: 2, measureConstrained: measure)
+        let placed = cache.arrangement(width: 100, spacing: 0, lineSpacing: 2, measureConstrained: measure)
+        XCTAssertEqual(measured, placed)
+        XCTAssertEqual(measured.sizes.first, CGSize(width: 100, height: 40))
+        XCTAssertEqual(measured.origins.last, CGPoint(x: 0, y: 42))
+        XCTAssertEqual(constrainedMeasurements, 1)
+
+        let resized = cache.arrangement(width: 80, spacing: 0, lineSpacing: 2, measureConstrained: measure)
+        XCTAssertEqual(resized.sizes.first, CGSize(width: 80, height: 40))
+        XCTAssertEqual(constrainedMeasurements, 2)
+        let spaced = cache.arrangement(width: 80, spacing: 0, lineSpacing: 4, measureConstrained: measure)
+        XCTAssertEqual(spaced.origins.last, CGPoint(x: 0, y: 44))
+        XCTAssertEqual(constrainedMeasurements, 3)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chat-navigation.open.local-first-coherent
+    func testInlineFlowPreservesOriginalProposalWhenChipHugsWrappedText() {
+        var cache = InlineMarkdownFlowMeasurements(idealSizes: [
+            CGSize(width: 200, height: 20),
+            CGSize(width: 20, height: 20)
+        ])
+        let measure: (Int, CGFloat) -> CGSize = { _, width in
+            // Multiline Text may return its longest wrapped line's width,
+            // which is narrower than the width offered by its parent.
+            CGSize(width: width - 10, height: width >= 100 ? 40 : 60)
+        }
+
+        let measured = cache.arrangement(width: 100, spacing: 0, lineSpacing: 2, measureConstrained: measure)
+        XCTAssertEqual(measured.size, CGSize(width: 90, height: 62))
+        XCTAssertEqual(measured.proposedWidths, [100, nil])
+        XCTAssertEqual(measured.origins.last, CGPoint(x: 0, y: 42))
+
+        // Placement must retain the original container and child proposals.
+        // Reusing the returned 90-point width would incorrectly add a line.
+        let placed = cache.arrangement(width: 100, spacing: 0, lineSpacing: 2, measureConstrained: measure)
+        XCTAssertEqual(placed, measured)
+        let incorrectlyRewrapped = cache.arrangement(width: measured.size.width, spacing: 0, lineSpacing: 2, measureConstrained: measure)
+        XCTAssertEqual(incorrectlyRewrapped.size.height, 82)
+        XCTAssertNotEqual(incorrectlyRewrapped.size.height, placed.size.height)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chat-navigation.open.local-first-coherent
+    func testInlineMarkdownMakesProgressPastLiteralAndMalformedDelimiters() {
+        let cases = [
+            ("[literal] then [source](embed:source)", "[literal] then source"),
+            ("An unmatched ` marker and [source](embed:source)", "An unmatched ` marker and source"),
+            ("![alt](https://example.com/image.png) and [source](embed:source)", "![alt](https://example.com/image.png) and source"),
+            ("[ [ [", "[ [ ["),
+            ("Unicode 🪐 [plain] and `unfinished", "Unicode 🪐 [plain] and `unfinished")
+        ]
+        for (source, expected) in cases {
+            XCTAssertEqual(InlineMarkdownTokenizer.parse(source).map(\.searchText).joined(), expected)
+        }
+        XCTAssertTrue(InlineMarkdownTokenizer.parse(cases[0].0).contains(
+            .embed(displayText: "source", embedRef: "source", isBold: false)))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testImportedProviderMetadataDecryptsIntoRenderIdentity() async throws {
         let chatId = "chat-imported-provider"

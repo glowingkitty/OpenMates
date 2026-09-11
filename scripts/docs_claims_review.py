@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Prepare or launch OpenCode reviews for docs affected by claim failures.
+Prepare review evidence for docs affected by claim failures.
 
 This script is the low-noise automation layer for assertion-backed docs. It
 reads test failure JSON, maps failing test files to documentation claims, and
-builds focused OpenCode review prompts. It only spawns sessions when called
-with --execute; otherwise it prints the review plan and writes prompts.
+builds a focused review prompt for the current conversation. It never launches
+an agent or sends a cross-thread prompt.
 
 Architecture: docs/contributing/guides/docs-writing-guidelines.md
 """
@@ -16,7 +16,6 @@ import argparse
 import datetime as dt
 import json
 import re
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -168,35 +167,12 @@ def write_prompt(prompt: str) -> tuple[Path, Path]:
     return prompt_path, result_path
 
 
-def spawn_review(prompt_path: Path) -> None:
-    subprocess.run(
-        [
-            "python3",
-            "scripts/sessions.py",
-            "spawn-chat",
-            "--prompt-file",
-            str(prompt_path.relative_to(REPO_ROOT)),
-            "--name",
-            "docs-claims-review",
-            "--mode",
-            "execute",
-        ],
-        cwd=REPO_ROOT,
-        check=True,
-    )
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--failures",
         default="test-results/last-failed-tests.json",
         help="Failure JSON path. Defaults to test-results/last-failed-tests.json.",
-    )
-    parser.add_argument(
-        "--execute",
-        action="store_true",
-        help="Spawn an OpenCode docs review session for affected claims.",
     )
     args = parser.parse_args()
 
@@ -228,11 +204,7 @@ def main() -> int:
     print(f"Review prompt written to: {prompt_path.relative_to(REPO_ROOT)}")
     print(f"Expected result file: {result_path.relative_to(REPO_ROOT)}")
 
-    if args.execute:
-        spawn_review(prompt_path)
-        print("Spawned OpenCode docs claims review session.")
-    else:
-        print("Dry-run only. Re-run with --execute to spawn the review session.")
+    print("Review the prepared evidence in the current conversation; no agent is launched.")
     return 0
 
 

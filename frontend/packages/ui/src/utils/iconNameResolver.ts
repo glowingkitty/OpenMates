@@ -72,6 +72,7 @@ export const ICON_NAME_MAP: Record<string, string> = {
     'username': 'user',
     'video': 'videos',
     'website': 'web',
+    'table': 'sheets',
 };
 
 /**

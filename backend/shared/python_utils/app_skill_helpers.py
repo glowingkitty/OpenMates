@@ -79,6 +79,8 @@ async def sanitize_long_text_fields_in_payload(
     min_chars: int = 120,
     max_parallel: int = 4,
     always_sanitize_field_names: Optional[set[str]] = None,
+    app_id: Optional[str] = None,
+    skill_id: Optional[str] = None,
 ) -> Any:
     """Sanitize nested text fields without importing AI LLM dependencies at module load."""
     from backend.apps.ai.processing.external_result_sanitizer import (
@@ -93,6 +95,8 @@ async def sanitize_long_text_fields_in_payload(
         min_chars=min_chars,
         max_parallel=max_parallel,
         always_sanitize_field_names=always_sanitize_field_names,
+        app_id=app_id,
+        skill_id=skill_id,
     )
 
 

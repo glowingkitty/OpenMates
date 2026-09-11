@@ -8,7 +8,7 @@ summary: >
   encrypted human slugs for user-owned encrypted objects locally, sends only
   canonical object ids to server/API operations, and renders actionable
   human-readable output without exposing private plaintext in durable backend
-  state.
+  state. Generated app-skill artifacts download to explicit, predictable local paths.
 
 scope:
   includes:
@@ -16,6 +16,7 @@ scope:
     - Client-generated encrypted_slug fields and keyed slug_lookup_hash metadata for object create, update, list, show, and command resolution where each object surface supports the operation.
     - Local CLI decryption, slug display, slug-to-id resolution, duplicate detection, ambiguity handling, and canonical-id transport to REST/WebSocket/SDK-backed server calls.
     - Human output summaries that show titles/names, stable slugs, lifecycle state, relevant next/last activity, and next useful commands while preserving --json machine output.
+    - Automatic generated app-skill file downloads, local destination flags, and contextual download help.
   excludes:
     - Public example chat slugs, which are intentionally cleartext public catalog identifiers.
     - Server-side plaintext slug search, plaintext slug indexes, or server-side decryption of encrypted_slug values.
@@ -23,6 +24,22 @@ scope:
     - GUI visual layout, Apple terminal-equivalent UX, and SDK method naming beyond parity rules that call the same underlying object ids.
 
 models:
+  GeneratedFileDownloadOptions:
+    output_dir:
+      type: string
+      default: current_working_directory
+    filename:
+      type: string
+      constraints:
+        basename_only: true
+    output:
+      type: string
+      constraints:
+        explicit_file_path: true
+        conflicts_with_output_dir_and_filename: true
+    no_download:
+      type: boolean
+      default: false
   EncryptedObjectSlug:
     encrypted_slug:
       type: client_ciphertext
@@ -102,6 +119,29 @@ assertions:
     must: Project-scoped Plan and Task recovery YAML is written only by an explicit CLI command or configured external recovery root, contains decrypted typed work data without ciphertext fields, and requires validation plus explicit confirmation before restore.
     depends_on: [applies_to]
 
+  - id: cli.generated-files.cwd-default
+    type: behavior
+    must: All file-generating CLI app-skill commands, including image, video, music, audio, document, 3D, and code-generated files, automatically save every distinct structured generated-file result in the directory where the command was invoked, unless --json is used without an explicit destination. --json alone returns structured results with download URLs and expiry times without saving files; --json with --output, --output-dir, or --filename downloads and reports saved paths. Download each artifact in its original or declared preferred full-quality format, not redundant preview variants, and do not treat ordinary search links as generated files. --no-download explicitly retains result-only behavior. SDK calls return structured results without automatic local writes.
+    depends_on:
+    - models.GeneratedFileDownloadOptions
+    - examples.generated_file_downloads
+  - id: cli.generated-files.destination
+    type: behavior
+    must: --output-dir selects or creates a destination directory; --filename names a single generated artifact within that directory or the invocation directory; --output accepts a complete file path as a mutually exclusive alternative. Reject ambiguous single-filename batch requests and invalid option combinations before generation where knowable. Destination options stay local and are never sent to the provider.
+    depends_on:
+    - models.GeneratedFileDownloadOptions
+    - examples.generated_file_downloads
+  - id: cli.generated-files.safe-visible
+    type: failure
+    must: Generated names cannot escape the destination directory. Never leave a failed download at its final path. Explicit filenames always replace existing targets atomically after a successful download; default names use collision-safe alternatives and never overwrite existing files. Download errors return nonzero and preserve available job or embed identifiers for recovery without automatic regeneration. Human output reports saved absolute paths; JSON stdout remains valid JSON with additive local-file metadata and progress only on stderr.
+    depends_on:
+    - examples.generated_file_failures
+  - id: cli.generated-files.help
+    type: behavior
+    must: Contextual app-skill help and CLI documentation state the default download directory and show target-directory, filename, full-path, and no-download examples.
+    depends_on:
+    - examples.generated_file_downloads
+
 applies_to:
   rest_api:
     required: true
@@ -131,4 +171,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [encrypted_slugs, local_resolution, human_output]
+  required_groups: [encrypted_slugs, local_resolution, human_output, generated_file_downloads, generated_file_failures]

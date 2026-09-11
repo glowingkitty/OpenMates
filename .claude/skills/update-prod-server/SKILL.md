@@ -34,7 +34,7 @@ python3 scripts/sessions.py start --mode feature --task "update production serve
 ```
 
 Keep the printed session ID for summaries. Do not create a second worktree for
-the same OpenCode chat.
+the same Codex chat.
 
 ### 2. Resolve The Production Subject
 

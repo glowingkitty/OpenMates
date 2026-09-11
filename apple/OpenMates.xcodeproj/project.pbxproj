@@ -258,6 +258,8 @@
 		C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */; };
 		C0FFEE000000000000053002 /* ChatCompletionRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000053001 /* ChatCompletionRecoveryTests.swift */; };
 		C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000012001 /* ChatSyncParityTests.swift */; };
+		A99109110000000000000002 /* OfflineAccountIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99109110000000000000001 /* OfflineAccountIsolationTests.swift */; };
+		A99109110000000000000004 /* RealAccountLoginRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99109110000000000000003 /* RealAccountLoginRecoveryTests.swift */; };
 		D5AF70000000000000000002 /* DraftSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AF70000000000000000001 /* DraftSyncCoordinator.swift */; };
 		D5AF70000000000000000003 /* DraftSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AF70000000000000000001 /* DraftSyncCoordinator.swift */; };
 		D5AF70000000000000000012 /* DraftSyncParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AF70000000000000000011 /* DraftSyncParityTests.swift */; };
@@ -1025,6 +1027,8 @@
 		C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatShellResponsiveParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatWindowLoadingTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000012001 /* ChatSyncParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSyncParityTests.swift; sourceTree = "<group>"; };
+		A99109110000000000000001 /* OfflineAccountIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineAccountIsolationTests.swift; sourceTree = "<group>"; };
+		A99109110000000000000003 /* RealAccountLoginRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealAccountLoginRecoveryTests.swift; sourceTree = "<group>"; };
 		D5AF70000000000000000001 /* DraftSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftSyncCoordinator.swift; sourceTree = "<group>"; };
 		D5AF70000000000000000011 /* DraftSyncParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftSyncParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000013001 /* SubChatProcessingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubChatProcessingTests.swift; sourceTree = "<group>"; };
@@ -1838,6 +1842,8 @@
 				C0FFEE00000000000005005C /* VoiceRecorderTests.swift */,
 				C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */,
 				C0FFEE000000000000012001 /* ChatSyncParityTests.swift */,
+				A99109110000000000000001 /* OfflineAccountIsolationTests.swift */,
+				A99109110000000000000003 /* RealAccountLoginRecoveryTests.swift */,
 				D5AF70000000000000000011 /* DraftSyncParityTests.swift */,
 				C0FFEE000000000000013001 /* SubChatProcessingTests.swift */,
 				C0FFEE000000000000015001 /* ChatManagementSharingParityTests.swift */,
@@ -3170,6 +3176,8 @@
 				C0FFEE00000000000005005D /* VoiceRecorderTests.swift in Sources */,
 				C0FFEE000000000000040002 /* AnonymousChatStreamingParityTests.swift in Sources */,
 				C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */,
+				A99109110000000000000002 /* OfflineAccountIsolationTests.swift in Sources */,
+				A99109110000000000000004 /* RealAccountLoginRecoveryTests.swift in Sources */,
 				D5AF70000000000000000012 /* DraftSyncParityTests.swift in Sources */,
 				C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */,
 				C0FFEE000000000000015004 /* ChatManagementSharingParityTests.swift in Sources */,
@@ -3246,6 +3254,7 @@
 				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = OpenMates/Resources/OpenMatesMacOS.entitlements;
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -3266,6 +3275,7 @@
 				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = OpenMates/Resources/OpenMatesMacOS.entitlements;
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -3405,6 +3415,7 @@
 				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = OpenMates/Resources/OpenMatesMacOS.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3425,6 +3436,7 @@
 				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = OpenMates/Resources/OpenMatesMacOS.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3497,7 +3509,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.17.0;
+				MARKETING_VERSION = 0.18.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -3578,7 +3590,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.17.0;
+				MARKETING_VERSION = 0.18.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

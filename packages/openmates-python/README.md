@@ -196,11 +196,11 @@ The SDK raises:
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.17`, in the web app.
+OpenMates shows the short product line, for example `v0.18`, in the web app.
 Python package artifacts use exact release-line versions:
 
-- `0.17.0aN` is an alpha prerelease from the `dev` branch.
-- `0.17.0` is a stable release from `main`.
+- `0.18.0aN` is an alpha prerelease from the `dev` branch.
+- `0.18.0` is a stable release from `main`.
 
 Install stable releases with `pip install openmates`. Install prereleases with
 `pip install --pre openmates`.

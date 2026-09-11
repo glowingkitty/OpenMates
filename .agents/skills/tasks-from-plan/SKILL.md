@@ -5,10 +5,22 @@ user-invocable: true
 argument-hint: "docs/plans/<slug>/plan.yml"
 ---
 
+## Codex execution boundary
+
+OpenMates Tasks remains the execution source of truth; native OpenMates Plans and
+Specs integration is deferred. Preserve the existing repository YAML Plan and PDF
+specification approval workflow. Do not create a second manually maintained Task
+status database. Ordinary real REST/WebSocket, CLI/SDK and browser verification
+runs on the isolated GitHub stack. The separately authorized live signup-email
+smoke uses OpenMates CLI and runs only on dev, with isolated test state. It does
+not move to GitHub when local credentials are missing. Existing authorization
+and explicit user waivers persist; do not restart approval/question rounds or
+require videos the user has explicitly declined.
+
 ## Instructions
 
 You are creating the task breakdown for Plan-driven implementation. The output
-must let OpenCode implement one small vertical slice at a time without losing
+must let Codex implement one small vertical slice at a time without losing
 Specification or verification traceability.
 
 ### Step 1: Read Inputs
@@ -29,9 +41,9 @@ Create or update `tasks` in the Plan. Each task must include:
 - Initial status, blockers, dependencies, ownership, and deployability
 
 For shared product surfaces, enforce this dependency order: REST API/WebSocket
-against the dev server, CLI, npm and pip SDK parity, CI/daily reproduction, web,
+on the isolated GitHub stack, CLI, npm and pip SDK parity, web,
 deployed Playwright visual smoke for larger web UI, user confirmation, then Apple.
-The CLI and SDK tasks must use real dev-server API/WebSocket calls; mocks can only
+The CLI and SDK tasks must use the real isolated API/WebSocket stack; mocks can only
 be supplemental unit tasks.
 
 For required proof videos, add capture, device-scoped WebVTT captions, frame-only

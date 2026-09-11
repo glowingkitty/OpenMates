@@ -167,6 +167,34 @@ test.describe('Embeds map view preview', () => {
 		await expect(mapView).toHaveAttribute('aria-label', 'Berlin to Bangkok flight options');
 		await expect(mapPane).toHaveAttribute('data-map-hydrated', 'true', { timeout: 15_000 });
 
+        const markerIcons = mapPane.locator('.leaflet-marker-icon svg.embed-map-pin');
+        await expect(markerIcons.first()).toBeVisible();
+        expect(await mapPane.locator('.leaflet-marker-icon').count()).toBe(await markerIcons.count());
+        const pinAppearance = await markerIcons.evaluateAll((icons) => {
+            const probe = document.createElement('span');
+            probe.style.color = 'var(--color-app-travel-start)';
+            icons[0].parentElement!.appendChild(probe);
+            const expectedColor = getComputedStyle(probe).color;
+            probe.remove();
+            return icons.map((icon) => {
+                const style = getComputedStyle(icon);
+                return { color: style.color, expectedColor, background: style.backgroundImage, mask: style.maskImage };
+            });
+        });
+        for (const pin of pinAppearance) {
+            expect(pin.color).toBe(pin.expectedColor);
+            expect(pin.background).toBe('none');
+            expect(pin.mask).toBe('none');
+        }
+        const attribution = mapPane.locator('.leaflet-control-attribution');
+        const attributionSize = await attribution.evaluate((element) => ({
+            text: parseFloat(getComputedStyle(element).fontSize),
+            link: parseFloat(getComputedStyle(element.querySelector('a')!).fontSize),
+        }));
+        expect(attributionSize.text).toBeLessThanOrEqual(12);
+        expect(attributionSize.link).toBeLessThanOrEqual(12);
+
+
 		const carousel = mapView.getByTestId('embeds-map-view-carousel');
 		await expect(carousel).toBeVisible();
 		const cards = mapView.getByTestId('embeds-map-view-card');
@@ -211,11 +239,27 @@ test.describe('Embeds map view preview', () => {
 		}
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'calendar');
 		const calendarItems = mapView.getByTestId('embeds-results-view-calendar-item');
-		await expect(calendarItems).toHaveCount(5);
+		// Five overnight flights render one segment on each occupied day.
+		await expect(calendarItems).toHaveCount(10);
+        // A timed block must occupy its scheduled duration, not a fixed card height.
+        const eventGeometry = await calendarItems.evaluateAll((elements) => elements.map((element) => {
+            const style = getComputedStyle(element);
+            const start = Number((element as HTMLElement).dataset.startMinutes);
+            const end = Number((element as HTMLElement).dataset.endMinutes);
+            const hourHeight = parseFloat(style.getPropertyValue('--calendar-hour-height'));
+            return { actual: element.getBoundingClientRect().height, expected: (end - start) / 60 * hourHeight };
+        }));
+        for (const geometry of eventGeometry) {
+            expect(geometry.expected).toBeGreaterThan(0);
+            expect(Math.abs(geometry.actual - geometry.expected)).toBeLessThanOrEqual(2);
+        }
+
 		await expect(mapView.getByTestId('embeds-results-view-calendar-week')).toBeVisible();
 		await expect(mapView.getByTestId('embeds-results-view-calendar-day')).toHaveCount(7);
 		await expect(mapView.getByTestId('embeds-results-view-calendar-week-label')).toContainText('Apr 13');
-		await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(5);
+		await expect(mapView.getByRole('button', { name: 'Previous week', exact: true })).toBeDisabled();
+		await expect(mapView.getByRole('button', { name: 'Next week', exact: true })).toBeDisabled();
+		await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(10);
 		await expect(cards).toHaveCount(0);
 		if (PROOF_DEVICE === 'web-phone') {
 			const calendar = mapView.getByTestId('embeds-results-view-calendar');
@@ -226,7 +270,7 @@ test.describe('Embeds map view preview', () => {
 		if (proof) {
 			await proof.assert('calendar-tab-week', async () => {
 				await expect(mapView.getByTestId('embeds-results-view-calendar-week')).toBeVisible();
-				await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(5);
+				await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(10);
 			});
 			await proof.checkpoint('calendar-tab-week');
 		}
@@ -267,7 +311,52 @@ test.describe('Embeds map view preview', () => {
 		await expect(filterMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('5 of 5 results remain');
 		await expect(filterMenu.getByTestId('embeds-map-view-filter-controls')).toBeVisible();
 		await expect(filterMenu).toHaveAttribute('data-layout', 'results-panel');
-		await expect(filterMenu).toContainText('route');
+        const filterLayout = await filterMenu.evaluate((panel: HTMLElement) => {
+            const summary = panel.querySelector<HTMLElement>('.filter-menu-summary')!;
+            const controls = panel.querySelector<HTMLElement>('[data-testid="embeds-map-view-filter-controls"]')!;
+            const before = summary.getBoundingClientRect();
+            controls.scrollTop = 100;
+            const after = summary.getBoundingClientRect();
+            controls.scrollTop = 0;
+            return {
+                width: panel.clientWidth,
+                summaryRight: before.right,
+                controlsLeft: controls.getBoundingClientRect().left,
+                summaryMovement: after.top - before.top,
+            };
+        });
+        expect(filterLayout.summaryMovement).toBe(0);
+        if (filterLayout.width > 520) expect(filterLayout.summaryRight).toBeLessThanOrEqual(filterLayout.controlsLeft);
+        const rangeMin = filterMenu.locator('input[type="range"]').first();
+        const rangeMax = filterMenu.locator('input[type="range"]').nth(1);
+        expect((await rangeMin.boundingBox())!.y).toBeCloseTo((await rangeMax.boundingBox())!.y, 0);
+
+        // Exercise real pointer dragging (native input.fill bypasses Safari hit testing).
+        for (const rail of await filterMenu.locator('.range-controls').all()) {
+            await rail.scrollIntoViewIfNeeded();
+            const box = (await rail.boundingBox())!;
+            const minimum = rail.locator('input.lower');
+            const maximum = rail.locator('input.upper');
+            const initialMin = Number(await minimum.inputValue());
+            const initialMax = Number(await maximum.inputValue());
+            if (initialMin === initialMax) continue;
+            const left = box.x + 14;
+            const right = box.x + box.width - 14;
+            const y = box.y + box.height / 2;
+            await page.mouse.move(left, y);
+            await page.mouse.down();
+            await page.mouse.move(left + (right - left) * 0.25, y, { steps: 8 });
+            await page.mouse.up();
+            expect(Number(await minimum.inputValue())).toBeGreaterThan(initialMin);
+            await page.mouse.move(right, y);
+            await page.mouse.down();
+            await page.mouse.move(left + (right - left) * 0.75, y, { steps: 8 });
+            await page.mouse.up();
+            expect(Number(await maximum.inputValue())).toBeLessThan(initialMax);
+        }
+        await filterMenu.getByTestId('embeds-map-view-clear-filters').click();
+        await filterMenu.getByTestId('embeds-map-view-filter-controls').evaluate((controls) => { controls.scrollTop = 0; });
+
 		await expect(filterMenu).toContainText('Price');
 		await expect(filterMenu).toContainText('Carrier');
 		if (proof) {
@@ -282,17 +371,21 @@ test.describe('Embeds map view preview', () => {
 		const qatarCarrier = filterMenu.getByTestId('embeds-map-view-option-carrier-qr');
 		if (proof) {
 			await proof.action('select-route-filter', async () => {
-				await qatarCarrier.click();
+				for (const option of await filterMenu.locator('[data-testid^="embeds-map-view-option-carrier-"]').all()) {
+ if (await option.getAttribute('data-testid') !== 'embeds-map-view-option-carrier-qr') await option.click();
+}
 			});
 		} else {
-			await qatarCarrier.click();
+			for (const option of await filterMenu.locator('[data-testid^="embeds-map-view-option-carrier-"]').all()) {
+ if (await option.getAttribute('data-testid') !== 'embeds-map-view-option-carrier-qr') await option.click();
+}
 		}
 		await expect(filterMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('2 of 5 results remain');
-		await expect(qatarCarrier).toHaveAttribute('aria-pressed', 'true');
+		await expect(qatarCarrier).toHaveAttribute('aria-checked', 'true');
 		if (proof) {
 			await proof.assert('local-route-filter', async () => {
 				await expect(filterMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('2 of 5 results remain');
-				await expect(qatarCarrier).toHaveAttribute('aria-pressed', 'true');
+				await expect(qatarCarrier).toHaveAttribute('aria-checked', 'true');
 			});
 			await proof.checkpoint('local-route-filter');
 		}

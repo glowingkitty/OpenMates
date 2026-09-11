@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import importlib
 import json
 import sys
 import types
@@ -76,6 +77,13 @@ _PROVIDER_STUBS = {
 }
 for module_name, attributes in _PROVIDER_STUBS.items():
     if module_name not in sys.modules:
+        # Prefer installed response models so this module cannot replace them
+        # with empty classes for subsequently collected provider tests.
+        try:
+            importlib.import_module(module_name)
+            continue
+        except ImportError:
+            pass
         provider_stub = types.ModuleType(module_name)
         for attr_name, attr_value in attributes.items():
             setattr(provider_stub, attr_name, attr_value)
@@ -289,7 +297,9 @@ def test_persisted_ai_message_broadcast_preserves_parent_user_message_id_and_cre
     assert event["message"]["user_message_id"] == request_data.message_id
 
 
-def test_harmful_fake_stream_includes_recovery_job_before_final_marker(monkeypatch) -> None:
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+@pytest.mark.parametrize("response_kind", ["harmful", "simple"])
+def test_fake_stream_includes_recovery_job_before_final_marker(monkeypatch, response_kind) -> None:
     task_id = "11111111-1111-4111-8111-111111111111"
     request_data = AskSkillRequest(
         chat_id="22222222-2222-4222-8222-222222222222",
@@ -330,12 +340,18 @@ def test_harmful_fake_stream_includes_recovery_job_before_final_marker(monkeypat
         lambda _task_id: SimpleNamespace(state="PENDING"),
     )
 
+    generate = (
+        stream_consumer._generate_fake_stream_for_harmful_content
+        if response_kind == "harmful"
+        else stream_consumer._generate_fake_stream_for_simple_message
+    )
+    content_keyword = "predefined_response" if response_kind == "harmful" else "message_text"
     asyncio.run(
-        stream_consumer._generate_fake_stream_for_harmful_content(
+        generate(
             task_id=task_id,
             request_data=request_data,
             preprocessing_result=preprocessing_result,
-            predefined_response="I can't help with that request.",
+            **{content_keyword: "I can't help with that request."},
             cache_service=cache_service,
             directus_service=object(),
             encryption_service=object(),
@@ -503,7 +519,8 @@ def test_standardized_server_error_fallback_can_be_sealed_for_recovery(monkeypat
     assert result == {"job_id": "77777777-7777-4777-8777-777777777777"}
 
 
-def test_sub_chat_parent_continuation_does_not_inherit_recovery_identity(monkeypatch) -> None:
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.message.identity-idempotent
+def test_sub_chat_parent_continuation_preserves_inference_without_reusing_execution_identity(monkeypatch) -> None:
     original_request = AskSkillRequest(
         chat_id="22222222-2222-4222-8222-222222222222",
         message_id="33333333-3333-4333-8333-333333333333",
@@ -546,7 +563,12 @@ def test_sub_chat_parent_continuation_does_not_inherit_recovery_identity(monkeyp
     request_payload = captured["kwargs"]["request_data_dict"]
     assert captured["task_id"] is None
     assert request_payload["recovery_task_id"] is None
-    assert request_payload["recovery_inference_task_id"] is None
+    # Continuation is a new execution, but must seal its answer under the
+    # original inference so an offline owner can recover the completed turn.
+    assert request_payload["recovery_inference_task_id"] == original_request.recovery_inference_task_id
+    continuation_request = AskSkillRequest(**request_payload)
+    assert continuation_request.resolved_recovery_inference_task_id() == original_request.recovery_inference_task_id
+    assert continuation_request.is_sub_chat_continuation is True
     assert request_payload["continuation_message_id"] is None
     assert request_payload["recovery_preflight_id"] == original_request.recovery_preflight_id
     assert request_payload["recovery_turn_id"] == original_request.recovery_turn_id
@@ -672,3 +694,32 @@ def test_sub_chat_continuation_failure_marks_original_inference(monkeypatch) -> 
 
     assert captured["operation"] == "mark_inference_failed"
     assert captured["data"]["inference_task_id"] == request_data.recovery_inference_task_id
+
+
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+@pytest.mark.parametrize("marker,reason", [
+    ("__awaiting_app_settings_memories_permission__", "permission_required"),
+    ("__awaiting_connected_account_permission__", "connected_account_required"),
+])
+def test_permission_pause_before_debug_metadata_does_not_fail_turn(monkeypatch, marker, reason):
+    async def paused_stream(**kwargs):
+        yield {marker: True, "request_id": "request-1"}
+
+    monkeypatch.setattr(stream_consumer, "handle_main_processing", paused_stream)
+    monkeypatch.setattr(stream_consumer.celery_config.app, "AsyncResult", lambda _: SimpleNamespace(state="STARTED"))
+    request = AskSkillRequest(chat_id="chat-1", message_id="message-1", user_id="user-1", user_id_hash="hash-1", message_history=[], is_incognito=True)
+    result = asyncio.run(stream_consumer._consume_main_processing_stream(
+        task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
+        base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
+        all_mates_configs=[], discovered_apps_metadata={}, cache_service=None,
+    ))
+    assert result[:4] == ("", False, False, [])
+    assert result[4]["user_task_blocked_reason_code"] == reason
+
+
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+def test_memory_continuation_seals_under_original_inference_identity():
+    request = AskSkillRequest(chat_id="chat-1", message_id="message-1", user_id="user-1", user_id_hash="hash-1", message_history=[], is_app_settings_memories_continuation=True, recovery_inference_task_id="original-task-1")
+    assert request.resolved_recovery_inference_task_id() == "original-task-1"
+    request.is_app_settings_memories_continuation = False
+    assert request.resolved_recovery_inference_task_id() is None

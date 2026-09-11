@@ -1,5 +1,5 @@
 /**
- * OpenMates npm SDK user task contract tests.
+ * OpenMates npm SDK user Task Specification tests.
  *
  * Purpose: verify API-key SDK task CRUD/start parity with CLI and pip.
  * Security: uses a local HTTP server and synthetic API key only; no task data or
@@ -78,7 +78,7 @@ describe("OpenMates SDK user tasks", () => {
         }
         if (request.method === "GET" && request.url?.includes("/activity")) return { entries: storedActivity ? [storedActivity] : [] };
         if (request.method === "DELETE" && request.url?.includes("/activity/")) {
-          return { entry: { ...storedActivity, kind: "tombstone", encrypted_entry_key: null, encrypted_message: null, encrypted_embed_key_material: null, embed_refs: [], author_hash: "author-hash", deleted_by_hash: "author-hash", deleted_at: 101 } };
+          return { entry: { ...storedActivity, kind: "tombstone", encrypted_message: null, encrypted_embed_key_material: null, embed_refs: [], author_hash: "author-hash", deleted_by_hash: "author-hash", deleted_at: 101 } };
         }
         throw new Error(`Unexpected request ${request.method} ${request.url}`);
       },
@@ -289,7 +289,8 @@ describe("OpenMates SDK user tasks", () => {
   });
 
   // contract-test: direct surface=sdks.npm assertions=tasks.external-chat.encrypted-context,tasks.blocking.encrypted-reason,tasks.surface.semantic-parity
-  it("encrypts external chat and block text without plaintext HTTP payloads", async () => {
+  for (const provider of ["codex", "opencode"] as const) {
+  it(`encrypts ${provider} external chat and block text without plaintext HTTP payloads`, async () => {
     const masterKey = Buffer.alloc(32, 10);
     const material = await createApiKeyCryptoMaterial("sdk external task parity", masterKey.toString("base64"));
     let storedTask: Record<string, any> | null = null;
@@ -300,7 +301,7 @@ describe("OpenMates SDK user tasks", () => {
           return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
         }
         if (request.method === "POST" && request.url === "/v1/user-tasks") {
-          assert.equal((body as Record<string, unknown>).external_chat_provider, "opencode");
+          assert.equal((body as Record<string, unknown>).external_chat_provider, provider);
           assert.equal(typeof (body as Record<string, unknown>).external_chat_lookup_hash, "string");
           storedTask = { ...(body as Record<string, any>), short_id: "TASK-EXT" };
           return { task: storedTask };
@@ -333,10 +334,10 @@ describe("OpenMates SDK user tasks", () => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
         const created = await client.tasks.create({
           title: "Implement task bridge",
-          externalChat: { provider: "opencode", id: "ses_external_123", title: "OpenCode task bridge" },
+          externalChat: { provider: provider, id: "ses_external_123", title: "OpenCode task bridge" },
         });
-        assert.deepEqual(created.externalChat, { provider: "opencode", id: "ses_external_123", title: "OpenCode task bridge" });
-        assert.equal((await client.tasks.list({ externalChat: { provider: "opencode", id: "ses_external_123" } }))[0]?.taskId, created.taskId);
+        assert.deepEqual(created.externalChat, { provider: provider, id: "ses_external_123", title: "OpenCode task bridge" });
+        assert.equal((await client.tasks.list({ externalChat: { provider: provider, id: "ses_external_123" } }))[0]?.taskId, created.taskId);
         const blocked = await client.tasks.block("TASK-EXT", "Missing Credentials", { reasonText: "A repository write token is required." });
         assert.equal(blocked.blockedReason, "A repository write token is required.");
         const native = await client.tasks.edit("TASK-EXT", { chatId: "11111111-1111-4111-8111-111111111111" });
@@ -345,11 +346,12 @@ describe("OpenMates SDK user tasks", () => {
 
         const payloads = seen.filter((entry) => entry.body !== undefined).map((entry) => JSON.stringify(entry.body));
         assert.ok(payloads.every((payload) => !/ses_external_123|OpenCode task bridge|repository write token/.test(payload)));
-        const externalList = seen.find((entry) => entry.method === "GET" && entry.url?.includes("external_chat_provider=opencode"));
+        const externalList = seen.find((entry) => entry.method === "GET" && entry.url?.includes(`external_chat_provider=${provider}`));
         assert.ok(externalList?.url?.includes("external_chat_lookup_hash="));
         assert.doesNotMatch(externalList?.url ?? "", /ses_external_123/);
       },
       `Bearer ${material.apiKey}`,
     );
   });
+  }
 });

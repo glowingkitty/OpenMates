@@ -121,7 +121,10 @@ async function landingIntroLayoutMetrics(page: any): Promise<{
 		const requestRect = request.getBoundingClientRect();
 		const headlineCenter = headlineRect.left + headlineRect.width / 2;
 		const bannerCenter = bannerRect.left + bannerRect.width / 2;
-		const headlineSpans = Array.from(headline.querySelectorAll<HTMLElement>('span'));
+		// Measure the two text segments in the visible responsive variant, not
+		// its wrapper or the hidden desktop/mobile copy.
+		const headlineSpans = Array.from(headline.querySelectorAll<HTMLElement>(':scope > span > span'))
+			.filter((span) => span.getClientRects().length > 0);
 
 		return {
 			activeSideGap: Math.min(activeRect.left, window.innerWidth - activeRect.right),
@@ -763,13 +766,13 @@ test.describe('Landing page onboarding refresh', () => {
 	test('settings stays beside active chat on laptop', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1440, height: 900 });
-		const exampleChatId = 'example-berlin-dermatology-appointments';
+		const exampleChatId = 'example-svelte-runes-docs';
 
 		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleChatId}`), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', exampleChatId, { timeout: 15000 });
-		await expect(page.getByTestId('mate-message-content').last()).toContainText('dermatology', { timeout: 15000 });
+		await expect(page.getByTestId('mate-message-content').last()).toContainText('Svelte', { timeout: 15000 });
 
 		await page.getByTestId('profile-container').click();
 		await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
@@ -834,11 +837,31 @@ test.describe('Landing page onboarding refresh', () => {
 			{ message: 'narrow settings overlay must remain inside the viewport', timeout: 3000 }
 		).toBeLessThanOrEqual(1100);
 
+		const backdrop = page.getByTestId('settings-chat-backdrop');
+		await expect(backdrop).toBeVisible();
+		const activeChat = page.getByTestId('active-chat-container');
+		await expect.poll(() => activeChat.evaluate((element: HTMLElement) => !!element.closest('[inert]'))).toBe(true);
+		const backdropBox = await backdrop.boundingBox();
+		expect(backdropBox).not.toBeNull();
+		// The exposed left side must target the backdrop, never a chat descendant.
+		const exposedPoint = { x: backdropBox.x + 20, y: backdropBox.y + 100 };
+		await page.mouse.move(exposedPoint.x, exposedPoint.y);
+		await expect.poll(() => backdrop.evaluate((element: HTMLElement) => element.matches(':hover'))).toBe(true);
+		await expect.poll(() => activeChat.evaluate((element: HTMLElement) => element.querySelectorAll(':hover').length)).toBe(0);
+		await page.mouse.click(exposedPoint.x, exposedPoint.y);
+		await expect(backdrop).toHaveCount(0);
+		await expect(page.getByTestId('settings-menu')).not.toBeVisible();
+		await expect.poll(() => activeChat.evaluate((element: HTMLElement) => !!element.closest('[inert]'))).toBe(false);
+		await page.getByTestId('profile-container').click();
+		await expect(backdrop).toBeVisible();
+
 		await page.setViewportSize({ width: 1101, height: 800 });
 		await expect.poll(
 			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => getComputedStyle(element).position),
 			{ timeout: 3000 }
 		).not.toBe('fixed');
+		await expect(backdrop).toHaveCount(0);
+		await expect.poll(() => activeChat.evaluate((element: HTMLElement) => !!element.closest('[inert]'))).toBe(false);
 		await expect.poll(
 			async () => page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => element.classList.contains('dimmed')),
 			{ timeout: 3000 }
@@ -1217,7 +1240,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await page.getByTestId('daily-inspiration-previous').click();
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 2000 });
 		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-landing-intro-phase', 'expanded');
-		await expect(page.getByTestId('landing-intro-headline')).toHaveText(LANDING_INTRO_HEADLINE_TEXT);
+		await expect(page.getByTestId('landing-intro-headline')).toHaveText(LANDING_INTRO_HEADLINE_TEXT, { useInnerText: true });
 		await expect(page.getByTestId('guest-intro-copy')).toHaveCount(0);
 		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
 	});

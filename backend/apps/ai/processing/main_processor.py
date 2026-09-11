@@ -15,10 +15,12 @@ import os
 import copy
 import hashlib
 import time
+import uuid
 from functools import lru_cache
 from pathlib import Path
 from toon_format import encode
 import yaml
+from backend.shared.python_utils.calendar_action_journal import calendar_undo_payload
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -550,6 +552,16 @@ def _build_pending_app_settings_memories_context(
         "has_image_upload_embed": getattr(request_data, "has_image_upload_embed", False),
         "requested_keys": missing_keys,
         "task_id": task_id,
+        # Resume the authorized turn without claiming a second inference identity.
+        # See docs/architecture/core/chat-encryption-implementation.md.
+        "recovery_inference_task_id": (
+            getattr(request_data, "recovery_task_id", None)
+            or getattr(request_data, "recovery_inference_task_id", None)
+        ),
+        "recovery_preflight_id": getattr(request_data, "recovery_preflight_id", None),
+        "recovery_turn_id": getattr(request_data, "recovery_turn_id", None),
+        "recovery_public_key": getattr(request_data, "recovery_public_key", None),
+        "chat_key_version": getattr(request_data, "chat_key_version", None),
     }
 
 # Max iterations for tool calling to prevent infinite loops
@@ -794,6 +806,11 @@ def _format_tool_call_for_history(tool_call: Any) -> Dict[str, Any]:
             "arguments": arguments,
         },
         **(
+            {"provider_transport_state": tool_call.provider_transport_state}
+            if getattr(tool_call, "provider_transport_state", None)
+            else {}
+        ),
+        **(
             {"thought_signature": tool_call.thought_signature}
             if hasattr(tool_call, "thought_signature") and tool_call.thought_signature
             else {}
@@ -827,6 +844,15 @@ def _append_tool_call_turn_to_history(
 
     for _, rejection_message in rejected_tool_calls:
         message_history.append(rejection_message)
+
+
+def _is_empty_post_tool_turn(tool_inference_iterations: int, llm_turn_had_content: bool) -> bool:
+    """Return whether a tool continuation ended without a user-visible answer."""
+    return tool_inference_iterations > 0 and not llm_turn_had_content
+
+
+def _has_visible_text(content: str) -> bool:
+    return bool(content.strip())
 
 
 def _build_async_skill_pending_tool_result(
@@ -1106,7 +1132,7 @@ async def _record_connected_account_operation_journal_entries(
                 decision="completed",
                 action_scope=artifact.get("action_scope") if isinstance(artifact.get("action_scope"), dict) else {},
                 receipt=receipt,
-                undo_payload=_calendar_undo_payload(skill_id, normalized_results),
+                undo_payload=calendar_undo_payload(skill_id, normalized_results),
                 chat_id=chat_id,
                 message_id=message_id,
             )
@@ -1139,70 +1165,6 @@ def _normalize_connected_account_results(results: Any) -> list[dict[str, Any]]:
 
 def _calendar_undo_available(skill_id: str) -> bool:
     return skill_id in {"create-event", "update-event", "delete-event"}
-
-
-def _calendar_undo_payload(skill_id: str, results: list[dict[str, Any]]) -> dict[str, Any] | None:
-    if skill_id not in {"create-event", "update-event", "delete-event"} or not results:
-        return None
-    undo_events: list[dict[str, Any]] = []
-    for result in results:
-        calendar_id = result.get("calendar_id")
-        if skill_id == "create-event":
-            event = result.get("event") if isinstance(result.get("event"), dict) else {}
-            event_id = event.get("id")
-            if event_id and calendar_id:
-                undo_events.append(
-                    {
-                        "undo_type": "delete_created_event",
-                        "calendar_id": calendar_id,
-                        "event_id": event_id,
-                        "etag": event.get("etag"),
-                    }
-                )
-        elif skill_id == "update-event":
-            previous_event = result.get("previous_event") if isinstance(result.get("previous_event"), dict) else {}
-            updated_event = result.get("event") if isinstance(result.get("event"), dict) else {}
-            event_id = previous_event.get("id") or updated_event.get("id")
-            if event_id and calendar_id and _calendar_snapshot_has_required_fields(previous_event):
-                undo_events.append(
-                    {
-                        "undo_type": "restore_updated_event",
-                        "calendar_id": calendar_id,
-                        "event_id": event_id,
-                        "etag": previous_event.get("etag"),
-                        "snapshot": _calendar_event_snapshot(previous_event),
-                    }
-                )
-        elif skill_id == "delete-event":
-            deleted_event = result.get("deleted_event") if isinstance(result.get("deleted_event"), dict) else {}
-            event_id = deleted_event.get("id") or result.get("event_id")
-            if event_id and calendar_id and _calendar_snapshot_has_required_fields(deleted_event):
-                undo_events.append(
-                    {
-                        "undo_type": "recreate_deleted_event",
-                        "calendar_id": calendar_id,
-                        "event_id": event_id,
-                        "etag": deleted_event.get("etag"),
-                        "snapshot": _calendar_event_snapshot(deleted_event),
-                    }
-                )
-    return {"events": undo_events} if undo_events else None
-
-
-def _calendar_snapshot_has_required_fields(event: dict[str, Any]) -> bool:
-    return bool(event.get("title") and event.get("start") and event.get("end"))
-
-
-def _calendar_event_snapshot(event: dict[str, Any]) -> dict[str, Any]:
-    snapshot = {
-        "title": event.get("title"),
-        "start": event.get("start"),
-        "end": event.get("end"),
-        "location": event.get("location"),
-        "description": event.get("description"),
-        "attendees": event.get("attendees") if isinstance(event.get("attendees"), list) else [],
-    }
-    return {key: value for key, value in snapshot.items() if value not in (None, "", [])}
 
 
 DEFAULT_APP_INTERNAL_PORT = 8000
@@ -3258,6 +3220,8 @@ async def handle_main_processing(
         prompt_parts.append("\n".join(settings_and_memories_prompt_section))
 
     active_focus_prompt_text: Optional[str] = None
+    active_focus_prompt_section: Optional[str] = None
+    translation_service = TranslationService()
     if request_data.active_focus_id:
         try:
             # Parse focus mode ID (format: "app_id-focus_id" using hyphen for consistency with tool names)
@@ -3267,13 +3231,30 @@ async def handle_main_processing(
                 for focus_def in app_metadata_for_focus.focuses:
                     if focus_def.id == focus_id_in_app:
                         active_focus_prompt_text = focus_def.system_prompt
+                        # Translation-backed focuses must be resolved on every request,
+                        # not only when proposing activation. See apps/focus-modes-implementation.md.
+                        if not active_focus_prompt_text and focus_def.systemprompt_translation_key:
+                            language = getattr(preprocessing_results, "output_language", None) or "en"
+                            translation_key = focus_def.systemprompt_translation_key
+                            for candidate_language in dict.fromkeys((language, "en")):
+                                translated = translation_service.get_nested_translation(
+                                    translation_key, lang=candidate_language
+                                )
+                                if translated and translated != translation_key and not translated.startswith("[T:"):
+                                    active_focus_prompt_text = translated
+                                    break
                         break
         except Exception as e:
             logger.error(f"{log_prefix} Error processing active_focus_id '{request_data.active_focus_id}': {e}", exc_info=True)
+            raise
+        if not active_focus_prompt_text:
+            logger.error("%s Active focus has no resolvable instruction: %s", log_prefix, request_data.active_focus_id)
+            raise ValueError("Active focus instructions are unavailable")
     if active_focus_prompt_text:
         if request_data.active_focus_id == "web-research" and chat_depth > 0:
             active_focus_prompt_text += DELEGATED_DEEP_RESEARCH_INSTRUCTION
-        prompt_parts.insert(0, f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---")
+        active_focus_prompt_section = f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---"
+        prompt_parts.insert(0, active_focus_prompt_section)
 
     follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
     if not follow_up_suggestions_enabled:
@@ -3347,9 +3328,7 @@ async def handle_main_processing(
         task_app_skill_mentions,
     )
     
-    # Initialize TranslationService to resolve skill descriptions from translation keys
-    # TranslationService caches translations internally, so it's safe to create a new instance
-    translation_service = TranslationService()
+    # Reuse the translation service used to resolve active focus instructions.
     
     available_tools_for_llm = generate_tools_from_apps(
         discovered_apps_metadata=discovered_apps_metadata,
@@ -3747,7 +3726,8 @@ async def handle_main_processing(
     DEBUG_MSG_HISTORY_HEAD = 1  # First message (usually system context or first user message)
     DEBUG_MSG_HISTORY_TAIL = 3  # Last 3 messages (most recent context)
     if len(current_message_history) <= DEBUG_MSG_HISTORY_HEAD + DEBUG_MSG_HISTORY_TAIL:
-        debug_message_history = current_message_history
+        # Snapshot before the tool loop appends provider-only transport state.
+        debug_message_history = list(current_message_history)
     else:
         debug_message_history = (
             current_message_history[:DEBUG_MSG_HISTORY_HEAD]
@@ -4000,6 +3980,7 @@ async def handle_main_processing(
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     task_queue_guard_retries = 0
+    empty_post_tool_recovery_attempted = False
     
     # === SKILL CALL DEDUPLICATION ===
     # Track successfully completed skill calls to prevent duplicate executions.
@@ -4707,22 +4688,23 @@ async def handle_main_processing(
                     yield chunk
                 elif chunk.type == StreamChunkType.TEXT:
                     # Text content wrapped in UnifiedStreamChunk - extract and yield as string
-                    llm_turn_had_content = True
                     if chunk.content:
+                        llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk.content)
                         yield chunk.content
                         if tool_calls_for_this_turn:
                             current_turn_text_buffer.append(chunk.content)
                 else:
                     logger.warning(f"{log_prefix} Unknown UnifiedStreamChunk type: {chunk.type}")
             elif isinstance(chunk, str):
-                llm_turn_had_content = True
                 # CRITICAL: Always yield text chunks immediately, even when tool calls are pending
                 # This ensures paragraph-by-paragraph streaming works correctly
                 # Tool calls will be executed after the LLM finishes its turn, but text should stream immediately
-                yield chunk
-                # Also buffer for message history (needed for tool execution context)
-                if tool_calls_for_this_turn:
-                    current_turn_text_buffer.append(chunk)
+                if chunk:
+                    llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk)
+                    yield chunk
+                    # Also buffer for message history (needed for tool execution context)
+                    if tool_calls_for_this_turn:
+                        current_turn_text_buffer.append(chunk)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
         except AllServersFailedError as asf_err:
@@ -4850,6 +4832,23 @@ async def handle_main_processing(
                     TASK_QUEUE_GUARD_MAX_RETRIES,
                 )
                 continue
+            if _is_empty_post_tool_turn(tool_inference_iterations, llm_turn_had_content):
+                has_retry_iteration = iteration < MAX_TOOL_CALL_ITERATIONS - 1
+                if has_retry_iteration and not empty_post_tool_recovery_attempted:
+                    empty_post_tool_recovery_attempted = True
+                    force_no_tools = True
+                    logger.warning(
+                        f"{log_prefix} [POST_TOOL_RECOVERY] Tool continuation produced no answer. "
+                        "Retrying once with tools disabled."
+                    )
+                    continue
+
+                logger.error(
+                    f"{log_prefix} [POST_TOOL_RECOVERY] Forced tool continuation retry produced no answer. "
+                    "Emitting the standardized user-facing error."
+                )
+                yield STANDARDIZED_USER_ERROR_MESSAGE
+                break
             # Safety net: if the LLM emitted ONLY hallucinated tool calls (all
             # rejected) and produced no visible text, the user would see zero
             # response.  Force one more LLM iteration with tool_choice="none"
@@ -5639,6 +5638,7 @@ async def handle_main_processing(
                         # --- Store pending activation context in Redis ---
                         # This context is consumed by either the auto-confirm task (happy path)
                         # or the rejection WebSocket handler (user rejects)
+                        pending_context_stored = False
                         if cache_service:
                             try:
                                 pending_context = {
@@ -5675,7 +5675,7 @@ async def handle_main_processing(
                                     "team_workspace_type": request_data.team_workspace_type,
                                     "team_object_id_hash": request_data.team_object_id_hash,
                                 }
-                                await cache_service.store_pending_focus_activation(
+                                pending_context_stored = await cache_service.store_pending_focus_activation(
                                     chat_id=request_data.chat_id,
                                     context=pending_context,
                                 )
@@ -5699,6 +5699,20 @@ async def handle_main_processing(
                                 queue='app_ai',
                                 countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
                             )
+                            # Positive live eligibility is a transient event, never embed metadata.
+                            # Expiry is display-only; auto-confirm remains the state authority.
+                            if cache_service and pending_context_stored:
+                                redis_client = await cache_service.client
+                                if redis_client:
+                                    await redis_client.publish(
+                                        f"user_cache_events:{request_data.user_id}",
+                                        json.dumps({"event_type": "focus_mode_pending", "payload": {
+                                            "chat_id": request_data.chat_id,
+                                            "focus_id": focus_id,
+                                            "embed_id": fm_embed_id,
+                                            "expires_at": time.time() + FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN - 1,
+                                        }}),
+                                    )
                             logger.info(
                                 f"{log_prefix} [FOCUS_MODE] Scheduled auto-confirm task with "
                                 f"countdown={FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN}s"
@@ -5760,9 +5774,19 @@ async def handle_main_processing(
                         }
                         current_message_history.append(tool_response_message)
                         
-                        # Remove focus mode from system prompt by rebuilding without it
-                        # For simplicity, we'll continue with the current prompt
-                        # The focus mode instructions will no longer apply to this response
+                        current_message_history.append({
+                            "role": "system",
+                            "content": json.dumps({
+                                "type": "focus_mode_deactivated",
+                                "focus_id": previous_focus_id,
+                            }),
+                        })
+
+                        # Remove the exact instruction section before the next inference
+                        # iteration, while retaining the transition in message history.
+                        if active_focus_prompt_section in prompt_parts:
+                            prompt_parts.remove(active_focus_prompt_section)
+                        full_system_prompt = "\n\n".join(filter(None, prompt_parts))
                         logger.info(f"{log_prefix} [FOCUS_MODE] Deactivated - continuing without focus mode instructions")
                         continue
 
@@ -7075,6 +7099,84 @@ async def handle_main_processing(
                                     for result in request_results
                                 ]
 
+                anonymous_embed_payloads: List[Dict[str, Any]] = []
+                anonymous_embed_reference: Optional[str] = None
+                if (
+                    getattr(request_data, "is_anonymous", False)
+                    and not is_async_skill
+                    and not is_multimodal_result
+                ):
+                    try:
+                        from backend.core.api.app.services.embed_service import EmbedService as _AnonymousEmbedSvc
+
+                        child_type = await _AnonymousEmbedSvc.get_child_embed_type(
+                            app_id,
+                            skill_id,
+                            cache_service=cache_service,
+                        )
+                        parent_embed_id = str(uuid.uuid4())
+                        child_embed_ids = [str(uuid.uuid4()) for _ in results_with_refs]
+                        now = int(time.time())
+                        parent_content = {
+                            "app_id": app_id,
+                            "skill_id": skill_id,
+                            "result_count": len(results_with_refs),
+                            "embed_ids": child_embed_ids,
+                            "status": "finished",
+                            **{key: value for key, value in preview_data.items() if key != "results_toon"},
+                            **_AnonymousEmbedSvc._build_parent_preview_metadata(app_id, skill_id, results_with_refs),
+                        }
+                        parent_content = _AnonymousEmbedSvc._sanitize_final_app_skill_content(
+                            app_id,
+                            skill_id,
+                            parent_content,
+                        )
+                        anonymous_embed_payloads.append({
+                            "embed_id": parent_embed_id,
+                            "type": "app_skill_use",
+                            "content": encode(_flatten_for_toon_tabular(parent_content)),
+                            "status": "finished",
+                            "embed_ids": child_embed_ids,
+                            "app_id": app_id,
+                            "skill_id": skill_id,
+                            "created_at": now,
+                            "updated_at": now,
+                        })
+                        for child_embed_id, result in zip(child_embed_ids, results_with_refs):
+                            child_content = {
+                                **_flatten_for_toon_tabular(result),
+                                "type": child_type,
+                                "app_id": app_id,
+                                "skill_id": child_type,
+                                "status": "finished",
+                            }
+                            anonymous_embed_payloads.append({
+                                "embed_id": child_embed_id,
+                                "type": child_type,
+                                "content": encode(child_content),
+                                "status": "finished",
+                                "parent_embed_id": parent_embed_id,
+                                "app_id": app_id,
+                                "skill_id": child_type,
+                                "created_at": now,
+                                "updated_at": now,
+                            })
+                        anonymous_embed_reference = json.dumps({
+                            "type": "app_skill_use",
+                            "embed_id": parent_embed_id,
+                            "app_id": app_id,
+                            "skill_id": skill_id,
+                        })
+                        yield f"```json\n{anonymous_embed_reference}\n```\n\n"
+                    except Exception as anonymous_embed_error:
+                        logger.error(
+                            "%s Failed to build transient anonymous embeds for '%s': %s",
+                            log_prefix,
+                            tool_name,
+                            anonymous_embed_error,
+                            exc_info=True,
+                        )
+
                 # Filter results WITH embed_refs for current LLM inference
                 # Removes non-essential fields (URLs, thumbnails, etc.) to reduce noise
                 # and make embed_ref more prominent. Full results are already stored in
@@ -7912,10 +8014,11 @@ async def handle_main_processing(
                     "input": _sanitize_tool_call_input_for_storage(parsed_args),
                     "preview_data": preview_data,  # Metadata + results_toon (contains full TOON-encoded results)
                     "ignore_fields_for_inference": ignore_fields_for_inference,  # Fields excluded from LLM inference
-                    "embed_reference": embed_references[0] if embed_references else None,  # First embed reference (for backward compatibility)
+                    "embed_reference": anonymous_embed_reference or (embed_references[0] if embed_references else None),  # First embed reference (for backward compatibility)
                     "embed_references": embed_references if len(embed_references) > 1 else None,  # All embed references (for multiple requests)
-                    "embed_id": embed_ids[0] if embed_ids else None,  # First embed ID (for backward compatibility)
-                    "embed_ids": embed_ids if len(embed_ids) > 1 else None  # All embed IDs (for multiple requests)
+                    "embed_id": anonymous_embed_payloads[0]["embed_id"] if anonymous_embed_payloads else (embed_ids[0] if embed_ids else None),  # First embed ID (for backward compatibility)
+                    "embed_ids": [embed["embed_id"] for embed in anonymous_embed_payloads] if anonymous_embed_payloads else (embed_ids if len(embed_ids) > 1 else None),  # All embed IDs (for multiple requests)
+                    "anonymous_embeds": anonymous_embed_payloads or None,
                 }
                 tool_calls_info.append(tool_call_info)
                 logger.debug(

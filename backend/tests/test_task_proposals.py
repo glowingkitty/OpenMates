@@ -11,6 +11,7 @@ from backend.apps.ai.processing.task_proposals import (
 )
 
 
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated,tasks.surface.semantic-parity
 def test_task_proposals_are_bounded_and_sanitized() -> None:
     result = sanitize_task_proposals(
         [
@@ -18,7 +19,7 @@ def test_task_proposals_are_bounded_and_sanitized() -> None:
                 "title": "  Draft launch checklist  ",
                 "description": "  Include docs and owner review  ",
                 "status": "blocked",
-                "assignee_type": "ai",
+                "assignee_type": "openmates", "assignee_identity": "openmates",
             },
             {"title": "Second task", "status": "not-a-status", "assignee_type": "unknown"},
             {"title": "Third task"},
@@ -34,11 +35,12 @@ def test_task_proposals_are_bounded_and_sanitized() -> None:
     ]
     assert result[0].description == "Include docs and owner review"
     assert result[0].status == "blocked"
-    assert result[0].assignee_type == "ai"
+    assert result[0].assignee_type == "openmates"
     assert result[1].status == "todo"
     assert result[1].assignee_type == "user"
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_invalid_task_proposals_are_dropped() -> None:
     assert sanitize_task_proposals(
         [None, "not a dict", {"title": "   "}, {"description": "missing title"}],
@@ -46,6 +48,7 @@ def test_invalid_task_proposals_are_dropped() -> None:
     ) == []
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_task_update_proposals_require_visible_task_id_and_a_change() -> None:
     result = sanitize_task_update_proposals(
         [
@@ -62,6 +65,7 @@ def test_task_update_proposals_require_visible_task_id_and_a_change() -> None:
     assert result[0].status == "done"
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.content.client-encrypted
 def test_extract_review_task_proposals_uses_transient_text_only() -> None:
     result = extract_review_task_proposals("- Draft launch checklist\n- Prepare QA notes\n- Publish changelog\n- Ignored")
 

@@ -1,30 +1,10 @@
 #!/usr/bin/env bash
-# =============================================================================
-# OpenMates Twice-Weekly Security Audit
-#
-# Runs a focused security code review using OpenCode in read-only mode. Identifies
-# the top 5 security issues, provides realistic risk assessments, and suggests
-# fixes (without implementing them).
-#
-# Features:
-#   - Deduplication: skips files unchanged since last audit
-#   - Finding memory: does not re-report known issues
-#   - Acknowledge support: manually suppress accepted risks
-#   - Monthly full sweep: forces a complete review every 30 days
-#
-# Triggered by system crontab (Tue + Fri at 02:30 UTC):
-#   30 2 * * 2,5 bash -c 'set -a && . /path/to/.env && set +a && /path/to/scripts/security-audit.sh' >> /path/to/logs/security-audit.log 2>&1
-#
-# Can also be invoked manually:
-#   ./scripts/security-audit.sh
-#   ./scripts/security-audit.sh --dry-run   # print prompt without running OpenCode
-#
-# State files (.claude/ — gitignored):
-#   .claude/security-audit-state.json      — findings, file hashes, run history
-#   .claude/security-acknowledged.json     — manually acknowledged risks
-#
-# No env vars required beyond what OpenCode itself needs.
-# =============================================================================
+# Ingest the existing security-audit snapshot through the digest adapter.
+# Retains collection/reporting and existing manual arguments.
+# Automatic agent launches were removed under TASK-7543.
+# Dry runs do not persist security ledger reports. Existing schedules remain off.
+# Future workflow requirements: TASK-8338. No replacement scheduler is installed.
+# Architecture: docs/architecture/infrastructure/cronjobs.md
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

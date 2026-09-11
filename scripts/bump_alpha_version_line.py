@@ -187,14 +187,28 @@ def audit_old_references(root: Path, old_minor: int) -> list[str]:
     for path in root.rglob("*"):
         if not path.is_file() or path.suffix not in TEXT_EXTENSIONS or not is_audit_path(path, root):
             continue
+        relative = path.relative_to(root).as_posix()
         try:
-            text = path.read_text(encoding="utf-8")
+            if relative in PACKAGE_JSON_PATHS:
+                text = str(read_json(path).get("version", ""))
+            elif relative in PACKAGE_LOCK_PATHS:
+                package_lock = read_json(path)
+                text = "\n".join(
+                    str(version)
+                    for version in (
+                        package_lock.get("version"),
+                        package_lock.get("packages", {}).get("", {}).get("version"),
+                    )
+                    if version is not None
+                )
+            else:
+                text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
         for pattern in patterns:
             match = pattern.search(text)
             if match:
-                stale.append(f"{path.relative_to(root).as_posix()}: {match.group(0)}")
+                stale.append(f"{relative}: {match.group(0)}")
                 break
     return sorted(stale)
 

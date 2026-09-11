@@ -28,10 +28,11 @@ from backend.apps.ai.processing.task_tool_context import TaskToolContext, build_
 @pytest.mark.asyncio
 async def test_post_turn_guard_starts_next_task_before_plan_continuation() -> None:
     methods = AsyncMock()
-    next_task = {"id": "row-ai", "task_id": "task-ai", "primary_chat_id": "chat-1", "hashed_user_id": "owner", "assignee_type": "ai", "status": "todo", "version": 2, "position": 20, "created_at": 100}
+    next_task = {"id": "row-ai", "task_id": "task-ai", "primary_chat_id": "chat-1", "hashed_user_id": "owner", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo", "version": 2, "position": 20, "created_at": 100}
     methods.list_tasks.return_value = [next_task]
     methods.list_open_tasks_for_admission.return_value = [next_task]
     methods.acquire_admission_lock.return_value = "scope-lock"
+    methods.admission_blockers.return_value = []
     methods.claim_ai_task.return_value = {**next_task, "status": "in_progress", "queue_state": "active"}
     directus = SimpleNamespace(user_task=methods)
 
@@ -58,7 +59,7 @@ async def test_post_turn_guard_starts_next_task_before_plan_continuation() -> No
 async def test_post_turn_guard_retries_active_task_without_mutating_metadata() -> None:
     methods = AsyncMock()
     methods.list_tasks.return_value = [
-        {"task_id": "task-active", "assignee_type": "ai", "status": "in_progress", "version": 3, "position": 10, "created_at": 100},
+        {"task_id": "task-active", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "in_progress", "version": 3, "position": 10, "created_at": 100},
     ]
     directus = SimpleNamespace(user_task=methods)
 
@@ -95,7 +96,7 @@ async def test_post_turn_guard_blocks_plan_on_human_gate_without_retry() -> None
             "position": 20,
             "created_at": 100,
         },
-        {"task_id": "task-ai-later", "assignee_type": "ai", "status": "todo", "version": 2, "position": 30, "created_at": 100},
+        {"task_id": "task-ai-later", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo", "version": 2, "position": 30, "created_at": 100},
     ]
     directus = SimpleNamespace(user_task=methods)
 

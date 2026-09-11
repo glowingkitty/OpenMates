@@ -202,7 +202,10 @@ struct PasswordLoginView: View {
                     "phase=passwordLogin.failed errorType=\(type(of: error))",
                     category: "auth"
                 )
-                handlePasswordAuthFailure(fallback: AppStrings.loginFailed)
+                // Local unlock/storage failures are not an invalid password and
+                // must not send the user into an unrelated OTP retry loop.
+                errorMessage = error.localizedDescription
+                AccessibilityAnnouncement.announce(errorMessage ?? AppStrings.loginFailed)
             }
             isLoading = false
         }

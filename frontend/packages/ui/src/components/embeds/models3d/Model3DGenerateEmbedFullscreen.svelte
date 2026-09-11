@@ -9,7 +9,8 @@
   import { onDestroy } from 'svelte';
   import { text } from '@repo/ui';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import { fetchAndDecryptImage } from '../images/imageEmbedCrypto';
+  import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
+  const imageOwner = createImageUrlOwner();
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface PosterFile { s3_key: string; aes_nonce?: string; }
@@ -57,12 +58,13 @@
     void loadPoster(poster);
   });
 
-  onDestroy(() => decryptedPosterUrl && URL.revokeObjectURL(decryptedPosterUrl));
+  onDestroy(imageOwner.destroy);
 
   async function loadPoster(file: PosterFile) {
     try {
-      const image = await fetchAndDecryptImage(s3BaseUrl, file.s3_key, aesKey, file.aes_nonce ?? '');
-      decryptedPosterUrl = URL.createObjectURL(image);
+      await fetchAndDecryptImage(s3BaseUrl, file.s3_key, aesKey, file.aes_nonce ?? '');
+      decryptedPosterUrl = getCachedImageUrl(file.s3_key) ?? '';
+      imageOwner.retain(file.s3_key);
     } catch (caught) {
       posterError = caught instanceof Error ? caught.message : 'Failed to load model preview';
     }

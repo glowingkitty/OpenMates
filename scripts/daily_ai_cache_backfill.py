@@ -363,7 +363,6 @@ def deploy_candidate_cache(
     if _cache_digest(candidate_group, candidate_files) != expected_cache_sha256:
         raise BackfillValidationError("runtime cache changed before scoped deployment")
     sessions_script = project_root / "scripts" / "sessions.py"
-    opencode_session = f"ses_{plan.candidate_run_id.replace('-', '_')}"
     start = subprocess.run(
         [
             sys.executable,
@@ -373,8 +372,7 @@ def deploy_candidate_cache(
             "feature",
             "--task",
             f"Promote verified daily cache for {plan.spec}",
-            "--opencode-session",
-            opencode_session,
+            "--json",
         ],
         cwd=project_root,
         capture_output=True,
@@ -384,12 +382,14 @@ def deploy_candidate_cache(
     )
     if start.returncode != 0:
         raise BackfillValidationError("could not create cache promotion session")
-    session_match = re.search(r"^== SESSION ([0-9a-f]{4})\b", start.stdout, re.MULTILINE)
-    worktree_match = re.search(r"^\s*Worktree:\s+(.+?)\s*$", start.stdout, re.MULTILINE)
-    if not session_match or not worktree_match:
-        raise BackfillValidationError("cache promotion session did not report its worktree")
-    session_id = session_match.group(1)
-    worktree = Path(worktree_match.group(1)).resolve()
+    try:
+        receipt = json.loads(start.stdout)
+        session_id = receipt["session_id"]
+        worktree = Path(receipt["workspace"]).resolve()
+        if not re.fullmatch(r"[0-9a-f]{4}", session_id) or not worktree.is_dir():
+            raise ValueError("invalid workspace receipt")
+    except (ValueError, KeyError, TypeError) as exc:
+        raise BackfillValidationError("cache promotion session did not report its worktree") from exc
     destination = _safe_group_path(worktree / "backend/apps/ai/testing/api_cache", plan.cache_group)
     shutil.rmtree(destination, ignore_errors=True)
     destination.parent.mkdir(parents=True, exist_ok=True)

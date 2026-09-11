@@ -25,6 +25,8 @@
   interface Props {
     /** App identifier — used for the gradient background variable and icon class. */
     appId: string;
+    /** Static chrome when the host already presented the fullscreen frame. */
+    staticPresentation?: boolean;
     /** Skill icon name (e.g. 'search', 'coding'). Uses app icon when empty. */
     skillIconName?: string;
     /** Optional app icon override when appId has no icon_rounded CSS mapping. */
@@ -58,6 +60,7 @@
 
   let {
     appId,
+    staticPresentation = false,
     skillIconName = '',
     appIconName = '',
     showSkillIcon = true,
@@ -182,6 +185,7 @@
 -->
 <div
   class="embed-header"
+  class:static-presentation={staticPresentation}
   class:has-cta={hasCta}
   role="presentation"
   ontouchstart={handleHeaderTouchStart}
@@ -198,11 +202,14 @@
     <!-- Living gradient orbs — three morphing radial-gradient blobs that drift
          and change shape slowly, creating a living color effect where orb-color-b
          blooms from the center against the orb-color-a background. -->
+    {#if !staticPresentation && appId}
     <div class="embed-header-orbs" aria-hidden="true">
       <div class="orb orb-1"></div>
       <div class="orb orb-2"></div>
       <div class="orb orb-3"></div>
     </div>
+
+    {/if}
 
     <!-- Large decorative icons at left/right edges (126×126px, 0.4 opacity) -->
     <!-- Always use skill icon when skillIconName is provided — avoids the full gradient
@@ -958,4 +965,9 @@
       opacity: 0.4;
     }
   }
+  .static-presentation .header-center,
+  .static-presentation .header-subtitle,
+  .static-presentation .header-cta-area,
+  .static-presentation .deco-icon { animation: none; }
+  .static-presentation .deco-icon { transform: rotate(var(--deco-rotate)); }
 </style>

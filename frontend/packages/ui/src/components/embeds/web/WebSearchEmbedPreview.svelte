@@ -19,6 +19,8 @@
 -->
 
 <script lang="ts">
+  import SearchThumbnailStrip from '../SearchThumbnailStrip.svelte';
+  import { searchPreviewImages } from '../../../utils/searchPreviewImages';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
@@ -118,6 +120,7 @@
   let localProvider = $state<string>('Brave Search');
   // NOTE: Must include 'cancelled' to match SkillExecutionStatus type from appSkills.ts
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let localChildEmbedIds = $state<string[]>([]);
   let localResults = $state<WebSearchResult[]>([]);
   // Store a simplified error message for preview/fullscreen debugging
   let localErrorMessage = $state<string>('');
@@ -128,6 +131,7 @@
   // Initialize local state from props
   $effect(() => {
     if (!storeResolved) {
+      localChildEmbedIds = normalizeEmbedIdList(childEmbedIdsProp);
       // Initialize from previewData or direct props
       if (previewData) {
         localQuery = previewData.query || '';
@@ -156,7 +160,7 @@
   let provider = $derived(localProvider);
   let status = $derived(localStatus);
   let results = $derived(localResults);
-  let childEmbedIds = $derived(normalizeEmbedIdList(childEmbedIdsProp));
+  let childEmbedIds = $derived(localChildEmbedIds);
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
@@ -165,8 +169,7 @@
    * Handle embed data updates from UnifiedEmbedPreview
    * Called when the parent component receives and decodes updated embed data
    * 
-    * Parent previews are intentionally self-contained: they may use parent-level
-    * preview_results/preview_favicons, but must not decrypt child embeds.
+    * Prefer parent metadata; the shared strip handles bounded visible legacy images.
    */
   async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     console.debug(`[WebSearchEmbedPreview] 🔄 Received embed data update for ${id}:`, {
@@ -185,6 +188,7 @@
     // Update web-search-specific fields from decoded content
     const content = data.decodedContent;
     if (content) {
+      if (content.embed_ids) localChildEmbedIds = normalizeEmbedIdList(content.embed_ids);
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
       if (typeof content.error === 'string') {
@@ -283,6 +287,7 @@
       const faviconUrlFallback = typeof rawResult.favicon_url === 'string' ? rawResult.favicon_url : undefined;
       
       return {
+        ...(rawResult as unknown as WebSearchResult),
         url,
         title,
         snippet,
@@ -315,6 +320,7 @@
   
   // Get flattened results (handles both nested and flat backend formats)
   let flatResults = $derived(flattenResults(results));
+  let previewThumbnails = $derived(searchPreviewImages(flatResults));
   
   // Get first 3 results with favicons for display (uses flattened results)
   // Checks favicon, favicon_url, and meta_url.favicon formats
@@ -404,6 +410,9 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="web-search-details" class:mobile={isMobileLayout}>
+      {#if status === 'finished'}
+        <SearchThumbnailStrip images={previewThumbnails} {childEmbedIds} appId="web" />
+      {/if}
       <!-- Query text -->
       <div class="ds-search-query">{query}</div>
       

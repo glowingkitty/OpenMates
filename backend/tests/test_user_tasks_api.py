@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 
 class _FakeLimiter:
@@ -114,6 +115,63 @@ async def test_create_task_hashes_owner_and_projects_without_plaintext_content()
     assert record["encrypted_task_key"] == "cipher-task-key"
     assert "title" not in record
     assert "description" not in record
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
+def test_assignment_type_and_identity_combinations_are_validated() -> None:
+    openmates = user_tasks.UserTaskCreateRequest(**task_payload(
+        assignee_type="openmates",
+        assignee_identity="openmates",
+        assignee_hash=None,
+    ))
+    opencode = user_tasks.UserTaskCreateRequest(**task_payload(
+        primary_chat_id=None,
+        assignee_type="external_ai",
+        assignee_identity="opencode",
+        assignee_hash=None,
+        external_chat_provider="opencode",
+        external_chat_lookup_hash="c" * 64,
+        encrypted_external_chat_id="cipher-session-id",
+    ))
+
+    assert openmates.assignee_identity == "openmates"
+    assert opencode.assignee_identity == "opencode"
+
+    with pytest.raises(ValidationError):
+        user_tasks.UserTaskCreateRequest(**task_payload(
+            assignee_type="external_ai",
+            assignee_identity="openmates",
+            assignee_hash=None,
+        ))
+
+    with pytest.raises(ValidationError):
+        user_tasks.UserTaskCreateRequest(**task_payload(
+            assignee_type="user",
+            assignee_identity="opencode",
+        ))
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
+@pytest.mark.asyncio
+async def test_create_task_persists_named_external_ai_identity() -> None:
+    directus = SimpleNamespace()
+    directus.create_item = AsyncMock(return_value=(True, {"id": "row-1"}))
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    await methods.create_task("user-1", task_payload(
+        primary_chat_id=None,
+        assignee_type="external_ai",
+        assignee_identity="opencode",
+        assignee_hash=None,
+        external_chat_provider="opencode",
+        external_chat_lookup_hash="c" * 64,
+        encrypted_external_chat_id="cipher-session-id",
+    ))
+
+    _collection, record = directus.create_item.await_args_list[0].args
+    assert record["assignee_type"] == "external_ai"
+    assert record["assignee_identity"] == "opencode"
+    assert record["assignee_hash"] is None
 
 
 # contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted
@@ -311,7 +369,7 @@ async def test_external_chat_task_allows_master_wrapper_but_rejects_chat_wrapper
 
 # contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
-async def test_update_task_can_switch_external_context_to_native_when_all_external_fields_are_cleared() -> None:
+async def test_update_task_requires_release_before_switching_external_to_native() -> None:
     existing = {
         "id": "task-row",
         **task_payload(primary_chat_id=None),
@@ -334,27 +392,21 @@ async def test_update_task_can_switch_external_context_to_native_when_all_extern
     directus.update_item_if_version = AsyncMock(return_value={"id": "task-row", "task_id": "task-1", "version": 2})
     methods = UserTaskMethods(with_lock_cache(directus))
 
-    updated = await methods.update_task(
-        "task-1",
-        "user-1",
-        {
-            "version": 1,
-            "primary_chat_id": "chat-1",
-            "external_chat_provider": None,
-            "external_chat_lookup_hash": None,
-            "encrypted_external_chat_id": None,
-            "encrypted_external_chat_title": None,
-            "key_wrappers": replacement_wrappers,
-        },
-    )
-
-    assert updated is not None
-    persisted = directus.update_item_if_version.await_args.args[2]
-    assert persisted["hashed_primary_chat_id"] == hash_id("chat-1")
-    assert persisted["external_chat_provider"] is None
-    assert persisted["external_chat_lookup_hash"] is None
-    assert persisted["encrypted_external_chat_id"] is None
-    assert persisted["encrypted_external_chat_title"] is None
+    with pytest.raises(ValueError, match="TASK_ALREADY_LINKED"):
+        await methods.update_task(
+            "task-1",
+            "user-1",
+            {
+                "version": 1,
+                "primary_chat_id": "chat-1",
+                "external_chat_provider": None,
+                "external_chat_lookup_hash": None,
+                "encrypted_external_chat_id": None,
+                "encrypted_external_chat_title": None,
+                "key_wrappers": replacement_wrappers,
+            },
+        )
+    directus.update_item_if_version.assert_not_awaited()
 
 
 # contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.surface.semantic-parity
@@ -447,11 +499,11 @@ async def test_update_task_if_version_honors_committed_payload_version() -> None
 
 # contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
-async def test_update_task_if_version_relinks_chat_with_replacement_key_wrappers() -> None:
+async def test_update_task_if_version_links_unclaimed_task_with_replacement_key_wrappers() -> None:
     existing = {
         "id": "task-row",
-        **task_payload(),
-        "hashed_primary_chat_id": hash_id("chat-1"),
+        **task_payload(primary_chat_id=None),
+        "hashed_primary_chat_id": None,
         "linked_project_hashes": [hash_id("project-1")],
     }
     existing_wrappers = [
@@ -886,7 +938,7 @@ async def test_ai_task_without_execution_context_waits_without_consuming_capacit
 
     admission = AsyncMock()
     service = UserTaskService(UserTaskMethods(directus), admission_service=admission)
-    created = await service.create_task("user-1", task_payload(assignee_type="ai", due_at=None))
+    created = await service.create_task("user-1", task_payload(assignee_type="openmates", assignee_identity="openmates", due_at=None))
 
     assert created["status"] == "todo"
     assert created["ai_execution_state"] == "waiting_for_capacity"
@@ -896,7 +948,7 @@ async def test_ai_task_without_execution_context_waits_without_consuming_capacit
 # contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.execution.capacity-scoped
 @pytest.mark.asyncio
 async def test_ai_task_create_with_transient_context_claims_and_dispatches() -> None:
-    created = {**task_payload(assignee_type="ai"), "id": "row-1", "version": 1}
+    created = {**task_payload(assignee_type="openmates", assignee_identity="openmates"), "id": "row-1", "version": 1}
     queued = {**created, "status": "todo", "queue_state": "waiting", "ai_execution_state": "waiting_for_capacity", "version": 2}
     admitted = {**queued, "status": "in_progress", "queue_state": "active", "ai_execution_state": "queued", "version": 3}
     methods = AsyncMock()
@@ -911,7 +963,7 @@ async def test_ai_task_create_with_transient_context_claims_and_dispatches() -> 
 
     result = await service.create_task(
         "user-1",
-        task_payload(assignee_type="ai", plaintext_title="Draft launch plan"),
+        task_payload(assignee_type="openmates", assignee_identity="openmates", plaintext_title="Draft launch plan"),
     )
 
     assert result["status"] == "in_progress"
@@ -923,7 +975,7 @@ async def test_ai_task_create_with_transient_context_claims_and_dispatches() -> 
 # contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.capacity-scoped,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_second_ai_task_without_due_date_waits_for_active_chat_task() -> None:
-    active_other = {"id": "row-2", "version": 1, **task_payload(task_id="task-2", status="in_progress", assignee_type="ai")}
+    active_other = {"id": "row-2", "version": 1, **task_payload(task_id="task-2", status="in_progress", assignee_type="openmates", assignee_identity="openmates")}
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(return_value=[active_other])
     directus.create_item = AsyncMock(side_effect=lambda _collection, record: (True, record))
@@ -931,7 +983,7 @@ async def test_second_ai_task_without_due_date_waits_for_active_chat_task() -> N
     admission = AsyncMock()
     admission.admit_available.return_value = {"admitted_tasks": []}
     service = UserTaskService(UserTaskMethods(directus), admission_service=admission)
-    created = await service.create_task("user-1", task_payload(assignee_type="ai", due_at=None))
+    created = await service.create_task("user-1", task_payload(assignee_type="openmates", assignee_identity="openmates", due_at=None))
 
     assert created["status"] == "todo"
     assert created["ai_execution_state"] == "waiting_for_capacity"
@@ -1170,3 +1222,194 @@ async def test_start_ai_staging_failure_moves_task_to_visible_blocked_state() ->
     failure_patch = methods.update_task_if_version.await_args_list[-1].args[2]
     assert failure_patch["status"] == "blocked"
     assert failure_patch["blocked_reason_code"] == "execution_context_staging_failed"
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated,tasks.external-chat.encrypted-context
+@pytest.mark.parametrize("provider", ["codex", "opencode"])
+def test_codex_task_provider_and_legacy_context_keep_typed_encryption(provider: str) -> None:
+    request = user_tasks.UserTaskCreateRequest(**task_payload(
+        primary_chat_id=None, assignee_type="external_ai", assignee_identity=provider,
+        assignee_hash=None, external_chat_provider=provider,
+        external_chat_lookup_hash="d" * 64, encrypted_external_chat_id="cipher-thread-id",
+    ))
+    assert request.assignee_identity == provider
+    assert request.external_chat_provider == provider
+    assert "thread_id" not in request.model_dump()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
+@pytest.mark.parametrize("identity", ["unknown-agent", "openmates"])
+def test_codex_external_assignment_rejects_unknown_or_native_identity(identity: str) -> None:
+    with pytest.raises(ValidationError):
+        user_tasks.UserTaskCreateRequest(**task_payload(
+            assignee_type="external_ai", assignee_identity=identity, assignee_hash=None,
+        ))
+
+
+# contract-test: direct surface=rest_api assertions=tasks.activity.context-attribution
+@pytest.mark.asyncio
+async def test_codex_activity_uses_actual_task_assignee_identity() -> None:
+    from backend.core.api.app.services.user_task_service import UserTaskService
+    from unittest.mock import AsyncMock
+    methods = AsyncMock()
+    methods.get_task.return_value = {"assignee_type": "external_ai", "assignee_identity": "codex"}
+    methods.create_task_activity.return_value = {"entry_id": "test-entry"}
+    service = UserTaskService(methods)
+    await service.create_task_activity("task-1", "user-1", {"encrypted_message": "cipher"}, actor_mode="assignee")
+    assert methods.create_task_activity.call_args.args[2]["actor_identity"] == "codex"
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
+@pytest.mark.parametrize("headers,expected", [
+    ({}, None),
+    ({"X-OpenMates-Task-Creator": "codex", "X-OpenMates-Task-Actor": "assignee", "X-OpenMates-Client": "cli"}, "codex"),
+])
+def test_task_creator_requires_explicit_validated_cli_declaration(headers, expected):
+    assert user_tasks._task_external_actor(SimpleNamespace(headers=headers)) == expected
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
+@pytest.mark.parametrize("headers", [
+    {"X-OpenMates-Task-Creator": "opencode", "X-OpenMates-Task-Actor": "assignee", "X-OpenMates-Client": "cli"},
+    {"X-OpenMates-Task-Creator": "codex", "X-OpenMates-Task-Actor": "assignee", "X-OpenMates-Client": "web"},
+    {"X-OpenMates-Task-Creator": "codex", "X-OpenMates-Client": "cli"},
+])
+def test_task_creator_rejects_legacy_browser_and_implicit_actor(headers):
+    with pytest.raises(HTTPException):
+        user_tasks._task_external_actor(SimpleNamespace(headers=headers))
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
+@pytest.mark.asyncio
+async def test_legacy_creation_never_grants_codex_eligibility():
+    directus = SimpleNamespace(get_items=AsyncMock(side_effect=[[], [{"actor_identity": "opencode"}]]))
+    methods = UserTaskMethods(directus)
+    assert await methods.eligible_external_ai("user-1") == ["opencode"]
+    for call in directus.get_items.await_args_list:
+        params = call.kwargs["params"]
+        assert params["filter[hashed_user_id][_eq]"] == hash_id("user-1")
+        assert params["filter[event_type][_eq]"] == "created"
+        assert params["filter[kind][_eq]"] == "lifecycle_update"
+        assert params["filter[hashed_team_id][_null]"] is True
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
+@pytest.mark.asyncio
+async def test_creator_headers_cannot_replace_paired_session_auth(monkeypatch):
+    monkeypatch.setattr(user_tasks, "_current_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
+    paired = AsyncMock(side_effect=HTTPException(status_code=403, detail="paired session required"))
+    monkeypatch.setattr(user_tasks, "_current_session_user", paired)
+    service = SimpleNamespace(create_task=AsyncMock())
+    request = SimpleNamespace(headers={"X-OpenMates-Task-Creator": "codex", "X-OpenMates-Task-Actor": "assignee", "X-OpenMates-Client": "cli"})
+    body = user_tasks.UserTaskCreateRequest(**task_payload(primary_chat_id=None,
+        external_chat_provider="codex", external_chat_lookup_hash="e" * 64,
+        encrypted_external_chat_id="cipher-thread"))
+    with pytest.raises(HTTPException) as error:
+        await user_tasks.create_user_task(request, SimpleNamespace(), body, service=service, history_service=SimpleNamespace())
+    assert error.value.status_code == 403
+    paired.assert_awaited_once()
+    service.create_task.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
+@pytest.mark.asyncio
+async def test_legacy_external_assignment_switch_requires_codex_creator(monkeypatch):
+    monkeypatch.setattr(user_tasks, "_current_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
+    monkeypatch.setattr(user_tasks, "_require_task_team_role", AsyncMock())
+    methods = SimpleNamespace(get_task=AsyncMock(return_value={"assignee_type":"external_ai", "assignee_identity":"opencode"}),
+        eligible_external_ai=AsyncMock(return_value=["opencode"]))
+    service = SimpleNamespace(task_methods=methods, update_task=AsyncMock())
+    body = user_tasks.UserTaskUpdateRequest(version=1, updated_at=2, assignee_type="external_ai", assignee_identity="codex")
+    with pytest.raises(HTTPException) as error:
+        await user_tasks.update_user_task("task-1", SimpleNamespace(), SimpleNamespace(), body, team_id=None, service=service, history_service=SimpleNamespace())
+    assert error.value.status_code == 403
+    service.update_task.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["create", "update"])
+async def test_encrypted_ask_cannot_bypass_codex_eligibility(monkeypatch, operation):
+    monkeypatch.setattr(user_tasks, "_current_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
+    methods = SimpleNamespace(
+        get_task=AsyncMock(return_value={"assignee_type": "external_ai", "assignee_identity": "opencode"}),
+        eligible_external_ai=AsyncMock(return_value=["opencode"]),
+    )
+    service = SimpleNamespace(task_methods=methods, create_task=AsyncMock(), update_task=AsyncMock())
+    if operation == "create":
+        payload = {"encrypted_create": task_payload(assignee_type="external_ai", assignee_identity="codex", assignee_hash=None)}
+    else:
+        payload = {"encrypted_update": {"task_id": "task-1", "patch": {"version": 1, "updated_at": 2, "assignee_type": "external_ai", "assignee_identity": "codex"}}}
+    body = user_tasks.UserTaskAskRequest(instruction="Apply the encrypted task change", **payload)
+    with pytest.raises(HTTPException) as error:
+        await user_tasks.ask_user_tasks(SimpleNamespace(), SimpleNamespace(), body, service=service)
+    assert error.value.status_code == 403
+    service.create_task.assert_not_awaited()
+    service.update_task.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('next_owner', [
+    {'external_chat_provider': 'codex', 'external_chat_lookup_hash': 'd'*64,
+     'encrypted_external_chat_id': 'cipher-other'},
+    {'primary_chat_id': 'native-other', 'external_chat_provider': None,
+     'external_chat_lookup_hash': None, 'encrypted_external_chat_id': None},
+])
+# contract-test: supporting surface=rest_api assertions=tasks.conversation.single-owner-claim
+async def test_claim_cannot_replace_linked_conversation(next_owner):
+    existing = {'id': 'task-row', **task_payload(primary_chat_id=None),
+                'external_chat_provider': 'codex', 'external_chat_lookup_hash': 'c'*64,
+                'encrypted_external_chat_id': 'cipher-owner'}
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[existing]),
+                               update_item_if_version=AsyncMock())
+    methods = UserTaskMethods(with_lock_cache(directus))
+    with pytest.raises(ValueError, match='TASK_ALREADY_LINKED'):
+        await methods.update_task_if_version('task-1', 'user-1', {'version': 1, **next_owner}, 1)
+    directus.update_item_if_version.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=tasks.conversation.single-owner-claim
+async def test_existing_owner_can_update_title_without_reclaiming():
+    existing = {'id': 'task-row', **task_payload(primary_chat_id=None),
+                'external_chat_provider': 'codex', 'external_chat_lookup_hash': 'c'*64,
+                'encrypted_external_chat_id': 'cipher-owner'}
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[existing]),
+                               update_item_if_version=AsyncMock(return_value={**existing, 'version': 2}))
+    methods = UserTaskMethods(with_lock_cache(directus))
+    assert await methods.update_task_if_version('task-1', 'user-1',
+        {'version': 1, 'encrypted_external_chat_title': 'cipher-updated-title'}, 1)
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
+async def test_exact_task_read_keeps_team_viewer_access_and_scoped_lookup(monkeypatch):
+    monkeypatch.setattr(user_tasks, "_current_session_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
+    team = SimpleNamespace(require_team_role=AsyncMock())
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(team=team))))
+    methods = SimpleNamespace(get_task=AsyncMock(return_value={"task_id": "task-1", "encrypted_title": "cipher"}))
+    result = await user_tasks.get_user_task(request, None, "task-1", "team-1", SimpleNamespace(task_methods=methods))
+    methods.get_task.assert_awaited_once_with("task-1", "user-1", "team-1")
+    assert "viewer" in team.require_team_role.await_args.args[2]
+    assert result["task"]["encrypted_title"] == "cipher"
+    methods.get_task.return_value = None
+    with pytest.raises(HTTPException) as error:
+        await user_tasks.get_user_task(request, None, "missing", "team-1", SimpleNamespace(task_methods=methods))
+    assert error.value.status_code == 404
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=tasks.conversation.confirmed-deletion
+async def test_external_chat_deletion_binds_session_identity_and_retains_transient_failure(monkeypatch):
+    auth = AsyncMock(return_value=SimpleNamespace(id="user-1"))
+    monkeypatch.setattr(user_tasks, "_current_session_user", auth)
+    sync = SimpleNamespace(unlink_deleted_external_chat=AsyncMock(return_value={"unlinked_tasks": 2, "event_id": "b" * 64}))
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(project_task_sync=sync)))
+    body = user_tasks.ExternalTaskChatDeletedRequest(external_chat_lookup_hash="a" * 64, event_id="b" * 64)
+    result = await user_tasks.external_task_chat_deleted(request, None, body)
+    assert result["unlinked_tasks"] == 2
+    sync.unlink_deleted_external_chat.assert_awaited_once_with("user-1", "a" * 64, "b" * 64, None)
+    sync.unlink_deleted_external_chat.side_effect = RuntimeError("unavailable")
+    with pytest.raises(HTTPException) as error:
+        await user_tasks.external_task_chat_deleted(request, None, body)
+    assert error.value.status_code == 503

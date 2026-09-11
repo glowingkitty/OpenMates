@@ -26,6 +26,8 @@ COMPOSE_FILES = (
     ROOT / "frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml",
 )
 API_DOCKERFILE = ROOT / "backend/core/api/Dockerfile"
+SELFHOST_API_DOCKERFILE = ROOT / "backend/core/api/Dockerfile.selfhost"
+SELFHOST_IMAGE_WORKFLOW = ROOT / ".github/workflows/publish-selfhost-images.yml"
 RELEASE_PREPARATION = ROOT / "scripts/prepare_release_candidate.py"
 CLI_SERVER_PLANNING = ROOT / "frontend/packages/openmates-cli/src/serverPlanning.ts"
 CLOUD_BOOT_SMOKE = ROOT / "scripts/api_tests/test_cloud_overlay_boot.py"
@@ -88,6 +90,14 @@ def test_api_image_packages_worker_and_billing_translation_runtime() -> None:
     assert "groupadd --system celeryuser" in dockerfile
     assert "useradd --system --gid celeryuser" in dockerfile
     assert "frontend/packages/ui/src/i18n/locales" in dockerfile
+
+
+def test_selfhost_api_image_builds_and_requires_generated_locales() -> None:
+    dockerfile = SELFHOST_API_DOCKERFILE.read_text(encoding="utf-8")
+    workflow = SELFHOST_IMAGE_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "RUN test -s /app/frontend/packages/ui/src/i18n/locales/en.json" in dockerfile
+    assert "pnpm --filter @repo/ui build:translations" in workflow
 
 
 def test_core_worker_is_in_every_runtime_control_plane() -> None:

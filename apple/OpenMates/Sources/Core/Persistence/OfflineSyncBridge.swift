@@ -23,9 +23,14 @@ final class OfflineSyncBridge: ObservableObject {
     private let chatStore: ChatStore
     private weak var wsManager: WebSocketManager?
     private let offlineStore: OfflineStore
+    private let scopeGeneration: UUID
+    private var isCurrentSession: Bool {
+        isSessionActive && scopeGeneration == offlineStore.scopeGeneration
+    }
     private let pathMonitor = NWPathMonitor()
     private let monitorQueue = DispatchQueue(label: "org.openmates.network-monitor")
     private var isNetworkMonitoringStarted = false
+    private var isSessionActive = true
     private var latestPath: NWPath?
     private var offlinePrefetchTask: Task<Void, Never>?
     private var offlinePrefetchCursor = 10
@@ -35,10 +40,11 @@ final class OfflineSyncBridge: ObservableObject {
     private let offlinePrefetchMaxMessages = 10_000
     private let offlinePrefetchInterChunkDelayNs: UInt64 = 2_000_000_000
 
-    init(chatStore: ChatStore, wsManager: WebSocketManager? = nil) {
+    init(chatStore: ChatStore, wsManager: WebSocketManager? = nil, offlineStore: OfflineStore = .shared) {
         self.chatStore = chatStore
         self.wsManager = wsManager
-        self.offlineStore = OfflineStore.shared
+        self.offlineStore = offlineStore
+        self.scopeGeneration = offlineStore.scopeGeneration
     }
 
     deinit {
@@ -48,11 +54,12 @@ final class OfflineSyncBridge: ObservableObject {
     // MARK: - Network monitoring
 
     func startNetworkMonitoring() {
+        guard isCurrentSession else { return }
         guard !isNetworkMonitoringStarted else { return }
         isNetworkMonitoringStarted = true
         pathMonitor.pathUpdateHandler = { [weak self] path in
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self, self.isCurrentSession else { return }
                 self.latestPath = path
                 let newStatus: NetworkStatus = path.status == .satisfied ? .online : .offline
                 let wasOffline = self.networkStatus == .offline
@@ -71,7 +78,7 @@ final class OfflineSyncBridge: ObservableObject {
     // MARK: - Optional offline content prefetch
 
     func startOfflinePrefetchIfEligible(reason: String) {
-        guard offlinePrefetchTask == nil else { return }
+        guard isCurrentSession, offlinePrefetchTask == nil else { return }
         guard canRunOfflinePrefetch else {
             NativeSyncPerfLog.info("phase=offlinePrefetch skipped reason=notEligible trigger=\(reason)")
             return
@@ -109,6 +116,7 @@ final class OfflineSyncBridge: ObservableObject {
     private func runOfflinePrefetch(reason: String) async {
         defer { offlinePrefetchTask = nil }
 
+        let generation = offlineStore.scopeGeneration
         var cursor = offlinePrefetchCursor
         NativeSyncPerfLog.info("phase=offlinePrefetch start cursor=\(cursor) reason=\(reason)")
 
@@ -123,6 +131,8 @@ final class OfflineSyncBridge: ObservableObject {
                         includeEmbeds: true
                     )
                 )
+                guard !Task.isCancelled, isCurrentSession,
+                      generation == offlineStore.scopeGeneration else { return }
                 persistOfflinePrefetch(response)
 
                 NativeSyncPerfLog.info(
@@ -177,6 +187,7 @@ final class OfflineSyncBridge: ObservableObject {
     // MARK: - Cold boot: load from disk before network is available
 
     func loadFromDisk(lastOpenedChatId: String? = nil) {
+        guard isCurrentSession else { return }
         let start = NativeSyncPerfLog.now()
         let lastOpenedLabel = lastOpenedChatId.map { String($0.prefix(8)) } ?? "none"
         chatStore.performWithoutPersistence {
@@ -216,14 +227,17 @@ final class OfflineSyncBridge: ObservableObject {
     // MARK: - Persist data as it arrives from sync
 
     func onChatsReceived(_ chats: [Chat]) {
+        guard isCurrentSession else { return }
         offlineStore.persistChats(chats)
     }
 
     func onMessagesReceived(_ messages: [Message], chatId: String) {
+        guard isCurrentSession else { return }
         offlineStore.persistMessages(messages, chatId: chatId)
     }
 
     func onEmbedsReceived(_ embeds: [EmbedRecord], chatId: String) {
+        guard isCurrentSession else { return }
         offlineStore.persistEmbeds(embeds, chatId: chatId)
     }
 
@@ -231,6 +245,7 @@ final class OfflineSyncBridge: ObservableObject {
         messagesByChat: [String: [Message]],
         embedsByChat: [String: [EmbedRecord]]
     ) {
+        guard isCurrentSession else { return }
         if !messagesByChat.isEmpty {
             offlineStore.persistMessagesBatch(messagesByChat)
         }
@@ -240,12 +255,14 @@ final class OfflineSyncBridge: ObservableObject {
     }
 
     func onChatDeleted(_ chatId: String) {
+        guard isCurrentSession else { return }
         offlineStore.deleteChat(chatId)
     }
 
     // MARK: - Queue offline actions
 
     func sendMessageOffline(chatId: String, messageId: String, content: String) {
+        guard isCurrentSession else { return }
         let userMessage = Message(
             id: messageId, chatId: chatId, role: .user,
             content: content, encryptedContent: nil,
@@ -264,6 +281,7 @@ final class OfflineSyncBridge: ObservableObject {
     }
 
     func deleteMessageOffline(chatId: String, messageId: String) {
+        guard isCurrentSession else { return }
         offlineStore.queueOfflineAction(type: "delete_message", payload: [
             "chat_id": chatId,
             "message_id": messageId,
@@ -271,6 +289,7 @@ final class OfflineSyncBridge: ObservableObject {
     }
 
     func pinChatOffline(chatId: String, isPinned: Bool) {
+        guard isCurrentSession else { return }
         offlineStore.queueOfflineAction(type: "pin_chat", payload: [
             "chat_id": chatId,
             "is_pinned": isPinned,
@@ -278,18 +297,21 @@ final class OfflineSyncBridge: ObservableObject {
     }
 
     func archiveChatOffline(chatId: String) {
+        guard isCurrentSession else { return }
         offlineStore.queueOfflineAction(type: "archive_chat", payload: [
             "chat_id": chatId,
         ])
     }
 
     func hideChatOffline(chatId: String) {
+        guard isCurrentSession else { return }
         offlineStore.queueOfflineAction(type: "hide_chat", payload: [
             "chat_id": chatId,
         ])
     }
 
     func queueDraftUpdate(_ record: ComposerDraftRecord) {
+        guard isCurrentSession else { return }
         offlineStore.queueOfflineAction(type: "update_draft", payload: [
             "chat_id": record.chatId,
             "encrypted_draft_md": record.encryptedMarkdown,
@@ -300,10 +322,12 @@ final class OfflineSyncBridge: ObservableObject {
     }
 
     func queueDraftDelete(chatId: String) {
+        guard isCurrentSession else { return }
         offlineStore.queueOfflineAction(type: "delete_draft", payload: ["chat_id": chatId])
     }
 
     func cascadeDeleteChat(chatId: String) {
+        guard isCurrentSession else { return }
         offlineStore.deleteChat(chatId)
         ChatKeyManager.shared.removeKey(for: chatId)
         EmbedKeyManager.shared.removeKeys(for: chatId)
@@ -315,10 +339,13 @@ final class OfflineSyncBridge: ObservableObject {
     // MARK: - Replay pending actions on reconnect
 
     func replayPendingActions() async {
+        guard isCurrentSession else { return }
+        let generation = offlineStore.scopeGeneration
         let actions = offlineStore.loadPendingActions()
         guard !actions.isEmpty else { return }
 
         for action in actions {
+            guard isCurrentSession, generation == offlineStore.scopeGeneration else { return }
             guard action.retryCount < 3 else {
                 offlineStore.removePendingAction(action.id)
                 continue
@@ -349,8 +376,10 @@ final class OfflineSyncBridge: ObservableObject {
                 default:
                     break
                 }
+                guard isCurrentSession, generation == offlineStore.scopeGeneration else { return }
                 offlineStore.removePendingAction(action.id)
             } catch {
+                guard isCurrentSession, generation == offlineStore.scopeGeneration else { return }
                 print("[OfflineSync] Replay failed for \(action.actionType): \(error)")
                 offlineStore.incrementRetry(action.id)
             }
@@ -427,13 +456,13 @@ final class OfflineSyncBridge: ObservableObject {
         ))
     }
 
-    // MARK: - Clear on logout
-
-    func clearOnLogout() {
+    // Stop old-session callbacks without deleting its queued offline work.
+    func stopSession() {
+        isSessionActive = false
         cancelOfflinePrefetch()
-        offlinePrefetchCursor = 10
-        offlineStore.clearAll()
+        pathMonitor.cancel()
     }
+
 }
 
 extension OfflineSyncBridge: DraftSyncOfflineActions {}

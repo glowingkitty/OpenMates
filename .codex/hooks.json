@@ -2,19 +2,20 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|resume|clear",
+        "matcher": "startup|resume|clear|compact",
         "hooks": [
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/claude-hook-bridge.sh\" SessionStart",
-            "statusMessage": "Loading OpenMates session context"
+            "statusMessage": "Loading OpenMates session context",
+            "additionalContextLimit": 0
           }
         ]
       }
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|apply_patch|Edit|Write",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
@@ -27,13 +28,13 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "apply_patch|Edit|Write",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/claude-hook-bridge.sh\" PostToolUse",
-            "timeout": 120,
-            "statusMessage": "Running OpenMates post-edit hooks"
+            "timeout": 10,
+            "additionalContextLimit": 0
           }
         ]
       },
@@ -58,7 +59,8 @@
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/claude-hook-bridge.sh\" UserPromptSubmit",
             "timeout": 10,
-            "statusMessage": "Checking OpenMates prompt context"
+            "statusMessage": "Checking OpenMates prompt context",
+            "additionalContextLimit": 0
           }
         ]
       }

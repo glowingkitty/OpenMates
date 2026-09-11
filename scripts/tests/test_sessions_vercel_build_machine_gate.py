@@ -127,7 +127,7 @@ def test_debug_vercel_starts_bug_session_with_complete_args(monkeypatch):
     assert start_args.tags == "debug"
     assert start_args.vercel is False
     assert start_args.error_since == 7
-    assert start_args.opencode_session == "oc-session"
+    assert not hasattr(start_args, "opencode_session")
     assert captured["cmd"] == [
         sys.executable,
         str(sessions.PROJECT_ROOT / "backend" / "scripts" / "debug_vercel.py"),
@@ -528,8 +528,8 @@ def test_deployed_commit_handoff_prints_full_sha_and_content_stable_test_command
     sessions._print_deployed_commit_handoff(commit)
 
     output = capsys.readouterr().out
-    assert f"Full commit: {commit}" in output
-    assert f"--gate-deploy --expected-commit {commit}" in output
+    assert f"Deployed: {commit}" in output
+    assert f"wait-deploy --commit {commit}" in output
     assert "--require-exact-commit" not in output
 
 

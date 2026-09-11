@@ -91,8 +91,8 @@ class TestGroupedBareEmbedRefs:
         )
 
         assert result == (
-            "Sources: [Product Releases & GPT-5.6 Ecosystem](embed:openai.com-msb), "
-            "[OpenAI Product Update](embed:openai.com-Uoj)"
+            "Sources: [according to openai.com](embed:openai.com-msb), "
+            "[according to openai.com](embed:openai.com-Uoj)"
         )
 
     # contract-test: supporting surface=gui.web assertions=web-search.surface-parity
@@ -130,7 +130,7 @@ class TestGroupedBareEmbedRefs:
             user_vault_key_id="vault-key",
         )
 
-        assert result == "Source: [TechCrunch AI Roundup](embed:techcrunch.com-70I) explains the news."
+        assert result == "Source: [according to techcrunch.com](embed:techcrunch.com-70I) explains the news."
 
     # contract-test: supporting surface=gui.web assertions=web-search.surface-parity
     @pytest.mark.asyncio
@@ -167,7 +167,7 @@ class TestGroupedBareEmbedRefs:
             user_vault_key_id="vault-key",
         )
 
-        assert result == "More details are in [iPhone Ultra Features](embed:9to5mac.com-t3Z)."
+        assert result == "More details are in [according to 9to5mac.com](embed:9to5mac.com-t3Z)."
 
     # contract-test: supporting surface=gui.web assertions=web-search.surface-parity
     @pytest.mark.asyncio
@@ -211,6 +211,6 @@ class TestGroupedBareEmbedRefs:
         )
 
         assert result == (
-            "Sources: [iPhone 18 Release Date Rumors](embed:mashable.com-7fJ), "
-            "[Split Release Schedule](embed:macrumors.com-TW4)"
+            "Sources: [according to mashable.com](embed:mashable.com-7fJ), "
+            "[according to macrumors.com](embed:macrumors.com-TW4)"
         )

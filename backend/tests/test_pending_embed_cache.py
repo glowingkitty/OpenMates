@@ -142,3 +142,58 @@ async def test_processing_embed_cache_keeps_standard_retention() -> None:
     assert service.cache_service.redis.set_calls == [
         ("embed:embed-1", {"ex": EMBED_CACHE_TTL_SECONDS})
     ]
+
+
+@pytest.mark.anyio
+# contract-test: infrastructure
+async def test_lru_eviction_preserves_pending_client_encryption_payloads():
+    from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin
+
+    class EvictionRedis:
+        def __init__(self):
+            self.deleted = []
+
+        async def smembers(self, key):
+            return {b"pending-child", b"saved-child"} if key == "chat:old-chat:embed_ids" else set()
+
+        async def delete(self, key):
+            self.deleted.append(key)
+
+        async def zadd(self, *args):
+            pass
+
+        async def expire(self, *args):
+            pass
+
+        async def zcard(self, *args):
+            return 4
+
+        async def zrange(self, key, start, end):
+            if key.startswith(PENDING_EMBED_KEY_PREFIX):
+                return [b"pending-child"]
+            return [b"old-chat"] if start == 0 else []
+
+        async def zrem(self, *args):
+            pass
+
+    class EvictionCache(ChatCacheMixin):
+        CHAT_MESSAGES_TTL = 100
+        TOP_N_MESSAGES_COUNT = 3
+
+        @property
+        def client(self):
+            async def value():
+                return redis
+            return value()
+
+        def _get_ai_cache_lru_key(self, user_id):
+            return "lru"
+
+        def _get_ai_messages_key(self, user_id, chat_id):
+            return "messages:old-chat"
+
+    redis = EvictionRedis()
+    await EvictionCache()._track_ai_cache_activity("user-1", "new-chat")
+    assert "embed:saved-child" in redis.deleted
+    assert "embed:pending-child" not in redis.deleted
+    assert "chat:old-chat:embed_ids" not in redis.deleted

@@ -138,6 +138,13 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     func disconnect() {
         connectionGeneration += 1
+        // A waiter belongs to the socket/session that sent its request. Resume
+        // it before a different account can establish a replacement connection.
+        let disconnectedWaiters = Array(messageWaiters.values)
+        messageWaiters.removeAll()
+        for waiter in disconnectedWaiters {
+            waiter.continuation.resume(throwing: WebSocketError.notConnected)
+        }
         shouldReconnect = false
         connectTask?.cancel()
         connectTask = nil
@@ -187,6 +194,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         matching predicate: @escaping ([String: Any]) -> Bool
     ) async throws -> WebSocketResponse {
         let waiterId = UUID()
+        let expectedGeneration = connectionGeneration
         return try await withCheckedThrowingContinuation { continuation in
             messageWaiters[waiterId] = MessageWaiter(
                 type: responseType,
@@ -196,6 +204,12 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 do {
+                    guard messageWaiters[waiterId] != nil,
+                          Self.shouldContinueConnectionAttempt(
+                            expectedGeneration: expectedGeneration,
+                            currentGeneration: connectionGeneration,
+                            isCancelled: Task.isCancelled
+                          ) else { throw WebSocketError.notConnected }
                     try await send(message)
                 } catch {
                     guard let waiter = messageWaiters.removeValue(forKey: waiterId) else { return }
@@ -214,6 +228,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         connectionState == .connected
     }
 
+    /// Captured by durable sends to keep their plaintext commit bound to the
+    /// same authenticated transport across preflight suspension points.
+    var transportGeneration: Int { connectionGeneration }
+
     func sendDraftSyncMessage(_ message: DraftSyncMessage) async throws {
         try await send(WSOutboundMessage(type: message.type, payload: message.payload))
     }
@@ -224,16 +242,31 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         clientSuggestionsCount: Int = 0,
         clientEmbedIds: [String] = []
     ) async throws {
-        try await send(WSOutboundMessage(
+        try await send(Self.phasedSyncMessage(
+            clientChatVersions: clientChatVersions, clientChatIds: clientChatIds,
+            clientSuggestionsCount: clientSuggestionsCount, clientEmbedIds: clientEmbedIds
+        ))
+    }
+
+    static func phasedSyncMessage(
+        clientChatVersions: [String: [String: Int]] = [:],
+        clientChatIds: [String] = [],
+        clientSuggestionsCount: Int = 0,
+        clientEmbedIds: [String] = []
+    ) -> WSOutboundMessage {
+        WSOutboundMessage(
             type: "phased_sync_request",
             payload: [
                 "phase": "all",
+                // Apple currently uses personal scope. The server requires an
+                // explicit epoch even when no team has been selected.
+                "context_epoch": 0,
                 "client_chat_versions": clientChatVersions,
                 "client_chat_ids": clientChatIds,
                 "client_suggestions_count": clientSuggestionsCount,
                 "client_embed_ids": clientEmbedIds
             ]
-        ))
+        )
     }
 
     func requestPhasedSync(syncState: SyncClientState) async throws {

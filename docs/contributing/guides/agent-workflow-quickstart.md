@@ -1,33 +1,33 @@
-# Agent Workflow Quickstart
+# Agent workflow
 
-Use OpenCode for normal OpenMates coding. Claude Code files remain the canonical
-source for project skills, agents, hooks, and shared rules. Codex and OpenCode
-mirrors are generated or bridged from those canonical sources.
+`AGENTS.md` is the concise entry point. Codex owns conversations; the installed
+OpenMates CLI owns Tasks and synchronization; GitHub CI owns isolated application
+stacks and E2E runs. Repository helpers own workspace safety and scoped publishing.
 
-When changing skills or agents, edit `.claude/skills/` or `.claude/agents/`, then
-run `python3 scripts/sync_agent_parity.py` and verify with
-`python3 scripts/sync_agent_parity.py --check`.
+1. Read relevant source/tests. First mutation: `python3 scripts/sessions.py start
+   --mode bug --task "<outcome>"`. Reuse its workspace and binding.
+2. Implement and update relevant E2E coverage. Run focused local checks. Publish
+   an immutable source with `sessions.py ci-source`, submit through
+   `ci_coordinator.py submit`, and wait with `ci_coordinator.py wait <id>` or use
+   existing completion events. JSON is opt-in when another program needs it.
+3. Publish with `sessions.py deploy --title "type: description" --message "why"`.
+   Use `--session` for SSH/manual work. For frontend readiness use
+   `sessions.py wait-deploy --commit <sha>` and wait on that process.
 
-When changing hook or config behavior, update the tracked parity inventory in
-`docs/architecture/agent-tooling-parity.yml`, then run
-`python3 scripts/audit_agent_tooling_parity.py`.
+Update OpenMates Tasks only at meaningful changes; successful acknowledged writes
+need no follow-up read. Preserve queued deliveries. Handoffs contain the outcome,
+Task, binding, owned paths, evidence and unresolved decisions in 100–200 words.
+Use canonical `codex_worker.py` and stable operation IDs for authorized dev-host
+workers; preserve explicit per-turn permissions.
 
-When changing OpenCode instructions or automation prompts, keep the default
-context small and run `python3 scripts/audit_opencode_output_quality.py`.
+Read `.claude/rules/testing.md` for E2E maintenance and bounded debugging. Ask
+before a materially broader or uncertain repair. Explicit user waivers persist.
+Keep Claude source skills/agents and run `sync_agent_parity.py` plus `--check` after
+editing them. Hook changes require parity validation and one installed
+`codex_cached_context.py doctor` check; use `/hooks` to review changed definitions.
 
-Use `python3 scripts/sessions.py worktree ensure --session <id>` for orchestrated
-agent worktrees when needed. Use `python3 scripts/sessions.py deploy --session
-<id> --title "..." --message "..."` instead of raw git commit or push.
-OpenCode Web remains root-addressed while hooks route local file tools, searches,
-Bash, and Task children into the session worktree. Start the repository session
-before mutating work, use relative paths, and follow a rejected hook call's
-`Next:` action rather than retrying it. Overlapping edits use short-lived
-`sessions.py edit-lease` records. Raw Docker Compose mutations require the
-current session to hold the Docker lock.
+Legacy conversation records are historical data, not executable workflow rules.
+See `docs/architecture/codex-task-cache.md` for task transport and recovery.
 
-Deeper references:
-
-- `AGENTS.md`
-- `docs/architecture/agent-tooling-parity.md`
-- `docs/contributing/guides/spec-driven-development.md`
-- `docs/contributing/guides/testing.md`
+After editing shared skills/hooks, run `python3 scripts/sync_agent_parity.py --check`
+and `python3 scripts/audit_agent_tooling_parity.py`.

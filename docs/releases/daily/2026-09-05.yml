@@ -1,0 +1,2804 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-05'
+generated_at: '2026-09-07T00:50:56+00:00'
+range:
+  since: '2026-09-05T00:00:00+00:00'
+  until: '2026-09-06T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 37
+  section_counts:
+    features: 4
+    bug_fixes: 23
+    improvements: 1
+    docs: 4
+    tests: 5
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 17
+  dev_only_items: 37
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add authorized Calendar discovery skill'
+    section: features
+    commits:
+    - 94d55af65
+    authored_at: '2026-09-05T21:26:13+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/calendar/app.yml
+    - backend/apps/calendar/skills/list_calendars_skill.py
+    - backend/shared/providers/google_calendar/client.py
+    - backend/shared/python_utils/calendar_action_journal.py
+    - backend/shared/python_utils/connected_account_registry.py
+    - backend/tests/test_calendar_app_contract.py
+    - backend/tests/test_calendar_discovery.py
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/calendar.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:calendar'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: show immediate processing feedback and selected mate'
+    section: features
+    commits:
+    - b596f57e0
+    authored_at: '2026-09-05T20:57:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.preview.ts
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.svelte
+    - frontend/packages/ui/src/components/__tests__/activeChatProcessingFeedback.test.ts
+    - frontend/packages/ui/src/components/activeChatProcessingFeedback.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/main.yml
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add deterministic security report delivery'
+    section: features
+    commits:
+    - 75d156ee6
+    authored_at: '2026-09-05T20:50:27+00:00'
+    changed_paths:
+    - scripts/security_digest.py
+    - scripts/security_report_delivery.py
+    - scripts/tests/fixtures/security-reporting/digest-clean.json
+    - scripts/tests/fixtures/security-reporting/digest-findings.json
+    - scripts/tests/test_security_digest.py
+    - scripts/tests/test_security_report_delivery.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add versioned audio transcript timestamps'
+    section: features
+    commits:
+    - c213a8766
+    authored_at: '2026-09-05T20:47:33+00:00'
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - docs/plans/videos-get-transcript/plan.yml
+    - scripts/tests/test_videos_get_transcript_real_dev.py
+    - scripts/tests/videos_get_transcript_real_dev.mjs
+    - specifications/features/app-skills/videos-get-transcript/examples.yml
+    - specifications/features/app-skills/videos-get-transcript/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:transcribe, skill:audio:transcribe'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: harden shared app skill output safety'
+    section: bug_fixes
+    commits:
+    - 280b67d23
+    authored_at: '2026-09-05T21:57:39+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/groq_client.py
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/social_media/result_payload.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/tests/test_app_skill_output_safety.py
+    - backend/tests/test_external_result_sanitizer_batching.py
+    - backend/tests/test_groq_client_retry_config.py
+    - backend/tests/test_llm_utils_preprocessing_retries.py
+    - backend/tests/test_social_media_get_posts_async.py
+    - backend/tests/test_structured_content_sanitization.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:social_media'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: classify transcript timing validation failures'
+    section: bug_fixes
+    commits:
+    - 0fec41c03
+    authored_at: '2026-09-05T21:55:54+00:00'
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - scripts/tests/videos_get_transcript_real_dev.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:transcribe, skill:audio:transcribe'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use Mistral timestamp multipart field'
+    section: bug_fixes
+    commits:
+    - 111c16e9f
+    authored_at: '2026-09-05T21:49:57+00:00'
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:transcribe, skill:audio:transcribe'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound OpenCode coordination and recover task activity delivery'
+    section: bug_fixes
+    commits:
+    - bb247a4a5
+    authored_at: '2026-09-05T21:48:47+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - AGENTS.md
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/tests/test_user_task_activity_api.py
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/taskActivityDelivery.ts
+    - frontend/packages/openmates-cli/src/taskActivityHistory.ts
+    - frontend/packages/openmates-cli/tests/taskActivityDelivery.test.ts
+    - frontend/packages/openmates-cli/tests/taskActivityHistory.test.ts
+    - scripts/sessions.py
+    - scripts/sync_opencode_runtime_hook.py
+    - scripts/tests/test_opencode_presence_performance.mjs
+    - scripts/tests/test_opencode_task_bridge.py
+    - scripts/tests/test_opencode_task_bridge_hook.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: validate timestamps against decoded audio duration'
+    section: bug_fixes
+    commits:
+    - '166542240'
+    authored_at: '2026-09-05T21:23:27+00:00'
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:transcribe, skill:audio:transcribe'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: normalize Mistral audio duration for timestamps'
+    section: bug_fixes
+    commits:
+    - 9a771906d
+    authored_at: '2026-09-05T21:15:53+00:00'
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - scripts/tests/test_videos_get_transcript_real_dev.py
+    - scripts/tests/videos_get_transcript_real_dev.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:transcribe, skill:audio:transcribe'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: validate granted Google Calendar consent scopes'
+    section: bug_fixes
+    commits:
+    - 4fd25c993
+    authored_at: '2026-09-05T20:43:32+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: pin CLI upgrades to the checked registry version'
+    section: bug_fixes
+    commits:
+    - 06653a4d8
+    authored_at: '2026-09-05T20:29:04+00:00'
+    changed_paths:
+    - docs/architecture/platforms/cli-package.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/selfUpdate.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate CLI profiles and serialize session refresh'
+    section: bug_fixes
+    commits:
+    - e0b835cb6
+    authored_at: '2026-09-05T20:16:40+00:00'
+    changed_paths:
+    - backend/core/api/app/services/cache_user_mixin.py
+    - backend/tests/test_cache_session_identity.py
+    - docs/architecture/platforms/cli-package.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    - pnpm-lock.yaml
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_task_bridge.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve CLI upgrade prefix and release channel'
+    section: bug_fixes
+    commits:
+    - 413bf23c1
+    authored_at: '2026-09-05T19:11:01+00:00'
+    changed_paths:
+    - docs/architecture/platforms/cli-package.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/selfUpdate.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: publish private and accurately scoped server backups'
+    section: bug_fixes
+    commits:
+    - 65c003523
+    authored_at: '2026-09-05T18:36:18+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverBackupArchive.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept Dragonfly snapshot acknowledgement'
+    section: bug_fixes
+    commits:
+    - 3e9597f56
+    authored_at: '2026-09-05T18:24:28+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: coordinate recoverable core backups'
+    section: bug_fixes
+    commits:
+    - 76c8cfe57
+    authored_at: '2026-09-05T18:21:21+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden connected account scope and token cleanup'
+    section: bug_fixes
+    commits:
+    - 8ba6ab1a9
+    authored_at: '2026-09-05T18:07:45+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_execution.py
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - docs/plans/connected-accounts-calendar/plan.yml
+    - specifications/architecture/connected-accounts/examples.yml
+    - specifications/architecture/connected-accounts/specification.yml
+    - specifications/features/app-skills/calendar/examples.yml
+    - specifications/features/app-skills/calendar/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:finance:check_accounts'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: compact safety decisions for full search batches'
+    section: bug_fixes
+    commits:
+    - 6835c8a01
+    authored_at: '2026-09-05T17:57:45+00:00'
+    changed_paths:
+    - backend/scripts/test_app_skill_safety_benchmark.py
+    - backend/shared/python_utils/structured_content_sanitization.py
+    - backend/tests/test_app_skill_safety_benchmark.py
+    - backend/tests/test_structured_content_sanitization.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve OpenCode worktrees across task continuations'
+    section: bug_fixes
+    commits:
+    - 60e88cf5b
+    authored_at: '2026-09-05T17:37:03+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate dependency scanner runtime state'
+    section: bug_fixes
+    commits:
+    - 35c1acdc0
+    authored_at: '2026-09-05T15:59:35+00:00'
+    changed_paths:
+    - backend/tests/test__eu_vuln_helper.py
+    - docs/plans/dependency-supply-chain-hardening/plan.yml
+    - scripts/_dependabot_helper.py
+    - scripts/_eu_vuln_helper.py
+    - scripts/check-dependabot-daily.sh
+    - scripts/check-eu-vulns-daily.sh
+    - scripts/tests/test_dependency_update_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: cap OpenCode subchat nesting at two child levels'
+    section: bug_fixes
+    commits:
+    - a32637da0
+    authored_at: '2026-09-05T15:19:53+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/architecture/agent-tooling-parity.yml
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve TOON structure during content sanitization'
+    section: bug_fixes
+    commits:
+    - fdf93bd61
+    authored_at: '2026-09-05T14:15:26+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/tests/test_content_sanitization.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve shared OpenCode terminal on Codex session completion'
+    section: bug_fixes
+    commits:
+    - c1a40caf1
+    authored_at: '2026-09-05T13:01:17+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: honor scoped workflow decisions and consolidate runtime ownership'
+    section: bug_fixes
+    commits:
+    - f79708bdc
+    authored_at: '2026-09-05T12:44:50+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .codex/agents/apple-parity-auditor.toml
+    - .codex/agents/apple-performance-detective.toml
+    - .codex/agents/proof-video-reviewer.toml
+    - .codex/agents/specification-verifier.toml
+    - .codex/hooks/claude-hook-bridge.sh
+    - .gitignore
+    - .opencode/agents/apple-parity-auditor.md
+    - .opencode/agents/apple-performance-detective.md
+    - .opencode/agents/proof-video-reviewer.md
+    - .opencode/agents/specification-verifier.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/architecture/agent-workflow-decisions.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - docs/plans/agent-workflow-r2/plan.yml
+    - scripts/_workflow_decisions.py
+    - scripts/opencode_runtime_release.py
+    - scripts/plan_verify.py
+    - scripts/probe_opencode_workflow.mjs
+    - scripts/sessions.py
+    - scripts/start-opencode-server.sh
+    - scripts/sync_opencode_runtime_hook.py
+    - scripts/tests/test_runtime_workflow_package.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_checkpoints.py
+    - scripts/tests/test_sync_opencode_runtime_hook.py
+    - scripts/tests/test_workflow_decisions.py
+    - scripts/tests/test_workspace_transition_owner.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow read-only OpenMates research CLI'
+    section: bug_fixes
+    commits:
+    - 808efe8dc
+    authored_at: '2026-09-05T11:47:00+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce OpenCode research routing'
+    section: bug_fixes
+    commits:
+    - aa95395aa
+    authored_at: '2026-09-05T11:38:01+00:00'
+    changed_paths:
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/start-opencode-server.sh
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_runtime_config.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: classify app skill output in structured safety batches'
+    section: improvements
+    commits:
+    - ef0539d30
+    authored_at: '2026-09-05T17:15:49+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/groq_client.py
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/web/skills/read_skill.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/scripts/test_app_skill_safety_benchmark.py
+    - backend/shared/python_utils/app_skill_helpers.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/shared/python_utils/structured_content_sanitization.py
+    - backend/tests/fixtures/app_skill_safety_corpus.json
+    - backend/tests/test_app_skill_output_safety.py
+    - backend/tests/test_app_skill_rest_context.py
+    - backend/tests/test_app_skill_safety_benchmark.py
+    - backend/tests/test_external_result_sanitizer.py
+    - backend/tests/test_external_result_sanitizer_batching.py
+    - backend/tests/test_groq_client_retry_config.py
+    - backend/tests/test_llm_utils_preprocessing_retries.py
+    - backend/tests/test_skill_executor_registry_refresh.py
+    - backend/tests/test_structured_content_sanitization.py
+    - backend/tests/test_web_search_contract.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - docs/plans/app-skill-safety-single-pass/plan.yml
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/features/app-skills/web-search/examples.yml
+    - specifications/features/app-skills/web-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:web:read
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:web, embed:web:read, embed:web:search, platform:workflows, skill:web:read,
+      skill:web:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: move marketing skills to companion repository'
+    section: docs
+    commits:
+    - 7638181d2
+    authored_at: '2026-09-05T16:36:43+00:00'
+    changed_paths:
+    - .agents/skills/create-newsletter/SKILL.md
+    - .agents/skills/create-video/SKILL.md
+    - .agents/skills/publish-newsletter/SKILL.md
+    - .agents/skills/review-video-script/SKILL.md
+    - .claude/skills/create-newsletter/SKILL.md
+    - .claude/skills/create-video/SKILL.md
+    - .claude/skills/publish-newsletter/SKILL.md
+    - .claude/skills/review-video-script/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: integrate idle session 1de6'
+    section: docs
+    commits:
+    - 94f0f4182
+    authored_at: '2026-09-05T14:16:58+00:00'
+    changed_paths:
+    - .agents/skills/clarify/SKILL.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: route repository and event searches through app skills'
+    section: docs
+    commits:
+    - 4a47a1c80
+    authored_at: '2026-09-05T14:00:54+00:00'
+    changed_paths:
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record verified workflow rollout'
+    section: docs
+    commits:
+    - e10383274
+    authored_at: '2026-09-05T12:52:10+00:00'
+    changed_paths:
+    - docs/plans/agent-workflow-r2/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: retain stable processing proof source frames'
+    section: tests
+    commits:
+    - 5136bb758
+    authored_at: '2026-09-05T21:52:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align processing proof actions with caption states'
+    section: tests
+    commits:
+    - cdd439a39
+    authored_at: '2026-09-05T21:20:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert only the mate name is actionable'
+    section: tests
+    commits:
+    - 1e0d6fe46
+    authored_at: '2026-09-05T21:10:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: enforce session refresh regression in CLI releases'
+    section: tests
+    commits:
+    - c31fc96fe
+    authored_at: '2026-09-05T20:18:55+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reproduce missing processing mate identity'
+    section: tests
+    commits:
+    - 2fd7fbf0e
+    authored_at: '2026-09-05T19:23:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.preview.ts
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.svelte
+    - specifications/features/chat-processing-feedback/examples.yml
+    - specifications/features/chat-processing-feedback/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: harden shared app skill output safety'
+    commits:
+    - 280b67d23
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+  - title: 'fix: classify transcript timing validation failures'
+    commits:
+    - 0fec41c03
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'test: retain stable processing proof source frames'
+    commits:
+    - 5136bb758
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: use Mistral timestamp multipart field'
+    commits:
+    - 111c16e9f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: bound OpenCode coordination and recover task activity delivery'
+    commits:
+    - bb247a4a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: add authorized Calendar discovery skill'
+    commits:
+    - 94d55af65
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+  - title: 'fix: validate timestamps against decoded audio duration'
+    commits:
+    - '166542240'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'test: align processing proof actions with caption states'
+    commits:
+    - cdd439a39
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: normalize Mistral audio duration for timestamps'
+    commits:
+    - 9a771906d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'test: assert only the mate name is actionable'
+    commits:
+    - 1e0d6fe46
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: show immediate processing feedback and selected mate'
+    commits:
+    - b596f57e0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add deterministic security report delivery'
+    commits:
+    - 75d156ee6
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add versioned audio transcript timestamps'
+    commits:
+    - c213a8766
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: validate granted Google Calendar consent scopes'
+    commits:
+    - 4fd25c993
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: pin CLI upgrades to the checked registry version'
+    commits:
+    - 06653a4d8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: enforce session refresh regression in CLI releases'
+    commits:
+    - c31fc96fe
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: isolate CLI profiles and serialize session refresh'
+    commits:
+    - e0b835cb6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: reproduce missing processing mate identity'
+    commits:
+    - 2fd7fbf0e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve CLI upgrade prefix and release channel'
+    commits:
+    - 413bf23c1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: publish private and accurately scoped server backups'
+    commits:
+    - 65c003523
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: accept Dragonfly snapshot acknowledgement'
+    commits:
+    - 3e9597f56
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: coordinate recoverable core backups'
+    commits:
+    - 76c8cfe57
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden connected account scope and token cleanup'
+    commits:
+    - 8ba6ab1a9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+  - title: 'fix: compact safety decisions for full search batches'
+    commits:
+    - 6835c8a01
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve OpenCode worktrees across task continuations'
+    commits:
+    - 60e88cf5b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: classify app skill output in structured safety batches'
+    commits:
+    - ef0539d30
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:web:read
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'docs: move marketing skills to companion repository'
+    commits:
+    - 7638181d2
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: isolate dependency scanner runtime state'
+    commits:
+    - 35c1acdc0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: cap OpenCode subchat nesting at two child levels'
+    commits:
+    - a32637da0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: integrate idle session 1de6'
+    commits:
+    - 94f0f4182
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve TOON structure during content sanitization'
+    commits:
+    - fdf93bd61
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: route repository and event searches through app skills'
+    commits:
+    - 4a47a1c80
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve shared OpenCode terminal on Codex session completion'
+    commits:
+    - c1a40caf1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record verified workflow rollout'
+    commits:
+    - e10383274
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: honor scoped workflow decisions and consolidate runtime ownership'
+    commits:
+    - f79708bdc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow read-only OpenMates research CLI'
+    commits:
+    - 808efe8dc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: enforce OpenCode research routing'
+    commits:
+    - aa95395aa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add authorized Calendar discovery skill'
+    commits:
+    - 94d55af65
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+  - title: 'feat: add versioned audio transcript timestamps'
+    commits:
+    - c213a8766
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: harden shared app skill output safety'
+    commits:
+    - 280b67d23
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    newsletter_ready: false
+  - title: 'fix: classify transcript timing validation failures'
+    commits:
+    - 0fec41c03
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: use Mistral timestamp multipart field'
+    commits:
+    - 111c16e9f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: bound OpenCode coordination and recover task activity delivery'
+    commits:
+    - bb247a4a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add authorized Calendar discovery skill'
+    commits:
+    - 94d55af65
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    newsletter_ready: false
+  - title: 'fix: validate timestamps against decoded audio duration'
+    commits:
+    - '166542240'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: normalize Mistral audio duration for timestamps'
+    commits:
+    - 9a771906d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'feat: show immediate processing feedback and selected mate'
+    commits:
+    - b596f57e0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add versioned audio transcript timestamps'
+    commits:
+    - c213a8766
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: validate granted Google Calendar consent scopes'
+    commits:
+    - 4fd25c993
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: pin CLI upgrades to the checked registry version'
+    commits:
+    - 06653a4d8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: isolate CLI profiles and serialize session refresh'
+    commits:
+    - e0b835cb6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve CLI upgrade prefix and release channel'
+    commits:
+    - 413bf23c1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: publish private and accurately scoped server backups'
+    commits:
+    - 65c003523
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: harden connected account scope and token cleanup'
+    commits:
+    - 8ba6ab1a9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    newsletter_ready: false
+  - title: 'perf: classify app skill output in structured safety batches'
+    commits:
+    - ef0539d30
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:web:read
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve TOON structure during content sanitization'
+    commits:
+    - fdf93bd61
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 280b67d23a57b61dc84776df6f1207b9a7a23e83
+    short_sha: 280b67d23
+    authored_at: '2026-09-05T21:57:39+00:00'
+    subject: 'fix: harden shared app skill output safety'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/groq_client.py
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/social_media/result_payload.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/tests/test_app_skill_output_safety.py
+    - backend/tests/test_external_result_sanitizer_batching.py
+    - backend/tests/test_groq_client_retry_config.py
+    - backend/tests/test_llm_utils_preprocessing_retries.py
+    - backend/tests/test_social_media_get_posts_async.py
+    - backend/tests/test_structured_content_sanitization.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:social_media
+  - sha: 0fec41c037471ae5d27919246c8ffe3fa3b8474b
+    short_sha: 0fec41c03
+    authored_at: '2026-09-05T21:55:54+00:00'
+    subject: 'fix: classify transcript timing validation failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - scripts/tests/videos_get_transcript_real_dev.mjs
+    related_feature_ids:
+    - app:audio
+    - embed:audio:transcribe
+    - skill:audio:transcribe
+  - sha: 5136bb75856f9594ab8f43f9716a522a787c6757
+    short_sha: 5136bb758
+    authored_at: '2026-09-05T21:52:13+00:00'
+    subject: 'test: retain stable processing proof source frames'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    related_feature_ids: []
+  - sha: 111c16e9fbe8c6f876fab1aa0a7029467e83b59a
+    short_sha: 111c16e9f
+    authored_at: '2026-09-05T21:49:57+00:00'
+    subject: 'fix: use Mistral timestamp multipart field'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:audio
+    - embed:audio:transcribe
+    - skill:audio:transcribe
+  - sha: bb247a4a5cc944bad70049e1de290223c5c3d663
+    short_sha: bb247a4a5
+    authored_at: '2026-09-05T21:48:47+00:00'
+    subject: 'fix: bound OpenCode coordination and recover task activity delivery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - AGENTS.md
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/tests/test_user_task_activity_api.py
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/taskActivityDelivery.ts
+    - frontend/packages/openmates-cli/src/taskActivityHistory.ts
+    - frontend/packages/openmates-cli/tests/taskActivityDelivery.test.ts
+    - frontend/packages/openmates-cli/tests/taskActivityHistory.test.ts
+    - scripts/sessions.py
+    - scripts/sync_opencode_runtime_hook.py
+    - scripts/tests/test_opencode_presence_performance.mjs
+    - scripts/tests/test_opencode_task_bridge.py
+    - scripts/tests/test_opencode_task_bridge_hook.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:tasks
+  - sha: 94d55af655a97e77cdf677294f05fbf04469b93e
+    short_sha: 94d55af65
+    authored_at: '2026-09-05T21:26:13+00:00'
+    subject: 'feat: add authorized Calendar discovery skill'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/calendar/app.yml
+    - backend/apps/calendar/skills/list_calendars_skill.py
+    - backend/shared/providers/google_calendar/client.py
+    - backend/shared/python_utils/calendar_action_journal.py
+    - backend/shared/python_utils/connected_account_registry.py
+    - backend/tests/test_calendar_app_contract.py
+    - backend/tests/test_calendar_discovery.py
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/calendar.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - app:ai
+    - app:calendar
+  - sha: 1665422404c5525274b267163039ceb6ed92bf16
+    short_sha: '166542240'
+    authored_at: '2026-09-05T21:23:27+00:00'
+    subject: 'fix: validate timestamps against decoded audio duration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:audio
+    - embed:audio:transcribe
+    - skill:audio:transcribe
+  - sha: cdd439a39481ab9ff411f6be14fd56059106262d
+    short_sha: cdd439a39
+    authored_at: '2026-09-05T21:20:43+00:00'
+    subject: 'test: align processing proof actions with caption states'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    related_feature_ids: []
+  - sha: 9a771906dedfcf5e3706e959996aeadbdb157d49
+    short_sha: 9a771906d
+    authored_at: '2026-09-05T21:15:53+00:00'
+    subject: 'fix: normalize Mistral audio duration for timestamps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - scripts/tests/test_videos_get_transcript_real_dev.py
+    - scripts/tests/videos_get_transcript_real_dev.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:audio
+    - embed:audio:transcribe
+    - skill:audio:transcribe
+  - sha: 1e0d6fe461f2336d35e3ff3070e1bc976c8ad0d9
+    short_sha: 1e0d6fe46
+    authored_at: '2026-09-05T21:10:35+00:00'
+    subject: 'test: assert only the mate name is actionable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    related_feature_ids: []
+  - sha: b596f57e0cf35ff0baac99e09a5535ada839999a
+    short_sha: b596f57e0
+    authored_at: '2026-09-05T20:57:36+00:00'
+    subject: 'feat: show immediate processing feedback and selected mate'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.preview.ts
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.svelte
+    - frontend/packages/ui/src/components/__tests__/activeChatProcessingFeedback.test.ts
+    - frontend/packages/ui/src/components/activeChatProcessingFeedback.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/main.yml
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids: []
+  - sha: 75d156ee67c1b271bade65d3c6cd7e3b9cfdcb69
+    short_sha: 75d156ee6
+    authored_at: '2026-09-05T20:50:27+00:00'
+    subject: 'feat: add deterministic security report delivery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/security_digest.py
+    - scripts/security_report_delivery.py
+    - scripts/tests/fixtures/security-reporting/digest-clean.json
+    - scripts/tests/fixtures/security-reporting/digest-findings.json
+    - scripts/tests/test_security_digest.py
+    - scripts/tests/test_security_report_delivery.py
+    related_feature_ids: []
+  - sha: c213a8766f3fa66f5d3b1e376034a03ca59ff805
+    short_sha: c213a8766
+    authored_at: '2026-09-05T20:47:33+00:00'
+    subject: 'feat: add versioned audio transcript timestamps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - docs/plans/videos-get-transcript/plan.yml
+    - scripts/tests/test_videos_get_transcript_real_dev.py
+    - scripts/tests/videos_get_transcript_real_dev.mjs
+    - specifications/features/app-skills/videos-get-transcript/examples.yml
+    - specifications/features/app-skills/videos-get-transcript/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:audio
+    - embed:audio:transcribe
+    - skill:audio:transcribe
+  - sha: 4fd25c993f8976dada6e79b800106267cbb4d490
+    short_sha: 4fd25c993
+    authored_at: '2026-09-05T20:43:32+00:00'
+    subject: 'fix: validate granted Google Calendar consent scopes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 06653a4d8c3035e2ee030263a0a83ccbcb7d49be
+    short_sha: 06653a4d8
+    authored_at: '2026-09-05T20:29:04+00:00'
+    subject: 'fix: pin CLI upgrades to the checked registry version'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/platforms/cli-package.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/selfUpdate.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: c31fc96feb1ceff0a67f8f1f6321b5e78fbd728f
+    short_sha: c31fc96fe
+    authored_at: '2026-09-05T20:18:55+00:00'
+    subject: 'test: enforce session refresh regression in CLI releases'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: e0b835cb6a938ba9df93d843b36815036888de92
+    short_sha: e0b835cb6
+    authored_at: '2026-09-05T20:16:40+00:00'
+    subject: 'fix: isolate CLI profiles and serialize session refresh'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/cache_user_mixin.py
+    - backend/tests/test_cache_session_identity.py
+    - docs/architecture/platforms/cli-package.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    - pnpm-lock.yaml
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_task_bridge.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 2fd7fbf0e2e932376924ffce4a27f98865edd1ca
+    short_sha: 2fd7fbf0e
+    authored_at: '2026-09-05T19:23:20+00:00'
+    subject: 'test: reproduce missing processing mate identity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.preview.ts
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.svelte
+    - specifications/features/chat-processing-feedback/examples.yml
+    - specifications/features/chat-processing-feedback/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 413bf23c16e3c6e94a84ddf5b28e606fe9e7fad3
+    short_sha: 413bf23c1
+    authored_at: '2026-09-05T19:11:01+00:00'
+    subject: 'fix: preserve CLI upgrade prefix and release channel'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/platforms/cli-package.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/selfUpdate.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 65c0035237ec65dde9a2369f690eec5d3fc337e3
+    short_sha: 65c003523
+    authored_at: '2026-09-05T18:36:18+00:00'
+    subject: 'fix: publish private and accurately scoped server backups'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverBackupArchive.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 3e9597f56bde7bbfda27cf74a99b1b3578b6996c
+    short_sha: 3e9597f56
+    authored_at: '2026-09-05T18:24:28+00:00'
+    subject: 'fix: accept Dragonfly snapshot acknowledgement'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    related_feature_ids: []
+  - sha: 76c8cfe57d70e579562c234a75bab4f528aa71d7
+    short_sha: 76c8cfe57
+    authored_at: '2026-09-05T18:21:21+00:00'
+    subject: 'fix: coordinate recoverable core backups'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    related_feature_ids: []
+  - sha: 8ba6ab1a99a2562f291342230eff25ff55c25274
+    short_sha: 8ba6ab1a9
+    authored_at: '2026-09-05T18:07:45+00:00'
+    subject: 'fix: harden connected account scope and token cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_execution.py
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - docs/plans/connected-accounts-calendar/plan.yml
+    - specifications/architecture/connected-accounts/examples.yml
+    - specifications/architecture/connected-accounts/specification.yml
+    - specifications/features/app-skills/calendar/examples.yml
+    - specifications/features/app-skills/calendar/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - skill:finance:check_accounts
+  - sha: 6835c8a016f4ba64835d674eb713c6b0c25bad23
+    short_sha: 6835c8a01
+    authored_at: '2026-09-05T17:57:45+00:00'
+    subject: 'fix: compact safety decisions for full search batches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/test_app_skill_safety_benchmark.py
+    - backend/shared/python_utils/structured_content_sanitization.py
+    - backend/tests/test_app_skill_safety_benchmark.py
+    - backend/tests/test_structured_content_sanitization.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 60e88cf5be9b812be3b30b2e5d2e2e6cb802b533
+    short_sha: 60e88cf5b
+    authored_at: '2026-09-05T17:37:03+00:00'
+    subject: 'fix: preserve OpenCode worktrees across task continuations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    related_feature_ids: []
+  - sha: ef0539d30e847d50ac9003d5853f17c864ae9831
+    short_sha: ef0539d30
+    authored_at: '2026-09-05T17:15:49+00:00'
+    subject: 'perf: classify app skill output in structured safety batches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/groq_client.py
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/web/skills/read_skill.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/scripts/test_app_skill_safety_benchmark.py
+    - backend/shared/python_utils/app_skill_helpers.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/shared/python_utils/structured_content_sanitization.py
+    - backend/tests/fixtures/app_skill_safety_corpus.json
+    - backend/tests/test_app_skill_output_safety.py
+    - backend/tests/test_app_skill_rest_context.py
+    - backend/tests/test_app_skill_safety_benchmark.py
+    - backend/tests/test_external_result_sanitizer.py
+    - backend/tests/test_external_result_sanitizer_batching.py
+    - backend/tests/test_groq_client_retry_config.py
+    - backend/tests/test_llm_utils_preprocessing_retries.py
+    - backend/tests/test_skill_executor_registry_refresh.py
+    - backend/tests/test_structured_content_sanitization.py
+    - backend/tests/test_web_search_contract.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - docs/plans/app-skill-safety-single-pass/plan.yml
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/features/app-skills/web-search/examples.yml
+    - specifications/features/app-skills/web-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:web
+    - embed:web:read
+    - embed:web:search
+    - platform:workflows
+    - skill:web:read
+    - skill:web:search
+  - sha: 7638181d2db14e13654f1c77af2e87db050b8530
+    short_sha: 7638181d2
+    authored_at: '2026-09-05T16:36:43+00:00'
+    subject: 'docs: move marketing skills to companion repository'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-newsletter/SKILL.md
+    - .agents/skills/create-video/SKILL.md
+    - .agents/skills/publish-newsletter/SKILL.md
+    - .agents/skills/review-video-script/SKILL.md
+    - .claude/skills/create-newsletter/SKILL.md
+    - .claude/skills/create-video/SKILL.md
+    - .claude/skills/publish-newsletter/SKILL.md
+    - .claude/skills/review-video-script/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    related_feature_ids: []
+  - sha: 35c1acdc0d6cdab32d277816a0df7312e60619c8
+    short_sha: 35c1acdc0
+    authored_at: '2026-09-05T15:59:35+00:00'
+    subject: 'fix: isolate dependency scanner runtime state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test__eu_vuln_helper.py
+    - docs/plans/dependency-supply-chain-hardening/plan.yml
+    - scripts/_dependabot_helper.py
+    - scripts/_eu_vuln_helper.py
+    - scripts/check-dependabot-daily.sh
+    - scripts/check-eu-vulns-daily.sh
+    - scripts/tests/test_dependency_update_policy.py
+    related_feature_ids: []
+  - sha: a32637da0d6749191108ab3f7fb19b1b7ca5b24f
+    short_sha: a32637da0
+    authored_at: '2026-09-05T15:19:53+00:00'
+    subject: 'fix: cap OpenCode subchat nesting at two child levels'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/architecture/agent-tooling-parity.yml
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    related_feature_ids: []
+  - sha: 94f0f41825e110aa9b8523884deab94b8317dad7
+    short_sha: 94f0f4182
+    authored_at: '2026-09-05T14:16:58+00:00'
+    subject: 'chore: integrate idle session 1de6'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/clarify/SKILL.md
+    related_feature_ids: []
+  - sha: fdf93bd6108c856b2cb04273103775d6298fee48
+    short_sha: fdf93bd61
+    authored_at: '2026-09-05T14:15:26+00:00'
+    subject: 'fix: preserve TOON structure during content sanitization'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/tests/test_content_sanitization.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 4a47a1c80c34aae9fbdc70a40c336000d546846f
+    short_sha: 4a47a1c80
+    authored_at: '2026-09-05T14:00:54+00:00'
+    subject: 'docs: route repository and event searches through app skills'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    related_feature_ids: []
+  - sha: c1a40caf115b44b8e7ee1a0e87d4efea800a984e
+    short_sha: c1a40caf1
+    authored_at: '2026-09-05T13:01:17+00:00'
+    subject: 'fix: preserve shared OpenCode terminal on Codex session completion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    related_feature_ids: []
+  - sha: e103832745882079912f11d1de4a6c3db7924211
+    short_sha: e10383274
+    authored_at: '2026-09-05T12:52:10+00:00'
+    subject: 'docs: record verified workflow rollout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agent-workflow-r2/plan.yml
+    related_feature_ids: []
+  - sha: f79708bdc325bf3861c4e260260c47bf1cccff02
+    short_sha: f79708bdc
+    authored_at: '2026-09-05T12:44:50+00:00'
+    subject: 'fix: honor scoped workflow decisions and consolidate runtime ownership'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .codex/agents/apple-parity-auditor.toml
+    - .codex/agents/apple-performance-detective.toml
+    - .codex/agents/proof-video-reviewer.toml
+    - .codex/agents/specification-verifier.toml
+    - .codex/hooks/claude-hook-bridge.sh
+    - .gitignore
+    - .opencode/agents/apple-parity-auditor.md
+    - .opencode/agents/apple-performance-detective.md
+    - .opencode/agents/proof-video-reviewer.md
+    - .opencode/agents/specification-verifier.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/architecture/agent-workflow-decisions.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - docs/plans/agent-workflow-r2/plan.yml
+    - scripts/_workflow_decisions.py
+    - scripts/opencode_runtime_release.py
+    - scripts/plan_verify.py
+    - scripts/probe_opencode_workflow.mjs
+    - scripts/sessions.py
+    - scripts/start-opencode-server.sh
+    - scripts/sync_opencode_runtime_hook.py
+    - scripts/tests/test_runtime_workflow_package.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_checkpoints.py
+    - scripts/tests/test_sync_opencode_runtime_hook.py
+    - scripts/tests/test_workflow_decisions.py
+    - scripts/tests/test_workspace_transition_owner.py
+    related_feature_ids: []
+  - sha: 808efe8dca44d1ceff860dc80b65f4b9d97043f8
+    short_sha: 808efe8dc
+    authored_at: '2026-09-05T11:47:00+00:00'
+    subject: 'fix: allow read-only OpenMates research CLI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    related_feature_ids: []
+  - sha: aa95395aaefa50709b07d85ae6fa169217a13dae
+    short_sha: aa95395aa
+    authored_at: '2026-09-05T11:38:01+00:00'
+    subject: 'fix: enforce OpenCode research routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/start-opencode-server.sh
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_runtime_config.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining AI interaction feedback, enhancing audio transcription precision, and hardening
+    security for connected accounts. Significant internal work was also completed on the OpenCode environment and CLI stability.
+  released_changes: []
+  bug_fixes:
+  - text: The audio transcription engine received several stability updates, including improved timestamp validation against
+      decoded duration and better handling of Mistral multipart fields.
+    evidence:
+      commits:
+      - 0fec41c03
+      - 111c16e9f
+      - '166542240'
+      - 9a771906d
+    release_status: dev_only
+  - text: The OpenMates CLI was updated to isolate user profiles, serialize session refreshes, and ensure server backups are
+      published with accurate privacy scopes.
+    evidence:
+      commits:
+      - 06653a4d8
+      - e0b835cb6
+      - 413bf23c1
+      - 65c003523
+    release_status: dev_only
+  - text: AI safety mechanisms were hardened to preserve TOON structures during content sanitization and improve output safety
+      for shared app skills.
+    evidence:
+      commits:
+      - 280b67d23
+      - fdf93bd61
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added immediate processing feedback to the chat interface, allowing users to see active mate selection.
+    evidence:
+      commits:
+      - b596f57e0
+    release_status: dev_only
+  - text: Development continued on Calendar integration, including a new discovery skill and hardened consent scope validation.
+    evidence:
+      commits:
+      - 94d55af65
+      - 4fd25c993
+      - 8ba6ab1a9
+    release_status: dev_only
+  - text: Transcription capabilities were expanded with versioned timestamps and performance improvements for safety batching.
+    evidence:
+      commits:
+      - c213a8766
+      - ef0539d30
+    release_status: dev_only
+  - text: The project refined the unreleased OpenCode environment, focusing on task activity delivery, worktree preservation,
+      and workflow routing.
+    evidence:
+      commits:
+      - bb247a4a5
+      - 60e88cf5b
+      - a32637da0
+      - c1a40caf1
+      - f79708bdc
+      - 808efe8dc
+      - aa95395aa
+    release_status: dev_only
+  internal_progress:
+  - text: OpenMates implemented deterministic security report delivery for automated digest findings.
+    evidence:
+      commits:
+      - 75d156ee6
+    release_status: dev_only
+  - text: The dependency scanner was updated to isolate runtime state during daily vulnerability checks.
+    evidence:
+      commits:
+      - 35c1acdc0
+    release_status: dev_only
+  - text: Safety decision logic was optimized to handle full search batches more efficiently.
+    evidence:
+      commits:
+      - 6835c8a01
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Immediate chat processing feedback and mate selection.
+      evidence:
+        commits:
+        - b596f57e0
+      reason: This feature is currently in dev_only status and not yet ready for public communication.
+    - text: Authorized Google Calendar discovery skill.
+      evidence:
+        commits:
+        - 94d55af65
+      reason: This feature is currently in dev_only status and not yet ready for public communication.
+    - text: Versioned audio transcript timestamps.
+      evidence:
+        commits:
+        - c213a8766
+      reason: This feature is currently in dev_only status and not yet ready for public communication.
+    rationale: No items from this period have been released to the main branch or marked as ready for public communication.
+      All user-facing features are currently in development.
+  social_video_recommendations:
+  - idea: Demonstrate the new immediate processing feedback in the chat UI, showing how the interface responds while a mate
+      is being selected.
+    priority: medium
+    reason: This provides a concrete visual update to the user experience that is easy to demonstrate in a short clip.
+    evidence:
+      commits:
+      - b596f57e0
+  quality_notes:
+  - Heavy emphasis on validating audio transcription timing and duration to prevent validation failures.
+  - CLI stability was a priority, specifically regarding profile isolation and session management.
+  validation_warnings: []

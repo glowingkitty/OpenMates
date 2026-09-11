@@ -584,7 +584,7 @@ def scenario_natural_task_workflow(args: argparse.Namespace) -> dict[str, Any]:
 
     tasks = wait_for_tasks_with_titles(chat_id, titles, timeout=args.task_ready_timeout)
     require(
-        all(str(task.get("assignee_type") or "") == "ai" for task in tasks),
+        all(str(task.get("assignee_type") or "") == "openmates" for task in tasks),
         f"expected natural workflow tasks to be AI-owned, got {tasks}",
     )
     completed = completed_natural_tasks(tasks, titles)

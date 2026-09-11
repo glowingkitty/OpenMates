@@ -9,6 +9,7 @@ import type { EmbedNodeAttributes } from '../../../../../message_parsing/types';
 import GenericAppSkillEmbedPreview from '../../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte';
 import WebSearchEmbedPreview from '../../../../embeds/web/WebSearchEmbedPreview.svelte';
 import InteractiveQuestionContainer from '../../../../interactive_questions/InteractiveQuestionContainer.svelte';
+import EmbedsMapView from '../../../../embeds/EmbedsMapView.svelte';
 import { GroupRenderer } from '../GroupRenderer';
 
 type MountCall = [unknown, { props: Record<string, unknown> }];
@@ -48,6 +49,24 @@ vi.mock('../../../../../services/embedFullscreenResolver', () => ({
 }));
 
 describe('GroupRenderer', () => {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  it('routes a saved results-view code embed through eligibility instead of a code card', async () => {
+    const renderer = new GroupRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.append(content);
+    await renderer.render({
+      attrs: { id: 'legacy-results', type: 'code-code', status: 'finished', contentRef: 'embed:legacy-results' },
+      container, content,
+      embedData: { embed_id: 'legacy-results', type: 'code-code', status: 'finished' },
+      decodedContent: { language: 'Embeds_results_view', code: 'title: News locations\nembeds:' },
+    });
+    expect(svelteMountMocks.mount).toHaveBeenCalledWith(EmbedsMapView, expect.objectContaining({
+      props: expect.objectContaining({ title: 'News locations', embedRefs: [], sourceRefs: [] }),
+    }));
+    expect(svelteMountMocks.mount).toHaveBeenCalledTimes(1);
+  });
+
   beforeEach(() => {
     svelteMountMocks.mount.mockClear();
     svelteMountMocks.unmount.mockClear();

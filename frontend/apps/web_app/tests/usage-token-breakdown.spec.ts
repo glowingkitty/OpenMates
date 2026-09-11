@@ -51,6 +51,11 @@ const {
 } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
+function trailingCredits(text: string | null): number {
+	const match = (text || '').match(/([\d.,]+)\s*credits/i);
+	return match ? parseInt(match[1].replace(/[.,]/g, ''), 10) : 0;
+}
+
 // Default test account — needs credits for AI inference.
 const {
 	email: TEST_EMAIL,
@@ -65,7 +70,7 @@ test.describe('Usage Token Breakdown', () => {
 		attachNetworkListeners(page, testInfo);
 	});
 
-	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown
+	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown,billing.surface.semantic-parity
 	test('receipt-style breakdown: sub-items sum to total input', async ({ page }) => {
 		test.setTimeout(120000); // 2 minutes — AI inference + usage fetch
 		const logStep = createSignupLogger('USAGE_TOKENS');
@@ -82,7 +87,7 @@ test.describe('Usage Token Breakdown', () => {
 		logStep('Started new chat');
 
 		// Send a simple message that triggers AI inference with tool definitions
-		await sendMessage(page, 'What is the capital of France?', logStep, takeScreenshot);
+		await sendMessage(page, 'Find the latest OpenAI Astra news and related images.', logStep, takeScreenshot);
 		logStep('Message sent, waiting for AI response');
 
 		// Wait for AI response to complete (final message appears)
@@ -92,6 +97,8 @@ test.describe('Usage Token Breakdown', () => {
 		await page.waitForTimeout(5000);
 		logStep('AI response received');
 		await takeScreenshot(page, 'ai-response-received');
+		const createdChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
+		expect(createdChatId, 'Expected the generated chat ID in the current URL').toBeTruthy();
 
 		// Step 3: Navigate to billing settings via UI
 		const settingsToggle = page.locator('#settings-menu-toggle');
@@ -112,6 +119,9 @@ test.describe('Usage Token Breakdown', () => {
 			.locator('[data-testid="menu-item"][role="menuitem"]')
 			.filter({ hasText: /billing/i });
 		await expect(billingItem).toBeVisible({ timeout: 10000 });
+		const overviewResponsePromise = page.waitForResponse(
+			(response) => response.url().includes('/v1/settings/usage/daily-overview') && response.request().method() === 'GET'
+		);
 		await billingItem.click();
 		logStep('Navigated to Billing');
 		await takeScreenshot(page, 'billing-page');
@@ -120,12 +130,46 @@ test.describe('Usage Token Breakdown', () => {
 		await expect(settingsMenu.getByTestId('usage-overview-day-heading').first()).toBeVisible({
 			timeout: 15000,
 		});
+		const overviewResponse = await overviewResponsePromise;
+		await overviewResponse.json();
+		const usageApiOrigin = new URL(overviewResponse.url()).origin;
+		await expect.poll(async () => {
+			return page.evaluate(async ({ chatId, apiOrigin }) => {
+				const response = await fetch(`${apiOrigin}/v1/settings/usage/chat-entries?chat_id=${encodeURIComponent(chatId)}&limit=100`, {
+					credentials: 'include'
+				});
+				if (!response.ok) return false;
+				if (!response.headers.get('content-type')?.includes('application/json')) return false;
+				const data = await response.json().catch(() => null);
+				if (!data) return false;
+				return Array.isArray(data.entries) && data.entries.some((entry: { input_tokens?: number }) =>
+					typeof entry.input_tokens === 'number' && entry.input_tokens > 0
+				);
+			}, { chatId: createdChatId, apiOrigin: usageApiOrigin });
+		}, { timeout: 15000 }).toBe(true);
 
-		// Click the first usage item in the overview (most recent chat)
+		await settingsMenu.getByTestId('settings-tab-chats').click();
+		const refreshedOverviewResponsePromise = page.waitForResponse(
+			(response) => response.url().includes('/v1/settings/usage/daily-overview') && response.request().method() === 'GET'
+		);
+		await settingsMenu.getByTestId('settings-tab-overview').click();
+		const refreshedOverviewResponse = await refreshedOverviewResponsePromise;
+		const overviewData = await refreshedOverviewResponse.json();
+		const chatItems = overviewData.days.flatMap((day: { items?: Array<{ type?: string; chat_id?: string; total_credits?: number }> }) =>
+			(day.items || []).filter((item) => item.type === 'chat')
+		);
+		const createdChatIndex = chatItems.findIndex((item: { chat_id?: string }) => item.chat_id === createdChatId);
+		expect(createdChatIndex, 'Expected the newly created chat in the reconciled Usage overview').toBeGreaterThanOrEqual(0);
+		const expectedOverviewCredits = chatItems[createdChatIndex].total_credits;
+		expect(expectedOverviewCredits).toBeGreaterThan(0);
+
+		// Click the usage item for the chat created by this test.
 		// These are SettingsItem components rendered as usage overview chat rows.
-		const firstUsageEntry = settingsMenu.getByTestId('usage-overview-chat-row').first();
-		await expect(firstUsageEntry).toBeVisible({ timeout: 15000 });
-		await firstUsageEntry.click();
+		const createdChatUsageEntry = settingsMenu.getByTestId('usage-overview-chat-row').nth(createdChatIndex);
+		await expect(createdChatUsageEntry).toBeVisible({ timeout: 15000 });
+		await expect(createdChatUsageEntry).toContainText(new RegExp(`${expectedOverviewCredits}\\s*credits`, 'i'));
+		const overviewCredits = trailingCredits(await createdChatUsageEntry.textContent());
+		await createdChatUsageEntry.click();
 		logStep('Clicked first usage entry (drill into chat entries)');
 		await takeScreenshot(page, 'chat-entries-list');
 
@@ -137,6 +181,12 @@ test.describe('Usage Token Breakdown', () => {
 		const chatEntryButtons = usageDetailView.getByTestId('usage-chat-entry');
 		await expect(chatEntryButtons.first()).toBeVisible({ timeout: 10000 });
 		const buttonCount = await chatEntryButtons.count();
+		expect(buttonCount, 'Expected multiple usage entries for the app-assisted chat').toBeGreaterThan(1);
+		let detailCredits = 0;
+		for (let index = 0; index < buttonCount; index += 1) {
+			detailCredits += trailingCredits(await chatEntryButtons.nth(index).textContent());
+		}
+		expect(overviewCredits, 'Overview chat credits must equal the sum of its detail entries').toBe(detailCredits);
 		let openedTokenEntry = false;
 		for (let index = 0; index < buttonCount; index += 1) {
 			const button = chatEntryButtons.nth(index);

@@ -255,6 +255,7 @@ def _load_llm_utils_with_stubs(monkeypatch: pytest.MonkeyPatch, openai_provider:
             "timeout_utils",
             stream_with_first_chunk_timeout=lambda stream, *_args: stream,
             PREPROCESSING_TIMEOUT_SECONDS=30,
+            PREPROCESSING_TOTAL_TIMEOUT_SECONDS=120,
             get_first_chunk_timeout_seconds=lambda **_kwargs: 30,
             get_inter_chunk_timeout_seconds=lambda **_kwargs: 30,
         ),
@@ -372,12 +373,15 @@ def test_openai_request_model_overrides_simple_and_complex_auto_selection(monkey
         ("gpt-5.6-sol", "gpt-5.6-sol-max", "gpt-5.6-sol", "max"),
     ],
 )
+@pytest.mark.parametrize("stream", [False, True])
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.catalog.capability-recommendation-variants
 def test_gpt56_payload_uses_catalog_upstream_model_and_reasoning_effort(
     monkeypatch: pytest.MonkeyPatch,
     request_model_id: str,
     catalog_model_id: Optional[str],
     expected_upstream_model_id: str,
     expected_reasoning_effort: str,
+    stream: bool,
 ) -> None:
     provider = _load_openai_provider()
     model_by_id = {model["id"]: model for model in provider["models"] if isinstance(model, dict)}
@@ -393,17 +397,21 @@ def test_gpt56_payload_uses_catalog_upstream_model_and_reasoning_effort(
         raising=False,
     )
 
-    asyncio.run(
-        openai_client._invoke_openai_direct_api(
+    async def invoke() -> None:
+        response = await openai_client._invoke_openai_direct_api(
             task_id=f"t-{catalog_model_id or request_model_id}",
             model_id=request_model_id,
             messages=[{"role": "user", "content": "hi"}],
             temperature=0.7,
             max_tokens=16,
-            stream=False,
+            stream=stream,
             catalog_model_id=catalog_model_id,
         )
-    )
+        if stream:
+            chunks = [chunk async for chunk in response]
+            assert chunks[0] == "ok"
+
+    asyncio.run(invoke())
 
     captured = stub.chat.completions.captured
     assert captured["model"] == expected_upstream_model_id

@@ -529,7 +529,7 @@ class WorkspaceChangeHistoryService:
         allowed = {
             "encrypted_task_key", "encrypted_title", "encrypted_description", "encrypted_labels", "encrypted_tags",
             "encrypted_linked_project_ids", "encrypted_activity_summary", "encrypted_latest_instruction", "label_hashes",
-            "status", "assignee_type", "assignee_hash", "primary_chat_id", "external_chat_provider", "external_chat_lookup_hash",
+            "status", "assignee_type", "assignee_identity", "assignee_hash", "primary_chat_id", "external_chat_provider", "external_chat_lookup_hash",
             "encrypted_external_chat_id", "encrypted_external_chat_title", "linked_project_ids", "parent_task_id", "plan_id",
             "task_type", "verification_id", "due_at", "priority", "position", "created_at", "updated_at",
             "started_at", "completed_at", "blocked_reason_code", "encrypted_blocked_reason", "queue_state", "ai_execution_state", "key_wrappers",

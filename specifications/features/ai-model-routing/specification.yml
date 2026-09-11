@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 1
+version: 2
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -11,9 +11,11 @@ summary: >
 
 scope:
   includes:
+    - Bounded recovery from missing required preprocessing tool output without changing the selected answer model.
     - Three-tier request classification and user defaults for simple, complex, and most-demanding requests.
     - AI settings overview, tier, provider-family, and model-detail navigation and information hierarchy.
     - Provider recommendations per tier and provider-independent model capability indicators.
+    - Unauthenticated read-only discovery of available model metadata through the public model catalog.
     - Provider-specific user-facing model variants such as Gemini 3.7 Flash and Gemini 3.7 Flash (High).
     - Per-user, per-chat exact-model selection, encrypted persistence, cross-device convergence, and restore on chat load.
     - Composer Auto/model selection, exact-model and alias mention synchronization, and unavailable-model recovery.
@@ -104,6 +106,16 @@ models:
       type: model_variant_reference
       required: true
       constraints: {one_recommended_model_for_context_tier: true, visibly_identified: true}
+
+  PublicModelCatalog:
+    access:
+      type: unauthenticated_public_read
+      required: true
+      constraints: {methods: [GET], mutation_forbidden: true, inference_forbidden: true}
+    entries:
+      type: available_model_metadata
+      required: true
+      constraints: {provider_secrets_forbidden: true, user_data_forbidden: true, encrypted_data_forbidden: true}
 
   ChatModelPreference:
     subject:
@@ -217,6 +229,10 @@ assertions:
     type: behavior
     must: Every selectable model variant exposes one provider-independent low, medium, high, or max capability indicator; every visible provider identifies one recommended eligible model for each request tier; and provider-specific reasoning variants appear as distinct models only when the provider supports a meaningful stable configuration.
     depends_on: [models.ModelCatalogEntry, models.ProviderTierCatalog, examples.catalog]
+  - id: ai-model-routing.catalog.public-read-only
+    type: security
+    must: Anyone may list or retrieve currently available model metadata without a session or API key, while model inference, account state, provider secrets, user data, and encrypted data remain unavailable through the public catalog.
+    depends_on: [models.PublicModelCatalog, examples.catalog]
   - id: ai-model-routing.defaults.google-tier-profiles
     type: behavior
     must: The initial automatic defaults use Gemini 3.5 Flash-Lite with Google LOW thinking for simple, Gemini 3.7 Flash with Google MEDIUM thinking for complex, and the distinct Gemini 3.7 Flash (High) variant with Google HIGH thinking for most-demanding requests, without exposing those thinking levels as a universal user control.
@@ -229,6 +245,10 @@ assertions:
     type: invariant
     must: A chat-scoped exact model bypasses request-tier classification for model routing while unrelated preprocessing continues; otherwise the preprocessor chooses one of three tiers, applies that tier's user preference, and only then uses automatic and configured fallback selection.
     depends_on: [models.RoutingDecision, models.TierModelPreference, examples.routing]
+  - id: ai-model-routing.preprocessing.missing-output-recovery
+    type: failure
+    must: When a preprocessing provider reports success but returns no required tool call, ordinary retry-enabled preprocessing treats the result as a provider-output failure and tries the next configured preprocessing provider within the existing total deadline; it never fabricates routing properties or changes the selected answer model. Explicit retry-disable controls, including output-safety scans, forbid fallback. Exhausted providers or deadline return a failure rather than a successful classification.
+    depends_on: [examples.preprocessing_recovery]
   - id: ai-model-routing.composer.mention-to-exact-selection
     type: behavior
     must: Selecting or typing an exact model, @best, or @fast resolves to one concrete routable model before send, updates and visibly identifies the chat-scoped selector, removes the redundant model mention from editable message text, and persists the exact model rather than a symbolic alias.
@@ -253,7 +273,7 @@ assertions:
 applies_to:
   rest_api:
     required: true
-    role: Authenticated first-party settings and chat/WebSocket contracts persist owner-scoped tier preferences and transient decrypted routing choices while durable chat selection metadata remains client-encrypted.
+    role: Public read-only model discovery exposes only available model metadata; authenticated first-party settings and chat/WebSocket contracts persist owner-scoped tier preferences and transient decrypted routing choices while durable chat selection metadata remains client-encrypted.
   cli:
     required: true
     parity: semantic
@@ -278,4 +298,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout]
+  required_groups: [preprocessing_recovery, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout]

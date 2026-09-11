@@ -1,0 +1,281 @@
+schema_version: 1
+specification: feature.app-skill.health-search-appointments@1
+input_validation:
+- id: valid-two-city-batch
+  input:
+    requests:
+    - id: berlin
+      speciality: orthopädie
+      city: Berlin
+    - id: cologne
+      speciality: zahnarzt
+      city: Köln
+  expect:
+    request_groups:
+    - berlin
+    - cologne
+    cross_group_results: false
+- id: invalid-criteria
+  input:
+    requests:
+    - id: missing-city
+      speciality: orthopädie
+    - id: bad-window
+      speciality: orthopädie
+      city: Berlin
+      days_ahead: 14
+  expect:
+    invalid_request_ids:
+    - missing-city
+    - bad-window
+    provider_work_for_invalid_items: false
+provider_selection:
+- id: jameda-only
+  input:
+    provider_platform: jameda
+  expect:
+    queried_providers:
+    - Jameda
+    result_provider: Jameda
+    exhaustive_market_claim: false
+- id: combined-default
+  input:
+    provider_platform: null
+  expect:
+    queried_providers:
+    - Doctolib
+    - Jameda
+    each_result_retains_provider: true
+initial_consultation:
+- id: synthetic-basketball-injury
+  input:
+    prompt: I fell while playing basketball today and my hand still hurts a lot. Find me a doctor appointment
+      in Berlin for as soon as possible.
+    selected_speciality: orthopädie
+    provider_services:
+    - Eigenbluttherapie (PRP) Gelenkbehandlung
+    - Allgemeine Sprechstunde
+  expect:
+    eligible_services:
+    - Allgemeine Sprechstunde
+    prp_substituted_for_assessment: false
+- id: no-general-service
+  input:
+    speciality: orthopädie
+    city: Berlin
+    visit_motive_category: null
+    provider_services:
+    - Eigenbluttherapie (PRP) Gelenkbehandlung
+  expect:
+    eligible_services: []
+    no_match_visible: true
+explicit_purpose:
+- id: ct-not-mri
+  input:
+    speciality: ct
+    provider_services:
+    - CT Abdomen
+    - MRT Kniegelenk
+  expect:
+    eligible_services:
+    - CT Abdomen
+- id: category-examples
+  input:
+    cases:
+    - category: followup
+      service: Kontrolluntersuchung / Wiedervorstellung
+    - category: vaccination
+      service: Impfung
+    - category: checkup
+      service: Privatsprechstunde (nicht Hautkrebsvorsorge)
+    - category: general
+      service: Beratung Knie-OP (mit existierendem MRT)
+  expect:
+    eligibility_in_case_order:
+    - true
+    - true
+    - false
+    - false
+location_speciality:
+- id: umlaut-city
+  input:
+    city: koeln
+    provider_cities:
+    - Köln
+    - Berlin
+  expect:
+    matching_cities:
+    - Köln
+- id: wrong-speciality
+  input:
+    speciality: kinderarzt
+    provider_speciality: Zahnärztin
+  expect:
+    eligible: false
+insurance_patients:
+- id: public-coverage
+  input:
+    insurance_sector: public
+    services:
+    - coverage: public
+      self_pay: true
+    - coverage: private
+    - coverage: unknown
+  expect:
+    rejected_service_positions:
+    - 0
+    - 1
+    unknown_coverage_label_preserved: true
+    unknown_claimed_public: false
+- id: existing-patient-only
+  input:
+    service: Kontrolluntersuchung / Wiedervorstellung
+    allows_new_patients: false
+  expect:
+    initial_consultation_eligible: false
+    explicit_followup_eligible: true
+modality_language:
+- id: telehealth-only
+  input:
+    telehealth: true
+    candidates:
+    - telehealth: true
+    - telehealth: false
+    - telehealth: null
+  expect:
+    eligible_positions:
+    - 0
+- id: unsupported-language
+  input:
+    language: gb
+    provider: Jameda
+    provider_language_evidence: null
+  expect:
+    verified_english_match: false
+    limitation_visible: true
+window_order:
+- id: earlier-prp-cannot-win
+  input:
+    visit_motive_category: general
+    slots:
+    - service: Eigenbluttherapie (PRP) Gelenkbehandlung
+      time: '2026-09-09T08:00:00+02:00'
+    - service: Allgemeine Sprechstunde
+      time: '2026-09-09T15:00:00+02:00'
+  expect:
+    earliest_matching_service: Allgemeine Sprechstunde
+- id: offset-and-window
+  input:
+    now: '2026-09-08T10:00:00Z'
+    window_end: '2026-09-09T10:00:00Z'
+    slots:
+    - '2026-09-08T11:00:00+02:00'
+    - '2026-09-08T12:30:00+02:00'
+    - '2026-09-08T11:00:00Z'
+    - '2026-09-09T11:00:00Z'
+  expect:
+    accepted_in_time_order:
+    - '2026-09-08T12:30:00+02:00'
+    - '2026-09-08T11:00:00Z'
+    past_and_outside_window_excluded: true
+result_grouping:
+- id: distinct-service-cards
+  input:
+    same_doctor: true
+    services:
+    - Allgemeine Sprechstunde
+    - Impfung
+    same_start_time: true
+  expect:
+    distinct_service_identities: true
+    alternate_slots_cross_services: false
+- id: same-service-alternates
+  input:
+    same_provider_doctor_location_service: true
+    slot_times:
+    - '2026-09-09T10:00:00+02:00'
+    - '2026-09-09T10:20:00+02:00'
+  expect:
+    primary_time: '2026-09-09T10:00:00+02:00'
+    alternate_times:
+    - '2026-09-09T10:20:00+02:00'
+booking_provenance:
+- id: provider-treatment-label
+  input:
+    provider_service: Eigenbluttherapie (PRP) Gelenkbehandlung
+    requested_purpose: initial_examination
+  expect:
+    presented_as_initial_examination: false
+    booked_claim: false
+- id: booking-destination
+  input:
+    service_id: service-A
+    practice_id: practice-A
+    link_kind: direct_slot
+    insurance: unknown
+  expect:
+    link_targets_same_service_and_practice: true
+    link_opens_settings: false
+    coverage_claim: unknown
+    availability_guaranteed: false
+maps_enrichment:
+- id: matching-map-pin
+  input:
+    doctor: Synthetic Practice A
+    address: Synthetic Berlin address
+    latitude: 52.5
+    longitude: 13.4
+  expect:
+    pin_matches_result_coordinates: true
+    detail_identity_matches_result: true
+- id: missing-enrichment
+  input:
+    coordinates: null
+    enrichment_status: provider_error
+    valid_booking_link: true
+  expect:
+    invented_pin: false
+    details_and_booking_usable: true
+    fabricated_rating: false
+explicit_outcomes:
+- id: provider-partial-failure
+  input:
+    Doctolib: unavailable
+    Jameda: eligible_results
+  expect:
+    usable_results_retained: true
+    partial_coverage_visible: true
+    all_providers_success_claim: false
+- id: no-match-versus-failure
+  input:
+    cases:
+    - provider_succeeded_no_slots
+    - all_candidates_incompatible
+    - all_providers_failed
+  expect:
+    outcomes_distinguishable: true
+    invented_appointments: false
+    relaxed_criteria: false
+surface_parity:
+- id: same-filtered-results
+  input:
+    speciality: orthopädie
+    city: Berlin
+    visit_motive_category: general
+    shared_provider_evidence: true
+  expect:
+    surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+    prp_eligible_on_any_surface: false
+    same_service_booking_targets: true
+- id: same-partial-state
+  input:
+    provider_outcome: partial_failure
+  expect:
+    all_surfaces_preserve_partial_status: true
+    layout_identity_required: false

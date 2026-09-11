@@ -1,0 +1,116 @@
+schema_version: 1
+id: feature.chat-processing-feedback
+version: 1
+status: draft
+title: Chat Processing Feedback
+summary: >
+  Web chats show immediate, truthful processing feedback above the composer,
+  reveal the selected mate's identity when known, and preserve the intentional
+  transcript fade without obscuring the rainbow processing border.
+
+scope:
+  includes:
+    - Processing feedback in new and existing web chats using existing accepted-send and typing events.
+    - Text-only mate and model selection status followed by selected-mate identity and typing or thinking status.
+    - Mate Details navigation from the indicator's mate name.
+    - Processing-state cleanup, responsive presentation, and unobscured rainbow side borders.
+  excludes:
+    - Changes to backend events, preprocessing, model routing, inference, billing, or message persistence.
+    - Replacing existing approval gates, compression feedback, or error messages.
+    - Removing the intentional transcript fade or redesigning the composer.
+    - CLI, SDK, REST API, and native Apple presentation changes in this web-only increment.
+
+models:
+  ProcessingFeedback:
+    identity:
+      type: active_chat_turn
+      required: true
+      constraints: {stale_turn_events_ignored: true, other_chat_events_not_displayed: true}
+    phase:
+      type: enum
+      values: [selecting, typing, thinking, inactive]
+      required: true
+    mate:
+      type: existing_mate_identity
+      nullable: true
+      constraints: {from_current_turn_metadata_only: true, previous_mate_not_used_as_placeholder: true}
+    model_and_provider:
+      type: existing_display_metadata
+      nullable: true
+      constraints: {unknown_values_not_invented: true}
+
+assertions:
+  - id: chat-processing-feedback.selection-after-acceptance
+    type: behavior
+    must: >
+      On the existing server acknowledgement that starts processing for the active
+      turn, the status area above the composer immediately displays the localized
+      text "Selecting mate & AI model..." without waiting for preprocessing to
+      finish or for a cosmetic timer. This selection stage is text-only, with no
+      mate portrait, AI badge, mate name, or guessed model. It is not shown merely
+      because the send button was clicked, and an already-known later phase is
+      never regressed by a delayed acknowledgement. There is no duplicate centered
+      copy of the same selection status.
+    depends_on: [models.ProcessingFeedback, examples.selection]
+  - id: chat-processing-feedback.selected-mate-identity
+    type: behavior
+    must: >
+      When the active turn's selected mate and typing metadata arrive, the same
+      status area replaces selection text with the existing typing or thinking
+      wording and a scaled-down circular mate portrait with the AI icon badge at
+      its bottom-right. The mate name opens that mate's existing Mate Details
+      destination without cancelling or resending the turn. Known model and
+      provider information remains available; unknown mate identity never produces
+      a stale portrait or a broken navigation target. This transient identity does
+      not create an empty assistant message, transcript avatar, or message bubble.
+    depends_on: [models.ProcessingFeedback, examples.identity]
+  - id: chat-processing-feedback.turn-lifecycle
+    type: invariant
+    must: >
+      Completion, failure, cancellation, or a waiting-for-user gate clears the
+      active processing indicator rather than leaving a selection or typing state
+      behind; existing errors and user gates remain visible. Switching chats or
+      starting another turn never leaks the previous turn's identity or status,
+      and delayed events from a finished or different turn cannot revive it.
+    depends_on: [models.ProcessingFeedback.identity, examples.lifecycle]
+  - id: chat-processing-feedback.fade-preserves-border
+    type: behavior
+    must: >
+      The intentional transcript-edge fade remains, while an active rainbow
+      processing border stays visibly continuous along both sides, including
+      where the fade meets the composer area. Fade and border layers do not block
+      scrolling, clicking, or composer controls. Reduced-motion preferences retain
+      the visible border without requiring its animation.
+    depends_on: [examples.border]
+  - id: chat-processing-feedback.accessible-responsive
+    type: behavior
+    must: >
+      The indicator fits phone and laptop chat widths without covering the composer
+      or clipping its portrait, badge, or status. The mate-name action supports
+      keyboard focus and activation with a meaningful accessible name. Status text
+      is localized, portrait and badge do not duplicate spoken status, and status
+      updates do not steal focus from the composer.
+    depends_on: [examples.responsive]
+
+applies_to:
+  rest_api: {required: false, role: Existing server events are consumed unchanged.}
+  cli: {required: false, role: No terminal presentation changes.}
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+    exceptions:
+      - id: native-presentation-deferred
+        implementation: apple
+        reason: This increment changes only the web indicator and border layering.
+        equivalent_outcome: Existing native processing feedback remains unchanged pending a separate parity increment.
+
+examples:
+  file: examples.yml
+  required_groups: [selection, identity, lifecycle, border, responsive]

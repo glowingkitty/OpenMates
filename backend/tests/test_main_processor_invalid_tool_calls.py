@@ -219,6 +219,8 @@ _is_async_skill_blocked_in_orchestration = main_processor._is_async_skill_blocke
 _get_result_declared_charge_items = main_processor._get_result_declared_charge_items
 _get_result_declared_usage_details = main_processor._get_result_declared_usage_details
 _get_variable_preflight_reserved_credits = main_processor._get_variable_preflight_reserved_credits
+_is_empty_post_tool_turn = main_processor._is_empty_post_tool_turn
+_has_visible_text = main_processor._has_visible_text
 
 
 def test_chat_skill_dispatch_threads_secrets_manager_context() -> None:
@@ -259,6 +261,20 @@ def test_root_async_skills_remain_available_without_orchestration() -> None:
     assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is False
 
 
+def test_empty_post_tool_turn_requires_answer_recovery() -> None:
+    assert _has_visible_text("answer") is True
+    assert _has_visible_text(" \n\t") is False
+    assert _is_empty_post_tool_turn(1, False) is True
+    assert _is_empty_post_tool_turn(1, True) is False
+    assert _is_empty_post_tool_turn(0, False) is False
+
+    source = inspect.getsource(main_processor.handle_main_processing)
+    assert "[POST_TOOL_RECOVERY] Tool continuation produced no answer" in source
+    assert "empty_post_tool_recovery_attempted" in source
+    assert "yield STANDARDIZED_USER_ERROR_MESSAGE" in source
+
+
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
 def test_pending_app_settings_memories_context_preserves_model_preferences() -> None:
     request_data = SimpleNamespace(
         chat_id="chat-1",
@@ -273,6 +289,12 @@ def test_pending_app_settings_memories_context_preserves_model_preferences() -> 
         user_preferences={"default_ai_model_simple": "mistral/mistral-small-latest"},
         embed_file_path_index={"snippet.py": "embed-1"},
         has_image_upload_embed=True,
+        recovery_task_id="original-task-1",
+        recovery_inference_task_id=None,
+        recovery_preflight_id="preflight-1",
+        recovery_turn_id="turn-1",
+        recovery_public_key="public-key-1",
+        chat_key_version=1,
     )
 
     context = _build_pending_app_settings_memories_context(
@@ -287,6 +309,13 @@ def test_pending_app_settings_memories_context_preserves_model_preferences() -> 
     assert context["embed_file_path_index"] == {"snippet.py": "embed-1"}
     assert context["has_image_upload_embed"] is True
     assert "message_history" not in context
+
+
+    assert context["recovery_inference_task_id"] == "original-task-1"
+    assert context["recovery_preflight_id"] == "preflight-1"
+    assert context["recovery_turn_id"] == "turn-1"
+    assert context["recovery_public_key"] == "public-key-1"
+    assert context["chat_key_version"] == 1
 
 
 def test_benchmark_metadata_tags_tool_skill_usage_details() -> None:

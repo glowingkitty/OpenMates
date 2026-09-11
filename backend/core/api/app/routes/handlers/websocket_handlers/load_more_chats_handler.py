@@ -8,8 +8,8 @@ on-demand when the user opens a specific chat. The client stores these in memory
 only (not IndexedDB) to prevent storage limit issues.
 
 Architecture:
-- Cache-first: Uses Redis sorted set (chat_ids_versions) with offset/limit
-- Fallback: Queries Directus with offset/limit if cache is empty
+- Uses authoritative scoped Directus pagination for every offset
+- Redis is sparse and must never determine positions in the full chat list
 - Returns metadata + encrypted_chat_key per chat (needed for sidebar display)
 - Does NOT return messages (loaded on-demand via get_chat_messages)
 """
@@ -106,48 +106,13 @@ async def handle_load_more_chats(
                 )
                 return
         
-            # Fetch chat IDs from cache (sorted by last_edited_overall_timestamp desc)
-            end_index = offset + limit - 1  # Redis ZRANGE end is inclusive
-            cached_chat_ids = [] if team_id else await cache_service.get_chat_ids_versions(
-                user_id, start=offset, end=end_index, with_scores=False
+            # The Redis index is a sparse warm cache (and includes draft-only
+            # IDs), not a complete ordered account inventory. Its offsets cannot
+            # address the authoritative list, even when it contains some rows.
+            chats_to_send = await _fetch_chats_from_directus_paginated(
+                directus_service, user_id, offset, limit, team_id=team_id
             )
-        
-            chats_to_send = []
-        
-            if cached_chat_ids:
-                logger.info(f"Load more: Using {len(cached_chat_ids)} cached chat IDs for user {user_id[:8]}... (offset={offset})")
-            
-                # Fetch metadata for each chat from cache — batch Redis lookups
-                chat_ids_needing_directus = []
-                batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, cached_chat_ids)
-                batch_versions = await cache_service.get_batch_chat_versions(user_id, cached_chat_ids)
 
-                for chat_id in cached_chat_ids:
-                    cached_list_item = batch_list_items.get(chat_id)
-                    cached_versions = batch_versions.get(chat_id)
-
-                    if not cached_list_item:
-                        chat_ids_needing_directus.append(chat_id)
-                        continue
-
-                    # Build chat wrapper in same format as Phase 2/3 (metadata only, no messages)
-                    chat_wrapper = _build_chat_wrapper_from_cache(chat_id, cached_list_item, cached_versions)
-                    chats_to_send.append(chat_wrapper)
-            
-                # Fetch any missing chats from Directus
-                if chat_ids_needing_directus:
-                    logger.info(f"Load more: Fetching {len(chat_ids_needing_directus)} chats from Directus (cache miss)")
-                    directus_chats = await _fetch_chats_from_directus(
-                        directus_service, user_id, chat_ids_needing_directus
-                    )
-                    chats_to_send.extend(directus_chats)
-            else:
-                # Cache empty — fall back to Directus with offset/limit
-                logger.info(f"Load more: No cached chat IDs, falling back to Directus for user {user_id[:8]}...")
-                chats_to_send = await _fetch_chats_from_directus_paginated(
-                    directus_service, user_id, offset, limit, team_id=team_id
-                )
-        
             has_more = (offset + len(chats_to_send)) < total_count
         
             logger.info(
@@ -206,36 +171,10 @@ async def _get_total_chat_count(
     directus_service: Optional[DirectusService] = None,
     team_id: Optional[str] = None,
 ) -> int:
-    """Get the total number of chats for a user.
-
-    The Redis sorted set only contains cached entries (up to 100 from cache warming),
-    so zcard undercounts for users with >100 chats. When directus_service is provided,
-    we query Directus for the authoritative count and return the higher value.
-    """
-    redis_count = 0
-    if team_id and directus_service:
-        return await directus_service.chat.get_user_chat_count(user_id, team_id=team_id)
-    try:
-        client = await cache_service.client
-        if client:
-            key = cache_service._get_user_chat_ids_versions_key(user_id)
-            redis_count = await client.zcard(key) or 0
-    except Exception as e:
-        logger.error(f"Error getting Redis chat count for user {user_id[:8]}...: {e}")
-
-    # Query Directus for the true total when available
-    if directus_service:
-        try:
-            db_count = await directus_service.chat.get_user_chat_count(user_id)
-            if db_count > redis_count:
-                logger.debug(
-                    f"Chat count for user {user_id[:8]}...: redis={redis_count}, db={db_count} (using db)"
-                )
-                return db_count
-        except Exception as e:
-            logger.warning(f"Error getting Directus chat count for user {user_id[:8]}...: {e}")
-
-    return redis_count
+    """Count the same persisted scope used for offset pagination."""
+    if directus_service is None:
+        raise ValueError("Authoritative chat pagination requires Directus")
+    return await directus_service.chat.get_user_chat_count(user_id, team_id=team_id)
 
 
 def _build_chat_wrapper_from_cache(chat_id: str, cached_list_item, cached_versions) -> Dict[str, Any]:
@@ -312,7 +251,7 @@ async def _fetch_chats_from_directus_paginated(
     limit: int,
     team_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Fetch chats from Directus with pagination (fallback when cache is empty)."""
+    """Fetch an authoritative metadata page in the requested account/team scope."""
     try:
         all_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
             user_id, limit=limit, offset=offset, team_id=team_id
@@ -328,4 +267,4 @@ async def _fetch_chats_from_directus_paginated(
         ]
     except Exception as e:
         logger.error(f"Error fetching paginated chats from Directus for user {user_id[:8]}...: {e}", exc_info=True)
-        return []
+        raise

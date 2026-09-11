@@ -22,6 +22,8 @@
 -->
 
 <script lang="ts">
+  import SearchThumbnailStrip from '../SearchThumbnailStrip.svelte';
+  import { searchPreviewImages } from '../../../utils/searchPreviewImages';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
@@ -120,6 +122,7 @@
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<NewsSearchResult[]>([]);
+  let localChildEmbedIds = $state<string[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
 
@@ -130,6 +133,7 @@
       localProvider = providerProp || 'Brave Search';
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
+      localChildEmbedIds = normalizeEmbedIdList(childEmbedIdsProp);
       localTaskId = taskIdProp;
       localSkillTaskId = skillTaskIdProp;
     }
@@ -140,7 +144,7 @@
   let provider = $derived(localProvider);
   let status = $derived(localStatus);
   let results = $derived(localResults);
-  let childEmbedIds = $derived(normalizeEmbedIdList(childEmbedIdsProp));
+  let childEmbedIds = $derived(localChildEmbedIds);
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
   
@@ -148,8 +152,8 @@
    * Handle embed data updates from UnifiedEmbedPreview
    * Called when the parent component receives and decodes updated embed data
    * 
-   * NOTE: When parent embed becomes "finished", it may have `embed_ids` but no `results`.
-   * In this case, we need to load child embeds asynchronously to get favicon data.
+   * Finished legacy parents may have child IDs but lack image metadata. The
+   * visibility-gated image fallback below shares the existing cached resolver.
    */
   async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     console.debug(`[NewsSearchEmbedPreview] 🔄 Received embed data update for ${id}:`, {
@@ -168,6 +172,7 @@
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
+      if (content.embed_ids) localChildEmbedIds = normalizeEmbedIdList(content.embed_ids);
       const previewResults = content.results || content.preview_results;
       if (previewResults && Array.isArray(previewResults)) {
         localResults = previewResults as NewsSearchResult[];
@@ -282,7 +287,8 @@
   
   // Get flattened results (handles both nested and flat backend formats)
   let flatResults = $derived(flattenResults(results));
-  
+  let previewThumbnails = $derived(searchPreviewImages(flatResults));
+
   // Get first 3 results with favicons for display (uses flattened results)
   // Checks favicon, favicon_url, and meta_url.favicon formats
   let faviconResults = $derived(
@@ -368,6 +374,9 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="news-search-details" class:mobile={isMobileLayout}>
+      {#if status === 'finished'}
+        <SearchThumbnailStrip images={previewThumbnails} {childEmbedIds} appId="news" />
+      {/if}
       <!-- Query text -->
       <div class="ds-search-query">{query}</div>
       

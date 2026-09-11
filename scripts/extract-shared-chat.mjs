@@ -240,10 +240,16 @@ async function decryptMessages(rawMessages, chatKeyBytes) {
     const msgCategory = await decryptContent(msg.encrypted_category, chatKeyBytes);
     const modelName = await decryptContent(msg.encrypted_model_name, chatKeyBytes);
 
+    // Preserve explicitly shared mappings so published examples retain reveal/hide.
+    const piiMappings = msg.encrypted_pii_mappings
+      ? JSON.parse(await decryptContent(msg.encrypted_pii_mappings, chatKeyBytes))
+      : undefined;
+
     messages.push({
       message_id: msg.client_message_id || msg.message_id || msg.id,
       role: msg.role,
       content,
+      pii_mappings: piiMappings,
       sender_name: senderName,
       category: msgCategory,
       model_name: modelName,

@@ -9,17 +9,29 @@ import XCTest
 @testable import OpenMates
 
 final class ChatCompletionRecoveryTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     @MainActor
     func testSavedChatCommitsTheExactPreflightInferencePayload() async throws {
         let transport = RecoveryRecordingTransport(responses: [
             "chat_turn_preflight_ack": [["turn_id": "turn-1", "preflight_id": "preflight-1", "state": "PREPARED"]]
         ])
+        let historyKey = SymmetricKey(data: Data(repeating: 9, count: 32))
+        let encryptedAnswer = try await CryptoManager.shared.encryptContent("Osaka is a city.", key: historyKey)
+        let first = historyFixture(id: "previous-user", role: .user, content: "Tell me about Osaka", timestamp: 1)
+        let answer = historyFixture(id: "previous-assistant", role: .assistant, content: nil, encrypted: encryptedAnswer, timestamp: 2)
+        let current = historyFixture(id: "message-1", role: .user, content: "Which city?", timestamp: 3)
+        let placeholder = historyFixture(id: "pending-assistant", role: .assistant, content: "", timestamp: 4, streaming: true)
+        let history = try await ChatSendPipeline().savedChatHistoryPayload(
+            [current, answer, first, current, placeholder], chatId: "chat-1", key: historyKey)
+        XCTAssertEqual(history.compactMap { $0["message_id"] as? String }, ["previous-user", "previous-assistant", "message-1"])
+        XCTAssertEqual(history.compactMap { $0["content"] as? String }, ["Tell me about Osaka", "Osaka is a city.", "Which city?"])
         let inferenceRequest: [String: Any] = [
             "chat_id": "chat-1",
             "message": ["message_id": "message-1", "content": "plaintext"],
             "turn_id": "turn-1",
             "recovery_public_key": "public-key",
             "chat_key_version": 1,
+            "message_history": history,
         ]
         let preflight = ChatSendPipeline().savedChatPreflightPayload(
             chatId: "chat-1",
@@ -53,6 +65,27 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
+    @MainActor
+    func testSavedHistoryRejectsUndecryptableRequiredContent() async {
+        do {
+            _ = try await ChatSendPipeline().savedChatHistoryPayload(
+                [historyFixture(id: "old-user", role: .user, content: nil, encrypted: "invalid", timestamp: 1)],
+                chatId: "chat-1", key: SymmetricKey(data: Data(repeating: 9, count: 32)))
+            XCTFail("Do not commit blank historical content when decryption fails")
+        } catch { }
+    }
+
+    private func historyFixture(
+        id: String, role: MessageRole, content: String?, encrypted: String? = nil,
+        timestamp: Int, streaming: Bool = false
+    ) -> Message {
+        Message(id: id, chatId: "chat-1", role: role, content: content,
+                encryptedContent: encrypted, createdAt: "2026-01-01T00:00:0\(timestamp)Z",
+                updatedAt: nil, appId: nil, isStreaming: streaming, embedRefs: nil)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     @MainActor
     func testNewChatPreflightIncludesRequiredEncryptedTitleMetadata() {
         let payload = ChatSendPipeline().savedChatPreflightPayload(
@@ -74,6 +107,18 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertEqual(metadata?["encrypted_chat_key"] as? String, "wrapped-key")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+    @MainActor
+    func testUntitledExistingConversationDoesNotSendNewChatMetadata() {
+        XCTAssertFalse(ChatSendPipeline.shouldIncludeInitialChatMetadata(
+            messagesVersion: 2, titleVersion: 0, existingMessageCount: 2))
+        XCTAssertFalse(ChatSendPipeline.shouldIncludeInitialChatMetadata(
+            messagesVersion: nil, titleVersion: nil, existingMessageCount: 2))
+        XCTAssertTrue(ChatSendPipeline.shouldIncludeInitialChatMetadata(
+            messagesVersion: 0, titleVersion: 0, existingMessageCount: 0))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     @MainActor
     func testExistingChatPreflightDoesNotRewriteMetadata() {
         let payload = ChatSendPipeline().savedChatPreflightPayload(
@@ -94,6 +139,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertEqual(payload["recovery_public_key"] as? String, "public-key")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.sync.key-gated-recovery
     @MainActor
     func testRecoveryAvailabilityClaimsOnlyWithUnlockedKeyAndEligibleDevice() async throws {
         let fixture = try makeRecoveryFixture()
@@ -103,6 +149,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertEqual(fixture.persisted.messages.count, 1)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover
     @MainActor
     func testClaimedSealedCompletionIsReencryptedPersistedOnceAndAcknowledged() async throws {
         let fixture = try makeRecoveryFixture()
@@ -122,6 +169,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertNotNil(encrypted["encrypted_content"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.message.identity-idempotent
     @MainActor
     func testDuplicateRecoveryAvailabilityIsIdempotent() async throws {
         let fixture = try makeRecoveryFixture()
@@ -132,6 +180,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertEqual(fixture.persisted.messages.count, 1)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover
     @MainActor
     func testRevokedDeviceDoesNotClaimRecoveryJob() async throws {
         let fixture = try makeRecoveryFixture(isEligible: false)
@@ -139,6 +188,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertTrue(fixture.transport.sentTypes.isEmpty)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.sync.key-gated-recovery
     @MainActor
     func testLockedChatKeyDoesNotClaimRecoveryJob() async throws {
         let fixture = try makeRecoveryFixture(hasKey: false)
@@ -147,6 +197,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertTrue(fixture.transport.sentTypes.isEmpty)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.sync.key-gated-recovery
     @MainActor
     func testRecoveryReceivedBeforeInitialSyncQueuesUntilReady() async throws {
         let fixture = try makeRecoveryFixture()
@@ -157,6 +208,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertEqual(fixture.transport.sentTypes, ["recovery_job_claim", "recovery_job_persist"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover
     @MainActor
     func testTerminalRecoveryStreamRoutesToCoordinatorPersistence() async throws {
         let fixture = try makeRecoveryFixture()
@@ -174,6 +226,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertEqual(fixture.transport.sentTypes, ["recovery_job_claim", "recovery_job_persist"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover
     @MainActor
     func testRecoveryEnvelopeRejectsUnknownFields() async throws {
         let fixture = try makeRecoveryFixture(hasUnknownEnvelopeField: true)
@@ -184,6 +237,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertTrue(fixture.persisted.messages.isEmpty)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
     @MainActor
     func testLegacyPreflightAcknowledgementPreservesSendWithoutRecoveryClaim() async throws {
         let transport = RecoveryRecordingTransport(responses: [
@@ -202,6 +256,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertFalse(transport.sentTypes.contains("recovery_job_claim"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover
     func testSharedCryptoVectors() async throws {
         let vector = RecoveryVector.shared
         let chatKey = SymmetricKey(data: try decodeBase64URL(vector.chatKey))
@@ -254,6 +309,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertEqual(plaintext, Data(vector.plaintext.utf8))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover
     func testSharedCryptoVectorsRejectTampering() async throws {
         let vector = RecoveryVector.shared
         let fields = ["ciphertext", "nonce", "epk"]

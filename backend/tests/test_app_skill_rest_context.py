@@ -37,6 +37,7 @@ sys.modules.setdefault("slowapi.util", slowapi_util_module)
 
 from backend.core.api.app.routes import apps_api  # noqa: E402
 from backend.core.api.app.services import skill_registry  # noqa: E402
+from backend.shared.python_utils.app_skill_output_safety import is_central_app_skill_dispatch  # noqa: E402
 
 
 class FakeRegistry:
@@ -46,6 +47,7 @@ class FakeRegistry:
 
     async def dispatch_skill(self, app_id: str, skill_id: str, request: dict[str, Any]) -> dict[str, Any]:
         self.calls.append((app_id, skill_id, request))
+        self.central_dispatch_active = is_central_app_skill_dispatch()
         return {"success": True, "results": []}
 
     def get_metadata(self, app_id: str):
@@ -53,6 +55,7 @@ class FakeRegistry:
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_call_app_skill_passes_user_vault_key_context(monkeypatch: pytest.MonkeyPatch) -> None:
     registry = FakeRegistry()
     monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
@@ -87,9 +90,30 @@ async def test_call_app_skill_passes_user_vault_key_context(monkeypatch: pytest.
             },
         )
     ]
+    assert registry.central_dispatch_active is True
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+async def test_call_app_skill_preserves_stable_output_safety_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    registry = FakeRegistry()
+
+    async def fail_safety(_result: Any, _context: Any) -> Any:
+        raise RuntimeError("OUTPUT_SAFETY_TIMEOUT")
+
+    monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
+    monkeypatch.setattr(apps_api, "assert_rest_skill_execution_allowed", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(apps_api, "sanitize_app_skill_output", fail_safety)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await apps_api.call_app_skill("web", "search", {"requests": []}, {}, {"user_id": "user-1", "api_key_hash": None})
+
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.detail == "OUTPUT_SAFETY_TIMEOUT"
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.ascii-always,app-skills.output.external-semantic
 async def test_call_app_skill_consumes_security_opt_out_before_skill_dispatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -127,6 +151,7 @@ async def test_call_app_skill_consumes_security_opt_out_before_skill_dispatch(
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.external-semantic
 async def test_call_app_skill_passes_output_safety_dependencies(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -164,6 +189,7 @@ async def test_call_app_skill_passes_output_safety_dependencies(
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 async def test_call_app_skill_blocks_internal_skills_before_dispatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

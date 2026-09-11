@@ -1,0 +1,91 @@
+id: generated-file-cli-downloads
+title: Shared generated file downloads and owner-authorized polling
+goal: Fix production generation polling failures and implement consistent CLI file downloads across all generating skills, then verify real requests on the current dev machine.
+status: implementing
+approval:
+  status: approved
+  source: User explicitly requested updating, approving, implementing, and real dev CLI verification after reviewing concrete download examples.
+scope:
+  - Shared async task ownership binding with owner checks preserved.
+  - Shared generated artifact discovery, atomic writes, unique automatic names, explicit overwrites, and contextual help.
+  - JSON defaults to URLs; explicit destination flags opt into downloads.
+  - REST and real CLI verification on the current dev machine, SDK parity, and terminal proof.
+non_goals:
+  - Production deployment or automatic regeneration of prior production jobs.
+  - Provider/model/pricing changes or browser/Apple UI work.
+specification_refs:
+  - surface.cli@1
+  - architecture.app-skill-execution@1
+  - feature.app-skill.audio-generate@1
+endpoint_access:
+  route: GET /v1/tasks/{task_id}
+  model: Existing authenticated session or authorized developer API key; owner-scoped.
+  limits: Preserve 60/minute polling and existing skill generation budget/credit checks.
+  privacy: Existing authorized generated-asset delivery only; no new public access or decrypted keys.
+tasks:
+  - id: polling
+    title: Reproduce missing owner binding and fix shared dispatch/status path.
+    status: implementing
+  - id: downloads
+    title: Implement shared CLI download handling with regression tests and help.
+    status: pending
+  - id: verification
+    title: Deploy scoped changes and verify real REST, CLI, SDK calls plus terminal proof.
+    status: pending
+
+evidence:
+  backend_unit:
+    command: python3 -m pytest backend/tests/test_tasks_api_security.py -q
+    red: task_owner_unverified HTTP 403 for completed music-shaped result
+    green: 7 passed
+    subject: session e89e working patch
+  real_rest:
+    command: node /tmp/openmates-e89e/rest-probe.mjs
+    subject_commit: ca026069e2f430568f7ff17e3bbbf7b0d76f5aa1
+    result: Music dispatch HTTP 200; completed polling HTTP 200; audio/mpeg download HTTP 200 with 747194 bytes.
+  cli_unit:
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/generatedFiles.test.ts
+    result: 3 supporting tests passed, plus 9 adjacent Code Run command tests passed.
+  real_cli:
+    command: node /tmp/openmates-e89e/cli-live.mjs
+    subject_commit: e6676605ef19e0e891fc3ca148d1ec4a9cd3e09f
+    passed: [json_url_only, default_cwd, explicit_overwrite, json_explicit_music_download, image_download, video_download]
+    transient_failures: Two audio storage availability probes timed out before generation; explicit diagnostic retries passed.
+    discovered_issue: Code Run WebSocket authentication was rejected; add visible completion polling without resubmitting the execution.
+  sdk_parity:
+    command: python3 scripts/audit_sdk_cli_parity.py
+    result: 89 command entries and 4 workflow template transport entries checked successfully.
+    live_sdk_status: Not run; no SDK API key configured in the test environment. CLI session authentication is available.
+
+final_verification:
+  implementation_status: complete
+  real_cli_status: passed
+  verified_at: '2026-09-08T10:28:44.722162+00:00'
+  subject_commit: 885c8ebb443c49ed7dd15d8ec07c3e42eb70abe0
+  real_cli_cases:
+  - json_url_only
+  - default_cwd
+  - explicit_overwrite
+  - json_explicit_music_download
+  - image_download
+  - video_download
+  - code_csv_download
+  code_run_resolution: Code Run stream rejection now visibly falls back to polling the existing execution; real
+    CSV download passed. The test writes to the documented outputs directory.
+  supporting_tests: 7 backend, 3 generated-file and 10 Code Run tests passed.
+  build:
+    command: npm --prefix frontend/packages/openmates-cli run build
+    result: Passed JS bundle and TypeScript declarations; scoped deployment lint/typechecks and SDK boundary gates
+      passed.
+  proof_video:
+    command: python3 scripts/sessions.py proof-video publish --session e89e --run-dir test-results/proof-videos/generated-files-e89e
+    subject_commit: 885c8ebb443c49ed7dd15d8ec07c3e42eb70abe0
+    run_id: generated-files-e89e
+    result: Passed 12-frame review of real graphical terminal capture; delivered MP4 with hash-bound toggleable
+      WebVTT captions.
+    manifest: test-results/proof-videos/generated-files-e89e/manifest.json
+  remaining:
+  - Live npm/pip SDK requests require a configured SDK API key; not run. REST and all seven real CLI cases are verified.
+  visual_smoke:
+    status: not_applicable
+    reason: CLI and backend behavior only; no web or Apple UI changed.

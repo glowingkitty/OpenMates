@@ -2,6 +2,7 @@ import logging
 from typing import Any, Optional, Union, List, Tuple, Literal, Dict
 from datetime import datetime, timezone
 from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData, MessageInCache
+from backend.core.api.app.services.cache_reminder_mixin import PENDING_EMBED_KEY_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -1765,6 +1766,12 @@ class ChatCacheMixin:
                     for cid in remaining_chat_ids_bytes
                 }
 
+                # Pending client encryption is not an ordinary inference cache.
+                # Keep its original bounded TTL until store_embed acknowledges it.
+                pending_embed_ids = {
+                    value.decode("utf-8") if isinstance(value, bytes) else value
+                    for value in await client.zrange(f"{PENDING_EMBED_KEY_PREFIX}{user_id}", 0, -1)
+                }
                 for evict_chat_id_bytes in chats_to_evict:
                     evict_chat_id = evict_chat_id_bytes.decode('utf-8') if isinstance(evict_chat_id_bytes, bytes) else evict_chat_id_bytes
 
@@ -1773,7 +1780,7 @@ class ChatCacheMixin:
                     await client.delete(ai_cache_key)
 
                     # Evict embeds that are only used by this chat
-                    await self._evict_chat_embeds(client, evict_chat_id, remaining_chat_ids)
+                    await self._evict_chat_embeds(client, evict_chat_id, remaining_chat_ids, pending_embed_ids)
 
                     # Remove from LRU tracking
                     await client.zrem(lru_key, evict_chat_id)
@@ -1782,7 +1789,7 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error tracking AI cache activity for user {user_id[:8]}..., chat {chat_id}: {e}")
 
-    async def _evict_chat_embeds(self, client, evict_chat_id: str, remaining_chat_ids: set) -> None:
+    async def _evict_chat_embeds(self, client, evict_chat_id: str, remaining_chat_ids: set, pending_embed_ids: set) -> None:
         """
         Evicts embeds that are only used by the evicted chat.
         Embeds used in any of the remaining chats are preserved.
@@ -1808,14 +1815,19 @@ class ChatCacheMixin:
             evicted_count = 0
             for embed_id_bytes in embed_ids_bytes:
                 embed_id = embed_id_bytes.decode('utf-8') if isinstance(embed_id_bytes, bytes) else embed_id_bytes
-                if embed_id not in remaining_embed_ids:
+                if embed_id not in remaining_embed_ids and embed_id not in pending_embed_ids:
                     # Embed is only used by evicted chat - delete it
                     embed_cache_key = f"embed:{embed_id}"
                     await client.delete(embed_cache_key)
                     evicted_count += 1
 
-            # Delete the embed index for the evicted chat
-            await client.delete(evict_embed_index_key)
+            # Keep the existing index/TTL while any child still awaits encryption.
+            chat_embed_ids = {
+                value.decode("utf-8") if isinstance(value, bytes) else value
+                for value in embed_ids_bytes
+            }
+            if not chat_embed_ids.intersection(pending_embed_ids):
+                await client.delete(evict_embed_index_key)
 
             if evicted_count > 0:
                 logger.info(f"[AI_CACHE_LRU] Evicted {evicted_count} embed(s) for chat {evict_chat_id}")

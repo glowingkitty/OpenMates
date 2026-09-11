@@ -60,11 +60,11 @@ FIGMA_ACCESS_TOKEN=<PERSONAL_ACCESS_TOKEN>
 Managed agent worktrees reuse this file and `scripts/.figma-index.json` from the
 root control-plane checkout. Do not copy either private file into a worktree.
 
-The local OpenCode configuration starts the pinned Figma MCP through
+The local Codex configuration starts the pinned Figma MCP through
 `scripts/run_figma_mcp.sh`, which reads this file without putting the token in
 configuration or command arguments. This private MCP registration belongs in the
-user's OpenCode configuration, not committed project configuration. Restart
-OpenCode after changing the token or MCP configuration because MCP processes are
+user's Codex configuration, not committed project configuration. Restart
+Codex after changing the token or MCP configuration because MCP processes are
 created at startup.
 
 When access is uncertain, after a plan/seat change, or after a `429`, run the
@@ -88,7 +88,7 @@ Use the **Figma MCP** to get structured design data from the provided Figma link
 ```
 
 After exporting a Figma reference PNG, upload it with
-`python3 scripts/opencode_response_media.py <path> --alt "Figma reference: <screen/frame>"`
+`python3 scripts/response_media.py <path> --alt "Figma reference: <screen/frame>"`
 and paste the returned image Markdown in the next assistant progress response
 before editing or summarizing that screen. Repeat this whenever you switch to a
 different Figma frame/screen so the operator can see which design is currently

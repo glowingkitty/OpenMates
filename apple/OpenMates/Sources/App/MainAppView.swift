@@ -102,6 +102,9 @@ struct MainAppView: View {
     @State private var accountInterestTagIds: [InterestTagId] = []
     @State private var totalChatCount = 0
     @State private var isLoadingMore = false
+    @State private var nextServerChatOffset = 0
+    @State private var serverChatPagesExhausted = false
+    @State private var chatPageGeneration = UUID()
     @State private var showRenameAlert = false
     @State private var renameChatId: String?
     @State private var renameChatTitle = ""
@@ -120,7 +123,6 @@ struct MainAppView: View {
     @State private var pendingBackgroundSyncContent = PendingSyncedContent()
     @State private var pendingTypingMetadata = TypingMetadataReplayBuffer()
     @State private var lastForegroundInteractionAt = Date.distantPast
-    @State private var queuedNotificationReplies: [NotificationReplyRequest] = []
     @State private var pendingExternalEmbedOpen: PendingExternalEmbedOpen?
     @State private var newChatFocusRequest = 0
     @State private var newChatRecordRequest = 0
@@ -196,7 +198,8 @@ struct MainAppView: View {
 
     private var shouldShowMoreUserChats: Bool {
         guard isAuthenticated, searchText.isEmpty else { return false }
-        return userChatCountForDisplayLimit > visibleUserChatLimit || totalChatCount > (filteredPinnedChats.count + filteredUnpinnedChats.count)
+        return userChatCountForDisplayLimit > visibleUserChatLimit
+            || (!serverChatPagesExhausted && totalChatCount > (filteredPinnedChats.count + filteredUnpinnedChats.count))
     }
 
     private var isCompactShell: Bool {
@@ -444,7 +447,9 @@ struct MainAppView: View {
         }
         .onChange(of: authManager.state, authStateDidChange)
         .onChange(of: pushManager.pendingChatId, pendingPushChatDidChange)
-        .onChange(of: pushManager.pendingReplyRequest, pendingPushReplyDidChange)
+        .onChange(of: pushManager.replyQueueRevision) { _, _ in
+            Task { await flushQueuedNotificationReplies() }
+        }
         .onChange(of: selectedChatId, selectedChatDidChange)
         .onChange(of: showNewChat, showNewChatDidChange)
         .onChange(of: showSettings, showSettingsDidChange)
@@ -700,21 +705,24 @@ struct MainAppView: View {
     }
 
     private func pendingPushChatDidChange(_ oldValue: String?, _ chatId: String?) {
-        if let chatId {
-            if let embedId = pushManager.pendingEmbedId {
-                pendingExternalEmbedOpen = PendingExternalEmbedOpen(chatId: chatId, embedId: embedId)
+        guard let chatId, isAuthenticated, didBootstrapAuthenticatedSession,
+              wsManager.connectionState == .connected else { return }
+        Task {
+            do {
+                _ = try await pushManager.chatForNotification(chatId)
+                guard pushManager.pendingChatId == chatId, isAuthenticated else { return }
+                if let embedId = pushManager.pendingEmbedId {
+                    pendingExternalEmbedOpen = PendingExternalEmbedOpen(chatId: chatId, embedId: embedId)
+                }
+                selectedWorkspace = .chat
+                selectedChatId = chatId
+                showNewChat = false
+                pushManager.pendingEmbedId = nil
+                pushManager.pendingChatId = nil
+            } catch {
+                NativeDiagnostics.warning("Notification chat open remains pending: \(type(of: error))", category: "push_notifications")
             }
-            selectedChatId = chatId
-            showNewChat = false
-            pushManager.pendingEmbedId = nil
-            pushManager.pendingChatId = nil
         }
-    }
-
-    private func pendingPushReplyDidChange(_ oldValue: NotificationReplyRequest?, _ request: NotificationReplyRequest?) {
-        guard let request else { return }
-        pushManager.pendingReplyRequest = nil
-        Task { await sendNotificationReply(request) }
     }
 
     private func showNewChatDidChange(_ oldValue: Bool, _ isOpen: Bool) {
@@ -745,6 +753,7 @@ struct MainAppView: View {
         }
 
         guard newValue == .active else { return }
+        Task { await flushQueuedNotificationReplies() }
         switch wsManager.connectionState {
         case .connected, .connecting, .reconnecting:
             schedulePendingAssistantResponseFlush()
@@ -755,9 +764,11 @@ struct MainAppView: View {
 
     private func websocketConnectionStateDidChange(_ oldValue: WebSocketManager.ConnectionState, _ newValue: WebSocketManager.ConnectionState) {
         guard newValue == .connected else { return }
+        pendingPushChatDidChange(nil, pushManager.pendingChatId)
         Task {
             await syncBridge?.replayPendingActions()
             await DraftService.shared.reconcileAfterReconnect()
+            await flushQueuedNotificationReplies()
         }
         if scenePhase == .active {
             sendNativeClientForegroundAndActiveChat()
@@ -766,46 +777,8 @@ struct MainAppView: View {
         }
     }
 
-    private func sendNotificationReply(_ request: NotificationReplyRequest) async {
-        guard isAuthenticated, didBootstrapAuthenticatedSession else {
-            if !queuedNotificationReplies.contains(request) {
-                queuedNotificationReplies.append(request)
-            }
-            return
-        }
-        let content = request.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else { return }
-
-        if chatStore.chat(for: request.chatId) == nil {
-            await loadInitialData()
-        }
-
-        guard let chat = chatStore.chat(for: request.chatId) else {
-            print("[MainApp] Notification reply dropped; chat \(request.chatId.prefix(8)) is not available locally")
-            return
-        }
-
-        do {
-            _ = try await ChatSendPipeline().sendUserMessage(
-                content: content,
-                in: chat,
-                existingMessages: chatStore.messages(for: request.chatId),
-                wsManager: wsManager,
-                chatStore: chatStore,
-                activateChat: false
-            )
-        } catch {
-            print("[MainApp] Failed to send notification reply for chat \(request.chatId.prefix(8)): \(error)")
-        }
-    }
-
     private func flushQueuedNotificationReplies() async {
-        guard isAuthenticated, didBootstrapAuthenticatedSession, !queuedNotificationReplies.isEmpty else { return }
-        let replies = queuedNotificationReplies
-        queuedNotificationReplies.removeAll()
-        for reply in replies {
-            await sendNotificationReply(reply)
-        }
+        await pushManager.flushQueuedReplies()
     }
 
     private func openNewChatScreen() {
@@ -977,6 +950,10 @@ struct MainAppView: View {
         pendingTypingMetadata.removeAll()
         appSession.resetTransientRuntime()
         totalChatCount = 0
+        nextServerChatOffset = 0
+        serverChatPagesExhausted = false
+        chatPageGeneration = UUID()
+        isLoadingMore = false
         accountInterestTagIds = []
         selectedChatId = nil
         showNewChat = false
@@ -1732,7 +1709,8 @@ struct MainAppView: View {
                     activeChatId: selectedChatId,
                     chatStore: chatStore,
                     onSelectResult: handleSearchSelection,
-                    onClose: closeSearch
+                    onClose: closeSearch,
+                    prepareSearchMetadata: prepareSearchMetadata
                 )
             } else {
                 chatPanelTopButtons
@@ -2368,6 +2346,7 @@ struct MainAppView: View {
         Task { await promoteAnonymousChatsAfterAuthentication() }
         scheduleTokenBackedWebSocketReconnectIfNeeded()
         scheduleInitialDataFallback()
+        pendingPushChatDidChange(nil, pushManager.pendingChatId)
         Task { await syncInspirationToWidget() }
         await flushQueuedNotificationReplies()
     }
@@ -2582,18 +2561,85 @@ struct MainAppView: View {
     }
 
     private func loadMoreChats() {
+        Task { await loadMoreChatMetadata() }
+    }
+
+    private func loadMoreChatMetadata() async {
+        guard !isLoadingMore, !serverChatPagesExhausted, isAuthenticated else { return }
         isLoadingMore = true
-        Task {
-            do {
-                let offset = chatStore.chats.count
-                let response: ChatListResponse = try await APIClient.shared.request(
-                    .get, path: "/v1/chats?offset=\(offset)&limit=20"
+        let generation = chatPageGeneration
+        defer {
+            if generation == chatPageGeneration { isLoadingMore = false }
+        }
+        do {
+            // Startup is a delta (and can include older drafts), not a page.
+            // Walk overlapping metadata pages until an unseen chat is found.
+            var foundNewChat = false
+            repeat {
+                let offset = nextServerChatOffset
+                let response = try await wsManager.sendAndWait(
+                    WSOutboundMessage(type: "load_more_chats", payload: ["offset": offset, "limit": 50, "context_epoch": 0]),
+                    responseType: "load_more_chats_response",
+                    matching: { ($0["offset"] as? Int) == offset }
                 )
-                await upsertSyncedChats(response.chats, metadataDecryption: .visibleOnly)
-            } catch {
-                print("[MainApp] Failed to load more chats: \(error)")
+                guard !Task.isCancelled, generation == chatPageGeneration, isAuthenticated else { return }
+                let data = try JSONSerialization.data(withJSONObject: response.fields)
+                let page = try syncDecoder.decode(ChatMetadataPage.self, from: data)
+                guard page.error == nil else {
+                    ToastManager.shared.show(LocalizationManager.shared.text("login.cant_connect_to_server"), type: .error)
+                    return
+                }
+                let items = page.chats ?? []
+                let existingIds = Set(chatStore.chats.map(\.id))
+                foundNewChat = items.compactMap(\.chatDetails).contains { !existingIds.contains($0.id) }
+                nextServerChatOffset = page.offset + items.count
+                serverChatPagesExhausted = page.hasMore == false || items.isEmpty
+                totalChatCount = page.totalCount ?? totalChatCount
+                await upsertSyncedChats(items.compactMap(\.chatDetails), metadataDecryption: .visibleOnly,
+                                        serverSortOffset: page.offset)
+                if page.hasMore != true || items.isEmpty { break }
+            } while !foundNewChat && generation == chatPageGeneration
+        } catch {
+            print("[MainApp] Failed to load more chats: \(error)")
+        }
+    }
+
+    /// Search includes older scoped cached titles, independently of the sidebar's
+    /// display cap. Reuse the existing metadata cursor only when disk is incomplete;
+    /// neither this path nor search hydration requests message content.
+    private func prepareSearchMetadata() async {
+        guard isAuthenticated else { return }
+        let scope = OfflineStore.shared.scopeGeneration
+        let account = authManager.currentUser?.id
+        func isCurrent() -> Bool {
+            !Task.isCancelled && isAuthenticated && showSearch &&
+                scope == OfflineStore.shared.scopeGeneration && account == authManager.currentUser?.id
+        }
+        guard isCurrent() else { return }
+        let cached = OfflineStore.shared.loadChats().filter { isVisibleUserChat($0) }
+        let missing = ChatSearchMetadata.missingCachedChats(cached, loaded: chatStore.chats)
+        chatStore.performWithoutPersistence {
+            chatStore.upsertChats(missing)
+        }
+        while isCurrent() {
+            let encrypted = chatStore.chats.filter {
+                isVisibleUserChat($0) && $0.title == nil && $0.encryptedTitle != nil
             }
-            isLoadingMore = false
+            for start in stride(from: 0, to: encrypted.count, by: 25) {
+                guard isCurrent() else { return }
+                await decryptAndUpsertChatMetadata(Array(encrypted[start..<min(start + 25, encrypted.count)]), reason: "searchMetadata")
+            }
+            guard isCurrent(), !serverChatPagesExhausted,
+                  totalChatCount > chatStore.chats.filter({ publicChatGroup(for: $0.id) == nil }).count else { return }
+            // A sidebar request already in flight owns the same cursor. Wait for
+            // it without starting another request with an ambiguous response ID.
+            if isLoadingMore {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                continue
+            }
+            let previousOffset = nextServerChatOffset
+            await loadMoreChatMetadata()
+            guard isCurrent(), nextServerChatOffset != previousOffset else { return }
         }
     }
 
@@ -2825,17 +2871,7 @@ struct MainAppView: View {
             case "chat_deleted":
                 let envelope = try syncDecoder.decode(WSEnvelope<ChatDeletedSyncPayload>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data else { return }
-                chatStore.removeChat(payload.chatId)
-                ChatKeyManager.shared.removeKey(for: payload.chatId)
-                pendingTypingMetadata.remove(chatId: payload.chatId)
-                if ChatSelectionSyncPolicy.shouldClearSelection(
-                    selectedChatId: selectedChatId,
-                    eventType: type,
-                    eventChatId: payload.chatId
-                ) {
-                    selectedChatId = nil
-                    showNewChat = true
-                }
+                applySyncedChatDeletion(payload.chatId)
 
             case "focus_mode_activated":
                 let envelope = try syncDecoder.decode(WSEnvelope<FocusModeActivatedPayload>.self, from: raw)
@@ -3420,14 +3456,27 @@ struct MainAppView: View {
                 let envelope = try syncDecoder.decode(WSEnvelope<PhaseBulkSyncPayload>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data else { return }
                 totalChatCount = payload.totalChatCount ?? totalChatCount
+                if type == "phase_2_last_20_chats_ready" || type == "phase_3_last_100_chats_ready" {
+                    // Delta payload length is not a position in the server list.
+                    nextServerChatOffset = 0
+                    serverChatPagesExhausted = false
+                    chatPageGeneration = UUID()
+                    isLoadingMore = false
+                }
+                let deletedIds = Set(payload.deletedChatIds ?? [])
+                for chatId in deletedIds { applySyncedChatDeletion(chatId) }
                 await upsertSyncedChats(
-                    (payload.chats ?? []).compactMap(\.chatDetails),
+                    (payload.chats ?? []).compactMap(\.chatDetails).filter { !deletedIds.contains($0.id) },
                     metadataDecryption: .visibleOnly
                 )
                 await updateSyncedSuggestions(payload.newChatSuggestions ?? [])
                 NativeSyncPerfLog.info(
                     "phase=metadataSync type=\(type) chats=\(payload.chats?.count ?? 0) total=\(totalChatCount) processMs=\(NativeSyncPerfLog.ms(since: start))"
                 )
+
+            case "load_more_chats_response":
+                // The correlated request owns this response; do not reload startup data.
+                break
 
             case "phased_sync_complete":
                 if !isBackgroundSyncFlushInProgress {
@@ -3445,6 +3494,18 @@ struct MainAppView: View {
             }
         } catch {
             print("[MainApp] Failed to process sync event \(type): \(error)")
+        }
+    }
+
+    private func applySyncedChatDeletion(_ chatId: String) {
+        chatStore.removeChat(chatId)
+        ChatKeyManager.shared.removeKey(for: chatId)
+        SpotlightIndexer.shared.removeChat(chatId)
+        pendingTypingMetadata.remove(chatId: chatId)
+        pendingBackgroundSyncContent.remove(chatId: chatId)
+        if selectedChatId == chatId {
+            selectedChatId = nil
+            showNewChat = true
         }
     }
 
@@ -3598,11 +3659,13 @@ struct MainAppView: View {
 
     private func upsertSyncedChats(
         _ chats: [Chat],
-        metadataDecryption: MetadataDecryptionScope
+        metadataDecryption: MetadataDecryptionScope,
+        serverSortOffset: Int = 0
     ) async {
         guard !chats.isEmpty else { return }
+        let scopeGeneration = OfflineStore.shared.scopeGeneration
         let start = NativeSyncPerfLog.now()
-        chatStore.upsertChats(chats, serverSortOrder: chats.map(\.id))
+        chatStore.upsertChats(chats, serverSortOrder: chats.map(\.id), serverSortOffset: serverSortOffset)
 
         switch metadataDecryption {
         case .all:
@@ -3614,6 +3677,8 @@ struct MainAppView: View {
         case .none:
             break
         }
+
+        guard !Task.isCancelled, scopeGeneration == OfflineStore.shared.scopeGeneration else { return }
 
         let searchableUserChats = chatStore.sortedChats.filter { isVisibleUserChat($0) }
         SpotlightIndexer.shared.scheduleIndexChats(
@@ -3644,6 +3709,12 @@ struct MainAppView: View {
            lastOpened != "/chat/new" {
             ids.insert(lastOpened)
         }
+        // The welcome carousel sorts independently from the sidebar (drafts
+        // first there). Its visible cards also need their encrypted metadata.
+        let resume = WelcomeScreenState.resumeChat(from: chatStore.chats, lastOpened: authManager.currentUser?.lastOpened)
+        if let resume { ids.insert(resume.id) }
+        WelcomeScreenState.recentChats(from: chatStore.chats, excluding: resume?.id)
+            .forEach { ids.insert($0.id) }
         filteredPinnedChats.forEach { ids.insert($0.id) }
         visibleFilteredUnpinnedChats.forEach { ids.insert($0.id) }
         return ids
@@ -3651,6 +3722,8 @@ struct MainAppView: View {
 
     private func decryptAndUpsertChatMetadata(_ chats: [Chat], reason: String) async {
         guard !chats.isEmpty else { return }
+        let scopeGeneration = OfflineStore.shared.scopeGeneration
+        let accountId = authManager.currentUser?.id
         let start = NativeSyncPerfLog.now()
         if let userId = authManager.currentUser?.id {
             await loadChatKeys(chats: chats, userId: userId)
@@ -3658,13 +3731,17 @@ struct MainAppView: View {
         var decryptedChats: [Chat] = []
         decryptedChats.reserveCapacity(chats.count)
         for (index, chat) in chats.enumerated() {
+            guard !Task.isCancelled, scopeGeneration == OfflineStore.shared.scopeGeneration,
+                  accountId == authManager.currentUser?.id else { return }
             let decrypted = await decryptChatMetadataEnsuringKey(chat)
             decryptedChats.append(decrypted)
             if (index + 1).isMultiple(of: 10) {
                 await Task.yield()
             }
         }
-        chatStore.upsertChats(decryptedChats)
+        guard !Task.isCancelled, scopeGeneration == OfflineStore.shared.scopeGeneration,
+              accountId == authManager.currentUser?.id else { return }
+        chatStore.upsertChats(decryptedChats.filter { chatStore.chat(for: $0.id) != nil })
         NativeSyncPerfLog.info(
             "phase=decryptChatMetadata reason=\(reason) chats=\(chats.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
         )
@@ -3853,6 +3930,11 @@ private struct PendingSyncedContent {
         }
     }
 
+    mutating func remove(chatId: String) {
+        messagesByChat.removeValue(forKey: chatId)
+        embedsByChat.removeValue(forKey: chatId)
+    }
+
     mutating func drain() -> (messagesByChat: [String: [Message]], embedsByChat: [String: [EmbedRecord]]) {
         let drainedMessages = messagesByChat
         let drainedEmbeds = embedsByChat.mapValues { Array($0.values) }
@@ -4000,10 +4082,20 @@ private struct Phase1SyncPayload: Decodable {
     let newChatSuggestions: [SyncedNewChatSuggestion]?
 }
 
-private struct PhaseBulkSyncPayload: Decodable {
+struct PhaseBulkSyncPayload: Decodable {
     let chats: [PhaseChatItem]?
     let totalChatCount: Int?
     let newChatSuggestions: [SyncedNewChatSuggestion]?
+    // Only explicit tombstones authorize deletion; metadata windows are partial.
+    let deletedChatIds: [String]?
+}
+
+struct ChatMetadataPage: Decodable {
+    let chats: [PhaseChatItem]?
+    let offset: Int
+    let totalCount: Int?
+    let hasMore: Bool?
+    let error: String?
 }
 
 private struct PhaseContentSyncPayload: Decodable {
@@ -4045,7 +4137,7 @@ private struct HistoryRequestPayload: Decodable {
     }
 }
 
-private struct PhaseChatItem: Decodable {
+struct PhaseChatItem: Decodable {
     let chatDetails: Chat?
 }
 
@@ -4077,7 +4169,7 @@ private struct PhaseChatContentItem: Decodable {
     }
 }
 
-private struct SyncedNewChatSuggestion: Decodable {
+struct SyncedNewChatSuggestion: Decodable {
     let id: String?
     let text: String?
     let encryptedSuggestion: String?
@@ -4761,6 +4853,8 @@ struct WelcomeChatCardData: Identifiable, Equatable {
     let category: String
     let iconName: String
     let isPinned: Bool
+    var draftPreview: String? = nil
+    var isDraftOnly: Bool = false
 }
 
 @MainActor
@@ -4786,42 +4880,58 @@ enum WelcomeScreenState {
         chatId.hasPrefix("announcements-")
     }
 
-    static func resumeChat(from chats: [Chat], lastOpened: String?) -> Chat? {
-        guard let lastOpened, !lastOpened.isEmpty, lastOpened != "/chat/new", !isPublicChat(lastOpened) else {
-            return nil
-        }
-        return chats.first {
-            $0.id == lastOpened &&
-            $0.isArchived != true &&
-            !$0.isHiddenFromNormalSurfaces
-        }
+    // Web: ActiveChat.loadRecentChats + chatSortUtils.sortChats, called without
+    // sidebar server ordering. Keep the existing hidden/archive privacy boundary.
+    // Reminder/saved-embed priority items are not yet implemented on Apple.
+    static func isContinuationEligible(_ chat: Chat) -> Bool {
+        chat.isArchived != true && !chat.isHiddenFromNormalSurfaces &&
+        !isPublicChat(chat.id) && !IncognitoChatSession.isIncognitoChatId(chat.id) &&
+        chat.parentId == nil && chat.isSubChat != true
     }
 
-    static func recentChats(from chats: [Chat], excluding resumeChatId: String?) -> [Chat] {
+    static func isDraftOnly(_ chat: Chat) -> Bool {
+        let hasDraft = (chat.draftV ?? 0) > 0
+        let hasMetadata = [chat.title, chat.encryptedTitle, chat.category, chat.encryptedCategory,
+                           chat.icon, chat.encryptedIcon, chat.chatSummary, chat.encryptedChatSummary]
+            .contains { $0?.isEmpty == false }
+        return hasDraft && (chat.messagesV ?? 0) == 0 && (chat.titleV ?? 0) == 0 && !hasMetadata
+    }
+
+    static func resumeChat(from chats: [Chat], lastOpened: String?) -> Chat? {
+        guard let lastOpened, !lastOpened.isEmpty, lastOpened != "/chat/new" else { return nil }
+        return chats.first { $0.id == lastOpened && isContinuationEligible($0) && !isDraftOnly($0) }
+    }
+
+    static func recentChats(from chats: [Chat], excluding resumeChatId: String?, activeChatId: String? = nil) -> [Chat] {
         chats
-            .filter { chat in
-                chat.isArchived != true &&
-                chat.id != resumeChatId &&
-                !chat.isHiddenFromNormalSurfaces &&
-                !isPublicChat(chat.id)
-            }
+            .filter { isContinuationEligible($0) && $0.id != resumeChatId && $0.id != activeChatId }
             .sorted { lhs, rhs in
-                (lhs.lastMessageAt ?? lhs.updatedAt ?? lhs.createdAt) >
-                (rhs.lastMessageAt ?? rhs.updatedAt ?? rhs.createdAt)
+                if (lhs.isPinned == true) != (rhs.isPinned == true) { return lhs.isPinned == true }
+                // Native DraftSyncCoordinator sets draftV to zero on deletion;
+                // positive versions represent a persisted encrypted draft here.
+                if ((lhs.draftV ?? 0) > 0) != ((rhs.draftV ?? 0) > 0) { return (lhs.draftV ?? 0) > 0 }
+                let lhsTime = lhs.lastMessageDate ?? .distantPast
+                let rhsTime = rhs.lastMessageDate ?? .distantPast
+                if lhsTime != rhsTime { return lhsTime > rhsTime }
+                return (lhs.updatedDate ?? .distantPast) > (rhs.updatedDate ?? .distantPast)
             }
             .prefix(recentChatLimit - (resumeChatId == nil ? 0 : 1))
             .map { $0 }
     }
 
-    static func cardData(for chat: Chat) -> WelcomeChatCardData {
+    static func cardData(for chat: Chat, draftPreview: String? = nil) -> WelcomeChatCardData {
         let category = chat.category ?? category(for: chat)
+        let preview = draftPreview?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let draftOnly = isDraftOnly(chat)
         return WelcomeChatCardData(
             id: chat.id,
-            title: chat.displayTitle,
+            title: draftOnly ? AppStrings.draftBadge : chat.displayTitle,
             summary: chat.chatSummary ?? summary(for: chat.id),
             category: category,
             iconName: chat.icon ?? cardIconName(for: chat),
-            isPinned: chat.isPinned == true && !isPublicChat(chat.id)
+            isPinned: chat.isPinned == true && !isPublicChat(chat.id),
+            draftPreview: preview.map { $0.count > 80 ? String($0.prefix(80)) + "…" : $0 },
+            isDraftOnly: draftOnly
         )
     }
 
@@ -4948,6 +5058,7 @@ struct NewChatWelcomeView: View {
     let onInspirationViewed: (String) -> Void
     let onOpenAuth: () -> Void
     var canSendAnonymously = false
+    @ObservedObject private var welcomeDraftService = DraftService.shared
     @StateObject private var composerSession = NativeComposerSession()
     @State private var suggestions: [NewChatSuggestionsView.ChatSuggestion] = []
     @State private var hiddenSuggestionIds = Set<String>()
@@ -5106,11 +5217,11 @@ struct NewChatWelcomeView: View {
     private var recentChatCards: [WelcomeChatCardData] {
         var cards: [WelcomeChatCardData] = []
         if let resumeChat {
-            cards.append(WelcomeScreenState.cardData(for: resumeChat))
+            cards.append(WelcomeScreenState.cardData(for: resumeChat, draftPreview: welcomeDraftService.draftPreview(chatId: resumeChat.id)))
         }
         cards.append(contentsOf: WelcomeScreenState
             .recentChats(from: chats, excluding: resumeChat?.id)
-            .map { WelcomeScreenState.cardData(for: $0) })
+            .map { WelcomeScreenState.cardData(for: $0, draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) })
         return cards
     }
 
@@ -5341,7 +5452,8 @@ struct NewChatWelcomeView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .composerDraftDidChange)) { notification in
-            guard let chatId = notification.userInfo?["chatId"] as? String else { return }
+            guard notification.userInfo?["reloadComposer"] as? Bool != false,
+                  let chatId = notification.userInfo?["chatId"] as? String else { return }
             Task { await applyInboundNewChatDraftIfCurrent(chatId: chatId) }
         }
         .onDisappear {
@@ -5880,7 +5992,13 @@ struct NewChatWelcomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: .spacing8) {
                     ForEach(shownChatCards) { card in
-                        if usesLargeCards {
+                        if card.isDraftOnly {
+                            WelcomeDraftCard(card: card, width: cardWidth) {
+                                onOpenChat(card.id)
+                            } onLongPress: {
+                                onShowChatActions(card.id)
+                            }
+                        } else if usesLargeCards {
                             WelcomeResumeCard(card: card, width: cardWidth, height: 200) {
                                 onOpenChat(card.id)
                             } onLongPress: {
@@ -6246,10 +6364,10 @@ struct NewChatWelcomeView: View {
     }
 
     private func restoreNewChatDraft() async {
-        guard isAuthenticated else { return }
+        guard isAuthenticated, !isCreatingChat else { return }
         do {
             if let draft = try await DraftService.shared.loadDraft(chatId: "composer:new-chat"),
-               composerSession.canonicalMarkdown.isEmpty {
+               !isCreatingChat, composerSession.canonicalMarkdown.isEmpty {
                 composerSession.replaceMarkdown(draft.canonicalMarkdown)
             }
         } catch ComposerDraftError.masterKeyUnavailable {
@@ -6260,12 +6378,17 @@ struct NewChatWelcomeView: View {
     }
 
     private func applyInboundNewChatDraftIfCurrent(chatId: String) async {
+        guard !isCreatingChat else { return }
+        let revision = composerSession.revision
+        let scopeGeneration = OfflineStore.shared.scopeGeneration
         let activeDraftId = DraftService.shared.activeNewChatDraftId
         guard chatId == DraftSyncCoordinator.syntheticNewChatId || chatId == activeDraftId else { return }
         do {
             let draft = try await DraftService.shared.loadDraft(chatId: DraftSyncCoordinator.syntheticNewChatId)
             let markdown = draft?.canonicalMarkdown ?? ""
-            guard markdown != composerSession.canonicalMarkdown else { return }
+            guard !isCreatingChat, revision == composerSession.revision,
+                  scopeGeneration == OfflineStore.shared.scopeGeneration,
+                  markdown != composerSession.canonicalMarkdown else { return }
             suppressNextDraftSave = true
             composerSession.replaceMarkdown(markdown)
         } catch ComposerDraftError.masterKeyUnavailable {
@@ -6276,7 +6399,7 @@ struct NewChatWelcomeView: View {
     }
 
     private func scheduleNewChatDraftSave() {
-        guard isAuthenticated else { return }
+        guard isAuthenticated, !isCreatingChat else { return }
         draftSaveTask?.cancel()
         let markdown = composerSession.canonicalMarkdown
         let revision = composerSession.revision
@@ -6288,7 +6411,7 @@ struct NewChatWelcomeView: View {
     }
 
     private func flushNewChatDraft() {
-        guard isAuthenticated else { return }
+        guard isAuthenticated, !isCreatingChat else { return }
         draftSaveTask?.cancel()
         let markdown = composerSession.canonicalMarkdown
         let revision = composerSession.revision
@@ -6296,6 +6419,7 @@ struct NewChatWelcomeView: View {
     }
 
     private func saveNewChatDraft(markdown: String, revision: Int) async {
+        guard !Task.isCancelled, !isCreatingChat else { return }
         do {
             try await DraftService.shared.saveDraft(
                 canonicalMarkdown: markdown,
@@ -6330,6 +6454,8 @@ struct NewChatWelcomeView: View {
             options: piiPrivacySettingsStore.detectionOptions()
         )
         isCreatingChat = true
+        draftSaveTask?.cancel()
+        draftSaveTask = nil
 
         Task { @MainActor in
             do {
@@ -6352,6 +6478,7 @@ struct NewChatWelcomeView: View {
                 onChatCreated(chatId)
             } catch {
                 isCreatingChat = false
+                scheduleNewChatDraftSave()
                 print("[NewChatWelcome] Failed to create chat: \(error)")
             }
         }
@@ -6775,6 +6902,36 @@ private struct InterestTagChip: View {
         .accessibilityIdentifier("interest-tag-\(tag.rawValue)")
         .help(Text(tag.label))
         .accessibilityLabel(tag.label)
+    }
+}
+
+// Web ActiveChat.svelte .resume-chat-draft-card: neutral label + preview,
+// always compact even in the large continuation carousel; no category gradient.
+private struct WelcomeDraftCard: View {
+    let card: WelcomeChatCardData
+    let width: CGFloat
+    let onTap: () -> Void
+    let onLongPress: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing1) {
+            Text(AppStrings.draftBadge).font(.omP).foregroundStyle(Color.grey60)
+            Text(card.draftPreview ?? "").font(.omP).fontWeight(.medium)
+                .foregroundStyle(Color.fontPrimary).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, .spacing8).padding(.vertical, .spacing5)
+        .frame(width: width, alignment: .leading)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .contentShape(RoundedRectangle(cornerRadius: .radius8))
+        .onLongPressGesture(minimumDuration: 0.6, perform: onLongPress)
+        .onTapGesture(perform: onTap)
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier("welcome-draft-card-\(card.id)")
+        .accessibilityLabel([AppStrings.draftBadge, card.draftPreview ?? ""].joined(separator: ": "))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: Text(AppStrings.openChat), onTap)
     }
 }
 

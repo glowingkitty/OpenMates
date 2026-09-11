@@ -40,8 +40,8 @@ Read the relevant diagnostics code and tests:
 - `apple/OpenMates/Sources/Core/Models/ChatModels.swift` for `NativeSyncPerfLog`
 - `apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift`
 - `apple/OpenMatesTests/NativeComposerPerformanceTests.swift`
-- `docs/specs/apple-native-diagnostics-parity/spec.yml`
-- `docs/specs/apple-sync-decryption-performance/spec.yml`
+- `docs/plans/apple-native-diagnostics-parity/plan.yml`
+- `docs/plans/apple-sync-decryption-performance/plan.yml`
 - `docs/architecture/apple/sync-parity.md`
 - `docs/architecture/apple/message-processing-parity.md`
 - `docs/architecture/apple/streaming-parity.md`

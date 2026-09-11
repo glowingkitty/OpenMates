@@ -12,6 +12,7 @@ from fastapi import Request, Response, HTTPException, Depends, Cookie
 from typing import Any, Optional, TYPE_CHECKING
 
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
+from backend.core.api.app.utils.session_refresh import refresh_session_token, complete_refresh_rotation
 from backend.core.api.app.routes.auth_routes.auth_common import preserve_rotated_session_metadata
 from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
 
@@ -298,7 +299,7 @@ async def get_current_user(
     # /auth/refresh first to get a valid access token for /users/me.
     logger.info("No session data in cache for token — attempting refresh with Directus")
 
-    refresh_success, auth_data, refresh_message = await directus_service.refresh_token(refresh_token)
+    refresh_success, auth_data, refresh_message = await refresh_session_token(cache_service, directus_service, refresh_token)
     if not refresh_success or not auth_data:
         logger.info(f"Token refresh failed: {refresh_message}")
         raise HTTPException(status_code=401, detail="Invalid or expired token")
@@ -339,6 +340,7 @@ async def get_current_user(
     # Rebuild the cache so subsequent requests don't need another refresh
     if "user_id" not in user_data and "id" in user_data:
         user_data["user_id"] = user_data["id"]
+    old_refresh_token = refresh_token
     new_refresh_token = extract_directus_refresh_token(cookies) or refresh_token
     user_data["token_expiry"] = int(time.time()) + ACCESS_TOKEN_TTL_SECONDS
     _, cache_ttl = await preserve_rotated_session_metadata(
@@ -478,6 +480,10 @@ async def get_current_user(
         user_data_for_cache.pop("gifted_credits_for_signup", None)
 
     await cache_service.set_user(user_data_for_cache, refresh_token=refresh_token, ttl=cache_ttl)
+    await complete_refresh_rotation(
+        cache_service, old_refresh_token=old_refresh_token,
+        new_refresh_token=refresh_token, user_id=user.id,
+    )
     await _set_session_auth_state(request, cache_service, user.id, refresh_token)
     
     return user
@@ -533,8 +539,10 @@ async def get_current_user_or_api_key(
             )
             _set_auth_state(request, {"auth_source": "session", "user_id": user.id})
             return user
-        except HTTPException:
-            # Session auth failed, try API key auth
+        except HTTPException as error:
+            if error.status_code != 401:
+                raise
+            # Invalid session may fall back to an explicitly supplied API key.
             pass
     
     # Try API key authentication

@@ -17,6 +17,7 @@ export interface HttpResponse<T = unknown> {
   ok: boolean;
   status: number;
   data: T;
+  retryAfterMs?: number;
 }
 
 export interface HttpBinaryResponse {
@@ -48,6 +49,11 @@ export class OpenMatesHttpClient {
 
   getCookieMap(): Record<string, string> {
     return Object.fromEntries(this.cookies.entries());
+  }
+
+  replaceCookies(cookies: Record<string, string>): void {
+    this.cookies.clear();
+    for (const [name, value] of Object.entries(cookies)) this.cookies.set(name, value);
   }
 
   async get<T>(
@@ -204,6 +210,7 @@ export class OpenMatesHttpClient {
       return {
         ok: response.ok,
         status: response.status,
+        ...(response.headers.get("retry-after") ? { retryAfterMs: parseRetryAfter(response.headers.get("retry-after")!) } : {}),
         data: data as T,
       };
     } finally {
@@ -275,4 +282,10 @@ function parseSseMessage(rawEvent: string): SseMessage | null {
     if (field === "data") message.data += `${message.data ? "\n" : ""}${value}`;
   }
   return message.data ? message : null;
+}
+
+function parseRetryAfter(value: string): number {
+  if (/^\d+$/.test(value)) return Number(value) * 1000;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
 }

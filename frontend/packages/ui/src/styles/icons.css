@@ -1875,3 +1875,37 @@ div.clickable-icon {
 }
 
 
+
+/* Header overlays deliberately use literal white in both themes. Only the
+   background is translucent; masked icons remain fully opaque. */
+[data-header-overlay].new-chat-button-wrapper,
+[data-header-overlay].button-wrapper {
+  background-color: rgb(255 255 255 / 20%) !important;
+}
+
+[data-header-overlay] .clickable-icon.top-button {
+  /* Filter the complete masked fill, including its gradient background-image. */
+  filter: brightness(0) invert(1);
+}
+
+/* Filters interpolate smoothly even when the original icon fill is a gradient. */
+.top-buttons .clickable-icon.top-button,
+.embed-top-bar .clickable-icon.top-button {
+  transition: filter var(--duration-normal) var(--easing-in-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .top-buttons .new-chat-button-wrapper,
+  .embed-top-bar .button-wrapper,
+  .top-buttons .clickable-icon.top-button,
+  .embed-top-bar .clickable-icon.top-button {
+    transition: none;
+  }
+}
+
+/* Newly mounted controls start in their measured state without a color flash.
+   Normal transitions are enabled after the initial style has been committed. */
+[data-header-overlay-initializing],
+[data-header-overlay-initializing] * {
+  transition: none !important;
+}

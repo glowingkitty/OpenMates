@@ -1,6 +1,6 @@
 #!/bin/bash
 # Expire old pending proof-video disposable media after the manifest-owned retry
-# window. Proof media is embedded in OpenCode responses, not sent to Discord.
+# window. Proof media is embedded in agent responses, not sent to Discord.
 
 set -euo pipefail
 

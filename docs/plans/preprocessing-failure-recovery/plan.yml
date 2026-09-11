@@ -1,0 +1,281 @@
+schema_version: 2
+id: preprocessing-failure-recovery
+goal: Reproduce minimally, identify exact branch and propose/implement smallest safe
+  fix under existing assertions.
+status: implementing
+approval:
+  scope: Coordinator explicitly assigned primary shared preprocessing failure repair
+    to session 00b4.
+  semantic_gate: Explicit exact-artifact user approval recorded for feature.ai-model-routing@2.
+  implementation_repair: Existing sealed chat recovery contract applies to simple
+    error final markers.
+scope:
+  in:
+  - Restore sealed recovery metadata for simple preprocessing-error responses using
+    the existing recovery helper.
+  - Investigate missing preprocessing output; implement fallback only after the presented
+    Specification addition is approved.
+  - Reserve remaining preprocessing time for each configured fallback without changing
+    total cap or retry-disable semantics.
+  - Repair null title versions in encrypted fork creation and subsequent message dispatch
+    under existing chats.fork.non-destructive-boundary contract.
+  - Preserve recovery identity across memory consent and prevent permission-pause metadata crashes.
+  - Investigate recursive artifact persistence without regenerating completed output.
+  out:
+  - Change answer model selection, encryption protocols, charging, or sub-chat continuation
+    identity.
+  - Restart shared runtime without coordinator target and lease.
+  - Generate another example before verified correction.
+references:
+  campaign: docs/plans/landing-example-quality-campaign/plan.yml
+  specification: specifications/features/chats/specification.yml
+  fingerprint: 13d258a587aad182838e9f6eef2e09ae6a4a7f9f51dd6f7fbb8ec59c26ba336b
+  assertions:
+  - chats.completion.recovery-takeover
+  - chats.persistence.client-encrypted
+  - chats.fork.non-destructive-boundary
+implementation:
+  session: 00b4
+  files:
+  - backend/apps/ai/tasks/stream_consumer.py
+  - backend/tests/test_stream_consumer_recovery.py
+  access_model: Existing first-party authenticated recovery chat surface; no new endpoint
+    or access change.
+  data_boundary: Seal server-transient response with existing client recovery public
+    key; durable assistant row remains client encrypted.
+verification:
+  order:
+  - focused_unit_red
+  - focused_unit_green
+  - adjacent_unit
+  - coordinator_runtime_lease
+  - real_dev_rest
+  - real_dev_cli
+  - sdk_parity
+  - deployed_web_proof
+  baseline: Recovery suite 16 passed and 1 pre-existing sub-chat continuation identity
+    failure; preprocessing retry suite 14 passed.
+  runtime_status: 2418c1bf loaded and healthy; lease released. Astra coordinates subsequent
+    runtime updates; no lease held by 00b4.
+  publication_status: Example content and proof remain pending.
+  unit_result: Budget-allocation regression reproduced skipped third fallback before
+    fix; 34 preprocessing-retry and stream-fallback tests pass after fix.
+  timeout_allocation:
+    red_run: exec-28895
+    red_result: '2 failed: final configured provider never called'
+    green_run: exec-21081
+    green_result: 34 passed, one warning
+    recorded_at: '2026-09-08T14:03:30.794887+00:00'
+    source_commit: 2418c1bf4de88a77881f8b799625f731c66fab80
+    patch_sha256: 2a8ca4ec7f38ed5aec8d3ccb8838981272932af37e1a2a20852b47577689d55e
+    live_result: Pending coordinated runtime load; no conversation retry.
+  fork_red:
+    metadata_run: 'exec-77529: two expected failures for missing/null title_v'
+    dispatch_run: 'exec-60816: exact NoneType > int crash at message_received_handler.py:682'
+  fork_green:
+    run_id: exec-17826
+    result: 39 passed; ruff passed; SDK/CLI parity89 commands4templates passed
+    recorded_at: '2026-09-08T14:23:04.431156+00:00'
+    command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest backend/tests/test_native_chats_api.py
+      backend/tests/test_sdk_chat_fork_rewind.py backend/tests/test_message_received_active_chat.py
+      -q
+    baseline_note: Chat-list expected encrypted_auto_speak_response field was stale
+      after existing565162b78; baseline asyncio reproduced, expectation updated only.
+title: Recover missing preprocessing output and seal error completion
+implementation_state:
+  subject_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-09-08T13:26:45.735680+00:00'
+  plan:
+    status: approved
+    approved_at: '2026-09-08T13:26:45.735680+00:00'
+scenarios:
+- id: S-1
+  title: Recover preprocessing output or deliver a durable error
+  given:
+  - Authenticated recovery-capable chat and configured preprocessing providers
+  when:
+  - Primary provider returns success without required tool output
+  then:
+  - Use bounded configured fallback when enabled; otherwise fail visibly with recoverable
+    sealed completion
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Missing tool output uses bounded fallback; simple-error final markers include
+    sealed recovery job metadata.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-RETRY
+  - T-RECOVERY
+tests:
+- id: T-RETRY
+  type: pytest
+  file: backend/tests/test_llm_utils_preprocessing_retries.py
+  command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest backend/tests/test_llm_utils_preprocessing_retries.py
+    -k missing_preprocessing -q
+  assertions:
+  - AC-1
+  covers:
+  - AC-1
+  red_phase:
+    required: true
+    expected: failed
+    evidence:
+      status: failed
+      subject_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
+      recorded_at: '2026-09-08T13:26:45.735680+00:00'
+      timestamp: '2026-09-08T13:28:55.877282+00:00'
+      command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest backend/tests/test_llm_utils_preprocessing_retries.py
+        -k missing_preprocessing -q
+      run_id: exec-87838
+      result: failed
+  green_phase:
+    required: true
+    expected: passed
+    evidence:
+      timestamp: '2026-09-08T13:28:55.877282+00:00'
+      command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest backend/tests/test_llm_utils_preprocessing_retries.py
+        -k missing_preprocessing -q
+      run_id: exec-21091-retries
+      result: passed
+      status: passed
+      subject_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
+      patch_sha256: 7fba3a8ae22d4f34981cc15a56cd0320d8eacd36e246515bf1355c33e4076547
+- id: T-RECOVERY
+  type: pytest
+  file: backend/tests/test_stream_consumer_recovery.py
+  command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest backend/tests/test_stream_consumer_recovery.py
+    -k fake_stream -q
+  assertions:
+  - AC-1
+  covers:
+  - AC-1
+  red_phase:
+    required: true
+    expected: failed
+    evidence:
+      status: failed
+      subject_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
+      recorded_at: '2026-09-08T13:26:45.735680+00:00'
+      timestamp: '2026-09-08T13:28:55.877282+00:00'
+      command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest backend/tests/test_stream_consumer_recovery.py
+        -k fake_stream -q
+      run_id: exec-18495
+      result: failed
+  green_phase:
+    required: true
+    expected: passed
+    evidence:
+      timestamp: '2026-09-08T13:28:55.877282+00:00'
+      command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest backend/tests/test_stream_consumer_recovery.py
+        -k fake_stream -q
+      run_id: exec-37926-fake-stream
+      result: passed
+      status: passed
+      subject_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
+      patch_sha256: 7fba3a8ae22d4f34981cc15a56cd0320d8eacd36e246515bf1355c33e4076547
+tasks:
+- id: TASK-1
+  title: Repair bounded preprocessing recovery
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - backend/apps/ai/utils/llm_utils.py
+  - backend/apps/ai/tasks/stream_consumer.py
+  verification_ids:
+  - T-RETRY
+  - T-RECOVERY
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    shared_files: []
+decisions:
+- id: D-1
+  status: active
+  decision: Use configured preprocessing fallback; preserve disabled retries and existing
+    encrypted completion helper.
+  reason: Exact approved missing-output contract and existing chats recovery contract.
+  decided_at: '2026-09-08T13:26:45.735680+00:00'
+- id: D-2
+  status: active
+  decision: Divide remaining total preprocessing time among remaining configured providers;
+    preserve total cap, per-attempt ceiling, provider order and retry-disable control.
+  reason: Two full timeouts consumed 25+20 seconds and deterministically starved the
+    third configured provider; this repairs bounded fallback allocation without adding
+    a provider or increasing the approved deadline.
+  decided_at: '2026-09-08T13:58:11.139786+00:00'
+  examples:
+  - Three providers with 45 seconds remaining receive up to 15 seconds each, so a
+    healthy third provider remains reachable.
+  - A retry-disabled caller retains its single up-to-25-second attempt and never dispatches
+    a fallback.
+- id: D-3
+  status: active
+  decision: Initialize absent/null fork title_v from encrypted title presence and
+    tolerate legacy null versions during message dispatch, without rewriting stored
+    ciphertext.
+  reason: User assigned the newly observed fork crash; existing first-party encrypted
+    fork behavior requires usable independent saved chats. No access/auth/encryption
+    policy change.
+  decided_at: '2026-09-08T14:21:34.520720+00:00'
+  examples:
+  - A new encrypted fork with an encrypted title and omitted version starts at title_v
+    1; explicit numeric versions remain unchanged.
+  - An existing fork with null title_v can send a follow-up without replacing its
+    stored encrypted title or source messages.
+attempts:
+- id: A-1
+  task_id: TASK-1
+  outcome: failed_as_expected
+  approach: Focused retry and simple-error regression tests
+  recorded_at: '2026-09-08T13:26:45.735680+00:00'
+handoff:
+  current_task_id: TASK-1
+  next_action: Deploy tested fork metadata repair; request coordinator lease for existing
+    https://api.dev.openmates.org runtime before real CLI fork verification.
+  command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest backend/tests/test_llm_utils_preprocessing_retries.py
+    backend/tests/test_llm_utils_stream_fallback.py -q
+  expected_outcome: Green focused regression tests
+  last_verified_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
+  blocker: null
+
+completion_persistence_followup:
+  authorization: User assigned consolidated original completion acknowledgment and persistence repair to00b4.
+  contract: chats.completion.recovery-takeover; chats.persistence.client-encrypted unchanged.
+  examples:
+  - A memory permission pause before debug metadata keeps the authorized turn running; consent continuation seals its actual response under the original inference identity.
+  - A generated application is not fully saved until its original source children are durably encrypted; top-level assistant persistence alone does not prove completeness.
+  red:
+  - Permission pause reproduces exact NoneType item-assignment crash in two tests.
+  - Pending context and continuation request omit recovery fields in two tests.
+  - Memory continuation resolver returns None despite original recovery inference identity.
+  preservation: Existing bce4 assistant preserved as vault-encrypted cache snapshot; FAILED preflight prevents normal sealed-job admission, no state bypass performed.
+  evidence_environments:
+    browser: Canonical isolated GitHub CI with locally built web/CLI and Docker services; no Vercel dependency.
+    real_provider: Shared dev REST/CLI/SDK only, runtime mutation requires coordinator lease.
+
+  green:
+  - 39 backend tests passed in three isolated processes; known subchat identity baseline excluded.
+  - CLI recovery parent, recursive child/grandchild, and unavailable-child rejection tests passed (3).
+  limitations:
+  - CLI full typecheck blocked by absent generated UI modules and existing cross-package import configuration.
+  - Wider existing CLI recovery test process79371 still pending; first unrelated encrypted-preflight assertion failed before new child tests.
+  recursive_fix: Fetch original referenced descendants and preserve inherited parent keys; reject unavailable children instead of reporting complete artifact save.
+
+  cache_retention_repair: Existing pending-encryption records retain their existing bounded TTL during active-chat LRU eviction; saved embeds still evict normally. No new retention duration.
+  cache_red: Existing LRU deletes pending-child payload and index in asyncio/trio regression.

@@ -24,7 +24,9 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import ImageAuthenticityBadge from './ImageAuthenticityBadge.svelte';
   import { getImageAuthenticityStatus, type AIDetectionMetadata } from './imageAuthenticity';
-  import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
+  import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
+  const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
+
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
@@ -245,8 +247,8 @@
         `[ImageEmbedFullscreen] Loading full image from S3 (attempt ${loadRetryCount}/${MAX_FULL_IMAGE_RETRIES}):`,
         fullFileData.s3_key,
       );
-      const blob = await fetchAndDecryptImage(s3BaseUrl, fullFileData.s3_key, aesKey, aesNonce ?? '', fullFileData);
-      fullImageUrl = URL.createObjectURL(blob);
+      await fetchAndDecryptImage(s3BaseUrl, fullFileData.s3_key, aesKey, aesNonce ?? '', fullFileData);
+      fullImageUrl = getCachedImageUrl(fullFileData.s3_key)!;
       retainedFullKey = fullFileData.s3_key;
       retainCachedImage(fullFileData.s3_key);
     } catch (err) {
@@ -298,6 +300,7 @@
 
   // Release LRU cache references on unmount to avoid memory leaks
   onDestroy(() => {
+    releaseOwnedImages();
     if (retainedPreviewKey) releaseCachedImage(retainedPreviewKey);
     if (retainedFullKey) releaseCachedImage(retainedFullKey);
   });

@@ -19,12 +19,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CALENDAR_APP_CONFIG = REPO_ROOT / "backend" / "apps" / "calendar" / "app.yml"
 
 
+# contract-test: supporting surface=rest_api assertions=calendar.surface.skills,connected-accounts.execution.client-mediated
 def test_calendar_skills_are_not_rest_api_executable() -> None:
     with CALENDAR_APP_CONFIG.open("r", encoding="utf-8") as handle:
         app_config = yaml.safe_load(handle)
 
     skill_ids = {skill["id"] for skill in app_config["skills"]}
     assert skill_ids == {
+        "list-calendars",
         "get-events",
         "create-event",
         "update-event",
@@ -36,6 +38,7 @@ def test_calendar_skills_are_not_rest_api_executable() -> None:
         assert "access_token_handle" not in requests_schema.get("properties", {})
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 def test_calendar_get_events_requires_access_token_handle() -> None:
     from backend.apps.calendar.skills.get_events_skill import GetEventsSkill
 
@@ -50,6 +53,7 @@ def test_calendar_get_events_requires_access_token_handle() -> None:
     assert request.access_token_handle == "ath_test"
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 def test_calendar_mutation_skills_require_access_token_handle() -> None:
     from backend.apps.calendar.skills.create_event_skill import CreateEventSkill
     from backend.apps.calendar.skills.delete_event_skill import DeleteEventSkill
@@ -90,6 +94,7 @@ def test_calendar_mutation_skills_require_access_token_handle() -> None:
     assert delete_request.access_token_handle == "ath_123"
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_calendar_get_events_executes_provider_with_hidden_access_token() -> None:
     from backend.apps.calendar.skills.get_events_skill import GetEventsSkill
@@ -130,6 +135,7 @@ async def test_calendar_get_events_executes_provider_with_hidden_access_token() 
     assert response.results[0]["events"][0]["id"] == "event-1"
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_calendar_mutation_skills_execute_provider_with_hidden_access_token() -> None:
     from backend.apps.calendar.skills.create_event_skill import CreateEventSkill
@@ -227,10 +233,11 @@ async def test_calendar_mutation_skills_execute_provider_with_hidden_access_toke
     }
 
 
+# contract-test: supporting surface=rest_api assertions=calendar.events.safe-mutations
 def test_calendar_update_delete_journal_payloads_include_undo_snapshots() -> None:
-    from backend.apps.ai.processing.main_processor import _calendar_undo_payload
+    from backend.shared.python_utils.calendar_action_journal import calendar_undo_payload
 
-    update_payload = _calendar_undo_payload(
+    update_payload = calendar_undo_payload(
         "update-event",
         [
             {
@@ -251,7 +258,7 @@ def test_calendar_update_delete_journal_payloads_include_undo_snapshots() -> Non
             }
         ],
     )
-    delete_payload = _calendar_undo_payload(
+    delete_payload = calendar_undo_payload(
         "delete-event",
         [
             {

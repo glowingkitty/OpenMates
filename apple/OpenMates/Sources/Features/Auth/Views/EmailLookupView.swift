@@ -90,6 +90,10 @@ struct EmailLookupView: View {
             }
         }
         .task {
+            #if DEBUG
+            // Password workflow tests must not race an OS passkey sheet.
+            guard !ProcessInfo.processInfo.arguments.contains("--ui-test-prefer-password-login") else { return }
+            #endif
             guard !didAttemptImmediatePasskey else { return }
             didAttemptImmediatePasskey = true
             await attemptImmediatePasskeyLogin()

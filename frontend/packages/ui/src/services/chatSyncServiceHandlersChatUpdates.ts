@@ -1126,6 +1126,7 @@ export async function handleChatMessageReceivedImpl(
         detail: {
           chatId: payload.chat_id,
           taskId: taskInfo.taskId,
+          userMessageId: taskInfo.userMessageId,
           status: "completed_message_received",
         },
       }),

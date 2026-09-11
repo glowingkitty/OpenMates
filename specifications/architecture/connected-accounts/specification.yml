@@ -1,0 +1,191 @@
+schema_version: 1
+id: architecture.connected-accounts
+version: 2
+status: draft
+title: Connected Accounts
+summary: >
+  One provider-neutral account and authorization contract serves Calendar, Code,
+  Finance, and other connected apps. Interactive access keeps persistent credentials
+  client-encrypted; unattended workflows require a separately reviewed server grant.
+inherits:
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+    - Account connection, reuse, selection, capability discovery, credential lifecycle, and revocation.
+    - Owner-scoped interactive execution, runtime permissions, receipts, and safe failures across clients.
+    - Unattended workflow grants, informed activation, server execution, and real offline integration verification.
+  excludes:
+    - Provider-specific resource and operation semantics, defined by each app specification.
+    - New team-sharing semantics, implementation of other providers, and trusted-device workflow runners.
+    - Implicit offline access from account connection, API keys, imports, or workflow drafts.
+    - Changes to existing Workflow graph activation readiness or normal chat encryption.
+
+models:
+  AccountAuthorization:
+    identity: {type: object, required: true, constraints: {owner_bound: true, provider_and_account_not_app_identity: true}}
+    capabilities: {type: array, required: true, constraints: {provider_supported_actions_and_resources: true}}
+    runtime_mode: {type: enum, values: [always_ask, auto_decide, allow_automatically]}
+    effective_access: {type: intersection, constraints: {owner_provider_grant_app_capability_resource_runtime_authorization: true}}
+  WorkflowGrant:
+    binding: {type: object, required: true, constraints: {owner_workflow_account_resources_actions_and_access_revision: true}}
+    limits: {type: object, required: true, constraints: {fields_date_ranges_destinations_frequency_retries_and_operation_budget: true}}
+    expiry: {type: optional_timestamp, constraints: {default_until_revoked_or_workflow_deleted: true}}
+    credentials: {type: broker_reference, constraints: {no_token_copy_per_workflow: true, encrypted_at_rest: true}}
+  OfflineAccessDisclosure:
+    title: {type: localized_string, default: Runs even when your devices are offline}
+    body:
+      type: localized_string
+      default: When you enable this workflow, OpenMates securely stores the authorization needed to access the selected account on its servers. Access is limited by this workflow's permissions. You can revoke it at any time.
+    details_label: {type: localized_string, default: View access details}
+
+assertions:
+  - id: connected-accounts.connection.client-surfaces
+    type: security
+    must: >
+      Account connection and reconnection are user-consent flows provided by CLI and
+      web, with Apple support in a later delivery. npm and pip SDKs execute authorized
+      operations against already-connected accounts but provide no account-connection,
+      reconnection, OAuth-start, or OAuth-completion methods. SDK integration tests
+      consume connections provisioned through CLI or web using private runtime setup.
+      Missing or insufficient provider authorization returns an actionable requirement
+      to connect or reconnect through CLI or web, never an SDK consent workaround or
+      raw-provider-token substitute. SDK execution still requires the applicable
+      first-party authorization; an existing account ID alone grants no access.
+    depends_on: [examples.connection_surfaces]
+  - id: connected-accounts.connection.private-reusable
+    type: privacy
+    must: >
+      Provider identity is independent of app identity so an account can authorize
+      multiple apps without duplicate connections or automatic cross-app access.
+      Persist interactive credentials, account labels, and private directory hints
+      client-encrypted. OAuth uses explicit consent, owner-bound expiring single-use
+      state and handoff, validated redirects, and PKCE where applicable. Request only
+      needed provider scopes; adding capabilities requires consent when needed.
+      Preserve shipped encrypted account records through an explicit migration or
+      normalization, never silently reinterpret their grants.
+    depends_on: [models.AccountAuthorization, examples.connection]
+  - id: connected-accounts.permissions.deterministic
+    type: security
+    must: >
+      Enforce effective access outside the model on every provider call. Show simple
+      action groups while retaining provider-specific distinctions such as update,
+      send, or delete. Default reads to Allow automatically and mutations to Always
+      ask. Auto decide allows or asks, never silently rejects. Allow automatically
+      does not add surprise approval prompts within its authorized scope. Missing
+      account, capability, or resource authorization cannot be overridden by an AI,
+      imported content, or an API key. Recheck permissions and provider state after
+      delayed approval. Exact grant revisions prevent stale approvals authorizing
+      changed actions. Account ambiguity requires selection, not a guessed fallback.
+    depends_on: [models.AccountAuthorization, examples.permissions]
+  - id: connected-accounts.execution.client-mediated
+    type: privacy
+    must: >
+      Interactive calls require authenticated first-party user context and client-held
+      account authorization. Normal developer API-key calls alone cannot use connected
+      accounts. Validate inputs before token submission, bind short-lived broker refs
+      to owner/account/app/action/resource and request, exchange only as needed, and
+      clean transient artifacts on success, rejection, expiry, cancellation, and
+      failure. A submitted active request may finish after a client disconnects but
+      cannot authorize future runs. Preserve existing rate, billing, budget, and
+      external-output safety controls. Structured errors and logs expose no secrets
+      or private payloads; retained private receipts are encrypted.
+    depends_on: [examples.interactive]
+  - id: connected-accounts.lifecycle.reconnect-revoke
+    type: behavior
+    must: >
+      Distinguish missing connection, missing scope, provider revocation, transient
+      outage, and permission denial with actionable non-secret errors. Coordinate
+      refresh and persist rotation within the applicable encryption boundary without
+      losing a working credential. Reconnect preserves account identity but never
+      revives revoked workflow grants. Disconnect shows dependent workflows, prevents
+      new operations and queued retries, invalidates dependent authorizations, and
+      removes stored credentials. Attempt provider revocation where supported and
+      report failures honestly. Never imply revocation undoes completed side effects.
+    depends_on: [examples.lifecycle]
+  - id: connected-accounts.workflows.simple-consent
+    type: behavior
+    must: >
+      Server execution is the default for unattended workflows with no mandatory
+      execution-location choice. Selecting an account displays OfflineAccessDisclosure
+      inline but creates no server authorization. Enable Workflow provides the single
+      explicit review of accounts, resources, actions, fields, destinations including
+      AI processing, schedule/limits, and authorization lifetime, then creates an
+      owner- and workflow-bound grant only after successful activation. No redundant
+      checkbox or extra modal is required except provider consent. Failed activation
+      leaves no new usable grant. Equivalent CLI/SDK activation requires an explicit
+      acceptance bound to the reviewed access revision, not a default yes.
+      Workflow and account settings expose review and revoke controls and dependencies.
+    depends_on: [models.OfflineAccessDisclosure, models.WorkflowGrant, examples.workflow_consent]
+  - id: connected-accounts.workflows.server-boundary
+    type: privacy
+    must: >
+      Unattended execution uses explicit server-usable renewable authorization, not
+      merely a temporary access token. Encrypt it at rest through the existing
+      Automation Vault/broker boundary, separate from interactive encrypted storage,
+      minimize runtime plaintext exposure, and use short-lived execution credentials.
+      Never claim the server cannot decrypt an authorized workflow credential.
+      Explain provider-enforced versus OpenMates-enforced resource restrictions in
+      access details. Share a broker-managed underlying credential only within its
+      authorized owner/account boundary; each workflow retains an independently
+      revocable grant. Remove server authorization when no retained grants require it.
+      Read the minimum needed data; avoid AI processing where deterministic execution
+      suffices, disclose required processing destinations, and retain private workflow
+      content under existing Workflow encryption rather than plaintext logs or normal
+      chat rows. An unimplemented grant path fails closed rather than using interactive
+      credentials as an offline workaround.
+    depends_on: [models.WorkflowGrant, examples.workflow_privacy]
+  - id: connected-accounts.workflows.changes-lifecycle
+    type: security
+    must: >
+      Default grant lifetime is until revoked or workflow deletion, with optional
+      expiry and no mandatory periodic reapproval. Request fresh review only for
+      expanded authority such as new accounts/resources, broader fields/ranges,
+      mutations/recipients/destinations, or increased operation limits. Cosmetic edits
+      and schedule changes within approved limits require no new consent. Pause stops
+      new runs while visibly retaining authorization for easy resume; resume rechecks
+      grant validity. Revoke, expiry, or deletion prevents subsequent provider calls
+      and retries, including queued work; an already dispatched call may still finish
+      and must be reconciled honestly. Revoke/delete one grant must not revoke other
+      valid grants sharing a credential. Default mutations prepare for approval;
+      explicitly bounded preapproved mutations may run unattended with duplicate
+      prevention. Approval waits do not hold workers indefinitely.
+    depends_on: [models.WorkflowGrant, examples.workflow_lifecycle]
+  - id: connected-accounts.workflows.offline-verification
+    type: behavior
+    must: >
+      Required live acceptance proves the deployed scheduler and worker execute an
+      explicitly authorized workflow with all authorizing user clients disconnected
+      and no client supplying a per-run token. Exercise real provider reads and bounded
+      synthetic writes using an isolated runtime-configured resource and encrypted
+      retained results. Verify exact effects and cleanup after reconnecting the observer;
+      an accepted run or mocked adapter alone is not execution proof. Live tests prove
+      pause/resume and grant revocation prevent subsequent provider operations, while
+      deterministic tests additionally cover refresh/rotation, optional expiry, delayed
+      approval, queued-work races, expanded authority, independent grant revocation,
+      deletion, and uncertain write reconciliation. Missing setup or needed OAuth
+      interaction blocks live acceptance rather than being counted as passing evidence.
+    depends_on: [examples.workflow_offline]
+
+applies_to:
+  rest_api:
+    required: true
+    role: First-party account/grant control plane and internal worker execution; no generic developer-key account access.
+  cli: {required: true, parity: semantic}
+  sdks:
+    required: true
+    parity: semantic
+    role: Execute with already-connected accounts and valid authorization; no account connection or OAuth setup surface.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false, role: Native implementation follows verified API CLI SDK and web delivery in a separate stage.}
+
+examples:
+  file: examples.yml
+  required_groups: [connection_surfaces, connection, permissions, interactive, lifecycle, workflow_consent, workflow_privacy, workflow_lifecycle, workflow_offline]

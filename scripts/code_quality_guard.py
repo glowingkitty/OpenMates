@@ -20,7 +20,6 @@ import audit_app_provider_contracts
 import audit_apple_release_preflight
 import audit_domain_security
 import audit_figma_visual_evidence
-import audit_opencode_automation_budget
 import audit_playwright_determinism
 import audit_sensitive_logging
 import audit_ui_control_visibility
@@ -39,9 +38,7 @@ APP_PROVIDER_PATH_RE = re.compile(r"^(backend/apps/[^/]+/app\.yml|backend/provid
 DOMAIN_SECURITY_PATH_RE = re.compile(
     r"^(backend/core/api/app/services/domain_security(_.*\.encrypted|\.py)|scripts/audit_domain_security\.py)$"
 )
-OPENCODE_AUTOMATION_PATH_RE = re.compile(
-    r"^(scripts/.*\.(py|sh|js|mjs)|scripts/prompts/.*\.md|\.agents/skills/.*/SKILL\.md|opencode\.json)$"
-)
+
 CADDYFILE_PATH_RE = re.compile(r"^deployment/[^/]+/Caddyfile$")
 BACKEND_PY_PATH_RE = re.compile(r"^backend/(?!tests/).+\.py$")
 SETTINGS_UI_PATH_RE = re.compile(r"^frontend/packages/ui/src/components/(Settings\.svelte|settings/.+\.(svelte|ts))$")
@@ -376,9 +373,6 @@ def main() -> int:
 
     for issue in audit_app_provider_contracts.audit_paths(_paths_matching(staged_files, APP_PROVIDER_PATH_RE)):
         blocks.append(f"app/provider contract: {issue.path}: {issue.message}")
-
-    for issue in audit_opencode_automation_budget.audit_paths(_paths_matching(staged_files, OPENCODE_AUTOMATION_PATH_RE)):
-        blocks.append(f"opencode automation budget: {issue.path}: {issue.message}")
 
     for path in staged_files:
         suffix = Path(path).suffix

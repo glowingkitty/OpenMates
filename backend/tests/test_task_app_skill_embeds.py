@@ -1,4 +1,4 @@
-"""Task app-skill embed contract tests.
+"""Task app-skill embed Specification tests.
 
 These tests define the backend-only first slice for the Tasks app skill. The
 skill returns embed-ready child task results for the existing EmbedService parent
@@ -31,6 +31,7 @@ class FakeTaskStageService:
         assignee_type: str,
         status: str,
         position: int | None = None,
+        link_to_chat: bool = True,
     ) -> dict[str, Any]:
         call = {
             "user_id": user_id,
@@ -41,6 +42,7 @@ class FakeTaskStageService:
             "assignee_type": assignee_type,
             "status": status,
             "position": position,
+            "link_to_chat": link_to_chat,
         }
         self.calls.append(call)
         index = len(self.calls)
@@ -64,6 +66,7 @@ def _skill() -> CreateSkill:
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=tasks.assignment.identity-separated,tasks.surface.semantic-parity
 async def test_task_create_returns_embed_ready_children_without_system_events() -> None:
     stage_service = FakeTaskStageService()
 
@@ -92,7 +95,7 @@ async def test_task_create_returns_embed_ready_children_without_system_events() 
     assert payload["results"][1]["assignee"] == "openmates"
 
     assert stage_service.calls[0]["assignee_type"] == "user"
-    assert stage_service.calls[1]["assignee_type"] == "ai"
+    assert stage_service.calls[1]["assignee_type"] == "openmates"
     assert [call["position"] for call in stage_service.calls] == [
         stage_service.calls[0]["position"],
         stage_service.calls[0]["position"] + 1,
@@ -100,6 +103,7 @@ async def test_task_create_returns_embed_ready_children_without_system_events() 
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 async def test_task_create_accepts_flat_single_task_arguments() -> None:
     stage_service = FakeTaskStageService()
 
@@ -126,10 +130,12 @@ async def test_task_create_accepts_flat_single_task_arguments() -> None:
             "assignee_type": "user",
             "status": "todo",
             "position": stage_service.calls[0]["position"],
+            "link_to_chat": True,
         }
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_task_create_multiple_tasks_stay_in_single_skill_payload() -> None:
     assert should_keep_tasks_create_payload_as_single_request(
         "tasks",
@@ -141,3 +147,14 @@ def test_task_create_multiple_tasks_stay_in_single_skill_payload() -> None:
         "search",
         {"query": ["one", "two"]},
     )
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=tasks.conversation.single-owner-claim
+async def test_native_creation_defaults_to_current_chat_and_accepts_explicit_unlinked() -> None:
+    stage = FakeTaskStageService()
+    response = await _skill().execute(tasks=[{"title": "Linked by default"}, {"title": "Capture for later", "link_to_chat": False}],
+        user_id="user-1", chat_id="chat-1", message_id="message-1", task_stage_service=stage)
+    assert response.success
+    assert [call["link_to_chat"] for call in stage.calls] == [True, False]
+    assert all(call["chat_id"] == "chat-1" for call in stage.calls), "Encryption delivery stays routed to the current chat"

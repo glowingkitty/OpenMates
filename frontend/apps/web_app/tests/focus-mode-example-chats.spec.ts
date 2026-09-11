@@ -43,12 +43,12 @@ test.describe('focus-mode example chat state', () => {
   test('does not leak an active focus pill into the Finance example chat', async ({ page }: { page: any }) => {
     test.setTimeout(60_000);
 
-    await page.goto(getE2EDebugUrl('/#chat-id=example-frontend-developer-career-pivot'), {
+    await page.goto(getE2EDebugUrl('/#chat-id=example-framework-store-reputation-check'), {
       waitUntil: 'domcontentloaded',
     });
-    await expect(page.getByTestId('message-assistant').filter({ hasText: 'career' }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('message-assistant').filter({ hasText: 'Framework' }).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('focus-pill')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId('focus-pill-label')).toContainText(/career/i);
+    await expect(page.getByTestId('focus-pill-label')).toContainText(/reputation/i);
 
     await navigateToFinanceExample(page);
     await expect(page).toHaveURL(/chat-id=example-finance-cash-flow-overview/, { timeout: 10_000 });

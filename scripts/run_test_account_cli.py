@@ -63,7 +63,7 @@ def main() -> int:
     if not helper_args:
         raise RuntimeError("Missing openmates_cli_test_account.mjs arguments")
 
-    owner = f"opencode-session-{args.session}"
+    owner = f"repository-session-{args.session}"
     lease_id, slot, resources = _acquire_account(owner, args.slot)
     stop = threading.Event()
 

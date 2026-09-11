@@ -10,9 +10,10 @@ import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
+from backend.core.api.app.services.directus.user_task_methods import TaskAlreadyLinkedError
 from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_task_ask_pipeline
 from backend.core.api.app.models.user import User
@@ -41,9 +42,10 @@ from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectS
 router = APIRouter(prefix="/v1/user-tasks", tags=["User Tasks"], dependencies=[Depends(ensure_tasks_enabled)])
 
 TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "done"]
-AssigneeType = Literal["ai", "user"]
+AssigneeType = Literal["user", "openmates", "external_ai", "unassigned"]
+AssigneeIdentity = Literal["openmates", "codex", "opencode"]
 KeyWrapperType = Literal["master", "chat", "project", "plan"]
-ExternalChatProvider = Literal["opencode"]
+ExternalChatProvider = Literal["codex", "opencode"]
 BlockedReasonCode = Literal[
     "needs_user_input",
     "waiting_for_approval",
@@ -81,6 +83,7 @@ class UserTaskCreateRequest(BaseModel):
     encrypted_latest_instruction: str | None = None
     status: TaskStatus = "todo"
     assignee_type: AssigneeType = "user"
+    assignee_identity: AssigneeIdentity | None = None
     assignee_hash: str | None = None
     primary_chat_id: str | None = None
     external_chat_provider: ExternalChatProvider | None = None
@@ -107,6 +110,11 @@ class UserTaskCreateRequest(BaseModel):
     plaintext_project_context: str | None = None
     key_wrappers: list[UserTaskKeyWrapperRequest] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def validate_assignment(self) -> "UserTaskCreateRequest":
+        _validate_assignment_fields(self.assignee_type, self.assignee_identity, self.assignee_hash)
+        return self
+
 
 class UserTaskUpdateRequest(BaseModel):
     encrypted_title: str | None = None
@@ -122,6 +130,7 @@ class UserTaskUpdateRequest(BaseModel):
     encrypted_latest_instruction: str | None = None
     status: TaskStatus | None = None
     assignee_type: AssigneeType | None = None
+    assignee_identity: AssigneeIdentity | None = None
     assignee_hash: str | None = None
     primary_chat_id: str | None = None
     external_chat_provider: ExternalChatProvider | None = None
@@ -142,6 +151,14 @@ class UserTaskUpdateRequest(BaseModel):
     updated_at: int | None = None
     version: int
     key_wrappers: list[UserTaskKeyWrapperRequest] | None = None
+
+    @model_validator(mode="after")
+    def validate_assignment(self) -> "UserTaskUpdateRequest":
+        if self.assignee_type is not None:
+            _validate_assignment_fields(self.assignee_type, self.assignee_identity, self.assignee_hash)
+        elif self.assignee_identity is not None:
+            raise ValueError("Task assignee identity requires assignee type")
+        return self
 
 
 class UserTaskMoveRequest(BaseModel):
@@ -210,11 +227,24 @@ class UserTaskActivityCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     entry_id: str = Field(min_length=1)
-    encrypted_entry_key: str = Field(min_length=1)
     encrypted_message: str = Field(min_length=1)
     encrypted_embed_key_material: str | None = None
     embed_refs: list[str] = Field(default_factory=list)
     created_at: int
+
+
+def _validate_assignment_fields(
+    assignee_type: AssigneeType,
+    assignee_identity: AssigneeIdentity | None,
+    assignee_hash: str | None,
+) -> None:
+    allowed_identities = {"openmates": {"openmates"}, "external_ai": {"codex", "opencode"}}.get(assignee_type)
+    if allowed_identities is not None and assignee_identity not in allowed_identities:
+        raise ValueError(f"Task {assignee_type} assignment requires an allowed identity")
+    if assignee_type in {"user", "unassigned"} and assignee_identity is not None:
+        raise ValueError(f"Task {assignee_type} assignment cannot have an AI identity")
+    if assignee_type != "user" and assignee_hash is not None:
+        raise ValueError(f"Task {assignee_type} assignment cannot have a user hash")
 
 
 class WorkDependencyRequest(BaseModel):
@@ -325,6 +355,8 @@ async def _require_task_team_role(request: Request, user_id: str, team_id: str |
 def _handle_task_error(exc: Exception) -> None:
     if isinstance(exc, TeamPermissionError):
         raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    if isinstance(exc, TaskAlreadyLinkedError):
+        raise HTTPException(status_code=409, detail="TASK_ALREADY_LINKED") from exc
     if isinstance(exc, UserTaskConflictError):
         raise HTTPException(status_code=409, detail="TASK_VERSION_CONFLICT") from exc
     if isinstance(exc, DuplicateObjectSlugError):
@@ -352,6 +384,38 @@ def _request_header(request: Request, name: str) -> str:
     return ""
 
 
+def _task_external_actor(request: Request) -> str | None:
+    """Validate an authenticated CLI creator declaration, not process attestation.
+
+    The creation route also rechecks the paired-session user. Assignment or
+    encrypted context alone never establishes creator provenance.
+    """
+    creator = _request_header(request, "X-OpenMates-Task-Creator")
+    if not creator:
+        return None
+    if creator != "codex":
+        raise HTTPException(status_code=400, detail="TASK_CREATOR_INVALID")
+    source = derive_task_activity_source_surface(request)
+    if derive_task_activity_actor_mode(request, source) != "assignee":
+        raise HTTPException(status_code=403, detail="TASK_CREATOR_CLI_REQUIRED")
+    return creator
+
+
+async def _require_external_assignment_eligibility(methods, user_id: str, patch: dict, before: dict | None = None) -> None:
+    """Require actual creator eligibility for every new external identity.
+
+    Shared by direct and encrypted ask mutations so the alternate route cannot
+    bypass eligibility. Keeping an assignment never grants creator provenance.
+    """
+    previous = before or {}
+    assignment = (patch.get("assignee_type", previous.get("assignee_type")),
+                  patch.get("assignee_identity", previous.get("assignee_identity")))
+    if assignment[0] != "external_ai" or assignment == (previous.get("assignee_type"), previous.get("assignee_identity")):
+        return
+    if assignment[1] not in await methods.eligible_external_ai(user_id):
+        raise HTTPException(status_code=403, detail="TASK_EXTERNAL_AI_NOT_ELIGIBLE")
+
+
 def derive_task_activity_source_surface(request: Request) -> str:
     """Derive durable attribution from authenticated first-party client headers."""
 
@@ -368,6 +432,17 @@ def derive_task_activity_source_surface(request: Request) -> str:
     return mapped
 
 
+def derive_task_activity_actor_mode(request: Request, source_surface: str) -> str:
+    """Allow the trusted CLI bridge to act as the Task's named assignee."""
+
+    mode = _request_header(request, "X-OpenMates-Task-Actor") or "user"
+    if mode not in {"user", "assignee"}:
+        raise HTTPException(status_code=400, detail="TASK_ACTIVITY_ACTOR_INVALID")
+    if mode == "assignee" and source_surface != "cli":
+        raise HTTPException(status_code=403, detail="TASK_ACTIVITY_ASSIGNEE_CLIENT_REQUIRED")
+    return mode
+
+
 def _task_activity_response(entry: dict[str, Any]) -> dict[str, Any]:
     allowed = {
         "entry_id",
@@ -377,13 +452,15 @@ def _task_activity_response(entry: dict[str, Any]) -> dict[str, Any]:
         "actor_hash",
         "actor_display_name",
         "actor_profile_image_url",
+        "actor_identity",
         "event_type",
         "source_surface",
+        "previous_status",
+        "next_status",
         "created_at",
         "deleted_at",
         "deleted_by_hash",
         "deleted_by_display_name",
-        "encrypted_entry_key",
         "encrypted_message",
         "encrypted_embed_key_material",
         "embed_refs",
@@ -515,6 +592,7 @@ async def list_user_tasks(
             team_id=team_id,
             limit=limit,
         )
+        eligible = await service.task_methods.eligible_external_ai(current_user.id)
     except Exception as exc:
         _handle_task_error(exc)
     projections = []
@@ -522,7 +600,7 @@ async def list_user_tasks(
         projections = await run_in_threadpool(workflow_projection_service.list_projections, current_user.id)
         if status is not None:
             projections = [projection for projection in projections if projection.status == status]
-    return {"tasks": tasks + [projection.model_dump(mode="json") for projection in projections]}
+    return {"tasks": tasks + [projection.model_dump(mode="json") for projection in projections], "eligible_external_ai": eligible}
 
 
 @router.post("")
@@ -536,9 +614,25 @@ async def create_user_task(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        if body.plan_id and body.assignee_type == "ai":
+        creator = _task_external_actor(request)
+        if creator:
+            session_user = await _current_session_user(request, response)
+            if session_user.id != current_user.id:
+                raise HTTPException(status_code=403, detail="TASK_CREATOR_SESSION_REQUIRED")
+            if body.external_chat_provider != creator:
+                raise HTTPException(status_code=400, detail="TASK_CREATOR_CONTEXT_REQUIRED")
+        if not creator:
+            await _require_external_assignment_eligibility(service.task_methods, current_user.id, body.model_dump())
+        if body.plan_id and body.assignee_type == "openmates":
             await _ensure_linked_plan_execution(request, current_user.id, body.model_dump())
         task = await service.create_task(current_user.id, body.model_dump())
+        if creator:
+            try:
+                await service.task_methods.record_external_creation(current_user.id, task, creator)
+            except Exception:
+                if not await service.task_methods.delete_task(task["task_id"], current_user.id, task["version"]):
+                    raise RuntimeError("Task creator registration and rollback failed; inspect before retrying")
+                raise
         if task.get("plan_id"):
             try:
                 await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
@@ -616,7 +710,8 @@ async def ask_user_tasks(
         action_type = "ask_create"
         summary = ""
         for encrypted_create in encrypted_creates:
-            if encrypted_create.plan_id and encrypted_create.assignee_type == "ai":
+            await _require_external_assignment_eligibility(service.task_methods, current_user.id, encrypted_create.model_dump())
+            if encrypted_create.plan_id and encrypted_create.assignee_type == "openmates":
                 await _ensure_linked_plan_execution(request, current_user.id, encrypted_create.model_dump())
             task = await service.create_task(current_user.id, encrypted_create.model_dump())
             if task.get("plan_id"):
@@ -634,6 +729,7 @@ async def ask_user_tasks(
         for encrypted_update in encrypted_updates:
             patch = encrypted_update.patch.model_dump(exclude_unset=True)
             before = await service.task_methods.get_task(encrypted_update.task_id, current_user.id)
+            await _require_external_assignment_eligibility(service.task_methods, current_user.id, patch, before)
             task = await service.update_task(encrypted_update.task_id, current_user.id, patch)
             if "plan_id" in patch:
                 await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
@@ -689,6 +785,29 @@ async def ask_user_tasks(
         _handle_task_error(exc)
 
 
+class ExternalTaskChatDeletedRequest(BaseModel):
+    external_chat_lookup_hash: str = Field(pattern="^[a-f0-9]{64}$")
+    event_id: str = Field(pattern="^[a-f0-9]{64}$")
+    team_id: str | None = None
+
+
+@router.post("/external-chat-deleted")
+@limiter.limit("30/minute")
+async def external_task_chat_deleted(request: Request, response: Response, body: ExternalTaskChatDeletedRequest) -> dict[str, Any]:
+    """Paired-session-only deletion receipt; opaque chat index, no credits.
+
+    The local Codex adapter may submit this only after a confirmed runtime delete
+    notification. It cannot use absence from listings as deletion evidence.
+    """
+    current_user = await _current_session_user(request, response)
+    await _require_task_team_role(request, current_user.id, body.team_id)
+    try:
+        return await request.app.state.project_task_sync.unlink_deleted_external_chat(
+            current_user.id, body.external_chat_lookup_hash, body.event_id, body.team_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="TASK_CHAT_DELETION_DEFERRED") from exc
+
+
 @router.get("/{task_id}/history")
 @limiter.limit("60/minute")
 async def list_user_task_history(
@@ -712,6 +831,7 @@ async def list_user_task_activity(
     team_id: str | None = Query(default=None),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
+    newest_first: bool = Query(default=False),
     service: UserTaskService = Depends(get_user_task_service),
 ) -> dict[str, Any]:
     """First-party ciphertext read; Task authorization applies, no credits."""
@@ -720,6 +840,7 @@ async def list_user_task_activity(
     team_id = _unwrap_query_default(team_id)
     cursor = _unwrap_query_default(cursor)
     limit = int(_unwrap_query_default(limit))
+    newest_first = bool(_unwrap_query_default(newest_first))
     try:
         if team_id:
             await request.app.state.directus_service.team.require_team_role(
@@ -731,6 +852,7 @@ async def list_user_task_activity(
             team_id=team_id,
             cursor=cursor,
             limit=limit + 1,
+            newest_first=newest_first,
         )
         visible = entries[:limit]
         return {
@@ -760,12 +882,15 @@ async def create_user_task_activity(
             await request.app.state.directus_service.team.require_team_role(
                 team_id, current_user.id, {"owner", "admin", "member"}
             )
+        source_surface = derive_task_activity_source_surface(request)
         entry = await service.create_task_activity(
             task_id,
             current_user.id,
             payload=body.model_dump(),
             team_id=team_id,
-            source_surface=derive_task_activity_source_surface(request),
+            source_surface=source_surface,
+            actor_mode=derive_task_activity_actor_mode(request, source_surface),
+            expected_external_chat_lookup_hash=request.headers.get("x-openmates-task-owner") or None,
             actor_display_name=getattr(current_user, "username", None),
             actor_profile_image_url=getattr(current_user, "profile_image_url", None),
         )
@@ -833,6 +958,33 @@ async def restore_user_task_from_history(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@router.get("/{task_id}")
+@limiter.limit("120/minute")
+async def get_user_task(
+    request: Request,
+    response: Response,
+    task_id: str,
+    team_id: str | None = Query(default=None),
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    """Existing authenticated Task access; encrypted single-record read, no credits.
+
+    First-party session/device read; this new encrypted surface does not add developer API-key access.
+    Team membership is checked before lookup; a missing or inaccessible ID is 404.
+    """
+    current_user = await _current_session_user(request, response)
+    team_id = _unwrap_query_default(team_id)
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        task = await service.task_methods.get_task(task_id, current_user.id, team_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="TASK_NOT_FOUND")
+        return {"task": task}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
 @router.patch("/{task_id}")
 @limiter.limit("30/minute")
 async def update_user_task(
@@ -850,6 +1002,7 @@ async def update_user_task(
         await _require_task_team_role(request, current_user.id, team_id)
         before = await service.task_methods.get_task(task_id, current_user.id, team_id)
         patch = body.model_dump(exclude_unset=True)
+        await _require_external_assignment_eligibility(service.task_methods, current_user.id, patch, before)
         task = await service.update_task(
             task_id,
             current_user.id,

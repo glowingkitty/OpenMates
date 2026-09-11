@@ -22,6 +22,12 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  /** Stored news children can have only Brave's resized thumbnail URL. */
+  sourceThumbnailOnly: {
+    ...defaultProps,
+    thumbnail: undefined,
+    thumbnail_src: '/images/og-image.jpg',
+  },
   /** With navigation arrows */
   withNavigation: {
     ...defaultProps,

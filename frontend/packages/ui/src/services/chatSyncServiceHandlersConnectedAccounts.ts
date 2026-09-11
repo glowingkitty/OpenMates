@@ -288,18 +288,20 @@ function clearConnectedAccountProcessingState(
 	}
 
 	const taskInfo = serviceInstance.activeAITasks.get(chatId);
-	if (taskInfo) {
+	const taskMatchesPermissionRequest = taskInfo?.userMessageId === messageId;
+	if (taskMatchesPermissionRequest) {
 		serviceInstance.activeAITasks.delete(chatId);
-		serviceInstance.dispatchEvent(
-			new CustomEvent('aiTaskEnded', {
-				detail: {
-					chatId,
-					taskId: taskInfo.taskId,
-					status: 'waiting_for_connected_account_permission'
-				}
-			})
-		);
 	}
+	serviceInstance.dispatchEvent(
+		new CustomEvent('aiTaskEnded', {
+			detail: {
+				chatId,
+				taskId: taskMatchesPermissionRequest ? taskInfo.taskId : undefined,
+				userMessageId: messageId,
+				status: 'waiting_for_connected_account_permission'
+			}
+		})
+	);
 
 	if (messageId) {
 		chatDB.updateMessageStatus(messageId, 'waiting_for_user').catch((error) => {

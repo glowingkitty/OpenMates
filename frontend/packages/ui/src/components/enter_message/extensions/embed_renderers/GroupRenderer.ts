@@ -1,6 +1,8 @@
 // Generic group renderer - handles any '*-group' embed types
 // Uses the group handler system to render groups dynamically
 
+import EmbedsMapView from "../../../embeds/EmbedsMapView.svelte";
+import { isResultsViewLanguage, parseEmbedsMapViewBlock } from "../../../../message_parsing/embedParsing";
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import { groupHandlerRegistry } from "../../../../message_parsing/groupHandlers";
@@ -23,7 +25,7 @@ import {
   downloadCodeFilesAsZip,
   type CodeFileData,
 } from "../../../../services/zipExportService";
-import { mount, unmount } from "svelte";
+import { mount, unmount, disposeEmbedTree } from "./mountedEmbedLifecycle";
 import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte";
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
@@ -118,6 +120,41 @@ import { normalizeNotebookContent, notebookTitle, sourceToText } from "../../../
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 const scrollIndicatorCleanups = new WeakMap<HTMLElement, () => void>();
+const verticalWheelTargets = new WeakSet<HTMLElement>();
+const WHEEL_LINE_HEIGHT_PX = 16;
+
+/**
+ * Safari can retain vertical wheel input on an overflow-x scroller whose
+ * overflow-y is hidden. Forward only vertical gestures to a scrollable parent.
+ * Horizontal/shift-wheel and pinch zoom retain their native browser behavior.
+ */
+function forwardGroupVerticalWheel(event: WheelEvent): void {
+  if (event.defaultPrevented || event.ctrlKey || event.shiftKey ||
+      Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  const group = event.currentTarget as HTMLElement;
+  const canScroll = (node: HTMLElement) => {
+    const overflow = getComputedStyle(node).overflowY;
+    return (overflow === "auto" || overflow === "scroll") &&
+      node.scrollHeight > node.clientHeight + 1 &&
+      (event.deltaY < 0 ? node.scrollTop > 0 :
+        node.scrollTop + node.clientHeight < node.scrollHeight - 1);
+  };
+  // Respect vertically scrollable cards and the mobile column layout.
+  let node = event.target instanceof HTMLElement ? event.target : null;
+  while (node && group.contains(node)) {
+    if (canScroll(node)) return;
+    node = node.parentElement;
+  }
+  for (node = group.parentElement; node; node = node.parentElement) {
+    if (!canScroll(node)) continue;
+    const unit = event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? node.clientHeight :
+      event.deltaMode === WheelEvent.DOM_DELTA_LINE ? WHEEL_LINE_HEIGHT_PX : 1;
+    event.preventDefault();
+    node.scrollBy({ top: event.deltaY * unit, behavior: "instant" });
+    return;
+  }
+}
+
 const INDICATOR_VISIBLE_RATIO = 0.12;
 const INDICATOR_VISIBILITY_TOLERANCE_PX = 1;
 const INTERACTIVE_QUESTION_LANGUAGE = "interactive_question";
@@ -672,6 +709,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = itemHtml;
       this.appendLearningModeShortenedNotice(content, decodedContent);
       return;
@@ -701,6 +739,7 @@ export class GroupRenderer implements EmbedRenderer {
       );
       console.error("[GroupRenderer] Full attrs object:", attrs);
       console.error("[GroupRenderer] groupedItems value:", groupedItems);
+      disposeEmbedTree(content, false);
       content.innerHTML =
         '<div class="error">Error: No grouped items found</div>';
       return;
@@ -797,6 +836,7 @@ export class GroupRenderer implements EmbedRenderer {
     `;
 
     console.debug("[GroupRenderer] Final HTML:", finalHtml);
+    disposeEmbedTree(content, false);
     content.innerHTML = finalHtml;
     const groupWrapper = content.querySelector<HTMLElement>(
       `.${CSS.escape(baseType)}-preview-group`,
@@ -1033,6 +1073,10 @@ export class GroupRenderer implements EmbedRenderer {
     groupWrapper: HTMLElement,
     scrollContainer: HTMLElement,
   ): void {
+    if (!verticalWheelTargets.has(scrollContainer)) {
+      scrollContainer.addEventListener("wheel", forwardGroupVerticalWheel, { passive: false });
+      verticalWheelTargets.add(scrollContainer);
+    }
     const explicitItems = Array.from(
       scrollContainer.querySelectorAll<HTMLElement>(".embed-group-item"),
     );
@@ -1505,6 +1549,7 @@ export class GroupRenderer implements EmbedRenderer {
     this.unmountMountedComponentsInSubtree(content);
 
     // Build group DOM (avoid innerHTML for item rendering so we can mount Svelte components)
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     const groupWrapper = document.createElement("div");
@@ -1676,6 +1721,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(target, false);
     target.innerHTML = "";
 
     const fullscreenContent = {
@@ -2933,6 +2979,8 @@ export class GroupRenderer implements EmbedRenderer {
         // ignore
       }
 
+      disposeEmbedTree(target, false);
+
       target.innerHTML = "";
 
       const s3Files = uploadContent.files as
@@ -3111,6 +3159,7 @@ export class GroupRenderer implements EmbedRenderer {
     this.unmountMountedComponentsInSubtree(content);
 
     // Build group DOM (avoid innerHTML for item rendering so we can mount Svelte components)
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     const groupWrapper = document.createElement("div");
@@ -3194,6 +3243,7 @@ export class GroupRenderer implements EmbedRenderer {
     if (updated) return;
 
     this.unmountMountedComponentsInSubtree(content);
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     const groupWrapper = document.createElement("div");
@@ -3322,6 +3372,7 @@ export class GroupRenderer implements EmbedRenderer {
     this.unmountMountedComponentsInSubtree(content);
 
     // Build group DOM
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     const groupWrapper = document.createElement("div");
@@ -3417,6 +3468,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(target, false);
     target.innerHTML = "";
 
     const handleFullscreen = () => {
@@ -3473,6 +3525,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(target, false);
       target.innerHTML = fallbackHtml;
       this.appendLearningModeShortenedNotice(target, decodedContent);
     }
@@ -3536,6 +3589,8 @@ export class GroupRenderer implements EmbedRenderer {
       codeContent = decodedContent?.code || "";
     }
 
+    if (this.renderResultsViewCode(language, codeContent, target)) return;
+
     // Determine status
     const status = (decodedContent?.status ||
       embedData?.status ||
@@ -3552,6 +3607,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(target, false);
     target.innerHTML = "";
 
     const handleFullscreen = () => {
@@ -3598,6 +3654,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(target, false);
       target.innerHTML = fallbackHtml;
       this.appendLearningModeShortenedNotice(target, decodedContent);
     }
@@ -3640,6 +3697,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(target, false);
     target.innerHTML = "";
 
     try {
@@ -3664,6 +3722,7 @@ export class GroupRenderer implements EmbedRenderer {
     } catch (error) {
       console.error("[GroupRenderer] Error mounting NotebookEmbedPreview component:", error);
       const fallbackHtml = await this.renderNotebookItem(item, resolvedEmbedData, resolvedContent);
+      disposeEmbedTree(target, false);
       target.innerHTML = fallbackHtml;
       this.appendLearningModeShortenedNotice(target, resolvedContent);
     }
@@ -3706,6 +3765,7 @@ export class GroupRenderer implements EmbedRenderer {
     const embedId = item.contentRef?.replace("embed:", "") || "";
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Mount the Svelte component
@@ -3784,6 +3844,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = fallbackHtml;
     }
   }
@@ -3798,6 +3859,8 @@ export class GroupRenderer implements EmbedRenderer {
     const embedId = item.contentRef?.replace("embed:", "") || "";
     const hasResolvedData = decodedContent && (decodedContent.url || decodedContent.full_name);
     const status = hasResolvedData ? "finished" : item.status || "processing";
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
     try {
@@ -3827,6 +3890,7 @@ export class GroupRenderer implements EmbedRenderer {
       mountedComponents.set(content, component);
     } catch (error) {
       console.error("[GroupRenderer] Error mounting CodeRepoEmbedPreview component:", error);
+      disposeEmbedTree(content, false);
       content.innerHTML = await this.renderCodeRepoItem(item, embedData, decodedContent);
     }
   }
@@ -3969,6 +4033,7 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Mount the Svelte component
@@ -4100,6 +4165,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = fallbackHtml;
     }
   }
@@ -4119,6 +4185,25 @@ export class GroupRenderer implements EmbedRenderer {
    * Render code embed using Svelte component
    * Uses CodeEmbedPreview for consistent sizing (300x200px desktop, 150x290px mobile)
    */
+  /** Older saved protocol blocks can arrive as code embeds. Never show code chrome. */
+  private renderResultsViewCode(language: string, code: string, target: HTMLElement): boolean {
+    if (!isResultsViewLanguage(language)) return false;
+    const existing = mountedComponents.get(target);
+    if (existing) unmount(existing);
+    disposeEmbedTree(target, false);
+    target.innerHTML = "";
+    const descriptor = parseEmbedsMapViewBlock(code);
+    const component = mount(EmbedsMapView, { target, props: {
+      id: descriptor.id,
+      title: descriptor.title || "Results view",
+      embedRefs: descriptor.mapEmbedRefs || [],
+      sourceRefs: descriptor.mapSourceRefs || [],
+      highlightRefs: descriptor.mapHighlightRefs || [],
+    }});
+    mountedComponents.set(target, component);
+    return true;
+  }
+
   private async renderCodeComponent(
     item: EmbedNodeAttributes,
     embedData: EmbedData | null = null,
@@ -4143,6 +4228,8 @@ export class GroupRenderer implements EmbedRenderer {
       // Real embed - code comes from decodedContent (loaded from EmbedStore)
       codeContent = decodedContent?.code || "";
     }
+
+    if (this.renderResultsViewCode(language, codeContent, content)) return;
 
     if (normalizedLanguage(language) === INTERACTIVE_QUESTION_LANGUAGE) {
       const payload = parseInteractiveQuestionPayloadCandidate(decodedContent?.code) ||
@@ -4182,6 +4269,7 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Mount the Svelte component
@@ -4226,6 +4314,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = fallbackHtml;
     }
   }
@@ -4242,6 +4331,8 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
     const component = mount(InteractiveQuestionContainer, {
@@ -4289,6 +4380,8 @@ export class GroupRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -4334,6 +4427,7 @@ export class GroupRenderer implements EmbedRenderer {
         "[GroupRenderer] Error mounting ApplicationEmbedPreview component:",
         error,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = await this.renderApplicationItem(
         item,
         embedData,
@@ -4384,6 +4478,7 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Mount the Svelte component
@@ -4438,6 +4533,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = fallbackHtml;
     }
   }
@@ -4489,6 +4585,7 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Mount the Svelte component
@@ -4540,6 +4637,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = fallbackHtml;
     }
   }
@@ -4572,6 +4670,7 @@ export class GroupRenderer implements EmbedRenderer {
     this.unmountMountedComponentsInSubtree(content);
 
     // Build group DOM
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     const groupWrapper = document.createElement("div");
@@ -4673,6 +4772,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(target, false);
     target.innerHTML = "";
 
     const handleFullscreen = () => {
@@ -4726,6 +4826,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(target, false);
       target.innerHTML = fallbackHtml;
       this.appendLearningModeShortenedNotice(target, decodedContent);
     }
@@ -4963,6 +5064,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     try {
@@ -5002,6 +5104,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = fallbackHtml;
     }
   }
@@ -5027,6 +5130,7 @@ export class GroupRenderer implements EmbedRenderer {
     if (updated) return;
 
     this.unmountMountedComponentsInSubtree(content);
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     const groupWrapper = document.createElement("div");
@@ -5106,6 +5210,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(target, false);
     target.innerHTML = "";
 
     const handleFullscreen = () => {
@@ -5142,6 +5247,7 @@ export class GroupRenderer implements EmbedRenderer {
         "[GroupRenderer] Error mounting MailEmbedPreview in group:",
         error,
       );
+      disposeEmbedTree(target, false);
       target.innerHTML = `<div style="padding:8px;font-size:12px;color:var(--color-grey-50)">Mail embed unavailable</div>`;
     }
   }
@@ -5239,6 +5345,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Guard: target element must be attached to the DOM before mounting a Svelte component.
@@ -5298,6 +5405,7 @@ export class GroupRenderer implements EmbedRenderer {
           embedData,
           decodedContent,
         );
+        disposeEmbedTree(content, false);
         content.innerHTML = fallbackHtml;
       }
     }
@@ -5378,6 +5486,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -5439,6 +5548,7 @@ export class GroupRenderer implements EmbedRenderer {
           embedData,
           decodedContent,
         );
+        disposeEmbedTree(content, false);
         content.innerHTML = fallbackHtml;
       }
     }
@@ -5526,6 +5636,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -5537,6 +5648,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (status === "processing") {
       // Show plain HTML skeleton while loading — EventEmbedPreview requires a full EventResult
+      disposeEmbedTree(content, false);
       content.innerHTML = await this.renderEventItem(
         item,
         embedData,
@@ -5572,6 +5684,7 @@ export class GroupRenderer implements EmbedRenderer {
         err?.stack,
       );
       if (content.isConnected) {
+        disposeEmbedTree(content, false);
         content.innerHTML = await this.renderEventItem(
           item,
           embedData,
@@ -5631,6 +5744,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -5657,6 +5771,7 @@ export class GroupRenderer implements EmbedRenderer {
     } catch (error) {
       console.error("[GroupRenderer] Error mounting FitnessResultEmbedPreview:", error);
       if (content.isConnected) {
+        disposeEmbedTree(content, false);
         content.innerHTML = await this.renderFitnessResultItem(
           item,
           embedData,
@@ -5741,6 +5856,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -5784,6 +5900,7 @@ export class GroupRenderer implements EmbedRenderer {
         err?.stack,
       );
       if (content.isConnected) {
+        disposeEmbedTree(content, false);
         content.innerHTML = await this.renderMapsPlaceItem(
           item,
           embedData,
@@ -5860,6 +5977,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -5904,6 +6022,7 @@ export class GroupRenderer implements EmbedRenderer {
         err?.stack,
       );
       if (content.isConnected) {
+        disposeEmbedTree(content, false);
         content.innerHTML = await this.renderImageResultItem(
           item,
           embedData,
@@ -5957,6 +6076,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -6005,6 +6125,7 @@ export class GroupRenderer implements EmbedRenderer {
         err?.stack,
       );
       if (content.isConnected) {
+        disposeEmbedTree(content, false);
         content.innerHTML = await this.renderModel3DResultItem(
           item,
           embedData,
@@ -6055,6 +6176,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -6104,6 +6226,7 @@ export class GroupRenderer implements EmbedRenderer {
         err?.stack,
       );
       if (content.isConnected) {
+        disposeEmbedTree(content, false);
         content.innerHTML = await this.renderBusinessCompanyFinancialResultItem(
           item,
           embedData,
@@ -6197,6 +6320,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -6207,6 +6331,7 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     if (status === "processing") {
+      disposeEmbedTree(content, false);
       content.innerHTML = await this.renderHealthAppointmentItem(
         item,
         embedData,
@@ -6250,6 +6375,7 @@ export class GroupRenderer implements EmbedRenderer {
         err?.stack,
       );
       if (content.isConnected) {
+        disposeEmbedTree(content, false);
         content.innerHTML = await this.renderHealthAppointmentItem(
           item,
           embedData,
@@ -6303,6 +6429,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -6345,6 +6472,7 @@ export class GroupRenderer implements EmbedRenderer {
         "[GroupRenderer] Failed to mount HomeListingEmbedPreview:",
         err,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = await this.renderHomeListingItem(
         item,
         embedData,
@@ -6373,6 +6501,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -6438,6 +6567,7 @@ export class GroupRenderer implements EmbedRenderer {
         "[GroupRenderer] Failed to mount ShoppingResultEmbedPreview:",
         err,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Product preview unavailable</div>`;
     }
   }
@@ -6467,6 +6597,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -6507,6 +6638,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = fallbackHtml;
     }
   }
@@ -6535,6 +6667,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -6575,6 +6708,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = fallbackHtml;
     }
   }
@@ -6603,6 +6737,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -6642,6 +6777,7 @@ export class GroupRenderer implements EmbedRenderer {
         embedData,
         decodedContent,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = fallbackHtml;
     }
   }
@@ -6665,6 +6801,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -6718,6 +6855,7 @@ export class GroupRenderer implements EmbedRenderer {
         "[GroupRenderer] Failed to mount ElectronicsComponentEmbedPreview:",
         err,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Component preview unavailable</div>`;
     }
   }
@@ -6741,6 +6879,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -6782,6 +6921,7 @@ export class GroupRenderer implements EmbedRenderer {
         "[GroupRenderer] Failed to mount DesignIconResultEmbedPreview:",
         err,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = await this.renderDesignIconResultItem(
         item,
         embedData,
@@ -7002,6 +7142,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -7054,6 +7195,7 @@ export class GroupRenderer implements EmbedRenderer {
         "[GroupRenderer] Failed to mount NutritionRecipeEmbedPreview:",
         err,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Recipe preview unavailable</div>`;
     }
   }
@@ -7105,6 +7247,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -7150,6 +7293,7 @@ export class GroupRenderer implements EmbedRenderer {
         "[GroupRenderer] Failed to mount WeatherDayEmbedPreview:",
         err,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Weather preview unavailable</div>`;
     }
   }
@@ -7173,6 +7317,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -7203,6 +7348,7 @@ export class GroupRenderer implements EmbedRenderer {
       mountedComponents.set(content, component);
     } catch (err) {
       console.error("[GroupRenderer] Failed to mount TaskEmbedPreview:", err);
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Task preview unavailable</div>`;
     }
   }
@@ -7226,6 +7372,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -7256,6 +7403,7 @@ export class GroupRenderer implements EmbedRenderer {
       mountedComponents.set(content, component);
     } catch (err) {
       console.error("[GroupRenderer] Failed to mount WorkflowEmbedPreview:", err);
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Workflow preview unavailable</div>`;
     }
   }
@@ -7308,6 +7456,7 @@ export class GroupRenderer implements EmbedRenderer {
         console.warn("[GroupRenderer] Error unmounting existing component:", e);
       }
     }
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     if (!content.isConnected) {
@@ -7354,6 +7503,7 @@ export class GroupRenderer implements EmbedRenderer {
         "[GroupRenderer] Failed to mount SocialMediaPostEmbedPreview:",
         err,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Social post preview unavailable</div>`;
     }
   }
@@ -7393,6 +7543,7 @@ export class GroupRenderer implements EmbedRenderer {
     const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) await unmount(existingComponent);
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
     if (!content.isConnected) return;
 

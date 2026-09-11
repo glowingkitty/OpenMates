@@ -163,6 +163,7 @@ export const MODEL_ALIASES: Record<string, string> = {
  * NOTE: When modelsMetadata.ts changes, update this list.
  */
 export const CHAT_MODELS: ModelInfo[] = [
+  { id: "claude-fable-5-1", name: "Claude Fable 5.1" },
   { id: "claude-fable-5", name: "Claude Fable 5" },
   { id: "claude-opus-5", name: "Claude Opus 5" },
   { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
