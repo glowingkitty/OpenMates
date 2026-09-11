@@ -62,4 +62,5 @@ test('result views hide invalid sources and render date-only calendar entries', 
   await expect(page.getByTestId('embeds-results-view-calendar-date-only')).toContainText('Date-only event');
   await expect(page.getByTestId('embeds-map-view-map')).toHaveCount(0);
   await expect(page.getByTestId('embeds-results-view-calendar-item')).toHaveCount(0);
+  await expect(page.locator('.calendar-time-column, .calendar-items')).toHaveCount(0);
 });

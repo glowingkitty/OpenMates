@@ -351,6 +351,8 @@ describe("EmbedsMapView", () => {
       expect(target.querySelector('[data-testid="embeds-results-view-calendar-date-only"]')?.textContent).toContain('Date only');
       expect(target.querySelector('[data-testid="embeds-map-view-map"]')).toBeNull();
       expect(target.querySelector('[data-testid="embeds-results-view-calendar-item"]')).toBeNull();
+      expect(target.querySelector('.calendar-time-column')).toBeNull();
+      expect(target.querySelector('.calendar-items')).toBeNull();
     }
     unmount(component);
     target.remove();

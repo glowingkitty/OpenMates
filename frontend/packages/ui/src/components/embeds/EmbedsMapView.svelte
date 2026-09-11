@@ -251,6 +251,8 @@
   const activeCalendarWeekStart = $derived(calendarWeekStartOrdinal ?? firstCalendarWeekStart);
   const calendarWeekDays = $derived<CalendarWeekDay[]>(activeCalendarWeekStart == null ? [] : buildCalendarWeekDays(activeCalendarWeekStart, calendarEntries));
   const dateOnlyRowCount = $derived(Math.max(0, ...calendarWeekDays.map((day) => day.entries.filter((entry) => entry.dateOnly).length)));
+  const calendarWeekHasTimedEntries = $derived(calendarWeekDays.some((day) => day.entries.some((entry) => !entry.dateOnly)));
+  const calendarRowTemplate = $derived(['42px', ...(dateOnlyRowCount > 0 ? [`${dateOnlyRowCount * 4}rem`] : []), ...(calendarWeekHasTimedEntries ? ['calc(var(--calendar-hour-height) * 8)'] : [])].join(' '));
   const calendarTimelineStartMinutes = $derived.by(() => {
     if (calendarEntries.length === 0) return 0;
     const timed = calendarEntries.filter((entry) => !entry.dateOnly);
@@ -1704,7 +1706,7 @@
 
     <div class="results-view-pane" data-testid="embeds-results-view-pane" data-active-tab={selectedVisualTab}>
       {#if selectedVisualTab === 'calendar'}
-        <div class="results-view-calendar" data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
+        <div class="results-view-calendar" class:date-only={!calendarWeekHasTimedEntries} data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
           {#if activeCalendarWeekStart != null}
             <header class="calendar-week-toolbar">
               <button type="button" aria-label="Previous week" onclick={() => moveCalendarWeek(-1)}><span aria-hidden="true">&lt;</span></button>
@@ -1714,7 +1716,8 @@
               </strong>
               <button type="button" aria-label="Next week" onclick={() => moveCalendarWeek(1)}><span aria-hidden="true">&gt;</span></button>
             </header>
-            <div class="calendar-week" data-testid="embeds-results-view-calendar-week">
+            <div class="calendar-week" class:date-only={!calendarWeekHasTimedEntries} style={`--calendar-row-template: ${calendarRowTemplate}`} data-testid="embeds-results-view-calendar-week">
+              {#if calendarWeekHasTimedEntries}
               <div class="calendar-time-column" aria-hidden="true">
                 <span class="calendar-time-column-spacer"></span>
                 {#if dateOnlyRowCount > 0}<div style={`height: ${dateOnlyRowCount * 4}rem`}></div>{/if}
@@ -1724,6 +1727,7 @@
                   {/each}
                 </div>
               </div>
+              {/if}
               {#each calendarWeekDays as day}
                 <section class="calendar-day" class:today={day.isToday} data-testid="embeds-results-view-calendar-day">
                   <header class="calendar-day-header">
@@ -1739,6 +1743,7 @@
                       {/each}
                     </div>
                   {/if}
+                  {#if calendarWeekHasTimedEntries}
                   <div class="calendar-items">
                     {#each day.entries.filter((item) => !item.dateOnly) as item, itemIndex}
                       <button
@@ -1765,6 +1770,7 @@
                       </button>
                     {/each}
                   </div>
+                  {/if}
                 </section>
               {/each}
             </div>
@@ -2320,11 +2326,16 @@
     box-sizing: border-box;
     min-width: 0;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: auto;
     padding: 14px 14px 18px;
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--color-primary, #6c63ff) 8%, transparent), transparent 160px),
       var(--color-grey-20, #f3f3f3);
+  }
+
+  .results-view-calendar.date-only {
+    height: auto;
+    min-height: 0;
   }
 
   .calendar-week-toolbar {
@@ -2394,10 +2405,12 @@
     box-shadow: var(--shadow-xs, 0 2px 4px rgba(0, 0, 0, 0.1));
   }
 
+  .calendar-week.date-only { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+
   .calendar-time-column,
   .calendar-day {
     display: grid;
-    grid-template-rows: 42px calc(var(--calendar-hour-height) * 8);
+    grid-template-rows: var(--calendar-row-template);
     min-height: 0;
   }
 
