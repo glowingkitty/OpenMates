@@ -87,7 +87,8 @@ outcome, relevant verification and actual remaining work without fixed templates
 
 Rules in `.claude/rules/`: frontend, backend, debugging, embed, privacy, i18n,
 settings-ui, apple-ui. Use `DESIGN.md` for UI/design. Skills: `debug-issue` for
-reported issue IDs, `create-plan` for durable plans,
+reported issue IDs, `create-pr` when writing or updating PR descriptions,
+`create-plan` for durable plans,
 `add-api`/`add-app-skill`/`add-embed-type` for those additions, `add-example-chat`
 for examples, `ios` for Apple work, and `daily-meeting-and-orchestration` when
 requested. Keep issue findings private.
