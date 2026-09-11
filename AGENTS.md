@@ -252,7 +252,7 @@ Common routing:
 - New backend app skill: use `add-app-skill`.
 - New embed type: use `add-embed-type`.
 - New hardcoded example chat from a share URL: use `add-example-chat`.
-- User-visible bug with reproducible behavior: use `reproduce-first` before fix code.
+- For confirmed bugs, use the existing reproduction evidence and proceed with the fix; run relevant regression checks afterward. Do not require another failing baseline before implementation.
 - Latest failing tests or daily-run failures: use `fix-tests` or `fix-next-test`.
 - User-reported issue ID or debugging timeline: use `debug-issue`; for encryption/key/sync symptoms, use the encryption/debug specialist subagents from the available agent list.
 - Vercel deployment failure: use `fix-vercel`.
@@ -263,8 +263,8 @@ Common routing:
 
 If multiple skills apply, choose the earliest workflow gate first. For example,
 for a new provider-backed app skill, run `specify` or `add-api` research before
-scaffolding with `add-app-skill`; for a bug, reproduce with a failing test
-before implementation.
+scaffolding with `add-app-skill`. For a confirmed bug, preserve the existing
+evidence and verify the fix without a mandatory repeat reproduction gate.
 
 ### Reported Issue Workflow
 

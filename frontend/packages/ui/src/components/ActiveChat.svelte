@@ -21,6 +21,7 @@
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
     import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../types/embedFullscreen';
+    import EmbedTopBar from './embeds/EmbedTopBar.svelte';
     import { panelState } from '../stores/panelStateStore'; // Added import
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
@@ -641,6 +642,10 @@
     };
 
     type EmbedFullscreenState = {
+        /** A visible, cancellable shell while the parent embed resolves. */
+        isResolving?: boolean;
+        loadError?: boolean;
+        parentResolved?: boolean;
         embedId?: string | null;
         embedData?: EmbedDataRecord | null;
         decodedContent?: EmbedDecodedContent | null;
@@ -1469,6 +1474,7 @@
     // Add state for embed fullscreen
     let showEmbedFullscreen = $state(false);
     let embedFullscreenData = $state<EmbedFullscreenState>(null);
+    let fullscreenPanelEl: HTMLDivElement | undefined = $state();
 
     /**
      * Subscribe to the app-store skill example fullscreen store and mount
@@ -1750,6 +1756,24 @@
         const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange } = detail;
         const hasChatContext = detail.hasChatContext ?? (!showWelcome && !!currentChat?.chat_id);
 
+        // Ignore route echoes before starting another resolver or replacing the
+        // shell. Updates to the open embed arrive through its store subscription.
+        if (showEmbedFullscreen && embedFullscreenData?.embedId === embedId &&
+            (embedFullscreenData?.focusChildEmbedId ?? null) === (focusChildEmbedId ?? null) &&
+            (embedFullscreenData?.focusSheetRange ?? null) === (focusSheetRange ?? null) &&
+            JSON.stringify(embedFullscreenData?.focusLineRange ?? null) === JSON.stringify(focusLineRange ?? null)) return;
+
+        embedFullscreenData = {
+            embedId, embedData, decodedContent, embedType, attrs,
+            focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange,
+            hasChatContext, isResolving: true
+        };
+        const openingData = embedFullscreenData;
+        const openingChatId = currentChat?.chat_id;
+        const stillOpening = () => showEmbedFullscreen && embedFullscreenData === openingData && currentChat?.chat_id === openingChatId;
+        fullscreenHasChatContext = hasChatContext;
+        showEmbedFullscreen = true;
+
         // Close any open Wikipedia fullscreen first (mutual exclusivity — only one at a time)
         if (showWikiFullscreen) {
             showWikiFullscreen = false;
@@ -1784,13 +1808,16 @@
         // The event's embedData/decodedContent might be stale (captured at render time before skill results arrived).
         let finalEmbedData = embedData;
         let finalDecodedContent = decodedContent;
+        let parentResolved = false;
         
         if (embedId) {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
                 const freshEmbedData = await resolveEmbed(embedId) as EmbedResolverData | null;
+                if (!stillOpening()) return;
                 
                 if (freshEmbedData) {
+                    parentResolved = true;
                     // Use fresh data from EmbedStore
                     finalEmbedData = freshEmbedData;
                     
@@ -1868,9 +1895,10 @@
                     } else {
                     // Only error if we have no data at all (neither from EmbedStore nor from event)
                     console.error('[ActiveChat] Embed not found in EmbedStore and no fallback data:', embedId);
-                    // Clean up the URL hash that was set eagerly before async resolution —
-                    // without this, the URL shows #embed-id=xxx but no fullscreen renders.
-                    clearFullscreenRoute();
+                    if (stillOpening()) {
+                        openingData.isResolving = false;
+                        openingData.loadError = true;
+                    }
                     return;
                     }
                 }
@@ -1878,8 +1906,10 @@
                 console.error('[ActiveChat] Error loading embed for fullscreen:', error);
                 // Fall back to event data if available
                 if (!finalEmbedData && !finalDecodedContent) {
-                    // Clean up the URL hash — resolution failed and no fallback data exists
-                    clearFullscreenRoute();
+                    if (stillOpening()) {
+                        openingData.isResolving = false;
+                        openingData.loadError = true;
+                    }
                     return;
                 }
             }
@@ -1966,164 +1996,17 @@
             }
         }
         
-        // If we already have this embed open with the same child focus target, ignore duplicate
-        // events (e.g. hashchange deep-link echoes). But if focusChildEmbedId differs — meaning
-        // the user clicked a different inline badge that points to a different child result of the
-        // same parent embed — allow the update through so the fullscreen can switch to that child.
-        const alreadyOpenSameChild =
-            showEmbedFullscreen &&
-            embedFullscreenData?.embedId === embedId &&
-            embedFullscreenData?.embedType === resolvedEmbedType &&
-            (embedFullscreenData?.focusChildEmbedId ?? null) === (focusChildEmbedId ?? null) &&
-            (embedFullscreenData?.focusSheetRange ?? null) === (focusSheetRange ?? null) &&
-            JSON.stringify(embedFullscreenData?.focusLineRange ?? null) === JSON.stringify(focusLineRange ?? null);
-        if (alreadyOpenSameChild) {
-            console.debug('[ActiveChat] Ignoring duplicate embedfullscreen event for already-open embed:', {
-                embedId,
-                resolvedEmbedType,
-                focusChildEmbedId
+        if (!stillOpening()) return;
+
+        // Child results belong to the fullscreen loader. Start its code fetch
+        // alongside the lightweight pane entrance, without resolving children twice.
+        const componentKey = resolveRegistryKey(resolvedEmbedType || '', finalDecodedContent ?? undefined);
+        if (componentKey && hasFullscreenComponent(componentKey)) {
+            void loadFullscreenComponent(componentKey).catch((error) => {
+                console.error('[ActiveChat] Could not preload fullscreen component:', error);
             });
-            return;
         }
-        
-        // For web search embeds, load child website embeds and transform to results array
-        // This is needed because parent embed only contains embed_ids, not the actual website data
-        if (resolvedEmbedType === 'app-skill-use' && finalDecodedContent) {
-            const appId = finalDecodedContent.app_id || '';
-            const skillId = finalDecodedContent.skill_id || '';
-            
-            // embed_ids can be in decoded content OR in the embed data itself
-            // embed_ids may be a pipe-separated string OR an array - normalize to array
-            const rawEmbedIds = finalDecodedContent.embed_ids || finalEmbedData?.embed_ids || [];
-            const childEmbedIds: string[] = typeof rawEmbedIds === 'string' 
-                ? rawEmbedIds.split('|').filter((id: string) => id.length > 0)
-                : Array.isArray(rawEmbedIds) ? rawEmbedIds : [];
-            
-            // DEBUG: Log embed_ids discovery for composite embeds
-            console.debug('[ActiveChat] Checking embed_ids for composite embed:', {
-                appId,
-                skillId,
-                decodedContentEmbedIds: finalDecodedContent.embed_ids,
-                embedDataEmbedIds: finalEmbedData?.embed_ids,
-                rawEmbedIds,
-                childEmbedIds,
-                childEmbedIdsCount: childEmbedIds.length
-            });
-            
-            if (appId === 'web' && skillId === 'search' && childEmbedIds.length > 0) {
-console.debug('[ActiveChat] Loading child website embeds for web search fullscreen:', childEmbedIds);
-                try {
-                    // Use loadEmbedsWithRetry to handle race condition where child embeds
-                    // might not be persisted yet (they arrive via websocket after parent)
-                    const { loadEmbedsWithRetry, decodeToonContent: decodeToon } = await import('../services/embedResolver');
-                    const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 8, 400);
-                    
-                    // Transform child embeds to WebSearchResult format
-                    const results = await Promise.all(childEmbeds.map(async (embed) => {
-                        const websiteContent = embed.content ? await decodeToon(embed.content) : null;
-                        if (!websiteContent) return null;
-                        
-                        // Extract favicon URL from multiple possible field formats:
-                        // 1. meta_url_favicon: TOON-flattened format (meta_url.favicon becomes meta_url_favicon)
-                        // 2. meta_url.favicon: Nested format (raw API or non-TOON encoded)
-                        // 3. favicon: Direct field (processed backend format)
-                        const faviconUrl = 
-                            websiteContent.meta_url_favicon ||  // TOON flattened format (most common)
-                            (websiteContent.meta_url as { favicon?: string } | undefined)?.favicon || 
-                            websiteContent.favicon || 
-                            '';
-                        
-                        // Extract preview image from multiple possible field formats:
-                        // 1. thumbnail_original: TOON-flattened format
-                        // 2. thumbnail.original: Nested format
-                        // 3. image: Direct field
-                        const previewImageUrl = 
-                            websiteContent.thumbnail_original ||  // TOON flattened format
-                            (websiteContent.thumbnail as { original?: string } | undefined)?.original ||
-                            websiteContent.image || 
-                            '';
-                        
-                        return {
-                            type: 'search_result' as const,
-                            title: websiteContent.title || '',
-                            url: websiteContent.url || '',
-                            snippet: websiteContent.description || websiteContent.extra_snippets || '',
-                            hash: embed.embed_id || '',
-                            // Include 'favicon' field for WebSearchEmbedPreview's getFaviconUrl()
-                            favicon: faviconUrl,
-                            favicon_url: faviconUrl,
-                            preview_image_url: previewImageUrl
-                        };
-                    }));
-                    
-                    // Filter out nulls and add to decoded content
-                    finalDecodedContent.results = results.filter(r => r !== null);
-                    const websiteResults = Array.isArray(finalDecodedContent.results) ? finalDecodedContent.results : [];
-                    console.info('[ActiveChat] Loaded', websiteResults.length, 'website results for web search fullscreen:', 
-                        websiteResults.map(r => ({ title: r?.title?.substring(0, 30), url: r?.url })));
-                } catch (error) {
-                    console.error('[ActiveChat] Error loading child embeds for web search:', error);
-                    // Continue without results - fullscreen will show "No results" message
-                }
-            } else if (appId === 'maps' && skillId === 'search' && childEmbedIds.length > 0) {
-                console.debug('[ActiveChat] Loading child place embeds for maps search fullscreen:', childEmbedIds);
-                try {
-                    // Use loadEmbedsWithRetry to handle race condition where child embeds
-                    // might not be persisted yet (they arrive via websocket after parent)
-                    const { loadEmbedsWithRetry, decodeToonContent: decodeToon } = await import('../services/embedResolver');
-                    const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 8, 400);
-                    
-                    // Transform child embeds to PlaceSearchResult format
-                    const results = await Promise.all(childEmbeds.map(async (embed) => {
-                        const placeContent = embed.content ? await decodeToon(embed.content) : null;
-                        if (!placeContent) return null;
-                        
-                        // Handle location - can be nested object or flattened fields
-                        let location = undefined;
-                        if (placeContent.location) {
-                            // Nested location object
-                            if (typeof placeContent.location === 'object' && 'latitude' in placeContent.location) {
-                                location = {
-                                    latitude: placeContent.location.latitude,
-                                    longitude: placeContent.location.longitude
-                                };
-                            }
-                        } else if (placeContent.location_latitude !== undefined || placeContent.location_longitude !== undefined) {
-                            // Flattened location fields (from TOON encoding)
-                            location = {
-                                latitude: placeContent.location_latitude,
-                                longitude: placeContent.location_longitude
-                            };
-                        }
-                        
-                        return {
-                            displayName: placeContent.name || placeContent.displayName || '',
-                            formattedAddress: placeContent.formatted_address || placeContent.formattedAddress || '',
-                            location: location,
-                            rating: placeContent.rating,
-                            userRatingCount: placeContent.user_rating_count || placeContent.userRatingCount,
-                            websiteUri: placeContent.website_uri || placeContent.websiteUri,
-                            placeId: placeContent.place_id || placeContent.placeId
-                        };
-                    }));
-                    
-                    // Filter out nulls and add to decoded content
-                    finalDecodedContent.results = results.filter(r => r !== null);
-                    const placeResults = Array.isArray(finalDecodedContent.results) ? finalDecodedContent.results : [];
-                    console.info('[ActiveChat] Loaded', placeResults.length, 'place results for maps search fullscreen:',
-                        placeResults.map((r: Record<string, unknown>) => ({ name: String(r?.displayName ?? '').substring(0, 30), address: r?.formattedAddress })));
-                } catch (error) {
-                    console.error('[ActiveChat] Error loading child embeds for maps search:', error);
-                    // Continue without results - fullscreen will show "No results" message
-                }
-            } else if (appId === 'web' && skillId === 'search') {
-                console.warn('[ActiveChat] Web search fullscreen opened but no embed_ids found:', {
-                    decodedContentEmbedIds: finalDecodedContent.embed_ids,
-                    embedDataEmbedIds: finalEmbedData?.embed_ids
-                });
-            }
-        }
-        
+
         // Store fullscreen data (moved below after all async operations)
         console.debug('[ActiveChat] Setting showEmbedFullscreen to true, embedFullscreenData:', {
             embedType: resolvedEmbedType,
@@ -2142,6 +2025,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         embedFullscreenData = {
             embedId,
             embedData: finalEmbedData,
+            parentResolved,
             decodedContent: finalDecodedContent,
             embedType: resolvedEmbedType,
             attrs,
@@ -2185,6 +2069,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // For video embeds, VideoEmbedFullscreen's handleClose handles video cleanup,
     // but this is a fallback in case it's called directly
     function handleCloseEmbedFullscreen() {
+        // Retain only the outgoing surface for its brief compositor transition.
+        // Removing it from flex layout lets the chat take its final width once.
+        if (hasSplitChatContext && fullscreenPanelEl) {
+            const node = fullscreenPanelEl;
+            const parent = node.offsetParent as HTMLElement | null;
+            const rect = node.getBoundingClientRect();
+            const parentRect = parent?.getBoundingClientRect();
+            node.dataset.workspaceExit = 'true';
+            Object.assign(node.style, {
+                position: 'absolute', left: `${rect.left - (parentRect?.left ?? 0)}px`,
+                top: `${rect.top - (parentRect?.top ?? 0)}px`,
+                width: `${rect.width}px`, height: `${rect.height}px`, pointerEvents: 'none'
+            });
+        }
         // Check if this was a video embed and clean up if needed
         // Note: VideoEmbedFullscreen's handleClose should handle this, but this is a safety net
         const wasVideoEmbed = embedFullscreenData?.embedType === 'videos-video';
@@ -2248,7 +2146,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
         }
 
-        void remountChatHeaderAfterFullscreenClose();
     }
     
     // ===========================================
@@ -4186,7 +4083,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Decrypted chat summary shown in the header below the title (available after post-processing).
     let activeChatDecryptedSummary = $state<string | null>(initialPublicChat?.chat_summary ?? null);
     // Bumped after closing embed fullscreen so ChatHeader remounts after layout classes settle.
-    let chatHeaderRenderKey = $state(0);
     // Mate name captured from the mate_selected preprocessing step, used for the
     // "{Mate} is typing..." spinner text after model_selected arrives.
     let selectedPreprocessingMateName = $state<string | null>(null);
@@ -4323,10 +4219,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             );
     }
 
-    async function remountChatHeaderAfterFullscreenClose() {
-        await tick();
-        chatHeaderRenderKey += 1;
-    }
 
     async function refreshActiveChatHeaderFromStoredChat(chatId: string, reason: string) {
         if (!currentChat || currentChat.chat_id !== chatId) return;
@@ -5131,6 +5023,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * Called by the ResizeObserver and whenever relevant state changes.
      */
     function recalculateSuggestionsOverlap() {
+        if (!showWelcome) return;
         // While typing on touch devices, avoid overlap re-measurement churn that
         // can cause welcome/suggestions visibility oscillation during keyboard
         // animation on iOS Safari.
@@ -5290,15 +5183,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // their app-specific adapters do not forward the optional toolbar props.
     setContext<EmbedChatContext>(EMBED_CHAT_CONTEXT, {
         get showChatButton() { return showChatButtonInFullscreen; },
+        get isSplitPane() { return hasSplitChatContext; },
+        get resolvedEmbedId() { return embedFullscreenData?.parentResolved ? embedFullscreenData.embedId : null; },
         onShowChat: () => handleShowChat(),
     });
 
 
-    const SIDE_BY_SIDE_ANIMATION_DURATION = 400;
+    // Matches the normal motion token. A fallback only handles interrupted or
+    // externally disabled animation; the real completion event owns cleanup.
+    const SIDE_BY_SIDE_ANIMATION_DURATION = 200;
+    const SPLIT_ANIMATION_FALLBACK_MS = 1000;
     let sideBySideAnimating = $state(false);
     let sideBySideAnimationDirection = $state<'enter' | 'exit'>('enter');
-    let retainSplitLayout = $state(false);
     let previousSplitContext = false;
+    let splitAnimationFinishFrame: number | undefined;
 
     // Only opening/closing the embed changes the structural layout. Pane toggles
     // use interruptible CSS transitions, keeping chat DOM, width and scroll intact.
@@ -5307,18 +5205,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (split === previousSplitContext) return;
         previousSplitContext = split;
         sideBySideAnimationDirection = split ? 'enter' : 'exit';
-        sideBySideAnimating = true;
-        retainSplitLayout = true;
-        const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-            ? 0 : SIDE_BY_SIDE_ANIMATION_DURATION;
+        sideBySideAnimating = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!sideBySideAnimating) return;
         const timeout = setTimeout(() => {
             sideBySideAnimating = false;
-            retainSplitLayout = split;
-        }, duration);
-        return () => clearTimeout(timeout);
+        }, SPLIT_ANIMATION_FALLBACK_MS);
+        return () => {
+            clearTimeout(timeout);
+            if (splitAnimationFinishFrame !== undefined) cancelAnimationFrame(splitAnimationFinishFrame);
+        };
     });
 
-    const showSideBySideLayout = $derived(hasSplitChatContext || retainSplitLayout);
+    const showSideBySideLayout = $derived(hasSplitChatContext);
+
+    function finishSplitAnimation(event: AnimationEvent) {
+        if (event.target !== event.currentTarget) return;
+        // Let both panes deliver their completion events before removing shared
+        // classes and mounting the prepared viewer on the following frame.
+        splitAnimationFinishFrame = requestAnimationFrame(() => {
+            splitAnimationFinishFrame = undefined;
+            sideBySideAnimating = false;
+        });
+    }
+
+    function exitFullscreenPane(node: HTMLElement) {
+        const animate = node.dataset.workspaceExit === 'true' &&
+            !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        return fly(node, { x: 16, duration: animate ? SIDE_BY_SIDE_ANIMATION_DURATION : 0 });
+    }
 
     // Effective narrow mode: True when chat container is narrow OR when in side-by-side mode
     // In side-by-side mode, the chat is limited to 400px which requires narrow/mobile styling
@@ -12918,8 +12832,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 aria-hidden={hasSplitChatContext && forceOverlayMode}
                 class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
                 class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
-
-
+                onanimationend={finishSplitAnimation}
                 class:landing-intro-overlay-active={showWelcome && guestLandingIntroOverlayActive}
                 class:landing-intro-content-covered={showWelcome && guestLandingIntroContentCovered}
                 style:--landing-intro-input-reserve={`${messageInputWrapperHeight}px`}
@@ -13841,7 +13754,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          chatIcon={activeChatDecryptedIcon}
                           chatSummary={activeChatDecryptedSummary}
                           isDraftOnly={isActiveDraftOnlyChat}
-                          {chatHeaderRenderKey}
                             chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (isActiveDraftOnlyChat ? currentChat.updated_at : currentChat.created_at) ?? null : activePublicChatCreatedAt}
                            chatTimeLabel={isActiveDraftOnlyChat ? 'saved' : currentChat && isPublicChat(currentChat.chat_id) ? 'published' : 'started'}
                           {isNewChatGeneratingTitle}
@@ -14272,6 +14184,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             {/if}
             
             <!-- Embed fullscreen view (app-skill-use, website, etc.) -->
+            {#snippet fullscreenLoading(failed: boolean)}
+                <div class="embed-fullscreen-loading" data-testid="embed-fullscreen-loading" role="status">
+                    <EmbedTopBar onClose={handleCloseEmbedFullscreen} showShare={false} />
+                    <p>{$text(failed ? 'common.detail_load_error' : 'common.loading')}</p>
+                </div>
+            {/snippet}
             <!-- Container switches between overlay mode (default) and side panel mode (ultra-wide screens) -->
             <!-- Side-by-side mode shows embed next to chat for better large display usage -->
             <!-- Smooth transition: chat shrinks while fullscreen panel grows simultaneously -->
@@ -14279,6 +14197,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {@const fullscreenData = embedFullscreenData}
                 <div
                     data-testid="embed-fullscreen-container"
+                    bind:this={fullscreenPanelEl}
+                    out:exitFullscreenPane
                     class="fullscreen-embed-container"
                     class:side-panel={showSideBySideLayout}
                     class:overlay-mode={!showSideBySideLayout}
@@ -14297,6 +14217,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     </div>
                 {/if}
                 <!-- Key block forces complete recreation when embed changes -->
+                {#if fullscreenData.isResolving || fullscreenData.loadError || (sideBySideAnimating && sideBySideAnimationDirection === 'enter')}
+                    {@render fullscreenLoading(!!fullscreenData.loadError)}
+                {:else}
                 <!-- This resets internal component state (e.g., selectedWebsite in WebSearchEmbedFullscreen) -->
                 <!-- Without this, switching between same-type embeds would preserve stale child overlay state -->
                 <!-- Also key on focusChildEmbedId: clicking a different inline badge of the same parent embed
@@ -14336,11 +14259,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     />
                 {:else if registryKey && hasFullscreenComponent(registryKey)}
                     {#await loadFullscreenComponent(registryKey)}
-                        <div class="embed-fullscreen-loading" data-testid="embed-fullscreen-loading">
-                            <div class="fullscreen-content">
-                                <p>Loading fullscreen view...</p>
-                            </div>
-                        </div>
+                        {@render fullscreenLoading(false)}
                     {:then FullscreenComponent}
                         {#if FullscreenComponent}
                             <FullscreenComponent
@@ -14412,6 +14331,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     </div>
                 {/if}
                 {/key}
+                {/if}
                 </div>
             {/if}
             
@@ -14696,75 +14616,48 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     }
     
-    /* ENTER: Opening fullscreen - chat shrinks from full-width to 400px */
+    /* Set the final width once; only lightweight motion runs per frame.
+       See docs/architecture/frontend/embed-workspace-transitions.md. */
     .chat-wrapper.side-by-side-entering {
-        animation: chatShrink 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        animation: chatShrink var(--duration-normal) ease-out both;
+        transition: none;
     }
-    
-    /* EXIT: Closing fullscreen - chat expands from 400px back to full-width */
     .chat-wrapper.side-by-side-exiting {
-        animation: chatExpand 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        animation: chatExpand var(--duration-normal) ease-out both;
+        transition: none;
     }
-    
-    /* Keep chat text at 400px throughout hide/restore. The negative margin
-       releases its occupied space while transform/opacity move only the card. */
     .chat-wrapper.side-by-side-chat {
         margin-right: 0;
         transform: translateX(0);
         opacity: 1;
-        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-            opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-            margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: transform var(--duration-normal) ease-out,
+            opacity var(--duration-normal) ease-out;
     }
-
     .chat-wrapper.side-by-side-chat.chat-pane-hidden {
         transform: translateX(calc(-100% - var(--spacing-5)));
         opacity: 0;
+        /* Release layout space once, without resizing the embed every frame. */
         margin-right: calc(-400px - var(--spacing-5));
         pointer-events: none;
     }
-
+    @keyframes chatShrink {
+        from { opacity: 0.85; transform: translateX(12px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes chatExpand {
+        from { opacity: 0.85; transform: translateX(-12px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
     @media (prefers-reduced-motion: reduce) {
-        .chat-wrapper.side-by-side-chat {
+        .chat-wrapper.side-by-side-chat,
+        .chat-wrapper.side-by-side-entering,
+        .chat-wrapper.side-by-side-exiting,
+        .fullscreen-embed-container.side-panel.side-by-side-entering {
             transition: none;
             animation: none;
         }
     }
 
-    @keyframes chatShrink {
-        from {
-            flex: 1 1 100%;
-            max-width: 100%;
-            min-width: 0;
-            border-radius: 0;
-            box-shadow: none;
-        }
-        to {
-            flex: 0 0 400px;
-            max-width: 400px;
-            min-width: 400px;
-            border-radius: 17px;
-            box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
-        }
-    }
-    
-    @keyframes chatExpand {
-        from {
-            flex: 0 0 400px;
-            max-width: 400px;
-            min-width: 400px;
-            border-radius: 17px;
-            box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
-        }
-        to {
-            flex: 1 1 100%;
-            max-width: 100%;
-            min-width: 0;
-            border-radius: 0;
-            box-shadow: none;
-        }
-    }
-    
     /* Top buttons layout in side-by-side mode */
     /* Keep buttons at normal left position, span full width for space-between to work */
     .chat-wrapper.side-by-side-chat .top-buttons {
@@ -14847,38 +14740,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
     }
     
-    /* ENTER: Panel reveals from left edge (grows leftward as chat shrinks) */
     .fullscreen-embed-container.side-panel.side-by-side-entering {
-        animation: panelReveal 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        animation: panelReveal var(--duration-normal) ease-out both;
     }
-    
-    /* EXIT: Panel hides to left edge (shrinks rightward as chat expands) */
-    .fullscreen-embed-container.side-panel.side-by-side-exiting {
-        animation: panelHide 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    }
-    
     @keyframes panelReveal {
-        from {
-            clip-path: inset(0 0 0 100%);
-            opacity: 0;
-        }
-        to {
-            clip-path: inset(0 0 0 0);
-            opacity: 1;
-        }
+        from { transform: translateX(16px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
-    
-    @keyframes panelHide {
-        from {
-            clip-path: inset(0 0 0 0);
-            opacity: 1;
-        }
-        to {
-            clip-path: inset(0 0 0 100%);
-            opacity: 0;
-        }
+    .embed-fullscreen-loading {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: 100%;
+        min-height: 10rem;
+        background: var(--color-grey-20);
+        border-radius: inherit;
+        color: var(--color-font-secondary);
     }
-    
+
     /* Override UnifiedEmbedFullscreen overlay styles when in side panel mode */
     /* The :global is needed because the overlay class is in the child component */
     .fullscreen-embed-container.side-panel :global(.unified-embed-fullscreen-overlay) {

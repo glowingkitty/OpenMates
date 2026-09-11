@@ -116,7 +116,7 @@ After clarification, **start working on the task in this session**:
 
 1. Run `python3 scripts/sessions.py start --mode <bug|feature|docs> --task "OPE-XXX: <title>" --task-id OPE-XXX`
 2. Decide spec size using `docs/contributing/guides/spec-driven-development.md`.
-3. For bugs, run `reproduce-first` before fix code when user-visible behavior is wrong.
+3. For confirmed bugs, use existing reproduction evidence, implement the fix, and run focused regression checks afterward.
 4. For full-Plan feature/risk work, run `define-specification`, then `create-plan`, then `tasks-from-plan` before implementation.
 5. For inline-Plan work, write scenarios and acceptance criteria in the session before code.
 6. Follow the standard tracker workflow (read issue, mark In Progress, implement, deploy).

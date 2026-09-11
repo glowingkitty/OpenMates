@@ -157,7 +157,7 @@ changes.
 
 ### After the Brief
 
-1. **If task type is Bug:** suggest running `/reproduce-first` as the next step.
+1. **If task type is Bug:** use confirmed reproduction evidence to proceed with the fix; investigate only what remains uncertain and verify the result afterward.
 2. **If task type is Feature:** suggest running `/create-plan` when the work needs a full Plan; otherwise suggest `/new-task` with the inline scenarios and acceptance criteria.
 3. **If a Linear issue was loaded in context:** offer to update its description with the Task Brief via `python3 scripts/linear.py update OPE-123 --description-file <file>`.
 

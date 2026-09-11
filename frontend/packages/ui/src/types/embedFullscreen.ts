@@ -42,5 +42,9 @@ export interface EmbedFullscreenCommonProps {
 export const EMBED_CHAT_CONTEXT = Symbol('embed-chat-context');
 export interface EmbedChatContext {
 	readonly showChatButton: boolean;
+	/** Split movement belongs to the workspace, including nested result panes. */
+	readonly isSplitPane?: boolean;
+	/** Parent already resolved this embed before mounting its fullscreen. */
+	readonly resolvedEmbedId?: string | null;
 	onShowChat: () => void;
 }
