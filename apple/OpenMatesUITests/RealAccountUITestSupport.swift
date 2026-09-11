@@ -286,7 +286,7 @@ enum RealAccountUITestSupport {
         XCTFail("Login did not complete after OTP retries")
     }
 
-    private static func openNewChatIfNeeded(app: XCUIApplication) {
+    static func openNewChatIfNeeded(app: XCUIApplication) {
         if waitForMessageEditor(in: app, timeout: 1) != nil {
             return
         }

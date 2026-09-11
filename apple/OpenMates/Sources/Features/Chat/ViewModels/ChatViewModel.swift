@@ -3518,11 +3518,14 @@ final class ChatSendPipeline {
         chatStore: ChatStore?,
         activateChat: Bool = true,
         waitForRemoteSend: Bool = true,
+        waitForInferenceReceipt: Bool = false,
         composerEmbeds: [ComposerPendingEmbed] = [],
         piiMappings: [PIIMapping] = [],
         excludedPIIOriginals: Set<String> = [],
         excludedPIIPlaceholders: Set<String> = [],
-        broadcastToSiblings: Bool = false
+        broadcastToSiblings: Bool = false,
+        beforeRemoteSend: ((String, [String: Any], [String: Any]) throws -> Void)? = nil,
+        validateRemoteSend: (() throws -> Void)? = nil
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
         let now = Date()
@@ -3576,9 +3579,6 @@ final class ChatSendPipeline {
             existingMessages.filter { $0.id != message.id } + [message],
             chatId: chat.id, key: keyMaterial.key
         )
-
-        chatStore?.upsertChat(updatedChat)
-        chatStore?.appendMessage(message, to: chat.id)
 
         var messagePayload: [String: Any] = [
             "message_id": messageId,
@@ -3686,6 +3686,12 @@ final class ChatSendPipeline {
             createdAt: createdAtUnix
         )
 
+        // Notification actions persist this exact preflight/commit pair before
+        // local insertion, so interrupted retries cannot create another message.
+        try beforeRemoteSend?(turnId, preflightPayload, outboundPayload)
+        chatStore?.upsertChat(updatedChat)
+        chatStore?.appendMessage(message, to: chat.id)
+
         if waitForRemoteSend {
             try await sendRemoteUserMessage(
                 chatId: chat.id,
@@ -3693,7 +3699,9 @@ final class ChatSendPipeline {
                 wsManager: wsManager,
                 turnId: turnId,
                 preflightPayload: preflightPayload,
-                outboundPayload: outboundPayload
+                outboundPayload: outboundPayload,
+                waitForInferenceReceipt: waitForInferenceReceipt,
+                validateRemoteSend: validateRemoteSend
             )
         } else {
             Task { @MainActor in
@@ -3704,7 +3712,9 @@ final class ChatSendPipeline {
                         wsManager: wsManager,
                         turnId: turnId,
                         preflightPayload: preflightPayload,
-                        outboundPayload: outboundPayload
+                        outboundPayload: outboundPayload,
+                        waitForInferenceReceipt: waitForInferenceReceipt,
+                        validateRemoteSend: validateRemoteSend
                     )
                 } catch {
                     print("[ChatSendPipeline] Background send failed for chat \(chat.id.prefix(8)): \(error)")
@@ -3807,7 +3817,9 @@ final class ChatSendPipeline {
         wsManager: ChatWebSocketTransport,
         turnId: String,
         preflightPayload: [String: Any],
-        outboundPayload: [String: Any]
+        outboundPayload: [String: Any],
+        waitForInferenceReceipt: Bool = false,
+        validateRemoteSend: (() throws -> Void)? = nil
     ) async throws {
         if activateChat {
             try await wsManager.send(WSOutboundMessage(type: "set_active_chat", payload: ["chat_id": chatId]))
@@ -3816,7 +3828,9 @@ final class ChatSendPipeline {
             turnId: turnId,
             preflightPayload: preflightPayload,
             outboundPayload: outboundPayload,
-            transport: wsManager
+            transport: wsManager,
+            waitForInferenceReceipt: waitForInferenceReceipt,
+            validateRemoteSend: validateRemoteSend
         )
     }
 
@@ -3824,17 +3838,22 @@ final class ChatSendPipeline {
         turnId: String,
         preflightPayload: [String: Any],
         outboundPayload: [String: Any],
-        transport: ChatWebSocketTransport
+        transport: ChatWebSocketTransport,
+        waitForInferenceReceipt: Bool = false,
+        validateRemoteSend: (() throws -> Void)? = nil
     ) async throws {
+        try validateRemoteSend?()
         let acknowledgement = (try await transport.sendAndWait(
             WSOutboundMessage(type: "chat_turn_preflight", payload: preflightPayload),
             responseType: "chat_turn_preflight_ack"
         ) {
                 $0["turn_id"] as? String == turnId
         }).fields
+        // Account/socket ownership may change while waiting for preflight. Do not
+        // send this turn's plaintext history through a replacement session.
+        try validateRemoteSend?()
         guard let preflightId = acknowledgement["preflight_id"] as? String, !preflightId.isEmpty,
-              let state = acknowledgement["state"] as? String,
-              state == "PREPARED" || state == "LEGACY" else {
+              let state = acknowledgement["state"] as? String else {
             throw ChatSendError.webSocketUnavailable
         }
         guard let committedTurnId = outboundPayload["turn_id"] as? String,
@@ -3843,13 +3862,51 @@ final class ChatSendPipeline {
               NSDictionary(dictionary: preflightInference).isEqual(to: outboundPayload) else {
             throw ChatSendError.webSocketUnavailable
         }
+        // Retrying an exact durable turn returns its current server state, not
+        // necessarily PREPARED. A notification interrupted after admission must
+        // finish its queue entry without submitting another inference request.
+        // FAILED is not successful delivery to AI and stays visible to retry/error
+        // handling; the server cannot safely enqueue that same failed turn again.
+        // See backend/core/directus/extensions/chat-recovery-transaction/src/operations.js.
+        if waitForInferenceReceipt {
+            switch state {
+            case "ENQUEUED", "RUNNING", "TERMINAL":
+                return
+            case "FAILED":
+                throw ChatSendError.inferenceFailed
+            default:
+                break
+            }
+        }
+        guard state == "PREPARED" || state == "LEGACY" else {
+            throw ChatSendError.webSocketUnavailable
+        }
         var committedPayload = outboundPayload
         committedPayload["protocol_version"] = ChatCompletionRecoveryCoordinator.protocolVersion
         committedPayload["preflight_id"] = preflightId
-        try await transport.send(WSOutboundMessage(
-            type: "chat_message_added",
-            payload: committedPayload
-        ))
+        let commit = WSOutboundMessage(type: "chat_message_added", payload: committedPayload)
+        if waitForInferenceReceipt {
+            guard let chatId = outboundPayload["chat_id"] as? String, !chatId.isEmpty,
+                  let message = outboundPayload["message"] as? [String: Any],
+                  let messageId = message["message_id"] as? String, !messageId.isEmpty else {
+                throw ChatSendError.webSocketUnavailable
+            }
+            // Socket-write completion only means bytes left this client. Keep a
+            // background reply pending until AI admission is acknowledged. Register
+            // the waiter before sending so a fast server cannot outrun it.
+            _ = try await transport.sendAndWait(commit, responseType: "ai_task_initiated") { fields in
+                if fields["code"] as? String != nil {
+                    return fields["turn_id"] as? String == turnId ||
+                        (fields["chat_id"] as? String == chatId &&
+                         ((fields["user_message_id"] ?? fields["message_id"]) as? String) == messageId)
+                }
+                return fields["chat_id"] as? String == chatId &&
+                    fields["user_message_id"] as? String == messageId &&
+                    ((fields["ai_task_id"] ?? fields["task_id"]) as? String)?.isEmpty == false
+            }
+        } else {
+            try await transport.send(commit)
+        }
     }
 
     static func shouldIncludeInitialChatMetadata(
@@ -4441,6 +4498,7 @@ private enum ChatSendError: LocalizedError {
     case webSocketUnavailable
     case chatKeyMismatch
     case historyUnavailable
+    case inferenceFailed
 
     var errorDescription: String? {
         switch self {
@@ -4450,6 +4508,8 @@ private enum ChatSendError: LocalizedError {
             return "Realtime connection is not ready. Please try again."
         case .historyUnavailable:
             return "Chat history could not be decrypted. Please reload this chat before sending."
+        case .inferenceFailed:
+            return "The message was saved, but its AI response failed. Open the chat to retry."
         case .chatKeyMismatch:
             return "Chat encryption keys are out of sync. Please reload this chat before sending."
         }

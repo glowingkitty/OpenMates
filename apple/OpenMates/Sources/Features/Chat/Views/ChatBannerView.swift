@@ -67,6 +67,8 @@ struct ChatBannerView: View {
 
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var isVisible = true
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.layoutDirection) private var layoutDirection
     @State private var shimmerPhase: CGFloat = 0
@@ -107,26 +109,25 @@ struct ChatBannerView: View {
     }
 
     var body: some View {
-        // TimelineView drives continuous animation for orbs + deco icons.
-        // The .animation schedule updates every frame for smooth motion.
-        TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil)) { timeline in
-            let now = timeline.date.timeIntervalSinceReferenceDate
-            GeometryReader { geo in
+        // Only decorative layers need animation ticks. Keeping text and geometry
+        // outside the timeline prevents per-frame formatting and layout churn.
+        GeometryReader { geo in
                 let _ = updateBannerWidth(geo.size.width)
                 ZStack {
                     // 1. Gradient background
                     gradientBackground
                         .frame(width: geo.size.width, height: bannerHeight)
 
-                    // 2. Living gradient orbs
-                    orbLayer(time: now)
+                    TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil, paused: reduceMotion || !isVisible || scenePhase != .active)) { timeline in
+                        let now = timeline.date.timeIntervalSinceReferenceDate
+                        ZStack {
+                            orbLayer(time: now)
+                            decoIcons(time: now)
+                        }
                         .frame(width: geo.size.width, height: bannerHeight)
                         .clipped()
-
-                    // 3. Decorative icons (loaded / incognito)
-                    decoIcons(time: now)
-                        .frame(width: geo.size.width, height: bannerHeight)
-                        .clipped()
+                    }
+                    .allowsHitTesting(false)
 
                     // 4. Center content
                     centerContent
@@ -156,12 +157,12 @@ struct ChatBannerView: View {
                             }
                         }
                 )
-            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: bannerHeight)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat-header-banner")
+        .modifier(ChatBannerVisibilityObserver(isVisible: $isVisible))
     }
 
     // MARK: - Gradient Background
@@ -1250,5 +1251,19 @@ private class FullVideoPlayerHolder: ObservableObject {
         let p = AVPlayer(url: url)
         player = p
         p.play()
+    }
+}
+
+// Header decorations should not consume frames while reading later messages.
+private struct ChatBannerVisibilityObserver: ViewModifier {
+    @Binding var isVisible: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, macOS 15.0, *) {
+            content.onScrollVisibilityChange(threshold: 0.01) { isVisible = $0 }
+        } else {
+            content.onAppear { isVisible = true }.onDisappear { isVisible = false }
+        }
     }
 }

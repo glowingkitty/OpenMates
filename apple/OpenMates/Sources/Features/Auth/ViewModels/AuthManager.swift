@@ -26,6 +26,13 @@ final class AuthManager: ObservableObject {
         await MainActor.run { _shared?.currentUser?.id }
     }
 
+    /// Bind a cold-launch notification action before asynchronous session restore.
+    static var notificationSession: AuthManager { _shared ?? AuthManager() }
+
+    static var notificationAccountId: String? {
+        _shared?.currentUser?.id ?? cachedUser()?.id
+    }
+
     static func isRecoveryEligibleDevice() async -> Bool {
         await MainActor.run {
             _shared?.state == .authenticated && _shared?.sessionValidationState == .onlineAuthenticated
@@ -71,9 +78,19 @@ final class AuthManager: ObservableObject {
         Self._shared = self
     }
 
+    private var isCheckingSession = false
+
     // MARK: - Session check (app launch)
 
     func checkSession() async {
+        if isCheckingSession {
+            while isCheckingSession, !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            return
+        }
+        isCheckingSession = true
+        defer { isCheckingSession = false }
         Self._shared = self
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-test-authenticated-chat-navigation") {

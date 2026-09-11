@@ -123,7 +123,6 @@ struct MainAppView: View {
     @State private var pendingBackgroundSyncContent = PendingSyncedContent()
     @State private var pendingTypingMetadata = TypingMetadataReplayBuffer()
     @State private var lastForegroundInteractionAt = Date.distantPast
-    @State private var queuedNotificationReplies: [NotificationReplyRequest] = []
     @State private var pendingExternalEmbedOpen: PendingExternalEmbedOpen?
     @State private var newChatFocusRequest = 0
     @State private var newChatRecordRequest = 0
@@ -448,7 +447,9 @@ struct MainAppView: View {
         }
         .onChange(of: authManager.state, authStateDidChange)
         .onChange(of: pushManager.pendingChatId, pendingPushChatDidChange)
-        .onChange(of: pushManager.pendingReplyRequest, pendingPushReplyDidChange)
+        .onChange(of: pushManager.replyQueueRevision) { _, _ in
+            Task { await flushQueuedNotificationReplies() }
+        }
         .onChange(of: selectedChatId, selectedChatDidChange)
         .onChange(of: showNewChat, showNewChatDidChange)
         .onChange(of: showSettings, showSettingsDidChange)
@@ -704,21 +705,24 @@ struct MainAppView: View {
     }
 
     private func pendingPushChatDidChange(_ oldValue: String?, _ chatId: String?) {
-        if let chatId {
-            if let embedId = pushManager.pendingEmbedId {
-                pendingExternalEmbedOpen = PendingExternalEmbedOpen(chatId: chatId, embedId: embedId)
+        guard let chatId, isAuthenticated, didBootstrapAuthenticatedSession,
+              wsManager.connectionState == .connected else { return }
+        Task {
+            do {
+                _ = try await pushManager.chatForNotification(chatId)
+                guard pushManager.pendingChatId == chatId, isAuthenticated else { return }
+                if let embedId = pushManager.pendingEmbedId {
+                    pendingExternalEmbedOpen = PendingExternalEmbedOpen(chatId: chatId, embedId: embedId)
+                }
+                selectedWorkspace = .chat
+                selectedChatId = chatId
+                showNewChat = false
+                pushManager.pendingEmbedId = nil
+                pushManager.pendingChatId = nil
+            } catch {
+                NativeDiagnostics.warning("Notification chat open remains pending: \(type(of: error))", category: "push_notifications")
             }
-            selectedChatId = chatId
-            showNewChat = false
-            pushManager.pendingEmbedId = nil
-            pushManager.pendingChatId = nil
         }
-    }
-
-    private func pendingPushReplyDidChange(_ oldValue: NotificationReplyRequest?, _ request: NotificationReplyRequest?) {
-        guard let request else { return }
-        pushManager.pendingReplyRequest = nil
-        Task { await sendNotificationReply(request) }
     }
 
     private func showNewChatDidChange(_ oldValue: Bool, _ isOpen: Bool) {
@@ -749,6 +753,7 @@ struct MainAppView: View {
         }
 
         guard newValue == .active else { return }
+        Task { await flushQueuedNotificationReplies() }
         switch wsManager.connectionState {
         case .connected, .connecting, .reconnecting:
             schedulePendingAssistantResponseFlush()
@@ -759,9 +764,11 @@ struct MainAppView: View {
 
     private func websocketConnectionStateDidChange(_ oldValue: WebSocketManager.ConnectionState, _ newValue: WebSocketManager.ConnectionState) {
         guard newValue == .connected else { return }
+        pendingPushChatDidChange(nil, pushManager.pendingChatId)
         Task {
             await syncBridge?.replayPendingActions()
             await DraftService.shared.reconcileAfterReconnect()
+            await flushQueuedNotificationReplies()
         }
         if scenePhase == .active {
             sendNativeClientForegroundAndActiveChat()
@@ -770,46 +777,8 @@ struct MainAppView: View {
         }
     }
 
-    private func sendNotificationReply(_ request: NotificationReplyRequest) async {
-        guard isAuthenticated, didBootstrapAuthenticatedSession else {
-            if !queuedNotificationReplies.contains(request) {
-                queuedNotificationReplies.append(request)
-            }
-            return
-        }
-        let content = request.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else { return }
-
-        if chatStore.chat(for: request.chatId) == nil {
-            await loadInitialData()
-        }
-
-        guard let chat = chatStore.chat(for: request.chatId) else {
-            print("[MainApp] Notification reply dropped; chat \(request.chatId.prefix(8)) is not available locally")
-            return
-        }
-
-        do {
-            _ = try await ChatSendPipeline().sendUserMessage(
-                content: content,
-                in: chat,
-                existingMessages: chatStore.messages(for: request.chatId),
-                wsManager: wsManager,
-                chatStore: chatStore,
-                activateChat: false
-            )
-        } catch {
-            print("[MainApp] Failed to send notification reply for chat \(request.chatId.prefix(8)): \(error)")
-        }
-    }
-
     private func flushQueuedNotificationReplies() async {
-        guard isAuthenticated, didBootstrapAuthenticatedSession, !queuedNotificationReplies.isEmpty else { return }
-        let replies = queuedNotificationReplies
-        queuedNotificationReplies.removeAll()
-        for reply in replies {
-            await sendNotificationReply(reply)
-        }
+        await pushManager.flushQueuedReplies()
     }
 
     private func openNewChatScreen() {
@@ -2377,6 +2346,7 @@ struct MainAppView: View {
         Task { await promoteAnonymousChatsAfterAuthentication() }
         scheduleTokenBackedWebSocketReconnectIfNeeded()
         scheduleInitialDataFallback()
+        pendingPushChatDidChange(nil, pushManager.pendingChatId)
         Task { await syncInspirationToWidget() }
         await flushQueuedNotificationReplies()
     }

@@ -138,6 +138,13 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     func disconnect() {
         connectionGeneration += 1
+        // A waiter belongs to the socket/session that sent its request. Resume
+        // it before a different account can establish a replacement connection.
+        let disconnectedWaiters = Array(messageWaiters.values)
+        messageWaiters.removeAll()
+        for waiter in disconnectedWaiters {
+            waiter.continuation.resume(throwing: WebSocketError.notConnected)
+        }
         shouldReconnect = false
         connectTask?.cancel()
         connectTask = nil
@@ -187,6 +194,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         matching predicate: @escaping ([String: Any]) -> Bool
     ) async throws -> WebSocketResponse {
         let waiterId = UUID()
+        let expectedGeneration = connectionGeneration
         return try await withCheckedThrowingContinuation { continuation in
             messageWaiters[waiterId] = MessageWaiter(
                 type: responseType,
@@ -196,6 +204,12 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 do {
+                    guard messageWaiters[waiterId] != nil,
+                          Self.shouldContinueConnectionAttempt(
+                            expectedGeneration: expectedGeneration,
+                            currentGeneration: connectionGeneration,
+                            isCancelled: Task.isCancelled
+                          ) else { throw WebSocketError.notConnected }
                     try await send(message)
                 } catch {
                     guard let waiter = messageWaiters.removeValue(forKey: waiterId) else { return }
@@ -213,6 +227,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     var isConnected: Bool {
         connectionState == .connected
     }
+
+    /// Captured by durable sends to keep their plaintext commit bound to the
+    /// same authenticated transport across preflight suspension points.
+    var transportGeneration: Int { connectionGeneration }
 
     func sendDraftSyncMessage(_ message: DraftSyncMessage) async throws {
         try await send(WSOutboundMessage(type: message.type, payload: message.payload))

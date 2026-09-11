@@ -78,11 +78,73 @@ private struct ChatScrollSentinelPreferenceKey: PreferenceKey {
     }
 }
 
-private struct ChatMessageFramePreferenceKey: PreferenceKey {
-    static let defaultValue: [String: CGRect] = [:]
+private struct ChatVisibleMessagePreferenceKey: PreferenceKey {
+    static let defaultValue: Set<String> = []
 
-    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    static func reduce(value: inout Set<String>, nextValue: () -> Set<String>) {
+        value.formUnion(nextValue())
+    }
+}
+
+private struct ChatScrollBoundaries: Equatable {
+    let isAtTop: Bool
+    let isAtBottom: Bool
+}
+
+/// Current systems report scroll visibility directly; older systems project row
+/// geometry into membership before publishing a preference. Neither path sends
+/// per-pixel message-frame dictionaries back through the whole transcript.
+private struct ChatMessageVisibilityTracking: ViewModifier {
+    let messageId: String
+    let viewportHeight: CGFloat
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, macOS 15.0, *) {
+            content
+        } else {
+            content.background {
+                GeometryReader { geometry in
+                    let frame = geometry.frame(in: .named("chat-scroll"))
+                    Color.clear.preference(key: ChatVisibleMessagePreferenceKey.self,
+                        value: frame.maxY > 0 && frame.minY < viewportHeight ? [messageId] : [])
+                }
+            }
+        }
+    }
+}
+
+private struct ChatTranscriptScrollTracking: ViewModifier {
+    let viewportHeight: CGFloat
+    let onBoundariesChanged: (ChatScrollBoundaries) -> Void
+    let onVisibleMessagesChanged: (Set<String>) -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, macOS 15.0, *) {
+            content
+                .onScrollGeometryChange(for: ChatScrollBoundaries.self) { geometry in
+                    ChatScrollBoundaries(
+                        isAtTop: geometry.contentOffset.y + geometry.contentInsets.top <= 8,
+                        isAtBottom: geometry.contentSize.height + geometry.contentInsets.bottom
+                            - geometry.contentOffset.y <= geometry.containerSize.height + 8)
+                } action: { _, boundaries in
+                    onBoundariesChanged(boundaries)
+                }
+                // A tiny positive fraction includes even the edge of a very tall
+                // answer, while excluding completely offscreen targets (zero).
+                .onScrollTargetVisibilityChange(idType: String.self, threshold: 0.000001) { ids in
+                    onVisibleMessagesChanged(Set(ids))
+                }
+        } else {
+            content
+                .onPreferenceChange(ChatScrollSentinelPreferenceKey.self) { values in
+                    onBoundariesChanged(ChatScrollBoundaries(
+                        isAtTop: (values[.top] ?? 0) >= -8,
+                        isAtBottom: values[.bottom].map { $0 <= viewportHeight + 8 } ?? false))
+                }
+                .onPreferenceChange(ChatVisibleMessagePreferenceKey.self, perform: onVisibleMessagesChanged)
+        }
     }
 }
 
@@ -839,7 +901,11 @@ struct ChatView: View {
                                     .id("banner")
                             }
 
-                            LazyVStack(spacing: .spacing4) {
+                            // The initial history window is capped by the model.
+                            // Realize that window with stable measured heights:
+                            // lazy placement repeatedly invalidates its estimated
+                            // extent when scrolling past tall markdown answers.
+                            VStack(spacing: .spacing4) {
                                 // Load older messages button at the top
                                 if viewModel.hasOlderMessages {
                                     Button {
@@ -905,14 +971,8 @@ struct ChatView: View {
                                         accessibilityIdentifier: chatHistoryFixtureIdentifier(for: message)
                                     )
                                     .id(message.id)
-                                    .background(
-                                        GeometryReader { messageGeo in
-                                            Color.clear.preference(
-                                                key: ChatMessageFramePreferenceKey.self,
-                                                value: [message.id: messageGeo.frame(in: .named("chat-scroll"))]
-                                            )
-                                        }
-                                    )
+                                    .modifier(ChatMessageVisibilityTracking(
+                                        messageId: message.id, viewportHeight: scrollGeo.size.height))
                                 }
 
                                 #if DEBUG
@@ -959,11 +1019,15 @@ struct ChatView: View {
                                     .id("follow-up-suggestions")
                                 }
                             }
+                            .scrollTargetLayout()
                             .padding(.horizontal, .spacing4)
                             .padding(.vertical, .spacing4)
                             // Cap message area width on iPad/Mac, centered
                             .frame(maxWidth: ChatResponsiveLayoutPolicy.contentMaximumWidth)
                             .frame(maxWidth: .infinity)
+                            // Own the transcript identifier; do not let VStack
+                            // propagate it over user/assistant row identifiers.
+                            .accessibilityElement(children: .contain)
                             .accessibilityIdentifier("chat-history-content")
 
                             scrollSentinel(id: "scroll-bottom", edge: .bottom)
@@ -982,12 +1046,13 @@ struct ChatView: View {
                     .onTapGesture {
                         dismissInputIfNeeded()
                     }
-                    .onPreferenceChange(ChatScrollSentinelPreferenceKey.self) { values in
-                        updateScrollNavState(values: values, viewportHeight: scrollGeo.size.height)
-                    }
-                    .onPreferenceChange(ChatMessageFramePreferenceKey.self) { frames in
-                        trackVisibleMessage(frames: frames, viewportHeight: scrollGeo.size.height)
-                    }
+                    .modifier(ChatTranscriptScrollTracking(
+                        viewportHeight: scrollGeo.size.height,
+                        onBoundariesChanged: { boundaries in
+                            if isAtTop != boundaries.isAtTop { isAtTop = boundaries.isAtTop }
+                            if isAtBottom != boundaries.isAtBottom { isAtBottom = boundaries.isAtBottom }
+                        },
+                        onVisibleMessagesChanged: trackVisibleMessage))
 
                     if !viewModel.messages.isEmpty && !isAtTop {
                         scrollNavButton(isTop: true) {
@@ -1338,26 +1403,23 @@ struct ChatView: View {
     }
 
     private func scrollSentinel(id: String, edge: ChatScrollSentinelEdge) -> some View {
-        GeometryReader { geo in
-            Color.clear.preference(
-                key: ChatScrollSentinelPreferenceKey.self,
-                value: [edge: edge == .top
-                    ? geo.frame(in: .named("chat-scroll")).minY
-                    : geo.frame(in: .named("chat-scroll")).maxY
-                ]
-            )
+        Group {
+            if #available(iOS 18.0, macOS 15.0, *) {
+                Color.clear
+            } else {
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: ChatScrollSentinelPreferenceKey.self,
+                        value: [edge: edge == .top
+                            ? geo.frame(in: .named("chat-scroll")).minY
+                            : geo.frame(in: .named("chat-scroll")).maxY
+                        ]
+                    )
+                }
+            }
         }
         .frame(height: 1)
         .id(id)
-    }
-
-    private func updateScrollNavState(values: [ChatScrollSentinelEdge: CGFloat], viewportHeight: CGFloat) {
-        if let top = values[.top] {
-            isAtTop = top >= -8
-        }
-        if let bottom = values[.bottom] {
-            isAtBottom = bottom <= viewportHeight + 8
-        }
     }
 
     private func resetScrollRestoration() {
@@ -1409,11 +1471,8 @@ struct ChatView: View {
         }
     }
 
-    private func trackVisibleMessage(frames: [String: CGRect], viewportHeight: CGFloat) {
+    private func trackVisibleMessage(_ visibleIds: Set<String>) {
         guard !isRestoringScroll, onScrollPositionChanged != nil, !viewModel.messages.isEmpty else { return }
-        let visibleIds = Set(frames.compactMap { id, frame in
-            frame.maxY > 0 && frame.minY < viewportHeight ? id : nil
-        })
         guard let lastVisibleId = viewModel.messages.last(where: { visibleIds.contains($0.id) })?.id,
               lastVisibleId != lastReportedVisibleMessageId else { return }
 
@@ -3272,9 +3331,7 @@ struct MessageBubble: View {
     let onInteractiveQuestionSubmit: ((String) -> Void)?
     let onShowActions: (() -> Void)?
     var accessibilityIdentifier: String? = nil
-    @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @State private var hasAppeared = false
 
     var isUser: Bool { message.role == .user }
     private var isSystem: Bool { message.role == .system }
@@ -3643,7 +3700,7 @@ struct MessageBubble: View {
                                     .foregroundStyle(Color.fontTertiary)
 
                                 ScrollView(.horizontal, showsIndicators: false) {
-                                    LazyHStack(spacing: .spacing3) {
+                                    HStack(spacing: .spacing3) {
                                         ForEach(Array(topLevelAppSkillEmbeds.reversed())) { embed in
                                             EmbedPreviewCard(embed: embed, allEmbedRecords: allEmbedRecords) {
                                                 onEmbedTap(embed)
@@ -3757,18 +3814,8 @@ struct MessageBubble: View {
                 }
             }
         }
-        // Fade-in animation matching web CSS: opacity 0→1, translateY 10→0, 0.4s easeIn
-        .opacity(hasAppeared ? 1 : 0)
-        .offset(y: hasAppeared ? 0 : 10)
-        .onAppear {
-            if reduceMotion {
-                hasAppeared = true
-            } else {
-                withAnimation(.easeIn(duration: 0.4)) {
-                    hasAppeared = true
-                }
-            }
-        }
+        // Restored history is already complete. Realizing a row during scrolling
+        // must not start an animation transaction over its entire markdown tree.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(resolvedAccessibilityIdentifier)
         .accessibilityLabel(semanticAccessibilityLabel)

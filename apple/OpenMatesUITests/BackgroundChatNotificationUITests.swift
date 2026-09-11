@@ -11,7 +11,7 @@ import XCTest
 final class BackgroundChatNotificationUITests: XCTestCase {
     private let notificationTitle = "OpenMates"
     private let notificationBody = "New message received"
-    private let markerPrompt = "Simulator notification interaction coverage"
+    private let markerPrompt = "Reply with one short sentence: Hello from Osaka."
     private let notificationTimeout: TimeInterval = 30
 
     override func setUpWithError() throws {
@@ -26,6 +26,7 @@ final class BackgroundChatNotificationUITests: XCTestCase {
 
         RealAccountUITestSupport.logIn(app: app, credentials: credentials)
         RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: markerPrompt)
+        RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: 90)
         let chatId = try currentChatId(in: app)
 
         // The system owns foreground presentation. The app must remain usable and
@@ -51,8 +52,8 @@ final class BackgroundChatNotificationUITests: XCTestCase {
     }
 
     private func requestPush(scenario: String, chatId: String) throws {
-        guard let requestPath = ProcessInfo.processInfo.environment["OPENMATES_SIMULATED_PUSH_REQUEST_PATH"],
-              let responsePath = ProcessInfo.processInfo.environment["OPENMATES_SIMULATED_PUSH_RESPONSE_PATH"] else {
+        guard let requestPath = RealAccountTestCredentials.configurationValue(for: "OPENMATES_SIMULATED_PUSH_REQUEST_PATH"),
+              let responsePath = RealAccountTestCredentials.configurationValue(for: "OPENMATES_SIMULATED_PUSH_RESPONSE_PATH") else {
             throw XCTSkip("Simulator push helper paths are unavailable")
         }
         let requestId = UUID().uuidString
@@ -79,16 +80,21 @@ final class BackgroundChatNotificationUITests: XCTestCase {
     }
 
     private func attemptInlineReplyIfSupported(app: XCUIApplication, chatId: String) throws {
-        let capability = ProcessInfo.processInfo.environment["OPENMATES_SIMULATOR_INLINE_REPLY"] ?? "auto"
+        let capability = RealAccountTestCredentials.configurationValue(for: "OPENMATES_SIMULATOR_INLINE_REPLY") ?? "auto"
         guard capability != "unsupported" else { return }
 
-        XCUIDevice.shared.press(.home)
+        // Reply to a different chat after process termination so routing and
+        // history loading cannot borrow the currently open transcript.
+        RealAccountUITestSupport.openNewChatIfNeeded(app: app)
+        app.terminate()
         try requestPush(scenario: "inline_reply", chatId: chatId)
         try assertGenericSpringBoardNotification()
 
         let springboard = springBoard()
         springboard.staticTexts[notificationTitle].press(forDuration: 1)
-        let replyButton = springboard.buttons["Reply"]
+        let replyButton = springboard.buttons.matching(
+            NSPredicate(format: "label IN %@", ["Click to respond", "Reply", "Respond"])
+        ).firstMatch
         guard replyButton.waitForExistence(timeout: 3) else {
             if capability == "supported" {
                 XCTFail("Simulator was declared inline-reply capable but did not expose Reply")
@@ -98,16 +104,33 @@ final class BackgroundChatNotificationUITests: XCTestCase {
         replyButton.tap()
         let replyField = springboard.textFields.firstMatch
         XCTAssertTrue(replyField.waitForExistence(timeout: 3))
-        replyField.typeText("Simulator inline reply")
+        let reply = "Which city did I mention? Reply with only the city name."
+        replyField.typeText(reply)
         springboard.buttons["Send"].tap()
         app.activate()
+        // Inline send does not switch the foreground workspace. Open the target
+        // through its notification to inspect the persisted result afterward.
+        XCUIDevice.shared.press(.home)
+        try requestPush(scenario: "reply_result_tap", chatId: chatId)
+        try assertGenericSpringBoardNotification()
+        springboard.staticTexts[notificationTitle].tap()
         XCTAssertTrue(
             RealAccountUITestSupport.accessibilityElement(
                 in: app,
                 identifier: "message-user",
-                labelContaining: "Simulator inline reply"
+                labelContaining: reply
             ).waitForExistence(timeout: notificationTimeout)
         )
+        XCTAssertTrue(chatView(in: app, chatId: chatId).waitForExistence(timeout: notificationTimeout),
+                      "Reply must be persisted in its target conversation")
+        let assistants = app.otherElements.matching(identifier: "message-assistant")
+        let answered = NSPredicate { _, _ in
+            assistants.count >= 2 && assistants.element(boundBy: assistants.count - 1).label.contains("Osaka")
+        }
+        expectation(for: answered, evaluatedWith: nil)
+        waitForExpectations(timeout: 90)
+        let streaming = app.descendants(matching: .any).matching(identifier: "chat-streaming-banner").firstMatch
+        XCTAssertTrue(streaming.waitForNonExistence(timeout: 90))
     }
 
     private func assertGenericSpringBoardNotification() throws {

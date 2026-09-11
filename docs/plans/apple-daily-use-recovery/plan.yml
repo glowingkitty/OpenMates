@@ -16,6 +16,7 @@ scope:
   - Complete progressive history, opening chats, streaming and persistence.
   - Relaunch and reconnect; targeted iPhone and iPad verification.
   - After chat loading/rendering/scrolling is verified, validate push delivery and notification replies reaching the correct chat through the normal send flow.
+  - After recovery and TestFlight delivery, extend development-only Apple component previews and fixtures using existing infrastructure, with confirmed web previews as visual references, and update Apple/iOS development guidance.
 non_goals:
   - Full web parity, unrelated settings, new embeds or Watch recovery.
   - Backend authentication changes or weakening encryption/signing requirements.
@@ -87,6 +88,27 @@ evidence:
   - v7-v9 failures involved search/preview hit targets; the non-recording preview button now defines its full rectangular hit area. v10 validates that targeted interaction fix.
   - v9 sampling no longer shows the tokenizer or formatter loop, but this is not a formal scrolling performance budget; installed build 66 validation remains pending.
   - User-provided simulator watchdog report identifies Apple's MobileCal scene-creation process rather than an OpenMates crash; preserve this distinction when assessing stability.
+  - Core history/rendering/search recovery deployed to dev as f5cc5d74f1d33cd26ab289cdd2157c8aa486787b through the scoped session workflow; specification and lint gates pass, with no backend runtime restart.
+  - macOS TestFlight build 66 upload succeeded at 17:35:23 on 2026-09-11 and reached VALID (ASC build 888ec29c-b7be-4ce3-a550-04ae2bb45019); TestFlight automatic update installed build 66, confirmed from the application plist, while preserving the signed-in account.
+  - Installed Mac build 66 search finds the exact OpenAI Astral news updates conversation; user and assistant messages and embeds load, three page-down actions and return-to-top respond, and the inline CNBC reference opens the matching article and source snippets.
+  - A 15-second installed Mac build 66 sample has only two tokenizer samples among 1169 main-thread samples, compared with continuous tokenizer activity in build 65; observed memory footprint is about 128 MB. This supports the specific hang fix rather than full performance or web-parity certification.
+  - iOS/iPadOS build 66 archive and upload succeeded at 17:42:13 on 2026-09-11 and reached VALID (ASC build ff1a98ca-4f4f-4c8c-979b-982461b8017a); TestFlight notes are updated and the user was notified build 66 is available.
+  - Installed Mac build 66 APNs registration fails because its signature lacks the macOS-specific APNs entitlement despite a provisioning profile allowing it; a dedicated Mac entitlements file and conditional build configuration are prepared, pending validation.
+  - Notification recovery source now prepares an account/server-bound protected-Keychain pending ledger with stable callback deduplication and persisted original preflight/commit payload, exact target metadata/history hydration, and startup/reconnect/foreground replay; focused tests are running and deployment is held.
+  - User-provided full OpenMates build 66 hang report confirms an Astral conversation stall when scrolling through to the final message; the earlier three-page-down Mac check was insufficient and must not be treated as full-depth stability evidence.
+  - Current unreleased scroll recovery replaces per-row absolute-frame preferences with visibility-based tracking, removes row-appearance animation, caches inline markdown layout, avoids unused attributed parsing, and limits the chat-header timeline to decorative views. Full-depth Astral UI and focused unit verification are running.
+  - Notification replay ownership has moved to the app-scoped push service, with receipt-aware original-payload retry and WebSocket generation guards; its workflow validation is on hold until full-depth chat scrolling is proven.
+  - fullscroll-v1 reproduces the exact final-answer hang in the current simulator: all 6497 sampled main-thread stacks show the lazy-layout loop at full CPU, proving the first scroll optimizations insufficient.
+  - Controlled follow-up replaces the transcript lazy stack with an ordinary VStack and skills HStack while preserving rows, fixes exact markdown child-proposal reuse during placement with a regression, and pauses decorative header animation offscreen/inactive.
+  - fullscroll-v2 stops at accessibility-identifier propagation in the harness, not a demonstrated render failure; the corrected v3 completes its first full traversal to the final answer and back, with repeated traversals still pending.
+  - The initial 50-message render window is not a lifetime bound: loading older messages expands the rendered transcript, so full-history traversal must remain part of acceptance.
+  - The notification disconnect regression now checks the actual disconnection error rather than an unstable sub-500-millisecond timing assertion.
+  - fullscroll-v3 passes three complete Astral traversals from beginning to final message, plus embed opening/minimize, in 237.287 seconds without reproducing the hang.
+  - The successful v3 sample contains 6446 main-thread samples, including 3133 waiting and 1185 XCTest/accessibility samples; footprint is 151.6 MB with a 174.9 MB peak. This validates the exercised deep-scroll workflow, with installed-device confirmation still pending.
+  - Final regression run covers 79 focused unit tests plus BackgroundChatNotificationUITests; results are pending and deployment remains held.
+  - recovery-final-v1 passes all 79 focused unit tests in 2.456 seconds. Notification foreground deduplication, warm notification tap and cold notification tap route to the exact target chat successfully.
+  - The notification workflow stops at inline reply-control discovery before text entry; reply delivery and background reply completion are not yet proven. This harness limitation does not invalidate the independent fullscroll-v3 three-traversal and embed interaction pass.
+  - Urgent scrolling recovery is authorized for scoped dev integration while the notification reply selector is diagnosed separately; Mac build 67 archive is running from the stable application source.
 handoff:
-  current: Deliver build 66 from the validated core history/rendering source, verify installed loading and scrolling responsiveness, then validate push delivery and correct-chat notification replies across lifecycle and reconnect.
+  current: Deliver the verified full-depth scrolling recovery and build 67, verify installed responsiveness and Mac APNs signing, then finish inline notification reply-control discovery and end-to-end reply delivery validation.
   verification: Preserve passing iPhone/iPad simulator evidence; validate remaining chat-opening fixes with focused regressions and installed TestFlight workflows.
