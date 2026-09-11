@@ -8,7 +8,7 @@ test('settings and history opening do not resize the chat on every animation fra
   await expect(page.getByTestId('chat-history-container')).toBeVisible();
   for (const name of ['Open settings menu', 'Toggle menu']) {
     const button = page.getByRole('button', { name, exact: true });
-    const measure = async () => button.evaluate(async (element: HTMLElement) => {
+    const measure = async (control = button) => control.evaluate(async (element: HTMLElement) => {
       const chat = document.querySelector('[data-testid="chat-history-container"]')!;
       const widths: number[] = [];
       element.click();
@@ -25,7 +25,10 @@ test('settings and history opening do not resize the chat on every animation fra
     const opening = await measure();
     expect(opening.connected).toBe(true);
     expect(opening.widths.length).toBeLessThanOrEqual(2);
-    const closing = await measure();
+    const close = name === 'Open settings menu'
+      ? page.getByRole('button', { name: 'Close settings menu', exact: true })
+      : page.locator('.sidebar').getByRole('button', { name: 'Close', exact: true });
+    const closing = await measure(close);
     expect(closing.connected).toBe(true);
     expect(closing.widths.length).toBeLessThanOrEqual(2);
   }

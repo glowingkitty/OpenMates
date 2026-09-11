@@ -21843,13 +21843,13 @@ assertions:
       surface: gui.web
     - &id2538
       path: frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
-      line: 35
+      line: 38
       name: fullscreen pending frame gives identity without flashing visible Loading
         text
       surface: gui.web
     - &id2539
       path: frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
-      line: 48
+      line: 51
       name: result views hide invalid sources and render date-only calendar entries
       surface: gui.web
     - &id2540
