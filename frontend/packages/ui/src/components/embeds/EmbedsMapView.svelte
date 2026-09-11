@@ -276,8 +276,13 @@
     .map(calendarEntryFromMapEntry)
     .filter((entry): entry is CalendarEntry => entry != null)
     .sort((a, b) => a.dateOrdinal - b.dateOrdinal || a.startMinutes - b.startMinutes || a.entry.title.localeCompare(b.entry.title)));
-  const firstCalendarWeekStart = $derived(calendarEntries.length > 0 ? weekStartOrdinal(calendarEntries[0].dateOrdinal) : null);
-  const activeCalendarWeekStart = $derived(calendarWeekStartOrdinal ?? firstCalendarWeekStart);
+  const calendarAvailableWeekStarts = $derived(calendarWeeksWithEntries(calendarEntries));
+  const activeCalendarWeekStart = $derived(
+    calendarWeekStartOrdinal != null && calendarAvailableWeekStarts.includes(calendarWeekStartOrdinal)
+      ? calendarWeekStartOrdinal
+      : calendarAvailableWeekStarts[0] ?? null,
+  );
+  const activeCalendarWeekIndex = $derived(activeCalendarWeekStart == null ? -1 : calendarAvailableWeekStarts.indexOf(activeCalendarWeekStart));
   const calendarWeekDays = $derived<CalendarWeekDay[]>(activeCalendarWeekStart == null ? [] : buildCalendarWeekDays(activeCalendarWeekStart, calendarEntries));
   const dateOnlyRowCount = $derived(Math.max(0, ...calendarWeekDays.map((day) => day.entries.filter((entry) => entry.dateOnly).length)));
   const calendarWeekHasTimedEntries = $derived(calendarWeekDays.some((day) => day.entries.some((entry) => !entry.dateOnly)));
@@ -850,6 +855,21 @@
     return dateOrdinal - ((day + 6) % CALENDAR_WEEK_DAYS);
   }
 
+  // Include every week occupied by an event, including its overnight continuation.
+  // Event end times are exclusive, so an event ending at Monday 00:00 stays in Sunday.
+  function calendarWeeksWithEntries(items: CalendarEntry[]): number[] {
+    const weeks = new Set<number>();
+    for (const item of items) {
+      const lastDay = item.dateOnly ? item.dateOrdinal
+        : item.dateOrdinal + Math.ceil(calendarEndMinutes(item) / 1440) - 1;
+      const finalWeek = weekStartOrdinal(lastDay);
+      for (let week = weekStartOrdinal(item.dateOrdinal); week <= finalWeek; week += CALENDAR_WEEK_DAYS) {
+        weeks.add(week);
+      }
+    }
+    return [...weeks].sort((a, b) => a - b);
+  }
+
   function todayOrdinal(): number {
     const now = new Date();
     return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000;
@@ -1410,8 +1430,9 @@
   }
 
   function moveCalendarWeek(delta: -1 | 1): void {
-    if (activeCalendarWeekStart == null) return;
-    calendarWeekStartOrdinal = activeCalendarWeekStart + (delta * CALENDAR_WEEK_DAYS);
+    if (activeCalendarWeekIndex < 0) return;
+    const nextWeek = calendarAvailableWeekStarts[activeCalendarWeekIndex + delta];
+    if (nextWeek != null) calendarWeekStartOrdinal = nextWeek;
   }
 
   // Svelte's dynamic component type needs a permissive cast because registry
@@ -1518,12 +1539,9 @@
   });
 
   $effect(() => {
-    if (firstCalendarWeekStart == null) {
-      calendarWeekStartOrdinal = null;
-      return;
-    }
-    if (calendarWeekStartOrdinal == null) {
-      calendarWeekStartOrdinal = firstCalendarWeekStart;
+    // Persist the filtered fallback so clearing filters cannot revive an invalid week.
+    if (calendarWeekStartOrdinal !== activeCalendarWeekStart) {
+      calendarWeekStartOrdinal = activeCalendarWeekStart;
     }
   });
 
@@ -1739,12 +1757,12 @@
         <div class="results-view-calendar" class:date-only={!calendarWeekHasTimedEntries} data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
           {#if activeCalendarWeekStart != null}
             <header class="calendar-week-toolbar">
-              <button type="button" aria-label="Previous week" onclick={() => moveCalendarWeek(-1)}><span aria-hidden="true">&lt;</span></button>
+              <button type="button" aria-label="Previous week" disabled={activeCalendarWeekIndex <= 0} onclick={() => moveCalendarWeek(-1)}><span aria-hidden="true">&lt;</span></button>
               <strong data-testid="embeds-results-view-calendar-week-label">
                 {formatCalendarWeekTitle(activeCalendarWeekStart)}
                 <span class="visually-hidden"> {formatCalendarWeekLabel(activeCalendarWeekStart)}</span>
               </strong>
-              <button type="button" aria-label="Next week" onclick={() => moveCalendarWeek(1)}><span aria-hidden="true">&gt;</span></button>
+              <button type="button" aria-label="Next week" disabled={activeCalendarWeekIndex >= calendarAvailableWeekStarts.length - 1} onclick={() => moveCalendarWeek(1)}><span aria-hidden="true">&gt;</span></button>
             </header>
             <div class="calendar-week" class:date-only={!calendarWeekHasTimedEntries} style={`--calendar-row-template: ${calendarRowTemplate}; --calendar-timeline-hours: ${calendarTimelineHours}`} data-testid="embeds-results-view-calendar-week">
               {#if calendarWeekHasTimedEntries}
@@ -2334,7 +2352,8 @@
     cursor: pointer;
   }
 
-  .calendar-week-toolbar button:hover { background: var(--color-grey-10); }
+  .calendar-week-toolbar button:hover:not(:disabled) { background: var(--color-grey-10); }
+  .calendar-week-toolbar button:disabled { opacity: 0.35; cursor: default; }
 
   .calendar-week {
     --calendar-hour-height: 46px;

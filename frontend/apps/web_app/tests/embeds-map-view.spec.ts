@@ -228,6 +228,8 @@ test.describe('Embeds map view preview', () => {
 		await expect(mapView.getByTestId('embeds-results-view-calendar-week')).toBeVisible();
 		await expect(mapView.getByTestId('embeds-results-view-calendar-day')).toHaveCount(7);
 		await expect(mapView.getByTestId('embeds-results-view-calendar-week-label')).toContainText('Apr 13');
+		await expect(mapView.getByRole('button', { name: 'Previous week', exact: true })).toBeDisabled();
+		await expect(mapView.getByRole('button', { name: 'Next week', exact: true })).toBeDisabled();
 		await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(5);
 		await expect(cards).toHaveCount(0);
 		if (PROOF_DEVICE === 'web-phone') {
@@ -299,6 +301,32 @@ test.describe('Embeds map view preview', () => {
         const rangeMin = filterMenu.locator('input[type="range"]').first();
         const rangeMax = filterMenu.locator('input[type="range"]').nth(1);
         expect((await rangeMin.boundingBox())!.y).toBeCloseTo((await rangeMax.boundingBox())!.y, 0);
+
+        // Exercise real pointer dragging (native input.fill bypasses Safari hit testing).
+        for (const rail of await filterMenu.locator('.range-controls').all()) {
+            await rail.scrollIntoViewIfNeeded();
+            const box = (await rail.boundingBox())!;
+            const minimum = rail.locator('input.lower');
+            const maximum = rail.locator('input.upper');
+            const initialMin = Number(await minimum.inputValue());
+            const initialMax = Number(await maximum.inputValue());
+            if (initialMin === initialMax) continue;
+            const left = box.x + 14;
+            const right = box.x + box.width - 14;
+            const y = box.y + box.height / 2;
+            await page.mouse.move(left, y);
+            await page.mouse.down();
+            await page.mouse.move(left + (right - left) * 0.25, y, { steps: 8 });
+            await page.mouse.up();
+            expect(Number(await minimum.inputValue())).toBeGreaterThan(initialMin);
+            await page.mouse.move(right, y);
+            await page.mouse.down();
+            await page.mouse.move(left + (right - left) * 0.75, y, { steps: 8 });
+            await page.mouse.up();
+            expect(Number(await maximum.inputValue())).toBeLessThan(initialMax);
+        }
+        await filterMenu.getByTestId('embeds-map-view-clear-filters').click();
+        await filterMenu.getByTestId('embeds-map-view-filter-controls').evaluate((controls) => { controls.scrollTop = 0; });
 
 		await expect(filterMenu).toContainText('Price');
 		await expect(filterMenu).toContainText('Carrier');

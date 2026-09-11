@@ -525,6 +525,67 @@ describe("EmbedsMapView", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+  it("navigates only calendar weeks with filtered entries and skips empty weeks", async () => {
+    const records: Record<string, Record<string, unknown>> = {
+      overnight: { title: "Sunday overnight", departure: "2026-09-13T23:00:00+02:00", arrival: "2026-09-14T01:00:00+02:00", provider: "early" },
+      midnight: { title: "Ends at midnight", date_start: "2026-09-20T23:00:00+02:00", date_end: "2026-09-21T00:00:00+02:00", provider: "early" },
+      later: { title: "October date only", date_start: "2026-10-01", provider: "later" },
+    };
+    embedStoreMocks.resolveByRefDeep.mockImplementation(async (ref: string) => ref);
+    embedResolverMocks.resolveEmbed.mockImplementation(async (ref: string) => ({ embed_id: ref, type: "events-event", status: "finished", content: ref }));
+    embedResolverMocks.decodeToonContent.mockImplementation(async (ref: string) => records[ref]);
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, { target, props: { id: "calendar-weeks", embedRefs: Object.keys(records) } });
+    await flush(target);
+
+    const previous = () => target.querySelector<HTMLButtonElement>('[aria-label="Previous week"]')!;
+    const next = () => target.querySelector<HTMLButtonElement>('[aria-label="Next week"]')!;
+    const week = () => target.querySelector('[data-testid="embeds-results-view-calendar-week-label"]')?.textContent;
+    expect(week()).toContain("Week 37 2026");
+    expect(previous().disabled).toBe(true);
+    expect(next().disabled).toBe(false);
+
+    next().click();
+    await tick();
+    expect(week()).toContain("Week 38 2026");
+    expect(target.querySelector('[data-testid="embeds-results-view-calendar"]')?.textContent).toContain("Sunday overnight");
+    next().click();
+    await tick();
+    // The event ending at Monday midnight creates no event in week 39.
+    expect(week()).toContain("Week 40 2026");
+    expect(target.querySelector('[data-testid="embeds-results-view-calendar-date-only"]')?.textContent).toContain("October date only");
+    expect(next().disabled).toBe(true);
+    previous().click();
+    await tick();
+    expect(week()).toContain("Week 38 2026");
+    next().click();
+    await tick();
+
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-filter-button"]')!.click();
+    await tick();
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-option-provider-later"]')!.click();
+    await tick();
+    // Removing the active week's only entry immediately selects a populated week.
+    expect(week()).toContain("Week 37 2026");
+    expect(previous().disabled).toBe(true);
+    next().click();
+    await tick();
+    expect(week()).toContain("Week 38 2026");
+    expect(next().disabled).toBe(true);
+
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-clear-filters"]')!.click();
+    await tick();
+    expect(week()).toContain("Week 38 2026");
+    expect(next().disabled).toBe(false);
+    next().click();
+    await tick();
+    expect(week()).toContain("Week 40 2026");
+    unmount(component);
+    target.remove();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("switches from the map state to the full weekly calendar state", async () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
