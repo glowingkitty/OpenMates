@@ -1,0 +1,1969 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-11'
+generated_at: '2026-09-12T00:20:20+00:00'
+range:
+  since: '2026-09-11T00:00:00+00:00'
+  until: '2026-09-12T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 22
+  section_counts:
+    features: 0
+    bug_fixes: 18
+    improvements: 1
+    docs: 1
+    tests: 2
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 14
+  user_facing_items: 18
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: coordinate session refresh and prevent stale logout'
+    section: bug_fixes
+    commits:
+    - 70abd3b76
+    authored_at: '2026-09-11T17:11:53+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/services/directus/user/user_authentication.py
+    - backend/core/api/app/utils/session_refresh.py
+    - backend/tests/test_auth_dependencies.py
+    - backend/tests/test_session_refresh_coordination.py
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent deep Apple chat scroll hangs and preserve notification replies'
+    section: bug_fixes
+    commits:
+    - 9fbba00f7
+    authored_at: '2026-09-11T16:53:51+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/OpenMatesMacOS.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/project.yml
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: isolate map pins and use embed app colors'
+    section: bug_fixes
+    commits:
+    - 0c79a7e47
+    authored_at: '2026-09-11T16:51:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: support Safari range dragging and bound calendar weeks'
+    section: bug_fixes
+    commits:
+    - 8c05cb9ac
+    authored_at: '2026-09-11T16:45:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/ResultsRangeFilter.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/ResultsRangeFilter.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: match results filters and calendar event durations to design'
+    section: bug_fixes
+    commits:
+    - b8440a515
+    authored_at: '2026-09-11T16:23:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/ResultsDateRangeFilter.svelte
+    - frontend/packages/ui/src/components/embeds/ResultsRangeFilter.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore shared result previews and map initialization'
+    section: bug_fixes
+    commits:
+    - bce1f7755
+    authored_at: '2026-09-11T15:49:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore Apple history rendering and search usability'
+    section: bug_fixes
+    commits:
+    - f5cc5d74f
+    authored_at: '2026-09-11T15:30:22+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: stack guest interests and retain examples on empty slides'
+    section: bug_fixes
+    commits:
+    - 04d473385
+    authored_at: '2026-09-11T15:28:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide invalid results views with dismissible admin diagnostics'
+    section: bug_fixes
+    commits:
+    - 960f874c3
+    authored_at: '2026-09-11T15:13:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/embedsMapViewParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent generic fullscreen banner and duplicate entrance'
+    section: bug_fixes
+    commits:
+    - ae67ef5cc
+    authored_at: '2026-09-11T14:10:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedFullscreenLoading.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: omit empty timeline for date-only calendar results'
+    section: bug_fixes
+    commits:
+    - 4900d0579
+    authored_at: '2026-09-11T13:53:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: expose current Apple composer accessibility text'
+    section: bug_fixes
+    commits:
+    - fd2c48f85
+    authored_at: '2026-09-11T13:49:12+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: complete panel and chat content recovery changes'
+    section: bug_fixes
+    commits:
+    - 66f6c7133
+    authored_at: '2026-09-11T13:36:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: make panels responsive and recover valid chat content'
+    section: bug_fixes
+    commits:
+    - 89825e462
+    authored_at: '2026-09-11T13:31:44+00:00'
+    changed_paths:
+    - docs/architecture/frontend/embed-workspace-transitions.md
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedFullscreenLoading.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedFullscreenLoading.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/RecordingRenderer.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore Apple login and core chat flow'
+    section: bug_fixes
+    commits:
+    - 7c983250a
+    authored_at: '2026-09-11T13:28:29+00:00'
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatPaginationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesTests/OfflineAccountIsolationTests.swift
+    - apple/OpenMatesTests/RealAccountLoginRecoveryTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: paginate chats from the authoritative account inventory'
+    section: bug_fixes
+    commits:
+    - 32ebe840c
+    authored_at: '2026-09-11T12:35:29+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/tests/test_team_chat_pagination.py
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: make embed pane transitions responsive'
+    section: bug_fixes
+    commits:
+    - 84246fb4c
+    authored_at: '2026-09-11T11:38:27+00:00'
+    changed_paths:
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .claude/hooks/tdd-session-context.sh
+    - .claude/rules/testing.md
+    - .claude/skills/clarify/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - AGENTS.md
+    - docs/architecture/frontend/embed-workspace-transitions.md
+    - frontend/apps/web_app/tests/components/embed-workspace.spec.ts
+    - frontend/apps/web_app/tests/components/mindmap-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.preview.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore chat fade and overlay interactions'
+    section: bug_fixes
+    commits:
+    - a45f6f40a
+    authored_at: '2026-09-11T10:33:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements:
+  - title: 'refactor: streamline Codex agent coordination'
+    section: improvements
+    commits:
+    - 343888bf9
+    authored_at: '2026-09-11T12:04:29+00:00'
+    changed_paths:
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .agents/skills/add-memory-type/SKILL.md
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/create-plan/SKILL.md
+    - .agents/skills/create-pr/SKILL.md
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/figma-reference/SKILL.md
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .agents/skills/ios/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/realistic-long-chat-validation/SKILL.md
+    - .agents/skills/resume-tasks/SKILL.md
+    - .agents/skills/start/SKILL.md
+    - .agents/skills/tasks-from-plan/SKILL.md
+    - .agents/skills/update-prod-server/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/hooks/apple-no-delete-guard.sh
+    - .claude/hooks/auto-track.sh
+    - .claude/hooks/pre-edit-guard.sh
+    - .claude/rules/code-quality.md
+    - .claude/rules/deployment.md
+    - .claude/rules/planning.md
+    - .claude/rules/session-lifecycle.md
+    - .claude/rules/task-management.md
+    - .claude/rules/testing.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-memory-type/SKILL.md
+    - .claude/skills/clarify/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/create-plan/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/figma-reference/SKILL.md
+    - .claude/skills/fix-next-test/SKILL.md
+    - .claude/skills/fix-tests/SKILL.md
+    - .claude/skills/implement-opencode-improvements/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/opencode-improvement-research/SKILL.md
+    - .claude/skills/opencode-workflow-review/SKILL.md
+    - .claude/skills/realistic-long-chat-validation/SKILL.md
+    - .claude/skills/resume-tasks/SKILL.md
+    - .claude/skills/spawn-chat/SKILL.md
+    - .claude/skills/start/SKILL.md
+    - .claude/skills/task-status/SKILL.md
+    - .claude/skills/tasks-from-plan/SKILL.md
+    - .claude/skills/update-prod-server/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - .codex/deploy-protocol-version
+    - .codex/hooks/auto-track.sh
+    - .codex/hooks/claude-hook-bridge.sh
+    - .codex/hooks/pre-edit-guard.sh
+    - .codex/hooks/tdd-session-context.sh
+    - .github/workflows/specification-approval-pdf.yml
+    - .gitignore
+    - .opencode/deploy-protocol-version
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/architecture/agent-workflow-decisions.md
+    - docs/architecture/apple-no-delete-safety.md
+    - docs/architecture/core/security.md
+    - docs/architecture/test-orchestration.md
+    - docs/contributing/guides/agent-tooling-migration.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - docs/contributing/guides/concurrent-sessions.md
+    - docs/contributing/guides/docs-writing-guidelines.md
+    - docs/contributing/guides/figma-to-code.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/plans/codex-efficiency-cleanup/plan.yml
+    - scripts/_daily_meeting_helper.py
+    - scripts/_daily_runner_helper.py
+    - scripts/_dependabot_helper.py
+    - scripts/_eu_vuln_helper.py
+    - scripts/_security_helper.py
+    - scripts/_workflow_decisions.py
+    - scripts/_workflow_review_helper.py
+    - scripts/_zellij_utils.py
+    - scripts/accessibility_audit.py
+    - scripts/agent_output.py
+    - scripts/apple_evidence_bundle.py
+    - scripts/apple_no_delete_guard.py
+    - scripts/audit_agent_tooling_parity.py
+    - scripts/audit_apple_release_preflight.py
+    - scripts/audit_native_worktree_scope.py
+    - scripts/audit_opencode_automation_budget.py
+    - scripts/check-dependabot-daily.sh
+    - scripts/check-eu-vulns-daily.sh
+    - scripts/ci_coordinator.py
+    - scripts/ci_dispatch.py
+    - scripts/cleanup-proof-videos.sh
+    - scripts/cli_video_capture.py
+    - scripts/code_quality_guard.py
+    - scripts/codex_cached_context.py
+    - scripts/codex_evidence.py
+    - scripts/codex_hook_context.py
+    - scripts/codex_meeting.py
+    - scripts/codex_orchestration.py
+    - scripts/daily_ai_cache_backfill.py
+    - scripts/deploy_admission.py
+    - scripts/deployment_wait.py
+    - scripts/generate_events_newsletter_header_assets.mjs
+    - scripts/linear-cron-setup.sh
+    - scripts/opencode_presence_store.py
+    - scripts/opencode_response_media.py
+    - scripts/plan_verify.py
+    - scripts/prompts/auto-fix-failed-test-group.md
+    - scripts/prompts/daily-meeting.md
+    - scripts/prompts/seo-audit.md
+    - scripts/prompts/ui-design-review.md
+    - scripts/proof_video_workflow.py
+    - scripts/red-teaming.sh
+    - scripts/response_media.py
+    - scripts/run_figma_mcp.sh
+    - scripts/run_test_account_cli.py
+    - scripts/run_tests.py
+    - scripts/security-audit.sh
+    - scripts/session-cleanup.py
+    - scripts/session_binding.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/spec_evidence.py
+    - scripts/specification_approval_pdf.py
+    - scripts/specification_readable_pdf.py
+    - scripts/sync_agent_parity.py
+    - scripts/technical_debt_scan.py
+    - scripts/tests.py
+    - scripts/tests/test_agent_efficiency.py
+    - scripts/tests/test_agent_tooling_parity_audit.py
+    - scripts/tests/test_codex_cached_context.py
+    - scripts/tests/test_codex_meeting.py
+    - scripts/tests/test_codex_task_lifecycle.py
+    - scripts/tests/test_opencode_automation_budget_audit.py
+    - scripts/tests/test_opencode_control_plane_guard.py
+    - scripts/tests/test_opencode_presence_failure_containment.py
+    - scripts/tests/test_opencode_presence_privacy.py
+    - scripts/tests/test_opencode_response_media.py
+    - scripts/tests/test_opencode_task_bridge.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_response_media.py
+    - scripts/tests/test_sessions_auto_integration.py
+    - scripts/tests/test_sessions_codex_binding.py
+    - scripts/tests/test_sessions_continuation.py
+    - scripts/tests/test_sessions_edit_leases.py
+    - scripts/tests/test_sessions_media_delivery.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_opencode_chat.py
+    - scripts/tests/test_sessions_presence_status.py
+    - scripts/tests/test_sessions_presence_store.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_sessions_stale_read.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - scripts/tests/test_sessions_worktree_checkpoints.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    - scripts/tests/test_sessions_write_claim_messages.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_tests_control_campaigns.py
+    - scripts/tests/test_workflow_decisions.py
+    - scripts/tests/test_workflow_review_helper.py
+    - scripts/verify_account_export_cli.py
+    - scripts/verify_account_import_cli.py
+    - scripts/verify_sdk_tasks_live_smoke.mjs
+    - scripts/verify_session_security_isolation.py
+    - scripts/verify_user_work_control_cli.py
+    - scripts/weekly-contract-audits.sh
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is reachable from main
+  docs:
+  - title: 'docs: keep PR descriptions focused on public changes'
+    section: docs
+    commits:
+    - 52c4565d6
+    authored_at: '2026-09-11T17:24:44+00:00'
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - AGENTS.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: recognize the observed notification reply control'
+    section: tests
+    commits:
+    - a81c9fa11
+    authored_at: '2026-09-11T16:57:04+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: use each panel close control for transition checks'
+    section: tests
+    commits:
+    - b14c694d1
+    authored_at: '2026-09-11T13:45:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: coordinate session refresh and prevent stale logout'
+    commits:
+    - 70abd3b76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: isolate map pins and use embed app colors'
+    commits:
+    - 0c79a7e47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: support Safari range dragging and bound calendar weeks'
+    commits:
+    - 8c05cb9ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: match results filters and calendar event durations to design'
+    commits:
+    - b8440a515
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore shared result previews and map initialization'
+    commits:
+    - bce1f7755
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stack guest interests and retain examples on empty slides'
+    commits:
+    - 04d473385
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide invalid results views with dismissible admin diagnostics'
+    commits:
+    - 960f874c3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent generic fullscreen banner and duplicate entrance'
+    commits:
+    - ae67ef5cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: omit empty timeline for date-only calendar results'
+    commits:
+    - 4900d0579
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: complete panel and chat content recovery changes'
+    commits:
+    - 66f6c7133
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: make panels responsive and recover valid chat content'
+    commits:
+    - 89825e462
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: paginate chats from the authoritative account inventory'
+    commits:
+    - 32ebe840c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: make embed pane transitions responsive'
+    commits:
+    - 84246fb4c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore chat fade and overlay interactions'
+    commits:
+    - a45f6f40a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: coordinate session refresh and prevent stale logout'
+    commits:
+    - 70abd3b76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent deep Apple chat scroll hangs and preserve notification replies'
+    commits:
+    - 9fbba00f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: isolate map pins and use embed app colors'
+    commits:
+    - 0c79a7e47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: support Safari range dragging and bound calendar weeks'
+    commits:
+    - 8c05cb9ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: match results filters and calendar event durations to design'
+    commits:
+    - b8440a515
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore shared result previews and map initialization'
+    commits:
+    - bce1f7755
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore Apple history rendering and search usability'
+    commits:
+    - f5cc5d74f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: stack guest interests and retain examples on empty slides'
+    commits:
+    - 04d473385
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide invalid results views with dismissible admin diagnostics'
+    commits:
+    - 960f874c3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent generic fullscreen banner and duplicate entrance'
+    commits:
+    - ae67ef5cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: omit empty timeline for date-only calendar results'
+    commits:
+    - 4900d0579
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: expose current Apple composer accessibility text'
+    commits:
+    - fd2c48f85
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: complete panel and chat content recovery changes'
+    commits:
+    - 66f6c7133
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: make panels responsive and recover valid chat content'
+    commits:
+    - 89825e462
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore Apple login and core chat flow'
+    commits:
+    - 7c983250a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: paginate chats from the authoritative account inventory'
+    commits:
+    - 32ebe840c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: make embed pane transitions responsive'
+    commits:
+    - 84246fb4c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore chat fade and overlay interactions'
+    commits:
+    - a45f6f40a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 52c4565d6aca6b90b19a1412ebf2e04b285190e6
+    short_sha: 52c4565d6
+    authored_at: '2026-09-11T17:24:44+00:00'
+    subject: 'docs: keep PR descriptions focused on public changes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - AGENTS.md
+    related_feature_ids: []
+  - sha: 70abd3b764f83251ffa8593891d973b605016786
+    short_sha: 70abd3b76
+    authored_at: '2026-09-11T17:11:53+00:00'
+    subject: 'fix: coordinate session refresh and prevent stale logout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/services/directus/user/user_authentication.py
+    - backend/core/api/app/utils/session_refresh.py
+    - backend/tests/test_auth_dependencies.py
+    - backend/tests/test_session_refresh_coordination.py
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a81c9fa117f1e0a933712fe1f45483a23319c8fb
+    short_sha: a81c9fa11
+    authored_at: '2026-09-11T16:57:04+00:00'
+    subject: 'test: recognize the observed notification reply control'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9fbba00f73ca4feef2a029a37d847df294038d90
+    short_sha: 9fbba00f7
+    authored_at: '2026-09-11T16:53:51+00:00'
+    subject: 'fix: prevent deep Apple chat scroll hangs and preserve notification replies'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/OpenMatesMacOS.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/project.yml
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0c79a7e479d4ac3215f40d1c6f4ac239893c08c8
+    short_sha: 0c79a7e47
+    authored_at: '2026-09-11T16:51:35+00:00'
+    subject: 'fix: isolate map pins and use embed app colors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 8c05cb9acf94615e521d524e0b12185ee59778a2
+    short_sha: 8c05cb9ac
+    authored_at: '2026-09-11T16:45:17+00:00'
+    subject: 'fix: support Safari range dragging and bound calendar weeks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/ResultsRangeFilter.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/ResultsRangeFilter.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: b8440a515d4dc8861cb7243474fbb1356e7f873c
+    short_sha: b8440a515
+    authored_at: '2026-09-11T16:23:53+00:00'
+    subject: 'fix: match results filters and calendar event durations to design'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/ResultsDateRangeFilter.svelte
+    - frontend/packages/ui/src/components/embeds/ResultsRangeFilter.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: bce1f7755115b2e578014118966ed8a094ac1219
+    short_sha: bce1f7755
+    authored_at: '2026-09-11T15:49:58+00:00'
+    subject: 'fix: restore shared result previews and map initialization'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: f5cc5d74f1d33cd26ab289cdd2157c8aa486787b
+    short_sha: f5cc5d74f
+    authored_at: '2026-09-11T15:30:22+00:00'
+    subject: 'fix: restore Apple history rendering and search usability'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 04d473385a28977514a8d13a5cc48b25a852194e
+    short_sha: 04d473385
+    authored_at: '2026-09-11T15:28:04+00:00'
+    subject: 'fix: stack guest interests and retain examples on empty slides'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 960f874c31081f748ccd065d7fcaa0396e39d1f9
+    short_sha: 960f874c3
+    authored_at: '2026-09-11T15:13:46+00:00'
+    subject: 'fix: hide invalid results views with dismissible admin diagnostics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/embedsMapViewParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: ae67ef5cc43f92d2ba322ce0a1120768140b44ca
+    short_sha: ae67ef5cc
+    authored_at: '2026-09-11T14:10:24+00:00'
+    subject: 'fix: prevent generic fullscreen banner and duplicate entrance'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedFullscreenLoading.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 4900d05795eb4156671bf9d019f899acb1be8968
+    short_sha: 4900d0579
+    authored_at: '2026-09-11T13:53:01+00:00'
+    subject: 'fix: omit empty timeline for date-only calendar results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: fd2c48f85220cd5a695ea773e670c3e7131ccfb7
+    short_sha: fd2c48f85
+    authored_at: '2026-09-11T13:49:12+00:00'
+    subject: 'fix: expose current Apple composer accessibility text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b14c694d185bf44e23bceb515fec62f3ebc542b8
+    short_sha: b14c694d1
+    authored_at: '2026-09-11T13:45:33+00:00'
+    subject: 'test: use each panel close control for transition checks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 66f6c7133c8f2407684d1e80bc5e354c399a1939
+    short_sha: 66f6c7133
+    authored_at: '2026-09-11T13:36:05+00:00'
+    subject: 'fix: complete panel and chat content recovery changes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 89825e462754b906d621e473e9a728c710352535
+    short_sha: 89825e462
+    authored_at: '2026-09-11T13:31:44+00:00'
+    subject: 'fix: make panels responsive and recover valid chat content'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/frontend/embed-workspace-transitions.md
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedFullscreenLoading.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedFullscreenLoading.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/RecordingRenderer.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 7c983250a69c55c90857d6767666438c89892c71
+    short_sha: 7c983250a
+    authored_at: '2026-09-11T13:28:29+00:00'
+    subject: 'fix: restore Apple login and core chat flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatPaginationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesTests/OfflineAccountIsolationTests.swift
+    - apple/OpenMatesTests/RealAccountLoginRecoveryTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 32ebe840ca48770bc96764f2089fd4f5ee2211fc
+    short_sha: 32ebe840c
+    authored_at: '2026-09-11T12:35:29+00:00'
+    subject: 'fix: paginate chats from the authoritative account inventory'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/tests/test_team_chat_pagination.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 343888bf9008dac64b0c84c3ea1a3240f587a636
+    short_sha: 343888bf9
+    authored_at: '2026-09-11T12:04:29+00:00'
+    subject: 'refactor: streamline Codex agent coordination'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .agents/skills/add-memory-type/SKILL.md
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/create-plan/SKILL.md
+    - .agents/skills/create-pr/SKILL.md
+    - .agents/skills/daily-meeting-and-orchestration/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/figma-reference/SKILL.md
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .agents/skills/ios/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/realistic-long-chat-validation/SKILL.md
+    - .agents/skills/resume-tasks/SKILL.md
+    - .agents/skills/start/SKILL.md
+    - .agents/skills/tasks-from-plan/SKILL.md
+    - .agents/skills/update-prod-server/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/hooks/apple-no-delete-guard.sh
+    - .claude/hooks/auto-track.sh
+    - .claude/hooks/pre-edit-guard.sh
+    - .claude/rules/code-quality.md
+    - .claude/rules/deployment.md
+    - .claude/rules/planning.md
+    - .claude/rules/session-lifecycle.md
+    - .claude/rules/task-management.md
+    - .claude/rules/testing.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-memory-type/SKILL.md
+    - .claude/skills/clarify/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/create-plan/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/figma-reference/SKILL.md
+    - .claude/skills/fix-next-test/SKILL.md
+    - .claude/skills/fix-tests/SKILL.md
+    - .claude/skills/implement-opencode-improvements/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/opencode-improvement-research/SKILL.md
+    - .claude/skills/opencode-workflow-review/SKILL.md
+    - .claude/skills/realistic-long-chat-validation/SKILL.md
+    - .claude/skills/resume-tasks/SKILL.md
+    - .claude/skills/spawn-chat/SKILL.md
+    - .claude/skills/start/SKILL.md
+    - .claude/skills/task-status/SKILL.md
+    - .claude/skills/tasks-from-plan/SKILL.md
+    - .claude/skills/update-prod-server/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - .codex/deploy-protocol-version
+    - .codex/hooks/auto-track.sh
+    - .codex/hooks/claude-hook-bridge.sh
+    - .codex/hooks/pre-edit-guard.sh
+    - .codex/hooks/tdd-session-context.sh
+    - .github/workflows/specification-approval-pdf.yml
+    - .gitignore
+    - .opencode/deploy-protocol-version
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/architecture/agent-workflow-decisions.md
+    - docs/architecture/apple-no-delete-safety.md
+    - docs/architecture/core/security.md
+    - docs/architecture/test-orchestration.md
+    - docs/contributing/guides/agent-tooling-migration.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - docs/contributing/guides/concurrent-sessions.md
+    - docs/contributing/guides/docs-writing-guidelines.md
+    - docs/contributing/guides/figma-to-code.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/plans/codex-efficiency-cleanup/plan.yml
+    - scripts/_daily_meeting_helper.py
+    - scripts/_daily_runner_helper.py
+    - scripts/_dependabot_helper.py
+    - scripts/_eu_vuln_helper.py
+    - scripts/_security_helper.py
+    - scripts/_workflow_decisions.py
+    - scripts/_workflow_review_helper.py
+    - scripts/_zellij_utils.py
+    - scripts/accessibility_audit.py
+    - scripts/agent_output.py
+    - scripts/apple_evidence_bundle.py
+    - scripts/apple_no_delete_guard.py
+    - scripts/audit_agent_tooling_parity.py
+    - scripts/audit_apple_release_preflight.py
+    - scripts/audit_native_worktree_scope.py
+    - scripts/audit_opencode_automation_budget.py
+    - scripts/check-dependabot-daily.sh
+    - scripts/check-eu-vulns-daily.sh
+    - scripts/ci_coordinator.py
+    - scripts/ci_dispatch.py
+    - scripts/cleanup-proof-videos.sh
+    - scripts/cli_video_capture.py
+    - scripts/code_quality_guard.py
+    - scripts/codex_cached_context.py
+    - scripts/codex_evidence.py
+    - scripts/codex_hook_context.py
+    - scripts/codex_meeting.py
+    - scripts/codex_orchestration.py
+    - scripts/daily_ai_cache_backfill.py
+    - scripts/deploy_admission.py
+    - scripts/deployment_wait.py
+    - scripts/generate_events_newsletter_header_assets.mjs
+    - scripts/linear-cron-setup.sh
+    - scripts/opencode_presence_store.py
+    - scripts/opencode_response_media.py
+    - scripts/plan_verify.py
+    - scripts/prompts/auto-fix-failed-test-group.md
+    - scripts/prompts/daily-meeting.md
+    - scripts/prompts/seo-audit.md
+    - scripts/prompts/ui-design-review.md
+    - scripts/proof_video_workflow.py
+    - scripts/red-teaming.sh
+    - scripts/response_media.py
+    - scripts/run_figma_mcp.sh
+    - scripts/run_test_account_cli.py
+    - scripts/run_tests.py
+    - scripts/security-audit.sh
+    - scripts/session-cleanup.py
+    - scripts/session_binding.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/spec_evidence.py
+    - scripts/specification_approval_pdf.py
+    - scripts/specification_readable_pdf.py
+    - scripts/sync_agent_parity.py
+    - scripts/technical_debt_scan.py
+    - scripts/tests.py
+    - scripts/tests/test_agent_efficiency.py
+    - scripts/tests/test_agent_tooling_parity_audit.py
+    - scripts/tests/test_codex_cached_context.py
+    - scripts/tests/test_codex_meeting.py
+    - scripts/tests/test_codex_task_lifecycle.py
+    - scripts/tests/test_opencode_automation_budget_audit.py
+    - scripts/tests/test_opencode_control_plane_guard.py
+    - scripts/tests/test_opencode_presence_failure_containment.py
+    - scripts/tests/test_opencode_presence_privacy.py
+    - scripts/tests/test_opencode_response_media.py
+    - scripts/tests/test_opencode_task_bridge.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_response_media.py
+    - scripts/tests/test_sessions_auto_integration.py
+    - scripts/tests/test_sessions_codex_binding.py
+    - scripts/tests/test_sessions_continuation.py
+    - scripts/tests/test_sessions_edit_leases.py
+    - scripts/tests/test_sessions_media_delivery.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_opencode_chat.py
+    - scripts/tests/test_sessions_presence_status.py
+    - scripts/tests/test_sessions_presence_store.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_sessions_stale_read.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - scripts/tests/test_sessions_worktree_checkpoints.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    - scripts/tests/test_sessions_write_claim_messages.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_tests_control_campaigns.py
+    - scripts/tests/test_workflow_decisions.py
+    - scripts/tests/test_workflow_review_helper.py
+    - scripts/verify_account_export_cli.py
+    - scripts/verify_account_import_cli.py
+    - scripts/verify_sdk_tasks_live_smoke.mjs
+    - scripts/verify_session_security_isolation.py
+    - scripts/verify_user_work_control_cli.py
+    - scripts/weekly-contract-audits.sh
+    related_feature_ids: []
+  - sha: 84246fb4cdd57df2309e34524bd7f7845b140759
+    short_sha: 84246fb4c
+    authored_at: '2026-09-11T11:38:27+00:00'
+    subject: 'fix: make embed pane transitions responsive'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .claude/hooks/tdd-session-context.sh
+    - .claude/rules/testing.md
+    - .claude/skills/clarify/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - AGENTS.md
+    - docs/architecture/frontend/embed-workspace-transitions.md
+    - frontend/apps/web_app/tests/components/embed-workspace.spec.ts
+    - frontend/apps/web_app/tests/components/mindmap-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.preview.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a45f6f40a1c489d2712f31d8b0c615fb58db30e6
+    short_sha: a45f6f40a
+    authored_at: '2026-09-11T10:33:32+00:00'
+    subject: 'fix: restore chat fade and overlay interactions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the web interface, specifically improving the responsiveness of embed panels and
+    resolving several issues within map and calendar views. Significant work was also done on session management to prevent
+    unexpected logouts.
+  released_changes:
+  - text: Responsive panel transitions and workspace layouts were improved to ensure chat content remains accessible across
+      different screen sizes.
+    evidence:
+      commits:
+      - 84246fb4c
+      - 89825e462
+      - 66f6c7133
+    release_status: released_main
+  - text: Map embeds now feature isolated pins and use application-specific colors, while shared result previews and initialization
+      logic were restored.
+    evidence:
+      commits:
+      - 0c79a7e47
+      - bce1f7755
+    release_status: released_main
+  - text: Calendar and results filtering received several updates, including Safari support for range dragging, bounded week
+      views, and design-aligned event durations.
+    evidence:
+      commits:
+      - 8c05cb9ac
+      - b8440a515
+      - 4900d0579
+    release_status: released_main
+  - text: The chat interface was updated to restore fade effects and overlay interactions, and guest interest selection was
+      improved to retain examples on empty slides.
+    evidence:
+      commits:
+      - a45f6f40a
+      - 04d473385
+    release_status: released_main
+  bug_fixes:
+  - text: Session refresh coordination was implemented to prevent stale logout scenarios.
+    evidence:
+      commits:
+      - 70abd3b76
+    release_status: released_main
+  - text: Chat pagination now correctly pulls from the authoritative account inventory.
+    evidence:
+      commits:
+      - 32ebe840c
+    release_status: released_main
+  - text: Invalid results views are now hidden, and diagnostic information for administrators is dismissible.
+    evidence:
+      commits:
+      - 960f874c3
+    release_status: released_main
+  - text: A generic fullscreen loading banner and duplicate entrance animations were removed.
+    evidence:
+      commits:
+      - ae67ef5cc
+    release_status: released_main
+  unreleased_progress:
+  - text: Extensive work continued on the Apple platform apps, including fixes for login flows, chat history rendering, search
+      usability, and notification reply handling.
+    evidence:
+      commits:
+      - 7c983250a
+      - f5cc5d74f
+      - 9fbba00f7
+      - fd2c48f85
+      - a81c9fa11
+    release_status: released_main
+  internal_progress:
+  - text: Codex agent coordination was streamlined to improve development efficiency.
+    evidence:
+      commits:
+      - 343888bf9
+    release_status: released_main
+  - text: Documentation guidelines were updated to focus pull request descriptions on public-facing changes.
+    evidence:
+      commits:
+      - 52c4565d6
+    release_status: released_main
+  - text: Test coverage was expanded for panel transitions and workspace responsiveness.
+    evidence:
+      commits:
+      - b14c694d1
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Responsive panel transitions and workspace layout improvements.
+      evidence:
+        commits:
+        - 84246fb4c
+        - 89825e462
+        - 66f6c7133
+      reason: Significant improvements to the web application's responsiveness and workspace transitions.
+    - text: Refined map and calendar embed views.
+      evidence:
+        commits:
+        - 0c79a7e47
+        - bce1f7755
+        - 8c05cb9ac
+        - b8440a515
+        - 4900d0579
+      reason: A collection of fixes and refinements for map and calendar embeds that improve the user experience.
+    - text: Improved session management and logout prevention.
+      evidence:
+        commits:
+        - 70abd3b76
+      reason: Improves the reliability of user sessions and prevents unexpected logouts.
+    exclude:
+    - text: Apple platform app stability and login fixes.
+      evidence:
+        commits:
+        - 7c983250a
+        - f5cc5d74f
+        - 9fbba00f7
+        - fd2c48f85
+      reason: These changes relate to Apple platform features (iOS and macOS) which are currently disabled and marked as unreleased.
+    - text: Internal Codex agent refactoring and documentation updates.
+      evidence:
+        commits:
+        - 343888bf9
+        - 52c4565d6
+      reason: These are internal development improvements and documentation updates not intended for public users.
+    rationale: The update focuses on stabilizing the web UI, particularly around responsive layouts and embeddable components
+      like maps and calendars, while also addressing core session reliability.
+  social_video_recommendations:
+  - idea: A short clip demonstrating the smooth, responsive transitions of the embed panels on different screen sizes.
+    priority: High
+    reason: Visual UI improvements are highly engaging for social media and demonstrate product polish.
+    evidence:
+      commits:
+      - 84246fb4c
+      - 89825e462
+  - idea: Showcasing the refined map and calendar views with the new design-aligned filters and colors.
+    priority: Medium
+    reason: Highlights the utility and aesthetic improvements of the embed system.
+    evidence:
+      commits:
+      - 0c79a7e47
+      - b8440a515
+  quality_notes:
+  - Extensive testing was added for panel transitions and session refresh logic.
+  - Apple platform work is ongoing but remains behind feature gates.
+  validation_warnings: []
