@@ -50,6 +50,7 @@ final class NativeComposerTextView: NSObject {
     private var isSynchronizing = false
     #if canImport(UIKit)
     private var isAwaitingUIKitEdit = false
+    private weak var piiTapRecognizer: UITapGestureRecognizer?
     #endif
     private var lastSynchronizedRevision: Int?
     private var lastAccessibilityNodes: [ComposerNodeV1] = []
@@ -87,7 +88,10 @@ final class NativeComposerTextView: NSObject {
         textView.autocapitalizationType = .none
         let piiTapRecognizer = UITapGestureRecognizer(target: self, action: #selector(handlePIITap(_:)))
         piiTapRecognizer.cancelsTouchesInView = false
+        piiTapRecognizer.delegate = self
+        piiTapRecognizer.isEnabled = !piiDecorations.isEmpty
         textView.addGestureRecognizer(piiTapRecognizer)
+        self.piiTapRecognizer = piiTapRecognizer
         synchronize(textView)
         return textView
     }
@@ -157,6 +161,9 @@ final class NativeComposerTextView: NSObject {
     func updatePIIDecorations(_ decorations: [NativeComposerPIIDecoration], onExclude: @escaping (String) -> Void) {
         piiDecorations = decorations
         onExcludePII = onExclude
+        #if canImport(UIKit)
+        piiTapRecognizer?.isEnabled = !decorations.isEmpty
+        #endif
     }
 
     @discardableResult
@@ -326,6 +333,16 @@ final class NativeComposerTextView: NSObject {
     }
     #endif
 }
+#if canImport(UIKit)
+extension NativeComposerTextView: UIGestureRecognizerDelegate {
+    // Highlight exclusion augments editing. It must never win recognition over
+    // UITextView's own first-tap focus, caret placement, or selection gestures.
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        gestureRecognizer === piiTapRecognizer || otherGestureRecognizer === piiTapRecognizer
+    }
+}
+#endif
 
 #if canImport(UIKit)
 extension NativeComposerTextView: UITextViewDelegate {

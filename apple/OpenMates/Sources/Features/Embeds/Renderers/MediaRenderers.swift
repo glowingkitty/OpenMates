@@ -31,7 +31,8 @@ struct CachedRemoteImage<Content: View, Placeholder: View>: View {
     let content: (Image) -> Content
     let placeholder: () -> Placeholder
 
-    @State private var imageData: Data?
+    @State private var loadedImage: Image?
+    @State private var loadedURL: URL?
 
     init(
         url: URL,
@@ -47,21 +48,31 @@ struct CachedRemoteImage<Content: View, Placeholder: View>: View {
 
     var body: some View {
         Group {
-            if let image = platformImage(from: imageData) {
+            if loadedURL == url, let image = loadedImage {
                 content(image)
             } else {
                 placeholder()
             }
         }
         .task(id: url.absoluteString) {
-            if let cached = await RemoteImageCache.shared.data(for: url.absoluteString) {
-                imageData = cached
-                return
-            }
+            guard !Task.isCancelled else { return }
+            let requestedURL = url
+            guard loadedURL != requestedURL || loadedImage == nil else { return }
+            loadedImage = nil
+            loadedURL = nil
             do {
-                imageData = try await RemoteImageCache.shared.fetch(url.absoluteString)
+                let data = try await RemoteImageCache.shared.fetch(requestedURL.absoluteString)
+                guard !Task.isCancelled else { return }
+                guard let image = platformImage(from: data) else {
+                    onFailure?()
+                    return
+                }
+                // Decode once per URL, not on every chat scroll/body evaluation.
+                // A cancelled old task must not publish into a reused image view.
+                loadedImage = image
+                loadedURL = requestedURL
             } catch {
-                onFailure?()
+                if !Task.isCancelled { onFailure?() }
             }
         }
     }

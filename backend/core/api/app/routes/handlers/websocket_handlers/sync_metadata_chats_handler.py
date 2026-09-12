@@ -183,6 +183,7 @@ async def handle_sync_metadata_chats(
                     100,
                     metadata_chat_count,
                     team_id=team_id,
+                    cache_service=cache_service,
                 )
 
                 # Filter out chats the client already has

@@ -29,8 +29,10 @@ Mac, use XcodeBuildMCP when available or local `xcodebuild`/`xcrun` commands;
 XcodeBuildMCP availability is not a prerequisite for native verification.
 Set `DEVELOPER_DIR` for the installed Xcode when the active developer directory
 points to CommandLineTools. Keep DerivedData, package checkouts and temporary
-build files inside the repository. Preserve installed apps and account data;
-launch a separate repository-local build when possible.
+build files inside the repository. Preserve installed apps and account data.
+Use Simulator for isolated Debug component previews. When delivery outside
+Simulator is TestFlight-only, do not install or launch a locally built macOS app
+or replace the installed app with a Debug build.
 Respect the user's chosen delivery route (for example TestFlight) for real-device
 testing. Keep simulator builds signed for authentication tests: disabling signing
 can make Keychain writes fail with `-34018` even without an explicit access group.
@@ -106,6 +108,54 @@ For each Swift file:
 3. Note exact pixel values, class names, and responsive breakpoints from the CSS
 
 If the Swift file has no web source header, check the mapping table in `.claude/rules/apple-ui.md`.
+
+For focused component debugging, read [isolated Apple component previews](../../../docs/architecture/apple/component-previews.md).
+Build/install the Debug app in Simulator, select the component and state through
+URL, launch arguments, or environment, and test the production controls with
+local fixture actions. Compare to the user-confirmed rendered web preview at its
+exact `chrome=0` URL and matching viewport; registry metadata is not visual
+approval. Run the focused parser/UI tests and then verify the change in its real
+parent flow. Keep TestFlight delivery for testing outside Simulator.
+
+Streaming parity includes paragraph-by-paragraph updates, live embed references,
+the rendered web animation timing, and reduced motion. Exercise partial citation
+syntax, later embed hydration, opening a citation before the response completes,
+and stream finalization. Cross a responsive breakpoint while a message is
+mounted: assert that existing paragraphs retain their identity and interaction
+state rather than remounting the entire renderer. Run iPhone and iPad where the
+larger viewport exposes a different layout branch. See the `message` streaming
+fixtures and `ProgressiveMessagePreviewUITests` in the preview guide.
+
+For animated fullscreen overlays, wait for the real presentation-completion
+signal before capturing button coordinates; visibility or hittability alone may
+be true while a control is moving. Preserve production animation and reduced
+motion behavior. Auth fixtures must exercise actual form/state transitions with
+local transports, and remain separate from real login or account-creation proof.
+Never report callback counters, parser success, or an isolated fixture as complete
+parent-flow or cross-device synchronization parity.
+
+Use the regular wide embed preview on phones as well as desktops. The user
+rejected the obsolete tall mobile preview fixture: the actual web chat uses the
+same 300-by-200 card. A variant name or horizontal size class must not override
+that confirmed reference. Fit only when the available container is narrower.
+
+For workspace parity, measure the actual web chat with an embed open while
+opening and closing the sidebar and settings. Window breakpoints and remaining
+content width are different inputs: sidebar mode changes at 600, settings at
+1100, and the chat/embed split needs at least 1024 points of content (400-point
+chat plus 10-point gap). Recheck these values against current rendered source.
+Keep transcript and embed views mounted across resize and pane transitions;
+deterministic tests must preserve route, scroll position and existing paragraph
+identity. Reuse production pane controls, not fixture-only replacement panels.
+Retained native scroll views may still exist in XCUITest while hidden: assert
+visible-workspace bounds and actual action enabled/hittable state, then reopen
+and operate the same control to verify restoration. Keep the pane-state fixture
+short; use the separate long transcript fixture for render-window stress.
+
+Continuation parity requires the same available record set, last-opened profile,
+nonempty draft state and deletion fences, eligibility and ordering before visual
+comparison. Cover cold cache, older paginated drafts and another device opening a
+chat. A synthetic carousel alone cannot establish account-level synchronization.
 
 For feature parity audits, identify the product surface first, then read all relevant web and Apple sources. Good vertical slices include:
 

@@ -327,8 +327,16 @@ final class OfflineSyncBridge: ObservableObject {
     }
 
     func cascadeDeleteChat(chatId: String) {
+        deleteChat(chatId, preservingDraftTombstone: false)
+    }
+
+    func cascadeDeleteDraftOnlyChat(chatId: String) {
+        deleteChat(chatId, preservingDraftTombstone: true)
+    }
+
+    private func deleteChat(_ chatId: String, preservingDraftTombstone: Bool) {
         guard isCurrentSession else { return }
-        offlineStore.deleteChat(chatId)
+        offlineStore.deleteChat(chatId, preservingDraftTombstone: preservingDraftTombstone)
         ChatKeyManager.shared.removeKey(for: chatId)
         EmbedKeyManager.shared.removeKeys(for: chatId)
         PendingUploadStore.shared.clearForChat(chatId)

@@ -16,6 +16,7 @@ final class PersistedChat {
     var encryptedCategory: String?
     var encryptedIcon: String?
     var encryptedChatSummary: String?
+    var encryptedAutoSpeakResponse: String?
     var encryptedChatKey: String?
     var icon: String?
     var category: String?
@@ -29,6 +30,8 @@ final class PersistedChat {
     var messagesV: Int?
     var titleV: Int?
     var draftV: Int?
+    var hasNonEmptyDraft: Bool?
+    var clearedDraftV: Int?
     var metadataV: Int?
     var createdAt: String
     var updatedAt: String?
@@ -50,6 +53,7 @@ final class PersistedChat {
         self.encryptedCategory = chat.encryptedCategory
         self.encryptedIcon = chat.encryptedIcon
         self.encryptedChatSummary = chat.encryptedChatSummary
+        self.encryptedAutoSpeakResponse = chat.encryptedAutoSpeakResponse
         self.encryptedChatKey = chat.encryptedChatKey
         self.icon = chat.icon
         self.category = chat.category
@@ -63,6 +67,8 @@ final class PersistedChat {
         self.messagesV = chat.messagesV
         self.titleV = chat.titleV
         self.draftV = chat.draftV
+        self.hasNonEmptyDraft = chat.hasNonEmptyDraft
+        self.clearedDraftV = chat.clearedDraftV
         self.metadataV = chat.metadataV
         self.createdAt = chat.createdAt
         self.updatedAt = chat.updatedAt
@@ -85,6 +91,7 @@ final class PersistedChat {
             encryptedCategory: encryptedCategory,
             encryptedIcon: encryptedIcon,
             encryptedChatSummary: encryptedChatSummary,
+            encryptedAutoSpeakResponse: encryptedAutoSpeakResponse,
             encryptedChatKey: encryptedChatKey,
             messagesV: messagesV,
             titleV: titleV,
@@ -98,7 +105,9 @@ final class PersistedChat {
             budgetSpent: budgetSpent,
             encryptedActiveFocusId: encryptedActiveFocusId,
             activeFocusId: activeFocusId,
-            isPrivate: isPrivate
+            isPrivate: isPrivate,
+            hasNonEmptyDraft: hasNonEmptyDraft,
+            clearedDraftV: clearedDraftV
         )
     }
 }
@@ -422,6 +431,7 @@ final class OfflineStore: ObservableObject {
                 existing.encryptedCategory = chat.encryptedCategory
                 existing.encryptedIcon = chat.encryptedIcon
                 existing.encryptedChatSummary = chat.encryptedChatSummary
+                existing.encryptedAutoSpeakResponse = chat.encryptedAutoSpeakResponse ?? existing.encryptedAutoSpeakResponse
                 existing.encryptedChatKey = chat.encryptedChatKey
                 existing.icon = chat.icon
                 existing.category = chat.category
@@ -435,6 +445,8 @@ final class OfflineStore: ObservableObject {
                 existing.messagesV = chat.messagesV
                 existing.titleV = chat.titleV
                 existing.draftV = chat.draftV
+                existing.clearedDraftV = chat.clearedDraftV
+                existing.hasNonEmptyDraft = chat.hasNonEmptyDraft ?? (chat.draftV == 0 ? false : existing.hasNonEmptyDraft)
                 existing.parentId = chat.parentId
                 existing.isSubChat = chat.isSubChat
                 existing.subChatSettingsJSON = try? JSONEncoder().encode(chat.subChatSettings)
@@ -567,6 +579,14 @@ final class OfflineStore: ObservableObject {
         return (try? context.fetch(descriptor))?.map { $0.toChat() } ?? []
     }
 
+    /// One scoped metadata row, without materializing its transcript/embeds.
+    func loadChat(id: String) -> Chat? {
+        guard let context = modelContext else { return nil }
+        var descriptor = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor).first)?.toChat()
+    }
+
     func loadStartupChats(lastOpenedChatId: String?, limit: Int) -> [Chat] {
         guard let context = modelContext else { return [] }
         var descriptor = FetchDescriptor<PersistedChat>(
@@ -574,6 +594,27 @@ final class OfflineStore: ObservableObject {
         )
         descriptor.fetchLimit = limit
         var chats = (try? context.fetch(descriptor))?.map { $0.toChat() } ?? []
+
+        // A bounded recent-time query alone loses older cached pins/drafts on
+        // cold launch. Supplement metadata for each priority class, independently
+        // of the sidebar cap. No message or embed history is loaded here.
+        let priorityPredicates: [Predicate<PersistedChat>] = [
+            #Predicate { $0.isPinned && $0.hasNonEmptyDraft == true && !$0.isArchived },
+            #Predicate { $0.isPinned && ($0.hasNonEmptyDraft == nil || $0.hasNonEmptyDraft == false) && !$0.isArchived },
+            #Predicate { !$0.isPinned && $0.hasNonEmptyDraft == true && !$0.isArchived }
+        ]
+        var seen = Set(chats.map(\.id))
+        for predicate in priorityPredicates {
+            var priority = FetchDescriptor<PersistedChat>(predicate: predicate, sortBy: [
+                SortDescriptor(\.lastMessageAt, order: .reverse),
+                SortDescriptor(\.updatedAt, order: .reverse),
+                SortDescriptor(\.id, order: .reverse)
+            ])
+            priority.fetchLimit = limit
+            for item in (try? context.fetch(priority)) ?? [] where seen.insert(item.id).inserted {
+                chats.append(item.toChat())
+            }
+        }
 
         if let lastOpenedChatId,
            !lastOpenedChatId.isEmpty,
@@ -656,7 +697,7 @@ final class OfflineStore: ObservableObject {
 
     // MARK: - Delete
 
-    func deleteChat(_ chatId: String) {
+    func deleteChat(_ chatId: String, preservingDraftTombstone: Bool = false) {
         guard let context = modelContext else { return }
         let targetChatId = chatId
         let chatDescriptor = FetchDescriptor<PersistedChat>(
@@ -681,6 +722,7 @@ final class OfflineStore: ObservableObject {
             predicate: #Predicate { $0.chatId == targetChatId }
         )
         for draft in (try? context.fetch(draftDescriptor)) ?? [] {
+            if preservingDraftTombstone && draft.isDraftTombstone == true { continue }
             context.delete(draft)
         }
         let hashedChatId = SHA256.hash(data: Data(chatId.utf8))
@@ -772,6 +814,7 @@ final class OfflineStore: ObservableObject {
 
 enum OfflineStoreDraftError: Error {
     case persistenceUnavailable
+    case staleSession
 }
 
 extension OfflineStore: ComposerDraftRepository {
@@ -784,7 +827,9 @@ extension OfflineStore: ComposerDraftRepository {
             predicate: #Predicate { $0.chatId == targetChatId }
         )
         if let existing = try context.fetch(descriptor).first {
-            existing.update(from: record)
+            var resolved = record
+            resolved.clearedDraftVersion = max(existing.clearedDraftVersion ?? 0, record.clearedDraftVersion)
+            existing.update(from: resolved)
         } else {
             context.insert(PersistedComposerDraft(record: record))
         }
@@ -799,7 +844,8 @@ extension OfflineStore: ComposerDraftRepository {
         let descriptor = FetchDescriptor<PersistedComposerDraft>(
             predicate: #Predicate { $0.chatId == targetChatId }
         )
-        return try context.fetch(descriptor).first?.toRecord()
+        guard let persisted = try context.fetch(descriptor).first, persisted.isDraftTombstone != true else { return nil }
+        return persisted.toRecord()
     }
 
     func remove(chatId: String) async throws {
@@ -829,6 +875,34 @@ extension OfflineStore: ComposerDraftRepository {
             throw OfflineStoreDraftError.persistenceUnavailable
         }
         let descriptor = FetchDescriptor<PersistedComposerDraft>()
-        return try context.fetch(descriptor).map { $0.toRecord() }
+        return try context.fetch(descriptor).filter { $0.isDraftTombstone != true }.map { $0.toRecord() }
+    }
+
+    func allDeletionVersions() async throws -> [String: Int] {
+        guard let context = modelContext else { throw OfflineStoreDraftError.persistenceUnavailable }
+        let descriptor = FetchDescriptor<PersistedComposerDraft>()
+        return Dictionary(uniqueKeysWithValues: try context.fetch(descriptor)
+            .filter { $0.isDraftTombstone == true }
+            .map { ($0.chatId, $0.clearedDraftVersion ?? 0) })
+    }
+
+    func apply(_ mutation: ComposerDraftMutation, knownVersion: Int, knownClearedVersion: Int,
+               expectedScope: UUID?) async throws -> ComposerDraftApplication {
+        if let expectedScope, expectedScope != scopeGeneration { throw OfflineStoreDraftError.staleSession }
+        guard let context = modelContext else { throw OfflineStoreDraftError.persistenceUnavailable }
+        let targetChatId = mutation.chatId
+        let descriptor = FetchDescriptor<PersistedComposerDraft>(predicate: #Predicate { $0.chatId == targetChatId })
+        let existing = try context.fetch(descriptor).first
+        let application = mutation.applying(to: existing?.toRecord(), knownVersion: knownVersion,
+                                            knownClearedVersion: knownClearedVersion)
+        if application.applied, let record = application.record {
+            if let existing { existing.update(from: record) }
+            else { context.insert(PersistedComposerDraft(record: record)) }
+            try context.save()
+        } else if application.applied, let existing {
+            context.delete(existing)
+            try context.save()
+        }
+        return application
     }
 }

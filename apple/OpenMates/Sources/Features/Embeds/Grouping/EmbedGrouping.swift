@@ -33,9 +33,78 @@ struct EmbedGroup: Identifiable {
     }
 }
 
+/// Keep the selected result stable while hydration inserts/reorders siblings.
+/// A disappeared selection falls back to the requested route, then the first
+/// remaining result. Parent routing remains owned by the presenting ChatView.
+struct EmbedFullscreenSelection: Equatable {
+    private(set) var selectedID: String?
+
+    init() { selectedID = nil }
+
+    func resolvedID(in embeds: [EmbedRecord], initialID: String) -> String? {
+        if let selectedID, embeds.contains(where: { $0.id == selectedID }) { return selectedID }
+        if embeds.contains(where: { $0.id == initialID }) { return initialID }
+        return embeds.first?.id
+    }
+
+    mutating func reconcile(in embeds: [EmbedRecord], initialID: String) {
+        selectedID = resolvedID(in: embeds, initialID: initialID)
+    }
+
+    @discardableResult
+    mutating func move(by offset: Int, in embeds: [EmbedRecord], initialID: String) -> Bool {
+        guard let active = resolvedID(in: embeds, initialID: initialID),
+              let index = embeds.firstIndex(where: { $0.id == active }),
+              embeds.indices.contains(index + offset) else { return false }
+        selectedID = embeds[index + offset].id
+        return true
+    }
+}
+
 enum EmbedGrouper {
     private static let appSkillUseGroupKey = "app-skill-use"
     private static let inlineDisplayLimit = 6
+
+    /// Web WebSearchEmbedFullscreen opens a result within its ordered result
+    /// group. Its parent remains a separate route restored by Minimize; it is
+    /// never an extra "previous result". Use the same group in chat and preview.
+    static func fullscreenNavigationEmbeds(
+        selected: EmbedRecord,
+        messageEmbeds: [EmbedRecord],
+        allRecords: [String: EmbedRecord],
+        parent explicitParent: EmbedRecord? = nil
+    ) -> [EmbedRecord] {
+        let parent = explicitParent.map { allRecords[$0.id] ?? $0 }
+            ?? selected.parentEmbedId.flatMap { allRecords[$0] }
+            ?? allRecords.values.filter { $0.childEmbedIds.contains(selected.id) }
+                .sorted { $0.id < $1.id }.first
+        if let parent, parent.id != selected.id {
+            let ids = parent.childEmbedIds.isEmpty
+                ? allRecords.values.filter { $0.parentEmbedId == parent.id }
+                    .sorted { ($0.createdAt ?? "", $0.id) < ($1.createdAt ?? "", $1.id) }
+                    .map(\.id)
+                : parent.childEmbedIds
+            var seen = Set<String>()
+            let siblings = ids.compactMap { id -> EmbedRecord? in
+                guard id != parent.id, seen.insert(id).inserted else { return nil }
+                return id == selected.id ? selected : allRecords[id]
+            }
+            if siblings.contains(where: { $0.id == selected.id }) { return siblings }
+        }
+        var seen = Set<String>()
+        let messageIDs = Set(messageEmbeds.map(\.id))
+        let groupedChildIDs = Set(messageEmbeds.flatMap(\.childEmbedIds))
+        let messageGroup = messageEmbeds.compactMap { embed -> EmbedRecord? in
+            guard seen.insert(embed.id).inserted else { return nil }
+            if embed.id == selected.id { return selected }
+            // Inline citations can put children and their parent in the same
+            // message refs. A parent-level route still navigates only peers.
+            guard !groupedChildIDs.contains(embed.id),
+                  !(embed.parentEmbedId.map(messageIDs.contains) ?? false) else { return nil }
+            return embed
+        }
+        return messageGroup.contains(where: { $0.id == selected.id }) ? messageGroup : [selected]
+    }
 
     static func group(_ embeds: [EmbedRecord]) -> [EmbedGroup] {
         guard !embeds.isEmpty else { return [] }

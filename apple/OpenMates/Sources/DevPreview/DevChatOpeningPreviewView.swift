@@ -31,7 +31,8 @@ struct DevChatOpeningPreviewView: View {
     }
 
     private var initialWindow: [Message] {
-        chatStore.initialMessageWindow(for: fixture.chat.id)
+        ChatHistoryWindowPolicy.initialMessages(chatStore.messages(for: fixture.chat.id),
+                                               anchor: fixture.chat.lastVisibleMessageId)
     }
 
     var body: some View {
@@ -520,9 +521,17 @@ private struct DevChatOpeningFixture {
             encryptedTitle: nil,
             encryptedChatKey: nil,
             messagesV: messageCount,
-            lastVisibleMessageId: messages.last?.id
+            lastVisibleMessageId: savedAnchorIndex(messageCount: messageCount).map { messages[$0 - 1].id }
+                ?? messages.last?.id
         )
         return DevChatOpeningFixture(chat: chat, messages: messages)
+    }
+
+    /// Deterministic cold/warm anchor fixture; invalid values keep the normal tail.
+    private static func savedAnchorIndex(messageCount: Int) -> Int? {
+        guard let value = ProcessInfo.processInfo.environment["UI_TEST_CHAT_ANCHOR_INDEX"],
+              let index = Int(value), (1...messageCount).contains(index) else { return nil }
+        return index
     }
 
     private static func piiVisibilityFixture() -> DevChatOpeningFixture {

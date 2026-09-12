@@ -91,10 +91,14 @@ struct Chat: Identifiable, Decodable, Sendable {
     let encryptedCategory: String?
     let encryptedIcon: String?
     let encryptedChatSummary: String?
+    var encryptedAutoSpeakResponse: String?
     let encryptedChatKey: String?  // Per-chat AES key wrapped with master key (base64)
     let messagesV: Int?
     let titleV: Int?
     let draftV: Int?
+    /// Presence, not version: nil means an older/partial snapshot omitted draft content.
+    var hasNonEmptyDraft: Bool?
+    var clearedDraftV: Int?
     let metadataV: Int?
     let lastVisibleMessageId: String?
     let parentId: String?
@@ -124,6 +128,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         encryptedCategory: String? = nil,
         encryptedIcon: String? = nil,
         encryptedChatSummary: String? = nil,
+        encryptedAutoSpeakResponse: String? = nil,
         encryptedChatKey: String?,
         messagesV: Int? = nil,
         titleV: Int? = nil,
@@ -139,7 +144,9 @@ struct Chat: Identifiable, Decodable, Sendable {
         activeFocusId: String? = nil,
         isPrivate: Bool? = nil,
         isHidden: Bool? = nil,
-        isHiddenCandidate: Bool? = nil
+        isHiddenCandidate: Bool? = nil,
+        hasNonEmptyDraft: Bool? = nil,
+        clearedDraftV: Int? = nil
     ) {
         self.id = id
         self.title = title
@@ -156,10 +163,13 @@ struct Chat: Identifiable, Decodable, Sendable {
         self.encryptedCategory = encryptedCategory
         self.encryptedIcon = encryptedIcon
         self.encryptedChatSummary = encryptedChatSummary
+        self.encryptedAutoSpeakResponse = encryptedAutoSpeakResponse
         self.encryptedChatKey = encryptedChatKey
         self.messagesV = messagesV
         self.titleV = titleV
         self.draftV = draftV
+        self.hasNonEmptyDraft = hasNonEmptyDraft
+        self.clearedDraftV = clearedDraftV
         self.metadataV = metadataV
         self.lastVisibleMessageId = lastVisibleMessageId
         self.parentId = parentId
@@ -182,7 +192,6 @@ struct Chat: Identifiable, Decodable, Sendable {
         lastMessageAt = Self.decodeFlexibleDateString(container, .lastMessageAt)
             ?? Self.decodeFlexibleDateString(container, .lastMessageTimestamp)
             ?? Self.decodeFlexibleDateString(container, .lastEditedOverallTimestamp)
-            ?? Self.decodeFlexibleDateString(container, .updatedAt)
         createdAt = Self.decodeFlexibleDateString(container, .createdAt)
             ?? Self.decodeFlexibleDateString(container, .updatedAt)
             ?? ChatDateCodec.shared.string(from: Date())
@@ -198,10 +207,17 @@ struct Chat: Identifiable, Decodable, Sendable {
         encryptedCategory = try container.decodeIfPresent(String.self, forKey: .encryptedCategory)
         encryptedIcon = try container.decodeIfPresent(String.self, forKey: .encryptedIcon)
         encryptedChatSummary = try container.decodeIfPresent(String.self, forKey: .encryptedChatSummary)
+        encryptedAutoSpeakResponse = try container.decodeIfPresent(String.self, forKey: .encryptedAutoSpeakResponse)
         encryptedChatKey = try container.decodeIfPresent(String.self, forKey: .encryptedChatKey)
         messagesV = try container.decodeIfPresent(Int.self, forKey: .messagesV)
         titleV = try container.decodeIfPresent(Int.self, forKey: .titleV)
         draftV = try container.decodeIfPresent(Int.self, forKey: .draftV)
+        clearedDraftV = try container.decodeIfPresent(Int.self, forKey: .clearedDraftV)
+        if container.contains(.encryptedDraftMd) {
+            hasNonEmptyDraft = try container.decodeIfPresent(String.self, forKey: .encryptedDraftMd)?.isEmpty == false
+        } else {
+            hasNonEmptyDraft = nil
+        }
         metadataV = try container.decodeIfPresent(Int.self, forKey: .metadataV)
         lastVisibleMessageId = try container.decodeIfPresent(String.self, forKey: .lastVisibleMessageId)
         parentId = try container.decodeIfPresent(String.self, forKey: .parentId)
@@ -274,11 +290,14 @@ struct Chat: Identifiable, Decodable, Sendable {
         case encryptedTitle
         case encryptedCategory
         case encryptedIcon
+        case encryptedAutoSpeakResponse
         case encryptedChatSummary
         case encryptedChatKey
         case messagesV
         case titleV
         case draftV
+        case clearedDraftV
+        case encryptedDraftMd
         case metadataV
         case lastVisibleMessageId
         case parentId

@@ -231,5 +231,6 @@ final class IncognitoSettingsSession: ObservableObject {
     static let shared = IncognitoSettingsSession()
     @Published var isEnabled = false
 
+    static func isolated() -> IncognitoSettingsSession { IncognitoSettingsSession() }
     private init() {}
 }

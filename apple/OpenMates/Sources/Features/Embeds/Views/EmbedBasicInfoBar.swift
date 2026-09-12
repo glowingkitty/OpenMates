@@ -28,18 +28,38 @@ struct EmbedBasicInfoBar: View {
     let showSkillIcon: Bool
 
     var body: some View {
-        HStack(spacing: .spacing5) {
-            AppIconView(appId: appId, size: Constants.appIconSize)
+        HStack(spacing: showSkillIcon ? 10 : 6) {
+            Circle()
+                .fill(AppIconView.gradient(forAppId: appId))
+                .frame(width: Constants.appIconSize, height: Constants.appIconSize)
+                .overlay {
+                    // BasicInfosBar uses a 26pt wrapper and 25pt CSS glyph.
+                    Icon(AppIconView.iconName(forAppId: appId), size: 25)
+                        .foregroundStyle(.white)
+                        .frame(width: 26, height: 26)
+                }
                 .accessibilityHidden(true)
 
-            leadingInlineIcon
+            if showSkillIcon {
+                Icon(skillIconName, size: Constants.skillIconSize)
+                    .foregroundStyle(Color.grey70)
+                    .accessibilityHidden(true)
+            }
 
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title)
-                    .font(.omP)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey100)
-                    .lineLimit(subtitle == nil ? 2 : 1)
+            VStack(alignment: .leading, spacing: subtitle == nil ? 0 : 2) {
+                HStack(spacing: 8) {
+                    titleFavicon
+                    Text(title)
+                        .font(.omP)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.grey100)
+                        .lineLimit(subtitle == nil ? 2 : 1)
+                        // Bundled Lexend ascender/descender total 1.25em;
+                        // add the remaining 0.15em for web's 1.4 line box.
+                        .lineSpacing(subtitle == nil ? 2.4 : 0)
+                        .padding(.vertical, subtitle == nil ? 1.2 : 0)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
 
                 if let subtitle {
                     Text(subtitle)
@@ -50,17 +70,14 @@ struct EmbedBasicInfoBar: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
         }
         .frame(height: Constants.height)
-        .padding(.trailing, .spacing5)
         .background(Color.grey30)
         .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
     }
 
     @ViewBuilder
-    private var leadingInlineIcon: some View {
+    private var titleFavicon: some View {
         if let faviconURL, let url = URL(string: faviconURL) {
             CachedRemoteImage(url: url) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
@@ -69,12 +86,8 @@ struct EmbedBasicInfoBar: View {
                     .foregroundStyle(Color.grey70)
             }
             .frame(width: Constants.faviconSize, height: Constants.faviconSize)
-            .clipShape(RoundedRectangle(cornerRadius: .radius1))
+            .clipShape(RoundedRectangle(cornerRadius: 2))
             .accessibilityHidden(true)
-        } else if showSkillIcon {
-            Icon(skillIconName, size: Constants.skillIconSize)
-                .foregroundStyle(Color.grey70)
-                .accessibilityHidden(true)
         }
     }
 }

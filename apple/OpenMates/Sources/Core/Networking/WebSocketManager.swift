@@ -66,7 +66,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             }
         }
 
+        rejectAllWaiters()
         connectionGeneration += 1
+        streamEventDispatcher.reset()
         let generation = connectionGeneration
         connectTask?.cancel()
         pingTimer?.invalidate()
@@ -125,19 +127,30 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 return
             }
 
+            traceNativeStartupSync("phase=socketOpened")
             connectionState = .connected
             reconnectDelay = 1.0
             startPingTimer()
             receiveMessages(from: connectingTask)
+            traceNativeStartupSync("phase=socketRecoveryStart")
             await recoveryCoordinator?.handleTransportConnected()
+            traceNativeStartupSync("phase=socketRecoveryReturned")
             let currentSyncState = syncStateProvider?() ?? activeSyncState
             activeSyncState = currentSyncState
-            try? await requestPhasedSync(syncState: currentSyncState)
+            traceNativeStartupSync("phase=phasedSyncSendStart")
+            do {
+                try await requestPhasedSync(syncState: currentSyncState)
+                traceNativeStartupSync("phase=phasedSyncSendReturned")
+            } catch {
+                traceNativeStartupSync("phase=phasedSyncSendFailed errorType=\(type(of: error))")
+            }
         }
     }
 
     func disconnect() {
+        rejectAllWaiters()
         connectionGeneration += 1
+        streamEventDispatcher.reset()
         // A waiter belongs to the socket/session that sent its request. Resume
         // it before a different account can establish a replacement connection.
         let disconnectedWaiters = Array(messageWaiters.values)
@@ -178,7 +191,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     ) async throws -> WebSocketResponse {
         let waiterId = UUID()
         return try await withCheckedThrowingContinuation { continuation in
-            messageWaiters[waiterId] = MessageWaiter(type: type, predicate: predicate, continuation: continuation)
+            messageWaiters[waiterId] = MessageWaiter(types: [type], predicate: predicate, continuation: continuation)
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: timeout)
                 guard let waiter = self?.messageWaiters.removeValue(forKey: waiterId) else { return }
@@ -193,11 +206,24 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         timeout: Duration = .seconds(20),
         matching predicate: @escaping ([String: Any]) -> Bool
     ) async throws -> WebSocketResponse {
+        try await sendAndWait(message, responseTypes: [responseType], timeout: timeout, matching: predicate)
+    }
+
+    var modelPreferenceSocketGeneration: Int { connectionGeneration }
+    var modelPreferenceInbound: ((String, [String: Any], Int) -> Void)?
+
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseTypes: Set<String>,
+        timeout: Duration = .seconds(20),
+        matching predicate: @escaping ([String: Any]) -> Bool
+    ) async throws -> WebSocketResponse {
+        guard let boundSocket = webSocketTask else { throw WebSocketError.notConnected }
         let waiterId = UUID()
         let expectedGeneration = connectionGeneration
         return try await withCheckedThrowingContinuation { continuation in
             messageWaiters[waiterId] = MessageWaiter(
-                type: responseType,
+                types: responseTypes,
                 predicate: predicate,
                 continuation: continuation
             )
@@ -210,7 +236,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                             currentGeneration: connectionGeneration,
                             isCancelled: Task.isCancelled
                           ) else { throw WebSocketError.notConnected }
-                    try await send(message)
+                    guard webSocketTask === boundSocket else { throw WebSocketError.notConnected }
+                    let data = try JSONEncoder().encode(message)
+                    guard let json = String(data: data, encoding: .utf8) else { throw WebSocketError.encodingFailed }
+                    try await boundSocket.send(.string(json))
                 } catch {
                     guard let waiter = messageWaiters.removeValue(forKey: waiterId) else { return }
                     waiter.continuation.resume(throwing: error)
@@ -358,10 +387,14 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     // MARK: - Message routing
 
     private func routeMessage(_ msg: WSInboundParsed, raw: Data) {
+        AssistantSpeechAppRuntime.shared.receive(type: msg.type, fields: msg.fields, from: self)
         if msg.type == "error" {
             rejectWaiters(with: msg.fields)
         }
         resolveWaiters(type: msg.type, payload: msg.fields)
+        if ["chat_model_preference", "chat_model_preference_updated", "chat_model_preference_synced"].contains(msg.type) {
+            modelPreferenceInbound?(msg.type, msg.fields, connectionGeneration)
+        }
         switch msg.type {
         // Keepalive
         case "pong":
@@ -558,6 +591,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
              "load_more_chats_response", "sync_metadata_chats_response",
              "phased_sync_complete", "sync_status_response",
              "offline_sync_complete", "chat_content_batch_response":
+            traceNativeStartupSync("phase=syncEventReceived type=\(msg.type)")
             NotificationCenter.default.post(
                 name: .wsSyncEvent, object: nil,
                 userInfo: ["type": msg.type, "raw": raw]
@@ -595,13 +629,19 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         }
     }
 
+    private func rejectAllWaiters() {
+        let pending = Array(messageWaiters.values)
+        messageWaiters.removeAll()
+        for waiter in pending { waiter.continuation.resume(throwing: WebSocketError.notConnected) }
+    }
+
     private func resolveWaiters(type: String, payload: [String: Any]) {
         let matches = messageWaiters.filter { _, waiter in
-            waiter.type == type && waiter.predicate(payload)
+            waiter.types.contains(type) && waiter.predicate(payload)
         }
         for (id, waiter) in matches {
             messageWaiters.removeValue(forKey: id)
-            waiter.continuation.resume(returning: WebSocketResponse(fields: payload))
+            waiter.continuation.resume(returning: WebSocketResponse(fields: payload, type: type))
         }
     }
 
@@ -656,7 +696,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     // MARK: - Reconnect
 
     private func handleDisconnect() {
+        rejectAllWaiters()
         connectionGeneration += 1
+        streamEventDispatcher.reset()
         let reconnectGeneration = connectionGeneration
         pingTimer?.invalidate()
         pingTimer = nil
@@ -874,7 +916,7 @@ struct WSOutboundMessage: Encodable {
     }
 }
 
-private enum WebSocketError: LocalizedError {
+enum WebSocketError: LocalizedError {
     case notConnected
     case encodingFailed
     case messageTimeout
@@ -895,7 +937,7 @@ private enum WebSocketError: LocalizedError {
 }
 
 private struct MessageWaiter {
-    let type: String
+    let types: Set<String>
     let predicate: ([String: Any]) -> Bool
     let continuation: CheckedContinuation<WebSocketResponse, Error>
 }
@@ -903,6 +945,7 @@ private struct MessageWaiter {
 /// Keeps untyped decoded WebSocket JSON at the main-actor transport boundary.
 struct WebSocketResponse: @unchecked Sendable {
     let fields: [String: Any]
+    var type: String? = nil
 }
 
 // MARK: - Notifications
@@ -915,4 +958,12 @@ extension Notification.Name {
     static let wsHistoryRequested = Notification.Name("openmates.wsHistoryRequested")
     static let pendingDeferredSendRequested = Notification.Name("openmates.pendingDeferredSendRequested")
     static let paymentCompleted = Notification.Name("openmates.paymentCompleted")
+}
+
+// Opt-in UI recovery tracing. No payload, account, chat or session identifiers.
+func traceNativeStartupSync(_ message: @autoclosure () -> String) {
+    #if DEBUG
+    guard ProcessInfo.processInfo.arguments.contains("--ui-test-expose-chat-ids") else { return }
+    NativeSyncPerfLog.info(message())
+    #endif
 }

@@ -45,7 +45,7 @@ Every primitive should consume generated design tokens from the web app where po
 
 The rendered Svelte app is the source of truth for component structure, behavior, and visual values. Native SwiftUI should mirror the browser-computed component intentionally instead of approximating it from platform defaults or source files alone.
 
-Before touching native product UI, inspect the actual web app route where the component appears and record the rendered element tree plus computed CSS values. Prefer the regular product route because it includes real parent layout, container widths, runtime classes, stores, and responsive state. Use `/dev/preview` only when the regular app cannot expose the needed state or an isolated harness is more accurate.
+Before touching native product UI, inspect the rendered web component and record its element tree plus computed CSS values. For focused component debugging, prefer its user-confirmed isolated `/dev/preview/<component-path>?chrome=0` state and the corresponding Apple Debug Simulator preview. A registry mapping or source file alone is not visual approval. Use the regular product route when the isolated fixture cannot represent the required state, and verify the final change in its real parent flow to cover container layout, navigation, stores, and responsive behavior. See [isolated Apple component previews](../docs/architecture/apple/component-previews.md) for configuration, isolation, and verification.
 
 If an interaction state is needed, drive the existing `*.spec.ts` test or a temporary browser/scripted flow based on existing tests to reach that state, then inspect the computed values. Svelte and CSS source files explain intent, but the browser-computed output is the final parity target.
 

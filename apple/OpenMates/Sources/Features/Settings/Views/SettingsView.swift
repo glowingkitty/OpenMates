@@ -226,10 +226,11 @@ struct SettingsView: View {
     var reportIssuePrefill: ReportIssuePrefill?
     var referralCodeRequest: Int
     var shareChatId: String?
+    private let isolatedNavigation: Bool
     @State private var showIncognitoInfo = false
-    @ObservedObject private var incognitoSession = IncognitoSettingsSession.shared
-    @ObservedObject private var guestLearningMode = LearningModeGuestSession.shared
-    @StateObject private var accountLearningMode = LearningModeController()
+    @StateObject private var incognitoSession: IncognitoSettingsSession
+    @StateObject private var guestLearningMode: LearningModeGuestSession
+    @StateObject private var accountLearningMode: LearningModeController
     @State private var destination: SettingsDestination?
     @State private var activeReportIssuePrefill: ReportIssuePrefill?
     @State private var activeReferralCodeRequest: Int
@@ -238,12 +239,17 @@ struct SettingsView: View {
     @State private var destinationScrollTop: CGFloat = 0
 
     init(
+        isolatedNavigation: Bool = false,
         reportIssuePrefill: ReportIssuePrefill? = nil,
         referralCodeRequest: Int = 0,
         shareChatId: String? = nil,
         onClose: (() -> Void)? = nil,
         onOpenExampleChat: ((String) -> Void)? = nil
     ) {
+        self.isolatedNavigation = isolatedNavigation
+        _incognitoSession = StateObject(wrappedValue: isolatedNavigation ? .isolated() : .shared)
+        _guestLearningMode = StateObject(wrappedValue: isolatedNavigation ? LearningModeGuestSession() : .shared)
+        _accountLearningMode = StateObject(wrappedValue: LearningModeController(client: isolatedNavigation ? IsolatedSettingsAccountClient() : LearningModeAPIClient()))
         self.reportIssuePrefill = reportIssuePrefill
         self.referralCodeRequest = referralCodeRequest
         self.shareChatId = shareChatId
@@ -254,10 +260,11 @@ struct SettingsView: View {
         _activeReferralCodeRequest = State(initialValue: referralCodeRequest)
     }
 
-    private var isAuthenticated: Bool { authManager.currentUser != nil || AccountSettingsUITestFixture.enabled }
+    private var settingsUser: UserProfile? { isolatedNavigation ? nil : authManager.currentUser }
+    private var isAuthenticated: Bool { !isolatedNavigation && (settingsUser != nil || AccountSettingsUITestFixture.enabled) }
     private var isAdmin: Bool {
-        authManager.currentUser?.isAdmin == true
-            || ProcessInfo.processInfo.arguments.contains("--ui-test-admin-settings-fixture")
+        !isolatedNavigation && (settingsUser?.isAdmin == true
+            || ProcessInfo.processInfo.arguments.contains("--ui-test-admin-settings-fixture"))
     }
 
     var body: some View {
@@ -299,6 +306,7 @@ struct SettingsView: View {
             navigateTo(.shared)
         }
         .onAppear {
+            guard !isolatedNavigation else { return }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-reset-incognito-explainer") {
                 IncognitoExplainerSeenState().resetForUITestingOnce()
             }
@@ -440,11 +448,11 @@ struct SettingsView: View {
                 }
             } else {
                 SettingsMainBanner(
-                    username: authManager.currentUser?.username ?? AppStrings.guest,
-                    profileUserId: authManager.currentUser?.id,
-                    profileImageUrl: authManager.currentUser?.profileImageUrl,
+                    username: settingsUser?.username ?? AppStrings.guest,
+                    profileUserId: settingsUser?.id,
+                    profileImageUrl: settingsUser?.profileImageUrl,
                     isAuthenticated: isAuthenticated,
-                    credits: authManager.currentUser?.credits,
+                    credits: settingsUser?.credits,
                     scrollTop: homeScrollTop
                 )
             }
@@ -511,10 +519,12 @@ struct SettingsView: View {
         OMSettingsRow(title: title, icon: icon, iconGradient: gradient, isDestructive: isDestructive) {
             navigateTo(destination)
         }
+        .disabled(isolatedNavigation && destination != .learningMode)
         .accessibilityIdentifier(destination.rowAccessibilityIdentifier)
     }
 
     private func navigateTo(_ destination: SettingsDestination) {
+        guard !isolatedNavigation || destination == .learningMode else { return }
         navigationDirection = .forward
         destinationScrollTop = 0
         withAnimation(.easeOut(duration: 0.2)) {
@@ -2082,4 +2092,15 @@ struct SettingsDeleteAccountView: View {
 
 extension Notification.Name {
     static let settingsIncognitoModeRequested = Notification.Name("openmates.settingsIncognitoModeRequested")
+}
+
+
+/// Isolated settings navigation cannot accidentally promote a fixture into an
+/// account operation; guest learning-mode controls use an owned local session.
+@MainActor
+final class IsolatedSettingsAccountClient: LearningModeClientProtocol {
+    struct Unavailable: Error {}
+    func loadStatus() async throws -> LearningModeStatus { throw Unavailable() }
+    func activate(passcode: String, ageGroup: LearningModeAgeGroup) async throws -> LearningModeStatus { throw Unavailable() }
+    func deactivate(passcode: String) async throws -> LearningModeStatus { throw Unavailable() }
 }

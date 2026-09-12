@@ -225,6 +225,85 @@ private enum ChatContentHydrationError: Error, Equatable {
     case invalidResponse
 }
 
+/// One policy for cold loads, cached seeds, paging, and direct navigation.
+/// The raw history remains separate from the bounded SwiftUI message rows.
+enum ChatHistoryWindowDestination: Equatable {
+    case initial(anchor: String?)
+    case preserve(firstMessage: String)
+    case older, newer, oldest, latest
+    case message(String)
+}
+
+enum ChatHistoryWindowPolicy {
+    static let capacity = 50
+    static let overlap = 10
+    static let stride = capacity - overlap
+
+    static func orderedUnique(_ messages: [Message]) -> [Message] {
+        var byID: [String: Message] = [:]
+        var firstPosition: [String: Int] = [:]
+        for (index, message) in messages.enumerated() {
+            if firstPosition[message.id] == nil { firstPosition[message.id] = index }
+            byID[message.id] = message
+        }
+        return byID.values.sorted {
+            $0.createdAt == $1.createdAt
+                ? firstPosition[$0.id, default: 0] < firstPosition[$1.id, default: 0]
+                : $0.createdAt < $1.createdAt
+        }
+    }
+
+    static func range(in messages: [Message], destination: ChatHistoryWindowDestination,
+                      current: Range<Int> = 0..<0) -> Range<Int>? {
+        guard !messages.isEmpty else { return 0..<0 }
+        let maximumStart = max(0, messages.count - capacity)
+        let requestedStart: Int
+        switch destination {
+        case .oldest: requestedStart = 0
+        case .latest: requestedStart = maximumStart
+        case .older: requestedStart = max(0, current.lowerBound - stride)
+        case .newer: requestedStart = min(maximumStart, current.lowerBound + stride)
+        case .initial(let anchor):
+            requestedStart = anchor.flatMap { id in messages.firstIndex { $0.id == id } }
+                .map { max(0, $0 - 8) } ?? maximumStart
+        case .preserve(let id):
+            requestedStart = messages.firstIndex { $0.id == id } ?? min(current.lowerBound, maximumStart)
+        case .message(let id):
+            guard let index = messages.firstIndex(where: { $0.id == id }) else { return nil }
+            requestedStart = max(0, index - 8)
+        }
+        let start = min(maximumStart, requestedStart)
+        return start..<min(messages.count, start + capacity)
+    }
+
+    static func initialMessages(_ messages: [Message], anchor: String?) -> [Message] {
+        let ordered = orderedUnique(messages)
+        let range = range(in: ordered, destination: .initial(anchor: anchor)) ?? 0..<0
+        return Array(ordered[range])
+    }
+}
+
+/// A history refresh updates rows, not the lifetime of the chat's live reader.
+/// Replaying terminal snapshots on every metadata ACK can otherwise resend
+/// post-processing metadata and create an ACK -> reload -> replay feedback loop.
+struct ChatStreamSubscriptionIdentity {
+    private var current: (chatID: String, session: StreamingSessionGeneration, token: UUID)?
+
+    mutating func begin(chatID: String, session: StreamingSessionGeneration) -> UUID? {
+        if let current, current.chatID == chatID, current.session == session { return nil }
+        let token = UUID()
+        current = (chatID, session, token)
+        return token
+    }
+
+    mutating func finish(_ token: UUID) {
+        guard current?.token == token else { return }
+        current = nil
+    }
+
+    mutating func invalidate() { current = nil }
+}
+
 @MainActor
 final class ChatViewModel: ObservableObject {
 
@@ -255,15 +334,25 @@ final class ChatViewModel: ObservableObject {
         !pendingComposerEmbeds.isEmpty
     }
 
-    /// Number of messages to show initially and per page when scrolling up.
-    private let messagesPageSize = 50
     /// All messages fetched from the server (full history).
     private var allMessages: [Message] = []
     /// Index in `allMessages` where the currently-rendered message window starts.
     private var visibleWindowStartIndex = 0
+    private var visibleWindowEndIndex = 0
+    private(set) var windowRequestGeneration = 0
+    private var explicitWindowNavigationGeneration = 0
+    @Published private(set) var hasNewerMessages = false
+    @Published private(set) var newerMessageCount = 0
+    @Published private(set) var historyWindowRevision = 0
     /// Whether there are older messages above the currently visible window.
     @Published var hasOlderMessages = false
     @Published var isLoadingOlder = false
+
+    #if DEBUG
+    var historyWindowAccessibilityValue: String {
+        "rendered=\(messages.count);total=\(allMessages.count);first=\(messages.first?.id ?? "");last=\(messages.last?.id ?? "");oldest=\(allMessages.first?.id ?? "");latest=\(allMessages.last?.id ?? "");older=\(hasOlderMessages);newer=\(hasNewerMessages);newer-count=\(newerMessageCount);revision=\(historyWindowRevision)"
+    }
+    #endif
 
     private let api = APIClient.shared
     private let sendPipeline = ChatSendPipeline()
@@ -271,8 +360,12 @@ final class ChatViewModel: ObservableObject {
     private weak var chatStore: ChatStore?
     private var queuedMessageClearTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
+    private var streamSubscriptionIdentity = ChatStreamSubscriptionIdentity()
     private var embedHydrationTask: Task<Void, Never>?
+    private var olderMessagesTask: Task<Void, Never>?
     private var loadGeneration = 0
+    private let messageDecryptor: @MainActor ([Message], String) async -> [Message]
+    private let accountScopeGeneration: @MainActor () -> UUID
     private var userMessageIdByAssistantMessageId: [String: String] = [:]
     private var assistantMessageCreatedAtById: [String: String] = [:]
     private var assistantCategoryByMessageId: [String: String] = [:]
@@ -280,6 +373,16 @@ final class ChatViewModel: ObservableObject {
     private var anonymousFeatureNoticeInserted = false
     nonisolated(unsafe) private var embedRefreshObserver: Any?
     nonisolated(unsafe) private var chatLifecycleObserver: Any?
+
+    init(
+        messageDecryptor: @escaping @MainActor ([Message], String) async -> [Message] = {
+            await ChatViewModel.decryptMessagesForDisplay($0, chatId: $1)
+        },
+        accountScopeGeneration: @escaping @MainActor () -> UUID = { OfflineStore.shared.scopeGeneration }
+    ) {
+        self.messageDecryptor = messageDecryptor
+        self.accountScopeGeneration = accountScopeGeneration
+    }
 
     func configure(wsManager: WebSocketManager?, chatStore: ChatStore?) {
         self.wsManager = wsManager
@@ -289,6 +392,7 @@ final class ChatViewModel: ObservableObject {
     func loadChat(id: String, initialChat: Chat? = nil, initialMessages: [Message] = [], initialEmbeds: [EmbedRecord] = []) async {
         loadGeneration += 1
         let generation = loadGeneration
+        cancelOlderMessagesLoad()
         embedHydrationTask?.cancel()
         isLoading = true
         error = nil
@@ -314,21 +418,16 @@ final class ChatViewModel: ObservableObject {
 
             let messagesResponse: [Message] = try await api.request(.get, path: "/v1/chats/\(id)/messages")
 
-            allMessages = messagesResponse.sorted { $0.createdAt < $1.createdAt }
+            allMessages = ChatHistoryWindowPolicy.orderedUnique(messagesResponse)
             let visibleRawMessages = visibleWindow(from: allMessages, anchorMessageId: loadedChat.lastVisibleMessageId)
             let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: id)
             let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
             embedRecords = embedded.records
             followUpSuggestions = extractFollowUpSuggestions(from: embedded.messages)
 
-            // Show only the window around the restored scroll anchor for fast rendering.
-            if visibleWindowStartIndex > 0 {
-                messages = embedded.messages
-                hasOlderMessages = true
-            } else {
-                messages = embedded.messages
-                hasOlderMessages = false
-            }
+            messages = embedded.messages
+            refreshWindowBoundaries()
+            historyWindowRevision += 1
 
             // Start listening for streaming events and embed updates
             subscribeToStream(chatId: id)
@@ -355,10 +454,15 @@ final class ChatViewModel: ObservableObject {
         if !syncedMessages.isEmpty && syncedMessages.allSatisfy({ $0.chatId != currentId }) { return }
         let nextChat = syncedChat ?? chat
         guard let nextChat else { return }
+        let destination: ChatHistoryWindowDestination = hasNewerMessages
+            ? messages.first.map { .preserve(firstMessage: $0.id) } ?? .latest
+            : .latest
         loadGeneration += 1
         let generation = loadGeneration
+        cancelOlderMessagesLoad()
         embedHydrationTask?.cancel()
-        await loadSyncedChat(nextChat, messages: syncedMessages.isEmpty ? allMessages : syncedMessages, embeds: syncedEmbeds, generation: generation)
+        await loadSyncedChat(nextChat, messages: syncedMessages.isEmpty ? allMessages : syncedMessages,
+                             embeds: syncedEmbeds, generation: generation, destination: destination)
     }
 
     func applySyncedEmbeds(_ syncedEmbeds: [EmbedRecord]) async {
@@ -384,7 +488,8 @@ final class ChatViewModel: ObservableObject {
         )
     }
 
-    private func loadSyncedChat(_ syncedChat: Chat, messages syncedMessages: [Message], embeds syncedEmbeds: [EmbedRecord], generation: Int) async {
+    private func loadSyncedChat(_ syncedChat: Chat, messages syncedMessages: [Message], embeds syncedEmbeds: [EmbedRecord],
+                                generation: Int, destination: ChatHistoryWindowDestination? = nil) async {
         var loadedChat = syncedChat
         let start = NativeSyncPerfLog.now()
         await ensureChatKey(for: loadedChat)
@@ -395,7 +500,11 @@ final class ChatViewModel: ObservableObject {
         }
 
         chat = loadedChat
-        var rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
+        // A warm shell supplies a bounded seed, while its store retains the raw
+        // history. Never mistake that seed for the complete paging/send source.
+        let storedMessages = chatStore?.messages(for: loadedChat.id) ?? []
+        var rawMessages = ChatHistoryWindowPolicy.orderedUnique(
+            storedMessages.isEmpty ? syncedMessages : storedMessages)
         var hydrationEmbeds = syncedEmbeds
         if rawMessages.isEmpty && shouldFetchMissingSyncedMessages(for: loadedChat) {
             do {
@@ -454,23 +563,37 @@ final class ChatViewModel: ObservableObject {
         openingMetrics.initialMessagesReceived = rawMessages.count
         openingMetrics.initialEmbedsReceived = hydrationEmbeds.count
         allMessages = rawMessages
-        let visibleRawMessages = visibleWindow(from: rawMessages, anchorMessageId: loadedChat.lastVisibleMessageId)
+        let visibleRawMessages = visibleWindow(from: rawMessages, anchorMessageId: loadedChat.lastVisibleMessageId,
+                                              destination: destination)
+        let selectedTail = visibleWindowEndIndex == allMessages.count
+        let selectionGeneration = explicitWindowNavigationGeneration
+        let scopeGeneration = accountScopeGeneration()
         let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: loadedChat.id)
         openingMetrics.initialMessagesDecrypted = decryptedMessages.count
-        guard generation == loadGeneration else { return }
-        let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
+        guard generation == loadGeneration, scopeGeneration == accountScopeGeneration() else { return }
+        restoreActiveStreamInRawHistory(chatId: loadedChat.id)
+        // A live chunk can change the raw source during decryption. Resolve the
+        // intended window against that source without aborting initial loading.
+        // Only deliberate newer navigation may supersede this selection.
+        guard let resolvedMessages = await resolveLoadedHistoryWindow(
+            initialRaw: visibleRawMessages, initialDecrypted: decryptedMessages,
+            destination: selectedTail ? .latest : visibleRawMessages.first.map { .preserve(firstMessage: $0.id) } ?? .latest,
+            generation: generation, navigationGeneration: selectionGeneration, scopeGeneration: scopeGeneration
+        ) else { return }
+        let embedded = PublicChatContent.attachEmbeds(to: resolvedMessages)
         let existingRecords = embedRecords
         let referencedIds = Set(embedded.messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
         let directEmbedRefs = embedded.messages.flatMap { $0.embedRefs ?? [] }.count
         embedRecords = existingRecords.merging(embedded.records) { _, new in new }
-        let renderedMessages = mergeVisibleMessagesWithActiveStream(embedded.messages, chatId: loadedChat.id)
+        let renderedMessages = embedded.messages
         followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
             current: followUpSuggestions,
             incoming: extractFollowUpSuggestions(from: renderedMessages)
         )
 
         messages = renderedMessages
-        hasOlderMessages = chatStore?.hasOlderMessages(for: loadedChat.id, before: embedded.messages.first?.id) ?? (visibleWindowStartIndex > 0)
+        refreshWindowBoundaries()
+        historyWindowRevision += 1
 
         subscribeToStream(chatId: loadedChat.id)
         subscribeToEmbedUpdates(chatId: loadedChat.id)
@@ -629,14 +752,16 @@ final class ChatViewModel: ObservableObject {
 
         chat = publicChat.chat
         embedRecords = publicChat.embedRecords
-        allMessages = publicChat.messages
-        messages = publicChat.messages
+        allMessages = ChatHistoryWindowPolicy.orderedUnique(publicChat.messages)
+        messages = visibleWindow(from: allMessages, destination: .oldest)
         followUpSuggestions = publicChat.followUpSuggestions
-        hasOlderMessages = false
+        refreshWindowBoundaries()
+        historyWindowRevision += 1
         isLoadingOlder = false
         isStreaming = false
         streamingContent = ""
         streamingMessageId = nil
+        streamSubscriptionIdentity.invalidate()
         streamTask?.cancel()
         if let observer = embedRefreshObserver {
             NotificationCenter.default.removeObserver(observer)
@@ -723,7 +848,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func decryptMessages(_ messages: [Message], chatId: String) async -> [Message] {
-        await Self.decryptMessagesForDisplay(messages, chatId: chatId)
+        await messageDecryptor(messages, chatId)
     }
 
     private func decryptEmbeds(
@@ -808,57 +933,111 @@ final class ChatViewModel: ObservableObject {
         return decryptedEmbeds
     }
 
-    /// Load the next page of older messages above the current window.
-    func loadOlderMessages() {
-        guard hasOlderMessages, !isLoadingOlder else { return }
+    /// Compatibility entry point used by existing callers and race regressions.
+    @discardableResult
+    func loadOlderMessages() -> Task<Void, Never>? { loadMessageWindow(.older) }
+
+    @discardableResult
+    func loadNewerMessages() -> Task<Void, Never>? { loadMessageWindow(.newer) }
+
+    #if DEBUG
+    private var isolatedHistory = false
+    func seedIsolatedHistory(chat: Chat, messages: [Message], embeds: [EmbedRecord]) {
+        isolatedHistory = true
+        self.chat = chat
+        allMessages = ChatHistoryWindowPolicy.orderedUnique(messages)
+        self.messages = visibleWindow(from: allMessages, destination: .latest)
+        embedRecords = EmbedRecord.dictionaryById(embeds, context: "isolatedHistory")
+        isLoading = false
+        refreshWindowBoundaries(); historyWindowRevision += 1
+    }
+    #endif
+
+    @discardableResult
+    func loadMessageWindow(_ destination: ChatHistoryWindowDestination) -> Task<Void, Never>? {
+        #if DEBUG
+        if isolatedHistory {
+            return Task { @MainActor in
+                messages = visibleWindow(from: allMessages, destination: destination)
+                refreshWindowBoundaries(); historyWindowRevision += 1
+            }
+        }
+        #endif
+        guard !isLoading, let chatId = chat?.id else { return nil }
+        if destination == .older && (!hasOlderMessages || isLoadingOlder) { return nil }
+        if destination == .newer && (!hasNewerMessages || isLoadingOlder) { return nil }
+        explicitWindowNavigationGeneration += 1
+        cancelOlderMessagesLoad()
+        let generation = loadGeneration
+        let requestGeneration = windowRequestGeneration
+        let scopeGeneration = accountScopeGeneration()
+        let current = visibleWindowStartIndex..<visibleWindowEndIndex
+        let source = allMessages
+        guard let nextRange = ChatHistoryWindowPolicy.range(in: source, destination: destination, current: current) else { return nil }
+        if nextRange == current { return nil }
+        let batch = Array(source[nextRange])
+        // Reuse overlap already decrypted, but never retain it as extra rows.
+        let existing = Dictionary(messages.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+        let missing = batch.filter { existing[$0.id] == nil }
         isLoadingOlder = true
-
-        if let chatId = chat?.id,
-           let topMessageId = messages.first?.id,
-           let olderBatch = chatStore?.olderMessageWindow(for: chatId, before: topMessageId),
-           !olderBatch.isEmpty {
-            Task { @MainActor in
-                let decrypted = await decryptMessages(olderBatch, chatId: chatId)
-                let embedded = PublicChatContent.attachEmbeds(to: decrypted)
-                for (id, record) in embedded.records {
-                    embedRecords[id] = record
-                }
-                messages.insert(contentsOf: embedded.messages, at: 0)
-                allMessages.insert(contentsOf: olderBatch, at: 0)
-                hasOlderMessages = chatStore?.hasOlderMessages(for: chatId, before: embedded.messages.first?.id) ?? false
-                await loadEmbeds(for: embedded.messages.map(\.id))
-                isLoadingOlder = false
-            }
-            return
-        }
-
-        let currentStartIndex = visibleWindowStartIndex
-
-        if currentStartIndex > 0 {
-            let nextPageSize = min(messagesPageSize, currentStartIndex)
-            let startIndex = currentStartIndex - nextPageSize
-            let olderBatch = Array(allMessages[startIndex..<currentStartIndex])
-            Task { @MainActor in
-                guard let chatId = chat?.id else {
+        olderMessagesTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if isCurrentWindowRequest(chatId: chatId, generation: generation, requestGeneration: requestGeneration,
+                                          scopeGeneration: scopeGeneration) {
                     isLoadingOlder = false
-                    return
+                    olderMessagesTask = nil
                 }
-                let decrypted = await decryptMessages(olderBatch, chatId: chatId)
-                let embedded = PublicChatContent.attachEmbeds(to: decrypted)
-                for (id, record) in embedded.records {
-                    embedRecords[id] = record
-                }
-                EmbedMediaOfflineCache.prefetchEmbeds(Array(embedded.records.values))
-                messages.insert(contentsOf: embedded.messages, at: 0)
-                visibleWindowStartIndex = startIndex
-                hasOlderMessages = startIndex > 0
-                await loadEmbeds(for: embedded.messages.map(\.id))
-                isLoadingOlder = false
             }
-        } else {
-            hasOlderMessages = false
-            isLoadingOlder = false
+            guard isCurrentWindowRequest(chatId: chatId, generation: generation, requestGeneration: requestGeneration,
+                                         scopeGeneration: scopeGeneration) else { return }
+            let decrypted = await decryptMessages(missing, chatId: chatId)
+            guard isCurrentWindowRequest(chatId: chatId, generation: generation, requestGeneration: requestGeneration,
+                                         scopeGeneration: scopeGeneration) else { return }
+            let latestVisible = Dictionary(messages.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+            let byID = Dictionary(decrypted.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+                .merging(latestVisible) { _, current in current }
+            let embedded = PublicChatContent.attachEmbeds(to: batch.compactMap { byID[$0.id] })
+            let availableRecords = embedRecords.merging(embedded.records) { _, new in new }
+            let referencedIDs = Set(embedded.messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
+            embedRecords = EmbedRecord.dictionaryById(
+                relatedEmbeds(referencedIds: referencedIDs, from: Array(availableRecords.values)),
+                context: "chatViewModel.window")
+            messages = embedded.messages
+            visibleWindowStartIndex = nextRange.lowerBound
+            visibleWindowEndIndex = nextRange.upperBound
+            refreshWindowBoundaries()
+            historyWindowRevision += 1
+            // Row navigation completes before media/network hydration. The UI
+            // must restore its retained overlap immediately after this commit.
+            scheduleEmbedHydration(syncedEmbeds: [], referencedIds: referencedIDs,
+                chatId: chatId, generation: generation, existingRecords: embedRecords,
+                source: "historyWindow")
         }
+        return olderMessagesTask
+    }
+
+    func cancelHistoryWindowNavigation() {
+        cancelOlderMessagesLoad()
+    }
+
+    private func refreshWindowBoundaries() {
+        hasOlderMessages = visibleWindowStartIndex > 0
+        newerMessageCount = max(0, allMessages.count - visibleWindowEndIndex)
+        hasNewerMessages = newerMessageCount > 0
+    }
+
+    private func cancelOlderMessagesLoad() {
+        windowRequestGeneration += 1
+        olderMessagesTask?.cancel()
+        olderMessagesTask = nil
+        isLoadingOlder = false
+    }
+
+    private func isCurrentWindowRequest(chatId: String, generation: Int, requestGeneration: Int,
+                                        scopeGeneration: UUID) -> Bool {
+        !Task.isCancelled && chat?.id == chatId && loadGeneration == generation
+            && windowRequestGeneration == requestGeneration && accountScopeGeneration() == scopeGeneration
     }
 
     // MARK: - Send message
@@ -872,6 +1051,20 @@ final class ChatViewModel: ObservableObject {
         composerEmbeds explicitComposerEmbeds: [ComposerPendingEmbed]? = nil
     ) async {
         guard let currentChat = chat else { return }
+        if hasNewerMessages {
+            let generation = loadGeneration
+            let scope = accountScopeGeneration()
+            while hasNewerMessages {
+                guard !Task.isCancelled, chat?.id == currentChat.id, loadGeneration == generation,
+                      accountScopeGeneration() == scope,
+                      let task = loadMessageWindow(.latest) else { return }
+                await task.value
+                guard !Task.isCancelled, chat?.id == currentChat.id, loadGeneration == generation,
+                      accountScopeGeneration() == scope else { return }
+                // A new row may invalidate the source while decryption awaits.
+                // Retry that bounded tail before preparing the send payload.
+            }
+        }
         if IncognitoChatSession.isIncognitoChatId(currentChat.id) {
             await sendIncognitoMessage(content, in: currentChat)
             return
@@ -1058,6 +1251,7 @@ final class ChatViewModel: ObservableObject {
             encryptedCategory: chat.encryptedCategory,
             encryptedIcon: chat.encryptedIcon,
             encryptedChatSummary: chat.encryptedChatSummary,
+            encryptedAutoSpeakResponse: chat.encryptedAutoSpeakResponse,
             encryptedChatKey: chat.encryptedChatKey,
             messagesV: messageCount,
             titleV: chat.titleV,
@@ -1130,6 +1324,7 @@ final class ChatViewModel: ObservableObject {
                 }
             }
         }
+        streamSubscriptionIdentity.invalidate()
         streamTask?.cancel()
         queuedMessageClearTask?.cancel()
         queuedMessageClearTask = nil
@@ -1138,21 +1333,36 @@ final class ChatViewModel: ObservableObject {
         streamingMessageId = nil
         streamingLifecycle.reset()
         if let chatId {
-            subscribeToStream(chatId: chatId)
+            // Continue receiving the server's cancellation/final acknowledgment,
+            // without replaying the active snapshot we just stopped displaying.
+            subscribeToStream(chatId: chatId, replayBufferedState: false)
         }
     }
 
     // MARK: - Streaming subscription
 
-    private func subscribeToStream(chatId: String) {
+    private func subscribeToStream(chatId: String, replayBufferedState: Bool = true) {
+        let sessionGeneration = StreamingClient.shared.sessionGeneration
+        guard let subscriptionToken = streamSubscriptionIdentity.begin(
+            chatID: chatId, session: sessionGeneration) else { return }
+        let pendingRecoveryIDs = chatStore?.pendingAssistantRecoveryMessageIds(in: chatId) ?? []
+        let pendingLegacyIDs = Set(PendingAssistantResponseQueue.shared.all()
+            .filter { $0.chatId == chatId }.map(\.messageId))
+        let materializedFinalIDs = ChatStreamReplayPolicy.materializedFinalMessageIDs(
+            in: chatStore?.messages(for: chatId) ?? allMessages, chatID: chatId,
+            pendingMessageIDs: pendingRecoveryIDs.union(pendingLegacyIDs))
         var previousStreamTask = streamTask
         streamTask = Task { [weak self] in
-            let stream = await StreamingClient.shared.streamForChat(chatId)
+            defer { self?.streamSubscriptionIdentity.finish(subscriptionToken) }
+            let stream = await StreamingClient.shared.streamForChat(chatId, session: sessionGeneration,
+                                                                    replayBufferedState: replayBufferedState,
+                                                                    excludingMaterializedFinalMessageIDs: materializedFinalIDs)
             previousStreamTask?.cancel()
             previousStreamTask = nil
             for await event in stream {
-                guard !Task.isCancelled else { break }
-                guard let self else { break }
+                guard !Task.isCancelled,
+                      StreamingClient.shared.isCurrentSession(sessionGeneration),
+                      let self, self.chat?.id == chatId else { break }
                 self.handleStreamEvent(event)
             }
         }
@@ -1417,36 +1627,64 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func appendOrReplaceLocalMessage(_ message: Message) {
-        if let index = allMessages.firstIndex(where: { $0.id == message.id }) {
-            allMessages[index] = message
-        } else {
-            allMessages.append(message)
-        }
-        allMessages.sort { $0.createdAt < $1.createdAt }
-
+        let wasAtTail = !hasNewerMessages
+        let originalFirst = messages.first?.id
+        if upsertRawHistoryMessage(message) { cancelOlderMessagesLoad() }
         if let index = messages.firstIndex(where: { $0.id == message.id }) {
             messages[index] = message
-        } else {
+        } else if wasAtTail {
             messages.append(message)
         }
-        messages.sort { $0.createdAt < $1.createdAt }
+        messages = Array(ChatHistoryWindowPolicy.orderedUnique(messages).suffix(ChatHistoryWindowPolicy.capacity))
+        if wasAtTail {
+            visibleWindowEndIndex = allMessages.count
+            visibleWindowStartIndex = max(0, allMessages.count - messages.count)
+        } else if let originalFirst, let start = allMessages.firstIndex(where: { $0.id == originalFirst }) {
+            visibleWindowStartIndex = start
+            visibleWindowEndIndex = min(allMessages.count, start + messages.count)
+        }
+        refreshWindowBoundaries()
         chatStore?.appendMessage(message, to: message.chatId)
     }
 
     private func appendOrReplaceTransientMessage(_ message: Message) {
-        if let index = allMessages.firstIndex(where: { $0.id == message.id }) {
-            allMessages[index] = message
-        } else {
-            allMessages.append(message)
-        }
-        allMessages.sort { $0.createdAt < $1.createdAt }
-
+        let wasAtTail = !hasNewerMessages
+        let originalFirst = messages.first?.id
+        if upsertRawHistoryMessage(message) { cancelOlderMessagesLoad() }
         if let index = messages.firstIndex(where: { $0.id == message.id }) {
             messages[index] = message
-        } else {
+        } else if wasAtTail {
             messages.append(message)
         }
-        messages.sort { $0.createdAt < $1.createdAt }
+        messages = Array(ChatHistoryWindowPolicy.orderedUnique(messages).suffix(ChatHistoryWindowPolicy.capacity))
+        if wasAtTail {
+            visibleWindowEndIndex = allMessages.count
+            visibleWindowStartIndex = max(0, allMessages.count - messages.count)
+        } else if let originalFirst, let start = allMessages.firstIndex(where: { $0.id == originalFirst }) {
+            visibleWindowStartIndex = start
+            visibleWindowEndIndex = min(allMessages.count, start + messages.count)
+        }
+        refreshWindowBoundaries()
+    }
+
+    /// Returns whether identity/order changed, invalidating a captured page range.
+    @discardableResult
+    private func upsertRawHistoryMessage(_ message: Message) -> Bool {
+        if let index = allMessages.firstIndex(where: { $0.id == message.id }) {
+            let previousDate = allMessages[index].createdAt
+            allMessages[index] = message
+            if previousDate != message.createdAt {
+                allMessages = ChatHistoryWindowPolicy.orderedUnique(allMessages)
+                return true
+            }
+            return false
+        } else if allMessages.last.map({ $0.createdAt <= message.createdAt }) ?? true {
+            allMessages.append(message)
+        } else {
+            let index = allMessages.firstIndex { $0.createdAt > message.createdAt } ?? allMessages.endIndex
+            allMessages.insert(message, at: index)
+        }
+        return true
     }
 
     private func createdAtForAssistantMessage(_ messageId: String) -> String {
@@ -1638,6 +1876,7 @@ final class ChatViewModel: ObservableObject {
             encryptedCategory: currentChat.encryptedCategory,
             encryptedIcon: currentChat.encryptedIcon,
             encryptedChatSummary: currentChat.encryptedChatSummary,
+            encryptedAutoSpeakResponse: currentChat.encryptedAutoSpeakResponse,
             encryptedChatKey: currentChat.encryptedChatKey,
             messagesV: currentChat.messagesV,
             titleV: currentChat.titleV,
@@ -1668,6 +1907,7 @@ final class ChatViewModel: ObservableObject {
 
     deinit {
         streamTask?.cancel()
+        olderMessagesTask?.cancel()
         if let observer = embedRefreshObserver {
             NotificationCenter.default.removeObserver(observer)
         }
@@ -1679,6 +1919,12 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Message actions
 
     func deleteMessage(_ messageId: String) async {
+        #if DEBUG
+        if isolatedHistory {
+            allMessages.removeAll { $0.id == messageId }; messages.removeAll { $0.id == messageId }
+            refreshWindowBoundaries(); historyWindowRevision += 1; return
+        }
+        #endif
         guard let chatId = chat?.id else { return }
         do {
             let _: Data = try await api.request(
@@ -1695,6 +1941,9 @@ final class ChatViewModel: ObservableObject {
     @Published var forkedChatId: String?
 
     func forkFromMessage(_ messageId: String) async {
+        #if DEBUG
+        if isolatedHistory { return } // Fork requires an account; unavailable in isolated previews.
+        #endif
         guard let chatId = chat?.id else { return }
         do {
             let response: [String: AnyCodable] = try await api.request(
@@ -1802,57 +2051,62 @@ final class ChatViewModel: ObservableObject {
         return result
     }
 
-    private func visibleWindow(from rawMessages: [Message], anchorMessageId: String? = nil) -> [Message] {
-        guard rawMessages.count > messagesPageSize else {
-            visibleWindowStartIndex = 0
-            return rawMessages
-        }
-
-        if let anchorMessageId,
-           let anchorIndex = rawMessages.firstIndex(where: { $0.id == anchorMessageId }) {
-            let preferredStart = max(0, anchorIndex - 8)
-            let maxStart = rawMessages.count - messagesPageSize
-            let start = min(preferredStart, maxStart)
-            let end = min(rawMessages.count, start + messagesPageSize)
-            visibleWindowStartIndex = start
-            return Array(rawMessages[start..<end])
-        }
-
-        visibleWindowStartIndex = rawMessages.count - messagesPageSize
-        return Array(rawMessages.suffix(messagesPageSize))
+    private func visibleWindow(from rawMessages: [Message], anchorMessageId: String? = nil,
+                               destination: ChatHistoryWindowDestination? = nil) -> [Message] {
+        let current = visibleWindowStartIndex..<visibleWindowEndIndex
+        let selected = ChatHistoryWindowPolicy.range(in: rawMessages,
+            destination: destination ?? .initial(anchor: anchorMessageId), current: current) ?? 0..<0
+        visibleWindowStartIndex = selected.lowerBound
+        visibleWindowEndIndex = selected.upperBound
+        return Array(rawMessages[selected])
     }
 
-    private func mergeVisibleMessagesWithActiveStream(_ syncedMessages: [Message], chatId: String) -> [Message] {
-        guard isStreaming,
-              let activeMessageId = streamingMessageId else {
-            return syncedMessages
+    private func resolveLoadedHistoryWindow(
+        initialRaw: [Message], initialDecrypted: [Message], destination: ChatHistoryWindowDestination,
+        generation: Int, navigationGeneration: Int, scopeGeneration: UUID
+    ) async -> [Message]? {
+        var sources = Dictionary(initialRaw.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+        var decrypted = Dictionary(initialDecrypted.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+        while true {
+            guard !Task.isCancelled, generation == loadGeneration,
+                  navigationGeneration == explicitWindowNavigationGeneration,
+                  scopeGeneration == accountScopeGeneration(), let chatID = chat?.id else { return nil }
+            let range = ChatHistoryWindowPolicy.range(in: allMessages, destination: destination) ?? 0..<0
+            let raw = Array(allMessages[range])
+            let missing = raw.filter { message in
+                guard let source = sources[message.id], decrypted[message.id] != nil else { return true }
+                return source.content != message.content || source.encryptedContent != message.encryptedContent
+                    || source.thinkingContent != message.thinkingContent
+                    || source.encryptedThinkingContent != message.encryptedThinkingContent
+                    || source.encryptedPIIMappings != message.encryptedPIIMappings
+                    || source.updatedAt != message.updatedAt
+            }
+            if !missing.isEmpty {
+                let resolved = await decryptMessages(missing, chatId: chatID)
+                for message in missing { sources[message.id] = message }
+                for message in resolved { decrypted[message.id] = message }
+                // The source may have changed during this bounded await, too.
+                continue
+            }
+            visibleWindowStartIndex = range.lowerBound
+            visibleWindowEndIndex = range.upperBound
+            return raw.compactMap { decrypted[$0.id] }
         }
+    }
 
-        if syncedMessages.contains(where: { $0.id == activeMessageId && $0.isStreaming != true }) {
+    private func restoreActiveStreamInRawHistory(chatId: String) {
+        guard isStreaming, let activeMessageId = streamingMessageId else { return }
+        if allMessages.contains(where: { $0.id == activeMessageId && $0.isStreaming != true }) {
             clearStreamingStateAfterAuthoritativeSync(messageId: activeMessageId)
-            return syncedMessages
+            return
         }
-
-        guard !syncedMessages.contains(where: { $0.id == activeMessageId }),
-              !streamingContent.isEmpty else {
-            return syncedMessages
-        }
-
-        var mergedMessages = syncedMessages
-        mergedMessages.append(Message(
-            id: activeMessageId,
-            chatId: chatId,
-            role: .assistant,
-            content: streamingContent,
-            encryptedContent: nil,
-            createdAt: createdAtForAssistantMessage(activeMessageId),
-            updatedAt: nil,
-            appId: assistantCategoryByMessageId[activeMessageId] ?? chat?.category ?? chat?.appId,
-            isStreaming: true,
-            embedRefs: nil,
-            modelName: assistantModelNameByMessageId[activeMessageId]
+        guard !allMessages.contains(where: { $0.id == activeMessageId }), !streamingContent.isEmpty else { return }
+        upsertRawHistoryMessage(Message(
+            id: activeMessageId, chatId: chatId, role: .assistant, content: streamingContent,
+            encryptedContent: nil, createdAt: createdAtForAssistantMessage(activeMessageId),
+            updatedAt: nil, appId: assistantCategoryByMessageId[activeMessageId] ?? chat?.category ?? chat?.appId,
+            isStreaming: true, embedRefs: nil, modelName: assistantModelNameByMessageId[activeMessageId]
         ))
-        return mergedMessages.sorted { $0.createdAt < $1.createdAt }
     }
 
     private func clearStreamingStateAfterAuthoritativeSync(messageId: String) {
@@ -3528,6 +3782,12 @@ final class ChatSendPipeline {
         validateRemoteSend: (() throws -> Void)? = nil
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
+        // Pin speech/account context before encryption and preference awaits.
+        let speechScope = AssistantSpeechAppRuntime.shared.scope(for: chat.id)
+        let validateSendContext: () throws -> Void = {
+            try validateRemoteSend?()
+            if let speechScope { try AssistantSpeechAppRuntime.shared.requireCurrent(speechScope, socket: wsManager) }
+        }
         let now = Date()
         let createdAt = Self.isoString(from: now)
         let createdAtUnix = Int(now.timeIntervalSince1970)
@@ -3591,6 +3851,8 @@ final class ChatSendPipeline {
         if (updatedChat.titleV ?? 0) > 0 {
             messagePayload["current_chat_title"] = updatedChat.title
         }
+
+        messagePayload.merge(try await AssistantSpeechAppRuntime.shared.prepareSend(chat: chat, userMessageID: messageId, socket: wsManager, expectedScope: speechScope), uniquingKeysWith: { _, new in new })
 
         var outboundPayload: [String: Any] = [
             "chat_id": chat.id,
@@ -3688,6 +3950,7 @@ final class ChatSendPipeline {
 
         // Notification actions persist this exact preflight/commit pair before
         // local insertion, so interrupted retries cannot create another message.
+        try validateSendContext()
         try beforeRemoteSend?(turnId, preflightPayload, outboundPayload)
         chatStore?.upsertChat(updatedChat)
         chatStore?.appendMessage(message, to: chat.id)
@@ -3701,7 +3964,7 @@ final class ChatSendPipeline {
                 preflightPayload: preflightPayload,
                 outboundPayload: outboundPayload,
                 waitForInferenceReceipt: waitForInferenceReceipt,
-                validateRemoteSend: validateRemoteSend
+                validateRemoteSend: validateSendContext
             )
         } else {
             Task { @MainActor in
@@ -3714,7 +3977,7 @@ final class ChatSendPipeline {
                         preflightPayload: preflightPayload,
                         outboundPayload: outboundPayload,
                         waitForInferenceReceipt: waitForInferenceReceipt,
-                        validateRemoteSend: validateRemoteSend
+                        validateRemoteSend: validateSendContext
                     )
                 } catch {
                     print("[ChatSendPipeline] Background send failed for chat \(chat.id.prefix(8)): \(error)")
@@ -4275,6 +4538,7 @@ final class ChatSendPipeline {
                     chatSummary: chatSummary?.isEmpty == false ? chatSummary : chat.chatSummary,
                     encryptedTitle: encryptedUpdatedTitle ?? chat.encryptedTitle,
                     encryptedChatSummary: encryptedSummary ?? chat.encryptedChatSummary,
+                    encryptedAutoSpeakResponse: chat.encryptedAutoSpeakResponse,
                     encryptedChatKey: keyMaterial.encryptedChatKey
                 ))
             }
@@ -4444,6 +4708,7 @@ final class ChatSendPipeline {
         encryptedCategory: String? = nil,
         encryptedIcon: String? = nil,
         encryptedChatSummary: String? = nil,
+        encryptedAutoSpeakResponse: String? = nil,
         encryptedChatKey: String? = nil,
         messagesV: Int? = nil,
         titleV: Int? = nil
@@ -4464,10 +4729,12 @@ final class ChatSendPipeline {
             encryptedCategory: encryptedCategory ?? chat.encryptedCategory,
             encryptedIcon: encryptedIcon ?? chat.encryptedIcon,
             encryptedChatSummary: encryptedChatSummary ?? chat.encryptedChatSummary,
+            encryptedAutoSpeakResponse: encryptedAutoSpeakResponse ?? chat.encryptedAutoSpeakResponse,
             encryptedChatKey: encryptedChatKey ?? chat.encryptedChatKey,
             messagesV: messagesV ?? chat.messagesV,
             titleV: titleV ?? chat.titleV,
             draftV: chat.draftV,
+            metadataV: chat.metadataV,
             lastVisibleMessageId: chat.lastVisibleMessageId,
             parentId: chat.parentId,
             isSubChat: chat.isSubChat,

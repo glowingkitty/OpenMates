@@ -155,7 +155,7 @@ struct UserProfile: Codable, Identifiable {
     let language: String?
     let darkmode: Bool?
     let timezone: String?
-    let lastOpened: String?
+    var lastOpened: String?
     let profileImageUrl: String?
     let isAdmin: Bool?
 

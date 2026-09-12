@@ -126,6 +126,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
                     onExcludePII: onExcludePII,
                     onSubmit: onSubmit
                 )
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 .accessibilityIdentifier("message-editor")
                 .overlay(alignment: compact ? .center : .topLeading) {
                     if MessageComposerPresentation.showsPlaceholder(
@@ -166,8 +167,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
             minHeight: resolvedFieldHeight,
             maxHeight: resolvedFieldHeight
         )
-        .background(Color.greyBlue)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .background(Color.greyBlue, in: RoundedRectangle(cornerRadius: cornerRadius))
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
         .onTapGesture {
@@ -758,7 +758,7 @@ struct OMSettingsFooter: View {
             }
 
             footerSection(LocalizationManager.shared.text("footer.sections.for_developers")) {
-                footerLink(LocalizationManager.shared.text("settings.api_docs"), url: "\(APIClient.shared.baseURL.absoluteString)/docs")
+                footerLink(LocalizationManager.shared.text("settings.api_docs"), url: "\(ServerProfile.current().apiBaseURL.absoluteString)/docs")
                 footerLink(LocalizationManager.shared.text("common.github"), url: "https://github.com/OpenMates/OpenMates")
                 footerLink(LocalizationManager.shared.text("settings.signal"), url: "https://signal.me/#eu/openmates")
             }

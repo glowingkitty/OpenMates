@@ -15,6 +15,8 @@ struct WebsiteEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
     @Environment(\.openURL) private var openURL
+    @State private var containerWidth: CGFloat = 390
+    private var metrics: WebsiteFullscreenMetrics { .init(width: containerWidth) }
 
     private var title: String { firstString(keys: ["title", "site_name"]) ?? hostFrom(url) }
     private var url: String { data?["url"]?.value as? String ?? "" }
@@ -30,8 +32,13 @@ struct WebsiteEmbedRenderer: View {
                     GeometryReader { proxy in
                         HStack(alignment: .top, spacing: 0) {
                             Text(description)
-                                .font(mode == .preview ? .omSmall : .omP)
+                                .font(.omSmall)
+                                .fontWeight(.medium)
                                 .foregroundStyle(Color.grey70)
+                                // 14pt Lexend has a 17.5pt native line box;
+                                // web uses 19.6pt, including outer half-leading.
+                                .lineSpacing(2.1)
+                                .padding(.vertical, 1.05)
                                 .lineLimit(6)
                                 .multilineTextAlignment(.leading)
                                 .frame(width: imageURL == nil ? proxy.size.width : proxy.size.width * 0.4, alignment: .topLeading)
@@ -75,8 +82,8 @@ struct WebsiteEmbedRenderer: View {
                         fallbackURLString: imageURL
                     )
                     .frame(maxWidth: 511)
-                    .frame(minHeight: 168, maxHeight: 250)
-                    .clipShape(RoundedRectangle(cornerRadius: 30))
+                    .frame(minHeight: metrics.imageMinHeight, maxHeight: metrics.imageMaxHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: metrics.imageRadius))
                     .padding(.bottom, .spacing12)
                 }
 
@@ -88,13 +95,14 @@ struct WebsiteEmbedRenderer: View {
                         .lineSpacing(4)
                         .frame(maxWidth: 500, alignment: .leading)
                         .padding(.bottom, 32)
+                        .accessibilityIdentifier("website-description")
                 }
 
                 if !snippets.isEmpty {
                     VStack(alignment: .leading, spacing: .spacing8) {
                         VStack(alignment: .leading, spacing: .spacing1) {
                             Text(AppStrings.snippets)
-                                .font(.omXl)
+                                .font(.custom("Lexend Deca", size: metrics.titleSize))
                                 .fontWeight(.bold)
                                 .foregroundStyle(Color.grey100)
 
@@ -106,17 +114,21 @@ struct WebsiteEmbedRenderer: View {
 
                         VStack(spacing: .spacing6) {
                             ForEach(Array(snippets.enumerated()), id: \.offset) { _, snippet in
-                                WebsiteSnippetCard(text: snippet)
+                                WebsiteSnippetCard(text: snippet, metrics: metrics)
                             }
                         }
                     }
                     .frame(maxWidth: 500, alignment: .leading)
                 }
             }
+            .padding(.horizontal, metrics.horizontalPadding)
+            .padding(.top, metrics.topPadding)
+            .padding(.bottom, metrics.bottomPadding)
             .frame(maxWidth: 600, alignment: .center)
-            .padding(.horizontal, .spacing20)
-            .padding(.top, .spacing12)
-            .padding(.bottom, .spacing20)
+            .frame(maxWidth: .infinity)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { containerWidth = $0 }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("website-fullscreen-body")
         }
     }
 
@@ -309,18 +321,19 @@ private struct WebsiteRemoteImage: View {
 
 private struct WebsiteSnippetCard: View {
     let text: String
+    let metrics: WebsiteFullscreenMetrics
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: DS.SnippetCard.radius)
+            RoundedRectangle(cornerRadius: metrics.snippetRadius)
                 .fill(DS.SnippetCard.backgroundColor)
 
-            Icon("quote", size: 20)
+            Icon("quote", size: metrics.quoteSize)
                 .foregroundStyle(Color.grey100)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 .padding(12)
 
-            Icon("quote", size: 20)
+            Icon("quote", size: metrics.quoteSize)
                 .foregroundStyle(Color.grey100)
                 .rotationEffect(.degrees(180))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -331,10 +344,27 @@ private struct WebsiteSnippetCard: View {
                 .fontWeight(.medium)
                 .foregroundStyle(Color.grey100)
                 .lineSpacing(4)
-                .padding(.vertical, DS.SnippetCard.paddingY)
-                .padding(.horizontal, DS.SnippetCard.paddingX)
+                .padding(.vertical, metrics.snippetPaddingY)
+                .padding(.horizontal, metrics.snippetPaddingX)
         }
         .frame(minHeight: DS.SnippetCard.minHeight)
     }
 }
 
+
+// Web: WebsiteEmbedFullscreen.svelte container queries. Width is the fullscreen
+// viewport, before the body max-width cap; do not use device class or screen size.
+struct WebsiteFullscreenMetrics {
+    let width: CGFloat
+    var horizontalPadding: CGFloat { width <= 400 ? .spacing8 : width <= 600 ? 20 : .spacing20 }
+    var topPadding: CGFloat { width <= 400 ? .spacing8 : width <= 600 ? 20 : .spacing12 }
+    var bottomPadding: CGFloat { width <= 400 ? .spacing12 : width <= 600 ? 30 : .spacing20 }
+    var imageMinHeight: CGFloat { width <= 400 ? 120 : 168 }
+    var imageMaxHeight: CGFloat { width <= 400 ? 180 : 250 }
+    var imageRadius: CGFloat { width <= 600 ? 24 : 30 }
+    var titleSize: CGFloat { width <= 600 ? 18 : 22 }
+    var snippetRadius: CGFloat { width <= 600 ? 24 : DS.SnippetCard.radius }
+    var snippetPaddingY: CGFloat { width <= 400 ? .spacing8 : width <= 600 ? 20 : DS.SnippetCard.paddingY }
+    var snippetPaddingX: CGFloat { width <= 400 ? .spacing20 : width <= 600 ? 50 : DS.SnippetCard.paddingX }
+    var quoteSize: CGFloat { width <= 400 ? 16 : 20 }
+}

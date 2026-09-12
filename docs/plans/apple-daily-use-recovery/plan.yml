@@ -2,12 +2,14 @@ id: apple-daily-use-recovery
 title: Restore the Apple daily-use chat flow
 status: implementing
 goal: >-
-  Ensure passkey login and email/password login to the personal dev test account
-  work, load the chats visible in the web app efficiently, and support reliable
-  conversations with the same core UI flow, using iPhone simulator workflows as
-  the primary debugging loop and TestFlight for real-device verification.
+  Restore and complete the Apple everyday chat experience across iOS, iPadOS and
+  macOS: reliable authentication, account history, performant chat rendering,
+  push delivery and correct-chat notification replies. Provide isolated native
+  component previews and match the confirmed web composer, embed preview,
+  fullscreen and chat-history flows responsively from wide windows to phones,
+  followed by landing, login and signup parity.
 authorization:
-  product_scope: User approved the five-step recovery proposal on 2026-09-11.
+  product_scope: User approved the five-step recovery proposal on 2026-09-11 and explicitly resumed and expanded the work on 2026-09-12 to notification completion, isolated previews, performance and the named responsive UI and authentication surfaces.
   local_tools: User explicitly authorized local debugging tools and updating the ios skill.
   real_device_delivery: User requested TestFlight for testing builds beyond the simulator.
 scope:
@@ -17,8 +19,13 @@ scope:
   - Relaunch and reconnect; targeted iPhone and iPad verification.
   - After chat loading/rendering/scrolling is verified, validate push delivery and notification replies reaching the correct chat through the normal send flow.
   - After recovery and TestFlight delivery, extend development-only Apple component previews and fixtures using existing infrastructure, with confirmed web previews as visual references, and update Apple/iOS development guidance.
+  - Complete push delivery and inline notification replies across foreground, background, terminated launch and reconnect.
+  - Add isolated Apple component fixtures and interactions using existing development infrastructure and update Apple/iOS development guidance.
+  - Match the confirmed rendered web composer, embed preview, fullscreen and chat-history UI across wide desktop, tablet and phone layouts.
+  - After core chat surfaces, match landing, login and signup UI and interaction flows.
+  - After the current TestFlight milestone, verify and correct every existing app embed preview and fullscreen family, including events, health, travel and code, against rendered web references and deterministic native interaction tests.
 non_goals:
-  - Full web parity, unrelated settings, new embeds or Watch recovery.
+  - Unrequested web surfaces, unrelated settings, new embed types or Watch recovery.
   - Backend authentication changes or weakening encryption/signing requirements.
 specification_refs:
   - specifications/features/auth/specification.yml
@@ -40,7 +47,69 @@ acceptance:
   - Reconnection does not lose messages, duplicate sends or leave loading stuck.
   - Physical iPhone authentication/lifecycle and iPad layout are checked explicitly.
   - Push delivery and notification replies are verified across foreground/background, reconnect and relaunch; replies reach the intended chat and follow the normal web-equivalent message processing path.
+  - Development-only fixtures can load the relevant native component in isolation, exercise its interactions, and pair it with the confirmed rendered web reference.
+  - Composer, embed preview, fullscreen and chat history match confirmed web layout and interaction behavior at wide desktop, tablet and phone widths.
+  - Landing, login and signup match the corresponding confirmed web flows after core chat UI verification.
+  - Performance verification includes repeated full-depth long-chat traversal and representative composer/embed interactions, not only startup or a few scroll gestures.
+deferred_notifications:
+  earliest_resume: '2026-09-14'
+  user_direction: Resume only next week after all other requested Apple work is complete; do not bypass the weekend server-access boundary.
+  depends_on:
+    - Isolated Apple component previews and updated development guidance.
+    - Performance fixes and repeated full-depth interaction verification.
+    - Responsive composer, embed preview, fullscreen and chat-history parity.
+    - Landing, login and signup parity.
+  local_checkpoint: Backend provider outcomes/readiness/selective-retry changes are preserved without deployment; 11 focused local tests pass, including two baseline failure regressions.
+  remaining_validation: Complete expiry/retry/configuration outcome coverage and resolve the cleanup read/write race before deployment; real push and reply delivery remain unverified.
+execution_tracking:
+  source: OpenMates execution Tasks in project 96033196-e4b1-431e-b773-ba221e952fed.
+  linkage: Pending discovery/acknowledged CLI writes; on 2026-09-12 the remote SSH endpoint refused connections and local CLI project lookup returned HTTP 404. No task IDs or ownership acknowledgements have been fabricated.
+current_milestones:
+  recovery_and_preview_foundation:
+    status: uploaded
+    release: 0.18.0 build 68
+    platforms: [macOS, iOS, iPadOS]
+    delivery: Both TestFlight uploads succeeded; dev candidate awaits required local Vercel credential.
+  history_and_progressive_rendering:
+    status: verifying
+    evidence: 120-message bounded-window traversal and exact Astral three-traversal workflow pass on iPhone. Incremental grammar, mounted-prefix identity and live-citation workflows pass, including iPad resize across the 500-point breakpoint with retained paragraph identity. Actual 160-message fixture traversal, resize, citation and long-press Copy pass in speech-header-milestone-v4. The isolated carousel check does not establish live account membership parity.
+  auth_and_password_signup:
+    status: verifying
+    evidence: Real password/OTP login and 46 focused combined units plus 12 iPhone UI workflows pass. auth-sync-milestone-v1 passes 102 focused units and ten actual simulator workflows, including nine signup form/coordinator paths with four passkey registration/cancellation/PRF fallback/uncertain-login paths. No account or credential was created; platform registration remains unverified.
+  composer_and_model_preference:
+    status: implementing
+    evidence: 76 focused model, session, streaming and preview configuration tests pass. The actual provider/model switch routes a draft and Auto clears its prefix in iPad UI testing. All 26 speech tests and ten platform editor adapter tests pass in milestone69-final-v3, including transfer of draft preferences before a controller mounts, account changes and concurrent writes. The real welcome composer sends successfully after correcting its initially empty speech host and removing the mounted-controller dependency. Single and batched upserts persist the accepted merge. Real provider playback remains unverified.
+  multi_client_streaming:
+    status: implementing
+    evidence: Independent same-chat subscribers, compact current-turn replay, and synchronous account-generation fences pass 13 regression tests. Source review confirms backend streaming fans out to every foreground connection with the matching active chat independently of saver ownership; web and native reannounce that chat on reconnect. Live simultaneous web/CLI/macOS/iOS streaming and mid-response rejoin remain unverified.
+  embed_headers_and_overlay_actions:
+    status: implementing
+    evidence: Rendered web gradient stops, physical 135-degree geometry, decorative motion, and 41-point white-on-20-percent-white controls are implemented. Four actual UI checks pass in speech-header-milestone-v4 for child embed opening, regular 300-by-200 cards, 730/731 header sizing, scroll-dependent overlay controls and real More/Copy/Close. Rendered native comparison remains required.
+    preview_reference: User explicitly rejected the obsolete tall mobile preview variant. Keep the regular wide 300-by-200 embed card on phones and desktops, matching the actual web chat. Only fit narrower available containers when necessary.
+  continuation_and_sidebar:
+    status: implementing
+    evidence: Last-opened profile updates, draft-content presence and metadata ordering pass focused tests. workspace-milestone-v4 passes 130 units, including 18 actual in-memory SwiftData draft encryption/deletion-fence tests, six image-loader and five sidebar policy tests. Actual sidebar date groups, eleven-row initial limit, twenty-row expansion, selected old-chat retention, search and selection/collapse pass UI tests. Nine source-bound backend pagination tests pass; full backend runtime, installed-cache migration, reminder priority and uncached resume metadata remain unverified. Fixture results do not establish live account membership parity.
+  responsive_workspace_panes:
+    status: implementing
+    evidence: Stable mounted production chat/embed, sidebar and settings panes now use measured web rules at 1280, 730 and 390. Split uses 400-point chat plus ten-point gap only when available content is at least 1024; sidebar uses a 600-point window breakpoint and settings an independent 1100-point breakpoint. Six layout/visibility/isolation units pass. milestone69-final-v5 passes the complete actual workspace UI test in 52.534 seconds with split geometry, child opening, chat hide/restore, Learning setting retained across 730/390/available-width reflow, phone sidebar closing settings, disabled offscreen settings actions, restoration and mutation of the same setting, and retained embed route and transcript anchor. The test follows actual controls rather than interpreting retained native accessibility nodes as visibility. Hidden panes suspend decorative animation and reject stale scroll-anchor writes while preserving streaming and sync.
+  workspace_and_chat_release:
+    status: uploaded
+    release: 0.18.0 build 69
+    evidence: The final 107 focused tests and actual workspace workflow pass. milestone69-live-v6 passes fresh password login, exact native typing, initial response, immediate relaunch, exact sidebar chat, contextual follow-up and server-acknowledged encrypted persistence in 202.306 seconds. macOS and iOS/iPadOS archive, export and verified upload all succeeded. Both distribution packages passed signature, version and entitlement checks; all 480 frozen source hashes remained unchanged. Processing/publication was not polled. Work stopped at the user's request after both uploads succeeded.
+  all_embed_families:
+    status: inventory
+    user_direction: After build 69 TestFlight delivery, ensure every existing app preview and fullscreen view matches the rendered web counterpart, including events, health, travel and code.
+    verification: Inventory each family, inspect its actual web fixture and parent container, exercise native production controls at phone/tablet/desktop widths, then run focused regressions and release verified milestones. Existing mapping coverage alone is not visual or interaction acceptance.
+  landing_and_remaining_auth_visuals:
+    status: implementing
+    evidence: Rendered guest landing, interest selection and Show all chats measured at phone, desktop and tall-window sizes. Shared production presentation and a generated index with lazily loaded actual web example transcripts are being prepared privately for the next milestone. Full phone/tablet/desktop parity and live passkey signup are not claimed.
 evidence:
+  - milestone69-live-v6 passes the complete real-account workflow after the password test harness verifies that UIKit actually received input. The production subscription fix retains one same-chat/session reader across metadata refreshes, preventing completion replay from feeding another reload. Cold-process logs show five REST loads and ten first paints versus 153 and 461 in the earlier run; durations differ, so these are feedback-loop observations rather than a general performance benchmark.
+  - Recovery still waits for an existing 60-second lease in the live run before successful persistence. Local evidence cannot identify the holder; a scoped server-side trace is deferred until weekday access, with no speculative ownership change included in build 69.
+  - milestone69-final-v5 passes 107 focused tests, including three subscription-retention regressions, 34 completion-recovery and 21 streaming lifecycle cases. The live test stopped before OTP with an empty password field; this attempt did not reach the changed streaming path, so no post-fix runtime improvement is claimed yet.
+  - milestone69-final-v4 passes the full real-account password/OTP, send, assistant, immediate relaunch, exact sidebar identity, contextual follow-up and server-acknowledged encrypted persistence workflow in 238.426 seconds. Live logs reveal repeated reload/replay work during pending persistence; this is being corrected before milestone packaging. The workspace test still exposes retained settings accessibility nodes after visually closing the pane.
+  - milestone69-final-v3 passes 36 focused units and real password/OTP, native send, assistant response and initial sync after immediate relaunch. The parent persistence workflow then stops at an obsolete sidebar ScrollView selector; the exact chat identity and server commit checks remain pending.
+  - A separate cached-account cold launch completes initial sync in 14.686 seconds end to end; this does not establish startup performance or resolve the earlier intermittent completion timeout. Privacy-safe opt-in startup phase logs now distinguish transport, queue and publication delays.
   - Installed v0.17 build 64 rejects dev passkey RP because signed dev associated domain is absent.
   - Personal dev email/password login succeeds in installed build and displays decrypted recent titles.
   - Installed auth controls render but disappear from the macOS accessibility tree.
@@ -112,6 +181,38 @@ evidence:
   - Full-depth scrolling and notification lifecycle source deployed to dev as 9fbba00f73ca4feef2a029a37d847df294038d90; specification/lint gates pass and no backend runtime restart was performed.
   - The inline-reply test selector now accepts SpringBoard's observed Click here to respond label. This test-only correction has not been rerun; end-to-end notification reply delivery remains unverified.
   - User requested stopping after the current dev and TestFlight delivery to conserve usage; further notification validation and development-only component preview work remain deferred.
+  - Work resumed with expanded user authorization on 2026-09-12. Mac and iOS/iPadOS build 67 uploads both succeeded; upload success alone is not a processing or installed-acceptance claim.
+  - Previously deployed recovery source remains at 9fbba00 with final test/documentation follow-up a81c9fa; current remote dev head could not yet be verified because the SSH endpoint refused connections.
+  - On 2026-09-12 the user explicitly deferred notification work until the next week and until previews, performance and all requested UI/auth surfaces are complete; earliest resumption is 2026-09-14.
+  - Local backend notification checkpoint passes 11 focused tests. Two baseline regressions first reproduced VAPID-gated APNs dispatch and global subscription removal after configuration failure; both now pass. No live provider tests, SSH access, task writes or deployment were performed.
+  - First isolated component-preview run compiles and passes 6 of 7 unit tests and 2 of 4 UI tests; URL handling, editor focus and accessibility-identifier collisions are being corrected. This is partial evidence, not a completed preview milestone.
+  - User reiterated deterministic component interaction tests and dev-branch plus TestFlight delivery at verified improvement milestones; notification implementation remains deferred.
+  - Local GitHub HTTPS fetch works without weekend server access. Canonical worktree tooling exposes capacity settings but has no documented Mac profile; current defaults require at least 30 GiB free and disk usage below 85 percent, and the current machine does not meet those defaults.
+  - Component-preview v2 passes 17 unit tests and 2 UI tests, with 2 further UI failures. Editor focus and send behavior are now corrected; attachment removal and restoration of the parent preview remain pending and require verification before the milestone is complete.
+  - Component-preview v4 passes 43 focused unit tests and all 4 iPhone UI tests; the iPad preview run passes all 4 UI tests.
+  - Build 68 source is frozen for the v5 verification run, including fullscreen-header safe-area spacing, existing translated Remove text, and deterministic preview theme. V5 repeats 43 units and 4 UI tests plus normal password/OTP, send, relaunch and context-aware follow-up; results are pending.
+  - Build 68 v5 passes all 43 focused units and all 4 component UI tests, but the normal account workflow fails after successful login/send/first response: reopening shows the original user message with collapsed accessibility identity while the assistant response is absent after sync. Coordinator/persistence diagnosis is ongoing; this is not dismissed as a selector-only failure.
+  - The 22-file f835 build 68 candidate remains frozen and undeployed pending resolution and a new explicit source freeze; no build 68 archive or upload has started.
+  - Build 68 recovery v8 passes all 19 completion unit tests after correcting streamed plaintext being treated as persisted and cold-start recovery retry behavior. The normal account parent workflow is running; release remains held until its result.
+  - Final iPad component-preview v2 passes all 4 UI tests. The refreshed build 68 candidate adds the recovery coordinator and its regression tests to the original 22-file scope; private next-milestone model preference artifacts remain excluded.
+  - Build 68 v8 live validation stopped in sidebar pagination before reaching the target conversation. The test now checks the visible button center and hittability while retaining exact chat identity.
+  - Build 68 v11 is running 22 recovery units and the exact real-account workflow after matching the actual terminal ACK schema (lease generation may be absent) and reconciling idempotent terminal claims. Results remain pending; no archive, upload or deployment is authorized by this pending evidence alone.
+  - Build 68 v11 required a compile-only shadowing correction to self.claim. V12 then passed all 22 recovery units, but the live reopen workflow failed with lease_conflict confirmed in narrow private logs; bounded retry and cold-start pending-job recovery remain pending the next test.
+  - Additional unreleased recovery preserves pending assistant responses during ChatStore sync merges and retains late final ciphertext. Seven focused regressions, a DEBUG commit probe, and a stronger parent workflow wait after cold loading are prepared; results are not yet claimed.
+  - The user explicitly requires streamed responses to display on every connected web, CLI, macOS and iOS client independently of which client owns the persistence lease. Saver ownership must not suppress display delivery; multi-client validation remains required.
+  - Recovery source scope now also includes ChatStore.swift, ChatSyncParityTests.swift and PendingAssistantResponseQueue.swift. Candidate refresh, deployment and archive remain held until final results and source freeze.
+  - Source review identifies existing SwiftData cache records that can contain plaintext; this recovery does not establish full encrypted-at-rest local storage. The new pending-job metadata queue contains no message payload secrets. Track a separate local-cache encryption audit and migration plan without rewriting persistence stores in build 68.
+  - Build 68 v13 stopped at compile time on an API call mismatch; corrected before v14, with no live product result attributed to v13.
+  - Build 68 v14 passes all 80 focused unit tests and the real-account workflow in 200.413 seconds: password/OTP, send, immediate relaunch, exact chat row, original user and assistant, server-commit probe, Osaka context follow-up and second commit. Source is frozen for scoped dev integration and TestFlight build 68; multi-client live streaming and broader UI parity remain separate acceptance items.
+  - TestFlight 0.18.0 build 68 distribution packages for macOS and iOS/iPadOS passed signature, bundle-version and production-entitlement verification; both uploads succeeded on 2026-09-12. Processing/publication was not polled, as requested.
+  - The scoped 29-file dev candidate passes specification and lint gates, but the canonical publish command requires a local VERCEL_TOKEN for its build-cost guard. Credential location is pending user input; no dev push is claimed.
+  - History/embed v1 stopped at compile time on two test closure arity mismatches. Those test-only mismatches are corrected; bounded full-depth scrolling and responsive embed interaction validation remain pending.
+  - History/embed v2 passes 47 focused units, the 120-message bounded-window traversal in 180.561 seconds, and normal messaging/relaunch/context follow-up in 183.772 seconds. Exact Astral navigation and one embed mutation UI test fail before their target interaction; no full-depth Astral pass is attributed to this run.
+  - Exported failure video and synthesized tap coordinates show the Astral row tap landed between text glyphs; the actual ChatListRow now defines a rectangular hit area. Embed navigation tapped coordinates while the fullscreen surface was moving; opt-in DEBUG instrumentation now exposes actual animation completion for deterministic coordinate acquisition.
+  - Progressive v3 compiles and passes all three real component UI workflows, including long-paragraph citations, mid-stream fullscreen, retained paragraph mounts on resize/finalization and reduced motion. One character-by-character grammar regression catches list/embed grouping at partial marker boundaries; the projection now retains the preceding grammar container and awaits verification.
+  - Combined auth/password-signup production forms and typed runtime are integrated for focused compilation and testing. Independent review checks web-compatible wrapping/email crypto and adds stale-signup pending-state isolation. Live account creation and passkey registration remain unverified; no callback fixture is treated as live signup proof.
+  - Auth/progressive v3 passes 46 focused unit tests and all 12 selected iPhone UI workflows, including fresh password/OTP and three complete exact Astral traversals in 135.477 seconds. Backup-code grouping now handles batched keyboard updates; signup tests use the observed Switch accessibility type while retaining consent and legal-navigation assertions.
+  - The 15-second Astral traversal sample records 159.3 MB footprint, 178.0 MB peak and 5,198 of 9,825 main-thread samples in Mach-message waiting. This supports the exercised hang recovery; it is not a frame-rate budget or physical-device acceptance claim.
 handoff:
-  current: Deliver the verified full-depth scrolling recovery and build 67, verify installed responsiveness and Mac APNs signing, then finish inline notification reply-control discovery and end-to-end reply delivery validation.
-  verification: Preserve passing iPhone/iPad simulator evidence; validate remaining chat-opening fixes with focused regressions and installed TestFlight workflows.
+  current: User requested stopping after build 69 TestFlight uploads. All further implementation is stopped. Remaining work includes landing/public catalog and priority integration, all app embed preview/fullscreen families, remaining auth/UI parity and live multi-client verification. Preserve the notification checkpoint for next week only after other work is complete. User explicitly authorized direct Git commit and push to dev; website runtime deployment is not requested.
+  verification: Preserve frozen build 69 source and passing simulator evidence. Private milestone70-proposed combines catalog, guest, platform and website quote patches only; priority-runtime application stopped on a MainApp overlap. priority-interaction-next, guest-privacy-banner-next and events-parity-next are unfinished private proposals, not tested or release-ready. Resume from their saved handoffs rather than applying them blindly.

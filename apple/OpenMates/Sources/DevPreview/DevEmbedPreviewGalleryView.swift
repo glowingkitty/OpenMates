@@ -19,10 +19,56 @@ import SwiftUI
 
 struct DevPreviewRootView: View {
     let configuration: DevPreviewLaunchConfiguration
+    @EnvironmentObject private var authManager: AuthManager
     @StateObject private var previewAuthManager = AuthManager()
 
     var body: some View {
+        Group {
+            if let error = configuration.error {
+                VStack(alignment: .leading, spacing: .spacing4) {
+                    Text("Preview configuration error").font(.omH4)
+                    Text(error).font(.omSmall)
+                }
+                .padding(.spacing8)
+                .accessibilityIdentifier("dev-preview-error")
+            } else {
+                previewContent
+            }
+        }
+        .frame(width: configuration.width.map(CGFloat.init), height: configuration.height.map(CGFloat.init))
+        .preferredColorScheme(previewColorScheme)
+        .transformEnvironment(\.colorScheme) { scheme in
+            if let previewColorScheme { scheme = previewColorScheme }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.grey0.ignoresSafeArea())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("dev-preview-root")
+        .accessibilityValue(runtimeState)
+    }
+
+    private var previewColorScheme: ColorScheme? {
+        switch configuration.theme {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
+    // Observable runtime facts, not a hard-coded "isolated" label. Tests use
+    // these to catch accidental account startup behind synthetic component UI.
+    private var runtimeState: String {
+        let auth = authManager.state == .initializing ? "not-started" : "started"
+        let store = OfflineStore.shared.activeScopeId == nil ? "detached" : "attached"
+        let socket = AppSessionCoordinator.shared.webSocketManager.connectionState == .disconnected ? "disconnected" : "active"
+        return "auth=\(auth);store=\(store);socket=\(socket)"
+    }
+
+    @ViewBuilder
+    private var previewContent: some View {
         switch configuration.surface {
+        case .component:
+            DevComponentPreviewView(configuration: configuration)
         case .chatOpening:
             DevChatOpeningPreviewView()
         case .chatOpeningRecording:
@@ -270,7 +316,6 @@ struct DevEmbedPreviewGalleryView: View {
         }
         .background(Color.grey0.ignoresSafeArea())
         .environment(\.colorScheme, .light)
-        .preferredColorScheme(.light)
         .accessibilityIdentifier("dev-embed-preview-gallery")
     }
 

@@ -22,6 +22,7 @@ protocol DraftSyncOfflineActions: AnyObject {
     func queueDraftUpdate(_ record: ComposerDraftRecord)
     func queueDraftDelete(chatId: String)
     func cascadeDeleteChat(chatId: String)
+    func cascadeDeleteDraftOnlyChat(chatId: String)
 }
 
 @MainActor
@@ -35,6 +36,8 @@ final class DraftSyncCoordinator {
     private let uuid: () -> UUID
     private let onDraftChanged: (String) -> Void
     private var newChatDraftId: String?
+    private let expectedScope: UUID?
+    private let isCurrentSession: () -> Bool
 
     var activeNewChatDraftId: String? { newChatDraftId }
 
@@ -44,7 +47,9 @@ final class DraftSyncCoordinator {
         transport: any DraftSyncTransport,
         offlineActions: any DraftSyncOfflineActions,
         onDraftChanged: @escaping (String) -> Void = { _ in },
-        uuid: @escaping () -> UUID = UUID.init
+        uuid: @escaping () -> UUID = UUID.init,
+        expectedScope: UUID? = nil,
+        isCurrentSession: @escaping () -> Bool = { true }
     ) {
         self.repository = repository
         self.chatStore = chatStore
@@ -52,6 +57,8 @@ final class DraftSyncCoordinator {
         self.offlineActions = offlineActions
         self.onDraftChanged = onDraftChanged
         self.uuid = uuid
+        self.expectedScope = expectedScope
+        self.isCurrentSession = isCurrentSession
     }
 
     func resolveChatId(_ chatId: String, hasNonEmptyDraft: Bool) -> String {
@@ -75,6 +82,15 @@ final class DraftSyncCoordinator {
         })?.id
     }
 
+    func restoreDeletionMarkers(_ versions: [String: Int]) {
+        guard isCurrentSession() else { return }
+        for (chatId, version) in versions {
+            publish(ComposerDraftApplication(record: ComposerDraftRecord(chatId: chatId,
+                encryptedMarkdown: "", encryptedPreview: "", revision: 0, draftVersion: 0,
+                clearedDraftVersion: version, isDeleted: true), applied: false), refresh: false)
+        }
+    }
+
     func submitLocalUpdate(_ record: ComposerDraftRecord, resolvedChatId: String) async throws {
         let resolvedRecord = ComposerDraftRecord(
             chatId: resolvedChatId,
@@ -83,10 +99,13 @@ final class DraftSyncCoordinator {
             revision: record.revision,
             draftVersion: record.draftVersion
         )
+        try validateSession()
         try await repository.upsert(resolvedRecord)
+        try validateSession()
         if newChatDraftId == resolvedChatId {
             try await repository.remove(chatId: Self.syntheticNewChatId)
         }
+        try validateSession()
         upsertLocalDraftChatIfNeeded(resolvedRecord)
         let message = DraftSyncMessage(type: "update_draft", payload: [
             "chat_id": resolvedChatId,
@@ -109,11 +128,9 @@ final class DraftSyncCoordinator {
     }
 
     func submitLocalDelete(chatId: String) async throws {
-        try await repository.remove(chatId: chatId)
-        if newChatDraftId == chatId {
-            removeDraftOnlyChatIfNeeded(chatId)
-            resetNewChatDraftId()
-        }
+        let result = try await apply(.localDeletion(chatId: chatId))
+        publish(result, refresh: false)
+        if newChatDraftId == chatId { resetNewChatDraftId() }
         let message = DraftSyncMessage(type: "delete_draft", payload: ["chat_id": chatId])
         guard let transport, transport.isConnected else {
             offlineActions?.queueDraftDelete(chatId: chatId)
@@ -131,8 +148,10 @@ final class DraftSyncCoordinator {
     }
 
     func reconcileAfterReconnect() async throws {
+        try validateSession()
         guard let transport, transport.isConnected else { return }
         let records = try await repository.allRecords()
+        try validateSession()
         guard !records.isEmpty else { return }
         try await transport.sendDraftSyncMessage(DraftSyncMessage(
             type: "get_draft_versions",
@@ -145,49 +164,44 @@ final class DraftSyncCoordinator {
     }
 
     func handleEvent(type: String, raw: Data) async throws {
+        try validateSession()
         switch type {
         case "draft_update_receipt":
             let envelope = try decoder.decode(DraftReceiptEnvelope.self, from: raw)
-            guard envelope.payload.success,
-                  let existing = try await repository.record(chatId: envelope.payload.chatId) else { return }
-            try await repository.upsert(existing.withDraftVersion(envelope.payload.draftV))
-            chatStore.updateDraftVersion(chatId: envelope.payload.chatId, draftVersion: envelope.payload.draftV)
-            // Receipt acknowledges our ciphertext; it must not replay an older
-            // autosave snapshot into the actively edited composer.
+            guard envelope.payload.success else { return }
+            let result = try await apply(.acknowledgement(chatId: envelope.payload.chatId,
+                                                        version: envelope.payload.draftV))
+            publish(result, refresh: false)
+            // A receipt changes version only, never replays autosave text.
 
         case "chat_draft_updated":
             let event = try decoder.decode(DraftUpdatedEvent.self, from: raw)
-            guard let encryptedMarkdown = event.data.encryptedDraftMd else { return }
-            let existing = try await repository.record(chatId: event.chatId)
-            let isNewDraftOnlyChat = chatStore.chat(for: event.chatId) == nil
-            let record = ComposerDraftRecord(
-                chatId: event.chatId,
-                encryptedMarkdown: encryptedMarkdown,
-                encryptedPreview: event.data.encryptedDraftPreview ?? existing?.encryptedPreview ?? "",
-                revision: existing?.revision ?? 0,
-                draftVersion: event.versions.draftV
-            )
-            try await repository.upsert(record)
-            upsertDraftChatIfNeeded(event)
-            if newChatDraftId == nil, isNewDraftOnlyChat {
-                newChatDraftId = event.chatId
+            if event.data.explicitlyClearsDraft {
+                let result = try await apply(.deletion(chatId: event.chatId, version: event.versions.draftV))
+                publish(result, refresh: true)
+            } else if let encryptedMarkdown = event.data.encryptedDraftMd {
+                let existing = try await repository.record(chatId: event.chatId)
+                try validateSession()
+                let record = ComposerDraftRecord(chatId: event.chatId,
+                    encryptedMarkdown: encryptedMarkdown,
+                    encryptedPreview: event.data.encryptedDraftPreview ?? existing?.encryptedPreview ?? "",
+                    revision: existing?.revision ?? 0, draftVersion: event.versions.draftV)
+                let result = try await apply(.content(record))
+                publish(result, refresh: true, createMissingChat: true,
+                        timestamp: event.lastEditedOverallTimestamp)
             }
-            chatStore.updateDraftVersion(chatId: event.chatId, draftVersion: event.versions.draftV)
-            onDraftChanged(event.chatId)
 
         case "draft_deleted", "draft_delete_receipt":
             let envelope = try decoder.decode(DraftDeleteEnvelope.self, from: raw)
             guard envelope.payload.success != false else { return }
-            try await repository.remove(chatId: envelope.payload.chatId)
-            chatStore.updateDraftVersion(chatId: envelope.payload.chatId, draftVersion: 0)
-            if type == "draft_deleted" {
-                onDraftChanged(envelope.payload.chatId)
-            }
-            removeDraftOnlyChatIfNeeded(envelope.payload.chatId)
+            let result = try await apply(.deletion(chatId: envelope.payload.chatId,
+                                                  version: envelope.payload.draftV))
+            publish(result, refresh: type == "draft_deleted")
 
         case "chat_deleted":
             let envelope = try decoder.decode(DraftDeleteEnvelope.self, from: raw)
-            try await repository.remove(chatId: envelope.payload.chatId)
+            _ = try await apply(.chatDeletion(chatId: envelope.payload.chatId))
+            try validateSession()
             offlineActions?.cascadeDeleteChat(chatId: envelope.payload.chatId)
 
         case "draft_versions_response":
@@ -212,8 +226,10 @@ final class DraftSyncCoordinator {
     }
 
     func handleSyncEvent(raw: Data) async throws {
+        try validateSession()
         let envelope = try decoder.decode(AuthoritativeSyncEnvelope.self, from: raw)
         for item in envelope.payload.chats ?? [] {
+            try validateSession()
             try await applySyncedDraft(item.chatDetails)
         }
         try await reconcileChats(
@@ -228,6 +244,7 @@ final class DraftSyncCoordinator {
         authoritativeChatIds: [String],
         deletedChatIds: [String]
     ) async throws {
+        try validateSession()
         var idsToDelete = Set(deletedChatIds)
         if authoritative {
             let serverIds = Set(authoritativeChatIds)
@@ -239,7 +256,9 @@ final class DraftSyncCoordinator {
         }
         for chatId in idsToDelete {
             guard ChatStore.isServerSyncChatId(chatId) else { continue }
-            try await repository.remove(chatId: chatId)
+            try validateSession()
+            _ = try await apply(.chatDeletion(chatId: chatId))
+            try validateSession()
             chatStore.performWithoutPersistence {
                 chatStore.removeChat(chatId)
             }
@@ -254,64 +273,88 @@ final class DraftSyncCoordinator {
         guard let transport else { return }
         let unavailable = Set(payload.unavailableChatIds ?? [])
         for (chatId, serverVersion) in payload.versions where !unavailable.contains(chatId) {
+            try validateSession()
             guard let local = try await repository.record(chatId: chatId) else { continue }
+            try validateSession()
             if serverVersion == 0 {
-                try await repository.remove(chatId: chatId)
-                chatStore.updateDraftVersion(chatId: chatId, draftVersion: 0)
-                onDraftChanged(chatId)
+                // Missing Redis/Directus data is not a versioned deletion. The web
+                // client also keeps local content unless a current tombstone exists.
+                guard let tombstone = payload.tombstoneVersions?[chatId], tombstone > 0 else { continue }
+                publish(try await apply(.deletion(chatId: chatId, version: tombstone)), refresh: true)
             } else if serverVersion > local.draftVersion, transport.isConnected {
                 try await transport.sendDraftSyncMessage(DraftSyncMessage(
-                    type: "get_chat_details",
-                    payload: ["chat_id": chatId]
-                ))
+                    type: "get_chat_details", payload: ["chat_id": chatId]))
             }
         }
     }
 
     private func applySyncedDraft(_ details: SyncedDraftDetails) async throws {
+        try validateSession()
         guard let draftVersion = details.draftV else { return }
-        guard draftVersion > 0, let encryptedMarkdown = details.encryptedDraftMd else {
-            try await repository.remove(chatId: details.id)
-            chatStore.updateDraftVersion(chatId: details.id, draftVersion: 0)
-            onDraftChanged(details.id)
-            return
+        if details.explicitlyClearsDraft {
+            let version = max(draftVersion, details.clearedDraftV ?? 0)
+            publish(try await apply(.deletion(chatId: details.id, version: version)), refresh: true)
+        } else if let encryptedMarkdown = details.encryptedDraftMd {
+            let existing = try await repository.record(chatId: details.id)
+            try validateSession()
+            let record = ComposerDraftRecord(chatId: details.id,
+                encryptedMarkdown: encryptedMarkdown,
+                encryptedPreview: details.encryptedDraftPreview ?? existing?.encryptedPreview ?? "",
+                revision: existing?.revision ?? 0, draftVersion: draftVersion)
+            publish(try await apply(.content(record)), refresh: true)
         }
-        let existing = try await repository.record(chatId: details.id)
-        try await repository.upsert(ComposerDraftRecord(
-            chatId: details.id,
-            encryptedMarkdown: encryptedMarkdown,
-            encryptedPreview: details.encryptedDraftPreview ?? existing?.encryptedPreview ?? "",
-            revision: existing?.revision ?? 0,
-            draftVersion: draftVersion
-        ))
-        chatStore.updateDraftVersion(chatId: details.id, draftVersion: draftVersion)
-        onDraftChanged(details.id)
+        // A metadata-only positive version omitting ciphertext must not delete a draft.
     }
 
-    private func upsertDraftChatIfNeeded(_ event: DraftUpdatedEvent) {
-        guard chatStore.chat(for: event.chatId) == nil else { return }
-        let timestamp = event.lastEditedOverallTimestamp ?? Int(Date().timeIntervalSince1970)
-        let date = ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: TimeInterval(timestamp)))
-        chatStore.upsertChat(Chat(
-            id: event.chatId,
-            title: nil,
-            lastMessageAt: nil,
-            createdAt: date,
-            updatedAt: date,
-            isArchived: false,
-            isPinned: false,
-            appId: "ai",
-            encryptedTitle: nil,
-            encryptedChatKey: nil,
-            draftV: event.versions.draftV
-        ))
+    private func validateSession() throws {
+        guard !Task.isCancelled, isCurrentSession() else { throw CancellationError() }
+    }
+
+    private func apply(_ mutation: ComposerDraftMutation) async throws -> ComposerDraftApplication {
+        try validateSession()
+        let chat = chatStore.chat(for: mutation.chatId)
+        let result = try await repository.apply(mutation, knownVersion: chat?.draftV ?? 0,
+            knownClearedVersion: chat?.clearedDraftV ?? 0, expectedScope: expectedScope)
+        try validateSession()
+        return result
+    }
+
+    private func publish(_ result: ComposerDraftApplication, refresh: Bool,
+                         createMissingChat: Bool = false, timestamp: Int? = nil) {
+        guard isCurrentSession(), let record = result.record else { return }
+        let current = chatStore.chat(for: record.chatId)
+        if record.isDeleted {
+            guard record.clearedDraftVersion >= (current?.draftV ?? 0) else { return }
+            chatStore.updateDraftVersion(chatId: record.chatId, draftVersion: 0,
+                hasNonEmptyDraft: false, clearedDraftVersion: record.clearedDraftVersion)
+            removeDraftOnlyChatIfNeeded(record.chatId)
+        } else {
+            guard result.applied,
+                  ComposerDraftVersionPolicy.acceptsContent(version: record.draftVersion,
+                    currentVersion: current?.draftV ?? 0, hasDraft: current?.hasNonEmptyDraft == true,
+                    clearedVersion: current?.clearedDraftV ?? 0) else { return }
+            if current == nil, createMissingChat {
+                let date = ISO8601DateFormatter().string(from: Date(timeIntervalSince1970:
+                    TimeInterval(timestamp ?? Int(Date().timeIntervalSince1970))))
+                chatStore.upsertChat(Chat(id: record.chatId, title: nil, lastMessageAt: nil,
+                    createdAt: date, updatedAt: date, isArchived: false, isPinned: false, appId: "ai",
+                    encryptedTitle: nil, encryptedChatKey: nil, draftV: record.draftVersion,
+                    hasNonEmptyDraft: !record.encryptedMarkdown.isEmpty,
+                    clearedDraftV: record.clearedDraftVersion))
+                if newChatDraftId == nil { newChatDraftId = record.chatId }
+            }
+            chatStore.updateDraftVersion(chatId: record.chatId, draftVersion: record.draftVersion,
+                hasNonEmptyDraft: !record.encryptedMarkdown.isEmpty,
+                clearedDraftVersion: record.clearedDraftVersion)
+        }
+        if refresh && result.applied { onDraftChanged(record.chatId) }
     }
 
     private func removeDraftOnlyChatIfNeeded(_ chatId: String) {
         guard let chat = chatStore.chat(for: chatId),
               isDraftOnlyChat(chat) else { return }
         chatStore.performWithoutPersistence { chatStore.removeChat(chatId) }
-        offlineActions?.cascadeDeleteChat(chatId: chatId)
+        offlineActions?.cascadeDeleteDraftOnlyChat(chatId: chatId)
         if newChatDraftId == chatId {
             resetNewChatDraftId()
         }
@@ -325,7 +368,7 @@ final class DraftSyncCoordinator {
 
     private func upsertLocalDraftChatIfNeeded(_ record: ComposerDraftRecord) {
         guard chatStore.chat(for: record.chatId) == nil else {
-            chatStore.updateDraftVersion(chatId: record.chatId, draftVersion: record.draftVersion)
+            chatStore.updateDraftVersion(chatId: record.chatId, draftVersion: record.draftVersion, hasNonEmptyDraft: !record.encryptedMarkdown.isEmpty)
             return
         }
         let date = ISO8601DateFormatter().string(from: Date())
@@ -342,7 +385,8 @@ final class DraftSyncCoordinator {
             encryptedChatKey: nil,
             messagesV: 0,
             titleV: 0,
-            draftV: record.draftVersion
+            draftV: record.draftVersion,
+            hasNonEmptyDraft: !record.encryptedMarkdown.isEmpty
         ))
     }
 
@@ -350,18 +394,6 @@ final class DraftSyncCoordinator {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return decoder
-    }
-}
-
-private extension ComposerDraftRecord {
-    func withDraftVersion(_ draftVersion: Int) -> ComposerDraftRecord {
-        ComposerDraftRecord(
-            chatId: chatId,
-            encryptedMarkdown: encryptedMarkdown,
-            encryptedPreview: encryptedPreview,
-            revision: revision,
-            draftVersion: draftVersion
-        )
     }
 }
 
@@ -382,6 +414,15 @@ private struct DraftUpdatedEvent: Decodable {
 private struct DraftUpdatedData: Decodable {
     let encryptedDraftMd: String?
     let encryptedDraftPreview: String?
+    let explicitlyClearsDraft: Bool
+    private enum CodingKeys: String, CodingKey { case encryptedDraftMd, encryptedDraftPreview }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        encryptedDraftMd = try c.decodeIfPresent(String.self, forKey: .encryptedDraftMd)
+        encryptedDraftPreview = try c.decodeIfPresent(String.self, forKey: .encryptedDraftPreview)
+        explicitlyClearsDraft = (c.contains(.encryptedDraftMd) && encryptedDraftMd == nil)
+            || (c.contains(.encryptedDraftPreview) && encryptedDraftPreview == nil)
+    }
 }
 
 private struct DraftUpdatedVersions: Decodable { let draftV: Int }
@@ -393,12 +434,14 @@ private struct DraftDeleteEnvelope: Decodable {
 private struct DraftDeletePayload: Decodable {
     let chatId: String
     let success: Bool?
+    let draftV: Int?
 }
 
 private struct DraftVersionsEnvelope: Decodable { let payload: DraftVersionsPayload }
 private struct DraftVersionsPayload: Decodable {
     let versions: [String: Int]
     let unavailableChatIds: [String]?
+    let tombstoneVersions: [String: Int]?
 }
 
 private struct DraftConflictEnvelope: Decodable { let payload: DraftConflictPayload }
@@ -411,6 +454,8 @@ private struct SyncedDraftDetails: Decodable {
     let encryptedDraftMd: String?
     let encryptedDraftPreview: String?
     let draftV: Int?
+    let clearedDraftV: Int?
+    let explicitlyClearsDraft: Bool
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -418,6 +463,7 @@ private struct SyncedDraftDetails: Decodable {
         case encryptedDraftMd
         case encryptedDraftPreview
         case draftV
+        case clearedDraftV
     }
 
     init(from decoder: Decoder) throws {
@@ -427,6 +473,10 @@ private struct SyncedDraftDetails: Decodable {
         encryptedDraftMd = try container.decodeIfPresent(String.self, forKey: .encryptedDraftMd)
         encryptedDraftPreview = try container.decodeIfPresent(String.self, forKey: .encryptedDraftPreview)
         draftV = try container.decodeIfPresent(Int.self, forKey: .draftV)
+        clearedDraftV = try container.decodeIfPresent(Int.self, forKey: .clearedDraftV)
+        explicitlyClearsDraft = (container.contains(.encryptedDraftMd) && encryptedDraftMd == nil)
+            || (container.contains(.encryptedDraftPreview) && encryptedDraftPreview == nil)
+            || (draftV == 0 && (clearedDraftV ?? 0) > 0)
     }
 }
 

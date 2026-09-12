@@ -20,6 +20,7 @@ import apple_parity_audit
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MAIN_APP = REPO_ROOT / "apple/OpenMates/Sources/App/MainAppView.swift"
+CHAT_SIDEBAR = REPO_ROOT / "apple/OpenMates/Sources/Shared/Components/ChatSidebarContent.swift"
 CHAT_STORE = REPO_ROOT / "apple/OpenMates/Sources/Core/Persistence/ChatStore.swift"
 OFFLINE_STORE = REPO_ROOT / "apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift"
 OFFLINE_BRIDGE = REPO_ROOT / "apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift"
@@ -39,7 +40,7 @@ PARITY_INVENTORY = REPO_ROOT / "test-results/apple-parity-inventory.json"
 
 
 REQUIRED_IDENTIFIERS = {
-    "chat-history-panel": MAIN_APP,
+    "chat-history-panel": CHAT_SIDEBAR,
     "message-editor": REPO_ROOT / "apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift",
     "chat-item-wrapper": REPO_ROOT / "apple/OpenMates/Sources/Shared/Components/ChatListRow.swift",
     "embed-preview": REPO_ROOT / "apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift",
@@ -69,8 +70,17 @@ def audit_chat_loading() -> list[str]:
         failures.append(fail("MainAppView still passes full chatStore.messages(for:) into ChatView"))
     if "initialEmbeds: isPublic ? [] : chatStore.embeds(for: chatId)" in main_app:
         failures.append(fail("MainAppView still passes full chatStore.embeds(for:) into ChatView"))
-    if "chatStore.initialMessageWindow(for: chatId)" not in main_app:
-        failures.append(fail("MainAppView does not use ChatStore.initialMessageWindow for initial open"))
+    # Authenticated and anonymous opening both use the shared anchor-aware,
+    # bounded policy. The older ChatStore helper always chose the latest page.
+    bounded_open = re.compile(
+        r"ChatHistoryWindowPolicy\.initialMessages\(\s*"
+        r"chatStore\.messages\(for: chatId\),\s*"
+        r"anchor: chatStore\.chat\(for: chatId\)\?\.lastVisibleMessageId\)"
+    )
+    if len(bounded_open.findall(main_app)) != 2:
+        failures.append(fail("Authenticated and anonymous initial opens must use the bounded anchor-aware history policy"))
+    if "return Array(ordered[range])" not in chat_view_model or "start + capacity" not in chat_view_model:
+        failures.append(fail("Initial history policy must return only its bounded range"))
     if "chatStore.initialEmbedsForVisibleWindow(for: chatId, messages: initialWindow)" not in main_app:
         failures.append(fail("MainAppView does not use lightweight visible-window embeds"))
 

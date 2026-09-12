@@ -6,6 +6,7 @@
  */
 
 import type { AIModelMetadata } from '../data/modelsMetadata';
+import providerDisplayData from '../data/aiProviderDisplay.json';
 
 export type AiCapabilityLevel = 'low' | 'medium' | 'high' | 'max';
 type AiRequestTier = 'simple' | 'complex' | 'most-demanding';
@@ -16,16 +17,8 @@ interface ProviderDisplay {
     order: number;
 }
 
-const PROVIDER_DISPLAY: Record<string, ProviderDisplay> = {
-    openai: { brandName: 'ChatGPT', companyName: 'OpenAI', order: 0 },
-    anthropic: { brandName: 'Claude', companyName: 'Anthropic', order: 1 },
-    mistral: { brandName: 'Mistral', companyName: 'Mistral', order: 2 },
-    deepseek: { brandName: 'DeepSeek', companyName: 'DeepSeek', order: 3 },
-    google: { brandName: 'Gemini', companyName: 'Google', order: 4 },
-    alibaba: { brandName: 'Qwen', companyName: 'Alibaba', order: 5 },
-    moonshot: { brandName: 'Kimi', companyName: 'Moonshot AI', order: 6 },
-    zai: { brandName: 'GLM', companyName: 'Z.ai', order: 7 },
-};
+// Shared by this web helper and the native catalog generator.
+const PROVIDER_DISPLAY: Record<string, ProviderDisplay> = providerDisplayData;
 
 export function getAiProviderDisplay(providerId: string, fallbackName: string): ProviderDisplay {
     return PROVIDER_DISPLAY[providerId] ?? {

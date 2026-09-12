@@ -26,10 +26,22 @@ struct EmbedFullscreenContainer: View {
     let chatId: String?
     var onOpenEmbed: (EmbedRecord, EmbedRecord) -> Void = { _, _ in }
     var onClose: () -> Void = {}
+    var isSidePanel = false
+    var showChat = false
+    var onShowChat: () -> Void = {}
 
-    @State private var currentIndex: Int = 0
+    @State private var selection = EmbedFullscreenSelection()
     @State private var isPresented = false
+    #if DEBUG
+    @State private var debugPresentationReady = false
+    @State private var debugPresentationGeneration = UUID()
+    private var exposesPresentationReadiness: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-embed-presentation")
+    }
+    #endif
     @State private var codePreviewActive = false
+    @State private var headerFrame: CGRect = .zero
+    @State private var moreActionsOpen = false
     @State private var shareContext: AppleShareContext?
     @State private var selectedVersionNumber: Int?
     @State private var restoreConfirmVersion: Int?
@@ -37,8 +49,24 @@ struct EmbedFullscreenContainer: View {
     @Environment(\.openURL) private var openURL
 
     private var currentEmbed: EmbedRecord? {
-        guard currentIndex >= 0 && currentIndex < embeds.count else { return nil }
-        return embeds[currentIndex]
+        guard let id = selection.resolvedID(in: embeds, initialID: initialEmbedId) else { return nil }
+        return embeds.first { $0.id == id }
+    }
+
+    private var currentIndex: Int {
+        embeds.firstIndex { $0.id == currentEmbed?.id } ?? 0
+    }
+
+    private func navigateFullscreen(by offset: Int) {
+        guard selection.move(by: offset, in: embeds, initialID: initialEmbedId) else { return }
+        resetPerEmbedState()
+    }
+
+    private func resetPerEmbedState() {
+        codePreviewActive = false
+        selectedVersionNumber = nil
+        restoreConfirmVersion = nil
+        codeRunViewModel.cleanup()
     }
 
     private var currentEmbedType: EmbedType? {
@@ -56,7 +84,9 @@ struct EmbedFullscreenContainer: View {
 
     private var usesEdgeToEdgeContent: Bool {
         switch currentEmbedType {
-        case .eventsEvent, .travelConnection, .travelStay:
+        // These renderers own their responsive content gutters. Adding generic
+        // fullscreen padding shifts the web grid and shrinks website snippets.
+        case .webSearch, .webWebsite, .eventsEvent, .travelConnection, .travelStay:
             return true
         default:
             return false
@@ -84,7 +114,67 @@ struct EmbedFullscreenContainer: View {
     }
 
     var body: some View {
-        return GeometryReader { proxy in
+        // Capture the system insets before the full-bleed content ignores them.
+        // A GeometryReader inside ignoresSafeArea reports the expanded region;
+        // using that region for the controls put Minimize under the status bar.
+        GeometryReader { safeArea in
+            fullscreenContent(safeAreaInsets: safeArea.safeAreaInsets)
+                .coordinateSpace(name: "embed-fullscreen-coordinate")
+        }
+        #if DEBUG
+        .overlay(alignment: .topLeading) {
+            if exposesPresentationReadiness {
+                Color.clear.frame(width: 1, height: 1).accessibilityElement()
+                    .accessibilityIdentifier("embed-presentation-state")
+                    .accessibilityLabel(debugPresentationReady ? "ready" : "presenting")
+                    .allowsHitTesting(false)
+            }
+        }
+        #endif
+        .onAppear {
+            selection.reconcile(in: embeds, initialID: initialEmbedId)
+            #if DEBUG
+            if exposesPresentationReadiness {
+                let generation = UUID()
+                debugPresentationGeneration = generation
+                debugPresentationReady = false
+                // XCTest can see and hit-test a control while its containing
+                // surface is still moving. Observe the actual existing slide
+                // completion, not a guessed delay or an early `isHittable`.
+                withAnimation(.easeOut(duration: 0.28), completionCriteria: .removed) {
+                    isPresented = true
+                } completion: {
+                    guard debugPresentationGeneration == generation, isPresented else { return }
+                    debugPresentationReady = true
+                }
+            } else {
+                isPresented = true
+            }
+            #else
+            isPresented = true
+            #endif
+        }
+        .onChange(of: embeds.map(\.id)) { _, _ in
+            let previousID = selection.selectedID
+            selection.reconcile(in: embeds, initialID: initialEmbedId)
+            if selection.selectedID != previousID { resetPerEmbedState() }
+        }
+        .onChange(of: initialEmbedId) { _, _ in
+            selection = EmbedFullscreenSelection()
+            selection.reconcile(in: embeds, initialID: initialEmbedId)
+            resetPerEmbedState()
+        }
+        .onDisappear {
+            #if DEBUG
+            debugPresentationGeneration = UUID()
+            debugPresentationReady = false
+            #endif
+            codeRunViewModel.cleanup()
+        }
+    }
+
+    private func fullscreenContent(safeAreaInsets: EdgeInsets) -> some View {
+        GeometryReader { proxy in
             ZStack(alignment: .top) {
                 if let embed = currentEmbed {
                     ScrollView {
@@ -93,10 +183,13 @@ struct EmbedFullscreenContainer: View {
                                 embed: embed,
                                 hasPreviousEmbed: currentIndex > 0,
                                 hasNextEmbed: currentIndex < embeds.count - 1,
-                                onNavigatePrevious: { withAnimation { currentIndex -= 1 } },
-                                onNavigateNext: { withAnimation { currentIndex += 1 } },
-                                headerCTA: headerCTA(for: embed)
+                                onNavigatePrevious: { withAnimation { navigateFullscreen(by: -1) } },
+                                onNavigateNext: { withAnimation { navigateFullscreen(by: 1) } },
+                                headerCTA: headerCTA(for: embed),
+                                topContentInset: safeAreaInsets.top,
+                                viewportWidth: proxy.size.width
                             )
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { headerFrame = $0 }
                             .zIndex(2)
 
                             EmbedContentView(
@@ -126,6 +219,10 @@ struct EmbedFullscreenContainer: View {
                     .background(Color.grey20)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
+                    if moreActionsOpen {
+                        Color.clear.contentShape(Rectangle()).onTapGesture { moreActionsOpen = false }
+                            .accessibilityHidden(true)
+                    }
                     EmbedFullscreenTopBar(
                         embed: embed,
                         showCopy: isCodeEmbed || isSheetEmbed,
@@ -134,14 +231,21 @@ struct EmbedFullscreenContainer: View {
                         runActive: codeRunViewModel.isActive,
                         showPreview: isCodePreviewable,
                         previewActive: codePreviewActive,
+                        viewportWidth: proxy.size.width,
+                        headerFrame: headerFrame,
+                        moreOpen: $moreActionsOpen,
                         onClose: closeWithAnimation,
                         onShare: { shareEmbed(embed) },
                         onCopy: { copyEmbedContent(embed) },
                         onDownload: { downloadCodeFile(embed) },
                         onRun: { runCode(embed) },
                         onTogglePreview: { codePreviewActive.toggle() },
-                        onReportIssue: { reportIssue(embed) }
+                        onReportIssue: { reportIssue(embed) },
+                        showChat: showChat, onShowChat: onShowChat
                     )
+                    .padding(.top, safeAreaInsets.top)
+                    .padding(.leading, safeAreaInsets.leading)
+                    .padding(.trailing, safeAreaInsets.trailing)
                 }
 
                 if let shareContext {
@@ -177,17 +281,10 @@ struct EmbedFullscreenContainer: View {
                     .accessibilityIdentifier("embed-share-panel")
                 }
             }
-            .offset(y: isPresented ? 0 : proxy.size.height)
-            .animation(.easeOut(duration: 0.28), value: isPresented)
+            .offset(y: isSidePanel || isPresented ? 0 : proxy.size.height)
+            .animation(isSidePanel ? nil : .easeOut(duration: 0.28), value: isPresented)
         }
         .ignoresSafeArea()
-        .onAppear {
-            currentIndex = embeds.firstIndex(where: { $0.id == initialEmbedId }) ?? 0
-            isPresented = true
-        }
-        .onDisappear {
-            codeRunViewModel.cleanup()
-        }
     }
 
     private func headerCTA(for embed: EmbedRecord) -> EmbedHeaderCTA? {
@@ -435,6 +532,10 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func closeWithAnimation() {
+        if isSidePanel { onClose(); return }
+        #if DEBUG
+        debugPresentationReady = false
+        #endif
         withAnimation(.easeIn(duration: 0.22)) {
             isPresented = false
         }
@@ -657,6 +758,24 @@ struct EmbedFullscreenContainer: View {
 
 // MARK: - Embed top bar
 
+// HeaderActionMenu.svelte: container-width breakpoints, overflow count and order.
+enum EmbedHeaderActionPolicy {
+    static func usesMore(width: CGFloat, actionCount: Int, hasShare: Bool = true) -> Bool {
+        actionCount + (hasShare && width < 460 ? 1 : 0) >= 2
+    }
+    static func reportShowsLabel(width: CGFloat) -> Bool { width >= 640 }
+    static func menuWidth(toolbar: CGRect, anchor: CGRect) -> CGFloat {
+        guard !toolbar.isEmpty, !anchor.isEmpty else { return 0 }
+        // The toolbar includes its16pt outer padding; HeaderActionMenu's root
+        // starts inside that padding. Reserve its8pt shadow clearance before
+        // compensating for the left-anchored1.08 hover transform.
+        return max(0, (toolbar.maxX - 16 - anchor.minX - 8) / 1.08)
+    }
+    static func overlaps(control: CGRect, header: CGRect) -> Bool {
+        !header.isEmpty && control.intersects(header) && control.intersection(header).width > 0 && control.intersection(header).height > 0
+    }
+}
+
 private struct EmbedFullscreenTopBar: View {
     let embed: EmbedRecord
     let showCopy: Bool
@@ -665,6 +784,9 @@ private struct EmbedFullscreenTopBar: View {
     let runActive: Bool
     let showPreview: Bool
     let previewActive: Bool
+    let viewportWidth: CGFloat
+    let headerFrame: CGRect
+    @Binding var moreOpen: Bool
     let onClose: () -> Void
     let onShare: () -> Void
     let onCopy: () -> Void
@@ -672,61 +794,158 @@ private struct EmbedFullscreenTopBar: View {
     let onRun: () -> Void
     let onTogglePreview: () -> Void
     let onReportIssue: () -> Void
-
+    var showChat = false
+    var onShowChat: () -> Void = {}
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @FocusState private var focusedActionID: String?
+    @State private var toolbarFrame: CGRect = .zero
+    @State private var moreFrame: CGRect = .zero
+    @State private var focusFirstMenuAction = false
+    private struct Action: Identifiable {
+        let id: String
+        let icon: String
+        let label: String
+        var active = false
+        let perform: () -> Void
+    }
+    private var share: Action { .init(id: "share", icon: "share", label: AppStrings.shareChat, perform: onShare) }
+    private var actions: [Action] {
+        var values: [Action] = []
+        if showCopy { values.append(.init(id: "copy", icon: "copy", label: AppStrings.copy, perform: onCopy)) }
+        if showDownload { values.append(.init(id: "download", icon: "download", label: AppStrings.download, perform: onDownload)) }
+        if showRun { values.append(.init(id: "run", icon: "play", label: AppStrings.codeRun, active: runActive, perform: onRun)) }
+        if showPreview { values.append(.init(id: "preview", icon: "preview", label: AppStrings.preview, active: previewActive, perform: onTogglePreview)) }
+        return values
+    }
+    private var usesMore: Bool { EmbedHeaderActionPolicy.usesMore(width: viewportWidth, actionCount: actions.count) }
     var body: some View {
-        HStack(alignment: .center) {
-            HStack(spacing: .spacing4) {
-                topButton(icon: "share", label: AppStrings.share, action: onShare)
-                if showCopy {
-                    topButton(icon: "copy", label: AppStrings.copy, action: onCopy)
-                }
-                if showDownload {
-                    topButton(icon: "download", label: AppStrings.download, action: onDownload)
-                }
-                if showRun {
-                    topButton(
-                        icon: "play",
-                        label: AppStrings.codeRun,
-                        isActive: runActive,
-                        action: onRun
-                    )
-                    .accessibilityIdentifier("embed-run-button")
-                }
-                if showPreview {
-                    topButton(
-                        icon: "preview",
-                        label: previewActive ? "Hide preview" : "Show preview",
-                        isActive: previewActive,
-                        action: onTogglePreview
-                    )
-                }
-                topButton(icon: "bug", label: LocalizationManager.shared.text("header.report_issue"), action: onReportIssue)
+        HStack(alignment: .top, spacing: 8) {
+            pill(.init(id: "report", icon: "bug", label: LocalizationManager.shared.text("header.report_issue"), perform: onReportIssue), label: EmbedHeaderActionPolicy.reportShowsLabel(width: viewportWidth))
+            if viewportWidth >= 460 { pill(share) }
+            if showChat {
+                pill(.init(id: "show-chat", icon: "chat", label: LocalizationManager.shared.text("chat.show_chat"), perform: onShowChat), label: true)
             }
 
-            Spacer()
-
-            topButton(icon: "minimize", label: "Minimize", action: onClose)
-                .accessibilityIdentifier("embed-minimize")
+            if usesMore {
+                pill(.init(id: "more", icon: "more", label: LocalizationManager.shared.text("common.more_actions"), perform: {
+                    moreOpen.toggle()
+                    if moreOpen { focusedActionID = "more" }
+                }))
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { moreFrame = $0 }
+                    .accessibilityValue(moreOpen ? "expanded" : "collapsed")
+                    .overlay(alignment: .topLeading) {
+                        if moreOpen {
+                            ViewThatFits(in: .horizontal) {
+                                menuActions.fixedSize(horizontal: true, vertical: true)
+                                menuActions.frame(width: menuWidth, alignment: .leading)
+                            }
+                            // An overlay is proposed the trigger's41pt width.
+                            // Supply the measured canvas explicitly; ViewThatFits
+                            // uses natural pill widths unless wrapping is required.
+                            .frame(width: menuWidth, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .task {
+                                if focusFirstMenuAction, moreOpen {
+                                    focusedActionID = viewportWidth < 460 ? "share" : actions.first?.id
+                                    focusFirstMenuAction = false
+                                }
+                            }
+                            .offset(y: 53)
+                            .transition(.offset(y: -8).combined(with: .opacity))
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("embed-more-actions")
+                        }
+                    }.zIndex(3)
+            } else {
+                if viewportWidth < 460 { pill(share) }
+                ForEach(actions) { pill($0) }
+            }
+            Spacer(minLength: 0)
+            pill(.init(id: "close", icon: "close", label: AppStrings.close, perform: onClose))
+                .accessibilityIdentifier("embed-minimize") // Preserve existing automation contract.
         }
-        .padding(.horizontal, .spacing8)
-        .padding(.vertical, .spacing6)
+        .padding(.horizontal, 16).padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .top)
-        .allowsHitTesting(true)
-    }
-
-    private func topButton(icon: String, label: String, isActive: Bool = false, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Icon(icon, size: 24)
-                .foregroundStyle(LinearGradient.primary)
-                .frame(width: 34, height: 34)
-                .padding(3)
-                .background(isActive ? Color.buttonPrimary.opacity(0.25) : Color.grey10)
-                .clipShape(RoundedRectangle(cornerRadius: 40))
-                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { toolbarFrame = $0 }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: moreOpen)
+        .onChange(of: embed.id) { _, _ in moreOpen = false; focusFirstMenuAction = false }
+        .onChange(of: moreOpen) { _, open in if !open { focusFirstMenuAction = false } }
+        .onKeyPress(.downArrow) {
+            guard focusedActionID == "more", usesMore else { return .ignored }
+            if moreOpen {
+                focusedActionID = viewportWidth < 460 ? "share" : actions.first?.id
+            } else {
+                focusFirstMenuAction = true; moreOpen = true
+            }
+            return .handled
         }
-        .buttonStyle(.plain)
-        .help(Text(label))
-        .accessibilityLabel(label)
+        .onChange(of: usesMore) { _, value in if !value { moreOpen = false } }
+        .onKeyPress(.escape) {
+            guard moreOpen else { return .ignored }; moreOpen = false; focusedActionID = "more"; return .handled
+        }
+    }
+    private var menuWidth: CGFloat { EmbedHeaderActionPolicy.menuWidth(toolbar: toolbarFrame, anchor: moreFrame) }
+    private var menuActions: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if viewportWidth < 460 { pill(share, label: true, inMenu: true) }
+            ForEach(actions) { pill($0, label: true, inMenu: true) }
+        }
+    }
+    private func pill(_ action: Action, label: Bool = false, inMenu: Bool = false) -> some View {
+        EmbedHeaderActionPill(icon: action.icon, label: action.label, showsLabel: label,
+                              headerFrame: inMenu ? .zero : headerFrame, active: action.active, inMenu: inMenu) {
+            if action.id != "more" { moreOpen = false }
+            action.perform()
+        }.focused($focusedActionID, equals: action.id)
+            .accessibilityIdentifier("embed-\(action.id)-button")
+    }
+}
+
+private struct EmbedHeaderActionPill: View {
+    let icon: String
+    let label: String
+    let showsLabel: Bool
+    let headerFrame: CGRect
+    let active: Bool
+    let inMenu: Bool
+    let action: () -> Void
+    @State private var frame: CGRect = .zero
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var overHeader: Bool { EmbedHeaderActionPolicy.overlaps(control: frame, header: headerFrame) }
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Icon(icon, size: 25)
+                    .foregroundStyle(overHeader ? AnyShapeStyle(Color.white) : AnyShapeStyle(LinearGradient.primary))
+                if showsLabel {
+                    Text(label).font(.custom("Lexend Deca", size: 16).weight(.semibold))
+                        .foregroundStyle(overHeader ? Color.white : Color.fontPrimary).padding(.trailing, 8)
+                }
+            }.padding(8)
+                .background(overHeader ? Color.white.opacity(0.2) : Color.grey10)
+                .clipShape(Capsule())
+                .contentShape(Capsule())
+        }.buttonStyle(EmbedHeaderPillInteractionStyle(anchor: inMenu ? .leading : .center))
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: overHeader)
+            .help(Text(label)).accessibilityLabel(label)
+            .accessibilityAddTraits(active ? .isSelected : [])
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { frame = $0 }
+            #if DEBUG
+            .accessibilityValue(overHeader ? "header-overlay" : "content-control")
+            #endif
+    }
+}
+private struct EmbedHeaderPillInteractionStyle: ButtonStyle {
+    let anchor: UnitPoint
+    @State private var hovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : hovered ? 1.08 : 1, anchor: anchor)
+            .shadow(color: .black.opacity(0.15), radius: configuration.isPressed ? 2 : hovered ? 12 : 8, x: 0, y: 2)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: hovered)
+            .onHover { hovered = $0 }
     }
 }
 
@@ -751,13 +970,19 @@ struct EmbedFullscreenHeader: View {
     var onNavigatePrevious: () -> Void = {}
     var onNavigateNext: () -> Void = {}
     var headerCTA: EmbedHeaderCTA?
+    var topContentInset: CGFloat = 0
+    var viewportWidth: CGFloat? = nil
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var animateHeader = false
 
+    // Match the web's width breakpoint, including narrow macOS windows and
+    // iPad split views whose platform size class may remain regular.
+    private var isNarrow: Bool { viewportWidth.map { $0 <= 730 } ?? (horizontalSizeClass == .compact) }
     private var embedType: EmbedType? { EmbedType.normalized(rawValue: embed.type) }
     private var appId: String { embed.appId ?? embedType?.appId ?? "web" }
-    private var headerHeight: CGFloat { horizontalSizeClass == .compact ? 190 : 240 }
+    private var headerHeight: CGFloat {
+        (isNarrow ? 190 : 240) + topContentInset
+    }
     private var headerFrameHeight: CGFloat {
         headerHeight
     }
@@ -785,39 +1010,25 @@ struct EmbedFullscreenHeader: View {
                     .offset(y: ctaOffsetY)
             }
         }
-        .frame(height: headerFrameHeight)
-        .onAppear { animateHeader = true }
+        .frame(width: viewportWidth, height: headerFrameHeight)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("embed-fullscreen-header")
+        .accessibilityValue(embed.id)
     }
 
     private var headerPanel: some View {
         ZStack {
             AppGradientBackground(appId: appId)
-
-            livingOrb(color: .white.opacity(0.22), size: 220)
-                .offset(x: animateHeader ? -86 : -148, y: animateHeader ? -52 : -94)
-                .animation(.easeInOut(duration: 19).repeatForever(autoreverses: true), value: animateHeader)
-            livingOrb(color: .white.opacity(0.16), size: 220)
-                .offset(x: animateHeader ? 154 : 92, y: animateHeader ? 72 : 116)
-                .animation(.easeInOut(duration: 23).repeatForever(autoreverses: true), value: animateHeader)
-            livingOrb(color: .white.opacity(0.18), size: 190)
-                .offset(x: animateHeader ? 48 : 110, y: animateHeader ? -10 : 32)
-                .animation(.easeInOut(duration: 29).repeatForever(autoreverses: true), value: animateHeader)
-
-            decorativeIcon(alignment: .leading)
-                .offset(x: animateHeader ? -165 : -185, y: animateHeader ? 62 : 78)
-                .rotationEffect(.degrees(animateHeader ? -8 : -16))
-                .animation(.linear(duration: 16).repeatForever(autoreverses: true), value: animateHeader)
-            decorativeIcon(alignment: .trailing)
-                .offset(x: animateHeader ? 165 : 185, y: animateHeader ? 78 : 62)
-                .rotationEffect(.degrees(animateHeader ? 8 : 16))
-                .animation(.linear(duration: 16).repeatForever(autoreverses: true), value: animateHeader)
+                .overlay { headerDecorations }
+                .accessibilityHidden(true)
 
             VStack(spacing: .spacing2) {
-                Icon(skillIconName, size: 38)
+                Icon(skillIconName, size: isNarrow ? 32 : 38)
                     .foregroundStyle(.white)
 
                 Text(headerTitle)
-                    .font(.omH3)
+                    .accessibilityIdentifier("embed-header-title")
+                    .font(isNarrow ? .omLg : .omH3)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
@@ -825,33 +1036,42 @@ struct EmbedFullscreenHeader: View {
 
                 if let subtitle = headerSubtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.omSmall)
+                        .font(isNarrow ? .omXs : .omSmall)
                         .fontWeight(.medium)
                         .foregroundStyle(.white.opacity(0.85))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                 }
             }
-            .padding(.horizontal, .spacing12)
+            // Web max-width applies to its content box; padding is outside.
+            // At390pt this permits350pt of content plus40pt horizontal padding.
+            .frame(maxWidth: isNarrow ? 360 : 480)
+            .padding(.horizontal, isNarrow ? .spacing10 : .spacing12)
+            // The background still starts at the screen edge. Reserving the
+            // system inset inside the taller panel moves only its foreground
+            // below the inset top bar, keeping title and navigation unobscured.
+            .padding(.top, topContentInset)
 
             if hasNextEmbed {
                 headerNavigationButton(direction: .left, action: onNavigateNext)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, .spacing4)
+                    .padding(.top, topContentInset)
             }
 
             if hasPreviousEmbed {
                 headerNavigationButton(direction: .right, action: onNavigatePrevious)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .padding(.trailing, .spacing4)
+                    .padding(.top, topContentInset)
             }
         }
     }
 
-    private func decorativeIcon(alignment: Alignment) -> some View {
-        Icon(skillIconName, size: horizontalSizeClass == .compact ? 90 : 126)
-            .foregroundStyle(.white.opacity(0.4))
-            .frame(maxWidth: .infinity, alignment: alignment)
+    // Decorations are a bounded overlay: transforms affect glyphs, never a
+    // full-width HStack/frame. This also prevents decorative AX extent leakage.
+    private var headerDecorations: some View {
+        EmbedHeaderAnimatedDecorations(appID: appId, skillIcon: skillIconName, narrow: isNarrow)
     }
 
     private func headerCTAButton(_ cta: EmbedHeaderCTA) -> some View {
@@ -864,7 +1084,7 @@ struct EmbedFullscreenHeader: View {
                 .minimumScaleFactor(0.78)
                 .padding(.horizontal, .spacing12)
                 .padding(.vertical, .spacing6)
-                .frame(minWidth: horizontalSizeClass == .compact ? 160 : 200)
+                .frame(minWidth: isNarrow ? 160 : 200)
                 .background(Color.buttonPrimary)
                 .clipShape(RoundedRectangle(cornerRadius: .radius7))
                 .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
@@ -873,13 +1093,6 @@ struct EmbedFullscreenHeader: View {
         .help(Text(cta.title))
         .accessibilityLabel(cta.title)
         .accessibilityIdentifier(cta.accessibilityIdentifier ?? "embed-header-cta")
-    }
-
-    private func livingOrb(color: Color, size: CGFloat) -> some View {
-        Circle()
-            .fill(color)
-            .frame(width: size, height: size)
-            .blur(radius: 28)
     }
 
     private enum HeaderNavDirection {
@@ -897,6 +1110,8 @@ struct EmbedFullscreenHeader: View {
                 .clipShape(Circle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(direction == .left ? AppStrings.next : AppStrings.back)
+        .accessibilityIdentifier(direction == .left ? "embed-next" : "embed-previous")
     }
 
     private var headerTitle: String {
@@ -1034,5 +1249,151 @@ private extension EmbedRecord {
             ?? dict["line_count"]?.value as? Int
             ?? code.components(separatedBy: "\n").count
         return CodePayload(code: code, language: language, filename: filename, lineCount: lineCount)
+    }
+}
+
+// Exact animations.css orbMorph1/2/3, orbDrift1/2/3, decoEnter/decoFloat.
+// Interpolate each CSS keyframe interval with its own timing function; a sine
+// approximation changes both positions and velocity at the supplied keyframes.
+enum EmbedHeaderMotion {
+    struct Frame { let time: Double; let values: [Double] }
+    static let morph: [[Frame]] = [
+        [.init(time: 0, values: [60,40,30,70,60,30,70,40]), .init(time: 0.25, values: [30,60,70,40,50,60,30,60]), .init(time: 0.5, values: [50,50,33,67,55,27,73,45]), .init(time: 0.75, values: [33,67,45,55,30,70,35,65]), .init(time: 1, values: [60,40,30,70,60,30,70,40])],
+        [.init(time: 0, values: [40,60,60,40,40,40,60,60]), .init(time: 0.33, values: [65,35,40,60,60,45,55,40]), .init(time: 0.66, values: [35,65,55,45,45,55,40,60]), .init(time: 1, values: [40,60,60,40,40,40,60,60])],
+        [.init(time: 0, values: [55,45,38,62,48,58,42,52]), .init(time: 0.2, values: [42,58,62,38,55,38,62,45]), .init(time: 0.4, values: [68,32,45,55,40,65,35,60]), .init(time: 0.6, values: [38,62,55,45,62,42,58,38]), .init(time: 0.8, values: [52,48,32,68,35,55,45,65]), .init(time: 1, values: [55,45,38,62,48,58,42,52])]
+    ]
+    static let drift: [[Frame]] = [
+        [.init(time: 0, values: [0,0]), .init(time: 0.25, values: [130,60]), .init(time: 0.5, values: [160,10]), .init(time: 0.75, values: [60,100]), .init(time: 1, values: [0,0])],
+        [.init(time: 0, values: [0,0]), .init(time: 0.3, values: [-140,-50]), .init(time: 0.6, values: [-80,-130]), .init(time: 0.85, values: [-160,-30]), .init(time: 1, values: [0,0])],
+        [.init(time: 0, values: [0,0]), .init(time: 0.2, values: [-90,50]), .init(time: 0.45, values: [80,80]), .init(time: 0.7, values: [-40,-70]), .init(time: 1, values: [0,0])]
+    ]
+    static let morphDurations: [Double] = [11,13,17]
+    static let driftDurations: [Double] = [19,23,29]
+    private static let orbit: [Frame] = [
+        .init(time: 0, values: [0,-12,0]), .init(time: 0.125, values: [7.07,-8.484,2]),
+        .init(time: 0.25, values: [10,0,3]), .init(time: 0.375, values: [7.07,8.484,2]),
+        .init(time: 0.5, values: [0,12,0]), .init(time: 0.625, values: [-7.07,8.484,-2]),
+        .init(time: 0.75, values: [-10,0,-3]), .init(time: 0.875, values: [-7.07,-8.484,-2]),
+        .init(time: 1, values: [0,-12,0])]
+    static func interpolate(_ frames: [Frame], phase: Double, eased: Bool) -> [Double] {
+        let phase = min(1, max(0, phase))
+        guard let index = frames.indices.dropLast().first(where: { phase <= frames[$0 + 1].time }) else { return frames.last!.values }
+        let a = frames[index], b = frames[index + 1]
+        let fraction = (phase - a.time) / (b.time - a.time)
+        let t = eased ? bezier(fraction, x1: 0.42, y1: 0, x2: 0.58, y2: 1) : fraction
+        return zip(a.values, b.values).map { pair in pair.0 + (pair.1 - pair.0) * t }
+    }
+    static func loop(_ elapsed: Double, duration: Double) -> Double {
+        max(0, elapsed).truncatingRemainder(dividingBy: duration) / duration
+    }
+    static func orb(index: Int, elapsed: Double, reduced: Bool) -> (radii: [Double], drift: [Double]) {
+        // With animation:none there is no base border-radius on .orb (rectangle).
+        guard !reduced else { return (Array(repeating: 0, count: 8), [0,0]) }
+        return (interpolate(morph[index], phase: loop(elapsed, duration: morphDurations[index]), eased: true),
+                interpolate(drift[index], phase: loop(elapsed, duration: driftDurations[index]), eased: true))
+    }
+    static func decoration(right: Bool, elapsed: Double, reduced: Bool) -> (x: Double, y: Double, degrees: Double, opacity: Double) {
+        let base = right ? 15.0 : -15.0
+        if reduced { return (0,0,0,0.4) } // CSS animation:none also removes transform tilt.
+        // Right's negative float delay starts the later transform/opacity animation
+        // immediately; CSS animation-list precedence overrides its entrance.
+        if !right && elapsed < 0.7 {
+            let t = bezier(min(1, max(0, (elapsed - 0.1) / 0.6)), x1: 0, y1: 0, x2: 0.58, y2: 1)
+            return (0,40 * (1-t),base,0.4*t)
+        }
+        let values = interpolate(orbit, phase: loop(right ? elapsed + 8 : elapsed - 0.7, duration: 16), eased: false)
+        return (values[0],values[1],base + values[2],0.4)
+    }
+    static func bezier(_ x: Double, x1: Double, y1: Double, x2: Double, y2: Double) -> Double {
+        if x <= 0 { return 0 }; if x >= 1 { return 1 }
+        func point(_ t: Double, _ a: Double, _ b: Double) -> Double {
+            3*(1-t)*(1-t)*t*a + 3*(1-t)*t*t*b + t*t*t
+        }
+        var low = 0.0, high = 1.0
+        for _ in 0..<18 {
+            let mid = (low+high)/2
+            if point(mid,x1,x2) < x { low = mid } else { high = mid }
+        }
+        return point((low+high)/2,y1,y2)
+    }
+    // CSS border-radius overlap normalization, including different x/y radii.
+    static func orbPath(in rect: CGRect, percentages: [Double]) -> Path {
+        let w = rect.width, h = rect.height
+        var rx = percentages.prefix(4).map { CGFloat($0)/100*w }
+        var ry = percentages.suffix(4).map { CGFloat($0)/100*h }
+        let limits = [rx[0]+rx[1], rx[3]+rx[2], ry[0]+ry[3], ry[1]+ry[2]]
+        let dimensions = [w,w,h,h]
+        var factor: CGFloat = 1
+        for index in limits.indices where limits[index] > 0 { factor = min(factor, dimensions[index]/limits[index]) }
+        rx = rx.map { $0*factor }; ry = ry.map { $0*factor }
+        let x = rect.minX, y = rect.minY, right = rect.maxX, bottom = rect.maxY
+        let k: CGFloat = 0.5522847498307936
+        var p = Path(); p.move(to: CGPoint(x: x+rx[0],y:y))
+        p.addLine(to: CGPoint(x:right-rx[1],y:y))
+        p.addCurve(to: CGPoint(x:right,y:y+ry[1]), control1: CGPoint(x:right-rx[1]+k*rx[1],y:y), control2: CGPoint(x:right,y:y+ry[1]-k*ry[1]))
+        p.addLine(to: CGPoint(x:right,y:bottom-ry[2]))
+        p.addCurve(to: CGPoint(x:right-rx[2],y:bottom), control1: CGPoint(x:right,y:bottom-ry[2]+k*ry[2]), control2: CGPoint(x:right-rx[2]+k*rx[2],y:bottom))
+        p.addLine(to: CGPoint(x:x+rx[3],y:bottom))
+        p.addCurve(to: CGPoint(x:x,y:bottom-ry[3]), control1: CGPoint(x:x+rx[3]-k*rx[3],y:bottom), control2: CGPoint(x:x,y:bottom-ry[3]+k*ry[3]))
+        p.addLine(to: CGPoint(x:x,y:y+ry[0]))
+        p.addCurve(to: CGPoint(x:x+rx[0],y:y), control1: CGPoint(x:x,y:y+ry[0]-k*ry[0]), control2: CGPoint(x:x+rx[0]-k*rx[0],y:y))
+        p.closeSubpath(); return p
+    }
+}
+
+// One Canvas owns all decorative frames. Text, header measurement and action
+// controls never enter TimelineView, preventing the earlier per-frame layout work.
+private struct EmbedHeaderAnimatedDecorations: View {
+    let appID: String
+    let skillIcon: String
+    let narrow: Bool
+    @State private var startedAt = Date()
+    @State private var visible = true
+    @Environment(\.accessibilityReduceMotion) private var reduced
+    @Environment(\.workspacePaneIsVisible) private var paneVisible
+    @Environment(\.scenePhase) private var scenePhase
+    var body: some View {
+        TimelineView(.animation(paused: !WorkspaceMotionPolicy.shouldAnimate(paneVisible: paneVisible, scrollVisible: visible, sceneActive: scenePhase == .active, reduced: reduced))) { timeline in
+            let elapsed = timeline.date.timeIntervalSince(startedAt)
+            Canvas { context, size in
+                let palette = AppGradientPalette.colors(for: appID)
+                let anchors = [CGPoint(x: 70,y: 50),
+                               CGPoint(x: size.width-70,y: size.height-50),
+                               CGPoint(x: size.width*0.8-110,y: 130)]
+                for index in 0..<3 {
+                    let frame = EmbedHeaderMotion.orb(index: index, elapsed: elapsed, reduced: reduced)
+                    let center = CGPoint(x: anchors[index].x + CGFloat(frame.drift[0]), y: anchors[index].y + CGFloat(frame.drift[1]))
+                    let rect = CGRect(x:center.x-110,y:center.y-110,width:220,height:220)
+                    let color = index == 1 ? palette.start : palette.end
+                    var orb = context
+                    orb.opacity = 0.55
+                    orb.addFilter(.blur(radius: 28))
+                    orb.drawLayer { layer in
+                        layer.clip(to: EmbedHeaderMotion.orbPath(in: rect, percentages: frame.radii))
+                        layer.fill(Path(rect), with: .radialGradient(Gradient(stops: [
+                            .init(color:color,location:0), .init(color:color,location:0.4),
+                            .init(color:color.opacity(0),location:0.85)]), center:center,
+                            startRadius:0,endRadius:110 * sqrt(2)))
+                    }
+                }
+                let glyph: CGFloat = narrow ? 90 : 126
+                let inset: CGFloat = narrow ? 250 : 346
+                for right in [false,true] {
+                    guard let symbol = context.resolveSymbol(id: "glyph") else { continue }
+                    let frame = EmbedHeaderMotion.decoration(right:right, elapsed:elapsed, reduced:reduced)
+                    let x = size.width/2 + (right ? inset-glyph/2 : -inset+glyph/2)
+                    let y = size.height+15-glyph/2
+                    var icon = context
+                    icon.opacity = frame.opacity
+                    icon.translateBy(x:x+CGFloat(frame.x),y:y+CGFloat(frame.y))
+                    icon.rotate(by:.degrees(frame.degrees))
+                    icon.draw(symbol,at:.zero)
+                }
+            } symbols: {
+                Icon(skillIcon,size:narrow ? 90 : 126).foregroundStyle(.white).tag("glyph")
+            }
+        }
+        .clipped().allowsHitTesting(false).accessibilityHidden(true)
+        .onGeometryChange(for: Bool.self) { $0.frame(in: .named("embed-fullscreen-coordinate")).maxY > 0 } action: { visible = $0 }
     }
 }

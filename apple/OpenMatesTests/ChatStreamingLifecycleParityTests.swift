@@ -95,7 +95,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
-    func testReplacingStreamKeepsNewestSubscriberRegistered() async {
+    func testCancellingOneStreamKeepsOtherSubscriberRegistered() async {
         let chatId = "fixture-stream-replacement-\(UUID().uuidString)"
         let firstStream = await StreamingClient.shared.streamForChat(chatId)
         let firstConsumer = Task.detached {
@@ -113,8 +113,8 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
             }
         }
 
-        // Let the first continuation's asynchronous termination callback run.
-        try? await Task.sleep(for: .milliseconds(50))
+        firstConsumer.cancel()
+        await firstConsumer.value
         await StreamingClient.shared.dispatch(
             .messageReady(chatId: chatId, messageId: "fixture-assistant-1"),
             for: chatId

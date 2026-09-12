@@ -75,11 +75,19 @@ struct SearchResultsGrid<Result: Identifiable, Content: View>: View {
     let query: String
     let results: [Result]
     let emptyText: String
+    var webLayout: Bool = false
+    @State private var viewportWidth: CGFloat = 390
+    private var narrow: Bool { webLayout && viewportWidth <= 500 }
     @ViewBuilder let content: (Result) -> Content
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 280, maximum: 320), spacing: .spacing8, alignment: .top)
-    ]
+    private var columns: [GridItem] {
+        if narrow {
+            return [GridItem(.flexible(minimum: 0), alignment: .top)]
+        }
+        // CSS minmax(280px, 1fr) lets the cell fill its column; the card
+        // independently caps at 320pt, centered inside that column.
+        return [GridItem(.adaptive(minimum: 280), spacing: .spacing8, alignment: .top)]
+    }
 
     var body: some View {
         Group {
@@ -88,19 +96,22 @@ struct SearchResultsGrid<Result: Identifiable, Content: View>: View {
             } else if results.isEmpty {
                 emptyState
             } else {
-                LazyVGrid(columns: columns, alignment: .center, spacing: .spacing8) {
+                LazyVGrid(columns: columns, alignment: .center, spacing: narrow ? .spacing5 : .spacing8) {
                     ForEach(results) { result in
                         content(result)
+                            .environment(\.embedPreviewFillsGridCell, true)
                             .frame(maxWidth: 320)
+                            .frame(maxWidth: .infinity)
                     }
                 }
                 .frame(maxWidth: 1000)
-                .padding(.horizontal, .spacing5)
-                .padding(.vertical, .spacing12)
-                .padding(.bottom, 120)
+                .padding(.horizontal, narrow ? .spacing3 : .spacing5)
+                .padding(.top, narrow ? .spacing8 : .spacing12)
+                .padding(.bottom, narrow ? 96 : 120)
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { viewportWidth = $0 }
     }
 
     private var emptyState: some View {

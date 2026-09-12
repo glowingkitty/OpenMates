@@ -472,8 +472,8 @@ actor CryptoManager {
         return try AES.GCM.open(sealedBox, using: key)
     }
 
-    func encrypt(_ plaintext: Data, using key: SymmetricKey) throws -> (ciphertext: Data, nonce: Data) {
-        let nonce = AES.GCM.Nonce()
+    func encrypt(_ plaintext: Data, using key: SymmetricKey, nonceData: Data? = nil) throws -> (ciphertext: Data, nonce: Data) {
+        let nonce = try nonceData.map { try AES.GCM.Nonce(data: $0) } ?? AES.GCM.Nonce()
         let sealed = try AES.GCM.seal(plaintext, using: key, nonce: nonce)
         return (sealed.ciphertext + sealed.tag, Data(nonce))
     }

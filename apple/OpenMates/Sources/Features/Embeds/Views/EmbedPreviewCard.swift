@@ -11,6 +11,19 @@
 
 import SwiftUI
 
+// SearchResultsTemplate stretches compact cards within a result cell, capped at
+// 320pt. Ordinary inline previews remain 300pt even on a phone.
+private struct EmbedPreviewFillsGridCellKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var embedPreviewFillsGridCell: Bool {
+        get { self[EmbedPreviewFillsGridCellKey.self] }
+        set { self[EmbedPreviewFillsGridCellKey.self] = newValue }
+    }
+}
+
 enum EmbedPreviewCardVariant {
     case compact
     case large
@@ -43,6 +56,7 @@ struct EmbedPreviewCard: View {
     let allEmbedRecords: [String: EmbedRecord]
     let variant: EmbedPreviewCardVariant
     let onTap: () -> Void
+    @Environment(\.embedPreviewFillsGridCell) private var fillsGridCell
     @State private var isHovering = false
     @State private var hoverX: CGFloat = 0
     @State private var hoverY: CGFloat = 0
@@ -123,8 +137,22 @@ struct EmbedPreviewCard: View {
             .frame(width: cardWidth, height: cardHeight)
             .background(Color.grey25)
             .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
-            .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
-            .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
+            .background {
+                // CSS box-shadow blur is twice the Gaussian radius. Draw each
+                // layer separately so the second shadow does not blur the first.
+                ZStack {
+                    RoundedRectangle(cornerRadius: Constants.cornerRadius)
+                        .fill(Color.grey25)
+                        .shadow(color: .black.opacity(isHovering ? 0.12 : 0.16),
+                                radius: isHovering ? 6 : 12, x: 0, y: isHovering ? 4 : 8)
+                    RoundedRectangle(cornerRadius: Constants.cornerRadius)
+                        .fill(Color.grey25)
+                        .shadow(color: .black.opacity(isHovering ? 0.08 : 0.10),
+                                radius: isHovering ? 1.5 : 3, x: 0, y: isHovering ? 1 : 2)
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
             .overlay(alignment: .bottom) {
                 if variant == .large {
                     statusBar
@@ -187,7 +215,7 @@ struct EmbedPreviewCard: View {
     }
 
     private var cardWidth: CGFloat? {
-        variant == .large ? nil : Constants.compactWidth
+        variant == .large || fillsGridCell ? nil : Constants.compactWidth
     }
 
     private var cardHeight: CGFloat {
@@ -265,7 +293,7 @@ struct EmbedPreviewCard: View {
                     allEmbedRecords: allEmbedRecords,
                     previewVariant: variant
                 )
-                    .padding(.horizontal, hasFullWidthDetails ? 0 : .spacing20)
+                    .padding(.horizontal, hasFullWidthDetails ? 0 : appId == "web" ? 20 : .spacing20)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
@@ -441,10 +469,10 @@ struct EmbedPreviewCard: View {
 
     private var faviconURL: String? {
         let raw = embed.rawData ?? [:]
-        return EmbedFieldReader.proxiedImageURL(
-            firstString(in: raw, keys: ["favicon_url", "favicon", "meta_url_favicon"]),
-            maxWidth: 64
-        ) ?? EmbedFieldReader.proxiedFaviconURL(pageURL: firstString(in: raw, keys: ["source_page_url", "url"]))
+        return EmbedFieldReader.proxiedFaviconImageURL(
+            directURL: firstString(in: raw, keys: ["favicon_url", "favicon", "meta_url_favicon", "meta_url.favicon"]),
+            pageURL: firstString(in: raw, keys: ["source_page_url", "url"])
+        )
     }
 
     private var websiteUsesFullWidthImage: Bool {
@@ -453,8 +481,8 @@ struct EmbedPreviewCard: View {
         let description = firstString(in: raw, keys: ["description", "meta_description", "summary"])?
             .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let image = firstString(in: raw, keys: ["image", "image_url", "thumbnail_url", "meta_image", "og_image"])
-        return (description?.isEmpty ?? true) && image != nil && variant == .large
+        let image = firstString(in: raw, keys: ["thumbnail_original", "image", "image_url", "thumbnail_url", "meta_image", "og_image"])
+        return (description?.isEmpty ?? true) && image != nil
     }
 
     private var sourceDomain: String? {

@@ -641,6 +641,11 @@ function generateSwiftGradients() {
   lines.push("}");
   lines.push("");
 
+  lines.push("enum AppGradientPalette {", "    static func colors(for appID: String) -> (start: Color, end: Color) {", "        switch appID {");
+  for (const [name, grad] of Object.entries(gradients.apps || {})) {
+    if (grad.start && !grad.start_ref) lines.push(`        case "${name}": return (Color(hex: 0x${grad.start.replace("#", "").toUpperCase()}), Color(hex: 0x${grad.end.replace("#", "").toUpperCase()}))`);
+  }
+  lines.push(`        default: return (Color(hex: 0x${primary.start.replace("#", "").toUpperCase()}), Color(hex: 0x${primary.end.replace("#", "").toUpperCase()}))`, "        }", "    }", "}", "");
   return lines.join("\n");
 }
 

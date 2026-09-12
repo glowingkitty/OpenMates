@@ -20,10 +20,29 @@ struct AttachmentPicker: View {
     let onImageSelected: (Data, String) -> Void
     let onFileSelected: (Data, String) -> Void
 
+    var externalFilesOnly = false
+
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showDocumentPicker = false
 
     var body: some View {
+        if externalFilesOnly {
+            Color.clear.frame(width: 0, height: 0)
+                .onChange(of: isPresented) { _, shown in
+                    guard shown else { return }
+                    isPresented = false
+                    #if os(iOS)
+                    showDocumentPicker = true
+                    #else
+                    openFilePicker()
+                    #endif
+                }
+                #if os(iOS)
+                .sheet(isPresented: $showDocumentPicker) {
+                    AttachmentDocumentPickerView(onFileSelected: onFileSelected)
+                }
+                #endif
+        } else {
         #if os(iOS)
         ZStack(alignment: .bottomLeading) {
             Button {
@@ -84,6 +103,7 @@ struct AttachmentPicker: View {
         }
         .buttonStyle(.plain)
         #endif
+        }
     }
 
     private func loadPhoto(_ item: PhotosPickerItem) {

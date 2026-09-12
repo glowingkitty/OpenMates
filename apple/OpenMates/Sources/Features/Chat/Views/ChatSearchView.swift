@@ -33,6 +33,8 @@ struct ChatSearchView: View {
     let onSelectResult: (ChatSearchSelection) -> Void
     let onClose: () -> Void
     let prepareSearchMetadata: () async -> Void
+    var draftPreviews: [String: String] = [:]
+    var allowsOfflineContent = true
 
     @State private var query = ""
     @State private var results = ChatSearchResults.empty
@@ -42,7 +44,7 @@ struct ChatSearchView: View {
     @State private var originalContentChatIds: Set<String> = []
     @FocusState private var isFocused: Bool
 
-    private let offlineStore = OfflineStore.shared
+    private var offlineStore: OfflineStore? { allowsOfflineContent ? OfflineStore.shared : nil }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -115,6 +117,7 @@ struct ChatSearchView: View {
         )
         .padding(.horizontal, .spacing5)
         .padding(.vertical, .spacing4)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("search-bar")
     }
 
@@ -178,7 +181,7 @@ struct ChatSearchView: View {
             Button {
                 onSelectResult(.init(chatId: result.chat.id, messageId: nil, query: query))
             } label: {
-                ChatListRow(chat: result.chat)
+                ChatListRow(chat: result.chat, suppliedDraftPreview: draftPreviews[result.chat.id])
                     .background(activeChatId == result.chat.id ? Color.buttonPrimary.opacity(0.12) : Color.clear)
                     .clipShape(RoundedRectangle(cornerRadius: .radius3))
             }
@@ -203,7 +206,6 @@ struct ChatSearchView: View {
                     .padding(.bottom, .spacing2)
             }
         }
-        .padding(.horizontal, .spacing3)
     }
 
     private func snippetButton(_ snippet: ChatSearchSnippet, chatId: String) -> some View {
@@ -366,7 +368,7 @@ private enum ChatSearchEngine {
         query: String,
         chats: [Chat],
         chatStore: ChatStore,
-        offlineStore: OfflineStore,
+        offlineStore: OfflineStore?,
         offlineContentChatIds: Set<String>
     ) -> ChatSearchResults {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -393,7 +395,7 @@ private enum ChatSearchEngine {
         _ chat: Chat,
         query: String,
         chatStore: ChatStore,
-        offlineStore: OfflineStore,
+        offlineStore: OfflineStore?,
         allowOfflineContent: Bool
     ) -> ChatSearchResult? {
         let title = chat.displayTitle
@@ -420,21 +422,21 @@ private enum ChatSearchEngine {
     }
 
     @MainActor
-    private static func messages(for chat: Chat, chatStore: ChatStore, offlineStore: OfflineStore) -> [Message] {
+    private static func messages(for chat: Chat, chatStore: ChatStore, offlineStore: OfflineStore?) -> [Message] {
         if let publicChat = PublicChatContent.chat(for: chat.id) {
             return publicChat.messages
         }
 
         let inMemory = chatStore.messages(for: chat.id)
         if !inMemory.isEmpty { return inMemory }
-        return offlineStore.loadMessages(chatId: chat.id)
+        return offlineStore?.loadMessages(chatId: chat.id) ?? []
     }
 
     @MainActor
-    private static func embeds(for chat: Chat, chatStore: ChatStore, offlineStore: OfflineStore) -> [EmbedRecord] {
+    private static func embeds(for chat: Chat, chatStore: ChatStore, offlineStore: OfflineStore?) -> [EmbedRecord] {
         let inMemory = chatStore.embeds(for: chat.id)
         if !inMemory.isEmpty { return inMemory }
-        return offlineStore.loadEmbeds(chatId: chat.id)
+        return offlineStore?.loadEmbeds(chatId: chat.id) ?? []
     }
 
     private static func messageSnippets(in messages: [Message], embeds: [EmbedRecord], query: String) -> [ChatSearchSnippet] {

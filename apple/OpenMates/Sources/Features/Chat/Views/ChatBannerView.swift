@@ -68,7 +68,9 @@ struct ChatBannerView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.workspacePaneIsVisible) private var paneVisible
     @State private var isVisible = true
+    private var motionEnabled: Bool { WorkspaceMotionPolicy.shouldAnimate(paneVisible: paneVisible, scrollVisible: isVisible, sceneActive: scenePhase == .active, reduced: reduceMotion) }
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.layoutDirection) private var layoutDirection
     @State private var shimmerPhase: CGFloat = 0
@@ -118,7 +120,7 @@ struct ChatBannerView: View {
                     gradientBackground
                         .frame(width: geo.size.width, height: bannerHeight)
 
-                    TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil, paused: reduceMotion || !isVisible || scenePhase != .active)) { timeline in
+                    TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil, paused: !motionEnabled)) { timeline in
                         let now = timeline.date.timeIntervalSinceReferenceDate
                         ZStack {
                             orbLayer(time: now)
@@ -163,6 +165,19 @@ struct ChatBannerView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat-header-banner")
         .modifier(ChatBannerVisibilityObserver(isVisible: $isVisible))
+        .onChange(of: motionEnabled) { _, enabled in
+            if !enabled {
+                stopMobileCrossfade()
+                var transaction = Transaction(animation: nil)
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { shimmerPhase = 0 }
+            } else {
+                if case .loading = state {
+                    withAnimation(.linear(duration: 1.8).repeatForever(autoreverses: false)) { shimmerPhase = 1 }
+                }
+                if isMobileHeader { startMobileCrossfade() }
+            }
+        }
     }
 
     // MARK: - Gradient Background
@@ -364,7 +379,7 @@ struct ChatBannerView: View {
                 .accessibilityIdentifier("chat-header-title")
         }
         .onAppear {
-            guard !reduceMotion else { return }
+            guard motionEnabled else { return }
             withAnimation(.linear(duration: 1.8).repeatForever(autoreverses: false)) {
                 shimmerPhase = 1
             }
@@ -446,7 +461,7 @@ struct ChatBannerView: View {
     }
 
     private func startMobileCrossfade() {
-        guard teaserVideoURL != nil, !reduceMotion, crossfadeTimer == nil else { return }
+        guard teaserVideoURL != nil, motionEnabled, crossfadeTimer == nil else { return }
         showVideoPhase = false
         crossfadeTimer = Timer.scheduledTimer(withTimeInterval: 6.0, repeats: true) { _ in
             Task { @MainActor in showVideoPhase.toggle() }

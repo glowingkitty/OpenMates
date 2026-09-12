@@ -38,6 +38,7 @@ struct RootView: View {
             #if DEBUG
             if let devPreviewConfiguration {
                 DevPreviewRootView(configuration: devPreviewConfiguration)
+                    .id(devPreviewConfiguration)
             } else {
                 rootContent
             }
@@ -61,6 +62,10 @@ struct RootView: View {
         .modifier(MacWindowChromeModifier())
         #if DEBUG
         .onOpenURL { url in
+            // Fixture switching is only available in an isolated preview process.
+            // A regular app has already started account services and must not be
+            // relabelled as an isolated preview after startup.
+            guard DevPreviewLaunchConfiguration.current != nil else { return }
             if let configuration = DevPreviewLaunchConfiguration.parse(url: url) {
                 devPreviewConfiguration = configuration
             }

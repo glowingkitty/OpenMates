@@ -1,0 +1,2235 @@
+{
+  "schemaVersion": 2,
+  "sourceDigest": "7e4929b686938fdaf1677b74fcbbd69f237a4a6295c3bed059ed53bb89adf488",
+  "providers": [
+    {
+      "id": "openai",
+      "brandName": "ChatGPT",
+      "companyName": "OpenAI",
+      "order": 0,
+      "logoSvg": "icons/openai.svg"
+    },
+    {
+      "id": "anthropic",
+      "brandName": "Claude",
+      "companyName": "Anthropic",
+      "order": 1,
+      "logoSvg": "icons/anthropic.svg"
+    },
+    {
+      "id": "mistral",
+      "brandName": "Mistral",
+      "companyName": "Mistral",
+      "order": 2,
+      "logoSvg": "icons/mistral.svg"
+    },
+    {
+      "id": "deepseek",
+      "brandName": "DeepSeek",
+      "companyName": "DeepSeek",
+      "order": 3,
+      "logoSvg": "icons/deepseek.svg"
+    },
+    {
+      "id": "google",
+      "brandName": "Gemini",
+      "companyName": "Google",
+      "order": 4,
+      "logoSvg": "icons/google.svg"
+    },
+    {
+      "id": "alibaba",
+      "brandName": "Qwen",
+      "companyName": "Alibaba",
+      "order": 5,
+      "logoSvg": "icons/alibaba.svg"
+    },
+    {
+      "id": "moonshot",
+      "brandName": "Kimi",
+      "companyName": "Moonshot AI",
+      "order": 6,
+      "logoSvg": "icons/moonshot.svg"
+    },
+    {
+      "id": "zai",
+      "brandName": "GLM",
+      "companyName": "Z.ai",
+      "order": 7,
+      "logoSvg": "icons/zai.svg"
+    },
+    {
+      "id": "bfl",
+      "brandName": "Black Forest Labs",
+      "companyName": "Black Forest Labs",
+      "order": 9007199254740991,
+      "logoSvg": "icons/bfl.svg"
+    },
+    {
+      "id": "elevenlabs",
+      "brandName": "ElevenLabs",
+      "companyName": "ElevenLabs",
+      "order": 9007199254740991,
+      "logoSvg": "icons/elevenlabs.svg"
+    },
+    {
+      "id": "hi3d",
+      "brandName": "Hi3D",
+      "companyName": "Hi3D",
+      "order": 9007199254740991,
+      "logoSvg": "icons/hi3d.svg"
+    },
+    {
+      "id": "recraft",
+      "brandName": "Recraft",
+      "companyName": "Recraft",
+      "order": 9007199254740991,
+      "logoSvg": "icons/recraft.svg"
+    }
+  ],
+  "models": [
+    {
+      "id": "qwen3-235b-a22b-2507",
+      "name": "Qwen 3 256b",
+      "description": "Qwen3 235B A22B with ultra-fast inference. Served via Cerebras API (primary) with OpenRouter as fallback. Strong general and reasoning performance.",
+      "provider_id": "alibaba",
+      "provider_name": "Alibaba",
+      "logo_svg": "icons/alibaba.svg",
+      "country_origin": "CN",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "high",
+      "release_date": "2025-07-01",
+      "servers": [
+        {
+          "id": "cerebras",
+          "name": "Cerebras",
+          "region": "US"
+        },
+        {
+          "id": "aws_bedrock",
+          "name": "AWS Bedrock",
+          "region": "EU"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "US"
+        }
+      ],
+      "default_server": "cerebras",
+      "pricing": {
+        "input_tokens_per_credit": 550,
+        "output_tokens_per_credit": 300
+      }
+    },
+    {
+      "id": "qwen-3.8-27b",
+      "name": "Qwen 3.8 27B",
+      "description": "Qwen 3.8 27B dense multimodal model served through Cerebras for fast everyday chat, coding, research, and tool use.",
+      "provider_id": "alibaba",
+      "provider_name": "Alibaba",
+      "logo_svg": "icons/alibaba.svg",
+      "country_origin": "CN",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "low",
+      "release_date": "2026-08-14",
+      "servers": [
+        {
+          "id": "cerebras",
+          "name": "Cerebras",
+          "region": "US"
+        }
+      ],
+      "default_server": "cerebras",
+      "pricing": {
+        "input_tokens_per_credit": 335,
+        "output_tokens_per_credit": 220
+      }
+    },
+    {
+      "id": "claude-fable-5",
+      "name": "Claude Fable 5",
+      "description": "Anthropic's most capable widely released model for long-running agents and frontier reasoning.",
+      "provider_id": "anthropic",
+      "provider_name": "Anthropic",
+      "logo_svg": "icons/anthropic.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "max",
+      "release_date": "2026-06-09",
+      "servers": [
+        {
+          "id": "anthropic",
+          "name": "Anthropic API",
+          "region": "US"
+        }
+      ],
+      "default_server": "anthropic",
+      "pricing": {
+        "input_tokens_per_credit": 35,
+        "output_tokens_per_credit": 7
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "fable 5",
+        "claude 5 fable",
+        "claude-fable-5",
+        "best claude"
+      ]
+    },
+    {
+      "id": "claude-fable-5-1",
+      "name": "Claude Fable 5.1",
+      "description": "Anthropic's latest max-capability model for demanding reasoning and long-horizon agentic work.",
+      "provider_id": "anthropic",
+      "provider_name": "Anthropic",
+      "logo_svg": "icons/anthropic.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "max",
+      "release_date": "2026-09-01",
+      "servers": [
+        {
+          "id": "anthropic",
+          "name": "Anthropic API",
+          "region": "US"
+        }
+      ],
+      "default_server": "anthropic",
+      "pricing": {
+        "input_tokens_per_credit": 35,
+        "output_tokens_per_credit": 7
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "fable 5.1",
+        "claude 5.1 fable",
+        "claude-fable-5-1",
+        "best claude"
+      ]
+    },
+    {
+      "id": "claude-haiku-4-5-20251001",
+      "name": "Claude Haiku 4.5",
+      "description": "Fastest and most affordable Claude model. Ideal for simple tasks and health checks.",
+      "provider_id": "anthropic",
+      "provider_name": "Anthropic",
+      "logo_svg": "icons/anthropic.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "low",
+      "release_date": "2025-10-15",
+      "servers": [
+        {
+          "id": "aws_bedrock",
+          "name": "AWS Bedrock",
+          "region": "EU"
+        },
+        {
+          "id": "anthropic",
+          "name": "Anthropic API",
+          "region": "US"
+        }
+      ],
+      "default_server": "aws_bedrock",
+      "pricing": {
+        "input_tokens_per_credit": 350,
+        "output_tokens_per_credit": 70
+      }
+    },
+    {
+      "id": "claude-opus-4-6",
+      "name": "Claude Opus 4.6",
+      "description": "Most powerful Claude model for highly complex tasks, research, and creative writing.",
+      "provider_id": "anthropic",
+      "provider_name": "Anthropic",
+      "logo_svg": "icons/anthropic.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-02-06",
+      "servers": [
+        {
+          "id": "anthropic",
+          "name": "Anthropic API",
+          "region": "US"
+        },
+        {
+          "id": "aws_bedrock",
+          "name": "AWS Bedrock",
+          "region": "EU"
+        }
+      ],
+      "default_server": "aws_bedrock",
+      "pricing": {
+        "input_tokens_per_credit": 70,
+        "output_tokens_per_credit": 15
+      },
+      "show_in_mentions": false,
+      "search_aliases": [
+        "opus 4.5",
+        "claude 4.5 opus",
+        "4.5",
+        "claude-opus-4-5"
+      ]
+    },
+    {
+      "id": "claude-opus-4-7",
+      "name": "Claude Opus 4.7",
+      "description": "Most capable Claude model with step-change improvement in agentic coding, 1M context (new tokenizer), 128k max output, and adaptive thinking.",
+      "provider_id": "anthropic",
+      "provider_name": "Anthropic",
+      "logo_svg": "icons/anthropic.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-04-16",
+      "servers": [
+        {
+          "id": "anthropic",
+          "name": "Anthropic API",
+          "region": "US"
+        },
+        {
+          "id": "aws_bedrock",
+          "name": "AWS Bedrock",
+          "region": "EU"
+        }
+      ],
+      "default_server": "anthropic",
+      "pricing": {
+        "input_tokens_per_credit": 70,
+        "output_tokens_per_credit": 15
+      },
+      "show_in_mentions": false,
+      "search_aliases": [
+        "opus 4.6",
+        "claude 4.6 opus",
+        "opus 4.5",
+        "claude 4.5 opus",
+        "claude-opus-4-6",
+        "claude-opus-4-5"
+      ]
+    },
+    {
+      "id": "claude-opus-4-8",
+      "name": "Claude Opus 4.8",
+      "description": "Anthropic's latest Opus model for highly complex reasoning, coding, and agentic work. Supported via the direct Claude API.",
+      "provider_id": "anthropic",
+      "provider_name": "Anthropic",
+      "logo_svg": "icons/anthropic.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-05-28",
+      "servers": [
+        {
+          "id": "anthropic",
+          "name": "Anthropic API",
+          "region": "US"
+        }
+      ],
+      "default_server": "anthropic",
+      "pricing": {
+        "input_tokens_per_credit": 70,
+        "output_tokens_per_credit": 15
+      },
+      "show_in_mentions": false,
+      "reasoning": true,
+      "search_aliases": [
+        "opus 4.8",
+        "claude 4.8 opus",
+        "claude-opus-4.8",
+        "opus 4.7",
+        "claude 4.7 opus"
+      ]
+    },
+    {
+      "id": "claude-opus-5",
+      "name": "Claude Opus 5",
+      "description": "Latest Opus model for complex agentic coding, enterprise work, and deep reasoning.",
+      "provider_id": "anthropic",
+      "provider_name": "Anthropic",
+      "logo_svg": "icons/anthropic.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-06-09",
+      "servers": [
+        {
+          "id": "anthropic",
+          "name": "Anthropic API",
+          "region": "US"
+        }
+      ],
+      "default_server": "anthropic",
+      "pricing": {
+        "input_tokens_per_credit": 70,
+        "output_tokens_per_credit": 15
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "opus 5",
+        "claude 5 opus",
+        "claude-opus-5",
+        "opus 4.8",
+        "claude-opus-4-8"
+      ]
+    },
+    {
+      "id": "claude-sonnet-4-6",
+      "name": "Claude Sonnet 4.6",
+      "description": "Optimal balance of intelligence, cost, and speed.",
+      "provider_id": "anthropic",
+      "provider_name": "Anthropic",
+      "logo_svg": "icons/anthropic.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "medium",
+      "release_date": "2026-02-18",
+      "servers": [
+        {
+          "id": "anthropic",
+          "name": "Anthropic API",
+          "region": "US"
+        },
+        {
+          "id": "aws_bedrock",
+          "name": "AWS Bedrock",
+          "region": "EU"
+        }
+      ],
+      "default_server": "aws_bedrock",
+      "pricing": {
+        "input_tokens_per_credit": 110,
+        "output_tokens_per_credit": 20
+      },
+      "show_in_mentions": false,
+      "search_aliases": [
+        "sonnet 4.5",
+        "claude 4.5 sonnet",
+        "claude-sonnet-4-5",
+        "claude-sonnet-4-5-20250929"
+      ]
+    },
+    {
+      "id": "claude-sonnet-5",
+      "name": "Claude Sonnet 5",
+      "description": "Latest Sonnet model with strong intelligence, fast latency, and 1M-token context.",
+      "provider_id": "anthropic",
+      "provider_name": "Anthropic",
+      "logo_svg": "icons/anthropic.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "medium",
+      "release_date": "2026-06-09",
+      "servers": [
+        {
+          "id": "anthropic",
+          "name": "Anthropic API",
+          "region": "US"
+        }
+      ],
+      "default_server": "anthropic",
+      "pricing": {
+        "input_tokens_per_credit": 170,
+        "output_tokens_per_credit": 35
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "sonnet 5",
+        "claude 5 sonnet",
+        "claude-sonnet-5",
+        "sonnet 4.6",
+        "claude-sonnet-4-6"
+      ]
+    },
+    {
+      "id": "flux-2-klein-edit",
+      "name": "FLUX.2 [klein] 4B Edit",
+      "description": "FLUX.2 [klein] 4B Base image-to-image editing model. Accepts 1-4 reference images alongside a text prompt for style transfer, composition editing, or reference-guided generation.",
+      "provider_id": "bfl",
+      "provider_name": "Black Forest Labs",
+      "logo_svg": "icons/bfl.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "image"
+      ],
+      "for_app_skill": "images.generate_draft",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2025-01-01",
+      "servers": [
+        {
+          "id": "fal",
+          "name": "fal.ai",
+          "region": "US"
+        }
+      ],
+      "default_server": "fal",
+      "pricing": {
+        "per_unit": {
+          "credits": 15,
+          "unit_name": "image"
+        }
+      }
+    },
+    {
+      "id": "flux-2-klein",
+      "name": "FLUX.2 [klein] 9B",
+      "description": "FLUX.2 [klein] 9B Base from Black Forest Labs. Enhanced realism, crisper text generation, and native editing capabilities.",
+      "provider_id": "bfl",
+      "provider_name": "Black Forest Labs",
+      "logo_svg": "icons/bfl.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "image"
+      ],
+      "for_app_skill": "images.generate_draft",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2025-01-01",
+      "servers": [
+        {
+          "id": "fal",
+          "name": "fal.ai",
+          "region": "US"
+        }
+      ],
+      "default_server": "fal",
+      "pricing": {
+        "per_unit": {
+          "credits": 15,
+          "unit_name": "image"
+        }
+      }
+    },
+    {
+      "id": "deepseek-v4-flash",
+      "name": "DeepSeek V4 Flash",
+      "description": "DeepSeek V4 Flash is an efficiency-optimized Mixture-of-Experts model with 284B total parameters, 13B activated parameters, hybrid attention, and a 1M-token context window. Served through OpenRouter with AtlasCloud preferred as the primary upstream provider.",
+      "provider_id": "deepseek",
+      "provider_name": "DeepSeek",
+      "logo_svg": "icons/deepseek.svg",
+      "country_origin": "CN",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "economy",
+      "capability_level": "medium",
+      "release_date": "2026-04-23",
+      "servers": [
+        {
+          "id": "openrouter",
+          "name": "OpenRouter API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openrouter",
+      "pricing": {
+        "input_tokens_per_credit": 2350,
+        "output_tokens_per_credit": 1190
+      },
+      "reasoning": true
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "name": "DeepSeek V4 Pro",
+      "description": "DeepSeek V4 Pro is a large-scale Mixture-of-Experts model with 1.6T total parameters, 49B activated parameters, hybrid attention, and a 512K-token Together context window. Primary: Together AI direct API; Fallback: OpenRouter.",
+      "provider_id": "deepseek",
+      "provider_name": "DeepSeek",
+      "logo_svg": "icons/deepseek.svg",
+      "country_origin": "CN",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "high",
+      "release_date": "2026-04-23",
+      "servers": [
+        {
+          "id": "together",
+          "name": "Together AI",
+          "region": "US"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter API",
+          "region": "US"
+        }
+      ],
+      "default_server": "together",
+      "pricing": {
+        "input_tokens_per_credit": 150,
+        "output_tokens_per_credit": 75
+      },
+      "reasoning": true
+    },
+    {
+      "id": "eleven_v3",
+      "name": "Eleven v3",
+      "description": "Highest-quality expressive multilingual text-to-speech model used as the default by audio.speak.",
+      "provider_id": "elevenlabs",
+      "provider_name": "ElevenLabs",
+      "logo_svg": "icons/elevenlabs.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "audio.speak",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "elevenlabs",
+          "name": "ElevenLabs",
+          "region": "US"
+        }
+      ],
+      "default_server": "elevenlabs",
+      "pricing": {
+        "per_second": 4
+      }
+    },
+    {
+      "id": "eleven_v3_conversational",
+      "name": "Eleven v3 Conversational",
+      "description": "Lower-latency Eleven v3 variant used only for progressive assistant-response speech.",
+      "provider_id": "elevenlabs",
+      "provider_name": "ElevenLabs",
+      "logo_svg": "icons/elevenlabs.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "assistant_response_speech.segment",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "elevenlabs",
+          "name": "ElevenLabs",
+          "region": "US"
+        }
+      ],
+      "default_server": "elevenlabs",
+      "pricing": {
+        "per_second": 2
+      }
+    },
+    {
+      "id": "eleven_flash_v2_5",
+      "name": "ElevenLabs Flash v2.5",
+      "description": "Low-latency, lower-cost text-to-speech model available when explicitly selected by audio.speak.",
+      "provider_id": "elevenlabs",
+      "provider_name": "ElevenLabs",
+      "logo_svg": "icons/elevenlabs.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "audio.speak",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "elevenlabs",
+          "name": "ElevenLabs",
+          "region": "US"
+        }
+      ],
+      "default_server": "elevenlabs",
+      "pricing": {
+        "per_second": 2
+      }
+    },
+    {
+      "id": "eleven_multilingual_v2",
+      "name": "ElevenLabs Multilingual v2",
+      "description": "Stable multilingual text-to-speech model available when explicitly selected by audio.speak.",
+      "provider_id": "elevenlabs",
+      "provider_name": "ElevenLabs",
+      "logo_svg": "icons/elevenlabs.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "audio.speak",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "elevenlabs",
+          "name": "ElevenLabs",
+          "region": "US"
+        }
+      ],
+      "default_server": "elevenlabs",
+      "pricing": {
+        "per_second": 4
+      }
+    },
+    {
+      "id": "eleven_text_to_sound_v2",
+      "name": "ElevenLabs Text to Sound v2",
+      "description": "Short sound-effect generation model used by audio.generate.",
+      "provider_id": "elevenlabs",
+      "provider_name": "ElevenLabs",
+      "logo_svg": "icons/elevenlabs.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "audio.generate",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "elevenlabs",
+          "name": "ElevenLabs",
+          "region": "US"
+        }
+      ],
+      "default_server": "elevenlabs",
+      "pricing": {
+        "per_second": 20
+      }
+    },
+    {
+      "id": "gemini-3-flash-preview",
+      "name": "Gemini 3 Flash",
+      "description": "Fast Gemini 3 preview model (primary: Google AI Studio US; fallback: Google Vertex AI global).",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image",
+        "video",
+        "audio"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "medium",
+      "release_date": "2025-12-17",
+      "servers": [
+        {
+          "id": "google_ai_studio",
+          "name": "Google AI Studio",
+          "region": "US"
+        },
+        {
+          "id": "google",
+          "name": "Google Vertex AI",
+          "region": "global"
+        }
+      ],
+      "default_server": "google_ai_studio",
+      "pricing": {
+        "input_tokens_per_credit": 650,
+        "output_tokens_per_credit": 110
+      },
+      "reasoning": true
+    },
+    {
+      "id": "gemini-3-pro-image-preview",
+      "name": "Gemini 3 Pro",
+      "description": "High-end native image generation and editing from Google. Supports text-to-image and image-to-image editing with up to 14 reference images.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "image"
+      ],
+      "for_app_skill": "images.generate",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2025-12-17",
+      "servers": [
+        {
+          "id": "google_ai_studio",
+          "name": "Google AI Studio",
+          "region": "US"
+        },
+        {
+          "id": "google",
+          "name": "Google Vertex AI",
+          "region": "global"
+        }
+      ],
+      "default_server": "google_ai_studio",
+      "pricing": {
+        "per_unit": {
+          "credits": 200,
+          "unit_name": "image"
+        }
+      }
+    },
+    {
+      "id": "gemini-3.1-pro-preview",
+      "name": "Gemini 3.1 Pro",
+      "description": "Better thinking, improved token efficiency, and stronger factual grounding over Gemini 3 Pro. Optimized for software engineering and agentic workflows with precise tool usage.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image",
+        "video",
+        "audio"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-02-19",
+      "servers": [
+        {
+          "id": "google_ai_studio",
+          "name": "Google AI Studio",
+          "region": "US"
+        },
+        {
+          "id": "google",
+          "name": "Google Vertex AI",
+          "region": "global"
+        }
+      ],
+      "default_server": "google_ai_studio",
+      "pricing": {
+        "input_tokens_per_credit": 170,
+        "output_tokens_per_credit": 30
+      },
+      "reasoning": true
+    },
+    {
+      "id": "gemini-3.5-flash",
+      "name": "Gemini 3.5 Flash",
+      "description": "Stable Gemini 3.5 Flash model built for fast coding, agentic, and long-context tasks. Cheaper than Gemini 3.1 Pro but more expensive than Gemini 3 Flash.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image",
+        "video",
+        "audio"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "medium",
+      "release_date": "2026-05-19",
+      "servers": [
+        {
+          "id": "google_ai_studio",
+          "name": "Google AI Studio",
+          "region": "US"
+        },
+        {
+          "id": "google",
+          "name": "Google Vertex AI",
+          "region": "global"
+        }
+      ],
+      "default_server": "google_ai_studio",
+      "pricing": {
+        "input_tokens_per_credit": 200,
+        "output_tokens_per_credit": 40
+      },
+      "reasoning": true
+    },
+    {
+      "id": "gemini-3.5-flash-lite",
+      "name": "Gemini 3.5 Flash-Lite",
+      "description": "Stable low-latency Gemini 3.5 Flash-Lite model for high-throughput agentic tasks, document processing, translation, and simple data extraction. Primary: Google AI Studio US; fallback: Google Vertex AI global.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image",
+        "video",
+        "audio",
+        "pdf"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "low",
+      "release_date": "2026-07-21",
+      "servers": [
+        {
+          "id": "google_ai_studio",
+          "name": "Google AI Studio",
+          "region": "US"
+        },
+        {
+          "id": "google",
+          "name": "Google Vertex AI",
+          "region": "global"
+        }
+      ],
+      "default_server": "google_ai_studio",
+      "pricing": {
+        "input_tokens_per_credit": 1100,
+        "output_tokens_per_credit": 130
+      },
+      "reasoning": true
+    },
+    {
+      "id": "gemini-3.7-flash",
+      "name": "Gemini 3.7 Flash",
+      "description": "Stable Gemini 3.7 Flash model with strong coding, agentic, multimodal, and long-context performance at a low introductory token price. Primary: Google AI Studio US; fallback: Google Vertex AI global.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image",
+        "video",
+        "audio",
+        "pdf"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "high",
+      "release_date": "2026-08-13",
+      "servers": [
+        {
+          "id": "google_ai_studio",
+          "name": "Google AI Studio",
+          "region": "US"
+        },
+        {
+          "id": "google",
+          "name": "Google Vertex AI",
+          "region": "global"
+        }
+      ],
+      "default_server": "google_ai_studio",
+      "pricing": {
+        "input_tokens_per_credit": 450,
+        "output_tokens_per_credit": 90
+      },
+      "reasoning": true
+    },
+    {
+      "id": "gemini-3.8-flash",
+      "name": "Gemini 3.8 Flash",
+      "description": "Latest Gemini Flash model for complex coding, agentic, multimodal, and long-context tasks. Explicit selection only pending real-world user feedback.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image",
+        "video",
+        "audio",
+        "pdf"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-09-02",
+      "servers": [
+        {
+          "id": "google_ai_studio",
+          "name": "Google AI Studio",
+          "region": "US"
+        },
+        {
+          "id": "google",
+          "name": "Google Vertex AI",
+          "region": "global"
+        }
+      ],
+      "default_server": "google_ai_studio",
+      "pricing": {
+        "input_tokens_per_credit": 450,
+        "output_tokens_per_credit": 90
+      },
+      "reasoning": true
+    },
+    {
+      "id": "gemma-4-31b",
+      "name": "Gemma 4 31B",
+      "description": "Google Gemma 4 31B multimodal model served via Cerebras public preview, optimized for fast image-aware chat, screenshots, documents, diagrams, and design assets.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "low",
+      "release_date": "2026-06-29",
+      "servers": [
+        {
+          "id": "cerebras",
+          "name": "Cerebras",
+          "region": "US"
+        }
+      ],
+      "default_server": "cerebras",
+      "pricing": {
+        "input_tokens_per_credit": 335,
+        "output_tokens_per_credit": 220
+      }
+    },
+    {
+      "id": "lyria-002",
+      "name": "Lyria 2",
+      "description": "Documented Vertex AI Lyria predict model for 30-second instrumental WAV generation. Kept as an explicit fallback for Lyria 3 preview availability gaps.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "music.generate",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2025-01-01",
+      "servers": [
+        {
+          "id": "google",
+          "name": "Google Vertex AI",
+          "region": "us-central1"
+        }
+      ],
+      "default_server": "google",
+      "pricing": {
+        "per_unit": {
+          "credits": 60,
+          "unit_name": "song"
+        }
+      }
+    },
+    {
+      "id": "lyria-3-clip-preview",
+      "name": "Lyria 3 Clip",
+      "description": "Google Lyria 3 preview model for 30-second high-quality stereo music clips.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "music.generate",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2026-04-07",
+      "servers": [
+        {
+          "id": "google",
+          "name": "Google Vertex AI",
+          "region": "global"
+        }
+      ],
+      "default_server": "google",
+      "pricing": {
+        "per_unit": {
+          "credits": 60,
+          "unit_name": "song"
+        }
+      }
+    },
+    {
+      "id": "lyria-3-pro-preview",
+      "name": "Lyria 3 Pro",
+      "description": "Google's latest Lyria music generation model for longer, high-quality stereo tracks with vocal and lyric support in preview. OpenMates uses Vertex AI by default for Cloud data-governance controls.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "music.generate",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2026-04-07",
+      "servers": [
+        {
+          "id": "google",
+          "name": "Google Vertex AI",
+          "region": "global"
+        }
+      ],
+      "default_server": "google",
+      "pricing": {
+        "per_unit": {
+          "credits": 120,
+          "unit_name": "song"
+        }
+      }
+    },
+    {
+      "id": "veo-3.1-generate-preview",
+      "name": "Veo 3.1",
+      "description": "Google's latest Veo 3.1 preview model for high-fidelity short video generation with native audio. OpenMates stores generated videos encrypted and serves REST downloads through short-lived decrypted links.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "video",
+        "audio"
+      ],
+      "for_app_skill": "videos.generate",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2026-01-01",
+      "servers": [
+        {
+          "id": "google_ai_studio",
+          "name": "Google Gemini API",
+          "region": "US"
+        }
+      ],
+      "default_server": "google_ai_studio",
+      "pricing": {
+        "per_second": 600
+      }
+    },
+    {
+      "id": "veo-3.1-fast-generate-preview",
+      "name": "Veo 3.1 Fast",
+      "description": "Faster Google Veo 3.1 preview model for short video generation.",
+      "provider_id": "google",
+      "provider_name": "Google",
+      "logo_svg": "icons/google.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "video",
+        "audio"
+      ],
+      "for_app_skill": "videos.generate",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2026-01-01",
+      "servers": [
+        {
+          "id": "google_ai_studio",
+          "name": "Google Gemini API",
+          "region": "US"
+        }
+      ],
+      "default_server": "google_ai_studio",
+      "pricing": {
+        "per_second": 150
+      }
+    },
+    {
+      "id": "hitem3dv2.1-fast-pbr",
+      "name": "Hi3D v2.1 Fast PBR",
+      "description": "Fast image-to-3D generation with PBR textures and GLB output.",
+      "provider_id": "hi3d",
+      "provider_name": "Hi3D",
+      "logo_svg": "icons/hi3d.svg",
+      "country_origin": "HK",
+      "input_types": [
+        "image"
+      ],
+      "output_types": [
+        "model_3d"
+      ],
+      "for_app_skill": "models3d.generate",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "hi3d",
+          "name": "Hi3D API",
+          "region": "global"
+        }
+      ],
+      "default_server": "hi3d",
+      "pricing": {
+        "per_unit": {
+          "credits": 25,
+          "unit_name": "model"
+        }
+      }
+    },
+    {
+      "id": "devstral-2512",
+      "name": "Devstral 2",
+      "description": "Our frontier code agents model for solving software engineering tasks; excels at using tools to explore codebases, editing multiple files and power software engineering agents.",
+      "provider_id": "mistral",
+      "provider_name": "Mistral AI",
+      "logo_svg": "icons/mistral.svg",
+      "country_origin": "FR",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "medium",
+      "release_date": "2025-12-01",
+      "servers": [
+        {
+          "id": "aws_bedrock",
+          "name": "AWS Bedrock",
+          "region": "EU"
+        },
+        {
+          "id": "mistral",
+          "name": "Mistral",
+          "region": "EU"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "US"
+        }
+      ],
+      "default_server": "aws_bedrock",
+      "pricing": {
+        "input_tokens_per_credit": 850,
+        "output_tokens_per_credit": 170
+      }
+    },
+    {
+      "id": "ministral-8b-2512",
+      "name": "Ministral 3 8B",
+      "description": "A powerful and efficient model offering best-in-class text generation with excellent speed. Ideal for preprocessing and postprocessing tasks.",
+      "provider_id": "mistral",
+      "provider_name": "Mistral AI",
+      "logo_svg": "icons/mistral.svg",
+      "country_origin": "FR",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "economy",
+      "capability_level": "low",
+      "release_date": "2025-12-01",
+      "servers": [
+        {
+          "id": "mistral",
+          "name": "Mistral",
+          "region": "EU"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "US"
+        }
+      ],
+      "default_server": "mistral",
+      "pricing": {
+        "input_tokens_per_credit": 2222,
+        "output_tokens_per_credit": 2222
+      }
+    },
+    {
+      "id": "mistral-medium-latest",
+      "name": "Mistral Medium 3.5",
+      "description": "Mistral AI's frontier-class multimodal model optimized for agentic and coding use cases. Released as open weights under a Modified MIT license.",
+      "provider_id": "mistral",
+      "provider_name": "Mistral AI",
+      "logo_svg": "icons/mistral.svg",
+      "country_origin": "FR",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "high",
+      "release_date": "2026-04-28",
+      "servers": [
+        {
+          "id": "mistral",
+          "name": "Mistral",
+          "region": "EU"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "US"
+        }
+      ],
+      "default_server": "mistral",
+      "pricing": {
+        "input_tokens_per_credit": 220,
+        "output_tokens_per_credit": 45
+      }
+    },
+    {
+      "id": "mistral-small-2506",
+      "name": "Mistral Small 3.2",
+      "description": "Mistral AI's fast and cost-effective model, optimized for low latency. Pinned version of Mistral Small 3.2 (24B params). Used for preprocessing and postprocessing tasks where mistral-small-latest now points to Small 4.",
+      "provider_id": "mistral",
+      "provider_name": "Mistral AI",
+      "logo_svg": "icons/mistral.svg",
+      "country_origin": "FR",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "economy",
+      "capability_level": "low",
+      "release_date": "2025-06-01",
+      "servers": [
+        {
+          "id": "mistral",
+          "name": "Mistral",
+          "region": "EU"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "US"
+        }
+      ],
+      "default_server": "mistral",
+      "pricing": {
+        "input_tokens_per_credit": 3300,
+        "output_tokens_per_credit": 1100
+      }
+    },
+    {
+      "id": "mistral-small-latest",
+      "name": "Mistral Small 4",
+      "description": "Mistral AI's latest Small model (Small 4). As of June 2025, mistral-small-latest resolves to Mistral Small 4 (not Small 3.2). Twice the cost of Small 3.2. For preprocessing use mistral-small-2506 (pinned Small 3.2) instead.",
+      "provider_id": "mistral",
+      "provider_name": "Mistral AI",
+      "logo_svg": "icons/mistral.svg",
+      "country_origin": "FR",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "economy",
+      "capability_level": "medium",
+      "release_date": "2025-06-01",
+      "servers": [
+        {
+          "id": "mistral",
+          "name": "Mistral",
+          "region": "EU"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "US"
+        }
+      ],
+      "default_server": "mistral",
+      "pricing": {
+        "input_tokens_per_credit": 1650,
+        "output_tokens_per_credit": 550
+      }
+    },
+    {
+      "id": "voxtral-mini-2602",
+      "name": "Voxtral Mini",
+      "description": "Mistral AI's compact audio transcription model. Converts speech to text with high accuracy across multiple languages. Optimised for short voice notes and recordings at the lowest cost.",
+      "provider_id": "mistral",
+      "provider_name": "Mistral AI",
+      "logo_svg": "icons/mistral.svg",
+      "country_origin": "FR",
+      "input_types": [
+        "audio"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "audio.transcribe",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2026-02-26",
+      "servers": [
+        {
+          "id": "mistral",
+          "name": "Mistral",
+          "region": "EU"
+        }
+      ],
+      "default_server": "mistral",
+      "pricing": {
+        "per_minute": 3
+      }
+    },
+    {
+      "id": "kimi-k2.6",
+      "name": "Kimi K2.6",
+      "description": "Kimi K2.6 is Moonshot AI's next-generation multimodal model, designed for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration. Features improved reasoning, 262K context window, and enhanced tool-calling capabilities over K2.5. Primary: Together AI; Fallback: OpenRouter.",
+      "provider_id": "moonshot",
+      "provider_name": "Moonshot AI",
+      "logo_svg": "icons/moonshot.svg",
+      "country_origin": "CN",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "medium",
+      "release_date": "2026-04-28",
+      "servers": [
+        {
+          "id": "together",
+          "name": "Together AI",
+          "region": "US"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "US"
+        }
+      ],
+      "default_server": "together",
+      "pricing": {
+        "input_tokens_per_credit": 275,
+        "output_tokens_per_credit": 75
+      },
+      "reasoning": true
+    },
+    {
+      "id": "kimi-k2.7-code",
+      "name": "Kimi K2.7 Code",
+      "description": "Kimi K2.7 Code is Moonshot AI's coding-focused agent model for long-horizon software engineering tasks. Features a 1T-parameter MoE architecture with 32B activated parameters, 256K context window, tool use, and improved token efficiency over K2.6. Primary: Together AI; Fallback: OpenRouter.",
+      "provider_id": "moonshot",
+      "provider_name": "Moonshot AI",
+      "logo_svg": "icons/moonshot.svg",
+      "country_origin": "CN",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "high",
+      "release_date": "2026-06-12",
+      "servers": [
+        {
+          "id": "together",
+          "name": "Together AI",
+          "region": "US"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "US"
+        }
+      ],
+      "default_server": "together",
+      "pricing": {
+        "input_tokens_per_credit": 350,
+        "output_tokens_per_credit": 80
+      },
+      "reasoning": true
+    },
+    {
+      "id": "kimi-k3",
+      "name": "Kimi K3",
+      "description": "Kimi K3 is Moonshot AI's 2.8T-parameter open-weights MoE model with native vision, a 1M-token context window, and reasoning for long-horizon coding and knowledge work. Primary: Together AI.",
+      "provider_id": "moonshot",
+      "provider_name": "Moonshot AI",
+      "logo_svg": "icons/moonshot.svg",
+      "country_origin": "CN",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-07-27",
+      "servers": [
+        {
+          "id": "together",
+          "name": "Together AI",
+          "region": "US"
+        }
+      ],
+      "default_server": "together",
+      "pricing": {
+        "input_tokens_per_credit": 110,
+        "output_tokens_per_credit": 20
+      },
+      "reasoning": true
+    },
+    {
+      "id": "gpt-image-2",
+      "name": "GPT Image 2",
+      "description": "OpenAI's state-of-the-art image generation and editing model with strong prompt adherence, typography, and flexible image sizes.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "image"
+      ],
+      "for_app_skill": "images.generate",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2026-04-21",
+      "servers": [
+        {
+          "id": "openai",
+          "name": "OpenAI API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openai",
+      "pricing": {
+        "per_unit": {
+          "credits": 250,
+          "unit_name": "image"
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4",
+      "name": "GPT-5.4",
+      "description": "OpenAI's latest flagship model optimized for professional work, coding, and agentic tool use.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-03-05",
+      "servers": [
+        {
+          "id": "openai",
+          "name": "OpenAI API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openai",
+      "pricing": {
+        "input_tokens_per_credit": 130,
+        "output_tokens_per_credit": 20
+      }
+    },
+    {
+      "id": "gpt-5.5",
+      "name": "GPT-5.5",
+      "description": "OpenAI's most capable frontier model with advanced reasoning, coding, and multimodal understanding.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-04-15",
+      "servers": [
+        {
+          "id": "openai",
+          "name": "OpenAI API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openai",
+      "pricing": {
+        "input_tokens_per_credit": 65,
+        "output_tokens_per_credit": 10
+      }
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "name": "GPT-5.6 Luna",
+      "description": "OpenAI's efficient GPT-5.6 model for fast everyday assistance, coding, and multimodal chat.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "low",
+      "release_date": "2026-08-26",
+      "servers": [
+        {
+          "id": "openai",
+          "name": "OpenAI API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openai",
+      "pricing": {
+        "input_tokens_per_credit": 1600,
+        "output_tokens_per_credit": 275
+      },
+      "reasoning": true
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "name": "GPT-5.6 Sol",
+      "description": "OpenAI's high-capability GPT-5.6 reasoning model for demanding coding, analysis, and multimodal chat.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-08-26",
+      "servers": [
+        {
+          "id": "openai",
+          "name": "OpenAI API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openai",
+      "pricing": {
+        "input_tokens_per_credit": 80,
+        "output_tokens_per_credit": 15
+      },
+      "reasoning": true
+    },
+    {
+      "id": "gpt-5.6-sol-max",
+      "name": "GPT-5.6 Sol Max",
+      "description": "OpenMates' max-reasoning GPT-5.6 Sol variant for the hardest coding, analysis, and planning tasks.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "max",
+      "release_date": "2026-08-26",
+      "servers": [
+        {
+          "id": "openai",
+          "name": "OpenAI API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openai",
+      "pricing": {
+        "input_tokens_per_credit": 80,
+        "output_tokens_per_credit": 15
+      },
+      "reasoning": true
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "name": "GPT-5.6 Terra",
+      "description": "OpenAI's balanced GPT-5.6 model for complex writing, analysis, coding, and multimodal chat.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "medium",
+      "release_date": "2026-08-26",
+      "servers": [
+        {
+          "id": "openai",
+          "name": "OpenAI API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openai",
+      "pricing": {
+        "input_tokens_per_credit": 165,
+        "output_tokens_per_credit": 25
+      },
+      "reasoning": true
+    },
+    {
+      "id": "gpt-6-astra",
+      "name": "GPT-6 Astra",
+      "description": "OpenAI's most capable model for complex reasoning, coding, computer use, research, and document creation.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "max",
+      "release_date": "2026-09-04",
+      "servers": [
+        {
+          "id": "openai",
+          "name": "OpenAI API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openai",
+      "pricing": {
+        "input_tokens_per_credit": 33,
+        "output_tokens_per_credit": 6
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "astra",
+        "gpt-6 astra",
+        "gpt-6-astra"
+      ]
+    },
+    {
+      "id": "gpt-oss-120b",
+      "name": "GPT-OSS-120b",
+      "description": "OpenAI's open-weight 120B reasoning model, served by default through AWS Bedrock in the EU for stronger regional privacy.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "economy",
+      "capability_level": "low",
+      "release_date": "2025-08-01",
+      "servers": [
+        {
+          "id": "aws_bedrock",
+          "name": "AWS Bedrock",
+          "region": "EU"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter API",
+          "region": "US"
+        }
+      ],
+      "default_server": "aws_bedrock",
+      "pricing": {
+        "input_tokens_per_credit": 2200,
+        "output_tokens_per_credit": 550
+      }
+    },
+    {
+      "id": "gpt-oss-20b",
+      "name": "GPT-OSS-20b",
+      "description": "OpenAI's open-weight 20B reasoning model, served by default through AWS Bedrock in the EU for stronger regional privacy.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "economy",
+      "capability_level": "low",
+      "release_date": "2025-08-01",
+      "servers": [
+        {
+          "id": "aws_bedrock",
+          "name": "AWS Bedrock",
+          "region": "EU"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter API",
+          "region": "US"
+        }
+      ],
+      "default_server": "aws_bedrock",
+      "pricing": {
+        "input_tokens_per_credit": 4700,
+        "output_tokens_per_credit": 1100
+      }
+    },
+    {
+      "id": "recraftv4_1",
+      "name": "Recraft V4.1",
+      "description": "Latest Recraft raster image generation from text prompts. Fast and cost-effective. Best for photos, realistic scenes, and general illustration.",
+      "provider_id": "recraft",
+      "provider_name": "Recraft",
+      "logo_svg": "icons/recraft.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "image"
+      ],
+      "for_app_skill": "images.generate",
+      "tier": "economy",
+      "capability_level": null,
+      "release_date": "2026-05-01",
+      "servers": [
+        {
+          "id": "recraft",
+          "name": "Recraft API",
+          "region": "US"
+        }
+      ],
+      "default_server": "recraft",
+      "pricing": {
+        "per_unit": {
+          "credits": 50,
+          "unit_name": "image"
+        }
+      }
+    },
+    {
+      "id": "recraftv4_1_pro",
+      "name": "Recraft V4.1 Pro",
+      "description": "Latest high-resolution Recraft raster image generation. Best for print-ready assets, large-format output, and highly detailed compositions.",
+      "provider_id": "recraft",
+      "provider_name": "Recraft",
+      "logo_svg": "icons/recraft.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "image"
+      ],
+      "for_app_skill": "images.generate",
+      "tier": "premium",
+      "capability_level": null,
+      "release_date": "2026-05-01",
+      "servers": [
+        {
+          "id": "recraft",
+          "name": "Recraft API",
+          "region": "US"
+        }
+      ],
+      "default_server": "recraft",
+      "pricing": {
+        "per_unit": {
+          "credits": 250,
+          "unit_name": "image"
+        }
+      }
+    },
+    {
+      "id": "recraftv4_1_pro_vector",
+      "name": "Recraft V4.1 Pro Vector",
+      "description": "Latest high-resolution Recraft vector generation. Best for print-ready assets, detailed illustrations, and large-format output.",
+      "provider_id": "recraft",
+      "provider_name": "Recraft",
+      "logo_svg": "icons/recraft.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "image"
+      ],
+      "for_app_skill": "images.generate",
+      "tier": "premium",
+      "capability_level": null,
+      "release_date": "2026-05-01",
+      "servers": [
+        {
+          "id": "recraft",
+          "name": "Recraft API",
+          "region": "US"
+        }
+      ],
+      "default_server": "recraft",
+      "pricing": {
+        "per_unit": {
+          "credits": 300,
+          "unit_name": "image"
+        }
+      }
+    },
+    {
+      "id": "recraftv4_1_vector",
+      "name": "Recraft V4.1 Vector",
+      "description": "Latest Recraft vector generation from text prompts. Best for icons, logos, illustrations, and web graphics.",
+      "provider_id": "recraft",
+      "provider_name": "Recraft",
+      "logo_svg": "icons/recraft.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "image"
+      ],
+      "for_app_skill": "images.generate",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2026-05-01",
+      "servers": [
+        {
+          "id": "recraft",
+          "name": "Recraft API",
+          "region": "US"
+        }
+      ],
+      "default_server": "recraft",
+      "pricing": {
+        "per_unit": {
+          "credits": 100,
+          "unit_name": "image"
+        }
+      }
+    },
+    {
+      "id": "vectorize",
+      "name": "Recraft Vectorize",
+      "description": "Convert raster images (PNG/JPG/WEBP) to scalable SVG vectors. Ideal for converting logos, icons, and illustrations to infinitely scalable vector format.",
+      "provider_id": "recraft",
+      "provider_name": "Recraft",
+      "logo_svg": "icons/recraft.svg",
+      "country_origin": "US",
+      "input_types": [
+        "image"
+      ],
+      "output_types": [
+        "image"
+      ],
+      "for_app_skill": "images.vectorize",
+      "tier": "economy",
+      "capability_level": null,
+      "release_date": "2026-02-01",
+      "servers": [
+        {
+          "id": "recraft",
+          "name": "Recraft API",
+          "region": "US"
+        }
+      ],
+      "default_server": "recraft",
+      "pricing": {
+        "per_unit": {
+          "credits": 15,
+          "unit_name": "image"
+        }
+      }
+    },
+    {
+      "id": "zai-glm-4.7",
+      "name": "GLM 4.7",
+      "description": "Z.ai GLM 4.7 - 355B params, ~1000 tok/s via Cerebras.",
+      "provider_id": "zai",
+      "provider_name": "Z.ai",
+      "logo_svg": "icons/zai.svg",
+      "country_origin": "CN",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "medium",
+      "release_date": "2026-01-06",
+      "servers": [
+        {
+          "id": "cerebras",
+          "name": "Cerebras",
+          "region": "US"
+        },
+        {
+          "id": "aws_bedrock",
+          "name": "AWS Bedrock",
+          "region": "EU"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "US"
+        }
+      ],
+      "default_server": "cerebras",
+      "pricing": {
+        "input_tokens_per_credit": 150,
+        "output_tokens_per_credit": 120
+      }
+    },
+    {
+      "id": "zai-glm-5.2",
+      "name": "GLM 5.2",
+      "description": "Z.ai GLM 5.2 - large-scale reasoning model with a 1M-token context window for long-horizon agent workflows and project-level software engineering. Served via OpenRouter.",
+      "provider_id": "zai",
+      "provider_name": "Z.ai",
+      "logo_svg": "icons/zai.svg",
+      "country_origin": "CN",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "standard",
+      "capability_level": "high",
+      "release_date": "2026-06-16",
+      "servers": [
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "US"
+        }
+      ],
+      "default_server": "openrouter",
+      "pricing": {
+        "input_tokens_per_credit": 275,
+        "output_tokens_per_credit": 80
+      },
+      "reasoning": true
+    }
+  ]
+}
