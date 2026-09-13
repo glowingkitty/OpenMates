@@ -1,0 +1,624 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-12'
+generated_at: '2026-09-13T00:20:19+00:00'
+range:
+  since: '2026-09-12T00:00:00+00:00'
+  until: '2026-09-13T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 1
+  section_counts:
+    features: 0
+    bug_fixes: 1
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 1
+  dev_only_items: 1
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix(apple): restore responsive chat and component workflows'
+    section: bug_fixes
+    commits:
+    - c702b9236
+    authored_at: '2026-09-12T20:33:20+02:00'
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - apple/AGENTS.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/SpeechIcons.xcassets/Contents.json
+    - apple/OpenMates/Resources/SpeechIcons.xcassets/assistant-speech-audio.imageset/Contents.json
+    - apple/OpenMates/Resources/SpeechIcons.xcassets/assistant-speech-audio.imageset/icon.svg
+    - apple/OpenMates/Resources/SpeechIcons.xcassets/assistant-speech-muted.imageset/Contents.json
+    - apple/OpenMates/Resources/SpeechIcons.xcassets/assistant-speech-muted.imageset/icon.svg
+    - apple/OpenMates/Resources/modelsMetadata.json
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift
+    - apple/OpenMates/Sources/Core/Services/ChatCompletionRecoveryCoordinator.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/DevPreview/DevAuthFormFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevHistoryWelcomeFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/DevPreview/DevProgressiveMessageFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevSidebarComponentFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevSignupFlowFixture.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/NativeSignupState.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedRendererSupport.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebsiteEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Settings/Models/SettingsModeModels.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Auth/AuthFormState.swift
+    - apple/OpenMates/Sources/Shared/Auth/AuthFormViews.swift
+    - apple/OpenMates/Sources/Shared/Auth/NativeSignupPasskeyPlatform.swift
+    - apple/OpenMates/Sources/Shared/Auth/NativeSignupPasskeyRuntime.swift
+    - apple/OpenMates/Sources/Shared/Auth/NativeSignupPasswordPolicy.swift
+    - apple/OpenMates/Sources/Shared/Auth/NativeSignupRuntime.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatEmbedWorkspace.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatSidebarContent.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatSidebarDisplayPolicy.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/ProgressiveMarkdownRenderProjection.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspacePaneMetrics.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechAppRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechAudioPlayer.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechNativeMedia.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechPreferenceAdapter.swift
+    - apple/OpenMates/Sources/Shared/Composer/ChatModelPreferenceService.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentActionRow.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDraftRepository.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerModelPreferenceController.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerSpeechControl.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerSpeechHostView.swift
+    - apple/OpenMates/Sources/Shared/Composer/DevComposerModelFixture.swift
+    - apple/OpenMates/Sources/Shared/Composer/ModelPreferenceAppRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/ModelPreferenceNativeAdapters.swift
+    - apple/OpenMates/Sources/Shared/Composer/ModelPreferenceSocketTransport.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeAssistantSpeech.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerModelDetails.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerModelHost.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerModelSelector.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeModelCatalog.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeModelCatalogRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeModelDisabledPreferences.swift
+    - apple/OpenMatesTests/AuthFormTests.swift
+    - apple/OpenMatesTests/AuthSessionReauthenticationTests.swift
+    - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatModelPreferenceServiceTests.swift
+    - apple/OpenMatesTests/ChatSidebarDisplayPolicyTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    - apple/OpenMatesTests/DevPreviewLaunchConfigurationTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    - apple/OpenMatesTests/ModelPreferenceInboundTests.swift
+    - apple/OpenMatesTests/ModelPreferenceIntegrationTests.swift
+    - apple/OpenMatesTests/ModelPreferenceTransportTests.swift
+    - apple/OpenMatesTests/NativeAssistantSpeechTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesTests/NativeModelCatalogTests.swift
+    - apple/OpenMatesTests/NativeModelDisabledPreferencesTests.swift
+    - apple/OpenMatesTests/NativeSignupPasskeyTests.swift
+    - apple/OpenMatesTests/NativeSignupPasswordPolicyTests.swift
+    - apple/OpenMatesTests/NativeSignupRuntimeTests.swift
+    - apple/OpenMatesTests/NativeSignupStateTests.swift
+    - apple/OpenMatesTests/ProgressiveMarkdownRenderTests.swift
+    - apple/OpenMatesTests/PublicImageLoaderTests.swift
+    - apple/OpenMatesTests/StreamingClientFanoutTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - apple/OpenMatesUITests/DevAuthFormUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/DevSignupRuntimeUITests.swift
+    - apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift
+    - apple/OpenMatesUITests/ModelFixtureUITests.swift
+    - apple/OpenMatesUITests/ProgressiveMessagePreviewUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_metadata_chats_handler.py
+    - backend/tests/test_team_chat_pagination.py
+    - docs/architecture/apple/component-previews.md
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    - frontend/packages/ui/scripts/build-tokens.js
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/data/aiProviderDisplay.json
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/utils/aiModelDisplay.ts
+    - scripts/apple_chat_parity_audit.py
+    - scripts/apple_parity_audit.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix(apple): restore responsive chat and component workflows'
+    commits:
+    - c702b9236
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix(apple): restore responsive chat and component workflows'
+    commits:
+    - c702b9236
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix(apple): restore responsive chat and component workflows'
+    commits:
+    - c702b9236
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: c702b923675ee2772207fa01861a295bc354e837
+    short_sha: c702b9236
+    authored_at: '2026-09-12T20:33:20+02:00'
+    subject: 'fix(apple): restore responsive chat and component workflows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - apple/AGENTS.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/SpeechIcons.xcassets/Contents.json
+    - apple/OpenMates/Resources/SpeechIcons.xcassets/assistant-speech-audio.imageset/Contents.json
+    - apple/OpenMates/Resources/SpeechIcons.xcassets/assistant-speech-audio.imageset/icon.svg
+    - apple/OpenMates/Resources/SpeechIcons.xcassets/assistant-speech-muted.imageset/Contents.json
+    - apple/OpenMates/Resources/SpeechIcons.xcassets/assistant-speech-muted.imageset/icon.svg
+    - apple/OpenMates/Resources/modelsMetadata.json
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift
+    - apple/OpenMates/Sources/Core/Services/ChatCompletionRecoveryCoordinator.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/DevPreview/DevAuthFormFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevHistoryWelcomeFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/DevPreview/DevProgressiveMessageFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevSidebarComponentFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevSignupFlowFixture.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/NativeSignupState.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedRendererSupport.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebsiteEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Settings/Models/SettingsModeModels.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Auth/AuthFormState.swift
+    - apple/OpenMates/Sources/Shared/Auth/AuthFormViews.swift
+    - apple/OpenMates/Sources/Shared/Auth/NativeSignupPasskeyPlatform.swift
+    - apple/OpenMates/Sources/Shared/Auth/NativeSignupPasskeyRuntime.swift
+    - apple/OpenMates/Sources/Shared/Auth/NativeSignupPasswordPolicy.swift
+    - apple/OpenMates/Sources/Shared/Auth/NativeSignupRuntime.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatEmbedWorkspace.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatSidebarContent.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatSidebarDisplayPolicy.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/ProgressiveMarkdownRenderProjection.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspacePaneMetrics.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechAppRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechAudioPlayer.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechNativeMedia.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechPreferenceAdapter.swift
+    - apple/OpenMates/Sources/Shared/Composer/ChatModelPreferenceService.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentActionRow.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDraftRepository.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerModelPreferenceController.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerSpeechControl.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerSpeechHostView.swift
+    - apple/OpenMates/Sources/Shared/Composer/DevComposerModelFixture.swift
+    - apple/OpenMates/Sources/Shared/Composer/ModelPreferenceAppRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/ModelPreferenceNativeAdapters.swift
+    - apple/OpenMates/Sources/Shared/Composer/ModelPreferenceSocketTransport.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeAssistantSpeech.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerModelDetails.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerModelHost.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerModelSelector.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeModelCatalog.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeModelCatalogRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeModelDisabledPreferences.swift
+    - apple/OpenMatesTests/AuthFormTests.swift
+    - apple/OpenMatesTests/AuthSessionReauthenticationTests.swift
+    - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatModelPreferenceServiceTests.swift
+    - apple/OpenMatesTests/ChatSidebarDisplayPolicyTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    - apple/OpenMatesTests/DevPreviewLaunchConfigurationTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    - apple/OpenMatesTests/ModelPreferenceInboundTests.swift
+    - apple/OpenMatesTests/ModelPreferenceIntegrationTests.swift
+    - apple/OpenMatesTests/ModelPreferenceTransportTests.swift
+    - apple/OpenMatesTests/NativeAssistantSpeechTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesTests/NativeModelCatalogTests.swift
+    - apple/OpenMatesTests/NativeModelDisabledPreferencesTests.swift
+    - apple/OpenMatesTests/NativeSignupPasskeyTests.swift
+    - apple/OpenMatesTests/NativeSignupPasswordPolicyTests.swift
+    - apple/OpenMatesTests/NativeSignupRuntimeTests.swift
+    - apple/OpenMatesTests/NativeSignupStateTests.swift
+    - apple/OpenMatesTests/ProgressiveMarkdownRenderTests.swift
+    - apple/OpenMatesTests/PublicImageLoaderTests.swift
+    - apple/OpenMatesTests/StreamingClientFanoutTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - apple/OpenMatesUITests/DevAuthFormUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/DevSignupRuntimeUITests.swift
+    - apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift
+    - apple/OpenMatesUITests/ModelFixtureUITests.swift
+    - apple/OpenMatesUITests/ProgressiveMessagePreviewUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_metadata_chats_handler.py
+    - backend/tests/test_team_chat_pagination.py
+    - docs/architecture/apple/component-previews.md
+    - docs/plans/apple-daily-use-recovery/plan.yml
+    - frontend/packages/ui/scripts/build-tokens.js
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/data/aiProviderDisplay.json
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/utils/aiModelDisplay.ts
+    - scripts/apple_chat_parity_audit.py
+    - scripts/apple_parity_audit.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+llm_summary:
+  overview: OpenMates focused on internal stability for Apple platforms, specifically restoring chat and component workflows
+    for the unreleased iOS and macOS versions.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: Work continued on the unreleased iOS and macOS platforms, with a significant update to restore responsive chat and
+      component workflows across the Apple ecosystem.
+    evidence:
+      commits:
+      - c702b9236
+    release_status: dev_only
+  internal_progress:
+  - text: The project updated its Apple-specific development environment, including parity audit scripts, UI test suites,
+      and architecture documentation.
+    evidence:
+      commits:
+      - c702b9236
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Restoration of Apple chat and component workflows.
+      evidence:
+        commits:
+        - c702b9236
+      reason: The iOS and macOS platforms are currently disabled and the work is marked as dev-only.
+    rationale: No changes were released to the main branch or marked as ready for public communication during this period.
+  social_video_recommendations: []
+  quality_notes:
+  - The update included a broad range of unit and UI tests for Apple platforms, covering authentication, chat streaming, and
+    model preferences.
+  validation_warnings: []
