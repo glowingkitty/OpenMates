@@ -817,18 +817,6 @@
 														onChange={updateEditorGraph}
 														onSave={saveNodeGraph}
 													/>
-													{#if editorActivationReady && !selectedWorkflow.enabled}<div
-															class="activate-workflow"
-														>
-															<p>{$text('workflows.builder.ready_to_use')}</p>
-															<button
-																type="button"
-																data-testid="workflow-activate"
-																disabled={saving}
-																onclick={() => void setSelectedWorkflowEnabled(true)}
-																>{$text('workflows.builder.activate')}</button
-															>
-														</div>{/if}
 												</div>
 											{/if}
 											<details class="workflow-more-options" data-testid="workflow-more-options">
@@ -1019,23 +1007,6 @@
 		gap: 0;
 		overflow: hidden;
 	}
-
-	.activate-workflow {
-		display: grid;
-		justify-items: center;
-		gap: 0.6rem;
-		padding: 1rem;
-	}
-	.activate-workflow p {
-		margin: 0;
-		color: var(--color-font-secondary);
-		font-size: 0.85rem;
-	}
-	.activate-workflow button {
-		background: var(--color-button-primary);
-		color: var(--color-font-button);
-		min-width: 9rem;
-	}
 	.workflow-more-options {
 		width: min(54rem, calc(100% - 2rem));
 		margin: 2rem auto;
@@ -1064,11 +1035,12 @@
 	}
 
 	.workflow-detail {
+		font-size: var(--font-size-p);
 		min-width: 0;
 		overflow: auto;
 		border: 1px solid var(--color-grey-20);
 		border-radius: var(--radius-16, 32px);
-		background: var(--color-grey-0);
+		background: var(--color-grey-10);
 		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
 	}
 

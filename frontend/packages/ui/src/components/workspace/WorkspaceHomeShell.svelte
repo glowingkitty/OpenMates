@@ -422,6 +422,33 @@
     overflow: hidden;
   }
 
+  /* Workflow typography follows the design's 16px body / 14px minimum.
+     Custom properties keep other shared-workspace surfaces unchanged. */
+  .workspace-home-shell[data-surface='workflows'] {
+    font-size: max(16px, 1rem);
+    --workspace-card-title-font-size: max(16px, 1rem);
+    --workspace-card-summary-font-size: max(14px, 0.875rem);
+    --workspace-card-badge-font-size: max(14px, 0.875rem);
+    --workspace-card-summary-lines: 2;
+  }
+
+  .workspace-home-shell[data-surface='workflows'] .resume-chat-card {
+    font: inherit;
+  }
+
+  .workspace-home-shell[data-surface='workflows'] .workspace-eyebrow,
+  .workspace-home-shell[data-surface='workflows'] .workspace-all-items-action,
+  .workspace-home-shell[data-surface='workflows'] .workspace-subtitle,
+  .workspace-home-shell[data-surface='workflows'] .workspace-continue-label,
+  .workspace-home-shell[data-surface='workflows'] .workspace-show-all-link {
+    font-size: max(16px, 1rem);
+  }
+
+  .workspace-home-shell[data-surface='workflows'] .workspace-composer-slot :global(input),
+  .workspace-home-shell[data-surface='workflows'] .workspace-composer-slot :global(textarea) {
+    font-size: max(16px, 1rem);
+  }
+
   .workspace-scroll-layer {
     position: relative;
     width: 100%;
@@ -855,6 +882,7 @@
   }
 
   .resume-chat-title {
+    font-size: var(--workspace-card-title-font-size, inherit);
     font-weight: 600;
     color: rgba(255, 255, 255, 0.96);
     white-space: nowrap;
@@ -868,7 +896,7 @@
     display: block;
     margin-top: 2px;
     color: rgba(255, 255, 255, 0.78);
-    font-size: var(--font-size-xxs);
+    font-size: var(--workspace-card-summary-font-size, var(--font-size-xxs));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -883,7 +911,7 @@
     padding: 3px 7px;
     background: rgba(255, 255, 255, 0.18);
     color: rgba(255, 255, 255, 0.94);
-    font-size: 0.66rem;
+    font-size: var(--workspace-card-badge-font-size, 0.66rem);
     font-weight: 700;
     line-height: 1;
     letter-spacing: 0.01em;

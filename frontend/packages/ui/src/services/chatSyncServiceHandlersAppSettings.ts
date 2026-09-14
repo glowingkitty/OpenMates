@@ -2219,6 +2219,18 @@ async function handleRunLinkedWorkflowDelivery(
       existingChat = {...existingChat, ...canonical, chat_id} as import("../types/chat").Chat;
       await chatDB.updateChat(existingChat);
     }
+    const createdAt = payload.created_at || Math.floor(Date.now() / 1000);
+    if (!existingChat) {
+      // ChatKeyManager's persister updates an existing local row. Establish only
+      // routing/version metadata first so its wrapped key is durable before the
+      // unchanged write guard validates it and any content is encrypted.
+      existingChat = {
+        chat_id, created_at: createdAt, updated_at: createdAt,
+        messages_v: 0, title_v: 0, last_edited_overall_timestamp: createdAt,
+        unread_count: 0,
+      } as import("../types/chat").Chat;
+      await chatDB.updateChat(existingChat);
+    }
     const { chatKey, encryptedChatKey } = await chatKeyManager.createAndPersistKeyLocked(chat_id);
     if (!(await ensureChatKeySafeForWrite(chat_id, chatKey, "workflow delivery"))) {
       throw new Error("Workflow chat key is not ready for encryption");
@@ -2227,7 +2239,6 @@ async function handleRunLinkedWorkflowDelivery(
     const encryptedCategory = existingChat?.encrypted_category || await encryptWithChatKey("openmates_official", chatKey);
     const encryptedContent = await encryptWithChatKey(message, chatKey);
     if (!encryptedTitle || !encryptedCategory || !encryptedContent || !encryptedChatKey) throw new Error("Workflow encryption unavailable");
-    const createdAt = payload.created_at || Math.floor(Date.now() / 1000);
     const { deriveEmbedKeyFromChatKey, encryptWithEmbedKey, wrapEmbedKeyWithMasterKey, wrapEmbedKeyWithChatKey } = await import("./encryption/MetadataEncryptor");
     const { computeSHA256 } = await import("../message_parsing/utils");
     const { encode } = await import("@toon-format/toon");

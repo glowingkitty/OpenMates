@@ -5,13 +5,13 @@
  * responsive headers, async mounting, and controls added after initial render.
  * Styling is shared in icons.css and removed when controls leave the banner.
  */
-const HEADER_SELECTOR = '.chat-header-banner, .embed-header > .header-inner';
+const HEADER_SELECTOR = '.chat-header-banner, .embed-header > .header-inner, .workflow-detail-header';
 const CONTROL_SELECTOR = '.new-chat-button-wrapper, .button-wrapper';
 const OVERLAY_ATTRIBUTE = 'data-header-overlay';
 const INITIALIZING_ATTRIBUTE = 'data-header-overlay-initializing';
 
 export function headerOverlayControls(node: HTMLElement) {
-  const surface = node.closest<HTMLElement>('.chat-side, .fullscreen-container');
+  const surface = node.closest<HTMLElement>('.chat-side, .fullscreen-container, .workflow-detail');
   if (!surface) return {};
 
   let frame: number | null = null;

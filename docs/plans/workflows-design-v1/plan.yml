@@ -6,6 +6,19 @@ approval:
   source: Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b
   date: "2026-09-14"
   statement: User approved implementation; prioritize speed and essential tests.
+  design_clarification:
+    date: "2026-09-14"
+    source: Explicit user design correction in the same Codex task during Safari review, in addition to the original approved implementation plan.
+    requirements:
+      - No raw JSON, object dumps or debug schemas in any user-facing workflow screen; Test, Preview and history use structured labeled values and shared cards.
+      - "Editor and history app-skill cards show '{app name} | {skill name}' and the actual app icon."
+      - Run history follows the supplied runs.pdf compact ruler timeline and shared node/status-badge layout, with no debug dashboard.
+      - Use 16px default body text and a 14px minimum everywhere, including compact cards, badges, fields and placeholders.
+      - "Keep the centered start placeholder exactly 'Enter a name for a new workflow'."
+      - "Continuations and empty branches use 'Do nothing.\nOr click here to add a step.' to open one 'What should happen next?' selector with valid choices; remove duplicate separate Add action/Add check buttons."
+      - Use the existing canonical app/workflow/projectmanagement/chat/calendar icons and the exact supplied-design split-arrow for Add check, not unrelated replacements.
+      - Reuse the actual ChatHeader toolbar and Show more behavior; keep workflow on/off centered, with no standalone header history/play/delete icons or corner Ready badge.
+    semantics: Presentation correction only; existing workflow execution, privacy and encryption rules stay unchanged.
 goal: Match the supplied new-workflow Figma/PDF, enable real deterministic weather/news, AI events and apartment workflows, and preserve privacy.
 scope:
   in: [web, backend, CLI, npm SDK, Python SDK, node Save, unsaved skill Test, message preview, run-owned delivered-result memory, run deletion]
@@ -25,6 +38,7 @@ verification:
   - Conditional combined message, new-result lifecycle, retry and delete fencing.
   - Three workflow scenarios in the explicitly authorized CLI personal dev profile first, then Safari; focused npm/Python parity checks.
   - Desktop and narrow viewport comparison; ask user about unresolved live provider behavior.
+  - Check Test/Preview/history for readable values and cards without raw JSON/debug schemas; compare exact app/skill labels, app icons and run-history composition with the supplied runs.pdf.
 
 approved_by_user: true
 approvals:

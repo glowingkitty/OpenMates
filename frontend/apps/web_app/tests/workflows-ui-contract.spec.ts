@@ -372,11 +372,15 @@ test.describe('Workflows web UI contract', () => {
 				.first()
 				.click();
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(runnerWorkflow.id));
+			await expect(page.getByTestId('workflow-detail-actions').getByRole('toolbar')).toBeVisible();
+			await expect(page.getByTestId('run-workflow')).toHaveCount(0);
 			await page.getByTestId('workflow-tab-runs').click();
 			await expect(page).toHaveURL(
 				new RegExp(`workflow-id=${runnerWorkflow.id}&workflow-tab=runs`)
 			);
 			await expect(page.getByTestId('workflow-run-selector')).toBeVisible();
+			await expect(page.getByTestId('workflow-run-selector').locator('select')).toHaveValue(run.id);
+			await expect(page.getByTestId('workflow-delete-run')).toHaveAttribute('title', /Delete run/);
 			await expect(page.getByTestId('workflow-run-timeline')).toBeVisible();
 			const selectedRun = page.locator(
 				`[data-testid="workflow-run-marker"][data-run-id="${run.id}"]`

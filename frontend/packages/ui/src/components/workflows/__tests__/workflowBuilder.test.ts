@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   insertNode,
+  messageDestinationConfig,
   workflowGraphReady,
   outputsBefore,
   workflowIcon,
@@ -248,4 +249,15 @@ test("app skill object defaults can be edited independently from reactive schema
     dates: ["today"],
     options: { rain: true },
   });
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring,workflows.message.standard
+test("choosing a new chat omits the destination in preview and saved JSON without changing message content", () => {
+  const existing = { chat_id: "existing-chat", title: "Weather", message: "Take an umbrella.", blocks: [] };
+  for (const destination of [undefined, null]) {
+    const next = messageDestinationConfig(existing, destination);
+    assert.deepEqual(JSON.parse(JSON.stringify(next)), { title: "Weather", message: "Take an umbrella.", blocks: [] });
+    assert.equal(existing.chat_id, "existing-chat");
+  }
+  assert.equal(messageDestinationConfig(existing, "another-chat").chat_id, "another-chat");
 });

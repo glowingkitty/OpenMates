@@ -277,3 +277,14 @@ export function normalizeSchema(schema: Schema): Schema {
     ...(value.items ? { items: normalizeSchema(value.items) } : {}),
   };
 }
+
+/** A new chat uses an omitted destination ID in both preview and saved graphs. */
+export function messageDestinationConfig(
+  config: Record<string, unknown>,
+  chatId?: string | null,
+): Record<string, unknown> {
+  const next = { ...config };
+  if (chatId) next.chat_id = chatId;
+  else delete next.chat_id;
+  return next;
+}

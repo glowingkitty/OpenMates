@@ -31,6 +31,7 @@ from backend.core.api.app.services.workflow_identity_service import (
 from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowLifecycle, WorkflowMissingInputError, WorkflowRunContentRetention, WorkflowRunStatus
 from backend.core.api.app.services.workflow_runtime_service import WorkflowRuntimeProtocolError, WorkflowRuntimeService
 from backend.core.api.app.services.workflow_runner import WorkflowRunner
+from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter
 from backend.core.api.app.services.workflow_yaml_compiler import (
     WorkflowYamlCompilationError,
     compile_workflow_yaml,
@@ -1650,7 +1651,13 @@ async def test_workflow_step(
             raise HTTPException(status_code=409, detail="WORKFLOW_STEP_TEST_UNAVAILABLE")
         draft_nodes = [item for item in workflow.graph.nodes if item.id != step_id] + [node]
         draft = workflow.model_copy(update={"graph": workflow.graph.model_copy(update={"nodes": draft_nodes})})
-        run = await WorkflowRunner(service).run_step_test(
+        # Draft Tests need the same initialized safety dependencies as worker runs.
+        # The output scanner remains mandatory and fails closed on any scan error.
+        adapter = WorkflowAppSkillAdapter(
+            secrets_manager=getattr(request.app.state, "secrets_manager", None),
+            cache_service=getattr(request.app.state, "cache_service", None),
+        )
+        run = await WorkflowRunner(service, app_skill_adapter=adapter).run_step_test(
             draft,
             current_user.id,
             step_id,

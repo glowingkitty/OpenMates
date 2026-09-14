@@ -257,3 +257,54 @@ def test_workflow_preview_is_read_only_and_run_deletion_requires_write_scope():
     assert exc.value.detail == {"error": "missing_scope", "missing_scope": "workflow:write"}
     metadata["api_key_metadata"]["scopes"]["workflows"].append("workflow:write")
     _enforce_api_key_route_policy(_request("DELETE", "/v1/workflows/wf/runs/run"), metadata)
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.surface.semantic-parity,app-skills.output.external-semantic
+@pytest.mark.anyio
+async def test_draft_step_test_uses_initialized_output_safety_dependencies(monkeypatch):
+    # Execute the real route body without importing the unrelated API startup tree.
+    import ast
+    from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter
+    from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
+    from backend.core.api.app.services.workflow_models import WorkflowNodeType
+
+    class Copyable(SimpleNamespace):
+        def model_copy(self, *, update):
+            return Copyable(**{**vars(self), **update})
+
+    node = SimpleNamespace(id="weather", type=WorkflowNodeType.APP_SKILL_ACTION,
+                           config={"app_id": "weather", "skill_id": "forecast"})
+    workflow = Copyable(graph=Copyable(nodes=[node]))
+    cache, secrets = object(), object()
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(cache_service=cache, secrets_manager=secrets)))
+    captured = {}
+
+    class Runner:
+        def __init__(self, service, *, app_skill_adapter):
+            captured["adapter"] = app_skill_adapter
+        async def run_step_test(self, *args, **kwargs):
+            return SimpleNamespace(model_dump=lambda **kwargs: {"status": "completed"})
+
+    async def inline(function, *args):
+        return function(*args)
+
+    monkeypatch.setattr(WorkflowCapabilityRegistry, "get_capability", lambda *args:
+        SimpleNamespace(enabled=True, metadata={"workflow": {"test_allowed": True, "effect": "read"}}))
+    function = next(item for item in ast.parse(WORKFLOWS_PATH.read_text()).body
+                    if isinstance(item, ast.AsyncFunctionDef) and item.name == "test_workflow_step")
+    function.decorator_list = []
+    function.args.defaults = []
+    for arg in function.args.args:
+        arg.annotation = None
+    function.returns = None
+    namespace = {"WorkflowRunner": Runner, "WorkflowAppSkillAdapter": WorkflowAppSkillAdapter,
+                 "WorkflowNodeType": WorkflowNodeType, "HTTPException": HTTPException,
+                 "run_in_threadpool": inline, "_workflow_editor_node": lambda *args: node}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[])), str(WORKFLOWS_PATH), "exec"), namespace)
+    result = await namespace["test_workflow_step"]("workflow", "weather", request,
+        SimpleNamespace(input={"location": "Berlin"}, upstream_outputs={}),
+        SimpleNamespace(id="owner", vault_key_id="owner-vault"),
+        SimpleNamespace(get_workflow=lambda *args: workflow))
+    assert result["run"]["status"] == "completed"
+    assert captured["adapter"].secrets_manager is secrets
+    assert captured["adapter"].cache_service is cache

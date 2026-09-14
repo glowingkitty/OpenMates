@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
     getEncryptedFields: vi.fn(),
   },
   chatKeyManager: {
+    createAndPersistKeyLocked: vi.fn(),
     getKey: vi.fn(),
     onKeyReady: vi.fn(() => () => undefined),
   },
@@ -111,6 +112,7 @@ function resetHoistedMocks(): void {
 import {
   saveAppSettingsMemoriesRequestMessage,
   handleWorkflowChatDeliveriesAvailableImpl,
+  handleWorkflowChatDeliveryClaimedImpl,
   handlePendingAIResponseImpl,
 } from "../chatSyncServiceHandlersAppSettings";
 import { handleRecoveryJobsAvailableImpl } from "../chatSyncServiceHandlersRecovery";
@@ -170,6 +172,66 @@ describe("handleWorkflowChatDeliveriesAvailableImpl", () => {
         request_id: "workflow-delivery-pending-delivery",
       },
     );
+  });
+});
+
+describe("run-linked workflow destination key persistence", () => {
+  const payload = {
+    workflow_id: "workflow-1", run_id: "run-1", delivery_id: "delivery-1",
+    chat_id: "new-workflow-chat", message_id: "message-1", title: "Private report",
+    message: "Private result", status: "claimed", existing_chat: null,
+    encrypted_payload: "vault-ciphertext", created_at: 100, expires_at: 500,
+    claim_generation: 1, claim_token: "claim-token", claim_issued_at: 100,
+    claim_expires_at: 160,
+  };
+  beforeEach(() => { resetHoistedMocks(); });
+
+  // contract-test: supporting surface=gui.web assertions=workflows.chat-delivery.client-encrypted,workflows.chat-delivery.key-recovery
+  it("establishes a local shell so the existing key persister runs before the encryption guard", async () => {
+    let localChat: Record<string, unknown> | null = null;
+    const writes: Record<string, unknown>[] = [];
+    const rawKey = new Uint8Array(32).fill(7);
+    const order: string[] = [];
+    mocks.chatDB.getChat.mockImplementation(async () => localChat);
+    mocks.chatDB.updateChat.mockImplementation(async chat => {
+      localChat = { ...localChat, ...chat };
+      writes.push({ ...chat });
+      order.push("shell");
+    });
+    // Mirror the production persister: absent chat rows do not persist wrappers.
+    mocks.chatKeyManager.createAndPersistKeyLocked.mockImplementation(async () => {
+      if (localChat) localChat.encrypted_chat_key = "master-wrapped-chat-key";
+      order.push("key");
+      return { chatKey: rawKey, encryptedChatKey: "master-wrapped-chat-key" };
+    });
+    mocks.ensureChatKeySafeForWrite.mockImplementation(async () => {
+      order.push("guard");
+      return localChat?.encrypted_chat_key === "master-wrapped-chat-key";
+    });
+    mocks.encryptWithChatKey.mockImplementation(async () => {
+      order.push("encrypt");
+      throw new Error("synthetic encryption stop");
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await handleWorkflowChatDeliveryClaimedImpl({ dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService, payload);
+    expect(order).toEqual(["shell", "key", "guard", "encrypt"]);
+    expect(writes[0]).toEqual({ chat_id: payload.chat_id, created_at: 100, updated_at: 100, messages_v: 0, title_v: 0, last_edited_overall_timestamp: 100, unread_count: 0 });
+    expect(mocks.ensureChatKeySafeForWrite).toHaveBeenCalledWith(payload.chat_id, rawKey, "workflow delivery");
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workflows.chat-delivery.client-encrypted,workflows.chat-delivery.claim-fenced
+  it("keeps the write guard mandatory and never encrypts or acknowledges after its refusal", async () => {
+    mocks.chatDB.getChat.mockResolvedValue(null);
+    mocks.chatDB.updateChat.mockResolvedValue(undefined);
+    mocks.chatKeyManager.createAndPersistKeyLocked.mockResolvedValue({ chatKey: new Uint8Array(32), encryptedChatKey: "wrapped" });
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(false);
+    mocks.encryptWithChatKey.mockClear();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await handleWorkflowChatDeliveryClaimedImpl({ dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService, payload);
+    expect(mocks.ensureChatKeySafeForWrite).toHaveBeenCalled();
+    expect(mocks.encryptWithChatKey).not.toHaveBeenCalled();
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalled();
   });
 });
 

@@ -20,6 +20,30 @@ visual_language:
     compact_pill_controls: true
     harsh_outlines: false
     surface_hierarchy_preserved_in_dark_mode: true
+    default_body_text_px: 16
+    minimum_visible_text_px: 14
+    canonical_icons:
+      add_action: app.svg
+      workflow_tab: workflow.svg
+      runs_tab: projectmanagement.svg
+      time_trigger: calendar.svg
+      send_message: chat.svg
+      add_check: exact_filled_split_arrow_from_supplied_design
+    unrelated_icon_substitutions: false
+- id: workflow-values-are-readable-on-every-screen
+  given:
+    surfaces: [template, skill_test, message_preview, version_history, run_detail]
+    output:
+      rain_expected: true
+      rain_periods: [{start_time: '12:00', end_time: '14:00'}]
+      results: [{title: Example apartment, price_label: 1000 EUR/month}]
+  expect:
+    boolean_shown_as_labeled_readable_value: true
+    rain_times_shown_as_labeled_interval: true
+    result_collection_uses_shared_cards_or_readable_list: true
+    raw_json_or_object_dump_visible: false
+    raw_debug_schema_visible: false
+    expandable_debug_dump_available: false
 workflow_identity:
 - id: generated-software-workflow-identity
   given:
@@ -83,6 +107,9 @@ workspace_start:
     horizontal_cards: true
     show_all_and_search_centered: true
     composer_floating_at_bottom: true
+    composer_placeholder: Enter a name for a new workflow
+    placeholder_centered_horizontally_and_vertically: true
+    extra_top_right_blank_workflow_button: false
 - id: mobile-retains-start-hierarchy
   given:
     route: /workflows
@@ -122,6 +149,10 @@ detail_header:
   when: He inspects its header.
   then: It indicates manual execution and offers contextual Run now without a fabricated time trigger or a
     misleading schedule toggle.
+- id: shared-chat-header-toolbar-and-overflow
+  given: Alice opens a scheduled workflow on desktop or mobile.
+  when: She inspects the header and opens Show more.
+  then: The actual ChatHeader toolbar and its Show more behavior are reused; workflow actions appear contextually in that menu. There are no standalone history/play/delete icons or corner Ready badge, and the workflow on/off control remains centered as in the supplied design.
 detail_tabs:
 - id: compact-tab-pill-at-header-boundary
   given:
@@ -135,6 +166,8 @@ detail_tabs:
     active_blue_pill: true
     template_icon_light: true
     runs_icon_neutral: true
+    template_icon_asset: workflow.svg
+    runs_icon_asset: projectmanagement.svg
     soft_shadow: true
 - id: template-and-runs-switch-in-place
   given:
@@ -166,9 +199,21 @@ template_editing:
     - then
     - if_true
     - if_false
-    add_controls:
-    - add_action
-    - add_decision
+    continuation_placeholder: "Do nothing.\nOr click here to add a step."
+    duplicate_separate_add_buttons: false
+- id: one-selector-for-continuation-and-empty-branches
+  given:
+    editable_entry_points: [continuation, empty_true_branch, empty_false_branch]
+    upstream_output_available: true
+  when:
+    click_placeholder: "Do nothing.\nOr click here to add a step."
+  expect:
+    single_selector_heading: What should happen next?
+    valid_choices: [Use App, Send message, Add check]
+    separate_duplicate_add_action_button: false
+    separate_duplicate_add_check_button: false
+    add_action_icon: app.svg
+    add_check_icon: exact_filled_split_arrow_from_supplied_design
 - id: node-expands-in-place
   given:
     tab: template
@@ -193,6 +238,15 @@ template_editing:
     node_discard_visible: true
     orange_node_save_visible: true
     server_graph_changed_before_save: false
+- id: app-skill-identity-matches-editor-and-history
+  given:
+    app_display_name: Weather
+    skill_display_name: Forecast
+    views: [template, expanded_node, skill_test, historical_version, run_detail]
+  expect:
+    app_skill_label: Weather | Forecast
+    icon_source: actual_weather_app_icon_from_shared_catalog
+    generic_workflow_or_placeholder_icon: false
 - id: share-management-does-not-displace-canvas
   given:
     tab: template
@@ -263,6 +317,24 @@ version_history:
     version_1_mutated: false
     version_3_deleted: false
 run_history:
+- id: run-layout-follows-supplied-runs-pdf
+  given:
+    design_reference: runs.pdf
+    selected_run: completed_weather_and_news_run
+    retained_payload_available: true
+  expect:
+    compact_timestamp_selector: true
+    horizontally_reachable_ruler_baseline_and_ticks: true
+    selected_run_marker_visible: true
+    uses_shared_template_node_cards: true
+    node_status_badges_overlay_cards: true
+    app_skill_label_format: "{app name} | {skill name}"
+    actual_app_icons: true
+    expanded_inputs_and_outputs_are_labeled_readable_values: true
+    result_collections_use_shared_cards_or_readable_lists: true
+    debug_dashboard_visible: false
+    dashboard_summary_tiles_visible: false
+    raw_json_or_debug_schema_visible: false
 - id: pending-is-not-persisted
   given: A completed run has pending chat delivery while its owner is offline.
   when: Alice opens its timeline and execution detail.
@@ -311,7 +383,7 @@ mvp_authoring:
 - id: mvp_authoring-example
   given: A forecast step exists before any live run and an Events step declares a result list.
   when: Alice adds Check for rain and a Send message result block for events.
-  then: Typed fields are offered immediately; Check shows true and false branches with Do nothing when empty. A complete unscheduled workflow offers Run now. General Filter is absent.
+  then: Typed fields are offered immediately and unsaved Test results use labeled readable values/cards, never raw JSON/debug schemas; Check shows true and false branches with Do nothing when empty. A complete unscheduled workflow offers Run now. General Filter is absent.
 schedule_preview:
 - id: schedule_preview-example
   given: Alice chooses hourly apartment search at minute zero in Europe/Berlin.
@@ -321,7 +393,7 @@ message_budget:
 - id: message_budget-example
   given: An apartment workflow has selected result output and known skill pricing.
   when: Alice configures Send message.
-  then: She edits deterministic text with references, chooses Only new results and previews the output without sending or saving. Known skill cost is shown; deferred budget caps are not claimed.
+  then: She edits deterministic text with references, chooses Only new results and previews readable message text and result cards without sending or saving; raw JSON/debug schemas are absent. Known skill cost is shown; deferred budget caps are not claimed.
 run_deletion:
 - id: run_deletion-example
   given: Run 1 delivered an apartment and is its only remembered delivery; its chat message remains.

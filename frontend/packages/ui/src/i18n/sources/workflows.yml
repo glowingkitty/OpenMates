@@ -1095,7 +1095,7 @@ builder.add_description:
 
 builder.workflow_on:
   context: Workflow progressive builder control
-  en: "Workflow enabled"
+  en: "Workflow on"
   verified_by_human: []
 
 builder.enabled:
@@ -1181,4 +1181,229 @@ builder.saturday:
 builder.sunday:
   context: Workflow progressive builder control
   en: "Sunday"
+  verified_by_human: []
+
+builder.output_type_text:
+  context: Readable workflow values and feedback for everyday users
+  en: "Text"
+  verified_by_human: []
+
+builder.output_type_number:
+  context: Readable workflow values and feedback for everyday users
+  en: "Number"
+  verified_by_human: []
+
+builder.output_type_date:
+  context: Readable workflow values and feedback for everyday users
+  en: "Date"
+  verified_by_human: []
+
+builder.output_type_list:
+  context: Readable workflow values and feedback for everyday users
+  en: "List"
+  verified_by_human: []
+
+builder.output_type_object:
+  context: Readable workflow values and feedback for everyday users
+  en: "Details"
+  verified_by_human: []
+
+builder.output_type_boolean:
+  context: Readable workflow values and feedback for everyday users
+  en: "Yes / No"
+  verified_by_human: []
+
+builder.output_empty_list:
+  context: Readable workflow values and feedback for everyday users
+  en: "No results"
+  verified_by_human: []
+
+builder.output_item_count:
+  context: Readable workflow values and feedback for everyday users
+  en: "{count} items"
+  verified_by_human: []
+
+builder.output_open_link:
+  context: Readable workflow values and feedback for everyday users
+  en: "Open source"
+  verified_by_human: []
+
+builder.output_open_chat:
+  context: Readable workflow values and feedback for everyday users
+  en: "Open chat"
+  verified_by_human: []
+
+builder.output_test_failed:
+  context: Readable workflow values and feedback for everyday users
+  en: "This step could not be tested. Please check its inputs and try again."
+  verified_by_human: []
+
+builder.output_preview_failed:
+  context: Readable workflow values and feedback for everyday users
+  en: "This message could not be previewed. Please check its title and selected outputs."
+  verified_by_human: []
+
+builder.output_step_failed:
+  context: Readable workflow values and feedback for everyday users
+  en: "This step could not finish. Please check its inputs and try again."
+  verified_by_human: []
+
+builder.output_step_skipped:
+  context: Readable workflow values and feedback for everyday users
+  en: "This step was not needed for this run."
+  verified_by_human: []
+
+builder.do_nothing_add_step:
+  context: Exact clickable empty workflow path placeholder
+  en: "Do nothing.\nOr click here to add a step."
+  verified_by_human: []
+
+builder.workflow_off:
+  context: Workflow run history or workflow header control
+  en: "Workflow off"
+  verified_by_human: []
+
+runs.history:
+  context: Workflow run history or workflow header control
+  en: "Run history"
+  verified_by_human: []
+
+runs.run:
+  context: Workflow run history or workflow header control
+  en: "Run"
+  verified_by_human: []
+
+runs.select_run:
+  context: Workflow run history or workflow header control
+  en: "Select a run"
+  verified_by_human: []
+
+runs.back_to_workflow:
+  context: Workflow run history or workflow header control
+  en: "Back to workflow"
+  verified_by_human: []
+
+runs.timeline:
+  context: Workflow run history or workflow header control
+  en: "Workflow run timeline"
+  verified_by_human: []
+
+runs.next:
+  context: Workflow run history or workflow header control
+  en: "Next"
+  verified_by_human: []
+
+runs.cancel:
+  context: Workflow run history or workflow header control
+  en: "Cancel run"
+  verified_by_human: []
+
+runs.empty:
+  context: Workflow run history or workflow header control
+  en: "No workflow runs yet."
+  verified_by_human: []
+
+runs.loading:
+  context: Workflow run history or workflow header control
+  en: "Loading run…"
+  verified_by_human: []
+
+runs.delivery_pending:
+  context: Workflow run history or workflow header control
+  en: "Waiting for chat delivery"
+  verified_by_human: []
+
+runs.content_unavailable:
+  context: Workflow run history or workflow header control
+  en: "Saved inputs and results are no longer available. Run and step statuses remain visible."
+  verified_by_human: []
+
+runs.execution_failed:
+  context: Workflow run history or workflow header control
+  en: "This run failed. Check the highlighted step before trying again."
+  verified_by_human: []
+
+runs.cancel_title:
+  context: Workflow run history or workflow header control
+  en: "Cancel this run?"
+  verified_by_human: []
+
+runs.cancel_explanation:
+  context: Workflow run history or workflow header control
+  en: "This run will stop at the next safe point."
+  verified_by_human: []
+
+runs.keep_running:
+  context: Workflow run history or workflow header control
+  en: "Keep running"
+  verified_by_human: []
+
+runs.cancelling:
+  context: Workflow run history or workflow header control
+  en: "Cancelling…"
+  verified_by_human: []
+
+runs.load_failed:
+  context: Workflow run history or workflow header control
+  en: "This run could not be loaded. Try again."
+  verified_by_human: []
+
+runs.delete_failed:
+  context: Workflow run history or workflow header control
+  en: "This run could not be deleted. Try again."
+  verified_by_human: []
+
+runs.cancel_failed:
+  context: Workflow run history or workflow header control
+  en: "This run could not be cancelled. Try again."
+  verified_by_human: []
+
+runs.time_unavailable:
+  context: Workflow run history or workflow header control
+  en: "Time unavailable"
+  verified_by_human: []
+
+runs.status_completed:
+  context: Workflow run history or workflow header control
+  en: "Completed"
+  verified_by_human: []
+
+runs.status_failed:
+  context: Workflow run history or workflow header control
+  en: "Failed"
+  verified_by_human: []
+
+runs.status_cancelled:
+  context: Workflow run history or workflow header control
+  en: "Cancelled"
+  verified_by_human: []
+
+runs.status_skipped:
+  context: Workflow run history or workflow header control
+  en: "Skipped"
+  verified_by_human: []
+
+runs.status_queued:
+  context: Workflow run history or workflow header control
+  en: "Queued"
+  verified_by_human: []
+
+runs.status_running:
+  context: Workflow run history or workflow header control
+  en: "Running"
+  verified_by_human: []
+
+runs.status_waiting:
+  context: Workflow run history or workflow header control
+  en: "Waiting"
+  verified_by_human: []
+
+runs.status_cancellation_requested:
+  context: Workflow run history or workflow header control
+  en: "Cancellation requested"
+  verified_by_human: []
+
+runs.status_unavailable:
+  context: Workflow run history or workflow header control
+  en: "Status unavailable"
   verified_by_human: []
