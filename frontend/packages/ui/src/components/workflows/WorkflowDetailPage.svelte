@@ -1,7 +1,6 @@
 <!-- Compact category identity and Workflow/Runs boundary. Each node saves independently. -->
 <script lang="ts">
   import { text } from '../../i18n/translations';
-  import AppIcon from '../Icon.svelte';
   import HeaderActionMenu from '../HeaderActionMenu.svelte';
   import { headerOverlayControls } from '../../actions/headerOverlayControls';
   import { tooltip } from '../../actions/tooltip';
@@ -29,11 +28,10 @@
 
 <section class="workflow-detail-header" data-testid="workspace-detail-header" data-header-system="workflow-detail" data-category={category} data-icon={getValidIconName(icon, category)} style={headerStyle}>
   <div class="header-toolbar" data-testid="workflow-detail-actions" use:headerOverlayControls>
-    <HeaderActionMenu resetKey={title} hasShare actionCount={2}>
+    <HeaderActionMenu resetKey={title} hasShare actionCount={1} forceOverflow>
       {#snippet report()}<WorkspaceReportIssueButton toolbar/>{/snippet}
       {#snippet share()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-share" aria-label={tr('share')} onclick={onOpenShare} use:tooltip><span class="clickable-icon icon_share top-button" aria-hidden="true"></span><span class="action-label">{tr('share')}</span></button></div>{/snippet}
       {#snippet actions()}
-        <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="run-workflow" aria-label={tr('run_now')} disabled={saving || !canRun} onclick={() => void onRunWorkflow()} use:tooltip><AppIcon name="play" size="25px" color="currentColor" noMargin ariaHidden/><span class="action-label">{tr('run_now')}</span></button></div>
         <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="delete-workflow" aria-label={tr('delete_workflow')} disabled={saving} onclick={() => void onDeleteWorkflow()} use:tooltip><span class="clickable-icon icon_delete top-button" aria-hidden="true"></span><span class="action-label">{tr('delete_workflow')}</span></button></div>
       {/snippet}
       {#snippet close()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-detail-back" aria-label={tr('back')} onclick={onOpenHome} use:tooltip><span class="clickable-icon icon_close top-button" aria-hidden="true"></span><span class="action-label">{tr('back')}</span></button></div>{/snippet}
@@ -52,16 +50,20 @@
       <button type="button" class="identity-edit" onclick={editIdentity}><h1 data-testid="workspace-detail-title">{title}</h1></button>
     {/if}
     <button type="button" class="toggle" role="switch" aria-checked={enabled} aria-label={tr('workflow_on')} data-testid="toggle-workflow" disabled={saving || (!enabled && !canEnable)} onclick={() => void onToggleEnabled()}>
-      <AppIcon name="workflow" size="16px" color="currentColor" noMargin ariaHidden/><span data-testid="workflow-enabled-state" data-enabled={enabled ? 'true' : 'false'}>{tr(enabled ? 'workflow_on' : 'workflow_off')}</span><i class:enabled></i>
+      <span class="workflow-icon icon-workflow size-16" aria-hidden="true"></span><span data-testid="workflow-enabled-state" data-enabled={enabled ? 'true' : 'false'}>{tr(enabled ? 'workflow_on' : 'workflow_off')}</span><i class:enabled></i>
     </button>
     {#if !editing}<button type="button" class="identity-edit description-edit" onclick={editIdentity}><p data-testid="workspace-detail-description">{description || tr('add_description')}</p></button>{/if}
   </div>
   <span class="metadata" data-testid="workflow-detail-metadata">{metadata()}</span>
   {#if lastStartedRunId}<span class="run-started" data-testid="workflow-run-started" data-run-id={lastStartedRunId}>{tr('run_started')}</span>{/if}
+  {#if canRun}<button type="button" class="run-now" data-testid="run-workflow" disabled={saving} onclick={() => void onRunWorkflow()}><span class="workflow-icon icon-play size-20" aria-hidden="true"></span>{tr('run_now')}</button>{/if}
 </section>
-<div class="workflow-tabs" data-testid="workflow-view-tabs" role="tablist" aria-label={tr('workflow')}><button type="button" role="tab" aria-selected={activeTab === 'template'} aria-label={tr('workflow')} class:active={activeTab === 'template'} data-testid="workflow-tab-template" onclick={() => onTabChange('template')}><AppIcon name="workflow" size="20px" color="currentColor" noMargin ariaHidden/></button><button type="button" role="tab" aria-selected={activeTab === 'runs'} aria-label={tr('run_history')} class:active={activeTab === 'runs'} data-testid="workflow-tab-runs" onclick={() => onTabChange('runs')}><AppIcon name="projectmanagement" size="20px" color="currentColor" noMargin ariaHidden/></button></div>
+<div class="workflow-tabs" data-testid="workflow-view-tabs" role="tablist" aria-label={tr('workflow')}><button type="button" role="tab" aria-selected={activeTab === 'template'} aria-label={tr('workflow')} class:active={activeTab === 'template'} data-testid="workflow-tab-template" onclick={() => onTabChange('template')}><span class="workflow-icon icon-workflow size-20" aria-hidden="true"></span></button><button type="button" role="tab" aria-selected={activeTab === 'runs'} aria-label={tr('run_history')} class:active={activeTab === 'runs'} data-testid="workflow-tab-runs" onclick={() => onTabChange('runs')}><span class="workflow-icon icon-projectmanagement size-20" aria-hidden="true"></span></button></div>
 
 <style>
+  .workflow-icon { display:inline-block; flex:0 0 auto; background:currentColor; -webkit-mask:var(--workflow-icon) center/contain no-repeat; mask:var(--workflow-icon) center/contain no-repeat; }
+  .icon-play { --workflow-icon:var(--icon-url-play); }.icon-workflow { --workflow-icon:var(--icon-url-workflow); }.icon-projectmanagement { --workflow-icon:var(--icon-url-projectmanagement); }
+  .size-16 { width:16px;height:16px; }.size-20 { width:20px;height:20px; }
   .workflow-detail-header { position:relative; min-height:19rem; font-size:var(--font-size-p); box-sizing:border-box; border-radius:0 0 1rem 1rem; color:var(--color-font-button); background:linear-gradient(135deg,var(--workflow-gradient-start),var(--workflow-gradient-end)); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4.8rem 4rem 3.6rem; }
   .header-toolbar { position:absolute; top:15px; left:15px; right:15px; z-index:var(--z-index-raised-2); pointer-events:none; }
   .new-chat-button-wrapper { background-color:var(--color-grey-10); border-radius:40px; padding:var(--spacing-4); box-shadow:var(--shadow-md); display:flex; align-items:center; justify-content:center; cursor:pointer; pointer-events:auto; }
@@ -83,6 +85,7 @@
   .identity input { box-sizing:border-box; width:100%; border:0; border-radius:.7rem; padding:.45rem .65rem; background:var(--color-grey-0); color:var(--color-font-primary); font:inherit; font-size:var(--font-size-p); }
   .save { justify-self:center; border:0; border-radius:.7rem; padding:.4rem 1.2rem; background:var(--color-button-primary); color:var(--color-font-button); cursor:pointer; }
   .run-started { position:absolute; bottom:2.1rem; font-size:var(--font-size-small); }
+  .run-now { position:absolute; left:50%; bottom:-1.25rem; z-index:4; transform:translateX(-50%); display:flex; align-items:center; gap:var(--spacing-4); min-height:2.5rem; padding:.45rem 1.15rem; border:0; border-radius:var(--radius-full); background:var(--color-button-primary); color:var(--color-font-button); box-shadow:var(--shadow-md); font:inherit; font-size:var(--font-size-p); font-weight:650; cursor:pointer; white-space:nowrap; }
   button:focus-visible,input:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }
   @media(max-width:730px) { .workflow-detail-header { min-height:19rem; padding:4.9rem 1.25rem 3.6rem; } .kicker { top:3.4rem; } h1 { font-size:var(--font-size-xl); } .description-edit { max-width:23rem; } .workflow-tabs { margin-top:1.25rem; } }
   @media(prefers-reduced-motion:reduce) { .toggle i::after { transition:none; } }

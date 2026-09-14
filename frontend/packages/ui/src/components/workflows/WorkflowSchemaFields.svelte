@@ -4,17 +4,18 @@
   let { schema, value, onChange, outputs = [], path = 'input' }: { schema: Schema; value: unknown; onChange: (value: unknown) => void; outputs?: Output[]; path?: string } = $props();
   const tr = (key: string) => $text(`workflows.builder.${key}`);
   function scalarValue(raw: string, field: Schema): unknown { return raw === '' ? undefined : ['number', 'integer'].includes(field.type ?? '') ? Number(raw) : raw; }
+  function typeLabel(field: Schema): string { const type = field.type === 'integer' ? 'number' : field.type === 'string' || !field.type ? 'text' : field.type; return tr(`output_type_${type}`); }
 </script>
 
 {#snippet field(name: string, spec: Schema, current: unknown, change: (value: unknown) => void, id: string, required = false)}
   {#if spec.type === 'object' || spec.properties}
-    <fieldset class="object"><legend>{label(name)}</legend>
+    <fieldset class="object"><legend><span class="type" data-type="object">{typeLabel(spec)}</span>{label(name)}{required ? ' *' : ''}</legend>
       {#each Object.entries(spec.properties ?? {}) as [key, child]}
         {@render field(key, child, record(current)[key], next => change({ ...record(current), [key]: next }), `${id}-${key}`, spec.required?.includes(key))}
       {/each}
     </fieldset>
   {:else if spec.type === 'array'}
-    <fieldset class="object"><legend><span class="type">{tr('list')}</span>{label(name)}{required ? ' *' : ''}</legend>
+    <fieldset class="object"><legend><span class="type" data-type="array">{typeLabel(spec)}</span>{label(name)}{required ? ' *' : ''}</legend>
       {#each (Array.isArray(current) ? current : []) as entry, index}
         <div class="array-entry">
           {@render field(`${name} ${index + 1}`, spec.items ?? { type: 'string' }, entry, next => change((current as unknown[]).map((old, i) => i === index ? next : old)), `${id}-${index}`)}
@@ -26,7 +27,7 @@
   {:else}
     {@const dynamic = typeof record(current).$date === 'string'}
     <div class="field">
-      <label for={id}><span class="type" data-type={spec.type}>{spec.type ?? 'text'}</span>{spec.title || label(name)}{required ? ' *' : ''}</label>
+      <label for={id}><span class="type" data-type={spec.type}>{typeLabel(spec)}</span>{spec.title || label(name)}{required ? ' *' : ''}</label>
       {#if spec.enum}
         <select {id} value={String(current ?? '')} onchange={event => change(spec.enum?.find(item => String(item) === event.currentTarget.value))}><option value="">{tr('choose')}</option>{#each spec.enum as option}<option value={String(option)}>{String(option)}</option>{/each}</select>
       {:else if spec.type === 'boolean'}

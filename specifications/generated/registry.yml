@@ -513,7 +513,7 @@ specifications:
     version: 3
     status: approved
     path: features/workflows-ui
-    fingerprint: 7e8ece65616954123585e7b51fcea8f4f3e4a77c3f43e868dd911db8c29f8924
+    fingerprint: d3855c4dd508152b27ff4b5ec496a5a2fc2adea91b2dbf56f6cc0e8ed368f604
     required_applies_to:
     - gui.web
   feature.workspace-shell:
@@ -6021,7 +6021,7 @@ assertions:
     specification: feature.workflows-ui@3
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: cc3d604d1370b40fd0f4f302e1875d6c7346be1be1d2d3b5fd16469f1296421d
+    fingerprint: 4835b2114e75534b62cd5644eaf1eb6d097955c9fe1ed202bc898e2e27a85deb
     required_applies_to:
     - gui.web
   workflows-ui.identity.automatic-category-icon:
@@ -6049,7 +6049,7 @@ assertions:
     specification: feature.workflows-ui@3
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: c9f6b5379a46f82702e910a274308010e9fe2d24ed260d5e16419c4ce73a9a63
+    fingerprint: 56aaf84fbf6792c367770593265a9107dd6f5e42c3cc43c0461622bc4dad8be8
     required_applies_to:
     - gui.web
   workflows-ui.detail.shared-template-runs-tabs:
@@ -6059,11 +6059,25 @@ assertions:
     fingerprint: c09b0c0bb74cb4d64dbeb46401a354af9cbdec7aa2cd3ffa93e4d8aca4e7a3bf
     required_applies_to:
     - gui.web
+  workflows-ui.detail.fullscreen-route-motion:
+    specification: feature.workflows-ui@3
+    specification_id: feature.workflows-ui
+    type: behavior
+    fingerprint: b87fd229fbeeadef3acc4c4c2227fa51c27efb6da41b5e0777b06f40980dda15
+    required_applies_to:
+    - gui.web
   workflows-ui.template.centered-in-place-editor:
     specification: feature.workflows-ui@3
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: 57c477b82db025918cf90030703c4483061637fbf9927ddf851e8ea3711037cc
+    fingerprint: 0f767e1efaf0eb9f4174b3adaa24944dfc0d7d1c86413ccd28b778dd21d3c541
+    required_applies_to:
+    - gui.web
+  workflows-ui.template.node-scale-and-chevron:
+    specification: feature.workflows-ui@3
+    specification_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 6625da72f19aa63e26bcfbb774712cead66cc6ed1100f50cd9e5ea48690639e1
     required_applies_to:
     - gui.web
   workflows-ui.template.explicit-guarded-save:
@@ -6077,7 +6091,7 @@ assertions:
     specification: feature.workflows-ui@3
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: 0bc6a62e4b577cc3ffbf980dc43e69437bf64c9101367d11d86a3f5e40f41df3
+    fingerprint: dd6ff20c5faba2e77ab1e8058b5fdc3cb286606c71d1b19ced87ece0af346eda
     required_applies_to:
     - gui.web
   workflows-ui.runs.timeline-execution-detail:

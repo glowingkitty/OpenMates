@@ -21,6 +21,7 @@ scope:
     - Workflow execution, encryption, retention, API, CLI, SDK, and chat-delivery semantics owned by feature.workflows.
     - Shared top-level workspace navigation and base start-shell behavior owned by feature.workspace-shell.
     - Public Workflow marketplace behavior, natural-language Workflow planning, voice authoring, and Apple-native Workflow UI.
+    - Workflow sharing management in the web UI. A future implementation belongs in the regular settings Share menu; existing runtime and CLI sharing APIs are unchanged.
 
 models:
   WorkflowVisualLanguage:
@@ -43,7 +44,7 @@ models:
     motion:
       type: functional_motion
       required: true
-      constraints: {tab_pill_slides: true, card_expansion_preserves_position: true, reduced_motion_disables_nonessential_motion: true}
+      constraints: {tab_pill_slides: true, card_expansion_preserves_position: true, workflow_open_close_matches_fullscreen_embed: true, workflow_open_direction: bottom_up, workflow_close_reverses_open: true, route_transition_duration_ms: 320, route_transition_easing: 'cubic-bezier(0.32, 0, 0.2, 1)', route_transition_fades: true, reduced_motion_disables_nonessential_motion: true}
 
   WorkflowCanonicalControls:
     icons:
@@ -154,7 +155,9 @@ models:
         persistent_actions: [back, share, report_issue]
         back: circular_icon
         secondary_actions: circular_light_buttons
+        share: {web_v1_behavior: coming_soon_notification_only, opens_management: false, mutates_sharing: false, future_management_surface: regular_settings_share_menu}
         contextual_show_more_actions: [run_now, delete]
+        run_now: {placement: centered_at_header_bottom_above_tabs, visible_when: saved_workflow_is_valid_and_executable, executes: saved_definition, unsaved_node_edits_ignored: true}
         standalone_header_history_play_delete_icons: forbidden
         standalone_corner_ready_badge: forbidden
     centered_identity:
@@ -215,7 +218,9 @@ models:
       required: true
       constraints:
         shape: rounded_soft_shadow
+        scale: slightly_larger_than_compact_preview
         vertical_order: [node_kind, icon, summary, expand_chevron]
+        bottom_expand_chevron_visible: true
         neutral_nodes: subtle_grey
         app_skill_nodes: app_gradient_with_light_content
         app_skill_label: "{app name} | {skill name}"
@@ -253,11 +258,11 @@ models:
     placement:
       type: template_subview
       required: true
-      constraints: {remains_inside_template_tab: true, replaces_current_canvas_with_selected_definition: true}
+      constraints: {remains_inside_template_tab: true, selector_below_tabs_above_first_node: true, bottom_history_or_sharing_panel: forbidden, replaces_current_canvas_with_selected_definition: true}
     selector:
       type: centered_version_selector
       required: true
-      constraints: {label_includes_selected_timestamp: true, compact_neutral_pill: true, chevron: true}
+      constraints: {label_includes_selected_timestamp: true, compact_neutral_pill: true, chevron: true, toggles_history_bar_in_same_tab: true}
     timeline:
       type: horizontal_version_timeline
       required: true
@@ -363,24 +368,32 @@ assertions:
     depends_on: [models.WorkflowWorkspaceStart.composer_behavior, models.WorkflowDirtyState.persistence, examples.workspace_start]
   - id: workflows-ui.detail.stable-visual-header
     type: behavior
-    must: Workflow detail reuses the actual ChatHeader toolbar and its existing Show more behavior inside the prominent low-radius category-gradient header. Workflow-specific contextual actions use that shared overflow behavior; standalone history/play/delete header icons and a corner Ready badge are forbidden. The assigned Workflow icon, title, schedule-only enabled toggle when scheduled (manual-execution indication otherwise), description and time metadata remain centered as in the supplied PDF and stable across Template and Runs.
-    depends_on: [models.WorkflowDetailHeader, models.WorkflowIdentityMetadata, examples.detail_header]
+    must: Workflow detail reuses the actual ChatHeader toolbar and its existing Show more behavior inside the prominent low-radius category-gradient header. Workflow-specific contextual actions use that shared overflow behavior; standalone history/play/delete header icons and a corner Ready badge are forbidden. In web v1, Share only shows a notification that sharing will be possible soon; it opens no sharing controls and changes no sharing state. Future Workflow sharing management belongs in the regular settings Share menu. Whenever the saved Workflow is valid and executable, Run now is prominent and centered at the header bottom above the tabs; it always executes the saved definition, regardless of unsaved node edits. The assigned Workflow icon, title, schedule-only enabled toggle when scheduled (manual-execution indication otherwise), description and time metadata remain centered as in the supplied PDF and stable across Template and Runs.
+    depends_on: [models.WorkflowDetailHeader, models.WorkflowIdentityMetadata, examples.detail_header_contract]
   - id: workflows-ui.detail.shared-template-runs-tabs
     type: behavior
     must: A compact white two-position icon-tab pill overlaps the centered boundary below the Workflow header, uses a sliding blue active pill, switches in place between accessible Template and Runs hash states through the existing tab system, and does not remount or lose the selected Workflow. Its icons are the existing workflow.svg for Template and projectmanagement.svg for Runs, matching the supplied design.
     depends_on: [models.WorkflowViewTabs, examples.detail_tabs]
+  - id: workflows-ui.detail.fullscreen-route-motion
+    type: behavior
+    must: Opening a Workflow moves it upward from the bottom with a fade, and closing reverses that motion, using the same 320ms cubic-bezier(0.32, 0, 0.2, 1) timing as fullscreen embeds. Reduced-motion preferences disable the nonessential movement.
+    depends_on: [models.WorkflowVisualLanguage.motion, examples.route_motion_contract]
   - id: workflows-ui.template.centered-in-place-editor
     type: behavior
     must: Template renders a white centered vertical graph canvas inside a subtle grey rounded panel; compact rounded cards, plain-language connectors, branches, app gradients, and add controls form the graph, and activating a node expands editable detail inside that same card rather than opening a sibling panel. Each continuation and empty branch uses the exact two-line placeholder 'Do nothing.\nOr click here to add a step.'; clicking it opens one 'What should happen next?' selector with valid Use App, Send message and Add check choices. Do not show separate duplicate Add action/Add check controls alongside it. App-skill cards use the exact display-name pattern '{app name} | {skill name}' and the actual app icon from the shared catalog, consistently in the editor and historical views.
     depends_on: [models.WorkflowTemplateCanvas, models.WorkflowCanonicalControls, models.WorkflowValuePresentation.app_skill_identity, examples.template_editing]
+  - id: workflows-ui.template.node-scale-and-chevron
+    type: behavior
+    must: Workflow graph nodes are slightly larger than compact preview cards and retain a clearly visible expand chevron at the bottom of each expandable node.
+    depends_on: [models.WorkflowTemplateCanvas.node_cards, examples.node_card_contract]
   - id: workflows-ui.template.explicit-guarded-save
     type: invariant
     must: Each expanded node has Save. Saving a valid node immediately persists a new workflow definition version and collapses it; there is no separate global unsaved-changes Save banner. Unsubmitted node inputs stay local and can be discarded. Failed saves remain visible and preserve draft inputs; navigation cannot silently discard a dirty node.
     depends_on: [models.WorkflowDirtyState, examples.unsaved_navigation]
   - id: workflows-ui.versions.timeline-readonly-restore-new
     type: behavior
-    must: Version history remains inside Template and presents a centered timestamp selector above a horizontally reachable ticked timeline whose selected and current states are explicit; selecting history renders the full graph with current Template geometry in read-only mode, and confirmed restore creates a new current version without mutating history.
-    depends_on: [models.WorkflowVersionView, examples.version_history]
+    must: Version history remains inside Template. When saved edits exist, its centered version selector appears at the top of the active Workflow tab below the tabs and above the first node; activating it toggles the horizontally reachable edit-history bar in that same tab. No bottom version-history or sharing panel exists. Selecting history renders the full graph with current Template geometry in read-only mode, and confirmed restore creates a new current version without mutating history.
+    depends_on: [models.WorkflowVersionView, examples.version_selector_contract]
   - id: workflows-ui.runs.timeline-execution-detail
     type: behavior
     must: Runs follows the supplied runs.pdf design with a compact timestamp selector and horizontally reachable ruler baseline, ticks and selected-run marker; Next, completed, failed, active and cancelled states are explicit, with pending chat delivery separately visible. The selected run uses the same vertical graph and node-card components as Template with overlaid status badges, actual app icons and '{app name} | {skill name}' labels. Expanded retained input/output/source, branch and error detail uses labeled readable values and shared result cards. Do not replace this composition with a debug dashboard, summary-tile dashboard, raw node table, JSON or schema dumps. Unavailable content is explained without hiding status and cancellation is confirmed and contextual.
@@ -441,7 +454,7 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [visual_language, workflow_identity, workspace_start, detail_header, detail_tabs, template_editing, unsaved_navigation, version_history, run_history, responsive_accessibility, mvp_authoring, schedule_preview, message_budget, run_deletion]
+  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, detail_header, detail_header_contract, detail_tabs, template_editing, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, schedule_preview, message_budget, run_deletion]
 
 approval:
   source: User-approved Figma/PDF workflow v1 plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b
@@ -456,3 +469,14 @@ approval:
     start placeholder, canonical Figma icons, one continuation/empty-branch step
     selector, and reuse of the actual ChatHeader toolbar and Show more behavior
     without standalone history/play/delete icons or a corner Ready badge.
+    The user subsequently clarified that Workflow sharing management is outside
+    web v1: the header Share action only announces that sharing will be possible
+    soon, and future management belongs in the regular settings Share menu.
+    Existing runtime and CLI sharing APIs and immutable definition history remain
+    unchanged.
+    The user also clarified that the bottom version-history-and-sharing area is
+    removed entirely. Saved edit history is reached from a version selector at
+    the top of Template, while Run now is centered at the header bottom for every
+    valid executable saved Workflow and always runs the saved definition.
+    Workflow open and close now match the fullscreen-embed route motion, and
+    graph nodes are slightly larger with a visible bottom chevron.

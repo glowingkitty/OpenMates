@@ -625,12 +625,12 @@ builder.choose:
 
 builder.true:
   context: Workflow progressive builder control
-  en: "true"
+  en: "Yes"
   verified_by_human: []
 
 builder.false:
   context: Workflow progressive builder control
-  en: "false"
+  en: "No"
   verified_by_human: []
 
 builder.today:
@@ -995,7 +995,7 @@ builder.else:
 
 builder.do_nothing:
   context: Workflow progressive builder control
-  en: "Do nothing. Add a step below."
+  en: "Do nothing."
   verified_by_human: []
 
 builder.then:
@@ -1406,4 +1406,9 @@ runs.status_cancellation_requested:
 runs.status_unavailable:
   context: Workflow run history or workflow header control
   en: "Status unavailable"
+  verified_by_human: []
+
+builder.sharing_soon:
+  context: Notification shown when workflow sharing is requested before the feature is available
+  en: "Workflow sharing is coming soon."
   verified_by_human: []

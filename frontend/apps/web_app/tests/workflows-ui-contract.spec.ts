@@ -334,7 +334,8 @@ test.describe('Workflows web UI contract', () => {
 				page.getByTestId('workflow-graph-renderer').getByTestId('workflow-node-stack')
 			).toContainText('Paris');
 			await expect(page.getByTestId('save-workflow')).toHaveCount(0);
-			await page.getByTestId('workflow-more-options').locator('summary').click();
+			await expect(page.getByTestId('workflow-more-options')).toHaveCount(0);
+			await page.getByTestId('workflow-version-selector').click();
 
 			await expect(page.getByTestId('workflow-version-selector')).toBeVisible();
 			await expect(page.getByTestId('workflow-version-timeline')).toBeVisible();
@@ -353,7 +354,7 @@ test.describe('Workflows web UI contract', () => {
 			);
 			await expect(
 				page.locator('[data-testid="workflow-version-row"][data-current="true"]')
-			).toContainText('Active');
+			).toContainText(/current|active/i);
 			if (proof) {
 				await settleProofState(page);
 				await proof.assert('version-visible.assertion', async () => {
@@ -373,7 +374,7 @@ test.describe('Workflows web UI contract', () => {
 				.click();
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(runnerWorkflow.id));
 			await expect(page.getByTestId('workflow-detail-actions').getByRole('toolbar')).toBeVisible();
-			await expect(page.getByTestId('run-workflow')).toHaveCount(0);
+			await expect(page.getByTestId('run-workflow')).toBeVisible();
 			await page.getByTestId('workflow-tab-runs').click();
 			await expect(page).toHaveURL(
 				new RegExp(`workflow-id=${runnerWorkflow.id}&workflow-tab=runs`)
@@ -441,13 +442,15 @@ test.describe('Workflows web UI contract', () => {
 			});
 			await expectNoPageOverflow(page);
 
-			// Share remains reachable from Runs and opens the mounted workflow share panel.
+			// Sharing stays in the header but only shows the v1 coming-soon notice.
 			if (!(await page.getByTestId('workflow-share').isVisible())) {
 				await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
 			}
+			const sharingOriginUrl = page.url();
 			await page.getByTestId('workflow-share').click();
-			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(runnerWorkflow.id));
-			await expect(page.getByTestId('workflow-template-share')).toBeVisible();
+			await expect(page).toHaveURL(sharingOriginUrl);
+			await expect(page.getByText('Workflow sharing is coming soon.', { exact: true })).toBeVisible();
+			await expect(page.getByTestId('workflow-template-share')).toHaveCount(0);
 
 			if (proof) await proof.attach();
 		} finally {

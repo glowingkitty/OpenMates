@@ -44,6 +44,11 @@ visual_language:
     raw_json_or_object_dump_visible: false
     raw_debug_schema_visible: false
     expandable_debug_dump_available: false
+route_motion_contract:
+- id: workflow-route-matches-fullscreen-embed-motion
+  given: Alice opens a Workflow and then returns to the Workflows workspace.
+  when: Her system allows motion.
+  then: Opening moves the Workflow upward from the bottom with a fade and closing reverses it, using the fullscreen embed timing of 320ms cubic-bezier(0.32, 0, 0.2, 1); reduced-motion mode removes the nonessential movement.
 workflow_identity:
 - id: generated-software-workflow-identity
   given:
@@ -153,6 +158,15 @@ detail_header:
   given: Alice opens a scheduled workflow on desktop or mobile.
   when: She inspects the header and opens Show more.
   then: The actual ChatHeader toolbar and its Show more behavior are reused; workflow actions appear contextually in that menu. There are no standalone history/play/delete icons or corner Ready badge, and the workflow on/off control remains centered as in the supplied design.
+detail_header_contract:
+- id: web-v1-share-is-coming-soon-only
+  given: Alice activates Share in a Workflow header in web v1.
+  when: The Share action responds.
+  then: A notification says that sharing will be possible soon; no sharing controls open and no sharing state changes. Future Workflow sharing management belongs in the regular settings Share menu, and no permanent sharing panel displaces the Template canvas or definition history.
+- id: run-now-runs-the-saved-definition
+  given: Alice has a valid executable saved Workflow and an expanded node with unsaved edits.
+  when: She activates the prominent Run now control centered at the header bottom above the tabs.
+  then: The run uses the saved definition and does not include the unsaved node edits.
 detail_tabs:
 - id: compact-tab-pill-at-header-boundary
   given:
@@ -247,16 +261,11 @@ template_editing:
     app_skill_label: Weather | Forecast
     icon_source: actual_weather_app_icon_from_shared_catalog
     generic_workflow_or_placeholder_icon: false
-- id: share-management-does-not-displace-canvas
-  given:
-    tab: template
-    action: share
-  expect:
-    share_management_opened_contextually: true
-    permanent_share_panel_above_canvas: false
-    top_level_tabs:
-    - template
-    - runs
+node_card_contract:
+- id: editable-node-scale-and-affordance
+  given: Alice views expandable nodes in the Workflow graph.
+  when: The nodes are collapsed or expanded.
+  then: Each node is slightly larger than a compact preview card and keeps a clearly visible expand chevron at its bottom.
 unsaved_navigation:
 - id: dirty-template-to-runs-is-guarded
   given:
@@ -284,18 +293,9 @@ unsaved_navigation:
     transition_completed: false
 version_history:
 - id: version-selector-and-timeline-composition
-  given:
-    versions:
-    - current
-    - today_1439
-    - today_1438
-    - jul_1_1304
-    selected: today_1439
-  expect:
-    centered_timestamp_selector: true
-    horizontal_ticked_timeline: true
-    selected_marker_blue: true
-    current_marker_has_active_pill: true
+  given: Alice opens Template for a Workflow with multiple saved definition versions.
+  when: She activates the version selector below the tabs and above the first node.
+  then: The edit-history bar toggles in the same tab with explicit selected and current states; no bottom version-history or sharing panel appears.
 - id: historical-version-is-read-only
   given:
     tab: template
@@ -316,6 +316,11 @@ version_history:
     new_current_version: version-4
     version_1_mutated: false
     version_3_deleted: false
+version_selector_contract:
+- id: top-version-selector-toggles-history
+  given: Alice opens Template for a Workflow with multiple saved definition versions.
+  when: She activates the version selector below the tabs and above the first node.
+  then: The edit-history bar toggles in the same tab with explicit selected and current states; no bottom version-history or sharing panel appears.
 run_history:
 - id: run-layout-follows-supplied-runs-pdf
   given:

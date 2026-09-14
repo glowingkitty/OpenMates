@@ -18,14 +18,19 @@ approval:
       - "Continuations and empty branches use 'Do nothing.\nOr click here to add a step.' to open one 'What should happen next?' selector with valid choices; remove duplicate separate Add action/Add check buttons."
       - Use the existing canonical app/workflow/projectmanagement/chat/calendar icons and the exact supplied-design split-arrow for Add check, not unrelated replacements.
       - Reuse the actual ChatHeader toolbar and Show more behavior; keep workflow on/off centered, with no standalone header history/play/delete icons or corner Ready badge.
-    semantics: Presentation correction only; existing workflow execution, privacy and encryption rules stay unchanged.
+      - Workflow sharing management is outside web v1. The header Share action only shows a notification that sharing will be possible soon; future management belongs in the regular settings Share menu.
+      - Remove the bottom version-history-and-sharing area entirely. When saved edits exist, show the version selector below the tabs and above the first node; it toggles edit history in the same tab.
+      - For every valid executable saved Workflow, center Run now at the header bottom above the tabs and always execute the saved definition, ignoring unsaved node edits.
+      - Workflow open/close uses the fullscreen-embed bottom-up/reversed motion and fade with 320ms cubic-bezier(0.32, 0, 0.2, 1), honoring reduced motion; graph nodes are slightly larger with a visible bottom chevron.
+    semantics: Presentation correction only; existing workflow execution, privacy, encryption, runtime/CLI sharing APIs, and immutable definition history stay unchanged.
 goal: Match the supplied new-workflow Figma/PDF, enable real deterministic weather/news, AI events and apartment workflows, and preserve privacy.
 scope:
   in: [web, backend, CLI, npm SDK, Python SDK, node Save, unsaved skill Test, message preview, run-owned delivered-result memory, run deletion]
-  out: [Apple app, general Filter, AI steps, webhooks, app-use triggers, loops, waits, advanced recurrence, new budget forecasts]
+  out: [web Workflow sharing management, Apple app, general Filter, AI steps, webhooks, app-use triggers, loops, waits, advanced recurrence, new budget forecasts]
 sequence:
   - Align shared contracts with approved semantics.
   - Implement progressive builder and start-screen corrections.
+  - Place saved-version history at the top of Template and saved-definition Run now at the bottom of the header.
   - Wire typed skills, schedules, deterministic message delivery and encrypted result history.
   - Add CLI and SDK parity and editable example YAML.
   - Run focused unit/contract checks and deploy scoped dev services.

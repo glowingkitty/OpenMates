@@ -35,7 +35,7 @@
   {:else if typeof data === 'boolean'}<span>{tr(data ? 'true' : 'false')}</span>
   {:else if Array.isArray(data)}
     {#if !data.length}<span class="muted">{tr('output_empty_list')}</span>{:else}
-      <details class="value-collection"><summary>{tr('output_item_count', { count: data.length })}</summary><div class="value-list">{#each data as item, index}<div class="value-item">{@render present(item, spec?.items, `${id}.${index}`, key)}</div>{/each}</div></details>
+      <details class="value-collection"><summary>{tr('output_item_count', { values: { count: data.length } })}</summary><div class="value-list">{#each data as item, index}<div class="value-item">{@render present(item, spec?.items, `${id}.${index}`, key)}</div>{/each}</div></details>
     {/if}
   {:else if typeof data === 'object'}
     {@const item = data as Record<string, unknown>}

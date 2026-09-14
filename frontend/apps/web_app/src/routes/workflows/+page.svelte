@@ -9,7 +9,7 @@
 -->
 
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import { replaceState } from '$app/navigation';
 	import {
 		Header,
@@ -18,7 +18,6 @@
 		WorkspaceHomeShell,
 		WorkflowDetailPage,
 		WorkflowGraphRenderer,
-		WorkflowTemplateShare,
 		WorkflowSidebar,
 		authStore,
 		focusTrap,
@@ -42,12 +41,10 @@
 	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
 	import { userProfile } from '@repo/ui/stores/userProfile.ts';
 	import type {
-		ImportedWorkflowTemplate,
 		WorkflowDetail,
 		WorkflowGraph,
 		WorkflowRun,
-		WorkflowSummary,
-		WorkflowTemplateBindingRequirement
+		WorkflowSummary
 	} from '@repo/ui';
 
 	import type { DailyInspiration } from '@repo/ui/stores/dailyInspirationStore.ts';
@@ -91,6 +88,12 @@
 	let hydratedEditorWorkflowId = $state<string | null>(null);
 	let pendingNavigation = $state<{ action: () => void | Promise<void> } | null>(null);
 	let showAllWorkflows = $state(false);
+	let workflowClosing = $state(false);
+
+	// Keep the pane mounted for the same 320ms CSS motion used by UnifiedEmbedFullscreen.
+	function fullscreenWorkflowMotion() {
+		return { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 320 };
+	}
 	let workflowInputText = $state('');
 	let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
 	let workflowHashState = $state<WorkflowHashState>({
@@ -306,15 +309,7 @@
 	}
 
 	function requestWorkflowShare(): void {
-		if (!selectedWorkflow) return;
-		const workflowId = selectedWorkflow.id;
-		requestNavigation(async () => {
-			openWorkflowDetails(workflowId);
-			await tick();
-			const panel = document.querySelector<HTMLDetailsElement>('[data-testid="workflow-more-options"]');
-			if (panel) panel.open = true;
-			document.querySelector<HTMLElement>('[data-testid="workflow-template-share"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		});
+		notificationStore.info($text('workflows.builder.sharing_soon'), 4000, true, 'workflow-sharing-soon');
 	}
 
 	function requestWorkflowTab(tab: 'template' | 'runs'): void {
@@ -528,7 +523,7 @@
 	}
 
 	async function runSelectedWorkflow() {
-		if (!selectedWorkflow || saving || editorDirty || !savedRunReady) return;
+		if (!selectedWorkflow || saving || !savedRunReady) return;
 		const workflowId = selectedWorkflow.id;
 		saving = true;
 		routeError = null;
@@ -598,20 +593,6 @@
 	async function handleWorkflowVersionRestored(workflow: WorkflowDetail): Promise<void> {
 		resetEditor(workflow);
 		await maintainTemplateProjection(workflow);
-	}
-
-	async function unavailableTemplateImport(): Promise<ImportedWorkflowTemplate | null> {
-		return null;
-	}
-
-	async function unavailableTemplateBinding(
-		_requirement: WorkflowTemplateBindingRequirement
-	): Promise<void> {
-		return;
-	}
-
-	async function unavailableTemplateEnable(): Promise<void> {
-		return;
 	}
 
 	function rainAlertGraph(): WorkflowGraph {
@@ -774,7 +755,7 @@
 				{/if}
 
 				{#if showManageView}
-					<section class="workflow-management" data-testid="workflow-management">
+					<section class="workflow-management" class:closing={workflowClosing} data-testid="workflow-management" transition:fullscreenWorkflowMotion onintrostart={() => (workflowClosing = false)} onoutrostart={() => (workflowClosing = true)}>
 						<div class="management-grid">
 							<section class="workflow-detail" data-testid="workflow-detail">
 								{#if selectedWorkflow}
@@ -791,7 +772,7 @@
 										nextRunAt={selectedWorkflow.next_run_at}
 										enabled={selectedWorkflow.enabled}
 										canEnable={editorActivationReady && !editorDirty}
-										canRun={savedRunReady && !editorDirty}
+										canRun={savedRunReady}
 										{lastStartedRunId}
 										activeTab={isRunsView ? 'runs' : 'template'}
 										{saving}
@@ -822,32 +803,13 @@
 											role="tabpanel"
 											aria-label="Workflow template"
 										>
-											{#if editorGraph}
-												<div data-testid="workflow-editor">
-													<WorkflowGraphRenderer
-														graph={editorGraph}
-														workflowId={selectedWorkflow.id}
-														onChange={updateEditorGraph}
-														onSave={saveNodeGraph}
-													/>
-												</div>
-											{/if}
-											<details class="workflow-more-options" data-testid="workflow-more-options">
-												<summary>{$text('workflows.builder.history_and_sharing')}</summary>
-												<WorkflowVersionHistory
-													workflow={selectedWorkflow}
-													disabled={saving}
-													onRequestNavigation={requestNavigation}
-													onRestored={handleWorkflowVersionRestored}
-												/>
-												<WorkflowTemplateShare
-													ownerWorkflow={selectedWorkflow}
-													disabled={saving || editorDirty}
-													onImport={unavailableTemplateImport}
-													onCompleteBinding={unavailableTemplateBinding}
-													onEnable={unavailableTemplateEnable}
-												/>
-											</details>
+                      <WorkflowVersionHistory workflow={selectedWorkflow} disabled={saving} onRequestNavigation={requestNavigation} onRestored={handleWorkflowVersionRestored}>
+                        {#if editorGraph}
+                          <div data-testid="workflow-editor">
+                            <WorkflowGraphRenderer graph={editorGraph} workflowId={selectedWorkflow.id} onChange={updateEditorGraph} onSave={saveNodeGraph}/>
+                          </div>
+                        {/if}
+                      </WorkflowVersionHistory>
 										</div>
 									{/if}
 								{:else}
@@ -1004,7 +966,7 @@
 		flex: 1;
 		min-width: 0;
 		height: 100%;
-		overflow: auto;
+		overflow: hidden;
 		display: grid;
 		gap: 28px;
 		color: var(--color-font-primary);
@@ -1020,18 +982,15 @@
 		gap: 0;
 		overflow: hidden;
 	}
-	.workflow-more-options {
-		width: min(54rem, calc(100% - 2rem));
-		margin: 2rem auto;
-		color: var(--color-font-secondary);
-	}
-	.workflow-more-options summary {
-		cursor: pointer;
-		font-size: 0.8rem;
-		text-align: center;
-	}
 
 	.workflow-management {
+		position: absolute;
+		inset: 0;
+		overflow: auto;
+		z-index: var(--z-index-raised-1);
+		background: var(--color-grey-10);
+		will-change: transform, opacity;
+		animation: workflow-pane-open 320ms cubic-bezier(0.32, 0, 0.2, 1) both;
 		display: grid;
 		gap: 16px;
 		padding-block-end: 36px;
@@ -1230,4 +1189,8 @@
 			border-radius: var(--radius-10, 24px);
 		}
 	}
+  .workflow-management.closing { animation-name: workflow-pane-close; pointer-events:none; }
+  @keyframes workflow-pane-open { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
+  @keyframes workflow-pane-close { from { transform:translateY(0); opacity:1; } to { transform:translateY(100%); opacity:0; } }
+  @media(prefers-reduced-motion:reduce) { .workflow-management,.workflow-management.closing { animation:none; will-change:auto; } }
 </style>
