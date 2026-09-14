@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows-ui@2
+specification: feature.workflows-ui@3
 visual_language:
 - id: all-workflow-views-share-one-visual-family
   given:
@@ -181,7 +181,7 @@ template_editing:
     summary_header_preserved: true
     input_output_groups_visible: true
     sibling_editor_panel: false
-- id: graph-change-shows-contextual-save-panel
+- id: graph-change-keeps-local-node-save
   given:
     tab: template
     expanded_node: weather_skill
@@ -189,9 +189,9 @@ template_editing:
     change_location: Paris
   expect:
     dirty: true
-    unsaved_message_visible: true
-    undo_visible: true
-    orange_save_visible: true
+    global_unsaved_message_visible: false
+    node_discard_visible: true
+    orange_node_save_visible: true
     server_graph_changed_before_save: false
 - id: share-management-does-not-displace-canvas
   given:
@@ -309,23 +309,19 @@ responsive_accessibility:
     reduced_motion_respected: true
 mvp_authoring:
 - id: mvp_authoring-example
-  given: A forecast step exists before any live run, and an Events step declares a list.
-  when: Alice adds Check for rain probability and Filter for event descriptions.
-  then: The matching typed fields are offered immediately; Check reads If true / If false and Filter selects
-    items. A complete workflow without a schedule still offers Run now; AI and user-input pauses are absent.
+  given: A forecast step exists before any live run and an Events step declares a result list.
+  when: Alice adds Check for rain and a Send message result block for events.
+  then: Typed fields are offered immediately; Check shows true and false branches with Do nothing when empty. A complete unscheduled workflow offers Run now. General Filter is absent.
 schedule_preview:
 - id: schedule_preview-example
-  given: Alice chooses every 15 minutes, 08:00 to 20:00, Europe/Berlin.
-  when: She opens the time preview, then switches to the second Tuesday each month.
-  then: The first preview lists times through 19:45 and explains the excluded end; the second highlights matching
-    dates on a calendar. Both use the same next executions as scheduling.
+  given: Alice chooses hourly apartment search at minute zero in Europe/Berlin.
+  when: She saves the time/date node.
+  then: A readable hourly schedule is saved; daily 09:00 and weekly Sunday are also available without code.
 message_budget:
 - id: message_budget-example
-  given: An apartment workflow selects two results and costs 10 search credits per quarter-hour check during
-    a 12-hour window.
-  when: Alice configures Send message and enables automatic execution.
-  then: She previews introductory text, two result embeds and a run link; the estimate shows 480 search credits
-    per full day plus unknown components, and she either sets a cap or acknowledges no cap.
+  given: An apartment workflow has selected result output and known skill pricing.
+  when: Alice configures Send message.
+  then: She edits deterministic text with references, chooses Only new results and previews the output without sending or saving. Known skill cost is shown; deferred budget caps are not claimed.
 run_deletion:
 - id: run_deletion-example
   given: Run 1 delivered an apartment and is its only remembered delivery; its chat message remains.

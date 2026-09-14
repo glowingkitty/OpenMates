@@ -6,6 +6,7 @@
 # Spec: docs/specs/workflows-v1/spec.yml (TASK-3, T-PYTEST-006)
 
 import pytest
+from unittest.mock import AsyncMock
 
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
 from backend.core.api.app.services.workflow_models import WorkflowRunDetail, WorkflowRunStatus
@@ -43,9 +44,10 @@ def scheduled_graph() -> dict[str, object]:
                 "type": "schedule_trigger",
                 "config": {"schedule": {"type": "daily", "time": "07:00", "timezone": "UTC"}},
             },
+            {"id": "report", "type": "start_new_chat", "config": {"title": "Scheduled report", "message": "Completed"}},
             {"id": "end", "type": "end", "config": {}},
         ],
-        "edges": [{"from": "trigger", "to": "end"}],
+        "edges": [{"from": "trigger", "to": "report"}, {"from": "report", "to": "end"}],
     }
 
 
@@ -253,7 +255,9 @@ async def test_scheduler_executes_the_claimed_run_id_without_creating_another_ru
     async def execute_run(run_id: str, workflow_id: str, version_id: str, owner_user_id: str) -> None:
         assert owner_user_id == "alice"
         detail = service.get_workflow_version(workflow_id, "alice", version_id)
-        await WorkflowRunner(service).run_workflow(
+        action_adapter = AsyncMock()
+        action_adapter.start_new_chat.return_value = {"chat_id": "report-chat"}
+        await WorkflowRunner(service, action_adapter=action_adapter).run_workflow(
             detail,
             "alice",
             trigger_type="schedule",
@@ -270,4 +274,5 @@ async def test_scheduler_executes_the_claimed_run_id_without_creating_another_ru
     persisted_run = service.get_run(workflow.id, "run-accepted", "alice")
     assert result == {"accepted": True, "run_id": "run-accepted", "next_run_at": 1_800_000_000}
     assert persisted_run.id == "run-accepted"
+    assert persisted_run.status == WorkflowRunStatus.COMPLETED
     assert [run.id for run in service.list_runs(workflow.id, "alice")] == ["run-accepted"]

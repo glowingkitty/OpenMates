@@ -110,7 +110,7 @@ class WorkflowSchedulerService:
 
     @staticmethod
     def next_run_at_from_schedule(schedule_config: Any, now: int | None = None) -> int:
-        """Calculate the next one-time, daily, or weekly occurrence from decrypted config."""
+        """Calculate the next one-time, hourly, daily, or weekly occurrence."""
         schedule = schedule_config.get("schedule", schedule_config) if isinstance(schedule_config, dict) else None
         if not isinstance(schedule, dict):
             raise ValueError("Decrypted workflow schedule must be an object")
@@ -120,10 +120,27 @@ class WorkflowSchedulerService:
             if not isinstance(at_value, str) or not at_value:
                 raise ValueError("One-time workflow schedule requires at")
             try:
-                datetime.fromisoformat(at_value.replace("Z", "+00:00"))
+                _parse_once_timestamp(at_value, schedule)
             except ValueError as exc:
                 raise ValueError("One-time workflow schedule timestamp is invalid") from exc
             return 0
+        if schedule_type == "hourly":
+            minute = schedule.get("minute", 0)
+            if isinstance(minute, bool) or not isinstance(minute, int) or not 0 <= minute <= 59:
+                raise ValueError("Hourly workflow schedule minute must be between 0 and 59")
+            try:
+                hourly_timezone = ZoneInfo(str(schedule.get("timezone") or "UTC"))
+            except ZoneInfoNotFoundError as exc:
+                raise ValueError("Decrypted workflow schedule timezone is invalid") from exc
+            current = datetime.fromtimestamp(now if now is not None else datetime.now(timezone.utc).timestamp(), timezone.utc)
+            # Walk actual UTC minutes: both repeated local hours run at fall-back,
+            # nonexistent local hours are skipped, and non-hour offsets work too.
+            candidate = current.replace(second=0, microsecond=0) + timedelta(minutes=1)
+            for _ in range(180):
+                if candidate.astimezone(hourly_timezone).minute == minute:
+                    return int(candidate.timestamp())
+                candidate += timedelta(minutes=1)
+            raise ValueError("Could not resolve the next hourly workflow occurrence")
         time_value = schedule.get("time")
         if not isinstance(time_value, str):
             raise ValueError("Decrypted workflow schedule requires a time")
@@ -141,9 +158,9 @@ class WorkflowSchedulerService:
         current = datetime.fromtimestamp(now if now is not None else datetime.now(timezone.utc).timestamp(), timezone.utc)
         local_current = current.astimezone(schedule_timezone)
         if schedule_type == "daily":
-            candidate = local_current.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            if candidate <= local_current:
-                candidate += timedelta(days=1)
+            candidate = _local_occurrence(local_current, hour, minute)
+            if candidate.timestamp() <= current.timestamp():
+                candidate = _local_occurrence(local_current + timedelta(days=1), hour, minute)
             return int(candidate.timestamp())
         if schedule_type == "weekly":
             weekdays = schedule.get("weekdays")
@@ -153,8 +170,8 @@ class WorkflowSchedulerService:
             if not normalized_weekdays:
                 raise ValueError("Weekly workflow schedule requires weekdays")
             for offset in range(8):
-                candidate = (local_current + timedelta(days=offset)).replace(hour=hour, minute=minute, second=0, microsecond=0)
-                if candidate.weekday() in normalized_weekdays and candidate > local_current:
+                candidate = _local_occurrence(local_current + timedelta(days=offset), hour, minute)
+                if candidate.weekday() in normalized_weekdays and candidate.timestamp() > current.timestamp():
                     return int(candidate.timestamp())
         raise ValueError("Workflow schedule type is not supported for unattended execution")
 
@@ -167,7 +184,7 @@ class WorkflowSchedulerService:
             if not isinstance(at_value, str) or not at_value:
                 raise ValueError("One-time workflow schedule requires at")
             try:
-                return int(datetime.fromisoformat(at_value.replace("Z", "+00:00")).timestamp())
+                return int(_parse_once_timestamp(at_value, schedule).timestamp())
             except ValueError as exc:
                 raise ValueError("One-time workflow schedule timestamp is invalid") from exc
         return WorkflowSchedulerService.next_run_at_from_schedule(schedule_config, now=now)
@@ -203,3 +220,20 @@ def _weekday_index(value: Any) -> int:
         return weekdays[value.lower()]
     except KeyError as exc:
         raise ValueError("Weekly workflow schedule weekday is invalid") from exc
+
+
+def _local_occurrence(day: datetime, hour: int, minute: int) -> datetime:
+    """Use the first repeated wall time; shift missing spring times by the DST gap."""
+    candidate = day.replace(hour=hour, minute=minute, second=0, microsecond=0, fold=0)
+    return datetime.fromtimestamp(candidate.timestamp(), day.tzinfo)
+
+
+def _parse_once_timestamp(value: str, schedule: dict[str, Any]) -> datetime:
+    """Interpret local one-time input in the selected timezone, never server-local time."""
+    result = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if result.tzinfo is None:
+        try:
+            result = result.replace(tzinfo=ZoneInfo(str(schedule.get("timezone") or "UTC")))
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError("One-time workflow schedule timezone is invalid") from exc
+    return result

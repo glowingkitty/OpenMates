@@ -273,7 +273,8 @@ async def test_none_retention_keeps_only_latest_ephemeral_run_content() -> None:
 
     assert persisted_first.content_available is False
     assert persisted_first.content_storage == WorkflowRunContentStorage.DELETED
-    assert persisted_first.node_runs == []
+    assert persisted_first.node_runs
+    assert all(not node.output_summary and not node.input_summary for node in persisted_first.node_runs)
     assert persisted_second.content_available is True
     assert persisted_second.content_storage == WorkflowRunContentStorage.EPHEMERAL
     assert persisted_second.content_expires_at is not None

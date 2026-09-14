@@ -1,0 +1,36 @@
+id: workflows-design-v1
+status: implementing
+title: Ship the approved workflow v1 builder and deterministic demo workflows
+session: 0dc3
+approval:
+  source: Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b
+  date: "2026-09-14"
+  statement: User approved implementation; prioritize speed and essential tests.
+goal: Match the supplied new-workflow Figma/PDF, enable real deterministic weather/news, AI events and apartment workflows, and preserve privacy.
+scope:
+  in: [web, backend, CLI, npm SDK, Python SDK, node Save, unsaved skill Test, message preview, run-owned delivered-result memory, run deletion]
+  out: [Apple app, general Filter, AI steps, webhooks, app-use triggers, loops, waits, advanced recurrence, new budget forecasts]
+sequence:
+  - Align shared contracts with approved semantics.
+  - Implement progressive builder and start-screen corrections.
+  - Wire typed skills, schedules, deterministic message delivery and encrypted result history.
+  - Add CLI and SDK parity and editable example YAML.
+  - Run focused unit/contract checks and deploy scoped dev services.
+  - Per the explicit user follow-up, verify through the connected global CLI personal dev account first, then verify web.
+  - Use Berlin, Germany news and apartment maximum EUR 1200/month; request targeted user review only for remaining uncertainties.
+privacy: Existing Vault workflow payloads and client-encrypted regular chats remain distinct; no server chat keys. Only confirmed delivered results are remembered using keyed fingerprints.
+verification:
+  - Node save and unsaved test/preview contracts.
+  - Hourly and next-calendar-week dates, typed skill normalization.
+  - Conditional combined message, new-result lifecycle, retry and delete fencing.
+  - Three workflow scenarios in the explicitly authorized CLI personal dev profile first, then Safari; focused npm/Python parity checks.
+  - Desktop and narrow viewport comparison; ask user about unresolved live provider behavior.
+
+approved_by_user: true
+approvals:
+  specification:
+    status: approved
+    source: User approved the plan and workflow semantic decisions in this task; requested keeping the source-of-truth specifications aligned.
+  plan:
+    status: approved
+    source: "User: ok, approved. Go ahead with implementation."

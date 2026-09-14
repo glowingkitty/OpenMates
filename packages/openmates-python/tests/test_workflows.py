@@ -344,3 +344,26 @@ def test_pip_sdk_workflow_template_import_rejects_malformed_response(monkeypatch
     client = OpenMates(api_key="x")
     with pytest.raises(OpenMatesApiError, match="HTTP 500"):
         client.workflows.import_template(template_import_payload())
+
+
+# contract-test: supporting surface=sdks.pip assertions=workflows.message.standard,workflows.history.delete-forgets,workflows.surface.semantic-parity
+def test_draft_preview_and_run_deletion_do_not_save_definition(monkeypatch):
+    workflow_id = "11111111-1111-4111-8111-111111111111"
+    node = {"id": "send", "type": "send_chat_message", "config": {"title": "News", "message": "Latest news"}}
+    outputs = {"news": {"results": [{"id": "article-1"}]}}
+    seen = []
+    def fake_post(self, path, payload, **kwargs):
+        seen.append(("POST", path))
+        assert path == f"/v1/workflows/{workflow_id}/steps/send/preview"
+        assert payload == {"node": node, "input": {}, "upstream_outputs": outputs}
+        return {"preview": {"message": "Latest news"}}
+    def fake_delete(self, path, *args, **kwargs):
+        seen.append(("DELETE", path))
+        assert path == f"/v1/workflows/{workflow_id}/runs/run-1"
+        return {"run_id": "run-1", "status": "deleted"}
+    monkeypatch.setattr(OpenMates, "_post", fake_post)
+    monkeypatch.setattr(OpenMates, "_delete", fake_delete)
+    client = OpenMates(api_key="x")
+    assert client.workflows.preview_step(workflow_id, "send", node=node, upstream_outputs=outputs)["message"] == "Latest news"
+    assert client.workflows.delete_run(workflow_id, "run-1")["status"] == "deleted"
+    assert len(seen) == 2

@@ -17,6 +17,8 @@ No API key required.
 """
 
 import logging
+from html import unescape
+from urllib.parse import urljoin, urlsplit
 import re
 from typing import Any, Dict, List, Optional
 
@@ -141,6 +143,12 @@ def _parse_listings_from_html(html: str, listing_type: str, city: str) -> List[D
 
         if not title:
             continue
+        link = re.search(r'(?:href|data-href)=[\"\']([^\"\']*/s-anzeige/[^\"\']+)[\"\']', block_html)
+        if not link:
+            continue
+        listing_url = urljoin(BASE_URL, unescape(link.group(1)))
+        if urlsplit(listing_url).hostname not in {"www.kleinanzeigen.de", "kleinanzeigen.de"}:
+            continue
 
         # Extract price — the price element has multi-line whitespace around the value
         price_match = re.search(
@@ -196,7 +204,7 @@ def _parse_listings_from_html(html: str, listing_type: str, city: str) -> List[D
             "rooms": rooms,
             "address": address,
             "image_url": image_url,
-            "url": f"{BASE_URL}/s-anzeige/{ad_id}",
+            "url": listing_url,
             "provider": "Kleinanzeigen",
             "listing_type": listing_type,
         })
@@ -254,6 +262,8 @@ async def search_listings(
     city: str,
     listing_type: str = "rent",
     max_results: int = 20,
+    property_type: str = "apartment",
+    sort: str = "price_asc",
 ) -> List[Dict[str, Any]]:
     """
     Search Kleinanzeigen for apartment/house listings in a German city.
@@ -267,16 +277,18 @@ async def search_listings(
         List of normalized listing dicts with standard schema fields.
         Returns empty list on error or if city is not supported.
     """
+    if property_type == "shared_room":
+        raise ValueError("Kleinanzeigen shared-room search is not supported")
     location_code = _get_location_code(city)
     if not location_code:
         logger.warning("Kleinanzeigen: city %r not in location map, skipping", city)
-        return []
+        raise ValueError("Kleinanzeigen does not support this city")
 
     category_slug, category_code = CATEGORY_MAP.get(listing_type, ("wohnungen-mieten", "c203"))
     city_slug = city.strip().lower().replace(" ", "-")
 
     # Build search URL: /s-{category}/{city}/{code}{location}
-    search_url = f"{BASE_URL}/s-{category_slug}/{city_slug}/{category_code}{location_code}"
+    search_url = f"{BASE_URL}/s-sortierung:neueste/{category_slug}/{city_slug}/{category_code}{location_code}" if sort == "newest" else f"{BASE_URL}/s-{category_slug}/{city_slug}/{category_code}{location_code}"
 
     logger.info(
         "Kleinanzeigen search city=%s type=%s url=%s",
@@ -301,10 +313,10 @@ async def search_listings(
             "Kleinanzeigen HTTP error status=%d city=%s: %s",
             e.response.status_code, city, e,
         )
-        return []
+        raise RuntimeError(f"Kleinanzeigen returned HTTP {e.response.status_code}") from e
     except Exception as e:
         logger.error("Kleinanzeigen request failed city=%s: %s", city, e, exc_info=True)
-        return []
+        raise RuntimeError("Kleinanzeigen search request failed") from e
 
     listings = _parse_listings_from_html(html, listing_type, city)
 

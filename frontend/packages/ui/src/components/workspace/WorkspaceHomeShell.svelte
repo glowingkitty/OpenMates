@@ -776,13 +776,16 @@
   }
 
   .resume-chat-card {
+    box-sizing: border-box;
+    flex-shrink: 0;
     position: relative;
     display: flex;
     align-items: center;
     gap: var(--spacing-6);
     width: 100%;
     max-width: 400px;
-    min-height: 44px;
+    min-height: 4.5rem;
+    height: auto;
     padding: var(--spacing-5) var(--spacing-8);
     background-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.14);

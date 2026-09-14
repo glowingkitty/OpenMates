@@ -4994,6 +4994,29 @@ class OpenMatesWorkflows:
     def run_detail(self, workflow_id: str, run_id: str) -> dict[str, Any]:
         return _workflow_resource_request(self._client, "GET", workflow_id, f"/runs/{_quote(run_id)}").get("run", {})
 
+    def delete_run(self, workflow_id: str, run_id: str) -> dict[str, Any]:
+        """Delete retained run data and forget its delivered-result membership."""
+        result = _workflow_resource_request(self._client, "DELETE", workflow_id, f"/runs/{_quote(run_id)}")
+        if result.get("status") not in {"deleted", "deletion_pending"}:
+            raise OpenMatesApiError(500, {"detail": "Invalid run deletion response"})
+        return result
+
+    def preview_step(
+        self, workflow_id: str, step_id: str, *,
+        node: dict[str, Any] | None = None,
+        input_data: dict[str, Any] | None = None,
+        upstream_outputs: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Preview an unsaved message without sending or recording results."""
+        response = _workflow_resource_request(self._client, "POST", workflow_id, f"/steps/{_quote(step_id)}/preview", {
+            "input": input_data or {}, "upstream_outputs": upstream_outputs or {},
+            **({"node": node} if node is not None else {}),
+        })
+        preview = response.get("preview")
+        if not isinstance(preview, dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow response missing preview"})
+        return preview
+
     def step_test(
         self,
         workflow_id: str,
@@ -5001,13 +5024,17 @@ class OpenMatesWorkflows:
         *,
         input_data: dict[str, Any] | None = None,
         confirmed: bool = False,
+        node: dict[str, Any] | None = None,
+        upstream_outputs: dict[str, dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         response = _workflow_resource_request(
             self._client,
             "POST",
             workflow_id,
             f"/steps/{_quote(step_id)}/test",
-            {"input": input_data or {}, "confirmed": confirmed},
+            {"input": input_data or {}, "confirmed": confirmed,
+             **({"node": node} if node is not None else {}),
+             **({"upstream_outputs": upstream_outputs} if upstream_outputs is not None else {})},
         )
         run = response.get("run")
         if not isinstance(run, dict):

@@ -259,6 +259,8 @@ class InMemoryWorkflowRepository:
         return deepcopy(record)
 
     def save_run(self, record: dict[str, Any]) -> dict[str, Any]:
+        if self.runs.get(record["id"], {}).get("status") == "deleted":
+            raise WorkflowNotFoundError(record["id"])
         self.runs[record["id"]] = deepcopy(record)
         return deepcopy(record)
 
@@ -267,7 +269,7 @@ class InMemoryWorkflowRepository:
         return [
             deepcopy(record)
             for record in self.runs.values()
-            if record["workflow_id"] == workflow_id and record["owner_hash"] == owner_hash
+            if record["workflow_id"] == workflow_id and record["owner_hash"] == owner_hash and record.get("status") != "deleted"
         ]
 
     def list_run_records_for_workflow(self, workflow_id: str) -> list[dict[str, Any]]:
@@ -275,7 +277,7 @@ class InMemoryWorkflowRepository:
 
     def get_run(self, workflow_id: str, run_id: str, user_id: str) -> dict[str, Any] | None:
         record = self.runs.get(run_id)
-        if not record or record["workflow_id"] != workflow_id or record["owner_hash"] != _hash_owner_id(user_id):
+        if not record or record.get("status") == "deleted" or record["workflow_id"] != workflow_id or record["owner_hash"] != _hash_owner_id(user_id):
             return None
         return deepcopy(record)
 
@@ -307,6 +309,10 @@ class InMemoryWorkflowRepository:
     def save_trigger(self, record: dict[str, Any]) -> dict[str, Any]:
         self.triggers[record["trigger_id"]] = deepcopy(record)
         return deepcopy(record)
+
+    def project_workflow_next_runs(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        from backend.core.api.app.services.workflow_trigger_projection import project_workflow_next_runs
+        return project_workflow_next_runs(records, list(self.triggers.values()))
 
     def get_trigger_for_workflow(self, workflow_id: str, user_id: str) -> dict[str, Any] | None:
         owner_hash = _hash_owner_id(user_id)
@@ -552,17 +558,15 @@ class DirectusWorkflowRepository:
             "content_expires_at": record.get("content_expires_at"),
             "record_json": record,
         }
-        existing = self._find_one(self.RUNS, {"run_id": {"_eq": record["id"]}}, fields="id")
-        if existing:
-            self._patch_item(self.RUNS, existing["id"], payload)
-        else:
-            self._create_item(self.RUNS, payload)
+        from backend.core.api.app.services.workflow_delivery_history import runtime_transaction
+        runtime_transaction(self, action="save_run", workflow_id=record["workflow_id"],
+                            run_id=record["id"], hashed_user_id=record["owner_hash"], run=payload)
         return deepcopy(record)
 
     def list_runs(self, workflow_id: str, user_id: str) -> list[dict[str, Any]]:
         items = self._get_items(
             self.RUNS,
-            {"_and": [{"workflow_id": {"_eq": workflow_id}}, {"hashed_user_id": {"_eq": _hash_owner_id(user_id)}}]},
+            {"_and": [{"workflow_id": {"_eq": workflow_id}}, {"hashed_user_id": {"_eq": _hash_owner_id(user_id)}}, {"status": {"_neq": "deleted"}}]},
             sort="-started_at",
             limit=-1,
         )
@@ -589,7 +593,7 @@ class DirectusWorkflowRepository:
                 ]
             },
         )
-        if not item:
+        if not item or item.get("status") == "deleted":
             return None
         if isinstance(item.get("record_json"), dict):
             return deepcopy(item["record_json"])
@@ -720,6 +724,16 @@ class DirectusWorkflowRepository:
         else:
             self._create_item(self.TRIGGERS, payload)
         return deepcopy(record)
+
+    def project_workflow_next_runs(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        from backend.core.api.app.services.workflow_trigger_projection import project_workflow_next_runs
+        if not records:
+            return []
+        triggers = self._get_items(self.TRIGGERS, {"_and": [
+            {"workflow_id": {"_in": [record["id"] for record in records]}},
+            {"hashed_user_id": {"_in": list({record["owner_hash"] for record in records})}},
+        ]}, limit=-1)
+        return project_workflow_next_runs(records, triggers)
 
     def get_trigger_for_workflow(self, workflow_id: str, user_id: str) -> dict[str, Any] | None:
         item = self._find_one(
@@ -1001,7 +1015,7 @@ class WorkflowService:
             for record in self.repository.list_workflows(user_id, team_id=team_id)
             if record.get("lifecycle", WorkflowLifecycle.PERSISTED.value) == WorkflowLifecycle.PERSISTED.value
         ]
-        records = sorted(records, key=_workflow_list_sort_key)
+        records = sorted(self.repository.project_workflow_next_runs(records), key=_workflow_list_sort_key)
         return [self._summary_from_record(record, vault_key_id) for record in records]
 
     def list_temporary_workflows(self, user_id: str, vault_key_id: str | None = None) -> list[WorkflowSummary]:
@@ -1012,7 +1026,7 @@ class WorkflowService:
             for record in self.repository.list_workflows(user_id)
             if record.get("lifecycle") == WorkflowLifecycle.TEMPORARY.value
         ]
-        records = sorted(records, key=_workflow_list_sort_key)
+        records = sorted(self.repository.project_workflow_next_runs(records), key=_workflow_list_sort_key)
         return [self._summary_from_record(record, vault_key_id) for record in records]
 
     def get_workflow(self, workflow_id: str, user_id: str, vault_key_id: str | None = None, team_id: str | None = None) -> WorkflowDetail:
@@ -1021,6 +1035,7 @@ class WorkflowService:
         record = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
+        record = self.repository.project_workflow_next_runs([record])[0]
         return self._detail_from_record(record, vault_key_id)
 
     def get_workflow_version(
@@ -1176,7 +1191,7 @@ class WorkflowService:
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
         if enabled:
-            validate_workflow_readiness(workflow_graph)
+            validate_workflow_readiness(workflow_graph, require_schedule=True)
         identity = (
             normalize_workflow_identity(category, icon)
             if category is not None or icon is not None
@@ -1296,7 +1311,8 @@ class WorkflowService:
         if effective_enabled:
             validate_workflow_readiness(
                 workflow_graph
-                or WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id))
+                or WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id)),
+                require_schedule=True,
             )
         if slug_lookup_hash is not None:
             self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash, exclude_workflow_id=workflow_id)
@@ -1565,11 +1581,15 @@ class WorkflowService:
         if not workflow:
             raise WorkflowNotFoundError(run.workflow_id)
 
+        previous = self.repository.get_run(run.workflow_id, run.id, user_id)
         retention = WorkflowRunContentRetention(workflow.get("run_content_retention") or WorkflowRunContentRetention.LAST_5.value)
+        if run.trigger_type == "step_test":
+            retention = WorkflowRunContentRetention.NONE
         record = run.model_dump(mode="json", exclude={"node_runs", "output_summary"})
         record["owner_hash"] = _hash_owner_id(user_id)
         record["content_retention_mode"] = retention.value
         record["saved_at"] = time.time_ns()
+        record["node_statuses"] = [node.model_dump(mode="json", exclude={"input_summary", "output_summary", "error_summary", "skipped_reason"}) for node in run.node_runs]
 
         run_content = {
             "node_runs": [node.model_dump(mode="json") for node in run.node_runs],
@@ -1577,7 +1597,8 @@ class WorkflowService:
         }
         now = int(time.time())
         if retention == WorkflowRunContentRetention.NONE:
-            self._delete_existing_ephemeral_run_content(run.workflow_id, user_id)
+            if run.trigger_type != "step_test":
+                self._delete_existing_ephemeral_run_content(run.workflow_id, user_id)
             blob = self._save_encrypted_blob(
                 user_id,
                 "workflow_run_content_ephemeral",
@@ -1598,7 +1619,13 @@ class WorkflowService:
             record["encrypted_content_ref"] = blob["ref"]
             record["encrypted_content_checksum"] = blob["checksum"]
 
-        self.repository.save_run(record)
+        try:
+            self.repository.save_run(record)
+        except Exception:
+            self.repository.delete_encrypted_blob(blob["ref"])
+            raise
+        if previous and previous.get("encrypted_content_ref") and previous["encrypted_content_ref"] != blob["ref"]:
+            self.repository.delete_encrypted_blob(previous["encrypted_content_ref"])
         self._apply_run_content_retention(run.workflow_id, user_id)
 
         workflow["last_run_status"] = run.status.value
@@ -1606,13 +1633,38 @@ class WorkflowService:
         self.repository.save_workflow(workflow)
         return self.get_run(run.workflow_id, run.id, user_id, vault_key_id=vault_key_id)
 
+    def delete_run(self, workflow_id: str, run_id: str, user_id: str, vault_key_id: str | None = None) -> dict[str, str]:
+        """Forget run-owned results and fence late deliveries without deleting sent chats."""
+        self.ensure_enabled()
+        if not self.repository.get_workflow(workflow_id, user_id):
+            raise WorkflowNotFoundError(workflow_id)
+        from backend.core.api.app.services.workflow_delivery_history import WorkflowDeliveryHistory, runtime_transaction
+        WorkflowDeliveryHistory(self)
+        if hasattr(self.repository, "_request"):
+            result = runtime_transaction(self.repository, action="delete_run", workflow_id=workflow_id,
+                                         run_id=run_id, hashed_user_id=_hash_owner_id(user_id))
+            for ref in result.pop("content_refs", []):
+                self.repository.delete_encrypted_blob(ref)
+            return result
+        with self.repository._delivery_history_lock:
+            run = self.repository.get_run(workflow_id, run_id, user_id)
+            if not run:
+                raise WorkflowNotFoundError(run_id)
+            if run.get("encrypted_content_ref"):
+                self.repository.delete_encrypted_blob(run["encrypted_content_ref"])
+            self.repository._delivery_history[:] = [r for r in self.repository._delivery_history if r["run_id"] != run_id]
+            self.repository.runs[run_id] = {"id": run_id, "workflow_id": workflow_id,
+                                         "owner_hash": _hash_owner_id(user_id), "status": "deleted"}
+            return {"run_id": run_id, "status": "deleted"}
+
     def list_runs(self, workflow_id: str, user_id: str, vault_key_id: str | None = None) -> list[WorkflowRunDetail]:
         self.ensure_enabled()
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         if not self.repository.get_workflow(workflow_id, user_id):
             raise WorkflowNotFoundError(workflow_id)
         records = sorted(self.repository.list_runs(workflow_id, user_id), key=lambda item: item.get("started_at") or 0, reverse=True)
-        return [self._run_detail_from_record(record, vault_key_id) for record in records]
+        statuses = self._delivery_statuses_for_workflow(workflow_id, user_id)
+        return [self._run_detail_from_record(record, vault_key_id, statuses.get(record["id"])) for record in records]
 
     def get_run(self, workflow_id: str, run_id: str, user_id: str, vault_key_id: str | None = None) -> WorkflowRunDetail:
         self.ensure_enabled()
@@ -1620,7 +1672,7 @@ class WorkflowService:
         record = self.repository.get_run(workflow_id, run_id, user_id)
         if not record:
             raise WorkflowNotFoundError(run_id)
-        return self._run_detail_from_record(record, vault_key_id)
+        return self._run_detail_from_record(record, vault_key_id, self._delivery_statuses_for_workflow(workflow_id, user_id).get(run_id))
 
     def request_run_cancellation(self, workflow_id: str, run_id: str, user_id: str) -> WorkflowRunDetail:
         """Record an owner cancellation request without altering the pinned run definition."""
@@ -1651,14 +1703,14 @@ class WorkflowService:
     def capabilities(self, user_id: str | None = None, vault_key_id: str | None = None) -> list[WorkflowCapability]:
         node_capabilities = [
             WorkflowCapability(type="node", id="schedule_trigger", title="Schedule", metadata={"category": "trigger"}),
-            WorkflowCapability(type="node", id="manual_trigger", title="Manual run", metadata={"category": "trigger"}),
-            WorkflowCapability(type="node", id="app_skill_action", title="App skill", metadata={"category": "action"}),
-            WorkflowCapability(type="node", id="decision", title="Decision", metadata={"category": "decision"}),
-            WorkflowCapability(type="node", id="repeat", title="Repeat", metadata={"category": "repeat"}),
-            WorkflowCapability(type="node", id="create_chat_report", title="Create chat report", metadata={"category": "action"}),
-            WorkflowCapability(type="node", id="start_new_chat", title="Start new chat", metadata={"category": "action"}),
-            WorkflowCapability(type="node", id="send_notification", title="Send push notification", metadata={"category": "action"}),
-            WorkflowCapability(type="node", id="send_email_notification", title="Send email notification", metadata={"category": "action"}),
+            WorkflowCapability(type="node", id="app_skill_action", title="Use App", metadata={"category": "action"}),
+            WorkflowCapability(type="node", id="check", title="Check", metadata={"category": "check"}),
+            WorkflowCapability(type="node", id="send_chat_message", title="Send message", metadata={"category": "action"}),
+            *[WorkflowCapability(type="node", id=node_id, title=title, enabled=False,
+                reason="Legacy step is available for inspection; migrate explicitly to current workflow actions")
+              for node_id, title in [("manual_trigger", "Manual trigger"), ("decision", "Decision"), ("repeat", "Repeat"),
+                ("create_chat_report", "Create chat report"), ("start_new_chat", "Start new chat"),
+                ("send_notification", "Push notification"), ("send_email_notification", "Email notification")]],
             WorkflowCapability(type="node", id="event_trigger", title="Event trigger", enabled=False, reason="Event triggers require scoped event matching before execution"),
             WorkflowCapability(type="node", id="custom_code", title="Run custom code", enabled=False, reason="Custom code nodes are planned for a later E2B-gated slice"),
         ]
@@ -1773,9 +1825,41 @@ class WorkflowService:
             if version["id"] not in retained:
                 version["pruned_at"] = now
 
-    def _run_detail_from_record(self, record: dict[str, Any], vault_key_id: str | None) -> WorkflowRunDetail:
+    def _delivery_statuses_for_workflow(self, workflow_id: str, user_id: str) -> dict[str, dict[str, dict[str, Any]]]:
+        """Batch routing/status metadata only; never load old result payloads for memory."""
+        if hasattr(self.repository, "_request"):
+            filters = {"workflow_id": {"_eq": workflow_id}, "hashed_user_id": {"_eq": hashlib.sha256(user_id.encode()).hexdigest()}}
+            deliveries = self.repository._get_items("workflow_chat_deliveries", filters,
+                fields="delivery_id,run_id,node_id,status,chat_id,message_id,client_persisted_at", limit=-1)
+            members = self.repository._get_items("workflow_delivery_history", {
+                "workflow_id": {"_eq": workflow_id}, "hashed_user_id": {"_eq": _hash_owner_id(user_id)}},
+                fields="delivery_id,status", limit=-1)
+        else:
+            repository = getattr(self.repository, "_workflow_deliveries", None)
+            deliveries = [dict(delivery_id=d.delivery_id,run_id=d.run_id,node_id=d.node_id,status=d.status,
+                chat_id=d.chat_id,message_id=d.message_id,client_persisted_at=d.client_persistence.persisted_at if d.client_persistence else None)
+                for d in (repository._deliveries.values() if repository else []) if d.workflow_id == workflow_id and d.owner_id == user_id]
+            members = getattr(self.repository, "_delivery_history", [])
+        counts: dict[str, dict[str, int]] = {}
+        for member in members:
+            count = counts.setdefault(member["delivery_id"], {"reserved": 0, "delivered": 0})
+            if member["status"] in count:
+                count[member["status"]] += 1
+        result: dict[str, dict[str, dict[str, Any]]] = {}
+        for delivery in deliveries:
+            count = counts.get(delivery["delivery_id"], {})
+            result.setdefault(delivery["run_id"], {})[delivery["node_id"]] = {
+                "type": "send_chat_message", "status": delivery["status"],
+                "delivery_id": delivery["delivery_id"], "chat_id": delivery["chat_id"], "message_id": delivery["message_id"],
+                "client_persisted": delivery.get("client_persisted_at") is not None,
+                "delivered_result_count": count.get("delivered", 0), "pending_result_count": count.get("reserved", 0),
+            }
+        return result
+
+    def _run_detail_from_record(self, record: dict[str, Any], vault_key_id: str | None,
+                                delivery_statuses: dict[str, dict[str, Any]] | None = None) -> WorkflowRunDetail:
         hydrated = deepcopy(record)
-        hydrated["node_runs"] = []
+        hydrated["node_runs"] = hydrated.pop("node_statuses", [])
         hydrated["output_summary"] = {}
         if hydrated.get("content_available") and hydrated.get("encrypted_content_ref"):
             blob = self.repository.get_encrypted_blob(hydrated["encrypted_content_ref"])
@@ -1788,6 +1872,11 @@ class WorkflowService:
                 hydrated["content_storage"] = WorkflowRunContentStorage.DELETED.value
                 hydrated["encrypted_content_ref"] = None
                 hydrated["encrypted_content_checksum"] = None
+        if delivery_statuses:
+            for node in hydrated["node_runs"]:
+                if node["node_id"] in delivery_statuses:
+                    node["output_summary"] = {**(node.get("output_summary") or {}), **delivery_statuses[node["node_id"]]}
+            hydrated["output_summary"]["deliveries"] = delivery_statuses
         return WorkflowRunDetail.model_validate(hydrated)
 
     def _save_encrypted_blob(self, user_id: str, kind: str, payload: Any, expires_at: int | None = None, vault_key_id: str | None = None) -> dict[str, Any]:

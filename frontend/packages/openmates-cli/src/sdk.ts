@@ -120,6 +120,7 @@ import type {
   WorkflowCapability,
   WorkflowDetail,
   WorkflowGraph,
+  WorkflowNode,
   WorkflowInputEvent,
   WorkflowInputSessionDetail,
   WorkflowInputSessionResult,
@@ -4851,15 +4852,32 @@ export class OpenMatesWorkflows {
     return response.run;
   }
 
+  async deleteRun(workflowId: string, runId: string): Promise<{ run_id: string; status: "deleted" | "deletion_pending" }> {
+    const resolvedWorkflowId = await this.resolveId(workflowId);
+    const result = await this.client.delete<{ run_id: string; status: "deleted" | "deletion_pending" }>(`/v1/workflows/${encodeURIComponent(resolvedWorkflowId)}/runs/${encodeURIComponent(runId)}`);
+    if (!["deleted", "deletion_pending"].includes(result.status)) throw new OpenMatesApiError(500, { detail: "Invalid run deletion response" });
+    return result;
+  }
+
+  async previewStep(workflowId: string, stepId: string, params: { input?: Record<string, unknown>; node?: WorkflowNode; upstreamOutputs?: Record<string, Record<string, unknown>> } = {}): Promise<Record<string, unknown>> {
+    const resolvedWorkflowId = await this.resolveId(workflowId);
+    const response = await this.client.request<{ preview?: Record<string, unknown> }>(
+      `/v1/workflows/${encodeURIComponent(resolvedWorkflowId)}/steps/${encodeURIComponent(stepId)}/preview`,
+      { input: params.input ?? {}, ...(params.node ? { node: params.node } : {}), upstream_outputs: params.upstreamOutputs ?? {} },
+    );
+    if (!response.preview) throw new OpenMatesApiError(500, { detail: "Workflow response missing preview" });
+    return response.preview;
+  }
+
   async stepTest(
     workflowId: string,
     stepId: string,
-    params: { input?: Record<string, unknown>; confirmed?: boolean } = {},
+    params: { input?: Record<string, unknown>; confirmed?: boolean; node?: WorkflowNode; upstreamOutputs?: Record<string, Record<string, unknown>> } = {},
   ): Promise<WorkflowRunDetail> {
     const resolvedWorkflowId = await this.resolveId(workflowId);
     const response = await this.client.request<{ run?: WorkflowRunDetail }>(
       `/v1/workflows/${encodeURIComponent(resolvedWorkflowId)}/steps/${encodeURIComponent(stepId)}/test`,
-      { input: params.input ?? {}, confirmed: params.confirmed === true },
+      { input: params.input ?? {}, confirmed: params.confirmed === true, ...(params.node ? { node: params.node } : {}), ...(params.upstreamOutputs ? { upstream_outputs: params.upstreamOutputs } : {}) },
     );
     if (!response.run) throw new OpenMatesApiError(500, { detail: "Workflow response missing run" });
     return response.run;

@@ -97,9 +97,9 @@ def _normalize_mobile_listing(item: Dict[str, Any], listing_type: str) -> Option
     The mobile API returns items with: id, title, attributes (array of {value}),
     address.line, titlePicture.full/preview.
     """
-    listing_id = str(item.get("id", ""))
+    listing_id = str(item.get("id") or "")
     title = item.get("title", "")
-    if not listing_id and not title:
+    if not listing_id:
         return None
 
     # Price, size, rooms from attributes array (0=price, 1=size, 2=rooms)
@@ -180,7 +180,7 @@ def _normalize_listing(raw: Dict[str, Any], listing_type: str) -> Optional[Dict[
 
     listing_id = str(real_estate.get("@id") or raw.get("@id") or raw.get("id", ""))
     title = real_estate.get("title") or ""
-    if not listing_id and not title:
+    if not listing_id:
         return None
 
     # Price extraction
@@ -252,6 +252,8 @@ async def search_listings(
     city: str,
     listing_type: str = "rent",
     max_results: int = 20,
+    property_type: str = "apartment",
+    sort: str = "price_asc",
 ) -> List[Dict[str, Any]]:
     """
     Search ImmoScout24 for apartment/house listings in a German city.
@@ -265,6 +267,8 @@ async def search_listings(
         List of normalized listing dicts with standard schema fields.
         Returns empty list on error (logs the error).
     """
+    if property_type == "shared_room":
+        raise ValueError("ImmoScout24 shared-room search is not supported")
     geocode = _get_geocode(city)
     realestatetype = LISTING_TYPE_MAP.get(listing_type, "apartmentrent")
 
@@ -300,10 +304,10 @@ async def search_listings(
             "ImmoScout24 API HTTP error status=%d city=%s: %s",
             e.response.status_code, city, e,
         )
-        return []
+        raise RuntimeError(f"ImmoScout24 returned HTTP {e.response.status_code}") from e
     except Exception as e:
         logger.error("ImmoScout24 API request failed city=%s: %s", city, e, exc_info=True)
-        return []
+        raise RuntimeError("ImmoScout24 search request failed") from e
 
     # Parse response structure — the path varies by API version
     # Mobile API response: resultListItems array with type=EXPOSE_RESULT items

@@ -6,6 +6,8 @@
 -->
 
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import { text } from '../../i18n/translations';
   import WorkflowGraphRenderer from './WorkflowGraphRenderer.svelte';
   import { focusTrap } from '../../actions/focusTrap';
   import { getLucideIcon } from '../../utils/categoryUtils';
@@ -39,6 +41,7 @@
   let errorMessage = $state<string | null>(null);
   let cancelConfirmationOpen = $state(false);
   let cancelling = $state(false);
+  let deleting = $state(false);
   let statusOverrides = $state<Record<string, string>>({});
 
   const RUN_POLL_INTERVAL_MS = 2_000;
@@ -50,9 +53,9 @@
   const canCancel = $derived(['queued', 'running', 'waiting'].includes(selectedStatus));
   const StatusIcon = getLucideIcon('activity');
 
+  const selectedRunKey = $derived(`${workflow.id}/${selectedRun?.id ?? ''}`);
   $effect(() => {
-    const workflowId = workflow.id;
-    const runId = selectedRun?.id;
+    const [workflowId, runId] = selectedRunKey.split('/');
     if (!runId) {
       selectedRunDetail = null;
       selectedGraph = null;
@@ -66,15 +69,26 @@
       const detail = await loadRun(workflowId, runId, attempts > 0);
       attempts += 1;
       if (disposed || !detail || TERMINAL_RUN_STATUSES.has(detail.status) || attempts >= MAX_RUN_POLL_ATTEMPTS) return;
-      timeoutId = setTimeout(() => void refreshRun(), RUN_POLL_INTERVAL_MS);
+      timeoutId = setTimeout(() => void refreshRun(), Math.min(RUN_POLL_INTERVAL_MS + attempts * 500, 8000));
     }
 
-    void refreshRun();
+    untrack(() => void refreshRun());
     return () => {
       disposed = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
   });
+
+  async function deleteRun(): Promise<void> {
+    if (!selectedRun || !window.confirm($text('workflows.builder.delete_run_confirm'))) return;
+    deleting = true;
+    try {
+      const status = await workflowWorkspaceStore.deleteWorkflowRun(workflow.id, selectedRun.id);
+      if (status === 'deletion_pending') errorMessage = $text('workflows.builder.deletion_pending');
+      else { selectedRunDetail = null; selectedGraph = null; const next = runs.find(run => run.id !== selectedRun?.id); if (next) onSelectRun(next.id); }
+    } catch (error) { errorMessage = error instanceof Error ? error.message : String(error); }
+    finally { deleting = false; }
+  }
 
   async function loadRun(workflowId: string, runId: string, preserveExisting = false): Promise<WorkflowRunDetail | null> {
     if (!preserveExisting) loading = true;
@@ -191,13 +205,14 @@
         </div>
       {/if}
 
+      <button type="button" data-testid="workflow-delete-run" disabled={deleting || !TERMINAL_RUN_STATUSES.has(selectedStatus)} onclick={() => void deleteRun()}>{$text('workflows.builder.delete_run')}</button>
       {#if selectedGraph}
         <WorkflowGraphRenderer
           graph={selectedGraph}
           readOnly
           nodeRuns={selectedRunDetail.node_runs ?? []}
           testId="workflow-run-graph"
-          onChange={ignoreGraphChange}
+          onChange={ignoreGraphChange} onSave={null}
         />
       {/if}
 

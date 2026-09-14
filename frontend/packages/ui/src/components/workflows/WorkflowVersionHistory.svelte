@@ -190,7 +190,7 @@
             <span data-testid="workflow-version-inspection-node">{node.title ?? node.type}</span>
           {/each}
         </div>
-        <WorkflowGraphRenderer graph={inspectedGraph} readOnly testId="workflow-version-graph" onChange={ignoreGraphChange} />
+        <WorkflowGraphRenderer graph={inspectedGraph} readOnly testId="workflow-version-graph" onChange={ignoreGraphChange} onSave={null} />
       {/if}
     </section>
 

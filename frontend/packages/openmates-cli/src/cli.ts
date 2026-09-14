@@ -40,6 +40,7 @@ import {
   type WorkflowCapability,
   type WorkflowDetail,
   type WorkflowGraph,
+  type WorkflowNode,
   type WorkflowInputSessionResult,
   type WorkflowRunDetail,
   type WorkflowRunContentRetention,
@@ -6619,7 +6620,20 @@ async function handleWorkflows(
     if (!idempotencyKey) throw new Error("Missing --idempotency-key. Reuse this stable key when retrying the same workflow run.");
     const mode = flags.mode === "test" ? "test" : "manual";
     const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
-    const run = await client.runWorkflow(workflowId, { idempotencyKey, mode, input });
+    let run = await client.runWorkflow(workflowId, { idempotencyKey, mode, input });
+    if (flags.wait === true) {
+      const deadline = Date.now() + 180_000;
+      while (["queued", "planned", "running"].includes(run.status) && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        run = await client.getWorkflowRun(workflowId, run.id);
+      }
+      if (["queued", "planned", "running"].includes(run.status)) throw new Error(`Workflow run ${run.id} is still running. Inspect it with workflows run-show.`);
+      if (run.status === "failed") throw new Error(`Workflow run ${run.id} failed: ${run.error_summary ?? "inspect run-show for details"}`);
+      // An owner client encrypts and persists newly available chat deliveries.
+      // Sync owns claim fencing and waits for durable persistence before ACK.
+      await client.ensureSynced(true);
+      run = await client.getWorkflowRun(workflowId, run.id);
+    }
     if (flags.json === true) {
       printJson(run);
     } else {
@@ -6653,6 +6667,17 @@ async function handleWorkflows(
     return;
   }
 
+  if (subcommand === "run-delete") {
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "run-delete") : undefined;
+    const runId = rest[1];
+    if (!workflowId || !runId) throw new Error("Usage: openmates workflows run-delete <workflow-id> <run-id> --yes");
+    if (flags.yes !== true) throw new Error("Run deletion forgets its delivered-result history. Existing chat messages remain. Pass --yes to confirm.");
+    const result = await client.deleteWorkflowRun(workflowId, runId);
+    if (flags.json === true) printJson(result);
+    else kv("Status", result.status);
+    return;
+  }
+
   if (subcommand === "run-cancel") {
     const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "run-cancel") : undefined;
     const runId = rest[1];
@@ -6666,12 +6691,20 @@ async function handleWorkflows(
     return;
   }
 
-  if (subcommand === "step-test") {
+  if (subcommand === "step-test" || subcommand === "step-preview") {
     const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "step-test") : undefined;
     const stepId = rest[1];
     if (!workflowId || !stepId) throw new Error("Missing workflow/step ID. Example: openmates workflows step-test <workflow-id> <step-id> --yes");
     const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
-    const run = await client.testWorkflowStep(workflowId, stepId, { input, confirmed: flags.yes === true });
+    const node = typeof flags.node === "string" ? parseJsonFlag<WorkflowNode>(flags.node, "--node") : undefined;
+    const upstreamOutputs = typeof flags.upstream === "string" ? parseJsonFlag<Record<string, Record<string, unknown>>>(flags.upstream, "--upstream") : undefined;
+    if (subcommand === "step-preview") {
+      const preview = await client.previewWorkflowStep(workflowId, stepId, { input, node, upstreamOutputs });
+      if (flags.json === true) printJson(preview);
+      else console.log(String(preview.text ?? preview.message ?? preview.body ?? ""));
+      return;
+    }
+    const run = await client.testWorkflowStep(workflowId, stepId, { input, node, upstreamOutputs, confirmed: flags.yes === true });
     if (flags.json === true) {
       printJson(run);
     } else {
@@ -14258,11 +14291,13 @@ function printWorkflowsHelp(): void {
   openmates workflows show <workflow-id> [--json]
   openmates workflows enable <workflow-id> [--json]
   openmates workflows disable <workflow-id> [--json]
-  openmates workflows run <workflow-id> --idempotency-key <stable-key> [--mode manual|test] [--input '<json>'] [--json]
+  openmates workflows run <workflow-id> --idempotency-key <stable-key> [--mode manual|test] [--input '<json>'] [--wait] [--json]
   openmates workflows runs <workflow-id> [--json]
   openmates workflows run-show <workflow-id> <run-id> [--json]
   openmates workflows run-cancel <workflow-id> <run-id> [--json]
-  openmates workflows step-test <workflow-id> <step-id> [--input '<json>'] [--yes] [--json]
+  openmates workflows step-test <workflow-id> <step-id> [--node '<json>'] [--input '<json>'] [--upstream '<json>'] [--json]
+  openmates workflows step-preview <workflow-id> <step-id> [--node '<json>'] [--upstream '<json>'] [--json]
+  openmates workflows run-delete <workflow-id> <run-id> --yes [--json]
   openmates workflows respond <workflow-id> <run-id> <step-id> --input '<json>' [--json]
   openmates workflows help-app <app.skill> [--json]
   openmates workflows delete <workflow-id> --yes [--json]

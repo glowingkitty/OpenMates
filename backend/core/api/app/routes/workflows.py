@@ -28,7 +28,7 @@ from backend.core.api.app.services.workflow_identity_service import (
     build_preprocessing_workflow_classifier,
     normalize_workflow_identity,
 )
-from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowLifecycle, WorkflowMissingInputError, WorkflowRunContentRetention, WorkflowRunStatus
+from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowLifecycle, WorkflowMissingInputError, WorkflowRunContentRetention, WorkflowRunStatus
 from backend.core.api.app.services.workflow_runtime_service import WorkflowRuntimeProtocolError, WorkflowRuntimeService
 from backend.core.api.app.services.workflow_runner import WorkflowRunner
 from backend.core.api.app.services.workflow_yaml_compiler import (
@@ -112,8 +112,13 @@ class WorkflowRunRequest(BaseModel):
 
 
 class WorkflowStepTestRequest(BaseModel):
+    """Ephemeral editor input; testing never saves a workflow version."""
+
     input: dict[str, Any] = Field(default_factory=dict)
     confirmed: bool = False
+    node: WorkflowNode | None = None
+    upstream_outputs: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
 
 
 class WorkflowRunResponseRequest(BaseModel):
@@ -1601,8 +1606,6 @@ async def run_workflow(
 ) -> dict[str, Any]:
     try:
         workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
-        if not workflow.enabled:
-            raise HTTPException(status_code=409, detail="WORKFLOW_DISABLED")
         await run_in_threadpool(service.validate_manual_run_input, workflow, body.input)
         idempotency_key = request.headers.get("Idempotency-Key")
         if not isinstance(idempotency_key, str) or not idempotency_key.strip():
@@ -1637,22 +1640,81 @@ async def test_workflow_step(
 ) -> dict[str, Any]:
     try:
         workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
-        node = next((item for item in workflow.graph.nodes if item.id == step_id), None)
-        if node is None:
-            raise HTTPException(status_code=404, detail="Workflow step not found")
-        side_effect = node.type.value in {"send_notification", "send_email_notification", "start_new_chat", "ask_user"}
-        if side_effect and not body.confirmed:
-            raise HTTPException(status_code=409, detail="WORKFLOW_STEP_TEST_CONFIRMATION_REQUIRED")
+        node = _workflow_editor_node(workflow.graph, step_id, body)
+        if node.type != WorkflowNodeType.APP_SKILL_ACTION:
+            raise HTTPException(status_code=409, detail="WORKFLOW_STEP_TEST_APP_SKILL_ONLY")
+        from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
+        capability = WorkflowCapabilityRegistry().get_capability(f"{node.config['app_id']}.{node.config['skill_id']}")
+        metadata = capability.metadata.get("workflow") or {}
+        if not capability.enabled or not metadata.get("test_allowed") or metadata.get("effect") != "read":
+            raise HTTPException(status_code=409, detail="WORKFLOW_STEP_TEST_UNAVAILABLE")
+        draft_nodes = [item for item in workflow.graph.nodes if item.id != step_id] + [node]
+        draft = workflow.model_copy(update={"graph": workflow.graph.model_copy(update={"nodes": draft_nodes})})
         run = await WorkflowRunner(service).run_step_test(
-            workflow,
+            draft,
             current_user.id,
             step_id,
             input_override=body.input,
+            upstream_outputs=body.upstream_outputs,
             vault_key_id=current_user.vault_key_id,
         )
         return {"run": run.model_dump(mode="json")}
     except HTTPException:
         raise
+    except Exception as exc:
+        _handle_workflow_error(exc)
+
+
+def _workflow_editor_node(graph: WorkflowGraph, step_id: str, body: WorkflowStepTestRequest) -> WorkflowNode:
+    """Validate a draft node independently without writing the definition."""
+    node = body.node or next((item for item in graph.nodes if item.id == step_id), None)
+    if node is None:
+        raise HTTPException(status_code=404, detail="Workflow step not found")
+    if node.id != step_id:
+        raise HTTPException(status_code=422, detail="WORKFLOW_STEP_ID_MISMATCH")
+    WorkflowGraph(nodes=[node])
+    return node
+
+
+@router.post("/{workflow_id}/steps/{step_id}/preview")
+@limiter.limit("30/minute")
+async def preview_workflow_message(
+    workflow_id: str,
+    step_id: str,
+    request: Request,
+    body: WorkflowStepTestRequest,
+    current_user: User = Depends(get_current_user_or_api_key),
+    service: WorkflowService = Depends(get_workflow_service),
+) -> dict[str, Any]:
+    """Render unsaved deterministic content without delivery or history writes."""
+    try:
+        workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+        node = _workflow_editor_node(workflow.graph, step_id, body)
+        if node.type != WorkflowNodeType.SEND_CHAT_MESSAGE:
+            raise HTTPException(status_code=409, detail="WORKFLOW_PREVIEW_SEND_MESSAGE_ONLY")
+        context = {
+            "nodes": {node_id: {"output": output} for node_id, output in body.upstream_outputs.items()},
+            "trigger": {"input": body.input},
+            "variables": workflow.graph.variables,
+        }
+        preview = await WorkflowActionAdapter().preview_message(node.config, context)
+        return {"preview": preview}
+    except Exception as exc:
+        _handle_workflow_error(exc)
+
+
+@router.delete("/{workflow_id}/runs/{run_id}")
+@limiter.limit("20/minute")
+async def delete_workflow_run(
+    workflow_id: str,
+    run_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user_or_api_key),
+    service: WorkflowService = Depends(get_workflow_service),
+) -> dict[str, Any]:
+    """Delete owned run history and its delivered-result membership."""
+    try:
+        return await run_in_threadpool(service.delete_run, workflow_id, run_id, current_user.id, current_user.vault_key_id)
     except Exception as exc:
         _handle_workflow_error(exc)
 

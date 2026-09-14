@@ -109,10 +109,328 @@ skills:
         properties:
           summary:
             type: string
+            example: Weather forecast for Berlin
+          result_count:
+            type: integer
+            example: 1
           rain_probability:
-            type: number
+            type:
+            - number
+            - 'null'
+            example: 60
           max_temperature_c:
-            type: number
+            type:
+            - number
+            - 'null'
+            example: 20
+          rain_expected:
+            type:
+            - boolean
+            - 'null'
+            example: true
+          rain_summary:
+            type: string
+            example: 'Rain is forecast today: 12:00–14:00 (Europe/Berlin).'
+          forecast_day:
+            type: object
+            properties:
+              date:
+                type: string
+                example: '2026-09-21'
+              title:
+                type: string
+                example: Berlin weather
+              timezone:
+                type: string
+                example: Europe/Berlin
+              condition:
+                type:
+                - string
+                - 'null'
+                example: rain
+              temperature_min_c:
+                type:
+                - number
+                - 'null'
+                example: 12
+              temperature_max_c:
+                type:
+                - number
+                - 'null'
+                example: 20
+              precipitation_total_mm:
+                type:
+                - number
+                - 'null'
+                example: 1.2
+              precipitation_probability_max_pct:
+                type:
+                - number
+                - 'null'
+                example: 60
+              hourly:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    timestamp:
+                      type: string
+                      example: '2026-09-21T12:00:00+02:00'
+                    time:
+                      type: string
+                      example: '12:00'
+                    precipitation_mm:
+                      type:
+                      - number
+                      - 'null'
+                      example: 0.4
+                    precipitation_probability_pct:
+                      type:
+                      - number
+                      - 'null'
+                      example: 60
+                    condition:
+                      type:
+                      - string
+                      - 'null'
+                      example: rain
+                    temperature_c:
+                      type:
+                      - number
+                      - 'null'
+                      example: 18
+                  example:
+                    timestamp: '2026-09-21T12:00:00+02:00'
+                    time: '12:00'
+                    precipitation_mm: 0.4
+                    precipitation_probability_pct: 60
+                    condition: rain
+                    temperature_c: 18
+                example:
+                - timestamp: '2026-09-21T12:00:00+02:00'
+                  time: '12:00'
+                  precipitation_mm: 0.4
+                  precipitation_probability_pct: 60
+                  condition: rain
+                  temperature_c: 18
+            example:
+              date: '2026-09-21'
+              title: Berlin weather
+              timezone: Europe/Berlin
+              condition: rain
+              temperature_min_c: 12
+              temperature_max_c: 20
+              precipitation_total_mm: 1.2
+              precipitation_probability_max_pct: 60
+              hourly:
+              - timestamp: '2026-09-21T12:00:00+02:00'
+                time: '12:00'
+                precipitation_mm: 0.4
+                precipitation_probability_pct: 60
+                condition: rain
+                temperature_c: 18
+          forecast_days:
+            type: array
+            items:
+              type: object
+              properties:
+                date:
+                  type: string
+                  example: '2026-09-21'
+                title:
+                  type: string
+                  example: Berlin weather
+                timezone:
+                  type: string
+                  example: Europe/Berlin
+                condition:
+                  type:
+                  - string
+                  - 'null'
+                  example: rain
+                temperature_min_c:
+                  type:
+                  - number
+                  - 'null'
+                  example: 12
+                temperature_max_c:
+                  type:
+                  - number
+                  - 'null'
+                  example: 20
+                precipitation_total_mm:
+                  type:
+                  - number
+                  - 'null'
+                  example: 1.2
+                precipitation_probability_max_pct:
+                  type:
+                  - number
+                  - 'null'
+                  example: 60
+                hourly:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      timestamp:
+                        type: string
+                        example: '2026-09-21T12:00:00+02:00'
+                      time:
+                        type: string
+                        example: '12:00'
+                      precipitation_mm:
+                        type:
+                        - number
+                        - 'null'
+                        example: 0.4
+                      precipitation_probability_pct:
+                        type:
+                        - number
+                        - 'null'
+                        example: 60
+                      condition:
+                        type:
+                        - string
+                        - 'null'
+                        example: rain
+                      temperature_c:
+                        type:
+                        - number
+                        - 'null'
+                        example: 18
+                    example:
+                      timestamp: '2026-09-21T12:00:00+02:00'
+                      time: '12:00'
+                      precipitation_mm: 0.4
+                      precipitation_probability_pct: 60
+                      condition: rain
+                      temperature_c: 18
+                  example:
+                  - timestamp: '2026-09-21T12:00:00+02:00'
+                    time: '12:00'
+                    precipitation_mm: 0.4
+                    precipitation_probability_pct: 60
+                    condition: rain
+                    temperature_c: 18
+              example:
+                date: '2026-09-21'
+                title: Berlin weather
+                timezone: Europe/Berlin
+                condition: rain
+                temperature_min_c: 12
+                temperature_max_c: 20
+                precipitation_total_mm: 1.2
+                precipitation_probability_max_pct: 60
+                hourly:
+                - timestamp: '2026-09-21T12:00:00+02:00'
+                  time: '12:00'
+                  precipitation_mm: 0.4
+                  precipitation_probability_pct: 60
+                  condition: rain
+                  temperature_c: 18
+            example:
+            - date: '2026-09-21'
+              title: Berlin weather
+              timezone: Europe/Berlin
+              condition: rain
+              temperature_min_c: 12
+              temperature_max_c: 20
+              precipitation_total_mm: 1.2
+              precipitation_probability_max_pct: 60
+              hourly:
+              - timestamp: '2026-09-21T12:00:00+02:00'
+                time: '12:00'
+                precipitation_mm: 0.4
+                precipitation_probability_pct: 60
+                condition: rain
+                temperature_c: 18
+          hourly:
+            type: array
+            items:
+              type: object
+              properties:
+                timestamp:
+                  type: string
+                  example: '2026-09-21T12:00:00+02:00'
+                time:
+                  type: string
+                  example: '12:00'
+                precipitation_mm:
+                  type:
+                  - number
+                  - 'null'
+                  example: 0.4
+                precipitation_probability_pct:
+                  type:
+                  - number
+                  - 'null'
+                  example: 60
+                condition:
+                  type:
+                  - string
+                  - 'null'
+                  example: rain
+                temperature_c:
+                  type:
+                  - number
+                  - 'null'
+                  example: 18
+              example:
+                timestamp: '2026-09-21T12:00:00+02:00'
+                time: '12:00'
+                precipitation_mm: 0.4
+                precipitation_probability_pct: 60
+                condition: rain
+                temperature_c: 18
+            example:
+            - timestamp: '2026-09-21T12:00:00+02:00'
+              time: '12:00'
+              precipitation_mm: 0.4
+              precipitation_probability_pct: 60
+              condition: rain
+              temperature_c: 18
+          rain_periods:
+            type: array
+            items:
+              type: object
+              properties:
+                start:
+                  type: string
+                  example: '2026-09-21T12:00:00+02:00'
+                end:
+                  type: string
+                  example: '2026-09-21T14:00:00+02:00'
+                start_time:
+                  type: string
+                  example: '12:00'
+                end_time:
+                  type: string
+                  example: '14:00'
+                timezone:
+                  type:
+                  - string
+                  - 'null'
+                  example: Europe/Berlin
+                probability_pct:
+                  type:
+                  - number
+                  - 'null'
+                  example: 60
+              example:
+                start: '2026-09-21T12:00:00+02:00'
+                end: '2026-09-21T14:00:00+02:00'
+                start_time: '12:00'
+                end_time: '14:00'
+                timezone: Europe/Berlin
+                probability_pct: 60
+            example:
+            - start: '2026-09-21T12:00:00+02:00'
+              end: '2026-09-21T14:00:00+02:00'
+              start_time: '12:00'
+              end_time: '14:00'
+              timezone: Europe/Berlin
+              probability_pct: 60
   - id: rain_radar
     name_translation_key: apps.weather.rain_radar
     description_translation_key: apps.weather.rain_radar.description

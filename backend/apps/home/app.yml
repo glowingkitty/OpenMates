@@ -193,6 +193,36 @@ skills:
                     - ImmoScout24
                     - Kleinanzeigen
                     - WG-Gesucht
+              property_type:
+                type: string
+                enum:
+                - apartment
+                - shared_room
+                default: apartment
+                description: Entire apartments or shared rooms. Shared rooms use WG-Gesucht.
+              sort:
+                type: string
+                enum:
+                - price_asc
+                - newest
+                default: price_asc
+                description: Price ascending, or discovery order for monitoring. Newest order is
+                  supported by Kleinanzeigen; other providers retain their source order.
+              max_price_eur:
+                type: number
+                minimum: 0
+                description: Maximum advertised monthly rent or purchase price in EUR. Price basis
+                  varies by provider.
+              min_rooms:
+                type: number
+                minimum: 0
+                description: Minimum advertised rooms. Results with unknown rooms are excluded when
+                  set.
+              min_size_sqm:
+                type: number
+                minimum: 0
+                description: Minimum advertised area in square metres. Unknown area is excluded
+                  when set.
               max_results:
                 type: integer
                 description: Maximum number of listings to return (1-20, default 10).
@@ -203,6 +233,208 @@ skills:
               - query
       required:
         - requests
+
+    workflow:
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements:
+      - location
+      test_allowed: true
+      test_example_input:
+        requests:
+        - query: Berlin
+          property_type: apartment
+          providers:
+          - Kleinanzeigen
+          sort: newest
+          max_results: 3
+      output_schema:
+        type: object
+        properties:
+          summary:
+            type: string
+            example: Home search completed
+          result_count:
+            type: integer
+            example: 1
+          provider:
+            type: string
+            example: Example housing provider
+          results:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: example-listing
+                source_id:
+                  type: string
+                  example: example-listing
+                title:
+                  type: string
+                  example: Two-room apartment
+                url:
+                  type: string
+                  example: https://example.invalid/apartments/one
+                canonical_url:
+                  type: string
+                  example: https://example.invalid/apartments/one
+                provider:
+                  type: string
+                  example: Example housing provider
+                price:
+                  type:
+                  - number
+                  - 'null'
+                  example: 1100
+                price_label:
+                  type: string
+                  example: 1.100 EUR/month
+                size_sqm:
+                  type:
+                  - number
+                  - 'null'
+                  example: 55
+                rooms:
+                  type:
+                  - number
+                  - 'null'
+                  example: 2
+                address:
+                  type: string
+                  example: Berlin
+                property_type:
+                  type: string
+                  example: apartment
+                listing_type:
+                  type: string
+                  example: rent
+                available_from:
+                  type:
+                  - string
+                  - 'null'
+              example:
+                id: example-listing
+                source_id: example-listing
+                title: Two-room apartment
+                url: https://example.invalid/apartments/one
+                canonical_url: https://example.invalid/apartments/one
+                provider: Example housing provider
+                price: 1100
+                price_label: 1.100 EUR/month
+                size_sqm: 55
+                rooms: 2
+                address: Berlin
+                property_type: apartment
+                listing_type: rent
+            example:
+            - id: example-listing
+              source_id: example-listing
+              title: Two-room apartment
+              url: https://example.invalid/apartments/one
+              canonical_url: https://example.invalid/apartments/one
+              provider: Example housing provider
+              price: 1100
+              price_label: 1.100 EUR/month
+              size_sqm: 55
+              rooms: 2
+              address: Berlin
+              property_type: apartment
+              listing_type: rent
+          listings:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: example-listing
+                source_id:
+                  type: string
+                  example: example-listing
+                title:
+                  type: string
+                  example: Two-room apartment
+                url:
+                  type: string
+                  example: https://example.invalid/apartments/one
+                canonical_url:
+                  type: string
+                  example: https://example.invalid/apartments/one
+                provider:
+                  type: string
+                  example: Example housing provider
+                price:
+                  type:
+                  - number
+                  - 'null'
+                  example: 1100
+                price_label:
+                  type: string
+                  example: 1.100 EUR/month
+                size_sqm:
+                  type:
+                  - number
+                  - 'null'
+                  example: 55
+                rooms:
+                  type:
+                  - number
+                  - 'null'
+                  example: 2
+                address:
+                  type: string
+                  example: Berlin
+                property_type:
+                  type: string
+                  example: apartment
+                listing_type:
+                  type: string
+                  example: rent
+                available_from:
+                  type:
+                  - string
+                  - 'null'
+              example:
+                id: example-listing
+                source_id: example-listing
+                title: Two-room apartment
+                url: https://example.invalid/apartments/one
+                canonical_url: https://example.invalid/apartments/one
+                provider: Example housing provider
+                price: 1100
+                price_label: 1.100 EUR/month
+                size_sqm: 55
+                rooms: 2
+                address: Berlin
+                property_type: apartment
+                listing_type: rent
+            example:
+            - id: example-listing
+              source_id: example-listing
+              title: Two-room apartment
+              url: https://example.invalid/apartments/one
+              canonical_url: https://example.invalid/apartments/one
+              provider: Example housing provider
+              price: 1100
+              price_label: 1.100 EUR/month
+              size_sqm: 55
+              rooms: 2
+              address: Berlin
+              property_type: apartment
+              listing_type: rent
+          warnings:
+            type: array
+            items:
+              type: string
+            example: []
+          partial:
+            type: boolean
+            example: false
 
 marketing_discovery:
   skills:

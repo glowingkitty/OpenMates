@@ -76,4 +76,13 @@ CREATE INDEX IF NOT EXISTS workflow_assistant_proposals_pending_expiry_idx
   ON workflow_assistant_proposals (expires_at, proposal_id)
   WHERE status = 'pending';
 
+CREATE INDEX IF NOT EXISTS workflow_delivery_history_membership_idx
+  ON workflow_delivery_history (workflow_id, destination_hash, fingerprint, status);
+CREATE INDEX IF NOT EXISTS workflow_delivery_history_run_idx
+  ON workflow_delivery_history (workflow_id, run_id);
+CREATE INDEX IF NOT EXISTS workflow_delivery_history_delivery_idx
+  ON workflow_delivery_history (delivery_id, status);
+CREATE INDEX IF NOT EXISTS workflow_deliveries_run_idx
+  ON workflow_chat_deliveries (workflow_id, run_id);
+
 COMMIT;

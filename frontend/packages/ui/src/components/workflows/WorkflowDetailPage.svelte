@@ -1,184 +1,45 @@
-<!--
-  WorkflowDetailPage.svelte
-  Stable category-identity header and shared Template/Runs tab boundary.
-  The owning route retains Workflow selection, persistence, and navigation.
-  Dirty graph actions stay contextual below the header instead of remounting it.
--->
-
+<!-- Compact category identity and Workflow/Runs boundary. Each node saves independently. -->
 <script lang="ts">
-  import { SettingsTabs } from '../settings/elements';
+  import { text } from '../../i18n/translations';
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
-
-  let {
-    title,
-    description,
-    category,
-    icon,
-    createdAt,
-    nextRunAt,
-    enabled,
-    canEnable,
-    lastStartedRunId = null,
-    activeTab,
-    dirty,
-    saving,
-    onTabChange,
-    onToggleEnabled,
-    onSaveWorkflow,
-    onUndoWorkflow,
-    onCreateWorkflow,
-    onRunWorkflow,
-    onDeleteWorkflow,
-    onOpenHome,
-    onOpenRuns,
-    runsHref,
-  }: {
-    title: string;
-    description: string;
-    category: string;
-    icon: string;
-    createdAt?: number | null;
-    nextRunAt?: number | null;
-    enabled: boolean;
-    canEnable: boolean;
-    lastStartedRunId?: string | null;
-    activeTab: 'template' | 'runs';
-    dirty: boolean;
-    saving: boolean;
-    onTabChange: (tab: 'template' | 'runs') => void;
-    onToggleEnabled: () => void | Promise<void>;
-    onSaveWorkflow: () => void | Promise<void>;
-    onUndoWorkflow: () => void;
-    onCreateWorkflow: () => void | Promise<void>;
-    onRunWorkflow: () => void | Promise<void>;
-    onDeleteWorkflow: () => void | Promise<void>;
-    onOpenHome: () => void;
-    onOpenRuns: () => void;
-    runsHref: string;
+  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, lastStartedRunId = null, activeTab, saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenRuns, runsHref, onUpdateIdentity }: {
+    title: string; description: string; category: string; icon: string; createdAt?: number | null; nextRunAt?: number | null;
+    enabled: boolean; canEnable: boolean; lastStartedRunId?: string | null; activeTab: 'template' | 'runs'; saving: boolean;
+    onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenHome: () => void; onOpenRuns: () => void; runsHref: string;
+    onUpdateIdentity: (title: string, description: string) => Promise<void>;
   } = $props();
-
-  const BackIcon = getLucideIcon('arrow-left');
-  const NewIcon = getLucideIcon('plus');
-  const ShareIcon = getLucideIcon('share-2');
-  const PlayIcon = getLucideIcon('play');
-  const TrashIcon = getLucideIcon('trash-2');
-  const HistoryIcon = getLucideIcon('history');
-  const WorkflowIcon = $derived(getLucideIcon(getValidIconName(icon, category)));
-  const tabs = [
-    { id: 'template', icon: 'workflow', label: 'Workflow template' },
-    { id: 'runs', icon: 'history', label: 'Workflow runs' },
-  ];
+  let editing = $state(false); let draftTitle = $state(''); let draftDescription = $state('');
+  const tr = (key: string) => $text(`workflows.builder.${key}`);
+  const Back = getLucideIcon('chevron-left'); const Share = getLucideIcon('share-2'); const Play = getLucideIcon('play'); const Trash = getLucideIcon('trash-2'); const History = getLucideIcon('history'); const Flow = getLucideIcon('workflow');
+  const Identity = $derived(getLucideIcon(getValidIconName(icon, category)));
   const gradient = $derived(getCategoryGradientColors(category) ?? getCategoryGradientColors('general_knowledge'));
-  const headerStyle = $derived(`--workflow-gradient-start: ${gradient?.start ?? '#DE1E66'}; --workflow-gradient-end: ${gradient?.end ?? '#FF763B'};`);
-  const metadataLabel = $derived(nextRunAt ? `Next run ${relativeTime(nextRunAt)}` : createdAt ? `Created ${relativeTime(createdAt)}` : 'Manual workflow');
-
-  function relativeTime(timestampSeconds: number): string {
-    const diffSeconds = Math.round(timestampSeconds - Date.now() / 1000);
-    const absoluteSeconds = Math.abs(diffSeconds);
-    if (absoluteSeconds < 60) return diffSeconds >= 0 ? 'soon' : 'just now';
-    const minutes = Math.round(absoluteSeconds / 60);
-    if (minutes < 60) return diffSeconds >= 0 ? `in ${minutes} min` : `${minutes} min ago`;
-    const hours = Math.round(minutes / 60);
-    if (hours < 24) return diffSeconds >= 0 ? `in ${hours} hr` : `${hours} hr ago`;
-    const days = Math.round(hours / 24);
-    return diffSeconds >= 0 ? `in ${days} day${days === 1 ? '' : 's'}` : `${days} day${days === 1 ? '' : 's'} ago`;
+  const headerStyle = $derived(`--workflow-gradient-start:${gradient?.start};--workflow-gradient-end:${gradient?.end}`);
+  function metadata(): string {
+    if (enabled && nextRunAt && nextRunAt > Date.now() / 1000) return `${tr('next_run')} ${new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(nextRunAt * 1000))}`;
+    if (!createdAt) return '';
+    const minutes = Math.round((createdAt * 1000 - Date.now()) / 60000);
+    return `${tr('created')} ${new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(Math.abs(minutes) < 60 ? minutes : Math.round(minutes / 1440), Math.abs(minutes) < 60 ? 'minute' : 'day')}`;
   }
-
-  function changeTab(tabId: string): void {
-    if (tabId === 'template' || tabId === 'runs') onTabChange(tabId);
-  }
-
-  function focusSharePanel(): void {
-    document.querySelector<HTMLElement>('[data-testid="workflow-template-share"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
+  function editIdentity(): void { draftTitle = title; draftDescription = description; editing = true; }
+  function openShare(): void { const panel = document.querySelector<HTMLDetailsElement>('[data-testid="workflow-more-options"]'); if (panel) panel.open = true; document.querySelector<HTMLElement>('[data-testid="workflow-template-share"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 </script>
 
-<section
-  class="workflow-detail-header"
-  data-testid="workspace-detail-header"
-  data-header-system="workflow-detail"
-  data-category={category}
-  data-icon={getValidIconName(icon, category)}
-  style={headerStyle}
->
-  <div class="header-orbs" aria-hidden="true"><span></span><span></span><span></span></div>
-  <div class="header-actions" data-testid="workflow-detail-actions" aria-label="Workflow actions">
-    <button type="button" class="icon-action" data-testid="workflow-detail-back" aria-label="Back to workflows" onclick={onOpenHome}><BackIcon size={20} /></button>
-    <button type="button" class="new-action" data-testid="create-blank-workflow" disabled={saving} onclick={() => void onCreateWorkflow()}><NewIcon size={18} />New workflow</button>
-    <button type="button" class="icon-action" data-testid="workflow-share" aria-label="Share Workflow" onclick={focusSharePanel}><ShareIcon size={19} /></button>
-    <WorkspaceReportIssueButton />
+<section class="workflow-detail-header" data-testid="workspace-detail-header" data-header-system="workflow-detail" data-category={category} data-icon={getValidIconName(icon, category)} style={headerStyle}>
+  <div class="header-actions" data-testid="workflow-detail-actions"><button type="button" data-testid="workflow-detail-back" aria-label={tr('back')} onclick={onOpenHome}><Back size={22}/></button><button type="button" data-testid="workflow-share" aria-label={tr('share')} onclick={openShare}><Share size={18}/></button><WorkspaceReportIssueButton/></div>
+  <span class="kicker">{tr('workflow')}</span>
+  <div class="context-actions"><a href={runsHref} aria-label={tr('run_history')} data-testid="workflow-run-history" onclick={event => { event.preventDefault(); onOpenRuns(); }}><History size={19}/></a><button type="button" aria-label={tr('run_now')} data-testid="run-workflow" disabled={saving || !canEnable} onclick={() => void onRunWorkflow()}><Play size={19}/></button><button type="button" aria-label={tr('delete_workflow')} data-testid="delete-workflow" disabled={saving} onclick={() => void onDeleteWorkflow()}><Trash size={18}/></button></div>
+  <div class="identity">
+    <div data-testid="workflow-identity-icon" aria-hidden="true"><Identity size={34}/></div>
+    {#if editing}<form onsubmit={async event => { event.preventDefault(); await onUpdateIdentity(draftTitle, draftDescription); editing = false; }}><input aria-label={tr('workflow_name')} bind:value={draftTitle} required/><input aria-label={tr('description')} bind:value={draftDescription}/><button class="save" type="submit" disabled={saving}>{tr('save')}</button></form>
+    {:else}<button type="button" class="identity-edit" onclick={editIdentity}><h1 data-testid="workspace-detail-title">{title}</h1><p data-testid="workspace-detail-description">{description || tr('add_description')}</p></button>{/if}
   </div>
-
-  <div class="context-actions">
-    <a class="icon-action" data-testid="workflow-run-history" href={runsHref} aria-label="Workflow run history" onclick={(event) => { event.preventDefault(); onOpenRuns(); }}><HistoryIcon size={19} /></a>
-    <button type="button" class="icon-action" data-testid="run-workflow" aria-label="Run Workflow now" disabled={saving} onclick={() => void onRunWorkflow()}><PlayIcon size={19} /></button>
-    <button type="button" class="icon-action danger" data-testid="delete-workflow" aria-label="Delete Workflow" disabled={saving} onclick={() => void onDeleteWorkflow()}><TrashIcon size={19} /></button>
-  </div>
-
-  <div class="header-content">
-    <span class="workflow-kicker">Workflow</span>
-    <div class="identity-icon" data-testid="workflow-identity-icon" aria-hidden="true"><WorkflowIcon size={42} /></div>
-    <h1 data-testid="workspace-detail-title">{title}</h1>
-    <button type="button" class="toggle-pill" data-testid="toggle-workflow" disabled={saving || (!enabled && !canEnable)} onclick={() => void onToggleEnabled()}>
-      <span>{enabled ? 'Workflow on' : 'Workflow off'}</span><i class:enabled aria-hidden="true"></i>
-    </button>
-    <span class="state-marker" data-testid="workflow-enabled-state" data-enabled={enabled ? 'true' : 'false'}>{enabled ? 'Enabled' : canEnable ? 'Ready to enable' : 'Definition incomplete'}</span>
-    {#if lastStartedRunId}<span class="state-marker" data-testid="workflow-run-started" data-run-id={lastStartedRunId}>Run started</span>{/if}
-    <p class="description" data-testid="workspace-detail-description">{description}</p>
-    <span class="metadata" data-testid="workflow-detail-metadata">{metadataLabel}</span>
-  </div>
+  <span class="metadata" data-testid="workflow-detail-metadata">{metadata()}</span>
+  <button type="button" class="toggle" role="switch" aria-checked={enabled} aria-label={tr('workflow_on')} data-testid="toggle-workflow" disabled={saving || (!enabled && !canEnable)} onclick={() => void onToggleEnabled()}><span data-testid="workflow-enabled-state" data-enabled={enabled ? 'true' : 'false'}>{tr(enabled ? 'enabled' : canEnable ? 'ready' : 'draft')}</span><i class:enabled></i></button>
+  {#if lastStartedRunId}<span class="run-started" data-testid="workflow-run-started" data-run-id={lastStartedRunId}>{tr('run_started')}</span>{/if}
 </section>
-
-<div class="workflow-tabs" data-testid="workflow-view-tabs">
-  <SettingsTabs {tabs} activeTab={activeTab} maxVisibleTabs={2} testIdPrefix="workflow-tab" onChange={changeTab} />
-</div>
-
-{#if dirty}
-  <section class="dirty-panel" data-testid="workflow-dirty-panel" aria-live="polite">
-    <span>Unsaved changes</span>
-    <div>
-      <button type="button" class="undo" data-testid="undo-workflow" disabled={saving} onclick={onUndoWorkflow}>Undo</button>
-      <button type="button" class="save" data-testid="save-workflow" disabled={saving} aria-busy={saving} onclick={() => void onSaveWorkflow()}>Save</button>
-    </div>
-  </section>
-{/if}
+<div class="workflow-tabs" data-testid="workflow-view-tabs" role="tablist" aria-label={tr('workflow')}><button type="button" role="tab" aria-selected={activeTab === 'template'} aria-label={tr('workflow')} class:active={activeTab === 'template'} data-testid="workflow-tab-template" onclick={() => onTabChange('template')}><Flow size={20}/></button><button type="button" role="tab" aria-selected={activeTab === 'runs'} aria-label={tr('run_history')} class:active={activeTab === 'runs'} data-testid="workflow-tab-runs" onclick={() => onTabChange('runs')}><History size={20}/></button></div>
 
 <style>
-  .workflow-detail-header { position: relative; min-height: 310px; overflow: hidden; border-radius: 14px; color: var(--color-grey-0); background: linear-gradient(135deg, var(--workflow-gradient-start), var(--workflow-gradient-end)); box-shadow: var(--shadow-xl); isolation: isolate; }
-  .header-orbs, .header-orbs span { position: absolute; }
-  .header-orbs { inset: 0; opacity: 0.45; }
-  .header-orbs span { width: 45%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--color-grey-0) 30%, transparent), transparent 70%); filter: blur(24px); }
-  .header-orbs span:nth-child(1) { inset: -35% auto auto -10%; }
-  .header-orbs span:nth-child(2) { inset: auto -5% -50% auto; }
-  .header-orbs span:nth-child(3) { inset: 15% auto auto 40%; opacity: 0.55; }
-  .header-actions, .context-actions { position: absolute; z-index: 3; top: var(--spacing-5); display: flex; align-items: center; gap: var(--spacing-3); }
-  .header-actions { inset-inline-start: var(--spacing-5); }
-  .context-actions { inset-inline-end: var(--spacing-5); }
-  .header-actions button, .context-actions button, .context-actions a { min-width: 42px; min-height: 42px; border: 0; color: var(--color-grey-0); cursor: pointer; text-decoration: none; }
-  .icon-action { display: inline-grid; place-items: center; border-radius: var(--radius-full); background: color-mix(in srgb, var(--color-grey-0) 18%, transparent); }
-  .new-action { display: inline-flex; align-items: center; gap: var(--spacing-3); padding-inline: var(--spacing-6); border-radius: var(--radius-full); background: var(--color-button-primary); font: inherit; font-weight: 800; }
-  .icon-action.danger { background: color-mix(in srgb, var(--color-danger) 78%, transparent); }
-  button:disabled { opacity: 0.58; cursor: wait; }
-  .header-content { position: relative; z-index: 2; display: grid; min-height: inherit; place-items: center; align-content: center; gap: var(--spacing-4); padding: var(--spacing-20) var(--spacing-16) var(--spacing-12); text-align: center; }
-  .workflow-kicker { font-size: var(--font-size-xs); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.78; }
-  .identity-icon { display: grid; width: 64px; height: 64px; place-items: center; border-radius: var(--radius-10); background: color-mix(in srgb, var(--color-grey-0) 18%, transparent); }
-  h1, .description { margin: 0; }
-  h1 { max-width: 780px; overflow-wrap: anywhere; font-size: clamp(1.8rem, 3.5vw, 3rem); line-height: 1.05; }
-  .description { max-width: 660px; font-size: clamp(0.95rem, 1.8vw, 1.2rem); opacity: 0.88; }
-  .metadata { font-size: var(--font-size-small); font-weight: 700; opacity: 0.8; }
-  .state-marker { font-size: var(--font-size-xs); font-weight: 800; opacity: 0.85; }
-  .toggle-pill { display: inline-flex; align-items: center; gap: var(--spacing-4); border: 0; border-radius: var(--radius-full); padding: var(--spacing-3) var(--spacing-5); color: var(--color-font-primary); background: var(--color-grey-0); font: inherit; font-weight: 800; cursor: pointer; }
-  .toggle-pill i { position: relative; width: 34px; height: 20px; border-radius: var(--radius-full); background: var(--color-grey-30); }
-  .toggle-pill i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--color-grey-0); transition: transform 0.2s ease; }
-  .toggle-pill i.enabled { background: var(--color-button-primary); }
-  .toggle-pill i.enabled::after { transform: translateX(14px); }
-  .workflow-tabs { position: relative; z-index: 4; width: 150px; margin: -22px auto var(--spacing-6); }
-  .dirty-panel { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-5); margin: 0 var(--spacing-8) var(--spacing-5); padding: var(--spacing-4) var(--spacing-5); border-radius: var(--radius-8); color: var(--color-font-primary); background: var(--color-grey-10); box-shadow: var(--shadow-sm); font-weight: 700; }
-  .dirty-panel div { display: flex; gap: var(--spacing-3); }
-  .dirty-panel button { border: 0; border-radius: var(--radius-full); padding: var(--spacing-3) var(--spacing-6); font: inherit; font-weight: 800; cursor: pointer; }
-  .dirty-panel .undo { color: var(--color-font-primary); background: var(--color-grey-20); }
-  .dirty-panel .save { color: var(--color-font-button); background: var(--color-button-primary); }
-  @media (max-width: 720px) { .workflow-detail-header { min-height: 330px; } .header-actions { max-width: calc(100% - 100px); flex-wrap: wrap; } .new-action { padding-inline: var(--spacing-4); } .header-content { padding: 108px var(--spacing-6) var(--spacing-10); } .context-actions { flex-direction: column; } .dirty-panel { align-items: flex-start; flex-direction: column; margin-inline: var(--spacing-4); } .dirty-panel div { width: 100%; } .dirty-panel button { flex: 1; } }
-  @media (prefers-reduced-motion: reduce) { .toggle-pill i::after { transition: none; } }
+  .workflow-detail-header{position:relative;min-height:15rem;box-sizing:border-box;border-radius:0 0 1rem 1rem;color:var(--color-font-button);background:linear-gradient(135deg,var(--workflow-gradient-start),var(--workflow-gradient-end));display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3.5rem 5rem 3rem;gap:1rem}.header-actions,.context-actions{position:absolute;top:.8rem;display:flex;align-items:center;gap:.45rem}.header-actions{inset-inline-start:.8rem}.context-actions{inset-inline-end:.8rem}.header-actions button,.context-actions button,.context-actions a{display:grid;place-items:center;padding:0;width:2.25rem;height:2.25rem;min-width:0;border:0;border-radius:50%;background:color-mix(in srgb,var(--color-font-button) 14%,transparent);color:var(--color-font-button);cursor:pointer}.kicker{position:absolute;top:1.1rem;font-size:.7rem;font-weight:650}.identity{display:grid;justify-items:center;gap:.65rem;width:100%}.identity-edit{padding:0;background:transparent;border:0;color:inherit;font:inherit;cursor:pointer;display:grid;gap:.5rem;text-align:center}h1{margin:0;font-size:1.3rem;line-height:1.3;overflow-wrap:anywhere}p{margin:0;font-size:.8rem;opacity:.75}.metadata{position:absolute;bottom:1.1rem;font-size:.7rem;opacity:.85}.toggle{position:absolute;right:1rem;bottom:1rem;display:flex;align-items:center;gap:.5rem;padding:.3rem .5rem;border:0;border-radius:1rem;font:inherit;font-size:.7rem;background:color-mix(in srgb,var(--color-font-button) 14%,transparent);color:inherit;cursor:pointer}.toggle i{position:relative;width:1.8rem;height:1rem;border-radius:1rem;background:var(--color-grey-40)}.toggle i::after{content:'';position:absolute;left:.15rem;top:.15rem;width:.7rem;height:.7rem;border-radius:50%;background:var(--color-font-button);transition:transform .2s}.toggle i.enabled{background:var(--color-button-primary)}.toggle i.enabled::after{transform:translateX(.8rem)}.workflow-tabs{display:flex;position:relative;width:7rem;margin:.6rem auto -1rem;padding:.15rem;border-radius:2rem;box-shadow:var(--shadow-sm);background:var(--color-grey-0);z-index:2}.workflow-tabs button{display:grid;place-items:center;flex:1;height:2rem;border:0;border-radius:2rem;background:transparent;color:var(--color-font-secondary);cursor:pointer}.workflow-tabs button.active{color:var(--color-font-button);background:var(--color-primary)}button:disabled{opacity:.5;cursor:wait}.identity form{display:grid;gap:.4rem;max-width:25rem;width:100%}.identity input{box-sizing:border-box;border:0;border-radius:.7rem;padding:.45rem .65rem;background:var(--color-grey-0);color:var(--color-font-primary);font:inherit;font-size:.85rem}.save{justify-self:center;border:0;border-radius:.7rem;padding:.4rem 1.2rem;background:var(--color-button-primary);color:var(--color-font-button);cursor:pointer}.run-started{font-size:.7rem}button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--color-button-primary);outline-offset:2px}@media(max-width:730px){.workflow-detail-header{min-height:15rem;padding-inline:1.5rem}.kicker{top:3.35rem}.toggle{bottom:1.6rem;right:.6rem;font-size:.6rem}.metadata{bottom:.4rem}h1{font-size:1.1rem}}@media(prefers-reduced-motion:reduce){.toggle i::after{transition:none}}
 </style>

@@ -22,6 +22,8 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
+from backend.apps.home.providers.results import ProviderListings
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -265,6 +267,8 @@ async def search_listings(
     city: str,
     listing_type: str = "rent",
     max_results: int = 10,
+    property_type: str = "apartment",
+    sort: str = "price_asc",
 ) -> List[Dict[str, Any]]:
     """
     Search WG-Gesucht for room/apartment listings in a German city.
@@ -291,9 +295,9 @@ async def search_listings(
     city_id = _get_city_id(city)
     if city_id is None:
         logger.warning("WG-Gesucht: unknown city '%s' — no city_id mapping", city)
-        return []
+        raise ValueError("WG-Gesucht does not support this city")
 
-    search_url = _build_search_url(city, city_id)
+    search_url = _build_search_url(city, city_id, category="2" if property_type == "apartment" else "0")
     logger.info("WG-Gesucht search city=%s city_id=%d url=%s", city, city_id, search_url)
 
     try:
@@ -313,6 +317,8 @@ async def search_listings(
             # Step 3: Fetch details for top N listings in parallel
             to_fetch = html_listings[:max_results]
 
+            detail_warnings: List[str] = []
+
             async def fetch_detail(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                 offer_id = entry["id"]
                 try:
@@ -324,19 +330,23 @@ async def search_listings(
                     if resp.status_code == 200:
                         return _normalize_listing(offer_id, resp.json(), image_url=entry.get("image_url"))
                     logger.debug("WG-Gesucht detail API status=%d for offer=%s", resp.status_code, offer_id)
+                    detail_warnings.append(f"WG-Gesucht listing details unavailable (HTTP {resp.status_code})")
                 except Exception as e:
                     logger.debug("WG-Gesucht detail fetch failed offer=%s: %s", offer_id, e)
+                    detail_warnings.append("WG-Gesucht listing detail request failed")
                 return None
 
             results = await asyncio.gather(*[fetch_detail(e) for e in to_fetch])
             listings = [r for r in results if r is not None]
 
             logger.info("WG-Gesucht search city=%s -> %d listings (from %d IDs)", city, len(listings), len(html_listings))
-            return listings
+            if not listings and detail_warnings:
+                raise RuntimeError("All WG-Gesucht listing detail requests failed")
+            return ProviderListings(listings, sorted(set(detail_warnings)))
 
     except httpx.HTTPStatusError as e:
         logger.error("WG-Gesucht HTTP error status=%d city=%s: %s", e.response.status_code, city, e)
-        return []
+        raise RuntimeError(f"WG-Gesucht returned HTTP {e.response.status_code}") from e
     except Exception as e:
         logger.error("WG-Gesucht search failed city=%s: %s", city, e, exc_info=True)
-        return []
+        raise RuntimeError("WG-Gesucht search request failed") from e

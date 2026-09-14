@@ -242,6 +242,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `workflows` | `om.workflows.createFromYaml()` | `om.workflows.create_from_yaml()` | direct | direct |
 | `workflows` | `om.workflows.createTemplateShortUrl()` | `om.workflows.create_template_short_url()` | direct | direct |
 | `workflows` | `om.workflows.delete()` | `om.workflows.delete()` | direct | direct |
+| `workflows` | `om.workflows.deleteRun()` | `om.workflows.delete_run()` | direct | direct |
 | `workflows` | `om.workflows.disable()` | `om.workflows.disable()` | direct | direct |
 | `workflows` | `om.workflows.enable()` | `om.workflows.enable()` | direct | direct |
 | `workflows` | `om.workflows.followUpInput()` | `om.workflows.follow_up_input()` | direct | direct |
@@ -253,6 +254,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `workflows` | `om.workflows.inputSession()` | `om.workflows.input_session()` | direct | direct |
 | `workflows` | `om.workflows.keep()` | `om.workflows.keep()` | direct | direct |
 | `workflows` | `om.workflows.list()` | `om.workflows.list()` | direct | direct |
+| `workflows` | `om.workflows.previewStep()` | `om.workflows.preview_step()` | direct | direct |
 | `workflows` | `om.workflows.removeFromProject()` | `om.workflows.remove_from_project()` | direct | direct |
 | `workflows` | `om.workflows.respond()` | `om.workflows.respond()` | direct | direct |
 | `workflows` | `om.workflows.restore()` | `om.workflows.restore()` | direct | direct |

@@ -2622,6 +2622,7 @@ async def websocket_endpoint(
             elif message_type == "workflow_chat_delivery_persist":
                 await handle_workflow_chat_delivery_persist(
                     manager=manager,
+                    cache_service=cache_service,
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
@@ -2632,6 +2633,7 @@ async def websocket_endpoint(
             elif message_type == "workflow_chat_delivery_ack":
                 await handle_workflow_chat_delivery_ack(
                     manager=manager,
+                    cache_service=cache_service,
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,

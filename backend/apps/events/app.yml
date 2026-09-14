@@ -308,8 +308,159 @@ skills:
         properties:
           summary:
             type: string
+            example: Events search completed
           result_count:
             type: integer
+            example: 1
+          provider:
+            type: string
+            example: Example events provider
+          results:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: example-event
+                source_id:
+                  type: string
+                  example: example-event
+                title:
+                  type: string
+                  example: AI community meetup
+                url:
+                  type: string
+                  example: https://example.invalid/events/ai
+                canonical_url:
+                  type: string
+                  example: https://example.invalid/events/ai
+                provider:
+                  type: string
+                  example: Example events provider
+                description:
+                  type: string
+                  example: An example meetup for people working with AI.
+                date_start:
+                  type: string
+                  example: '2026-09-23T18:00:00+02:00'
+                date_end:
+                  type: string
+                  example: '2026-09-23T20:00:00+02:00'
+                location:
+                  type: string
+                  example: Berlin
+                event_type:
+                  type: string
+                  example: PHYSICAL
+                price_amount:
+                  type:
+                  - number
+                  - 'null'
+                  example: 0
+              example:
+                id: example-event
+                source_id: example-event
+                title: AI community meetup
+                url: https://example.invalid/events/ai
+                canonical_url: https://example.invalid/events/ai
+                provider: Example events provider
+                date_start: '2026-09-23T18:00:00+02:00'
+                date_end: '2026-09-23T20:00:00+02:00'
+                location: Berlin
+                event_type: PHYSICAL
+                description: An example meetup for people working with AI.
+                price_amount: 0
+            example:
+            - id: example-event
+              source_id: example-event
+              title: AI community meetup
+              url: https://example.invalid/events/ai
+              canonical_url: https://example.invalid/events/ai
+              provider: Example events provider
+              date_start: '2026-09-23T18:00:00+02:00'
+              date_end: '2026-09-23T20:00:00+02:00'
+              location: Berlin
+              event_type: PHYSICAL
+              description: An example meetup for people working with AI.
+              price_amount: 0
+          events:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: example-event
+                source_id:
+                  type: string
+                  example: example-event
+                title:
+                  type: string
+                  example: AI community meetup
+                url:
+                  type: string
+                  example: https://example.invalid/events/ai
+                canonical_url:
+                  type: string
+                  example: https://example.invalid/events/ai
+                provider:
+                  type: string
+                  example: Example events provider
+                description:
+                  type: string
+                  example: An example meetup for people working with AI.
+                date_start:
+                  type: string
+                  example: '2026-09-23T18:00:00+02:00'
+                date_end:
+                  type: string
+                  example: '2026-09-23T20:00:00+02:00'
+                location:
+                  type: string
+                  example: Berlin
+                event_type:
+                  type: string
+                  example: PHYSICAL
+                price_amount:
+                  type:
+                  - number
+                  - 'null'
+                  example: 0
+              example:
+                id: example-event
+                source_id: example-event
+                title: AI community meetup
+                url: https://example.invalid/events/ai
+                canonical_url: https://example.invalid/events/ai
+                provider: Example events provider
+                date_start: '2026-09-23T18:00:00+02:00'
+                date_end: '2026-09-23T20:00:00+02:00'
+                location: Berlin
+                event_type: PHYSICAL
+                description: An example meetup for people working with AI.
+                price_amount: 0
+            example:
+            - id: example-event
+              source_id: example-event
+              title: AI community meetup
+              url: https://example.invalid/events/ai
+              canonical_url: https://example.invalid/events/ai
+              provider: Example events provider
+              date_start: '2026-09-23T18:00:00+02:00'
+              date_end: '2026-09-23T20:00:00+02:00'
+              location: Berlin
+              event_type: PHYSICAL
+              description: An example meetup for people working with AI.
+              price_amount: 0
+          warnings:
+            type: array
+            items:
+              type: string
+            example: []
+          partial:
+            type: boolean
+            example: false
 
 marketing_discovery:
   skills:

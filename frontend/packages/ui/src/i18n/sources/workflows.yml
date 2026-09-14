@@ -597,3 +597,588 @@ version_history.restore_failed:
   sv: Det gick inte att återställa den valda definitionen.
   he: שחזור ההגדרה שנבחרה נכשל.
   verified_by_human: []
+
+builder.new_workflow_placeholder:
+  context: Workflow progressive builder control
+  en: "Enter a name for a new workflow"
+  verified_by_human: []
+
+builder.list:
+  context: Workflow progressive builder control
+  en: "list"
+  verified_by_human: []
+
+builder.remove:
+  context: Workflow progressive builder control
+  en: "Remove"
+  verified_by_human: []
+
+builder.add_item:
+  context: Workflow progressive builder control
+  en: "Add item"
+  verified_by_human: []
+
+builder.choose:
+  context: Workflow progressive builder control
+  en: "Choose"
+  verified_by_human: []
+
+builder.true:
+  context: Workflow progressive builder control
+  en: "true"
+  verified_by_human: []
+
+builder.false:
+  context: Workflow progressive builder control
+  en: "false"
+  verified_by_human: []
+
+builder.today:
+  context: Workflow progressive builder control
+  en: "Today"
+  verified_by_human: []
+
+builder.next_week_start:
+  context: Workflow progressive builder control
+  en: "Start of upcoming week"
+  verified_by_human: []
+
+builder.next_week_end:
+  context: Workflow progressive builder control
+  en: "End of upcoming week"
+  verified_by_human: []
+
+builder.custom_date:
+  context: Workflow progressive builder control
+  en: "Custom date"
+  verified_by_human: []
+
+builder.dynamic_date:
+  context: Workflow progressive builder control
+  en: "Use a date relative to each run"
+  verified_by_human: []
+
+builder.use_output:
+  context: Workflow progressive builder control
+  en: "Use previous output"
+  verified_by_human: []
+
+builder.details:
+  context: Workflow progressive builder control
+  en: "Details"
+  verified_by_human: []
+
+builder.time_trigger:
+  context: Workflow progressive builder control
+  en: "Time trigger"
+  verified_by_human: []
+
+builder.check:
+  context: Workflow progressive builder control
+  en: "Check"
+  verified_by_human: []
+
+builder.send_message:
+  context: Workflow progressive builder control
+  en: "Send message"
+  verified_by_human: []
+
+builder.use_app_skill:
+  context: Workflow progressive builder control
+  en: "Use App skill"
+  verified_by_human: []
+
+builder.action:
+  context: Workflow progressive builder control
+  en: "Action"
+  verified_by_human: []
+
+builder.hourly:
+  context: Workflow progressive builder control
+  en: "Every hour"
+  verified_by_human: []
+
+builder.daily:
+  context: Workflow progressive builder control
+  en: "Every day"
+  verified_by_human: []
+
+builder.weekly:
+  context: Workflow progressive builder control
+  en: "Every week"
+  verified_by_human: []
+
+builder.once:
+  context: Workflow progressive builder control
+  en: "Once"
+  verified_by_human: []
+
+builder.to:
+  context: Workflow progressive builder control
+  en: "To"
+  verified_by_human: []
+
+builder.existing_chat:
+  context: Workflow progressive builder control
+  en: "Existing chat"
+  verified_by_human: []
+
+builder.new_chat_each_run:
+  context: Workflow progressive builder control
+  en: "New chat for each run"
+  verified_by_human: []
+
+builder.unavailable:
+  context: Workflow progressive builder control
+  en: "Not available"
+  verified_by_human: []
+
+builder.title_required:
+  context: Workflow progressive builder control
+  en: "Enter a title for the chat."
+  verified_by_human: []
+
+builder.check_required:
+  context: Workflow progressive builder control
+  en: "Choose an output and comparison first."
+  verified_by_human: []
+
+builder.save_failed:
+  context: Workflow progressive builder control
+  en: "Could not save this node."
+  verified_by_human: []
+
+builder.test_pending:
+  context: Workflow progressive builder control
+  en: "The test is still running. Its progress is available in run history."
+  verified_by_human: []
+
+builder.chats_unavailable:
+  context: Workflow progressive builder control
+  en: "Recent chats could not be loaded."
+  verified_by_human: []
+
+builder.empty_preview:
+  context: Workflow progressive builder control
+  en: "This message currently has no content."
+  verified_by_human: []
+
+builder.add_trigger:
+  context: Workflow progressive builder control
+  en: "Add trigger"
+  verified_by_human: []
+
+builder.add_action:
+  context: Workflow progressive builder control
+  en: "Add action"
+  verified_by_human: []
+
+builder.add_check:
+  context: Workflow progressive builder control
+  en: "Add check"
+  verified_by_human: []
+
+builder.back:
+  context: Workflow progressive builder control
+  en: "Back"
+  verified_by_human: []
+
+builder.use_app:
+  context: Workflow progressive builder control
+  en: "Use App"
+  verified_by_human: []
+
+builder.choose_skill:
+  context: Workflow progressive builder control
+  en: "Choose skill"
+  verified_by_human: []
+
+builder.close:
+  context: Workflow progressive builder control
+  en: "Close"
+  verified_by_human: []
+
+builder.trigger_question:
+  context: Workflow progressive builder control
+  en: "What trigger should run your workflow?"
+  verified_by_human: []
+
+builder.app_question:
+  context: Workflow progressive builder control
+  en: "Which App?"
+  verified_by_human: []
+
+builder.skill_question:
+  context: Workflow progressive builder control
+  en: "Which skill?"
+  verified_by_human: []
+
+builder.action_question:
+  context: Workflow progressive builder control
+  en: "What should happen next?"
+  verified_by_human: []
+
+builder.date_time:
+  context: Workflow progressive builder control
+  en: "Date & Time"
+  verified_by_human: []
+
+builder.loading_apps:
+  context: Workflow progressive builder control
+  en: "Loading available apps…"
+  verified_by_human: []
+
+builder.repeat:
+  context: Workflow progressive builder control
+  en: "Repeat"
+  verified_by_human: []
+
+builder.minute:
+  context: Workflow progressive builder control
+  en: "Minute of each hour"
+  verified_by_human: []
+
+builder.time:
+  context: Workflow progressive builder control
+  en: "Time"
+  verified_by_human: []
+
+builder.timezone:
+  context: Workflow progressive builder control
+  en: "Timezone"
+  verified_by_human: []
+
+builder.input:
+  context: Workflow progressive builder control
+  en: "Input"
+  verified_by_human: []
+
+builder.schema_unavailable:
+  context: Workflow progressive builder control
+  en: "The input schema is not available for this skill."
+  verified_by_human: []
+
+builder.processing:
+  context: Workflow progressive builder control
+  en: "Processing…"
+  verified_by_human: []
+
+builder.stop:
+  context: Workflow progressive builder control
+  en: "Stop"
+  verified_by_human: []
+
+builder.test_again:
+  context: Workflow progressive builder control
+  en: "Test again"
+  verified_by_human: []
+
+builder.test_action:
+  context: Workflow progressive builder control
+  en: "Test action"
+  verified_by_human: []
+
+builder.variable_cost:
+  context: Workflow progressive builder control
+  en: "Variable cost"
+  verified_by_human: []
+
+builder.output:
+  context: Workflow progressive builder control
+  en: "Output"
+  verified_by_human: []
+
+builder.test_output:
+  context: Workflow progressive builder control
+  en: "Test output"
+  verified_by_human: []
+
+builder.example:
+  context: Workflow progressive builder control
+  en: "Example"
+  verified_by_human: []
+
+builder.check_question:
+  context: Workflow progressive builder control
+  en: "What should we check?"
+  verified_by_human: []
+
+builder.if:
+  context: Workflow progressive builder control
+  en: "If"
+  verified_by_human: []
+
+builder.select_output:
+  context: Workflow progressive builder control
+  en: "Select action output"
+  verified_by_human: []
+
+builder.compare_type:
+  context: Workflow progressive builder control
+  en: "Select comparison"
+  verified_by_human: []
+
+builder.compare_value:
+  context: Workflow progressive builder control
+  en: "Compare to"
+  verified_by_human: []
+
+builder.chat_question:
+  context: Workflow progressive builder control
+  en: "To which chat?"
+  verified_by_human: []
+
+builder.search_chats:
+  context: Workflow progressive builder control
+  en: "Search recent chats"
+  verified_by_human: []
+
+builder.new_chat:
+  context: Workflow progressive builder control
+  en: "New chat"
+  verified_by_human: []
+
+builder.message_question:
+  context: Workflow progressive builder control
+  en: "What should the message be?"
+  verified_by_human: []
+
+builder.chat_title:
+  context: Workflow progressive builder control
+  en: "Chat title"
+  verified_by_human: []
+
+builder.message_placeholder:
+  context: Workflow progressive builder control
+  en: "Enter the message template here. Type @ or select an output above to include results from previous actions."
+  verified_by_human: []
+
+builder.only_new_results:
+  context: Workflow progressive builder control
+  en: "Only results not previously sent"
+  verified_by_human: []
+
+builder.include_when:
+  context: Workflow progressive builder control
+  en: "Include this section when"
+  verified_by_human: []
+
+builder.always:
+  context: Workflow progressive builder control
+  en: "Always"
+  verified_by_human: []
+
+builder.preview_message:
+  context: Workflow progressive builder control
+  en: "Preview message without sending"
+  verified_by_human: []
+
+builder.saving:
+  context: Workflow progressive builder control
+  en: "Saving…"
+  verified_by_human: []
+
+builder.save:
+  context: Workflow progressive builder control
+  en: "Save"
+  verified_by_human: []
+
+builder.if_true:
+  context: Workflow progressive builder control
+  en: "If true"
+  verified_by_human: []
+
+builder.else:
+  context: Workflow progressive builder control
+  en: "Else"
+  verified_by_human: []
+
+builder.do_nothing:
+  context: Workflow progressive builder control
+  en: "Do nothing. Add a step below."
+  verified_by_human: []
+
+builder.then:
+  context: Workflow progressive builder control
+  en: "then"
+  verified_by_human: []
+
+builder.contains:
+  context: Workflow progressive builder control
+  en: "contains"
+  verified_by_human: []
+
+builder.operator_gt:
+  context: Workflow progressive builder control
+  en: "is more than"
+  verified_by_human: []
+
+builder.operator_gte:
+  context: Workflow progressive builder control
+  en: "is at least"
+  verified_by_human: []
+
+builder.operator_lt:
+  context: Workflow progressive builder control
+  en: "is less than"
+  verified_by_human: []
+
+builder.operator_lte:
+  context: Workflow progressive builder control
+  en: "is at most"
+  verified_by_human: []
+
+builder.operator_eq:
+  context: Workflow progressive builder control
+  en: "is equal to"
+  verified_by_human: []
+
+builder.operator_ne:
+  context: Workflow progressive builder control
+  en: "is not equal to"
+  verified_by_human: []
+
+builder.operator_contains:
+  context: Workflow progressive builder control
+  en: "contains"
+  verified_by_human: []
+
+builder.next_run:
+  context: Workflow progressive builder control
+  en: "Next run"
+  verified_by_human: []
+
+builder.created:
+  context: Workflow progressive builder control
+  en: "Created"
+  verified_by_human: []
+
+builder.share:
+  context: Workflow progressive builder control
+  en: "Share workflow"
+  verified_by_human: []
+
+builder.workflow:
+  context: Workflow progressive builder control
+  en: "Workflow"
+  verified_by_human: []
+
+builder.run_history:
+  context: Workflow progressive builder control
+  en: "Run history"
+  verified_by_human: []
+
+builder.run_now:
+  context: Workflow progressive builder control
+  en: "Run workflow now"
+  verified_by_human: []
+
+builder.delete_workflow:
+  context: Workflow progressive builder control
+  en: "Delete workflow"
+  verified_by_human: []
+
+builder.workflow_name:
+  context: Workflow progressive builder control
+  en: "Workflow name"
+  verified_by_human: []
+
+builder.description:
+  context: Workflow progressive builder control
+  en: "Description"
+  verified_by_human: []
+
+builder.add_description:
+  context: Workflow progressive builder control
+  en: "Click to add description"
+  verified_by_human: []
+
+builder.workflow_on:
+  context: Workflow progressive builder control
+  en: "Workflow enabled"
+  verified_by_human: []
+
+builder.enabled:
+  context: Workflow progressive builder control
+  en: "Enabled"
+  verified_by_human: []
+
+builder.ready:
+  context: Workflow progressive builder control
+  en: "Ready"
+  verified_by_human: []
+
+builder.draft:
+  context: Workflow progressive builder control
+  en: "Draft"
+  verified_by_human: []
+
+builder.run_started:
+  context: Workflow progressive builder control
+  en: "Run started"
+  verified_by_human: []
+
+builder.ready_to_use:
+  context: Workflow progressive builder control
+  en: "Your workflow can be used now."
+  verified_by_human: []
+
+builder.activate:
+  context: Workflow progressive builder control
+  en: "Activate"
+  verified_by_human: []
+
+builder.history_and_sharing:
+  context: Workflow progressive builder control
+  en: "Version history and sharing"
+  verified_by_human: []
+
+builder.delete_run:
+  context: Workflow progressive builder control
+  en: "Delete run and forget its deliveries"
+  verified_by_human: []
+
+builder.delete_run_confirm:
+  context: Workflow progressive builder control
+  en: "Delete this run and forget the results it delivered? Existing chat messages will remain."
+  verified_by_human: []
+
+builder.deletion_pending:
+  context: Workflow progressive builder control
+  en: "Deleting after pending deliveries finish…"
+  verified_by_human: []
+
+builder.monday:
+  context: Workflow progressive builder control
+  en: "Monday"
+  verified_by_human: []
+
+builder.tuesday:
+  context: Workflow progressive builder control
+  en: "Tuesday"
+  verified_by_human: []
+
+builder.wednesday:
+  context: Workflow progressive builder control
+  en: "Wednesday"
+  verified_by_human: []
+
+builder.thursday:
+  context: Workflow progressive builder control
+  en: "Thursday"
+  verified_by_human: []
+
+builder.friday:
+  context: Workflow progressive builder control
+  en: "Friday"
+  verified_by_human: []
+
+builder.saturday:
+  context: Workflow progressive builder control
+  en: "Saturday"
+  verified_by_human: []
+
+builder.sunday:
+  context: Workflow progressive builder control
+  en: "Sunday"
+  verified_by_human: []

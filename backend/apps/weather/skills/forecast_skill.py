@@ -9,8 +9,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone as datetime_timezone
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from celery import Celery
 from pydantic import BaseModel, Field, model_validator
@@ -170,7 +171,7 @@ class ForecastSkill(BaseSkill):
                 provider_payload = await fetch_weather(
                     latitude=lat,
                     longitude=lon,
-                    start_date=datetime.now(datetime_timezone.utc).date(),
+                    start_date=datetime.now(ZoneInfo(resolved_timezone)).date(),
                     days=request.days,
                     timezone=resolved_timezone,
                 )

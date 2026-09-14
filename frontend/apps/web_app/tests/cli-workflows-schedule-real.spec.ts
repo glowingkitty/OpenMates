@@ -28,6 +28,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 test.describe('CLI Workflows scheduled execution', () => {
 	test.setTimeout(420_000);
 
+	// contract-test: direct surface=cli assertions=workflows.schedule.recurrence,workflows.execution.lifecycle-visible,workflows.surface.semantic-parity,cli.surface.semantic-parity
 	test('creates a one-time scheduled Workflow and inspects the backend-accepted run', async ({ page }: { page: any }) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -50,6 +51,13 @@ steps:
     input:
       location: Berlin
       days: 1
+  - id: report
+    send_chat_message:
+      title: Scheduled Berlin weather
+      message: Scheduled forecast completed.
+      blocks:
+        - id: weather
+          source: $nodes.forecast.output.rain_summary
 `);
 
 			const created = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'create', '--file', yamlFile], 'create scheduled workflow');

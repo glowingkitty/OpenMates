@@ -149,6 +149,7 @@ def disabled_workflow_service():
     )
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect
 def test_workflow_graph_requires_exactly_one_trigger() -> None:
     graph = rain_graph()
     graph["nodes"].append({"id": "manual", "type": "manual_trigger", "config": {}})
@@ -157,6 +158,7 @@ def test_workflow_graph_requires_exactly_one_trigger() -> None:
         WorkflowGraph.model_validate(graph)
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.control.check
 def test_decision_predicates_reject_arbitrary_code_operator() -> None:
     graph = rain_graph()
     graph["nodes"][2]["config"]["predicate"] = {"op": "eval", "left": "__import__('os')", "right": True}
@@ -165,6 +167,7 @@ def test_decision_predicates_reject_arbitrary_code_operator() -> None:
         WorkflowGraph.model_validate(graph)
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_app_skill_action_graph_validation_defers_capability_availability_to_registry() -> None:
     graph = rain_graph()
     graph["nodes"][1]["config"] = {"app_id": "calendar", "skill_id": "list_events", "input": {}}
@@ -174,6 +177,7 @@ def test_app_skill_action_graph_validation_defers_capability_availability_to_reg
     assert parsed.nodes[1].config["app_id"] == "calendar"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.mvp.steps
 def test_repeat_nodes_require_safety_bounds() -> None:
     graph = rain_graph()
     graph["nodes"].append({"id": "repeat", "type": "repeat", "config": {"max_iterations": 10}})
@@ -183,6 +187,7 @@ def test_repeat_nodes_require_safety_bounds() -> None:
         WorkflowGraph.model_validate(graph)
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.mvp.steps
 def test_future_custom_code_node_is_not_executable_in_v1() -> None:
     graph = rain_graph()
     graph["nodes"].append({"id": "code", "type": "custom_code", "config": {"runtime": "python"}})
@@ -191,6 +196,7 @@ def test_future_custom_code_node_is_not_executable_in_v1() -> None:
         WorkflowGraph.model_validate(graph)
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.access.boundaries
 def test_event_trigger_nodes_require_scoped_rate_limited_metadata() -> None:
     graph = rain_graph()
     graph["nodes"][0] = {"id": "trigger", "type": "event_trigger", "config": {}}
@@ -221,6 +227,7 @@ def test_event_trigger_nodes_require_scoped_rate_limited_metadata() -> None:
     assert WorkflowGraph.model_validate(graph).nodes[0].type == "event_trigger"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.access.boundaries
 def test_workflow_service_blocks_when_platform_feature_disabled() -> None:
     service = disabled_workflow_service()
 
@@ -228,6 +235,7 @@ def test_workflow_service_blocks_when_platform_feature_disabled() -> None:
         service.create_workflow("alice", "Rain", rain_graph())
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.access.boundaries
 def test_workflow_service_enforces_owner_isolation() -> None:
     service = workflow_service()
     workflow = service.create_workflow("alice", "Rain", rain_graph())
@@ -237,6 +245,7 @@ def test_workflow_service_enforces_owner_isolation() -> None:
         service.get_workflow(workflow.id, "bob")
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
 def test_workflow_definition_rows_store_sensitive_content_as_encrypted_blob_refs() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -257,6 +266,7 @@ def test_workflow_definition_rows_store_sensitive_content_as_encrypted_blob_refs
     assert "alice" not in raw_blob_rows
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
 def test_directus_workflow_repository_persists_workflow_records_without_plaintext() -> None:
     repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
     fake_client = FakeDirectusClient()
@@ -276,13 +286,24 @@ def test_directus_workflow_repository_persists_workflow_records_without_plaintex
     assert "Berlin" not in raw_blob_rows
 
 
-def test_directus_workflow_repository_updates_accepted_run_by_public_run_id() -> None:
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
+def test_directus_workflow_repository_updates_accepted_run_by_public_run_id(monkeypatch) -> None:
     repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
     fake_client = FakeDirectusClient()
     setattr(repository, "_client", fake_client)
     fake_client.collections["workflow_runs"] = {
         "directus-row": {"id": "directus-row", "run_id": "accepted-run"}
     }
+
+    def fake_transaction(target, **data):
+        assert target is repository
+        assert data["action"] == "save_run"
+        assert data["run_id"] == "accepted-run"
+        assert data["hashed_user_id"] == "user_sha256:owner"
+        row = next(row for row in fake_client.collections["workflow_runs"].values() if row["run_id"] == data["run_id"])
+        row.update({key: value for key, value in data["run"].items() if key != "id"})
+        return {"status": "saved"}
+    monkeypatch.setattr("backend.core.api.app.services.workflow_delivery_history.runtime_transaction", fake_transaction)
 
     repository.save_run(
         {
@@ -307,6 +328,7 @@ def test_directus_workflow_repository_updates_accepted_run_by_public_run_id() ->
     assert rows["directus-row"]["status"] == "completed"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
 def test_directus_workflow_repository_lists_runtime_accepted_run_without_record_json() -> None:
     repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
     fake_client = FakeDirectusClient()
@@ -351,6 +373,7 @@ def test_directus_workflow_repository_lists_runtime_accepted_run_without_record_
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
 def test_workflow_cipher_uses_existing_vault_encryption_service() -> None:
     repository = InMemoryWorkflowRepository()
     encryption = FakeVaultEncryptionService()
@@ -375,6 +398,7 @@ def test_workflow_cipher_uses_existing_vault_encryption_service() -> None:
     assert all(blob["ciphertext"].startswith("vault:v1:") for blob in repository.encrypted_blobs.values())
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.access.boundaries
 def test_workflow_vault_cipher_fails_closed_without_vault_key_id() -> None:
     service = WorkflowService(
         repository=InMemoryWorkflowRepository(),
@@ -385,6 +409,7 @@ def test_workflow_vault_cipher_fails_closed_without_vault_key_id() -> None:
         service.create_workflow("alice", "Daily rain alert", rain_graph())
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
 def test_workflow_run_content_retention_defaults_updates_and_rejects_unknown_values() -> None:
     service = workflow_service()
     workflow = service.create_workflow("alice", "Daily rain alert", rain_graph())
@@ -395,12 +420,14 @@ def test_workflow_run_content_retention_defaults_updates_and_rejects_unknown_val
         service.update_workflow(workflow.id, "alice", run_content_retention="not_a_mode")
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect,workflows.mvp.steps
 def test_graph_completes_without_explicit_end_node() -> None:
     graph = WorkflowGraph.model_validate(rain_graph())
 
     assert {node.id for node in graph.nodes} == {"trigger", "weather", "decision", "notify", "email"}
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.access.boundaries
 def test_workflow_template_export_excludes_runtime_context_and_imports_disabled() -> None:
     service = workflow_service()
     workflow = service.create_workflow(
@@ -426,6 +453,7 @@ def test_workflow_template_export_excludes_runtime_context_and_imports_disabled(
     assert "access_token" not in serialized
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.access.boundaries
 def test_workflow_template_export_excludes_notification_destinations() -> None:
     graph = rain_graph()
     graph["nodes"][3]["config"].update({"recipient": "alice@example.com", "channel": "push-device-1"})
@@ -440,6 +468,7 @@ def test_workflow_template_export_excludes_notification_destinations() -> None:
     assert "channel" not in serialized
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.access.boundaries
 def test_workflow_template_export_rejects_sensitive_recursive_keys() -> None:
     graph = rain_graph()
     graph["nodes"][1]["config"]["input"]["access_token"] = "secret-token"
@@ -450,6 +479,7 @@ def test_workflow_template_export_rejects_sensitive_recursive_keys() -> None:
 
 
 @pytest.mark.parametrize("field_name", ["authToken", "bearer_token", "account_id", "connection_id", "provider_user_id"])
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.access.boundaries
 def test_workflow_template_export_rejects_sensitive_key_variants(field_name: str) -> None:
     graph = rain_graph()
     graph["nodes"][1]["config"]["input"][field_name] = "private-runtime-value"
@@ -459,6 +489,7 @@ def test_workflow_template_export_rejects_sensitive_key_variants(field_name: str
         build_workflow_template_share_payload(workflow)
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.content.encrypted-retained
 def test_temporary_workflow_lifecycle_can_be_kept_and_cleaned_up() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -495,6 +526,7 @@ def test_temporary_workflow_lifecycle_can_be_kept_and_cleaned_up() -> None:
     assert service.list_workflows("alice")[0].id == workflow.id
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.content.encrypted-retained
 def test_expired_temporary_workflows_are_deleted_by_cleanup_not_by_run() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -515,6 +547,7 @@ def test_expired_temporary_workflows_are_deleted_by_cleanup_not_by_run() -> None
         service.get_workflow(workflow.id, "alice")
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect,workflows.control.typed-data
 def test_manual_runs_validate_required_start_input_schema() -> None:
     graph = rain_graph()
     graph["nodes"][0] = {
@@ -537,6 +570,7 @@ def test_manual_runs_validate_required_start_input_schema() -> None:
     service.validate_manual_run_input(workflow, {"city": "Berlin"})
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract,workflows.mvp.steps
 def test_capabilities_include_safe_v1_app_skills_and_disabled_custom_code() -> None:
     service = workflow_service()
     capabilities = {item.id: item for item in service.capabilities()}
@@ -549,6 +583,7 @@ def test_capabilities_include_safe_v1_app_skills_and_disabled_custom_code() -> N
     assert capabilities["custom_code"].enabled is False
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.access.boundaries
 def test_capabilities_include_owner_scoped_persisted_workflows_only() -> None:
     service = workflow_service()
     persisted = service.create_workflow("alice", "Weekly AI news", rain_graph())

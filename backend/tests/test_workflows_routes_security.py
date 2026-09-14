@@ -246,3 +246,14 @@ def test_project_remote_source_routes_remain_session_only() -> None:
     ):
         function_source = projects_source.split(f"async def {function_name}(", 1)[1].split(") ->", 1)[0]
         assert "Depends(get_current_user)" in function_source
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.message.standard,workflows.history.delete-forgets,workflows.access.boundaries
+def test_workflow_preview_is_read_only_and_run_deletion_requires_write_scope():
+    metadata = {"api_key_metadata": {"full_access": False, "scopes": {"workflows": ["workflow:read", "workflow:execute"]}}}
+    _enforce_api_key_route_policy(_request("POST", "/v1/workflows/wf/steps/send/preview"), metadata)
+    with pytest.raises(HTTPException) as exc:
+        _enforce_api_key_route_policy(_request("DELETE", "/v1/workflows/wf/runs/run"), metadata)
+    assert exc.value.detail == {"error": "missing_scope", "missing_scope": "workflow:write"}
+    metadata["api_key_metadata"]["scopes"]["workflows"].append("workflow:write")
+    _enforce_api_key_route_policy(_request("DELETE", "/v1/workflows/wf/runs/run"), metadata)

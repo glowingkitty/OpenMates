@@ -15,6 +15,8 @@ export type WorkflowNodeType =
   | "event_trigger"
   | "app_skill_action"
   | "decision"
+  | "check"
+  | "send_chat_message"
   | "repeat"
   | "create_chat_report"
   | "start_new_chat"
@@ -201,7 +203,10 @@ export async function workflowApiRequest<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Workflow request failed with HTTP ${response.status}`);
+    const data = await response.json().catch(() => null);
+    const detail = data?.detail;
+    const message = typeof detail === "string" ? detail : detail?.message ?? data?.message;
+    throw new Error(message || (response.status === 429 ? "Too many requests. Please wait a moment and try again." : `Workflow request failed with HTTP ${response.status}`));
   }
 
   return (await response.json()) as T;
@@ -526,6 +531,18 @@ export const workflowWorkspaceStore = {
         runsByWorkflowId: { ...state.runsByWorkflowId, [workflowId]: workflowRuns },
       };
     });
+    return data.status;
+  },
+
+  async deleteWorkflowRun(workflowId: string, runId: string): Promise<"deleted" | "deletion_pending"> {
+    const data = await workflowApiRequest<{ status: "deleted" | "deletion_pending" }>(`/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`, { method: "DELETE" });
+    if (data.status === "deleted") {
+      cacheRevision += 1;
+      store.update(state => {
+        const remaining = (state.runsByWorkflowId[workflowId] ?? []).filter(run => run.id !== runId);
+        return { ...state, runs: state.selectedWorkflowId === workflowId ? remaining : state.runs, runsByWorkflowId: { ...state.runsByWorkflowId, [workflowId]: remaining } };
+      });
+    }
     return data.status;
   },
 

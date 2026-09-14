@@ -618,6 +618,11 @@ export type WorkflowNodeType =
   | "webhook_trigger"
   | "app_skill_action"
   | "decision"
+  | "check"
+  | "send_chat_message"
+  | "start_new_chat"
+  | "event_trigger"
+  | "wait"
   | "repeat"
   | "create_chat_report"
   | "send_notification"
@@ -2919,7 +2924,31 @@ function parseMailVersionContent(versionContent: string): Record<string, string>
 // Client
 // ---------------------------------------------------------------------------
 
+
+type WorkflowDeliveryDiscovery = {
+  delivery_id: string;
+  status: string;
+  claim_expires_at?: number | null;
+};
+
+type WorkflowDeliveryClaim = WorkflowDeliveryDiscovery & {
+  chat_id: string;
+  message_id: string;
+  title: string;
+  message: string;
+  created_at: number;
+  client_persisted?: boolean;
+  existing_chat: Record<string, unknown> | null;
+  embeds?: Array<{ embed_id: string; content_type: string; content: Record<string, unknown> }>;
+  claim_token: string;
+  claim_generation: number;
+  claim_issued_at: number;
+  claim_expires_at: number;
+  request_id?: string;
+};
+
 export class OpenMatesClient {
+  private readonly workflowDeliveriesBySocket = new WeakMap<OpenMatesWsClient, Map<string, WorkflowDeliveryDiscovery>>();
   readonly apiUrl: string;
   private session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
@@ -8908,15 +8937,36 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  async deleteWorkflowRun(workflowId: string, runId: string): Promise<{ run_id: string; status: "deleted" | "deletion_pending" }> {
+    this.requireSession();
+    const response = await this.http.delete<{ run_id: string; status: "deleted" | "deletion_pending" }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !["deleted", "deletion_pending"].includes(response.data.status)) throw new Error(`Workflow run deletion failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async previewWorkflowStep(workflowId: string, stepId: string, params: { input?: Record<string, unknown>; node?: WorkflowNode; upstreamOutputs?: Record<string, Record<string, unknown>> } = {}): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<{ preview?: Record<string, unknown> }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(stepId)}/preview`,
+      { input: params.input ?? {}, ...(params.node ? { node: params.node } : {}), upstream_outputs: params.upstreamOutputs ?? {} },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.preview) throw new Error(`Workflow preview failed with HTTP ${response.status}`);
+    return response.data.preview;
+  }
+
   async testWorkflowStep(
     workflowId: string,
     stepId: string,
-    params: { input?: Record<string, unknown>; confirmed?: boolean } = {},
+    params: { input?: Record<string, unknown>; confirmed?: boolean; node?: WorkflowNode; upstreamOutputs?: Record<string, Record<string, unknown>> } = {},
   ): Promise<WorkflowRunDetail> {
     this.requireSession();
     const response = await this.http.post<{ run?: WorkflowRunDetail }>(
       `/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(stepId)}/test`,
-      { input: params.input ?? {}, confirmed: params.confirmed === true },
+      { input: params.input ?? {}, confirmed: params.confirmed === true, ...(params.node ? { node: params.node } : {}), ...(params.upstreamOutputs ? { upstream_outputs: params.upstreamOutputs } : {}) },
       this.getCliRequestHeaders(),
     );
     if (!response.ok || !response.data.run) {
@@ -11820,7 +11870,7 @@ export class OpenMatesClient {
     session: OpenMatesSession,
     options: { taskUpdateJobs?: boolean } = {},
   ): OpenMatesWsClient {
-    return new OpenMatesWsClient({
+    const ws = new OpenMatesWsClient({
       apiUrl: session.apiUrl,
       sessionId: randomUUID(),
       wsToken: session.wsToken,
@@ -11835,6 +11885,15 @@ export class OpenMatesClient {
         this.session = null;
       },
     });
+    // Register before open() so the initial reconnect discovery cannot race sync.
+    const deliveries = new Map<string, WorkflowDeliveryDiscovery>();
+    this.workflowDeliveriesBySocket.set(ws, deliveries);
+    ws.onMessageType<{ deliveries?: WorkflowDeliveryDiscovery[] }>("workflow_chat_deliveries_available", payload => {
+      for (const delivery of payload.deliveries ?? []) {
+        if (delivery.delivery_id) deliveries.set(delivery.delivery_id, delivery);
+      }
+    });
+    return ws;
   }
 
   /**
@@ -11965,7 +12024,7 @@ export class OpenMatesClient {
       }
     }
 
-    const { ws } = await this.openWsClient();
+    const { ws, ownerId } = await this.openWsClient();
     const chats: CachedChat[] = [];
     const embeds: Record<string, unknown>[] = [];
     const embedKeys: Record<string, unknown>[] = [];
@@ -12214,8 +12273,14 @@ export class OpenMatesClient {
     );
 
     let persistedTaskJobIds = new Set<string>();
+    let persistedWorkflowDeliveryCount = 0;
     try {
       await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses, teamId);
+      // Normal user-key chat encryption is an owner-device operation. Do not mix
+      // personal workflow delivery keys into an active team's cache/key context.
+      if (!teamId && ownerId) {
+        persistedWorkflowDeliveryCount = await this.persistPendingWorkflowChatDeliveries({ ws, ownerId, chats });
+      }
       persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
         ws,
         jobs: pendingTaskUpdateJobs,
@@ -12231,7 +12296,7 @@ export class OpenMatesClient {
       ws.close();
     }
 
-    if (persistedTaskJobIds.size > 0) {
+    if (persistedTaskJobIds.size > 0 || persistedWorkflowDeliveryCount > 0) {
       clearSyncCache(teamId);
       return this.ensureSynced(true, refreshChatIds, { teamId });
     }
@@ -12249,6 +12314,132 @@ export class OpenMatesClient {
 
     saveSyncCache(cache, teamId);
     return cache;
+  }
+
+
+  /**
+   * Claim and finish reconnect workflow deliveries using only normal client
+   * ciphertext. A fenced server transaction persists chat/message/selected
+   * embeds before acknowledgement commits their cross-run delivery history.
+   */
+  private async persistPendingWorkflowChatDeliveries(params: {
+    ws: OpenMatesWsClient;
+    ownerId: string;
+    chats: CachedChat[];
+  }): Promise<number> {
+    const { ws, ownerId, chats } = params;
+    const discoveries = this.workflowDeliveriesBySocket.get(ws);
+    if (!discoveries?.size) return 0;
+    let acknowledged = 0;
+    for (const discovery of discoveries.values()) {
+      if (!["delivery_pending", "claimed"].includes(discovery.status)) continue;
+      // A different connected owner device may already be handling this result.
+      // Discovery on a later sync retries after that claim's lease expires.
+      if (discovery.status === "claimed" && Number(discovery.claim_expires_at ?? 0) * 1000 > Date.now()) continue;
+      const claimRequestId = `workflow-claim-${randomUUID()}`;
+      const claimed = ws.waitForMessage("workflow_chat_delivery_claimed", value => {
+        const payload = value as Partial<WorkflowDeliveryClaim>;
+        return payload.delivery_id === discovery.delivery_id && payload.request_id === claimRequestId;
+      }, 20_000);
+      void claimed.catch(() => {});
+      await ws.sendAsync("workflow_chat_delivery_claim", { delivery_id: discovery.delivery_id, request_id: claimRequestId });
+      let claim: WorkflowDeliveryClaim;
+      try { claim = (await claimed).payload as WorkflowDeliveryClaim; }
+      catch (error) {
+        if (error instanceof Error && /already.*claim|claim.*another|not claimable|no longer pending/i.test(error.message)) continue;
+        throw error;
+      }
+      if (!claim.claim_token || !claim.chat_id || !claim.message_id || claim.claim_generation < 1 || claim.claim_expires_at * 1000 <= Date.now()) {
+        throw new Error("Workflow delivery returned an invalid or expired claim.");
+      }
+      const fence = {
+        delivery_id: claim.delivery_id,
+        claim_token: claim.claim_token,
+        claim_generation: claim.claim_generation,
+        claim_issued_at: claim.claim_issued_at,
+        claim_expires_at: claim.claim_expires_at,
+      };
+      if (!claim.client_persisted) {
+        // The server returns the authoritative existing key wrapper, including
+        // chats absent from the CLI's recent cache. Never invent a replacement.
+        if (!("existing_chat" in claim)) throw new Error("Workflow delivery needs authoritative destination key metadata; update the dev server.");
+        const existing = claim.existing_chat;
+        const masterKey = this.getMasterKeyBytes();
+        let chatKey: Uint8Array;
+        let encryptedChatKey: string;
+        if (existing) {
+          if (typeof existing.encrypted_chat_key !== "string" || !existing.encrypted_chat_key) throw new Error("Workflow destination chat key is unavailable.");
+          encryptedChatKey = existing.encrypted_chat_key;
+          const decryptedKey = await decryptBytesWithAesGcm(encryptedChatKey, masterKey);
+          if (!decryptedKey) throw new Error("Workflow destination chat key could not be decrypted.");
+          chatKey = decryptedKey;
+        } else {
+          chatKey = new Uint8Array(randomBytes(32));
+          encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
+        }
+        const encryptedTitle = typeof existing?.encrypted_title === "string" && existing.encrypted_title
+          ? existing.encrypted_title : await encryptWithAesGcmCombined(claim.title, chatKey);
+        const encryptedCategory = typeof existing?.encrypted_category === "string" && existing.encrypted_category
+          ? existing.encrypted_category : await encryptWithAesGcmCombined("openmates_official", chatKey);
+        const encryptedContent = await encryptWithAesGcmCombined(claim.message, chatKey);
+        const createdAt = normalizeUnixSeconds(claim.created_at, Math.floor(Date.now() / 1000));
+        const encryptedEmbeds = [];
+        for (const item of claim.embeds ?? []) {
+          const encrypted = await encryptEmbed({
+            embedId: item.embed_id,
+            type: item.content_type,
+            content: toonEncodeContent({ ...item.content, type: item.content_type }),
+            textPreview: String(item.content.title ?? item.content.name ?? "Workflow result"),
+            status: "finished",
+          }, masterKey, chatKey, claim.chat_id, claim.message_id, ownerId);
+          if (!encrypted) throw new Error("Workflow result could not be encrypted.");
+          // Strict transaction allowlist: no clear IDs/content beyond the
+          // supplied routing IDs, no master/chat/embed keys, no inferred embeds.
+          encryptedEmbeds.push({
+            embed_id: encrypted.embed_id,
+            encrypted_content: encrypted.encrypted_content,
+            encrypted_type: encrypted.encrypted_type,
+            encrypted_text_preview: encrypted.encrypted_text_preview,
+            embed_keys: encrypted.embed_keys.map(key => ({ key_type: key.key_type, encrypted_embed_key: key.encrypted_embed_key })),
+          });
+        }
+        const metadata = {
+          encrypted_title: encryptedTitle,
+          encrypted_category: encryptedCategory,
+          encrypted_chat_key: encryptedChatKey,
+          created_at: existing?.created_at ?? createdAt,
+          messages_v: Number(existing?.messages_v ?? 0) + 1,
+          title_v: Number(existing?.title_v ?? 1),
+        };
+        const encryptedMessage = { role: "assistant", encrypted_content: encryptedContent, created_at: createdAt, embeds: encryptedEmbeds };
+        const persistRequestId = `workflow-persist-${randomUUID()}`;
+        const persisted = ws.waitForMessage("workflow_chat_delivery_persisted", value => {
+          const payload = value as Record<string, unknown>;
+          return payload.delivery_id === claim.delivery_id && payload.request_id === persistRequestId;
+        }, 20_000);
+        void persisted.catch(() => {});
+        await ws.sendAsync("workflow_chat_delivery_persist", { ...fence, encrypted_chat_metadata: JSON.stringify(metadata), encrypted_message: JSON.stringify(encryptedMessage), request_id: persistRequestId });
+        await persisted;
+        // In-memory cache update also contains ciphertext only. The normal sync
+        // immediately following this drain hydrates authoritative embeds/keys.
+        const cached = chats.find(chat => chat.details.id === claim.chat_id);
+        const message = JSON.stringify({ ...encryptedMessage, message_id: claim.message_id, chat_id: claim.chat_id, status: "synced" });
+        if (cached) { cached.details = { ...cached.details, ...metadata }; cached.messages.push(message); }
+        else chats.push({ details: { id: claim.chat_id, ...metadata, last_edited_overall_timestamp: createdAt }, messages: [message] });
+        if (process.env.OPENMATES_DEBUG === "1") console.error(`[workflow delivery] CLI persisted ${claim.delivery_id}`);
+      }
+      // Durable recovery never creates/re-encrypts a chat or result a second time.
+      const ackRequestId = `workflow-ack-${randomUUID()}`;
+      const ack = ws.waitForMessage("workflow_chat_delivery_acknowledged", value => {
+        const payload = value as Record<string, unknown>;
+        return payload.delivery_id === claim.delivery_id && payload.request_id === ackRequestId;
+      }, 20_000);
+      void ack.catch(() => {});
+      await ws.sendAsync("workflow_chat_delivery_ack", { ...fence, request_id: ackRequestId });
+      await ack;
+      acknowledged += 1;
+    }
+    return acknowledged;
   }
 
   private async persistPendingAIResponsesFromSync(

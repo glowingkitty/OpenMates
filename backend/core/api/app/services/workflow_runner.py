@@ -38,7 +38,7 @@ class WorkflowRunner:
     ) -> None:
         self.workflow_service = workflow_service
         self.app_skill_adapter = app_skill_adapter or WorkflowAppSkillAdapter()
-        self.action_adapter = action_adapter or WorkflowActionAdapter()
+        self.action_adapter = action_adapter or WorkflowActionAdapter(workflow_service=workflow_service)
 
     async def run_workflow(
         self,
@@ -59,7 +59,11 @@ class WorkflowRunner:
         run_id = run_id or str(uuid.uuid4())
         version_id = version_id or workflow.current_version_id
         started_at = int(time.time())
-        context: dict[str, Any] = {"trigger": input_payload or {}, "nodes": {}}
+        trigger_node = next((n for n in workflow.graph.nodes if n.id == workflow.graph.trigger_node_id), None)
+        context: dict[str, Any] = {"trigger": input_payload or {}, "nodes": {}, "workflow": {
+            "workflow_id": workflow.id, "run_id": run_id, "started_at": started_at,
+            "timezone": ((trigger_node.config.get("schedule") or {}).get("timezone") or trigger_node.config.get("timezone") or "UTC") if trigger_node else "UTC",
+        }}
         node_runs: list[WorkflowNodeRun] = []
 
         nodes_by_id = {node.id: node for node in workflow.graph.nodes}
@@ -67,7 +71,12 @@ class WorkflowRunner:
         for edge in workflow.graph.edges:
             outgoing_edges.setdefault(edge.from_node, []).append(edge)
 
-        current_node_id: str | None = workflow.graph.trigger_node_id
+        incoming = {edge.to_node for edge in workflow.graph.edges}
+        roots = [node.id for node in workflow.graph.nodes if node.id not in incoming]
+        current_node_id: str | None = workflow.graph.trigger_node_id or (roots[0] if len(roots) == 1 else None)
+        if current_node_id is None:
+            raise ValueError("Workflow requires a single executable starting step")
+        continuations: list[str] = []
         visited_count = 0
         max_nodes = int(workflow.graph.limits.get("max_nodes", max(len(workflow.graph.nodes), 1) * 2))
 
@@ -77,10 +86,21 @@ class WorkflowRunner:
             visited_count += 1
             if visited_count > max_nodes:
                 raise ValueError("Workflow execution exceeded max_nodes")
+            if continuations and current_node_id == continuations[-1]:
+                continuations.pop()
             node = nodes_by_id[current_node_id]
+            context["workflow"]["node_id"] = node.id
+            # Persist a checkpoint before executing a side effect or making a reservation.
+            progress = WorkflowRunDetail(id=run_id, workflow_id=workflow.id, version_id=version_id,
+                trigger_type=trigger_type, status=WorkflowRunStatus.RUNNING, started_at=started_at,
+                node_runs=[*node_runs, WorkflowNodeRun(
+                    id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow:{run_id}:{node.id}:node-run")),
+                    run_id=run_id, workflow_id=workflow.id, node_id=node.id, node_type=node.type,
+                    status=WorkflowNodeRunStatus.RUNNING, started_at=int(time.time()))], output_summary=context)
+            await run_in_threadpool(self.workflow_service.save_run, user_id, progress, vault_key_id)
             node_run = await self._run_node(run_id, workflow.id, node, context, user_id)
             node_runs.append(node_run)
-            context["nodes"][node.id] = {"output": node_run.output_summary, "status": node_run.status.value}
+            context["nodes"][node.id] = {"output": node_run.output_summary, "status": node_run.status.value, "app_id": node.config.get("app_id"), "skill_id": node.config.get("skill_id")}
             if accepted_run and await run_in_threadpool(self.workflow_service.is_run_cancellation_requested, workflow.id, run_id, user_id):
                 return await self._save_cancelled_run(run_id, workflow.id, version_id, trigger_type, started_at, node_runs, context, user_id, vault_key_id)
             if node_run.status == WorkflowNodeRunStatus.FAILED:
@@ -92,7 +112,7 @@ class WorkflowRunner:
                     status=WorkflowRunStatus.FAILED,
                     started_at=started_at,
                     finished_at=int(time.time()),
-                    error_summary=node_run.error_summary,
+                    error_summary=f"Step failed ({node_run.error_code or 'execution_error'})" if node_run.error_summary else None,
                     node_runs=node_runs,
                     output_summary=context,
                 )
@@ -109,7 +129,12 @@ class WorkflowRunner:
                     output_summary=context,
                 )
                 return await run_in_threadpool(self.workflow_service.save_run, user_id, run, vault_key_id)
-            current_node_id = self._next_node_id(node, node_run.output_summary, outgoing_edges)
+            next_node_id = self._next_node_id(node, node_run.output_summary, outgoing_edges)
+            if node.type.value in {"check", "decision"}:
+                continuation = next((edge.to_node for edge in outgoing_edges.get(node.id, []) if edge.branch in {None, "default"}), None)
+                if continuation and next_node_id != continuation:
+                    continuations.append(continuation)
+            current_node_id = next_node_id or (continuations.pop() if continuations else None)
 
         run = WorkflowRunDetail(
             id=run_id,
@@ -132,6 +157,7 @@ class WorkflowRunner:
         *,
         input_override: dict[str, Any] | None = None,
         vault_key_id: str | None = None,
+        upstream_outputs: dict[str, dict[str, Any]] | None = None,
     ) -> WorkflowRunDetail:
         """Execute one selected action/control as a real inspectable step-test run."""
         node = next((item for item in workflow.graph.nodes if item.id == node_id), None)
@@ -145,9 +171,16 @@ class WorkflowRunner:
                 node.config.update(input_override)
         run_id = str(uuid.uuid4())
         started_at = int(time.time())
-        context: dict[str, Any] = {"trigger": {"step_test": True}, "nodes": {}}
+        if node.type.value in {"send_chat_message", "start_new_chat", "create_chat_report"}:
+            raise ValueError("Send message supports preview; use a full run for actual delivery")
+        trigger_node = next((n for n in workflow.graph.nodes if n.id == workflow.graph.trigger_node_id), None)
+        context: dict[str, Any] = {"trigger": {"step_test": True},
+            "nodes": {key: {"output": value} for key, value in (upstream_outputs or {}).items()},
+            "workflow": {"workflow_id": workflow.id, "run_id": run_id, "node_id": node.id,
+                         "started_at": started_at, "step_test": True,
+                         "timezone": ((trigger_node.config.get("schedule") or {}).get("timezone") or trigger_node.config.get("timezone") or "UTC") if trigger_node else "UTC"}}
         node_run = await self._run_node(run_id, workflow.id, node, context, user_id)
-        context["nodes"][node.id] = {"output": node_run.output_summary, "status": node_run.status.value}
+        context["nodes"][node.id] = {"output": node_run.output_summary, "status": node_run.status.value, "app_id": node.config.get("app_id"), "skill_id": node.config.get("skill_id")}
         status = WorkflowRunStatus.FAILED if node_run.status == WorkflowNodeRunStatus.FAILED else WorkflowRunStatus.COMPLETED
         if node_run.output_summary.get("wait_for_user_input"):
             status = WorkflowRunStatus.WAITING
@@ -159,7 +192,7 @@ class WorkflowRunner:
             status=status,
             started_at=started_at,
             finished_at=None if status == WorkflowRunStatus.WAITING else int(time.time()),
-            error_summary=node_run.error_summary,
+            error_summary=f"Step failed ({node_run.error_code or 'execution_error'})" if node_run.error_summary else None,
             node_runs=[node_run],
             output_summary=context,
         )
@@ -198,14 +231,14 @@ class WorkflowRunner:
         candidates = outgoing_edges.get(node.id, [])
         if not candidates:
             return None
-        if node.type == WorkflowNodeType.DECISION:
+        if node.type.value in {"decision", "check"}:
             branch = output.get("branch")
             for edge in candidates:
                 if edge.branch == branch or (branch == "yes" and edge.branch == "true") or (branch == "no" and edge.branch == "false"):
                     return edge.to_node
-            return None
+            return next((edge.to_node for edge in candidates if edge.branch in {None, "default"}), None)
         for edge in candidates:
-            if edge.branch is None:
+            if edge.branch in {None, "default"}:
                 return edge.to_node
         return candidates[0].to_node
 
@@ -267,13 +300,15 @@ class WorkflowRunner:
             return {"triggered": True, "trigger": node.type.value}
         if node.type == WorkflowNodeType.APP_SKILL_ACTION:
             return await self._execute_app_skill(node, context, user_id)
-        if node.type == WorkflowNodeType.DECISION:
+        if node.type.value in {"decision", "check"}:
             matched = _evaluate_predicate(node.config["predicate"], context)
             return {"matched": matched, "branch": "yes" if matched else "no"}
         if node.type == WorkflowNodeType.REPEAT:
             return _execute_repeat_control(node, context)
         if node.type == WorkflowNodeType.WAIT:
             return {"waited": True, "seconds": node.config.get("seconds"), "until": node.config.get("until")}
+        if node.type.value == "send_chat_message":
+            return await self.action_adapter.send_chat_message(node.config, context, user_id)
         if node.type == WorkflowNodeType.CREATE_CHAT_REPORT:
             return await self.action_adapter.create_chat_report(_resolve_template(node.config, context), context, user_id)
         if node.type == WorkflowNodeType.START_NEW_CHAT:
@@ -297,7 +332,13 @@ class WorkflowRunner:
             await revalidate_binding(binding_ref, user_id, app_id, skill_id)
         request = _resolve_template(node.config.get("input") or {}, context)
         request.update(_resolve_template(node.input_mapping, context))
-        return await self.app_skill_adapter.execute(app_id, skill_id, request, user_id=user_id)
+        from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
+        execution = context.get("workflow") or {}
+        request = resolve_workflow_runtime_values(request, now=execution.get("started_at"), timezone=execution.get("timezone") or "UTC")
+        output = await self.app_skill_adapter.execute(app_id, skill_id, request, user_id=user_id)
+        if output.get("error"):
+            raise WorkflowActionExecutionError("WORKFLOW_SKILL_FAILED", "The selected app skill could not complete this step")
+        return output
 
 
 def _evaluate_predicate(predicate: dict[str, Any], context: dict[str, Any]) -> bool:
@@ -309,14 +350,16 @@ def _evaluate_predicate(predicate: dict[str, Any], context: dict[str, Any]) -> b
     if op == "not":
         return not _evaluate_predicate(predicate["condition"], context)
 
-    left = _resolve_value(predicate.get("left"), context)
+    left = _resolve_template(predicate.get("left"), context)
     if op == "exists":
         return left is not None
-    right = predicate.get("right")
+    right = _resolve_template(predicate.get("right"), context)
     if op == "eq":
         return left == right
     if op == "neq":
         return left != right
+    if op in {"gt", "gte", "lt", "lte"} and (left is None or right is None):
+        return False
     if op == "gt":
         return left > right
     if op == "gte":

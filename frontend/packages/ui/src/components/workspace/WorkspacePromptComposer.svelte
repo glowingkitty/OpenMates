@@ -167,7 +167,8 @@
 
   textarea {
     width: 100%;
-    min-height: 64px;
+    box-sizing: border-box;
+    min-height: 1.5rem;
     max-height: 160px;
     resize: none;
     flex: 1;

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 2
-status: draft
+version: 3
+status: approved
 title: Workflows Web UI
 summary: >
   The authenticated Workflows web workspace presents a calm, visual automation
@@ -13,7 +13,7 @@ scope:
   includes:
     - The authenticated /workflows start workspace, title-first draft entry, recent Workflow cards, starter examples, Show all, and visible Search affordance.
     - The complete visual composition of the Workflow detail header, Template and Runs tab switch, graph canvas, node cards, dirty state, version timeline, run timeline, and execution detail.
-    - Persisted disabled title drafts, in-place node editing, explicit Save and Undo, unsaved-navigation protection, read-only historical inspection, restore-as-new, and contextual run cancellation.
+    - Persisted disabled title drafts, in-place node editing, per-node Save and discard, unsaved-node navigation protection, read-only historical inspection, restore-as-new, and contextual run cancellation.
     - Automatic Workflow category and icon metadata, category-derived header and card identity, desktop and mobile layout, current OpenMates design tokens and icons, keyboard and touch operation, dark mode, and reduced-motion behavior.
   excludes:
     - Global app chrome, chat-sidebar content, profile imagery, recommendation copy, and example Workflow data that do not alter the contracted Workflows layout.
@@ -176,17 +176,17 @@ models:
     add_controls:
       type: canvas_end_actions
       required: true
-      constraints: {actions: [add_action, add_check, add_filter], centered: true, icon_above_or_beside_label: true, divided_group: true}
+      constraints: {actions: [add_action, add_check, add_send_message], centered: true, icon_above_or_beside_label: true, divided_group: true}
 
   WorkflowDirtyState:
     actions:
-      type: contextual_save_panel
+      type: node_save_controls
       required: true
-      constraints: {visible_only_when_dirty: true, placement: between_header_and_changed_canvas_content, message: unsaved_changes, actions: [undo, save], save_is_primary_orange: true}
+      constraints: {placement: inside_expanded_node, actions: [discard, save], save_is_primary_orange: true, global_unsaved_banner: forbidden}
     persistence:
       type: explicit_save_draft
       required: true
-      constraints: {persist_after_valid_title: true, initially_disabled: true, graph_auto_save: false}
+      constraints: {persist_after_valid_title: true, initially_disabled: true, node_save_immediately_persists_workflow_version: true}
     navigation_guard:
       type: guarded_unsaved_state
       required: true
@@ -297,7 +297,7 @@ assertions:
     depends_on: [models.WorkflowWorkspaceStart, examples.workspace_start]
   - id: workflows-ui.workspace.title-first-draft
     type: behavior
-    must: Submitting a valid short title from the Workflow composer persists and opens a disabled draft in Template, while empty input creates nothing, later graph edits require explicit Save, and unavailable AI or voice authoring never implies success.
+    must: Submitting a valid short title from the Workflow composer persists and opens a disabled draft in Template, while empty input creates nothing, each node Save immediately persists its graph edit, and unavailable AI or voice authoring never implies success.
     depends_on: [models.WorkflowWorkspaceStart.composer_behavior, models.WorkflowDirtyState.persistence, examples.workspace_start]
   - id: workflows-ui.detail.stable-visual-header
     type: behavior
@@ -313,7 +313,7 @@ assertions:
     depends_on: [models.WorkflowTemplateCanvas, examples.template_editing]
   - id: workflows-ui.template.explicit-guarded-save
     type: invariant
-    must: Graph edits never auto-save; dirty state reveals the compact unsaved-changes panel with Undo and orange Save near the changed canvas, and leaving for home, another Workflow, Runs, or historical inspection requires Save, Discard, or Stay without silent data loss.
+    must: Each expanded node has Save. Saving a valid node immediately persists a new workflow definition version and collapses it; there is no separate global unsaved-changes Save banner. Unsubmitted node inputs stay local and can be discarded. Failed saves remain visible and preserve draft inputs; navigation cannot silently discard a dirty node.
     depends_on: [models.WorkflowDirtyState, examples.unsaved_navigation]
   - id: workflows-ui.versions.timeline-readonly-restore-new
     type: behavior
@@ -330,31 +330,17 @@ assertions:
 
   - id: workflows-ui.mvp.authoring
     type: behavior
-    must: The V1 editor offers Use app skill, Check (node type check), Filter, and Send message. Check shows
-      If true and If false sequences with Do nothing for an empty branch; Filter selects a typed earlier list
-      and returns matching items. Available fields come from accessible earlier output schemas even before a
-      live run, with all/any condition groups and a not-previously-delivered choice naming the destination. AI,
-      code, waits, loops and separate report/push/email actions are unavailable; a complete unscheduled workflow
-      offers Run now without inventing a visible trigger.
+    must: The supplied new-workflow PDF/Figma is the visual source of truth. Title entry opens an empty progressive builder with optional time/date trigger and Use app skill, Check and Send message choices. Shared app/skill cards expose typed inputs, examples and upstream references; Test uses unsaved inputs and shows progress/results without saving. Check renders true/false branches and Do nothing for empty branches followed by continuation. Filters, AI, webhooks and app-use triggers are deferred.
     depends_on:
     - examples.mvp_authoring
   - id: workflows-ui.schedule.preview
     type: behavior
-    must: Date/time authoring uses simple recurrence controls, digital time, explicit timezone, start/end dates
-      and optional active weekdays/window. Show a plain-language rule and next executions from the execution
-      calculator; calendar previews suit daily/weekly/monthly rules and a time list suits minute/hour intervals.
-      One-time and all supported recurring rule forms are selectable without cron or configuration code. Explain
-      missing dates, daylight-saving skips, excluded window end, overlap and missed-occurrence policy before
-      enablement.
+    must: Date/time controls offer once, hourly, daily and weekly with time, timezone and readable schedule summary. Automatic activation requires a valid schedule; a complete graph offers Run now while disabled or unscheduled. Advanced recurrence and new budget UI are deferred.
     depends_on:
     - examples.schedule_preview
   - id: workflows-ui.message-and-budget
     type: behavior
-    must: Send message lets the owner select an existing chat or name a new chat, choose results and optionally
-      write introductory text; preview shows the standard deterministic result layout, embed references and run
-      link. No AI inference or custom template editor is required. Schedule enablement shows estimated credits
-      and unknown components, configurable day/week/month caps and explicit uncapped acknowledgement; budget
-      warnings link to costs and pending delivery never appears as a completed chat write.
+    must: Send message chooses an existing owner chat or names a new chat, edits deterministic text with typed upstream references and result blocks, and offers Only new results per selected list. Optional boolean inclusion supports conditional weather plus unconditional news in one message. Preview does not send or save. Show known skill costs and visibly distinguish pending delivery from acknowledged persistence; do not promise deferred budget caps.
     depends_on:
     - examples.message_budget
   - id: workflows-ui.run-deletion-forgetting
@@ -394,3 +380,7 @@ applies_to:
 examples:
   file: examples.yml
   required_groups: [visual_language, workflow_identity, workspace_start, detail_header, detail_tabs, template_editing, unsaved_navigation, version_history, run_history, responsive_accessibility, mvp_authoring, schedule_preview, message_budget, run_deletion]
+
+approval:
+  source: User-approved Figma/PDF workflow v1 plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b
+  date: "2026-09-14"

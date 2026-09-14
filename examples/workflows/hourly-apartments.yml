@@ -1,0 +1,32 @@
+# Berlin demo with a EUR 1200/month price ceiling; edit these inputs as needed.
+# No minimum rooms or size is required; criteria remain editable.
+# Uses Kleinanzeigen newest order; searches are bounded, not exhaustive.
+# The current Home search price is 10 credits per search (240 per day hourly).
+title: New apartments every hour
+description: Create a chat only when matching apartments have not been delivered before.
+start_when:
+  schedule:
+    type: hourly
+    minute: 0
+    timezone: Europe/Berlin
+run_content_retention: last_5
+steps:
+  - id: apartments
+    use_app_skill: home.search
+    input:
+      requests:
+        - query: Berlin
+          listing_type: rent
+          property_type: apartment
+          max_price_eur: 1200
+          providers: [Kleinanzeigen]
+          sort: newest
+          max_results: 20
+  - id: report
+    send_chat_message:
+      title: Newly found apartments
+      blocks:
+        - id: apartments
+          label: New apartment listings
+          source: $nodes.apartments.output.results
+          only_new_results: true
