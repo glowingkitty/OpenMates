@@ -274,7 +274,7 @@ test("removing a boolean passthrough Check preserves its message condition", () 
   const check = { ...node("rain_check", "check"), config: { predicate: { left: "$nodes.weather.output.rain_expected", op: "eq", right: true } } };
   const report = { ...node("report", "send_chat_message"), config: { blocks: [{ include_if: "$nodes.rain_check.output.matched", source: "$nodes.weather.output.rain_summary" }] } };
   const input = { ...graph, nodes: [weather, check, report], edges: [{from: "weather", to: "rain_check"}, {from:"rain_check",to:"report"}] };
-  const next = removeNode(input, "rain_check", [{ ...capabilities[0], id:"weather.forecast", metadata: { app_id:"weather", skill_id:"forecast", output_schema:{properties:{rain_expected:{type:"boolean"}}} } }]);
+  const next = removeNode(input, "rain_check", [{ ...capabilities[0], id:"weather.forecast", metadata: { app_id:"weather", skill_id:"forecast", output_schema:{properties:{rain_expected:{type:["boolean","null"] as unknown as string}}} } }]);
   assert.equal(next.nodes.length, 2);
   assert.deepEqual(next.edges, [{from:"weather",to:"report"}]);
   assert.equal((next.nodes[1].config?.blocks as {include_if:string}[])[0].include_if, "$nodes.weather.output.rain_expected");

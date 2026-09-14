@@ -27,7 +27,7 @@
     summary: string | null;
     badge: string | null;
     category: string;
-    appId: string;
+    appId: string | null;
     icon: string;
     testId: string;
     href: string | null;

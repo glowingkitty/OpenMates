@@ -71,6 +71,7 @@ test.describe('Workflows editor', () => {
 				.click();
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText(workflow.title);
 			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0);
+			await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
 			await expect(page.getByTestId('run-workflow')).toBeEnabled();
 			await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
 

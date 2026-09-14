@@ -718,7 +718,7 @@
 						itemTestId="workflow-landing-card"
 						showReportIssue
 						showAllMode={showAllWorkflows}
-						showAllLabel={workflows.length > 0 ? `Show all ${workflows.length}` : ''}
+						showAllLabel={workflows.length > 0 ? 'Show all' : ''}
 						showAllTestId="workflows-show-all"
 						allItems={allWorkflowContinueItems}
 						allItemsViewTestId="all-workflows-view"
@@ -1012,7 +1012,7 @@
 	.workflow-detail {
 		font-size: var(--font-size-p);
 		min-width: 0;
-		overflow: auto;
+		overflow: visible;
 		border: 1px solid var(--color-grey-20);
 		border-radius: var(--radius-16, 32px);
 		background: var(--color-grey-10);

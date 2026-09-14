@@ -144,6 +144,10 @@ standard_message:
   when: Selected events are sent.
   then: The message contains his introductory text, the selected event references and the run link; no separate
     report or push action is needed.
+- id: standard_message-nullable-condition
+  given: A removed equality-to-true Check forwarded Weather's nullable rain flag to an optional message block.
+  when: The source flag is true, false or unknown.
+  then: The block is included only for true, preserving the previous condition; other dependent references still prevent removal.
 selective_embeds:
 - id: selective_embeds-1
   given: A search returns ten apartments and the message selects two previously undelivered results.

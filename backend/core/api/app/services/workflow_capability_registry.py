@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 import yaml
 
 from backend.core.api.app.services.workflow_models import WorkflowCapability
+from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.skill_registry import SkillRegistry
@@ -223,6 +224,14 @@ def _workflow_metadata_reason(workflow: Mapping[str, Any], input_schema: Any) ->
 
 def _valid_example(value: Any, schema: Mapping[str, Any]) -> bool:
     """Validate the bounded JSON Schema subset used for safe test examples."""
+    try:
+        resolved_value = resolve_workflow_runtime_values(value)
+    except (TypeError, ValueError):
+        return False
+    return _valid_resolved_example(resolved_value, schema)
+
+
+def _valid_resolved_example(value: Any, schema: Mapping[str, Any]) -> bool:
     if not isinstance(value, Mapping) or schema.get("type") != "object":
         return False
     properties = schema.get("properties")
@@ -255,7 +264,7 @@ def _matches_schema(value: Any, schema: Any) -> bool:
         items = schema.get("items")
         return isinstance(value, list) and all(_matches_schema(item, items) for item in value)
     if schema_type == "object":
-        return _valid_example(value, schema)
+        return _valid_resolved_example(value, schema)
     return False
 
 

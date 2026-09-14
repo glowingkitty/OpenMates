@@ -120,3 +120,12 @@ def test_check_resolves_both_reference_operands_and_missing_numeric_values(refer
     context["nodes"]["limit"]["output"]["value"] = 2
     context["nodes"]["search"]["output"]["result_count"] = None
     assert _evaluate_predicate(predicate, context) is False
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.message.standard,workflows.control.typed-data
+def test_nullable_weather_flag_is_valid_as_optional_message_condition():
+    data = {"nodes": [
+        {"id": "weather", "type": "app_skill_action", "config": {"app_id": "weather", "skill_id": "forecast", "input": {"location": "Berlin", "days": 1}}},
+        {"id": "send", "type": "send_chat_message", "config": {"title": "Weather", "blocks": [{"id": "rain", "source": "$nodes.weather.output.rain_summary", "include_if": "$nodes.weather.output.rain_expected"}]}},
+    ], "edges": [{"from": "weather", "to": "send"}]}
+    validate_workflow_readiness(WorkflowGraph.model_validate(data))

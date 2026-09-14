@@ -188,6 +188,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 					(response: any) => response.url().endsWith(`/v1/workflows/${workflow.id}/run`) && response.request().method() === 'POST' && response.ok(),
 					{ timeout: 30_000 }
 				);
+				await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
 				await page.getByTestId('run-workflow').click();
 				const run = (await (await runResponse).json()).run;
 				if (proof) {

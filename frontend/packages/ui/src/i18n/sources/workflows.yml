@@ -1438,6 +1438,11 @@ runs.status_queued:
   en: "Queued"
   verified_by_human: []
 
+runs.status_planned:
+  context: Workflow run history or workflow header control
+  en: "Preparing"
+  verified_by_human: []
+
 runs.status_running:
   context: Workflow run history or workflow header control
   en: "Running"

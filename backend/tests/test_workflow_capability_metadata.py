@@ -66,6 +66,7 @@ def _workflow(*, example: dict | None = None) -> dict:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_capabilities_are_discovered_from_registered_metadata_not_a_skill_allowlist() -> None:
     metadata = {
         "library": SimpleNamespace(skills=[_skill("lookup", _workflow())]),
@@ -94,6 +95,7 @@ def test_capabilities_are_discovered_from_registered_metadata_not_a_skill_allowl
     assert by_id["library.lookup"].metadata["workflow"]["effect"] == "read"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_unclassified_registered_skills_fail_closed_with_an_explicit_reason() -> None:
     registry = WorkflowCapabilityRegistry(
         FakeSkillRegistry({"web": SimpleNamespace(skills=[_skill("search", None)])})
@@ -105,6 +107,7 @@ def test_unclassified_registered_skills_fail_closed_with_an_explicit_reason() ->
     assert capability.reason == WORKFLOW_CLASSIFICATION_REQUIRED
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_test_allowed_capability_requires_a_schema_valid_example_input() -> None:
     registry = WorkflowCapabilityRegistry(
         FakeSkillRegistry(
@@ -118,6 +121,44 @@ def test_test_allowed_capability_requires_a_schema_valid_example_input() -> None
     assert capability.reason == WORKFLOW_TEST_EXAMPLE_REQUIRED
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_runtime_date_example_is_resolved_for_validation_and_preserved_in_metadata() -> None:
+    today = {"$date": "today", "format": "date"}
+    weather_skill = _skill(
+        "forecast",
+        _workflow(
+            example={"location": "Berlin", "start_date": today, "end_date": today}
+        ),
+    )
+    weather_skill.tool_schema = {
+        "type": "object",
+        "properties": {
+            "location": {"type": "string"},
+            "start_date": {"type": "string"},
+            "end_date": {"type": "string"},
+        },
+        "required": ["location"],
+    }
+    registry = WorkflowCapabilityRegistry(
+        FakeSkillRegistry({"weather": SimpleNamespace(skills=[weather_skill])})
+    )
+
+    capability = registry.get_capability("weather.forecast")
+
+    assert capability.enabled is True
+    assert capability.metadata["workflow"]["test_example_input"]["start_date"] == today
+    assert capability.metadata["workflow"]["test_example_input"]["end_date"] == today
+
+    weather_skill.workflow["test_example_input"]["start_date"] = {
+        "$date": "unsupported_date",
+        "format": "date",
+    }
+    invalid_capability = registry.get_capability("weather.forecast")
+    assert invalid_capability.enabled is False
+    assert invalid_capability.reason == WORKFLOW_TEST_EXAMPLE_REQUIRED
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_unavailable_capability_accepts_stable_deferred_reason() -> None:
     registry = WorkflowCapabilityRegistry(
         FakeSkillRegistry(
@@ -143,12 +184,14 @@ def test_unavailable_capability_accepts_stable_deferred_reason() -> None:
     assert capability.reason == WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_repository_public_skills_have_workflow_classification() -> None:
     issues = audit_workflow_capabilities()
 
     assert [issue.as_dict() for issue in issues] == []
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_repository_expanded_capabilities_and_deferred_reasons_are_discoverable() -> None:
     registry = WorkflowCapabilityRegistry()
 

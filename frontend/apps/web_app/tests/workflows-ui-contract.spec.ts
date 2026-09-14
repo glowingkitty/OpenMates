@@ -264,7 +264,7 @@ test.describe('Workflows web UI contract', () => {
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible({ timeout: 30_000 });
 			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
 			await expect(page.getByTestId('workflows-workspace-background-icon')).toBeVisible();
-			await expect(page.getByTestId('workflows-show-all')).toBeVisible();
+			await expect(page.getByTestId('workflows-show-all')).toHaveText('Show all');
 			await expect(page.getByTestId('workflows-search')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 			const editorCard = page
@@ -274,6 +274,22 @@ test.describe('Workflows web UI contract', () => {
 			await expect(editorCard).toHaveAttribute('data-card-source', 'recent');
 			await expect(editorCard).toHaveAttribute('data-category', 'science');
 			await expect(editorCard).toHaveAttribute('data-icon', 'cloud-rain');
+			const startScreenBox = await page.getByTestId('workflows-start-screen').boundingBox();
+			if (!startScreenBox) throw new Error('Workflow start screen must be measurable.');
+			const shouldUseCompactCards = startScreenBox.width < 550 || (page.viewportSize()?.height ?? 0) < 800;
+			if (shouldUseCompactCards) {
+				await expect(editorCard).toHaveClass(/resume-chat-card/);
+				await expect(editorCard.locator('.resume-chat-kind-badge')).toHaveCount(0);
+				await expect(editorCard.locator('.resume-chat-summary')).toHaveCount(0);
+				await expect(editorCard.getByTestId('resume-chat-title')).toHaveCSS('white-space', 'nowrap');
+			} else {
+				await expect(editorCard).toHaveClass(/workspace-continue-card/);
+				await expect(editorCard).toHaveAttribute('style', /#CE5B06.*#8F220E/);
+			}
+			const bannerBox = await page.getByTestId('daily-inspiration-banner').boundingBox();
+			const centerBox = await page.getByTestId('workflows-workspace-center').boundingBox();
+			if (!bannerBox || !centerBox) throw new Error('Workflow banner and start content must be measurable.');
+			expect(centerBox.y).toBeGreaterThanOrEqual(bannerBox.y + bannerBox.height);
 			await expectNoPageOverflow(page);
 			await captureTestThumbnail(page, testInfo, WORKFLOWS_UI_THUMBNAIL);
 			if (proof) {
@@ -292,9 +308,19 @@ test.describe('Workflows web UI contract', () => {
 			const workflowManagement = page.getByTestId('workflow-management');
 			await expect(workflowManagement).toHaveCSS('will-change', 'auto');
 			await expect(workflowManagement).toHaveCSS('transform', 'none');
+			const settingsMenu = page.getByTestId('settings-menu');
+			const settingsHeader = settingsMenu.locator('.settings-main-header');
+			const settingsHeaderOrbs = settingsHeader.locator('.orb');
+			await expect(settingsHeader).toHaveAttribute('data-animation-state', 'paused');
+			await expect(settingsHeaderOrbs).toHaveCount(3);
+			for (let index = 0; index < 3; index += 1) {
+				await expect(settingsHeaderOrbs.nth(index)).toHaveCSS('animation-play-state', 'paused');
+				await expect(settingsHeaderOrbs.nth(index)).toHaveCSS('will-change', 'auto');
+			}
 			const detailHeader = page.getByTestId('workspace-detail-header');
 			await expect(detailHeader).toHaveAttribute('data-category', 'science');
 			await expect(detailHeader).toHaveAttribute('data-icon', 'cloud-rain');
+			await expect(page.getByTestId('workflow-detail-actions')).toHaveCSS('position', 'sticky');
 			await expect(page.getByTestId('workflow-identity-icon')).toBeVisible();
 			await expect(page.getByTestId('workflow-tab-template')).toHaveAttribute(
 				'aria-selected',
@@ -321,6 +347,12 @@ test.describe('Workflows web UI contract', () => {
 				.getByTestId('workflow-node-card')
 				.filter({ hasText: 'Weather' })
 				.first();
+			const primaryNodeIcons = page.getByTestId('workflow-node-primary-icon').locator('.workflow-icon');
+			await expect.poll(async () => primaryNodeIcons.count()).toBeGreaterThan(1);
+			for (let index = 0; index < (await primaryNodeIcons.count()); index += 1) {
+				await expect(primaryNodeIcons.nth(index)).toHaveCSS('width', '33px');
+				await expect(primaryNodeIcons.nth(index)).toHaveCSS('height', '33px');
+			}
 			await page.route('**/v1/geocode/search?**', (route) =>
 				route.fulfill({
 					json: [{
@@ -331,6 +363,8 @@ test.describe('Workflows web UI contract', () => {
 				})
 			);
 			await weatherNode.getByTestId('workflow-node-summary').click();
+			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('width', '33px');
+			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('height', '33px');
 			await weatherNode.getByTestId('workflow-node-location-picker').click();
 			await weatherNode.getByTestId('map-location-search-input').fill('Paris');
 			await weatherNode.getByTestId('map-location-search-result').click();
@@ -399,6 +433,7 @@ test.describe('Workflows web UI contract', () => {
 				.click();
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(runnerWorkflow.id));
 			await expect(page.getByTestId('workflow-detail-actions').getByRole('toolbar')).toBeVisible();
+			await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
 			await expect(page.getByTestId('run-workflow')).toBeVisible();
 			await page.getByTestId('workflow-tab-runs').click();
 			await expect(page).toHaveURL(

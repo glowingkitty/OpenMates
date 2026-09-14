@@ -111,6 +111,10 @@ workspace_start:
     faint_centered_workflow_icon: true
     horizontal_cards: true
     show_all_and_search_centered: true
+    show_all_label: Show all
+    show_all_count_suffix: false
+    large_card_gradient_source: workflow_category
+    large_card_schedule_or_status_detail_visible: true
     composer_floating_at_bottom: true
     composer_placeholder: Enter a name for a new workflow
     placeholder_centered_horizontally_and_vertically: true
@@ -123,7 +127,12 @@ workspace_start:
   expect:
     recommendation_banner_compact: true
     identity_and_greeting_centered: true
+    recommendation_and_start_content_overlap: false
     workflow_cards_horizontally_reachable: true
+    compact_card_content: [assigned_workflow_icon, one_line_ellipsized_title, chevron]
+    compact_badge_schedule_status_retention_detail_visible: false
+    show_all_label: Show all
+    search_visible: true
     composer_above_safe_area: true
 - id: valid-title-creates-disabled-draft
   given:
@@ -156,8 +165,8 @@ detail_header:
     misleading schedule toggle.
 - id: shared-chat-header-toolbar-and-overflow
   given: Alice opens a scheduled workflow on desktop or mobile.
-  when: She inspects the header and opens Show more.
-  then: The actual ChatHeader toolbar and its Show more behavior are reused; workflow actions appear contextually in that menu. There are no standalone history/play/delete icons or corner Ready badge, and the workflow on/off control remains centered as in the supplied design.
+  when: She scrolls the Workflow body and opens Show more.
+  then: The actual ChatHeader toolbar and its Show more behavior are reused; Report, Share, Show more and Close remain sticky and visible, and Workflow actions appear contextually in that menu. There are no standalone history/play/delete icons, centered Run button or corner Ready badge, and the workflow on/off control remains centered as in the supplied design.
 detail_header_contract:
 - id: web-v1-share-is-coming-soon-only
   given: Alice activates Share in a Workflow header in web v1.
@@ -165,7 +174,7 @@ detail_header_contract:
   then: A notification says that sharing will be possible soon; no sharing controls open and no sharing state changes. Future Workflow sharing management belongs in the regular settings Share menu, and no permanent sharing panel displaces the Template canvas or definition history.
 - id: run-now-runs-the-saved-definition
   given: Alice has a valid executable saved Workflow and an expanded node with unsaved edits.
-  when: She activates the prominent Run now control centered at the header bottom above the tabs.
+  when: She activates Run now from the shared Show more menu.
   then: The run uses the saved definition and does not include the unsaved node edits.
 detail_tabs:
 - id: compact-tab-pill-at-header-boundary
@@ -270,7 +279,7 @@ node_card_contract:
 - id: editable-node-scale-and-affordance
   given: Alice views expandable nodes in the Workflow graph.
   when: The nodes are collapsed or expanded.
-  then: Each node is slightly larger than a compact preview card and keeps a clearly visible expand chevron at its bottom.
+  then: Each node is slightly larger than a compact preview card, keeps a clearly visible expand chevron at its bottom, and shows its bare primary calendar or app icon at exactly 33 by 33 pixels in both states. Toolbar, dropdown and status icons keep their component sizes.
 unsaved_navigation:
 - id: dirty-template-to-runs-is-guarded
   given:
@@ -355,6 +364,18 @@ run_history:
   when: She selects each timeline marker.
   then: The upcoming occurrence has no fabricated execution detail, the running execution offers confirmed
     cancellation, and the older run explains unavailable payload while preserving its visible status.
+- id: next-current-and-ended-order
+  given: An enabled scheduled Workflow has a future next_run_at, one running execution and two completed executions.
+  when: Alice opens Runs and selects Next.
+  then: The timeline order is Next, Running, latest-ended, earlier-ended; Next renders the current saved graph with explicit Next status and is not represented as a persisted WorkflowRun.
+- id: disabled-workflow-hides-next
+  given: The same scheduled Workflow is disabled.
+  when: Alice opens Runs.
+  then: No Next marker is shown even if a previous next_run_at value exists.
+- id: visible-runs-refresh-preserves-selection
+  given: Alice has explicitly selected a historical run while Runs is visible.
+  when: A run starts on the server without a page reload.
+  then: The current execution appears through bounded owner-scoped refresh with at most one request in flight, and the historical run remains selected; refresh pauses while hidden and timers and listeners are removed on unmount.
 responsive_accessibility:
 - id: desktop-and-mobile-primary-flow-reachable
   given:
@@ -370,6 +391,8 @@ responsive_accessibility:
   expect:
     primary_controls_clipped: false
     unintended_page_overflow: false
+    recommendation_and_start_content_overlap: false
+    detail_header_actions_sticky_after_scroll: true
     mobile_graph_single_column: true
     mobile_forms_single_column: true
     timelines_horizontally_reachable: true

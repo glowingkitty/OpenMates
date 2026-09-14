@@ -673,7 +673,7 @@ def _validate_builder_execution_inputs(graph: WorkflowGraph) -> None:
                 if block.get("only_new_results") and (types(schema) != {"array"} or types(schema.get("items") or {}) != {"object"}):
                     raise WorkflowValidationError(f"{block_label}: Only new results requires a declared result list")
                 if "include_if" in block:
-                    validate_value(block["include_if"], {"type": "boolean"}, f"{block_label}.include_if")
+                    validate_value(block["include_if"], {"type": ["boolean", "null"]}, f"{block_label}.include_if")
         elif node.type == WorkflowNodeType.SCHEDULE_TRIGGER:
             from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
             try:

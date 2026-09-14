@@ -105,9 +105,8 @@
 
   let restoreWorkspaceDefaults = $state(false);
   let containerWidth = $state(0);
-  let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1200);
   let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
-  let isTallViewport = $derived(viewportHeight >= 800 && viewportWidth >= 550);
+  let isTallViewport = $derived(viewportHeight >= 800 && containerWidth >= 550);
   let hasShowAllLink = $derived(!!onShowAll && showAllLabel.trim().length > 0 && !showAllMode);
   let hasBrowseControls = $derived(!showAllMode && (hasShowAllLink || !!onSearchAll));
   let hasAllItemsToolbar = $derived(showAllMode && (!!onBackToRecent || !!onSearchAll));
@@ -129,7 +128,6 @@
     restoreWorkspaceDefaults = params.get('media') !== '1' && !params.has('og_example');
     void loadDefaultInspirations({ surface, allowIndexedDB: false });
     const handleResize = () => {
-      viewportWidth = window.innerWidth;
       viewportHeight = window.innerHeight;
     };
     window.addEventListener('resize', handleResize);
@@ -165,7 +163,7 @@
   }
 
   function continueCardStyle(item: ContinueItem): string {
-    return getResumeCardGradientStyle(getContinueGradientColors(item.category ?? 'productivity', item.appId));
+    return getResumeCardGradientStyle(getContinueGradientColors(item.category ?? 'productivity', surface === 'workflows' ? null : item.appId));
   }
 
 </script>
@@ -219,7 +217,7 @@
               summary={item.summary ?? null}
               badge={item.badge ?? null}
               category={item.category ?? 'productivity'}
-              appId={item.appId ?? surface}
+              appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
               testId={allItemTestId}
               href={null}
@@ -255,7 +253,7 @@
               summary={item.summary ?? null}
               badge={item.badge ?? null}
               category={item.category ?? 'productivity'}
-              appId={item.appId ?? surface}
+              appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
               testId={itemTestId}
               href={null}
@@ -278,11 +276,11 @@
                 <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
               </div>
               <div class="resume-chat-content">
-                {#if item.badge}
+                {#if surface !== 'workflows' && item.badge}
                   <span class="resume-chat-kind-badge compact">{item.badge}</span>
                 {/if}
                 <span class="resume-chat-title" data-testid="resume-chat-title">{item.title}</span>
-                {#if item.summary}
+                {#if surface !== 'workflows' && item.summary}
                   <span class="resume-chat-summary">{item.summary}</span>
                 {/if}
               </div>
@@ -322,7 +320,7 @@
               summary={item.summary ?? null}
               badge={item.badge ?? null}
               category={item.category ?? 'productivity'}
-              appId={item.appId ?? surface}
+              appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
               testId="resume-chat-large-card"
               href={null}
@@ -342,11 +340,11 @@
                 <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
               </div>
               <div class="resume-chat-content">
-                {#if item.badge}
+                {#if surface !== 'workflows' && item.badge}
                   <span class="resume-chat-kind-badge compact">{item.badge}</span>
                 {/if}
                 <span class="resume-chat-title" data-testid="resume-chat-title">{item.title}</span>
-                {#if item.summary}
+                {#if surface !== 'workflows' && item.summary}
                   <span class="resume-chat-summary">{item.summary}</span>
                 {/if}
               </div>
@@ -378,11 +376,11 @@
               <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
             </div>
             <div class="resume-chat-content">
-              {#if item.badge}
+              {#if surface !== 'workflows' && item.badge}
                 <span class="resume-chat-kind-badge compact">{item.badge}</span>
               {/if}
               <span class="resume-chat-title" data-testid="resume-chat-title">{item.title}</span>
-              {#if item.summary}
+              {#if surface !== 'workflows' && item.summary}
                 <span class="resume-chat-summary">{item.summary}</span>
               {/if}
             </div>
@@ -987,8 +985,8 @@
       height: 76px;
     }
 
-    .workspace-home-shell[data-surface='workflows'] .workspace-center-content.center-content {
-      top: 32%;
+    .workspace-home-shell[data-surface='workflows']:not(.content-slot-mode) .workspace-center-content.center-content {
+      top: calc(50% + 127px);
     }
 
     .workspace-home-shell.all-items-mode .workspace-center-content.center-content {

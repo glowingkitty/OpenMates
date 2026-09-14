@@ -51,6 +51,7 @@
         teamContextLoading?: boolean;
         teamContextError?: string;
         onTeamContextChange: (contextId: string) => void;
+        animationsActive?: boolean;
     }
 
     let {
@@ -68,6 +69,7 @@
         teamContextLoading = false,
         teamContextError = '',
         onTeamContextChange,
+        animationsActive = false,
     }: Props = $props();
 
     // ─── Collapse animation ───────────────────────────────────────────────────
@@ -123,6 +125,8 @@
 
 <div
     class="settings-main-header app-details-header"
+    class:animations-active={animationsActive}
+    data-animation-state={animationsActive ? 'running' : 'paused'}
     style="height: {headerHeight}px; background: var(--color-app-openmates, var(--color-primary)); --orb-color-a: #3b4fbf; --orb-color-b: #7ba0f7;"
 >
     <!-- Living gradient orbs — three morphing radial-gradient blobs.
@@ -300,6 +304,16 @@
         height: 220px;
         opacity: 0.75;
         filter: blur(24px);
+    }
+
+    .settings-main-header:not(.animations-active) .orb {
+        animation-play-state: paused;
+        will-change: auto;
+    }
+
+    .animations-active .orb {
+        animation-play-state: running;
+        will-change: transform, border-radius;
     }
 
     /* Orb 1 — color-b (end), top-left anchor */

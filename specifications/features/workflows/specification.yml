@@ -187,7 +187,7 @@ assertions:
     must: >
       Check serializes as check and evaluates deterministic typed conditions on accessible earlier values or list counts. Equality, numeric comparisons, contains/starts-with, existence and all/any groups require no executable user code. Only the matching branch executes, an empty branch does nothing, and execution then resumes the continuation. Branch-local values stay scoped; legacy decision nodes are not silently renamed.
       Removing a Check preserves a downstream dependency on matched only when an equality-to-true Check over an
-      earlier boolean can be replaced by that same typed boolean. Any remaining dependency on the removed Check
+      earlier boolean can be replaced by that same typed boolean. A nullable boolean can be used directly only for optional message-block conditions, where unknown has the same result as equality-to-true being false. Any remaining dependency on the removed Check
       causes a clear rejection that names the dependent steps instead of saving a broken graph.
     depends_on:
     - examples.check
@@ -198,7 +198,7 @@ assertions:
     - examples.typed_data
   - id: workflows.message.standard
     type: behavior
-    must: Send message selects an existing owner chat or a new chat title, uses deterministic text with typed upstream references and explicit result blocks, and can conditionally include a block using a Check boolean. Preview uses unsaved values without sending, reserving identities, creating permanent embeds or saving a graph. A full manual run exercises delivery. Eligible result blocks use the standard result layout and workflow-run link; no AI runs. With no eligible content the run succeeds as No new results and creates no empty chat.
+    must: Send message selects an existing owner chat or a new chat title, uses deterministic text with typed upstream references and explicit result blocks, and can conditionally include a block using a typed earlier boolean, including a Check result. A nullable boolean condition includes the block only when true; false or unknown omits it. Preview uses unsaved values without sending, reserving identities, creating permanent embeds or saving a graph. A full manual run exercises delivery. Eligible result blocks use the standard result layout and workflow-run link; no AI runs. With no eligible content the run succeeds as No new results and creates no empty chat.
     depends_on:
     - examples.standard_message
   - id: workflows.results.selective-embeds

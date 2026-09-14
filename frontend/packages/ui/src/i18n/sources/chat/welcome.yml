@@ -191,28 +191,28 @@ show_all_examples:
   he: הצג את כל הדוגמאות
   verified_by_human: []
 show_all_chats:
-  context: Link below logged-out example chat cards that replaces the inspiration area with all chat examples
-  en: Show all chats
-  de: Alle Chats anzeigen
-  zh: 显示所有对话
-  es: Mostrar todos los chats
-  fr: Afficher toutes les discussions
-  pt: Mostrar todas as conversas
-  ru: Показать все чаты
-  ja: すべてのチャットを表示
-  ko: 모든 채팅 보기
-  it: Mostra tutte le chat
-  tr: Tüm sohbetleri göster
-  vi: Hiển thị tất cả cuộc trò chuyện
-  id: Tampilkan semua obrolan
-  pl: Pokaż wszystkie czaty
-  nl: Toon alle chats
-  ar: عرض جميع المحادثات
-  hi: सभी चैट दिखाएं
-  th: แสดงแชททั้งหมด
-  cs: Zobrazit všechny chaty
-  sv: Visa alla chattar
-  he: "הצג את כל הצ'אטים"
+  context: Short link below chat cards that opens the complete chat list
+  en: Show all
+  de: Alle anzeigen
+  zh: 显示全部
+  es: Mostrar todo
+  fr: Tout afficher
+  pt: Mostrar tudo
+  ru: Показать все
+  ja: すべて表示
+  ko: 모두 보기
+  it: Mostra tutto
+  tr: Tümünü göster
+  vi: Hiển thị tất cả
+  id: Tampilkan semua
+  pl: Pokaż wszystkie
+  nl: Alles tonen
+  ar: عرض الكل
+  hi: सभी दिखाएं
+  th: แสดงทั้งหมด
+  cs: Zobrazit vše
+  sv: Visa alla
+  he: הצג הכול
   verified_by_human: []
 show_all_projects:
   context: Link below logged-out project example cards that replaces the inspiration area with all project examples

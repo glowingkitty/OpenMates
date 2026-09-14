@@ -34,7 +34,7 @@
     <button type="button" class="breadcrumb" disabled={disabled} onclick={onBack}><Back size={16}/><span>{backLabel}</span></button>
   {:else}<span></span>{/if}
   <div class="title">
-    {#if iconStyle}<span class="asset-icon" style={iconStyle} aria-hidden="true"></span>{/if}
+    {#if iconStyle}<span class="asset-icon" data-testid="workflow-editor-primary-icon" style={iconStyle} aria-hidden="true"></span>{/if}
     <strong>{title}</strong>
   </div>
   <div class="new-chat-button-wrapper">
@@ -55,7 +55,7 @@
   .breadcrumb span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .title { display:flex; align-items:center; justify-content:center; gap:var(--spacing-4); min-width:0; }
   .title strong { max-width:24rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:max(16px, 1rem); }
-  .asset-icon { display:inline-block; flex:0 0 auto; width:16px; height:16px; background:currentColor; -webkit-mask:var(--workflow-icon) center/contain no-repeat; mask:var(--workflow-icon) center/contain no-repeat; }
+  .asset-icon { display:inline-block; flex:0 0 auto; width:var(--workflow-icon-size, 16px); height:var(--workflow-icon-size, 16px); background:currentColor; -webkit-mask:var(--workflow-icon) center/contain no-repeat; mask:var(--workflow-icon) center/contain no-repeat; }
   .new-chat-button-wrapper { justify-self:end; display:flex; align-items:center; justify-content:center; padding:var(--spacing-4); border-radius:40px; background-color:var(--color-grey-10); box-shadow:var(--shadow-md); }
   .header-action { display:flex; align-items:center; justify-content:center; margin:0; padding:0; }
   .header-action :global(.clickable-icon.top-button) { width:25px; height:25px; color:var(--color-font-primary); }

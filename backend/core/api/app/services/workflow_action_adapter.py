@@ -62,8 +62,10 @@ class WorkflowActionAdapter:
             condition = block.get("include_if")
             if condition is not None:
                 include = resolve_workflow_template(condition, context)
+                if include is None:
+                    continue
                 if not isinstance(include, bool):
-                    raise WorkflowActionExecutionError("WORKFLOW_ACTION_INVALID_CONFIG", "Optional message blocks require a boolean Check output")
+                    raise WorkflowActionExecutionError("WORKFLOW_ACTION_INVALID_CONFIG", "Optional message blocks require a boolean value")
                 if not include:
                     continue
             value = resolve_workflow_template(block["source"], context)

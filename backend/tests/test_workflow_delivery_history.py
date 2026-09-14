@@ -138,3 +138,15 @@ async def test_lost_ack_keeps_committed_delivery_reserved_past_payload_expiry_an
     assert projection["status"] == "acknowledged" and projection["delivered_result_count"] == 1
     service.delete_run(workflow.id,ctx["workflow"]["run_id"],"alice")
     assert service.repository._delivery_history == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.message.standard,workflows.control.check
+@pytest.mark.asyncio
+@pytest.mark.parametrize("flag,expected", [(True, True), (False, False), (None, False)])
+async def test_optional_nullable_boolean_block_preserves_equality_check_behavior(flag, expected):
+    _, _, _, _, adapter = setup()
+    preview = await adapter.preview_message(
+        {"title": "Weather", "message": "Update", "blocks": [{"id": "rain", "source": "$nodes.weather.output.summary", "include_if": "$nodes.weather.output.rain_expected"}]},
+        {"nodes": {"weather": {"output": {"rain_expected": flag, "summary": "Rain today"}}}},
+    )
+    assert ("Rain today" in preview["text"]) is expected

@@ -238,14 +238,20 @@ export function removeNode(
   // A boolean equality Check only forwards the original flag. Its consumers
   // can bind directly to that flag without changing the workflow's behavior.
   const replacement = removed && isCheck(removed) && predicate.op === "eq" && predicate.right === true
-    && source?.schema.type === "boolean" ? source.reference : null;
+    && source && normalizeSchema(source.schema).type === "boolean" ? source.reference : null;
   const oldReference = `$nodes.${nodeId}.output.matched`;
   const oldToken = `{{steps.${nodeId}.matched}}`;
   const newToken = replacement ? `{{steps.${source!.nodeId}.${replacement.split(".output.")[1]}}}` : "";
-  function rewrite(value: unknown): unknown {
-    if (typeof value === "string" && replacement) return value === oldReference ? replacement : value.replaceAll(oldToken, newToken);
-    if (Array.isArray(value)) return value.map(rewrite);
-    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, rewrite(child)]));
+  const nullable = source && (Array.isArray(source.schema.type) && source.schema.type.includes("null") || source.schema.anyOf?.some(variant => variant.type === "null"));
+  function rewrite(value: unknown, key = ""): unknown {
+    // Nullable flags are equivalent to equality-to-true only for an optional
+    // message condition. Preserve other consumers for the dependency error.
+    if (typeof value === "string" && replacement) {
+      if (nullable) return key === "include_if" && (value === oldReference || value === oldToken) ? replacement : value;
+      return value === oldReference ? replacement : value.replaceAll(oldToken, newToken);
+    }
+    if (Array.isArray(value)) return value.map(child => rewrite(child));
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, rewrite(child, key)]));
     return value;
   }
   function referencesRemoved(value: unknown): boolean {

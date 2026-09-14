@@ -5697,6 +5697,10 @@
         guestAllExamplesVisible = false;
     }
 
+    function handleShowAllChats() {
+        panelState.openChats();
+    }
+
     function handleSearchGuestExamples() {
         panelState.openChats();
         openSearch({ closeChatsOnEscape: false });
@@ -13719,6 +13723,30 @@
                                             <span>{$text(activeGuestAllExamplesLinkKey)}</span>
                                         </button>
                                     {/if}
+                                </div>
+                            {/if}
+                            {#if $authStore.isAuthenticated && hasContinueItems}
+                                <div class="guest-example-link-row" data-testid="chat-browse-controls">
+                                    <button
+                                        type="button"
+                                        class="guest-show-all-examples"
+                                        data-testid="chat-show-all"
+                                        data-surface="chats"
+                                        onclick={handleShowAllChats}
+                                    >
+                                        <span class="guest-link-icon guest-link-icon-surface" aria-hidden="true"></span>
+                                        <span>{$text('chat.welcome.show_all_chats')}</span>
+                                    </button>
+                                    <span class="guest-example-link-divider" aria-hidden="true"></span>
+                                    <button
+                                        type="button"
+                                        class="guest-show-all-examples"
+                                        data-testid="chat-search"
+                                        onclick={handleSearchGuestExamples}
+                                    >
+                                        <GuestAllExamplesSearchIcon size={18} color="currentColor" />
+                                        <span>{$text('common.search')}</span>
+                                    </button>
                                 </div>
                             {/if}
                             {/if}
