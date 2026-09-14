@@ -13,7 +13,7 @@
   import WorkspaceReportIssueButton from './WorkspaceReportIssueButton.svelte';
   import { getContinueGradientColors, getResumeCardGradientStyle } from '../activeChatUtils';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
-  import type { DailyInspiration } from '../../stores/dailyInspirationStore';
+  import { dailyInspirationStore, type DailyInspiration } from '../../stores/dailyInspirationStore';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
 
   type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans' | 'teams';
@@ -103,6 +103,7 @@
     onSearchAll,
   }: Props = $props();
 
+  let restoreWorkspaceDefaults = $state(false);
   let containerWidth = $state(0);
   let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1200);
   let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
@@ -115,7 +116,17 @@
   const AllItemsBackIcon = getLucideIcon('grid-2x2');
   const AllItemsSearchIcon = getLucideIcon('search');
 
+  // Chat sync can replace the shared array after this workspace first mounted.
+  // Rehydrate only a missing non-chat surface, through the existing scoped loader.
+  $effect(() => {
+    if (restoreWorkspaceDefaults && surface !== 'chats' && !$dailyInspirationStore.inspirations.some(item => (item.surface ?? 'chats') === surface)) {
+      void loadDefaultInspirations({ surface, allowIndexedDB: false });
+    }
+  });
+
   onMount(() => {
+    const params = new URLSearchParams(window.location.search);
+    restoreWorkspaceDefaults = params.get('media') !== '1' && !params.has('og_example');
     void loadDefaultInspirations({ surface, allowIndexedDB: false });
     const handleResize = () => {
       viewportWidth = window.innerWidth;

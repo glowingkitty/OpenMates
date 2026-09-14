@@ -85,7 +85,16 @@
     if (isTrigger(node)) { const schedule = record(node.config?.schedule); if (schedule.type === 'hourly') return `${tr('hourly')} · :${String(schedule.minute ?? 0).padStart(2, '0')}`; if (schedule.type === 'once') return String(schedule.at ?? tr('once')); return `${tr(String(schedule.type ?? 'daily'))}${schedule.type === 'weekly' ? ` · ${(Array.isArray(schedule.weekdays) ? schedule.weekdays : ['sunday']).map(day => tr(String(day))).join(', ')}` : ''}, ${schedule.time ?? '09:00'}`; }
     if (isCheck(node)) { const predicate = record(node.config?.predicate); const output = outputsBefore(graph, node.id, capabilities).find(item => item.reference === predicate.left); return `${output?.label ?? label(String(predicate.left ?? '').split('.').at(-1) ?? '')} ${operatorSymbol(predicate.op)} ${String(predicate.right ?? '')}`; }
     if (isMessage(node)) return String(node.config?.chat_id ? `${tr('to')} ${chats.find(chat => chat.chat_id === node.config?.chat_id)?.title ?? tr('existing_chat')}` : tr('new_chat_each_run'));
-    const capability = capabilityFor(node, capabilities); return capability ? `${label(String(node.config?.app_id))} | ${appMetadata(String(node.config?.app_id), capability).name_translation_key ? $text(appMetadata(String(node.config?.app_id), capability).name_translation_key!) : label(String(node.config?.skill_id))}` : node.title || label(node.type);
+    if (node.type === 'app_skill_action') {
+      const appId = String(node.config?.app_id ?? '');
+      const skillId = String(node.config?.skill_id ?? '');
+      const app = appMetadata(appId);
+      const skill = app.skills.find(item => item.id === skillId);
+      const appName = app.name_translation_key ? $text(app.name_translation_key) : app.name;
+      const skillName = skill?.name_translation_key ? $text(skill.name_translation_key) : skill?.name || label(skillId);
+      return `${appName} | ${skillName}`;
+    }
+    return node.title || label(node.type);
   }
   function style(node: WorkflowNode): string { const appId = String(node.config?.app_id ?? 'workflows'); return `--node-gradient: var(--color-app-${appId}, var(--color-primary));`; }
   function nextId(nodeId: string, branch?: string): string | undefined { return graph.edges.find(edge => edge.from === nodeId && (edge.branch ?? '') === (branch ?? ''))?.to; }
