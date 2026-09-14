@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   insertNode,
+  workflowGraphReady,
   outputsBefore,
   workflowIcon,
   normalizeSchema,
@@ -162,4 +163,48 @@ test("nullable weather outputs remain typed comparisons", () => {
     normalizeSchema({ anyOf: [{ type: "boolean" }, { type: "null" }] }).type,
     "boolean",
   );
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows.activation.reachable-side-effect,workflows-ui.schedule.preview
+test("manual execution accepts a complete unscheduled graph but activation requires a schedule", () => {
+  const unscheduled: WorkflowGraph = {
+    ...graph,
+    trigger_node_id: null,
+    nodes: graph.nodes.filter((node) => node.id !== "trigger"),
+    edges: graph.edges.filter((edge) => edge.from !== "trigger"),
+  };
+  assert.equal(workflowGraphReady(unscheduled), true);
+  assert.equal(workflowGraphReady(unscheduled, { requireSchedule: true }), false);
+  assert.equal(workflowGraphReady(graph), true);
+  assert.equal(workflowGraphReady(graph, { requireSchedule: true }), true);
+  const manualTrigger: WorkflowGraph = {
+    ...graph,
+    nodes: graph.nodes.map((node) => node.id === "trigger" ? { ...node, type: "manual_trigger" } : node),
+  };
+  assert.equal(workflowGraphReady(manualTrigger), true);
+  assert.equal(workflowGraphReady(manualTrigger, { requireSchedule: true }), false);
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows.activation.reachable-side-effect
+test("manual execution rejects multiple disconnected starting nodes", () => {
+  const disconnected: WorkflowGraph = {
+    version: 2,
+    trigger_node_id: null,
+    nodes: [node("first", "send_chat_message"), node("second")],
+    edges: [],
+  };
+  assert.equal(workflowGraphReady(disconnected), false);
+  assert.equal(workflowGraphReady(disconnected, { requireSchedule: true }), false);
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows.activation.reachable-side-effect
+test("neither manual execution nor activation accepts a draft without a reachable result", () => {
+  for (const draft of [
+    { version: 2, trigger_node_id: null, nodes: [], edges: [] },
+    { ...graph, nodes: graph.nodes.filter((node) => node.id !== "message"), edges: graph.edges.filter((edge) => edge.to !== "message") },
+    { ...graph, edges: graph.edges.filter((edge) => edge.to !== "message") },
+  ] satisfies WorkflowGraph[]) {
+    assert.equal(workflowGraphReady(draft), false);
+    assert.equal(workflowGraphReady(draft, { requireSchedule: true }), false);
+  }
 });

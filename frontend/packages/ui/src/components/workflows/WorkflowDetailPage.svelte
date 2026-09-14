@@ -3,9 +3,9 @@
   import { text } from '../../i18n/translations';
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
-  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, lastStartedRunId = null, activeTab, saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenRuns, runsHref, onUpdateIdentity }: {
+  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab, saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenRuns, runsHref, onUpdateIdentity }: {
     title: string; description: string; category: string; icon: string; createdAt?: number | null; nextRunAt?: number | null;
-    enabled: boolean; canEnable: boolean; lastStartedRunId?: string | null; activeTab: 'template' | 'runs'; saving: boolean;
+    enabled: boolean; canEnable: boolean; canRun: boolean; lastStartedRunId?: string | null; activeTab: 'template' | 'runs'; saving: boolean;
     onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenHome: () => void; onOpenRuns: () => void; runsHref: string;
     onUpdateIdentity: (title: string, description: string) => Promise<void>;
   } = $props();
@@ -28,7 +28,7 @@
 <section class="workflow-detail-header" data-testid="workspace-detail-header" data-header-system="workflow-detail" data-category={category} data-icon={getValidIconName(icon, category)} style={headerStyle}>
   <div class="header-actions" data-testid="workflow-detail-actions"><button type="button" data-testid="workflow-detail-back" aria-label={tr('back')} onclick={onOpenHome}><Back size={22}/></button><button type="button" data-testid="workflow-share" aria-label={tr('share')} onclick={openShare}><Share size={18}/></button><WorkspaceReportIssueButton/></div>
   <span class="kicker">{tr('workflow')}</span>
-  <div class="context-actions"><a href={runsHref} aria-label={tr('run_history')} data-testid="workflow-run-history" onclick={event => { event.preventDefault(); onOpenRuns(); }}><History size={19}/></a><button type="button" aria-label={tr('run_now')} data-testid="run-workflow" disabled={saving || !canEnable} onclick={() => void onRunWorkflow()}><Play size={19}/></button><button type="button" aria-label={tr('delete_workflow')} data-testid="delete-workflow" disabled={saving} onclick={() => void onDeleteWorkflow()}><Trash size={18}/></button></div>
+  <div class="context-actions"><a href={runsHref} aria-label={tr('run_history')} data-testid="workflow-run-history" onclick={event => { event.preventDefault(); onOpenRuns(); }}><History size={19}/></a><button type="button" aria-label={tr('run_now')} data-testid="run-workflow" disabled={saving || !canRun} onclick={() => void onRunWorkflow()}><Play size={19}/></button><button type="button" aria-label={tr('delete_workflow')} data-testid="delete-workflow" disabled={saving} onclick={() => void onDeleteWorkflow()}><Trash size={18}/></button></div>
   <div class="identity">
     <div data-testid="workflow-identity-icon" aria-hidden="true"><Identity size={34}/></div>
     {#if editing}<form onsubmit={async event => { event.preventDefault(); await onUpdateIdentity(draftTitle, draftDescription); editing = false; }}><input aria-label={tr('workflow_name')} bind:value={draftTitle} required/><input aria-label={tr('description')} bind:value={draftDescription}/><button class="save" type="submit" disabled={saving}>{tr('save')}</button></form>

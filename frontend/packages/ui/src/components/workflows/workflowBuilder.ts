@@ -68,6 +68,42 @@ export const capabilityFor = (
       capability.id === `${node.config?.app_id}.${node.config?.skill_id}`,
   );
 
+/** Local path readiness; the backend validates required inputs before any run. */
+export function workflowGraphReady(
+  graph: WorkflowGraph,
+  { requireSchedule = false }: { requireSchedule?: boolean } = {},
+): boolean {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  if (
+    requireSchedule &&
+    nodesById.get(graph.trigger_node_id ?? "")?.type !== "schedule_trigger"
+  ) return false;
+
+  const incoming = new Set(graph.edges.map((edge) => edge.to));
+  const roots = graph.nodes.filter((node) => !incoming.has(node.id));
+  const start = graph.trigger_node_id ?? (roots.length === 1 ? roots[0].id : null);
+  if (!start) return false;
+  const qualifyingTypes = new Set([
+    "send_chat_message",
+    "create_chat_report",
+    "start_new_chat",
+    "send_notification",
+    "send_email_notification",
+  ]);
+  const pending = [start];
+  const visited = new Set<string>();
+  while (pending.length > 0) {
+    const nodeId = pending.pop();
+    if (!nodeId || visited.has(nodeId)) continue;
+    visited.add(nodeId);
+    const node = nodesById.get(nodeId);
+    if (!node) continue;
+    if (qualifyingTypes.has(node.type)) return true;
+    for (const edge of graph.edges) if (edge.from === nodeId) pending.push(edge.to);
+  }
+  return false;
+}
+
 export function schemaDefault(schema: Schema): unknown {
   if (schema.default !== undefined) return structuredClone(schema.default);
   if (schema.type === "object")

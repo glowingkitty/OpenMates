@@ -13,7 +13,7 @@ function apiUrl(): string {
 }
 
 test.describe('Workflows editor', () => {
-	// contract-test: supporting surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.versions.timeline-readonly-restore-new
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.versions.timeline-readonly-restore-new,workflows.activation.reachable-side-effect,workflows-ui.schedule.preview
 	test('node Save persists, while testing current inputs leaves the definition unchanged', async ({
 		page
 	}) => {
@@ -28,13 +28,8 @@ test.describe('Workflows editor', () => {
 		);
 		const graph = {
 			version: 2,
-			trigger_node_id: 'trigger',
+			trigger_node_id: null,
 			nodes: [
-				{
-					id: 'trigger',
-					type: 'schedule_trigger',
-					config: { schedule: { type: 'hourly', minute: 0, timezone: 'Europe/Berlin' } }
-				},
 				{
 					id: 'weather',
 					type: 'app_skill_action',
@@ -55,7 +50,6 @@ test.describe('Workflows editor', () => {
 				}
 			],
 			edges: [
-				{ from: 'trigger', to: 'weather' },
 				{ from: 'weather', to: 'message' }
 			]
 		};
@@ -79,6 +73,8 @@ test.describe('Workflows editor', () => {
 				.click();
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText(workflow.title);
 			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0);
+			await expect(page.getByTestId('run-workflow')).toBeEnabled();
+			await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
 			const node = page.locator('[data-node-id="weather"]');
 			await node.getByTestId('workflow-node-summary').click();
 			await node.getByTestId('workflow-node-location-input').fill('Hamburg');

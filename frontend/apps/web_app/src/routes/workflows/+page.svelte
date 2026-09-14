@@ -36,7 +36,7 @@
 		weeklyEventsGraph,
 		hourlyApartmentsGraph
 	} from '@repo/ui/components/workflows/workflowExamples.ts';
-	import { workflowIcon } from '@repo/ui/components/workflows/workflowBuilder.ts';
+	import { workflowIcon, workflowGraphReady } from '@repo/ui/components/workflows/workflowBuilder.ts';
 	import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
 	import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
 	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
@@ -171,7 +171,12 @@
 		canRenderWorkflowData ? workflowGreetingName : 'there'
 	);
 	let visibleWorkflowLandingItems = $derived(canRenderWorkflowData ? workflowLandingItems : []);
-	let editorActivationReady = $derived(editorGraph ? workflowActivationReady(editorGraph) : false);
+	let editorActivationReady = $derived(
+		editorGraph ? workflowGraphReady(editorGraph, { requireSchedule: true }) : false
+	);
+	let savedRunReady = $derived(
+		selectedWorkflow ? workflowGraphReady(selectedWorkflow.graph) : false
+	);
 
 	onMount(() => {
 		syncWorkflowHashFromLocation();
@@ -511,7 +516,7 @@
 	}
 
 	async function runSelectedWorkflow() {
-		if (!selectedWorkflow) return;
+		if (!selectedWorkflow || saving || editorDirty || !savedRunReady) return;
 		const workflowId = selectedWorkflow.id;
 		saving = true;
 		routeError = null;
@@ -610,28 +615,6 @@
 		};
 	}
 
-	function workflowActivationReady(graph: WorkflowGraph): boolean {
-		if (!graph.trigger_node_id) return false;
-		const qualifyingTypes = new Set([
-			'send_chat_message',
-			'create_chat_report',
-			'start_new_chat',
-			'send_notification',
-			'send_email_notification'
-		]);
-		const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
-		const pending = [graph.trigger_node_id];
-		const visited = new Set<string>();
-		while (pending.length > 0) {
-			const nodeId = pending.shift();
-			if (!nodeId || visited.has(nodeId)) continue;
-			visited.add(nodeId);
-			const node = nodesById.get(nodeId);
-			if (node && qualifyingTypes.has(node.type)) return true;
-			for (const edge of graph.edges) if (edge.from === nodeId) pending.push(edge.to);
-		}
-		return false;
-	}
 
 	function newsBriefGraph(): WorkflowGraph {
 		return weeklyEventsGraph();
@@ -796,6 +779,7 @@
 										nextRunAt={selectedWorkflow.next_run_at}
 										enabled={selectedWorkflow.enabled}
 										canEnable={editorActivationReady && !editorDirty}
+										canRun={savedRunReady && !editorDirty}
 										{lastStartedRunId}
 										activeTab={isRunsView ? 'runs' : 'template'}
 										{saving}
