@@ -289,6 +289,9 @@ test.describe('Workflows web UI contract', () => {
 
 			await editorCard.click();
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(editorWorkflow.id));
+			const workflowManagement = page.getByTestId('workflow-management');
+			await expect(workflowManagement).toHaveCSS('will-change', 'auto');
+			await expect(workflowManagement).toHaveCSS('transform', 'none');
 			const detailHeader = page.getByTestId('workspace-detail-header');
 			await expect(detailHeader).toHaveAttribute('data-category', 'science');
 			await expect(detailHeader).toHaveAttribute('data-icon', 'cloud-rain');
@@ -318,8 +321,20 @@ test.describe('Workflows web UI contract', () => {
 				.getByTestId('workflow-node-card')
 				.filter({ hasText: 'Weather' })
 				.first();
+			await page.route('**/v1/geocode/search?**', (route) =>
+				route.fulfill({
+					json: [{
+						lat: '48.8566', lon: '2.3522', name: 'Paris', display_name: 'Paris, France',
+						class: 'place', type: 'city', namedetails: { name: 'Paris' },
+						address: { city: 'Paris', country: 'France' }
+					}]
+				})
+			);
 			await weatherNode.getByTestId('workflow-node-summary').click();
-			await weatherNode.getByTestId('workflow-node-location-input').fill('Paris');
+			await weatherNode.getByTestId('workflow-node-location-picker').click();
+			await weatherNode.getByTestId('map-location-search-input').fill('Paris');
+			await weatherNode.getByTestId('map-location-search-result').click();
+			await weatherNode.getByTestId('map-location-select').click();
 			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-node-save')).toBeVisible();
 			if (proof) {

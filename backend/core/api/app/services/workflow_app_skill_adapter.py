@@ -343,6 +343,8 @@ def _normalize_skill_output(
                 "location": location,
                 "provider": raw_output.get("provider"),
                 "days_requested": raw_output.get("days_requested"),
+                "start_date": raw_output.get("start_date"),
+                "end_date": raw_output.get("end_date"),
                 "rain_probability": first_day.get("precipitation_probability_max_pct"),
                 "max_temperature_c": first_day.get("temperature_max_c"),
                 "humidity_avg_pct": first_day.get("relative_humidity_avg_pct"),
@@ -496,11 +498,12 @@ def _rain_summary(periods: list[dict[str, Any]], day: dict[str, Any]) -> str:
     """Human-readable deterministic timing, without inference or invented forecast data."""
     if not _has_rain_data(day):
         return "Hourly rain timing is unavailable."
+    day_label = day.get("label") or day.get("date") or "the selected day"
     if not periods:
-        return "No rain is forecast today."
+        return f"No rain is forecast {day_label}."
     times = ", ".join(f"{period['start_time']}–{period['end_time']}" for period in periods)
     zone = f" ({day['timezone']})" if day.get("timezone") else ""
-    return f"Rain is forecast today: {times}{zone}."
+    return f"Rain is forecast {day_label}: {times}{zone}."
 
 
 def _has_rain_data(day: dict[str, Any]) -> bool:

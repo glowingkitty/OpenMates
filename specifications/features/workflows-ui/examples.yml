@@ -240,6 +240,11 @@ template_editing:
     summary_header_preserved: true
     input_output_groups_visible: true
     sibling_editor_panel: false
+- id: expanded-editors-reuse-one-header
+  given: Alice opens a Weather node and then a step picker.
+  when: She uses back, collapse or close.
+  then: Both expanded surfaces use the shared Workflow editor header with consistent title, app identity and
+    navigation behavior.
 - id: graph-change-keeps-local-node-save
   given:
     tab: template
@@ -389,6 +394,22 @@ mvp_authoring:
   given: A forecast step exists before any live run and an Events step declares a result list.
   when: Alice adds Check for rain and a Send message result block for events.
   then: Typed fields are offered immediately and unsaved Test results use labeled readable values/cards, never raw JSON/debug schemas; Check shows true and false branches with Do nothing when empty. A complete unscheduled workflow offers Run now. General Filter is absent.
+- id: weather-range-and-shared-field-controls
+  given: Alice adds a Weather forecast step before the Workflow has run.
+  when: The typed skill form opens.
+  then: Location and the shared date-range calendar are basic fields, both inclusive endpoints default to the
+    Today runtime value, dates outside Today through Today plus 13 are disabled, legacy days is hidden, advanced
+    fields are behind Show all fields, and typed choices reuse SettingsDropdown.
+- id: map-city-semantics-across-launch-skills
+  given: Alice searches for and selects Berlin in the shared map picker.
+  when: She uses it in Weather, Events and Home skill forms.
+  then: Weather stores location with latitude and longitude, Events stores request location with lat and lon,
+    Home stores the city in request query, and selection remains disabled until a city resolves.
+- id: removing-check-protects-dependent-fields
+  given: A later step consumes the selected Check's matched boolean.
+  when: Alice removes the Check.
+  then: The builder rewrites the dependency only for an equivalent equality-to-true earlier boolean; otherwise it
+    names the dependent steps, keeps the Check and leaves the saved graph valid.
 schedule_preview:
 - id: schedule_preview-example
   given: Alice chooses hourly apartment search at minute zero in Europe/Berlin.

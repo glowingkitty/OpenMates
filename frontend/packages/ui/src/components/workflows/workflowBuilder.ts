@@ -4,6 +4,7 @@ import type {
 } from "../../stores/workflowWorkspaceStore";
 
 export type Schema = {
+  "x-ui"?: { control?: string; start_field?: string; end_field?: string; min?: string; max_offset_days?: number; default?: string; hidden?: boolean; basic?: boolean };
   type?: string;
   title?: string;
   description?: string;
@@ -111,15 +112,19 @@ export function schemaDefault(schema: Schema): unknown {
   // Registry defaults are JSON data and may arrive through a Svelte state proxy.
   if (schema.default !== undefined)
     return JSON.parse(JSON.stringify(schema.default));
-  if (schema.type === "object")
-    return Object.fromEntries(
-      Object.entries(schema.properties ?? {})
-        .filter(
-          ([name, item]) =>
-            schema.required?.includes(name) || item.default !== undefined,
-        )
-        .map(([name, item]) => [name, schemaDefault(item)]),
-    );
+  if (schema.type === "object") {
+    const properties = Object.entries(schema.properties ?? {});
+    const defaults = Object.fromEntries(properties
+      .filter(([name, item]) => schema.required?.includes(name) || item.default !== undefined)
+      .map(([name, item]) => [name, schemaDefault(item)]));
+    const ui = schema["x-ui"];
+    if (ui?.control === "date-range" && ui.default === "today") {
+      defaults[ui.start_field ?? "start_date"] = { $date: "today", format: "date" };
+      defaults[ui.end_field ?? "end_date"] = { $date: "today", format: "date" };
+      if (properties.some(([key, field]) => key === "days" && field["x-ui"]?.hidden)) delete defaults.days;
+    }
+    return defaults;
+  }
   if (schema.type === "array")
     return schema.items?.type === "object" ? [schemaDefault(schema.items)] : [];
   if (schema.type === "boolean") return false;
@@ -212,27 +217,53 @@ export function insertNode(
   };
 }
 
+export class WorkflowNodeDependencyError extends Error {
+  dependentNodeTitles: string[];
+  constructor(dependentNodeTitles: string[]) {
+    super("Workflow node is still used by later steps");
+    this.dependentNodeTitles = dependentNodeTitles;
+  }
+}
+
 export function removeNode(
   graph: WorkflowGraph,
   nodeId: string,
+  capabilities: Capability[] = [],
 ): WorkflowGraph {
   const incoming = graph.edges.filter((edge) => edge.to === nodeId);
-  const continuation = graph.edges.filter(
-    (edge) => edge.from === nodeId && !edge.branch,
-  );
+  const continuation = graph.edges.filter((edge) => edge.from === nodeId && !edge.branch);
+  const removed = graph.nodes.find(node => node.id === nodeId);
+  const predicate = record(removed?.config?.predicate);
+  const source = outputsBefore(graph, nodeId, capabilities).find(output => output.reference === predicate.left);
+  // A boolean equality Check only forwards the original flag. Its consumers
+  // can bind directly to that flag without changing the workflow's behavior.
+  const replacement = removed && isCheck(removed) && predicate.op === "eq" && predicate.right === true
+    && source?.schema.type === "boolean" ? source.reference : null;
+  const oldReference = `$nodes.${nodeId}.output.matched`;
+  const oldToken = `{{steps.${nodeId}.matched}}`;
+  const newToken = replacement ? `{{steps.${source!.nodeId}.${replacement.split(".output.")[1]}}}` : "";
+  function rewrite(value: unknown): unknown {
+    if (typeof value === "string" && replacement) return value === oldReference ? replacement : value.replaceAll(oldToken, newToken);
+    if (Array.isArray(value)) return value.map(rewrite);
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, rewrite(child)]));
+    return value;
+  }
+  function referencesRemoved(value: unknown): boolean {
+    if (typeof value === "string") return value.includes(`$nodes.${nodeId}.output.`) || value.includes(`steps.${nodeId}.`);
+    if (Array.isArray(value)) return value.some(referencesRemoved);
+    return !!value && typeof value === "object" && Object.values(value).some(referencesRemoved);
+  }
+  const nodes = graph.nodes.filter(node => node.id !== nodeId).map(node => ({ ...node, config: rewrite(node.config) as WorkflowNode["config"] }));
+  const dependent = nodes.filter(node => referencesRemoved(node.config));
+  if (dependent.length) throw new WorkflowNodeDependencyError(dependent.map(node => node.title || label(node.type)));
   // Keep branch nodes as explicit draft roots when deleting their Check.
   return {
     ...graph,
-    trigger_node_id:
-      graph.trigger_node_id === nodeId ? null : graph.trigger_node_id,
-    nodes: graph.nodes.filter((node) => node.id !== nodeId),
+    trigger_node_id: graph.trigger_node_id === nodeId ? null : graph.trigger_node_id,
+    nodes,
     edges: [
-      ...graph.edges.filter(
-        (edge) => edge.from !== nodeId && edge.to !== nodeId,
-      ),
-      ...incoming.flatMap((before) =>
-        continuation.map((after) => ({ ...before, to: after.to })),
-      ),
+      ...graph.edges.filter(edge => edge.from !== nodeId && edge.to !== nodeId),
+      ...incoming.flatMap(before => continuation.map(after => ({ ...before, to: after.to }))),
     ],
   };
 }

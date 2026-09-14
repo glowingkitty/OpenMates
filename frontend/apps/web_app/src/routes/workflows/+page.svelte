@@ -89,6 +89,7 @@
 	let pendingNavigation = $state<{ action: () => void | Promise<void> } | null>(null);
 	let showAllWorkflows = $state(false);
 	let workflowClosing = $state(false);
+	let workflowOpening = $state(false);
 
 	// Keep the pane mounted for the same 320ms CSS motion used by UnifiedEmbedFullscreen.
 	function fullscreenWorkflowMotion() {
@@ -755,7 +756,7 @@
 				{/if}
 
 				{#if showManageView}
-					<section class="workflow-management" class:closing={workflowClosing} data-testid="workflow-management" transition:fullscreenWorkflowMotion onintrostart={() => (workflowClosing = false)} onoutrostart={() => (workflowClosing = true)}>
+					<section class="workflow-management" class:opening={workflowOpening} class:closing={workflowClosing} data-testid="workflow-management" transition:fullscreenWorkflowMotion onintrostart={() => { workflowClosing = false; workflowOpening = true; }} onintroend={() => (workflowOpening = false)} onoutrostart={() => { workflowOpening = false; workflowClosing = true; }}>
 						<div class="management-grid">
 							<section class="workflow-detail" data-testid="workflow-detail">
 								{#if selectedWorkflow}
@@ -993,8 +994,6 @@
 		overflow: auto;
 		z-index: var(--z-index-raised-1);
 		background: var(--color-grey-10);
-		will-change: transform, opacity;
-		animation: workflow-pane-open 320ms cubic-bezier(0.32, 0, 0.2, 1) both;
 		display: grid;
 		gap: 16px;
 		padding-block-end: 36px;
@@ -1193,6 +1192,11 @@
 			border-radius: var(--radius-10, 24px);
 		}
 	}
+  /* Release the full pane's graphics surface when its entrance finishes. */
+  .workflow-management.opening,.workflow-management.closing {
+    will-change:transform,opacity;
+    animation:workflow-pane-open 320ms cubic-bezier(0.32, 0, 0.2, 1) both;
+  }
   .workflow-management.closing { animation-name: workflow-pane-close; pointer-events:none; }
   @keyframes workflow-pane-open { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
   @keyframes workflow-pane-close { from { transform:translateY(0); opacity:1; } to { transform:translateY(100%); opacity:0; } }

@@ -93,6 +93,16 @@ skill_contract:
   when: He tries to add it.
   then: The capability is unavailable with an explanation; returned text from supported skills cannot execute
     code on the server.
+- id: skill_contract-3
+  given: Alice configures today's Weather forecast in a daily Workflow whose timezone is Europe/Berlin.
+  when: She saves and later Tests or runs the Weather step on a different calendar day.
+  then: Both inclusive range endpoints store the Today runtime value and resolve to that execution day's local
+    date; dates before Today or after Today plus 13 are rejected with a readable forecast-window error.
+- id: skill_contract-4
+  given: Alice chooses Berlin from the shared map picker in Weather, Events and Home skill forms.
+  when: Each selection is applied to its typed input.
+  then: Weather receives location with latitude and longitude, Events receives request location with lat and lon,
+    and Home receives Berlin as its request query; a coordinate without a resolved city cannot be selected.
 filter:
 - id: filter-1
   given: Alice configures this v1 delivery.
@@ -108,6 +118,11 @@ check:
   when: The Check checks whether its result count is greater than zero.
   then: The false branch does nothing and the run ends quietly, or continues to explicitly configured following
     steps; no empty recommendation is sent.
+- id: check-3
+  given: A later message depends on a Check's matched boolean.
+  when: Alice removes the Check.
+  then: An equality-to-true Check over an earlier boolean rewrites the message dependency to that same boolean;
+    any dependency that cannot be preserved blocks removal and names the affected steps.
 typed_data:
 - id: typed_data-1
   given: Alice has added an Events search but never run it.

@@ -20,8 +20,20 @@
         defaultImprecise?: boolean;
         /** Whether the parent message field is currently in fullscreen mode. */
         isFullscreen?: boolean;
+        /** Optional controls let embedded consumers reuse the picker without composer-only actions. */
+        allowImprecise?: boolean;
+        allowCurrentLocation?: boolean;
+        allowFullscreen?: boolean;
+        requireCity?: boolean;
     }
-    let { defaultImprecise = true, isFullscreen = false }: Props = $props();
+    let {
+        defaultImprecise = true,
+        isFullscreen = false,
+        allowImprecise = true,
+        allowCurrentLocation = true,
+        allowFullscreen = true,
+        requireCity = false
+    }: Props = $props();
     
     let mapContainer: HTMLElement;
     let map: Map | null = null;
@@ -106,7 +118,10 @@
     // placeType: category label for the selected search result (e.g. "Railway", "Airport").
     // Set when user clicks a search result; cleared when user pans map manually.
     let selectedPlaceType = $state<string>('');
+    let selectedCity = $state<string>('');
+    let resolvedCity = $state<string>('');
     let reverseGeocodeController: AbortController | null = null;
+    let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     // ─── Geolocation error state ─────────────────────────────────────────────
     // Shown when browser location access is denied or unavailable.
@@ -276,6 +291,9 @@
                     selectedZoomLevel = null;
                     isCurrentLocation = false;
                     selectedPlaceType = '';
+                    selectedCity = '';
+                    resolvedAddress = '';
+                    resolvedCity = '';
                 }
                 
                 // Keep Leaflet marker position synced even though it is invisible.
@@ -307,6 +325,13 @@
 
     function cleanupMap() {
         logger.debug('Cleaning up map...');
+
+        reverseGeocodeController?.abort();
+        reverseGeocodeController = null;
+        if (searchDebounceTimer) {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = null;
+        }
 
         stopWatchingMapTheme?.();
         stopWatchingMapTheme = null;
@@ -343,6 +368,9 @@
         searchQuery = '';
         searchResults = [];
         showResults = false;
+        resolvedAddress = '';
+        resolvedCity = '';
+        selectedCity = '';
     }
 
     // Function to get random location within circle
@@ -506,6 +534,7 @@
     // Update handleSelect function
     function handleSelect() {
         if (mapCenter) {
+            if (requireCity && !(selectedCity || resolvedCity)) return;
             // Always store the precise location (for potential future use/display)
             const preciseLat = mapCenter.lat;
             const preciseLon = mapCenter.lon;
@@ -549,6 +578,8 @@
                     // Category/type label for search results (e.g. "Railway", "Airport").
                     // Shown as a dedicated muted line below the name in the embed card.
                     placeType: selectedPlaceType || '',
+                    // Retain the city separately for consumers that need a city/location query.
+                    city: selectedCity || resolvedCity || '',
                     // Whether this is a precise pin or a generalised area
                     locationType: isPrecise ? 'precise_location' : 'area',
                     id: crypto.randomUUID()
@@ -572,17 +603,15 @@
     // Create a debounced search function
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function debounce(func: (...args: any[]) => unknown, wait: number) {
-        let timeout: ReturnType<typeof setTimeout>;
-        
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return function executedFunction(...args: any[]) {
             const later = () => {
-                clearTimeout(timeout);
+                searchDebounceTimer = null;
                 func(...args);
             };
-            
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
+
+            if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(later, wait);
         };
     }
 
@@ -643,6 +672,7 @@
             // Postcode + city
             const postcode = addr.postcode || '';
             const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+            resolvedCity = city;
             if (postcode && city) {
                 parts.push(`${postcode} ${city}`);
             } else if (city) {
@@ -744,6 +774,7 @@
                     // Full street address from Nominatim address components — used as the embed
                     // address when this search result is selected (avoids re-geocoding).
                     streetAddress,
+                    city,
                     // placeType: the category/type label shown in the embed card secondary line
                     // (e.g. "Railway", "Airport", "Hotel"). Distinct from streetAddress so the
                     // embed can show both "Berlin Hauptbahnhof / Railway" and the address.
@@ -1117,6 +1148,7 @@
             resolvedAddress = result.streetAddress || '';
             // Store the place type (e.g. "Railway") separately for the embed card
             selectedPlaceType = result.placeType || '';
+            selectedCity = result.city || '';
             selectedFromSearch = true;
             
             // Set zoom level based on result type
@@ -1221,14 +1253,16 @@
     onintroend={onTransitionEnd}
 >
     <!-- Maximize / minimize button — top-right corner of the overlay -->
-    <button
-        class="overlay-fullscreen-btn clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'}"
-        onclick={toggleFullscreen}
-        aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
-        use:tooltip
-    ></button>
+    {#if allowFullscreen}
+        <button
+            class="overlay-fullscreen-btn clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'}"
+            onclick={toggleFullscreen}
+            aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
+            use:tooltip
+        ></button>
+    {/if}
 
-    {#if showPreciseToggle && !showResults}
+    {#if allowImprecise && showPreciseToggle && !showResults}
         <div class="precise-toggle" transition:slide={{ duration: 300, axis: 'y' }}>
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             <span>{@html $text('enter_message.location.precise')}</span>
@@ -1247,8 +1281,10 @@
                     <span class="location-line">{line}</span>
                 {/each}
             </div>
-            <button 
+            <button
                 onclick={handleSelect}
+                disabled={requireCity && !(selectedCity || resolvedCity)}
+                data-testid="map-location-select"
                 transition:slide={{ duration: 200 }}
                 style="padding: 15px;"
             >
@@ -1275,7 +1311,7 @@
 
     <div class="bottom-bar">
         <div class="controls">
-            <button 
+            <button
                 class="clickable-icon icon_close" 
                 onclick={handleClose}
                 aria-label={$text('common.close')}
@@ -1288,6 +1324,7 @@
                      the latest character at the moment the handler runs. -->
                 <input
                     type="text"
+                    data-testid="map-location-search-input"
                     bind:value={searchQuery}
                     oninput={(e) => debouncedSearch((e.currentTarget as HTMLInputElement).value)}
                     onkeydown={(e) => {
@@ -1301,14 +1338,16 @@
                 />
             </div>
 
-            <button 
-                class="clickable-icon icon_location"
-                onclick={getCurrentLocation}
-                disabled={isLoading}
-                aria-label={$text('enter_message.location.get_location')}
-                use:tooltip
-            >
-            </button>
+            {#if allowCurrentLocation}
+                <button
+                    class="clickable-icon icon_location"
+                    onclick={getCurrentLocation}
+                    disabled={isLoading}
+                    aria-label={$text('enter_message.location.get_location')}
+                    use:tooltip
+                >
+                </button>
+            {/if}
         </div>
     </div>
 
@@ -1317,7 +1356,7 @@
             <div class="search-results-header">
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <h3>{@html $text('enter_message.location.search_results')}</h3>
-                <button 
+                <button
                     class="clickable-icon icon_close" 
                     onclick={() => {
                         showResults = false;
@@ -1331,8 +1370,9 @@
             </div>
             <div class="search-results">
                 {#each searchResults as result}
-                    <button 
+                    <button
                         class="search-result-item"
+                        data-testid="map-location-search-result"
                         class:active={result.active}
                         onclick={() => handleSearchResultClick(result)}
                         onmouseenter={() => highlightSearchResult(result)}

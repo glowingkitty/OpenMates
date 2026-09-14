@@ -108,9 +108,21 @@ test.describe('Workflows editor', () => {
 			await expect(trigger.getByTestId('workflow-node-summary')).toBeVisible();
 
 			const node = page.locator('[data-node-id="weather"]');
+			await page.route('**/v1/geocode/search?**', (route) =>
+				route.fulfill({
+					json: [{
+						lat: '53.5511', lon: '9.9937', name: 'Hamburg', display_name: 'Hamburg, Germany',
+						class: 'place', type: 'city', namedetails: { name: 'Hamburg' },
+						address: { city: 'Hamburg', country: 'Germany' }
+					}]
+				})
+			);
 			await node.getByTestId('workflow-node-summary').click();
 			await expect(node.getByTestId('workflow-node-expanded')).toBeVisible();
-			await node.getByTestId('workflow-node-location-input').fill('Hamburg');
+			await node.getByTestId('workflow-node-location-picker').click();
+			await node.getByTestId('map-location-search-input').fill('Hamburg');
+			await node.getByTestId('map-location-search-result').click();
+			await node.getByTestId('map-location-select').click();
 			await expect(node.getByTestId('workflow-node-save')).toBeVisible();
 			const before = await (
 				await page.request.get(`${apiUrl()}/v1/workflows/${workflow.id}`)

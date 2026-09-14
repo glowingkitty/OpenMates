@@ -125,9 +125,10 @@ test.describe('Workflow definition history', () => {
 
 			const weatherNode = page.getByTestId('workflow-node-card').filter({ hasText: 'Weather' }).first();
 			for (let version = 2; version <= VERSION_COUNT; version += 1) {
-				const locationInput = weatherNode.getByTestId('workflow-node-location-input');
-				if (!(await locationInput.isVisible().catch(() => false))) await weatherNode.getByTestId('workflow-node-summary').click();
-				await locationInput.fill(`History city ${version}`);
+				if (!(await weatherNode.getByTestId('workflow-node-expanded').isVisible().catch(() => false))) await weatherNode.getByTestId('workflow-node-summary').click();
+				const showAll = weatherNode.getByRole('button', { name: 'Show all fields' });
+				if (await showAll.isVisible().catch(() => false)) await showAll.click();
+				await weatherNode.getByLabel('Timezone').fill(`Etc/GMT+${version - 1}`);
 				const saveResponse = page.waitForResponse(
 					(response: any) => response.url().endsWith(`/v1/workflows/${workflowId}`) && response.request().method() === 'PATCH' && response.ok(),
 					{ timeout: 30_000 }
@@ -159,7 +160,7 @@ test.describe('Workflow definition history', () => {
 			await historicalVersion.click();
 			await expect(page.getByTestId('workflow-version-graph-inspection')).toHaveAttribute('data-read-only', 'true');
 			await expect(page.getByTestId('workflow-version-graph')).toBeVisible({ timeout: 30_000 });
-			await expect(page.getByTestId('workflow-version-graph').getByTestId('workflow-node-location-input')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-version-graph').getByTestId('workflow-node-location-picker')).toHaveCount(0);
 			await expect(currentVersion).toHaveAttribute('data-version-number', currentVersionNumber ?? '');
 			await expect(currentVersion).toContainText('Active');
 			expect(await timeline.innerText()).toBe(timelineBeforeInspection);

@@ -42,6 +42,19 @@ def test_calendar_schedule_and_relative_week_use_local_timezone() -> None:
     assert result == {"start_date": "2026-03-23T00:00:00+01:00", "end_date": "2026-03-29T23:59:59+02:00"}
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_today_date_value_resolves_again_for_each_run_and_test() -> None:
+    value = {"start_date": {"$date": "today", "format": "date"}}
+    first = resolve_workflow_runtime_values(
+        value, now=stamp("2026-09-14T23:30:00+02:00"), timezone="Europe/Berlin"
+    )
+    second = resolve_workflow_runtime_values(
+        value, now=stamp("2026-09-15T00:30:00+02:00"), timezone="Europe/Berlin"
+    )
+    assert first == {"start_date": "2026-09-14"}
+    assert second == {"start_date": "2026-09-15"}
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.surface.semantic-parity
 @pytest.mark.parametrize("app,alias", [("news", "articles"), ("events", "events"), ("home", "listings")])
 def test_search_results_are_flat_and_identity_ignores_tracking(app: str, alias: str) -> None:
@@ -64,10 +77,19 @@ def test_weather_reports_real_rain_windows_and_preserves_unknown_data() -> None:
         {"timestamp": "2026-09-14T13:00:00+02:00", "precipitation_mm": 1.2},
         {"timestamp": "2026-09-14T14:00:00+02:00", "precipitation_mm": 0, "precipitation_probability_pct": 10},
     ]
-    result = _normalize_skill_output("weather", "forecast", {}, {"results": [{"hourly": hours, "timezone": "Europe/Berlin"}]})
+    result = _normalize_skill_output("weather", "forecast", {}, {
+        "start_date": "2026-09-14", "end_date": "2026-09-14",
+        "results": [{"date": "2026-09-14", "label": "today", "hourly": hours, "timezone": "Europe/Berlin"}],
+    })
     assert result["rain_expected"] is True
     assert [(item["start_time"], item["end_time"]) for item in result["rain_periods"]] == [("12:00", "14:00")]
     assert "12:00–14:00" in result["rain_summary"]
+    assert result["start_date"] == "2026-09-14"
+    assert result["end_date"] == "2026-09-14"
+    future = _normalize_skill_output("weather", "forecast", {}, {
+        "results": [{"date": "2026-09-17", "hourly": hours, "timezone": "Europe/Berlin"}],
+    })
+    assert "forecast 2026-09-17" in future["rain_summary"]
     unknown = _normalize_skill_output("weather", "forecast", {}, {"results": [{"hourly": [{"timestamp": "2026-09-14T12:00:00"}]}]})
     assert unknown["rain_expected"] is None
     assert "unavailable" in unknown["rain_summary"]
@@ -80,6 +102,17 @@ def test_demo_metadata_exposes_actual_list_outputs_and_news_test() -> None:
         skill = next(item for item in yaml.safe_load((root / app / "app.yml").read_text())["skills"] if item["id"] == "search")
         assert skill["workflow"]["test_allowed"] is True
         assert skill["workflow"]["output_schema"]["properties"]["results"]["items"]["properties"]["source_id"]["type"] == "string"
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_weather_demo_uses_today_range_instead_of_legacy_days() -> None:
+    root = Path(__file__).resolve().parents[2] / "examples" / "workflows"
+    document = yaml.safe_load((root / "morning-weather-news.yml").read_text())
+    weather_input = document["steps"][0]["input"]
+    today = {"$date": "today", "format": "date"}
+    assert weather_input["start_date"] == today
+    assert weather_input["end_date"] == today
+    assert "days" not in weather_input
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.surface.semantic-parity

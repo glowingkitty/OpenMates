@@ -870,8 +870,151 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'events), Berlin Philharmonic (classical concerts in Berlin), and official event '
                  'schedules for GPN24, 39C3, 38C3',
   'description_key': 'events.search.description',
-  'output_schema': {'properties': {'result_count': {'type': 'integer'},
-                                   'summary': {'type': 'string'}},
+  'output_schema': {'properties': {'events': {'example': [{'canonical_url': 'https://example.invalid/events/ai',
+                                                           'date_end': '2026-09-23T20:00:00+02:00',
+                                                           'date_start': '2026-09-23T18:00:00+02:00',
+                                                           'description': 'An example meetup for '
+                                                                          'people working with AI.',
+                                                           'event_type': 'PHYSICAL',
+                                                           'id': 'example-event',
+                                                           'location': 'Berlin',
+                                                           'price_amount': 0,
+                                                           'provider': 'Example events provider',
+                                                           'source_id': 'example-event',
+                                                           'title': 'AI community meetup',
+                                                           'url': 'https://example.invalid/events/ai'}],
+                                              'items': {'example': {'canonical_url': 'https://example.invalid/events/ai',
+                                                                    'date_end': '2026-09-23T20:00:00+02:00',
+                                                                    'date_start': '2026-09-23T18:00:00+02:00',
+                                                                    'description': 'An example '
+                                                                                   'meetup for '
+                                                                                   'people working '
+                                                                                   'with AI.',
+                                                                    'event_type': 'PHYSICAL',
+                                                                    'id': 'example-event',
+                                                                    'location': 'Berlin',
+                                                                    'price_amount': 0,
+                                                                    'provider': 'Example events '
+                                                                                'provider',
+                                                                    'source_id': 'example-event',
+                                                                    'title': 'AI community meetup',
+                                                                    'url': 'https://example.invalid/events/ai'},
+                                                        'properties': {'canonical_url': {'example': 'https://example.invalid/events/ai',
+                                                                                         'type': 'string'},
+                                                                       'date_end': {'example': '2026-09-23T20:00:00+02:00',
+                                                                                    'type': 'string'},
+                                                                       'date_start': {'example': '2026-09-23T18:00:00+02:00',
+                                                                                      'type': 'string'},
+                                                                       'description': {'example': 'An '
+                                                                                                  'example '
+                                                                                                  'meetup '
+                                                                                                  'for '
+                                                                                                  'people '
+                                                                                                  'working '
+                                                                                                  'with '
+                                                                                                  'AI.',
+                                                                                       'type': 'string'},
+                                                                       'event_type': {'example': 'PHYSICAL',
+                                                                                      'type': 'string'},
+                                                                       'id': {'example': 'example-event',
+                                                                              'type': 'string'},
+                                                                       'location': {'example': 'Berlin',
+                                                                                    'type': 'string'},
+                                                                       'price_amount': {'example': 0,
+                                                                                        'type': ['number',
+                                                                                                 'null']},
+                                                                       'provider': {'example': 'Example '
+                                                                                               'events '
+                                                                                               'provider',
+                                                                                    'type': 'string'},
+                                                                       'source_id': {'example': 'example-event',
+                                                                                     'type': 'string'},
+                                                                       'title': {'example': 'AI '
+                                                                                            'community '
+                                                                                            'meetup',
+                                                                                 'type': 'string'},
+                                                                       'url': {'example': 'https://example.invalid/events/ai',
+                                                                               'type': 'string'}},
+                                                        'type': 'object'},
+                                              'type': 'array'},
+                                   'partial': {'example': False, 'type': 'boolean'},
+                                   'provider': {'example': 'Example events provider',
+                                                'type': 'string'},
+                                   'result_count': {'example': 1, 'type': 'integer'},
+                                   'results': {'example': [{'canonical_url': 'https://example.invalid/events/ai',
+                                                            'date_end': '2026-09-23T20:00:00+02:00',
+                                                            'date_start': '2026-09-23T18:00:00+02:00',
+                                                            'description': 'An example meetup for '
+                                                                           'people working with '
+                                                                           'AI.',
+                                                            'event_type': 'PHYSICAL',
+                                                            'id': 'example-event',
+                                                            'location': 'Berlin',
+                                                            'price_amount': 0,
+                                                            'provider': 'Example events provider',
+                                                            'source_id': 'example-event',
+                                                            'title': 'AI community meetup',
+                                                            'url': 'https://example.invalid/events/ai'}],
+                                               'items': {'example': {'canonical_url': 'https://example.invalid/events/ai',
+                                                                     'date_end': '2026-09-23T20:00:00+02:00',
+                                                                     'date_start': '2026-09-23T18:00:00+02:00',
+                                                                     'description': 'An example '
+                                                                                    'meetup for '
+                                                                                    'people '
+                                                                                    'working with '
+                                                                                    'AI.',
+                                                                     'event_type': 'PHYSICAL',
+                                                                     'id': 'example-event',
+                                                                     'location': 'Berlin',
+                                                                     'price_amount': 0,
+                                                                     'provider': 'Example events '
+                                                                                 'provider',
+                                                                     'source_id': 'example-event',
+                                                                     'title': 'AI community meetup',
+                                                                     'url': 'https://example.invalid/events/ai'},
+                                                         'properties': {'canonical_url': {'example': 'https://example.invalid/events/ai',
+                                                                                          'type': 'string'},
+                                                                        'date_end': {'example': '2026-09-23T20:00:00+02:00',
+                                                                                     'type': 'string'},
+                                                                        'date_start': {'example': '2026-09-23T18:00:00+02:00',
+                                                                                       'type': 'string'},
+                                                                        'description': {'example': 'An '
+                                                                                                   'example '
+                                                                                                   'meetup '
+                                                                                                   'for '
+                                                                                                   'people '
+                                                                                                   'working '
+                                                                                                   'with '
+                                                                                                   'AI.',
+                                                                                        'type': 'string'},
+                                                                        'event_type': {'example': 'PHYSICAL',
+                                                                                       'type': 'string'},
+                                                                        'id': {'example': 'example-event',
+                                                                               'type': 'string'},
+                                                                        'location': {'example': 'Berlin',
+                                                                                     'type': 'string'},
+                                                                        'price_amount': {'example': 0,
+                                                                                         'type': ['number',
+                                                                                                  'null']},
+                                                                        'provider': {'example': 'Example '
+                                                                                                'events '
+                                                                                                'provider',
+                                                                                     'type': 'string'},
+                                                                        'source_id': {'example': 'example-event',
+                                                                                      'type': 'string'},
+                                                                        'title': {'example': 'AI '
+                                                                                             'community '
+                                                                                             'meetup',
+                                                                                  'type': 'string'},
+                                                                        'url': {'example': 'https://example.invalid/events/ai',
+                                                                                'type': 'string'}},
+                                                         'type': 'object'},
+                                               'type': 'array'},
+                                   'summary': {'example': 'Events search completed',
+                                               'type': 'string'},
+                                   'warnings': {'example': [],
+                                                'items': {'type': 'string'},
+                                                'type': 'array'}},
                     'type': 'object'},
   'schema': {'properties': {'provider': {'description': "The event provider to use. 'auto' "
                                                         '(default) queries all providers in '
@@ -1246,11 +1389,28 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                 '8601 '
                                                                                                 'format. '
                                                                                                 'Include '
-                                                                                                'timezone '
+                                                                                                'UTC '
+                                                                                                'offset '
                                                                                                 'if '
                                                                                                 'known '
                                                                                                 '(e.g. '
-                                                                                                "'2026-03-01T00:00:00+01:00[Europe/Berlin]'). "
+                                                                                                "'2026-03-01T00:00:00+01:00'). "
+                                                                                                'An '
+                                                                                                'optional '
+                                                                                                'matching '
+                                                                                                'IANA '
+                                                                                                'annotation '
+                                                                                                'such '
+                                                                                                'as '
+                                                                                                '[Europe/Berlin] '
+                                                                                                'is '
+                                                                                                'accepted. '
+                                                                                                'Preserve '
+                                                                                                'the '
+                                                                                                "user's "
+                                                                                                'requested '
+                                                                                                'date '
+                                                                                                'range. '
                                                                                                 'If '
                                                                                                 'omitted, '
                                                                                                 'defaults '
@@ -1468,6 +1628,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'Defaults '
                                                                                                  'to '
                                                                                                  '10.\n',
+                                                                                  'maximum': 30,
+                                                                                  'minimum': 1,
                                                                                   'type': 'integer'},
                                                                   'provider_platform': {'default': 'both',
                                                                                         'description': 'Booking '
@@ -1559,31 +1721,44 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                            'by '
                                                                                                            'appointment '
                                                                                                            'type '
-                                                                                                           'category. '
-                                                                                                           'When '
-                                                                                                           'set, '
-                                                                                                           'the '
-                                                                                                           'skill '
-                                                                                                           'searches '
+                                                                                                           'category '
+                                                                                                           'for '
+                                                                                                           'both '
+                                                                                                           'providers. '
+                                                                                                           'Omission '
+                                                                                                           'means '
+                                                                                                           'general '
+                                                                                                           'consultation '
+                                                                                                           'unless '
                                                                                                            'a '
-                                                                                                           'larger '
-                                                                                                           'pool '
-                                                                                                           'of '
-                                                                                                           'doctors '
-                                                                                                           'and '
-                                                                                                           'filters '
+                                                                                                           'supported '
+                                                                                                           'specific '
+                                                                                                           'procedure '
+                                                                                                           '(such '
+                                                                                                           'as '
+                                                                                                           'CT '
+                                                                                                           'or '
+                                                                                                           'MRT) '
+                                                                                                           'was '
+                                                                                                           'requested. '
+                                                                                                           'An '
+                                                                                                           'initial '
+                                                                                                           'injury '
+                                                                                                           'examination '
+                                                                                                           'must '
+                                                                                                           'not '
+                                                                                                           'be '
+                                                                                                           'replaced '
                                                                                                            'by '
-                                                                                                           'the '
-                                                                                                           'Doctolib '
-                                                                                                           'visit '
-                                                                                                           'motive '
-                                                                                                           'name '
-                                                                                                           'to '
-                                                                                                           'return '
-                                                                                                           'only '
-                                                                                                           'relevant '
-                                                                                                           'appointment '
-                                                                                                           'types. '
+                                                                                                           'a '
+                                                                                                           'treatment '
+                                                                                                           'appointment. '
+                                                                                                           'Matching '
+                                                                                                           'filters '
+                                                                                                           'apply '
+                                                                                                           'before '
+                                                                                                           'availability '
+                                                                                                           'ranking. '
                                                                                                            '"general" '
                                                                                                            '= '
                                                                                                            'consultation, '
@@ -1643,6 +1818,146 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. '
                  'Use when user asks about finding housing in Germany.',
   'description_key': 'app_skills.home.search.description',
+  'output_schema': {'properties': {'listings': {'example': [{'address': 'Berlin',
+                                                             'canonical_url': 'https://example.invalid/apartments/one',
+                                                             'id': 'example-listing',
+                                                             'listing_type': 'rent',
+                                                             'price': 1100,
+                                                             'price_label': '1.100 EUR/month',
+                                                             'property_type': 'apartment',
+                                                             'provider': 'Example housing provider',
+                                                             'rooms': 2,
+                                                             'size_sqm': 55,
+                                                             'source_id': 'example-listing',
+                                                             'title': 'Two-room apartment',
+                                                             'url': 'https://example.invalid/apartments/one'}],
+                                                'items': {'example': {'address': 'Berlin',
+                                                                      'canonical_url': 'https://example.invalid/apartments/one',
+                                                                      'id': 'example-listing',
+                                                                      'listing_type': 'rent',
+                                                                      'price': 1100,
+                                                                      'price_label': '1.100 '
+                                                                                     'EUR/month',
+                                                                      'property_type': 'apartment',
+                                                                      'provider': 'Example housing '
+                                                                                  'provider',
+                                                                      'rooms': 2,
+                                                                      'size_sqm': 55,
+                                                                      'source_id': 'example-listing',
+                                                                      'title': 'Two-room apartment',
+                                                                      'url': 'https://example.invalid/apartments/one'},
+                                                          'properties': {'address': {'example': 'Berlin',
+                                                                                     'type': 'string'},
+                                                                         'available_from': {'type': ['string',
+                                                                                                     'null']},
+                                                                         'canonical_url': {'example': 'https://example.invalid/apartments/one',
+                                                                                           'type': 'string'},
+                                                                         'id': {'example': 'example-listing',
+                                                                                'type': 'string'},
+                                                                         'listing_type': {'example': 'rent',
+                                                                                          'type': 'string'},
+                                                                         'price': {'example': 1100,
+                                                                                   'type': ['number',
+                                                                                            'null']},
+                                                                         'price_label': {'example': '1.100 '
+                                                                                                    'EUR/month',
+                                                                                         'type': 'string'},
+                                                                         'property_type': {'example': 'apartment',
+                                                                                           'type': 'string'},
+                                                                         'provider': {'example': 'Example '
+                                                                                                 'housing '
+                                                                                                 'provider',
+                                                                                      'type': 'string'},
+                                                                         'rooms': {'example': 2,
+                                                                                   'type': ['number',
+                                                                                            'null']},
+                                                                         'size_sqm': {'example': 55,
+                                                                                      'type': ['number',
+                                                                                               'null']},
+                                                                         'source_id': {'example': 'example-listing',
+                                                                                       'type': 'string'},
+                                                                         'title': {'example': 'Two-room '
+                                                                                              'apartment',
+                                                                                   'type': 'string'},
+                                                                         'url': {'example': 'https://example.invalid/apartments/one',
+                                                                                 'type': 'string'}},
+                                                          'type': 'object'},
+                                                'type': 'array'},
+                                   'partial': {'example': False, 'type': 'boolean'},
+                                   'provider': {'example': 'Example housing provider',
+                                                'type': 'string'},
+                                   'result_count': {'example': 1, 'type': 'integer'},
+                                   'results': {'example': [{'address': 'Berlin',
+                                                            'canonical_url': 'https://example.invalid/apartments/one',
+                                                            'id': 'example-listing',
+                                                            'listing_type': 'rent',
+                                                            'price': 1100,
+                                                            'price_label': '1.100 EUR/month',
+                                                            'property_type': 'apartment',
+                                                            'provider': 'Example housing provider',
+                                                            'rooms': 2,
+                                                            'size_sqm': 55,
+                                                            'source_id': 'example-listing',
+                                                            'title': 'Two-room apartment',
+                                                            'url': 'https://example.invalid/apartments/one'}],
+                                               'items': {'example': {'address': 'Berlin',
+                                                                     'canonical_url': 'https://example.invalid/apartments/one',
+                                                                     'id': 'example-listing',
+                                                                     'listing_type': 'rent',
+                                                                     'price': 1100,
+                                                                     'price_label': '1.100 '
+                                                                                    'EUR/month',
+                                                                     'property_type': 'apartment',
+                                                                     'provider': 'Example housing '
+                                                                                 'provider',
+                                                                     'rooms': 2,
+                                                                     'size_sqm': 55,
+                                                                     'source_id': 'example-listing',
+                                                                     'title': 'Two-room apartment',
+                                                                     'url': 'https://example.invalid/apartments/one'},
+                                                         'properties': {'address': {'example': 'Berlin',
+                                                                                    'type': 'string'},
+                                                                        'available_from': {'type': ['string',
+                                                                                                    'null']},
+                                                                        'canonical_url': {'example': 'https://example.invalid/apartments/one',
+                                                                                          'type': 'string'},
+                                                                        'id': {'example': 'example-listing',
+                                                                               'type': 'string'},
+                                                                        'listing_type': {'example': 'rent',
+                                                                                         'type': 'string'},
+                                                                        'price': {'example': 1100,
+                                                                                  'type': ['number',
+                                                                                           'null']},
+                                                                        'price_label': {'example': '1.100 '
+                                                                                                   'EUR/month',
+                                                                                        'type': 'string'},
+                                                                        'property_type': {'example': 'apartment',
+                                                                                          'type': 'string'},
+                                                                        'provider': {'example': 'Example '
+                                                                                                'housing '
+                                                                                                'provider',
+                                                                                     'type': 'string'},
+                                                                        'rooms': {'example': 2,
+                                                                                  'type': ['number',
+                                                                                           'null']},
+                                                                        'size_sqm': {'example': 55,
+                                                                                     'type': ['number',
+                                                                                              'null']},
+                                                                        'source_id': {'example': 'example-listing',
+                                                                                      'type': 'string'},
+                                                                        'title': {'example': 'Two-room '
+                                                                                             'apartment',
+                                                                                  'type': 'string'},
+                                                                        'url': {'example': 'https://example.invalid/apartments/one',
+                                                                                'type': 'string'}},
+                                                         'type': 'object'},
+                                               'type': 'array'},
+                                   'summary': {'example': 'Home search completed',
+                                               'type': 'string'},
+                                   'warnings': {'example': [],
+                                                'items': {'type': 'string'},
+                                                'type': 'array'}},
+                    'type': 'object'},
   'schema': {'properties': {'requests': {'description': 'Array of housing search requests. Each '
                                                         'request searches for apartments and rooms '
                                                         'in a German city across multiple '
@@ -1671,6 +1986,22 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                    'enum': ['rent',
                                                                                             'buy'],
                                                                                    'type': 'string'},
+                                                                  'max_price_eur': {'description': 'Maximum '
+                                                                                                   'advertised '
+                                                                                                   'monthly '
+                                                                                                   'rent '
+                                                                                                   'or '
+                                                                                                   'purchase '
+                                                                                                   'price '
+                                                                                                   'in '
+                                                                                                   'EUR. '
+                                                                                                   'Price '
+                                                                                                   'basis '
+                                                                                                   'varies '
+                                                                                                   'by '
+                                                                                                   'provider.',
+                                                                                    'minimum': 0,
+                                                                                    'type': 'number'},
                                                                   'max_results': {'default': 10,
                                                                                   'description': 'Maximum '
                                                                                                  'number '
@@ -1684,6 +2015,46 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                   'maximum': 20,
                                                                                   'minimum': 1,
                                                                                   'type': 'integer'},
+                                                                  'min_rooms': {'description': 'Minimum '
+                                                                                               'advertised '
+                                                                                               'rooms. '
+                                                                                               'Results '
+                                                                                               'with '
+                                                                                               'unknown '
+                                                                                               'rooms '
+                                                                                               'are '
+                                                                                               'excluded '
+                                                                                               'when '
+                                                                                               'set.',
+                                                                                'minimum': 0,
+                                                                                'type': 'number'},
+                                                                  'min_size_sqm': {'description': 'Minimum '
+                                                                                                  'advertised '
+                                                                                                  'area '
+                                                                                                  'in '
+                                                                                                  'square '
+                                                                                                  'metres. '
+                                                                                                  'Unknown '
+                                                                                                  'area '
+                                                                                                  'is '
+                                                                                                  'excluded '
+                                                                                                  'when '
+                                                                                                  'set.',
+                                                                                   'minimum': 0,
+                                                                                   'type': 'number'},
+                                                                  'property_type': {'default': 'apartment',
+                                                                                    'description': 'Entire '
+                                                                                                   'apartments '
+                                                                                                   'or '
+                                                                                                   'shared '
+                                                                                                   'rooms. '
+                                                                                                   'Shared '
+                                                                                                   'rooms '
+                                                                                                   'use '
+                                                                                                   'WG-Gesucht.',
+                                                                                    'enum': ['apartment',
+                                                                                             'shared_room'],
+                                                                                    'type': 'string'},
                                                                   'providers': {'description': 'Optional '
                                                                                                'list '
                                                                                                'of '
@@ -1710,7 +2081,30 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '"Berlin", '
                                                                                            '"Munich", '
                                                                                            '"Hamburg".\n',
-                                                                            'type': 'string'}},
+                                                                            'type': 'string'},
+                                                                  'sort': {'default': 'price_asc',
+                                                                           'description': 'Price '
+                                                                                          'ascending, '
+                                                                                          'or '
+                                                                                          'discovery '
+                                                                                          'order '
+                                                                                          'for '
+                                                                                          'monitoring. '
+                                                                                          'Newest '
+                                                                                          'order '
+                                                                                          'is '
+                                                                                          'supported '
+                                                                                          'by '
+                                                                                          'Kleinanzeigen; '
+                                                                                          'other '
+                                                                                          'providers '
+                                                                                          'retain '
+                                                                                          'their '
+                                                                                          'source '
+                                                                                          'order.',
+                                                                           'enum': ['price_asc',
+                                                                                    'newest'],
+                                                                           'type': 'string'}},
                                                    'required': ['query'],
                                                    'type': 'object'},
                                          'type': 'array'}},
@@ -2724,8 +3118,123 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_ts': 'news',
   'description': 'Search for news articles, current events, headlines, announcements.',
   'description_key': 'news.search.description',
-  'output_schema': {'properties': {'result_count': {'type': 'integer'},
-                                   'summary': {'type': 'string'}},
+  'output_schema': {'properties': {'articles': {'example': [{'canonical_url': 'https://example.invalid/news/ai',
+                                                             'description': 'An example article '
+                                                                            'excerpt from the '
+                                                                            'search result.',
+                                                             'page_age': '2026-09-21T08:00:00Z',
+                                                             'provider': 'Example news provider',
+                                                             'source_id': 'https://example.invalid/news/ai',
+                                                             'title': 'New developments in '
+                                                                      'artificial intelligence',
+                                                             'url': 'https://example.invalid/news/ai'}],
+                                                'items': {'example': {'canonical_url': 'https://example.invalid/news/ai',
+                                                                      'description': 'An example '
+                                                                                     'article '
+                                                                                     'excerpt from '
+                                                                                     'the search '
+                                                                                     'result.',
+                                                                      'page_age': '2026-09-21T08:00:00Z',
+                                                                      'provider': 'Example news '
+                                                                                  'provider',
+                                                                      'source_id': 'https://example.invalid/news/ai',
+                                                                      'title': 'New developments '
+                                                                               'in artificial '
+                                                                               'intelligence',
+                                                                      'url': 'https://example.invalid/news/ai'},
+                                                          'properties': {'canonical_url': {'example': 'https://example.invalid/news/ai',
+                                                                                           'type': 'string'},
+                                                                         'description': {'example': 'An '
+                                                                                                    'example '
+                                                                                                    'article '
+                                                                                                    'excerpt '
+                                                                                                    'from '
+                                                                                                    'the '
+                                                                                                    'search '
+                                                                                                    'result.',
+                                                                                         'type': 'string'},
+                                                                         'id': {'type': 'string'},
+                                                                         'page_age': {'example': '2026-09-21T08:00:00Z',
+                                                                                      'type': 'string'},
+                                                                         'provider': {'example': 'Example '
+                                                                                                 'news '
+                                                                                                 'provider',
+                                                                                      'type': 'string'},
+                                                                         'source_id': {'example': 'https://example.invalid/news/ai',
+                                                                                       'type': 'string'},
+                                                                         'title': {'example': 'New '
+                                                                                              'developments '
+                                                                                              'in '
+                                                                                              'artificial '
+                                                                                              'intelligence',
+                                                                                   'type': 'string'},
+                                                                         'url': {'example': 'https://example.invalid/news/ai',
+                                                                                 'type': 'string'}},
+                                                          'type': 'object'},
+                                                'type': 'array'},
+                                   'partial': {'example': False, 'type': 'boolean'},
+                                   'provider': {'example': 'Example news provider',
+                                                'type': 'string'},
+                                   'result_count': {'example': 1, 'type': 'integer'},
+                                   'results': {'example': [{'canonical_url': 'https://example.invalid/news/ai',
+                                                            'description': 'An example article '
+                                                                           'excerpt from the '
+                                                                           'search result.',
+                                                            'page_age': '2026-09-21T08:00:00Z',
+                                                            'provider': 'Example news provider',
+                                                            'source_id': 'https://example.invalid/news/ai',
+                                                            'title': 'New developments in '
+                                                                     'artificial intelligence',
+                                                            'url': 'https://example.invalid/news/ai'}],
+                                               'items': {'example': {'canonical_url': 'https://example.invalid/news/ai',
+                                                                     'description': 'An example '
+                                                                                    'article '
+                                                                                    'excerpt from '
+                                                                                    'the search '
+                                                                                    'result.',
+                                                                     'page_age': '2026-09-21T08:00:00Z',
+                                                                     'provider': 'Example news '
+                                                                                 'provider',
+                                                                     'source_id': 'https://example.invalid/news/ai',
+                                                                     'title': 'New developments in '
+                                                                              'artificial '
+                                                                              'intelligence',
+                                                                     'url': 'https://example.invalid/news/ai'},
+                                                         'properties': {'canonical_url': {'example': 'https://example.invalid/news/ai',
+                                                                                          'type': 'string'},
+                                                                        'description': {'example': 'An '
+                                                                                                   'example '
+                                                                                                   'article '
+                                                                                                   'excerpt '
+                                                                                                   'from '
+                                                                                                   'the '
+                                                                                                   'search '
+                                                                                                   'result.',
+                                                                                        'type': 'string'},
+                                                                        'id': {'type': 'string'},
+                                                                        'page_age': {'example': '2026-09-21T08:00:00Z',
+                                                                                     'type': 'string'},
+                                                                        'provider': {'example': 'Example '
+                                                                                                'news '
+                                                                                                'provider',
+                                                                                     'type': 'string'},
+                                                                        'source_id': {'example': 'https://example.invalid/news/ai',
+                                                                                      'type': 'string'},
+                                                                        'title': {'example': 'New '
+                                                                                             'developments '
+                                                                                             'in '
+                                                                                             'artificial '
+                                                                                             'intelligence',
+                                                                                  'type': 'string'},
+                                                                        'url': {'example': 'https://example.invalid/news/ai',
+                                                                                'type': 'string'}},
+                                                         'type': 'object'},
+                                               'type': 'array'},
+                                   'summary': {'example': 'News search completed',
+                                               'type': 'string'},
+                                   'warnings': {'example': [],
+                                                'items': {'type': 'string'},
+                                                'type': 'array'}},
                     'type': 'object'},
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of search request objects '
                                                         'for parallel processing (up to 5 '
@@ -4161,10 +4670,26 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description_key': 'tasks.skills.create.description',
   'schema': {'properties': {'assignee': {'enum': ['user', 'openmates'], 'type': 'string'},
                             'description': {'type': 'string'},
+                            'link_to_chat': {'default': True,
+                                             'description': 'Default chat-link choice for created '
+                                                            'Tasks; tasks[] can override it.',
+                                             'type': 'boolean'},
                             'tasks': {'items': {'properties': {'assignee': {'enum': ['user',
                                                                                      'openmates'],
                                                                             'type': 'string'},
                                                                'description': {'type': 'string'},
+                                                               'link_to_chat': {'default': True,
+                                                                                'description': 'Link '
+                                                                                               'to '
+                                                                                               'the '
+                                                                                               'current '
+                                                                                               'chat; '
+                                                                                               'false '
+                                                                                               'leaves '
+                                                                                               'the '
+                                                                                               'Task '
+                                                                                               'unlinked.',
+                                                                                'type': 'boolean'},
                                                                'status': {'enum': ['backlog',
                                                                                    'todo',
                                                                                    'in_progress',
@@ -5388,20 +5913,248 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_py': 'weather',
   'app_namespace_ts': 'weather',
   'description': 'Get current and upcoming weather forecasts for a place, including daily weather, '
-                 'temperatures, rain likelihood, and hourly details stored in day embeds. Use this '
-                 'for weather questions, forecast requests, and trip/day planning involving '
-                 'weather.',
+                 'temperatures, rain likelihood, and hourly details stored in day embeds. Use '
+                 'start_date and end_date for an inclusive date range. Use this for weather '
+                 'questions, forecast requests, and trip/day planning involving weather.',
   'description_key': 'apps.weather.forecast.description',
-  'output_schema': {'properties': {'max_temperature_c': {'type': 'number'},
-                                   'rain_probability': {'type': 'number'},
-                                   'summary': {'type': 'string'}},
+  'output_schema': {'properties': {'end_date': {'example': '2026-09-21',
+                                                'format': 'date',
+                                                'type': 'string'},
+                                   'forecast_day': {'example': {'condition': 'rain',
+                                                                'date': '2026-09-21',
+                                                                'hourly': [{'condition': 'rain',
+                                                                            'precipitation_mm': 0.4,
+                                                                            'precipitation_probability_pct': 60,
+                                                                            'temperature_c': 18,
+                                                                            'time': '12:00',
+                                                                            'timestamp': '2026-09-21T12:00:00+02:00'}],
+                                                                'precipitation_probability_max_pct': 60,
+                                                                'precipitation_total_mm': 1.2,
+                                                                'temperature_max_c': 20,
+                                                                'temperature_min_c': 12,
+                                                                'timezone': 'Europe/Berlin',
+                                                                'title': 'Berlin weather'},
+                                                    'properties': {'condition': {'example': 'rain',
+                                                                                 'type': ['string',
+                                                                                          'null']},
+                                                                   'date': {'example': '2026-09-21',
+                                                                            'type': 'string'},
+                                                                   'hourly': {'example': [{'condition': 'rain',
+                                                                                           'precipitation_mm': 0.4,
+                                                                                           'precipitation_probability_pct': 60,
+                                                                                           'temperature_c': 18,
+                                                                                           'time': '12:00',
+                                                                                           'timestamp': '2026-09-21T12:00:00+02:00'}],
+                                                                              'items': {'example': {'condition': 'rain',
+                                                                                                    'precipitation_mm': 0.4,
+                                                                                                    'precipitation_probability_pct': 60,
+                                                                                                    'temperature_c': 18,
+                                                                                                    'time': '12:00',
+                                                                                                    'timestamp': '2026-09-21T12:00:00+02:00'},
+                                                                                        'properties': {'condition': {'example': 'rain',
+                                                                                                                     'type': ['string',
+                                                                                                                              'null']},
+                                                                                                       'precipitation_mm': {'example': 0.4,
+                                                                                                                            'type': ['number',
+                                                                                                                                     'null']},
+                                                                                                       'precipitation_probability_pct': {'example': 60,
+                                                                                                                                         'type': ['number',
+                                                                                                                                                  'null']},
+                                                                                                       'temperature_c': {'example': 18,
+                                                                                                                         'type': ['number',
+                                                                                                                                  'null']},
+                                                                                                       'time': {'example': '12:00',
+                                                                                                                'type': 'string'},
+                                                                                                       'timestamp': {'example': '2026-09-21T12:00:00+02:00',
+                                                                                                                     'type': 'string'}},
+                                                                                        'type': 'object'},
+                                                                              'type': 'array'},
+                                                                   'precipitation_probability_max_pct': {'example': 60,
+                                                                                                         'type': ['number',
+                                                                                                                  'null']},
+                                                                   'precipitation_total_mm': {'example': 1.2,
+                                                                                              'type': ['number',
+                                                                                                       'null']},
+                                                                   'temperature_max_c': {'example': 20,
+                                                                                         'type': ['number',
+                                                                                                  'null']},
+                                                                   'temperature_min_c': {'example': 12,
+                                                                                         'type': ['number',
+                                                                                                  'null']},
+                                                                   'timezone': {'example': 'Europe/Berlin',
+                                                                                'type': 'string'},
+                                                                   'title': {'example': 'Berlin '
+                                                                                        'weather',
+                                                                             'type': 'string'}},
+                                                    'type': 'object'},
+                                   'forecast_days': {'example': [{'condition': 'rain',
+                                                                  'date': '2026-09-21',
+                                                                  'hourly': [{'condition': 'rain',
+                                                                              'precipitation_mm': 0.4,
+                                                                              'precipitation_probability_pct': 60,
+                                                                              'temperature_c': 18,
+                                                                              'time': '12:00',
+                                                                              'timestamp': '2026-09-21T12:00:00+02:00'}],
+                                                                  'precipitation_probability_max_pct': 60,
+                                                                  'precipitation_total_mm': 1.2,
+                                                                  'temperature_max_c': 20,
+                                                                  'temperature_min_c': 12,
+                                                                  'timezone': 'Europe/Berlin',
+                                                                  'title': 'Berlin weather'}],
+                                                     'items': {'example': {'condition': 'rain',
+                                                                           'date': '2026-09-21',
+                                                                           'hourly': [{'condition': 'rain',
+                                                                                       'precipitation_mm': 0.4,
+                                                                                       'precipitation_probability_pct': 60,
+                                                                                       'temperature_c': 18,
+                                                                                       'time': '12:00',
+                                                                                       'timestamp': '2026-09-21T12:00:00+02:00'}],
+                                                                           'precipitation_probability_max_pct': 60,
+                                                                           'precipitation_total_mm': 1.2,
+                                                                           'temperature_max_c': 20,
+                                                                           'temperature_min_c': 12,
+                                                                           'timezone': 'Europe/Berlin',
+                                                                           'title': 'Berlin '
+                                                                                    'weather'},
+                                                               'properties': {'condition': {'example': 'rain',
+                                                                                            'type': ['string',
+                                                                                                     'null']},
+                                                                              'date': {'example': '2026-09-21',
+                                                                                       'type': 'string'},
+                                                                              'hourly': {'example': [{'condition': 'rain',
+                                                                                                      'precipitation_mm': 0.4,
+                                                                                                      'precipitation_probability_pct': 60,
+                                                                                                      'temperature_c': 18,
+                                                                                                      'time': '12:00',
+                                                                                                      'timestamp': '2026-09-21T12:00:00+02:00'}],
+                                                                                         'items': {'example': {'condition': 'rain',
+                                                                                                               'precipitation_mm': 0.4,
+                                                                                                               'precipitation_probability_pct': 60,
+                                                                                                               'temperature_c': 18,
+                                                                                                               'time': '12:00',
+                                                                                                               'timestamp': '2026-09-21T12:00:00+02:00'},
+                                                                                                   'properties': {'condition': {'example': 'rain',
+                                                                                                                                'type': ['string',
+                                                                                                                                         'null']},
+                                                                                                                  'precipitation_mm': {'example': 0.4,
+                                                                                                                                       'type': ['number',
+                                                                                                                                                'null']},
+                                                                                                                  'precipitation_probability_pct': {'example': 60,
+                                                                                                                                                    'type': ['number',
+                                                                                                                                                             'null']},
+                                                                                                                  'temperature_c': {'example': 18,
+                                                                                                                                    'type': ['number',
+                                                                                                                                             'null']},
+                                                                                                                  'time': {'example': '12:00',
+                                                                                                                           'type': 'string'},
+                                                                                                                  'timestamp': {'example': '2026-09-21T12:00:00+02:00',
+                                                                                                                                'type': 'string'}},
+                                                                                                   'type': 'object'},
+                                                                                         'type': 'array'},
+                                                                              'precipitation_probability_max_pct': {'example': 60,
+                                                                                                                    'type': ['number',
+                                                                                                                             'null']},
+                                                                              'precipitation_total_mm': {'example': 1.2,
+                                                                                                         'type': ['number',
+                                                                                                                  'null']},
+                                                                              'temperature_max_c': {'example': 20,
+                                                                                                    'type': ['number',
+                                                                                                             'null']},
+                                                                              'temperature_min_c': {'example': 12,
+                                                                                                    'type': ['number',
+                                                                                                             'null']},
+                                                                              'timezone': {'example': 'Europe/Berlin',
+                                                                                           'type': 'string'},
+                                                                              'title': {'example': 'Berlin '
+                                                                                                   'weather',
+                                                                                        'type': 'string'}},
+                                                               'type': 'object'},
+                                                     'type': 'array'},
+                                   'hourly': {'example': [{'condition': 'rain',
+                                                           'precipitation_mm': 0.4,
+                                                           'precipitation_probability_pct': 60,
+                                                           'temperature_c': 18,
+                                                           'time': '12:00',
+                                                           'timestamp': '2026-09-21T12:00:00+02:00'}],
+                                              'items': {'example': {'condition': 'rain',
+                                                                    'precipitation_mm': 0.4,
+                                                                    'precipitation_probability_pct': 60,
+                                                                    'temperature_c': 18,
+                                                                    'time': '12:00',
+                                                                    'timestamp': '2026-09-21T12:00:00+02:00'},
+                                                        'properties': {'condition': {'example': 'rain',
+                                                                                     'type': ['string',
+                                                                                              'null']},
+                                                                       'precipitation_mm': {'example': 0.4,
+                                                                                            'type': ['number',
+                                                                                                     'null']},
+                                                                       'precipitation_probability_pct': {'example': 60,
+                                                                                                         'type': ['number',
+                                                                                                                  'null']},
+                                                                       'temperature_c': {'example': 18,
+                                                                                         'type': ['number',
+                                                                                                  'null']},
+                                                                       'time': {'example': '12:00',
+                                                                                'type': 'string'},
+                                                                       'timestamp': {'example': '2026-09-21T12:00:00+02:00',
+                                                                                     'type': 'string'}},
+                                                        'type': 'object'},
+                                              'type': 'array'},
+                                   'max_temperature_c': {'example': 20, 'type': ['number', 'null']},
+                                   'rain_expected': {'example': True, 'type': ['boolean', 'null']},
+                                   'rain_periods': {'example': [{'end': '2026-09-21T14:00:00+02:00',
+                                                                 'end_time': '14:00',
+                                                                 'probability_pct': 60,
+                                                                 'start': '2026-09-21T12:00:00+02:00',
+                                                                 'start_time': '12:00',
+                                                                 'timezone': 'Europe/Berlin'}],
+                                                    'items': {'example': {'end': '2026-09-21T14:00:00+02:00',
+                                                                          'end_time': '14:00',
+                                                                          'probability_pct': 60,
+                                                                          'start': '2026-09-21T12:00:00+02:00',
+                                                                          'start_time': '12:00',
+                                                                          'timezone': 'Europe/Berlin'},
+                                                              'properties': {'end': {'example': '2026-09-21T14:00:00+02:00',
+                                                                                     'type': 'string'},
+                                                                             'end_time': {'example': '14:00',
+                                                                                          'type': 'string'},
+                                                                             'probability_pct': {'example': 60,
+                                                                                                 'type': ['number',
+                                                                                                          'null']},
+                                                                             'start': {'example': '2026-09-21T12:00:00+02:00',
+                                                                                       'type': 'string'},
+                                                                             'start_time': {'example': '12:00',
+                                                                                            'type': 'string'},
+                                                                             'timezone': {'example': 'Europe/Berlin',
+                                                                                          'type': ['string',
+                                                                                                   'null']}},
+                                                              'type': 'object'},
+                                                    'type': 'array'},
+                                   'rain_probability': {'example': 60, 'type': ['number', 'null']},
+                                   'rain_summary': {'example': 'Rain is forecast today: '
+                                                               '12:00–14:00 (Europe/Berlin).',
+                                                    'type': 'string'},
+                                   'result_count': {'example': 1, 'type': 'integer'},
+                                   'start_date': {'example': '2026-09-21',
+                                                  'format': 'date',
+                                                  'type': 'string'},
+                                   'summary': {'example': 'Weather forecast for Berlin',
+                                               'type': 'string'}},
                     'type': 'object'},
   'schema': {'properties': {'days': {'default': 7,
-                                     'description': 'Number of forecast days to return. Defaults '
-                                                    'to 7. Maximum 14.',
+                                     'description': 'Compatibility input for older clients. Number '
+                                                    'of days from today; defaults to 7 and cannot '
+                                                    'be combined with start_date/end_date.',
                                      'maximum': 14,
                                      'minimum': 1,
-                                     'type': 'integer'},
+                                     'type': 'integer',
+                                     'x-ui': {'hidden': True}},
+                            'end_date': {'description': 'Last forecast date, inclusive, in the '
+                                                        'location timezone. Must be within the '
+                                                        '14-day forecast window and supplied with '
+                                                        'start_date.',
+                                         'format': 'date',
+                                         'type': 'string'},
                             'latitude': {'description': 'Optional latitude in decimal degrees. Use '
                                                         'with longitude for exact coordinates.',
                                          'type': 'number'},
@@ -5412,6 +6165,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                             'longitude': {'description': 'Optional longitude in decimal degrees. '
                                                          'Use with latitude for exact coordinates.',
                                           'type': 'number'},
+                            'start_date': {'description': 'First forecast date, inclusive, in the '
+                                                          'location timezone. Must be today or '
+                                                          'later and supplied with end_date.',
+                                           'format': 'date',
+                                           'type': 'string'},
                             'timezone': {'description': 'Optional IANA timezone. Defaults to '
                                                         'provider/location timezone.',
                                          'type': 'string'},
@@ -5421,7 +6179,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                       'enum': ['metric'],
                                       'type': 'string'}},
              'required': ['location'],
-             'type': 'object'},
+             'type': 'object',
+             'x-ui': {'control': 'date-range',
+                      'default': 'today',
+                      'end_field': 'end_date',
+                      'max_offset_days': 13,
+                      'min': 'today',
+                      'start_field': 'start_date'}},
   'skill_id': 'forecast',
   'skill_method_py': 'forecast',
   'skill_method_ts': 'forecast'},
@@ -6381,7 +7145,7 @@ class WeatherAppSkills:
         self._run_skill = run_skill
 
     def forecast(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Get current and upcoming weather forecasts for a place, including daily weather, temperatures, rain likelihood, and hourly details stored in day embeds. Use this for weather questions, forecast requests, and trip/day planning involving weather.
+        """Get current and upcoming weather forecasts for a place, including daily weather, temperatures, rain likelihood, and hourly details stored in day embeds. Use start_date and end_date for an inclusive date range. Use this for weather questions, forecast requests, and trip/day planning involving weather.
 
         Description key: apps.weather.forecast.description
         Skill: weather/forecast

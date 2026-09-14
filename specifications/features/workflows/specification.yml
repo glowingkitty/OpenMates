@@ -151,11 +151,17 @@ assertions:
     - examples.schedule_edges
   - id: workflows.actions.skill-contract
     type: behavior
-    must: Use app skill exposes only explicitly workflow-supported, registered and runtime-verified skills with
+    must: >
+      Use app skill exposes only explicitly workflow-supported, registered and runtime-verified skills with
       typed inputs/outputs, required authorization and known charging behavior. Weather, news, events and home
       search are V1 launch use cases; capability presence alone is not execution proof. Provider-specific filters
       stay in skill inputs where supported; unavailable fields are not invented, partial failure remains distinct
       from empty success, and provider output is validated untrusted data rather than executable instructions.
+      Weather authors an inclusive local-date start_date/end_date range within the current 14-day forecast
+      window (Today through Today plus 13), and its Today runtime value resolves again in the Workflow timezone
+      for every full run and node Test. Legacy days input remains transport-compatible but is not offered by the
+      builder. Shared map selection writes the skill's real city semantics: Weather location plus latitude and
+      longitude, Events request location plus lat and lon, and Home request query as the selected city.
     depends_on:
     - examples.skill_contract
   - id: workflows.billing.skill-usage
@@ -178,7 +184,11 @@ assertions:
     - examples.filter
   - id: workflows.control.check
     type: behavior
-    must: Check serializes as check and evaluates deterministic typed conditions on accessible earlier values or list counts. Equality, numeric comparisons, contains/starts-with, existence and all/any groups require no executable user code. Only the matching branch executes, an empty branch does nothing, and execution then resumes the continuation. Branch-local values stay scoped; legacy decision nodes are not silently renamed.
+    must: >
+      Check serializes as check and evaluates deterministic typed conditions on accessible earlier values or list counts. Equality, numeric comparisons, contains/starts-with, existence and all/any groups require no executable user code. Only the matching branch executes, an empty branch does nothing, and execution then resumes the continuation. Branch-local values stay scoped; legacy decision nodes are not silently renamed.
+      Removing a Check preserves a downstream dependency on matched only when an equality-to-true Check over an
+      earlier boolean can be replaced by that same typed boolean. Any remaining dependency on the removed Check
+      causes a clear rejection that names the dependent steps instead of saving a broken graph.
     depends_on:
     - examples.check
   - id: workflows.control.typed-data

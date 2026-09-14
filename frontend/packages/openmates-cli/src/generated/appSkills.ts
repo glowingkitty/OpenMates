@@ -1005,7 +1005,7 @@ export const APP_SKILL_METADATA = [
               },
               "start_date": {
                 "type": "string",
-                "description": "Start of date range in ISO 8601 format. Include timezone if known (e.g. '2026-03-01T00:00:00+01:00[Europe/Berlin]'). If omitted, defaults to now."
+                "description": "Start of date range in ISO 8601 format. Include UTC offset if known (e.g. '2026-03-01T00:00:00+01:00'). An optional matching IANA annotation such as [Europe/Berlin] is accepted. Preserve the user's requested date range. If omitted, defaults to now."
               },
               "end_date": {
                 "type": "string",
@@ -1103,10 +1103,205 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "summary": {
-          "type": "string"
+          "type": "string",
+          "example": "Events search completed"
         },
         "result_count": {
-          "type": "integer"
+          "type": "integer",
+          "example": 1
+        },
+        "provider": {
+          "type": "string",
+          "example": "Example events provider"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "example-event"
+              },
+              "source_id": {
+                "type": "string",
+                "example": "example-event"
+              },
+              "title": {
+                "type": "string",
+                "example": "AI community meetup"
+              },
+              "url": {
+                "type": "string",
+                "example": "https://example.invalid/events/ai"
+              },
+              "canonical_url": {
+                "type": "string",
+                "example": "https://example.invalid/events/ai"
+              },
+              "provider": {
+                "type": "string",
+                "example": "Example events provider"
+              },
+              "description": {
+                "type": "string",
+                "example": "An example meetup for people working with AI."
+              },
+              "date_start": {
+                "type": "string",
+                "example": "2026-09-23T18:00:00+02:00"
+              },
+              "date_end": {
+                "type": "string",
+                "example": "2026-09-23T20:00:00+02:00"
+              },
+              "location": {
+                "type": "string",
+                "example": "Berlin"
+              },
+              "event_type": {
+                "type": "string",
+                "example": "PHYSICAL"
+              },
+              "price_amount": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 0
+              }
+            },
+            "example": {
+              "id": "example-event",
+              "source_id": "example-event",
+              "title": "AI community meetup",
+              "url": "https://example.invalid/events/ai",
+              "canonical_url": "https://example.invalid/events/ai",
+              "provider": "Example events provider",
+              "date_start": "2026-09-23T18:00:00+02:00",
+              "date_end": "2026-09-23T20:00:00+02:00",
+              "location": "Berlin",
+              "event_type": "PHYSICAL",
+              "description": "An example meetup for people working with AI.",
+              "price_amount": 0
+            }
+          },
+          "example": [
+            {
+              "id": "example-event",
+              "source_id": "example-event",
+              "title": "AI community meetup",
+              "url": "https://example.invalid/events/ai",
+              "canonical_url": "https://example.invalid/events/ai",
+              "provider": "Example events provider",
+              "date_start": "2026-09-23T18:00:00+02:00",
+              "date_end": "2026-09-23T20:00:00+02:00",
+              "location": "Berlin",
+              "event_type": "PHYSICAL",
+              "description": "An example meetup for people working with AI.",
+              "price_amount": 0
+            }
+          ]
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "example-event"
+              },
+              "source_id": {
+                "type": "string",
+                "example": "example-event"
+              },
+              "title": {
+                "type": "string",
+                "example": "AI community meetup"
+              },
+              "url": {
+                "type": "string",
+                "example": "https://example.invalid/events/ai"
+              },
+              "canonical_url": {
+                "type": "string",
+                "example": "https://example.invalid/events/ai"
+              },
+              "provider": {
+                "type": "string",
+                "example": "Example events provider"
+              },
+              "description": {
+                "type": "string",
+                "example": "An example meetup for people working with AI."
+              },
+              "date_start": {
+                "type": "string",
+                "example": "2026-09-23T18:00:00+02:00"
+              },
+              "date_end": {
+                "type": "string",
+                "example": "2026-09-23T20:00:00+02:00"
+              },
+              "location": {
+                "type": "string",
+                "example": "Berlin"
+              },
+              "event_type": {
+                "type": "string",
+                "example": "PHYSICAL"
+              },
+              "price_amount": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 0
+              }
+            },
+            "example": {
+              "id": "example-event",
+              "source_id": "example-event",
+              "title": "AI community meetup",
+              "url": "https://example.invalid/events/ai",
+              "canonical_url": "https://example.invalid/events/ai",
+              "provider": "Example events provider",
+              "date_start": "2026-09-23T18:00:00+02:00",
+              "date_end": "2026-09-23T20:00:00+02:00",
+              "location": "Berlin",
+              "event_type": "PHYSICAL",
+              "description": "An example meetup for people working with AI.",
+              "price_amount": 0
+            }
+          },
+          "example": [
+            {
+              "id": "example-event",
+              "source_id": "example-event",
+              "title": "AI community meetup",
+              "url": "https://example.invalid/events/ai",
+              "canonical_url": "https://example.invalid/events/ai",
+              "provider": "Example events provider",
+              "date_start": "2026-09-23T18:00:00+02:00",
+              "date_end": "2026-09-23T20:00:00+02:00",
+              "location": "Berlin",
+              "event_type": "PHYSICAL",
+              "description": "An example meetup for people working with AI.",
+              "price_amount": 0
+            }
+          ]
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "example": []
+        },
+        "partial": {
+          "type": "boolean",
+          "example": false
         }
       }
     }
@@ -1297,11 +1492,13 @@ export const APP_SKILL_METADATA = [
               "max_doctors": {
                 "type": "integer",
                 "description": "Maximum number of doctors to check for availability. Higher values return more results but take longer. Defaults to 10.\n",
-                "default": 10
+                "default": 10,
+                "minimum": 1,
+                "maximum": 30
               },
               "visit_motive_category": {
                 "type": "string",
-                "description": "Filter results by appointment type category. When set, the skill searches a larger pool of doctors and filters by the Doctolib visit motive name to return only relevant appointment types. \"general\" = consultation, acute visit, new patient examination. \"checkup\" = preventive screening, health check, cancer screening. \"vaccination\" = immunisation appointments. \"followup\" = follow-up visit, existing patient, check-up after treatment.\n",
+                "description": "Filter results by appointment type category for both providers. Omission means general consultation unless a supported specific procedure (such as CT or MRT) was requested. An initial injury examination must not be replaced by a treatment appointment. Matching filters apply before availability ranking. \"general\" = consultation, acute visit, new patient examination. \"checkup\" = preventive screening, health check, cancer screening. \"vaccination\" = immunisation appointments. \"followup\" = follow-up visit, existing patient, check-up after treatment.\n",
                 "enum": [
                   "general",
                   "checkup",
@@ -1379,6 +1576,39 @@ export const APP_SKILL_METADATA = [
                   ]
                 }
               },
+              "property_type": {
+                "type": "string",
+                "enum": [
+                  "apartment",
+                  "shared_room"
+                ],
+                "default": "apartment",
+                "description": "Entire apartments or shared rooms. Shared rooms use WG-Gesucht."
+              },
+              "sort": {
+                "type": "string",
+                "enum": [
+                  "price_asc",
+                  "newest"
+                ],
+                "default": "price_asc",
+                "description": "Price ascending, or discovery order for monitoring. Newest order is supported by Kleinanzeigen; other providers retain their source order."
+              },
+              "max_price_eur": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Maximum advertised monthly rent or purchase price in EUR. Price basis varies by provider."
+              },
+              "min_rooms": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Minimum advertised rooms. Results with unknown rooms are excluded when set."
+              },
+              "min_size_sqm": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Minimum advertised area in square metres. Unknown area is excluded when set."
+              },
               "max_results": {
                 "type": "integer",
                 "description": "Maximum number of listings to return (1-20, default 10).",
@@ -1396,6 +1626,248 @@ export const APP_SKILL_METADATA = [
       "required": [
         "requests"
       ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "example": "Home search completed"
+        },
+        "result_count": {
+          "type": "integer",
+          "example": 1
+        },
+        "provider": {
+          "type": "string",
+          "example": "Example housing provider"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "example-listing"
+              },
+              "source_id": {
+                "type": "string",
+                "example": "example-listing"
+              },
+              "title": {
+                "type": "string",
+                "example": "Two-room apartment"
+              },
+              "url": {
+                "type": "string",
+                "example": "https://example.invalid/apartments/one"
+              },
+              "canonical_url": {
+                "type": "string",
+                "example": "https://example.invalid/apartments/one"
+              },
+              "provider": {
+                "type": "string",
+                "example": "Example housing provider"
+              },
+              "price": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 1100
+              },
+              "price_label": {
+                "type": "string",
+                "example": "1.100 EUR/month"
+              },
+              "size_sqm": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 55
+              },
+              "rooms": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 2
+              },
+              "address": {
+                "type": "string",
+                "example": "Berlin"
+              },
+              "property_type": {
+                "type": "string",
+                "example": "apartment"
+              },
+              "listing_type": {
+                "type": "string",
+                "example": "rent"
+              },
+              "available_from": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "example": {
+              "id": "example-listing",
+              "source_id": "example-listing",
+              "title": "Two-room apartment",
+              "url": "https://example.invalid/apartments/one",
+              "canonical_url": "https://example.invalid/apartments/one",
+              "provider": "Example housing provider",
+              "price": 1100,
+              "price_label": "1.100 EUR/month",
+              "size_sqm": 55,
+              "rooms": 2,
+              "address": "Berlin",
+              "property_type": "apartment",
+              "listing_type": "rent"
+            }
+          },
+          "example": [
+            {
+              "id": "example-listing",
+              "source_id": "example-listing",
+              "title": "Two-room apartment",
+              "url": "https://example.invalid/apartments/one",
+              "canonical_url": "https://example.invalid/apartments/one",
+              "provider": "Example housing provider",
+              "price": 1100,
+              "price_label": "1.100 EUR/month",
+              "size_sqm": 55,
+              "rooms": 2,
+              "address": "Berlin",
+              "property_type": "apartment",
+              "listing_type": "rent"
+            }
+          ]
+        },
+        "listings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "example-listing"
+              },
+              "source_id": {
+                "type": "string",
+                "example": "example-listing"
+              },
+              "title": {
+                "type": "string",
+                "example": "Two-room apartment"
+              },
+              "url": {
+                "type": "string",
+                "example": "https://example.invalid/apartments/one"
+              },
+              "canonical_url": {
+                "type": "string",
+                "example": "https://example.invalid/apartments/one"
+              },
+              "provider": {
+                "type": "string",
+                "example": "Example housing provider"
+              },
+              "price": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 1100
+              },
+              "price_label": {
+                "type": "string",
+                "example": "1.100 EUR/month"
+              },
+              "size_sqm": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 55
+              },
+              "rooms": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 2
+              },
+              "address": {
+                "type": "string",
+                "example": "Berlin"
+              },
+              "property_type": {
+                "type": "string",
+                "example": "apartment"
+              },
+              "listing_type": {
+                "type": "string",
+                "example": "rent"
+              },
+              "available_from": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "example": {
+              "id": "example-listing",
+              "source_id": "example-listing",
+              "title": "Two-room apartment",
+              "url": "https://example.invalid/apartments/one",
+              "canonical_url": "https://example.invalid/apartments/one",
+              "provider": "Example housing provider",
+              "price": 1100,
+              "price_label": "1.100 EUR/month",
+              "size_sqm": 55,
+              "rooms": 2,
+              "address": "Berlin",
+              "property_type": "apartment",
+              "listing_type": "rent"
+            }
+          },
+          "example": [
+            {
+              "id": "example-listing",
+              "source_id": "example-listing",
+              "title": "Two-room apartment",
+              "url": "https://example.invalid/apartments/one",
+              "canonical_url": "https://example.invalid/apartments/one",
+              "provider": "Example housing provider",
+              "price": 1100,
+              "price_label": "1.100 EUR/month",
+              "size_sqm": 55,
+              "rooms": 2,
+              "address": "Berlin",
+              "property_type": "apartment",
+              "listing_type": "rent"
+            }
+          ]
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "example": []
+        },
+        "partial": {
+          "type": "boolean",
+          "example": false
+        }
+      }
     }
   },
   {
@@ -2105,10 +2577,145 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "summary": {
-          "type": "string"
+          "type": "string",
+          "example": "News search completed"
         },
         "result_count": {
-          "type": "integer"
+          "type": "integer",
+          "example": 1
+        },
+        "provider": {
+          "type": "string",
+          "example": "Example news provider"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "source_id": {
+                "type": "string",
+                "example": "https://example.invalid/news/ai"
+              },
+              "title": {
+                "type": "string",
+                "example": "New developments in artificial intelligence"
+              },
+              "url": {
+                "type": "string",
+                "example": "https://example.invalid/news/ai"
+              },
+              "canonical_url": {
+                "type": "string",
+                "example": "https://example.invalid/news/ai"
+              },
+              "provider": {
+                "type": "string",
+                "example": "Example news provider"
+              },
+              "description": {
+                "type": "string",
+                "example": "An example article excerpt from the search result."
+              },
+              "page_age": {
+                "type": "string",
+                "example": "2026-09-21T08:00:00Z"
+              }
+            },
+            "example": {
+              "title": "New developments in artificial intelligence",
+              "url": "https://example.invalid/news/ai",
+              "canonical_url": "https://example.invalid/news/ai",
+              "source_id": "https://example.invalid/news/ai",
+              "provider": "Example news provider",
+              "description": "An example article excerpt from the search result.",
+              "page_age": "2026-09-21T08:00:00Z"
+            }
+          },
+          "example": [
+            {
+              "title": "New developments in artificial intelligence",
+              "url": "https://example.invalid/news/ai",
+              "canonical_url": "https://example.invalid/news/ai",
+              "source_id": "https://example.invalid/news/ai",
+              "provider": "Example news provider",
+              "description": "An example article excerpt from the search result.",
+              "page_age": "2026-09-21T08:00:00Z"
+            }
+          ]
+        },
+        "articles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "source_id": {
+                "type": "string",
+                "example": "https://example.invalid/news/ai"
+              },
+              "title": {
+                "type": "string",
+                "example": "New developments in artificial intelligence"
+              },
+              "url": {
+                "type": "string",
+                "example": "https://example.invalid/news/ai"
+              },
+              "canonical_url": {
+                "type": "string",
+                "example": "https://example.invalid/news/ai"
+              },
+              "provider": {
+                "type": "string",
+                "example": "Example news provider"
+              },
+              "description": {
+                "type": "string",
+                "example": "An example article excerpt from the search result."
+              },
+              "page_age": {
+                "type": "string",
+                "example": "2026-09-21T08:00:00Z"
+              }
+            },
+            "example": {
+              "title": "New developments in artificial intelligence",
+              "url": "https://example.invalid/news/ai",
+              "canonical_url": "https://example.invalid/news/ai",
+              "source_id": "https://example.invalid/news/ai",
+              "provider": "Example news provider",
+              "description": "An example article excerpt from the search result.",
+              "page_age": "2026-09-21T08:00:00Z"
+            }
+          },
+          "example": [
+            {
+              "title": "New developments in artificial intelligence",
+              "url": "https://example.invalid/news/ai",
+              "canonical_url": "https://example.invalid/news/ai",
+              "source_id": "https://example.invalid/news/ai",
+              "provider": "Example news provider",
+              "description": "An example article excerpt from the search result.",
+              "page_age": "2026-09-21T08:00:00Z"
+            }
+          ]
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "example": []
+        },
+        "partial": {
+          "type": "boolean",
+          "example": false
         }
       }
     }
@@ -3060,6 +3667,11 @@ export const APP_SKILL_METADATA = [
           "items": {
             "type": "object",
             "properties": {
+              "link_to_chat": {
+                "type": "boolean",
+                "default": true,
+                "description": "Link to the current chat; false leaves the Task unlinked."
+              },
               "title": {
                 "type": "string"
               },
@@ -3084,6 +3696,11 @@ export const APP_SKILL_METADATA = [
               }
             }
           }
+        },
+        "link_to_chat": {
+          "type": "boolean",
+          "default": true,
+          "description": "Default chat-link choice for created Tasks; tasks[] can override it."
         },
         "title": {
           "type": "string",
@@ -3787,9 +4404,17 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "weather",
     "skill_method_py": "forecast",
     "description_key": "apps.weather.forecast.description",
-    "description": "Get current and upcoming weather forecasts for a place, including daily weather, temperatures, rain likelihood, and hourly details stored in day embeds. Use this for weather questions, forecast requests, and trip/day planning involving weather.",
+    "description": "Get current and upcoming weather forecasts for a place, including daily weather, temperatures, rain likelihood, and hourly details stored in day embeds. Use start_date and end_date for an inclusive date range. Use this for weather questions, forecast requests, and trip/day planning involving weather.",
     "schema": {
       "type": "object",
+      "x-ui": {
+        "control": "date-range",
+        "start_field": "start_date",
+        "end_field": "end_date",
+        "min": "today",
+        "max_offset_days": 13,
+        "default": "today"
+      },
       "properties": {
         "location": {
           "type": "string",
@@ -3797,10 +4422,23 @@ export const APP_SKILL_METADATA = [
         },
         "days": {
           "type": "integer",
-          "description": "Number of forecast days to return. Defaults to 7. Maximum 14.",
+          "description": "Compatibility input for older clients. Number of days from today; defaults to 7 and cannot be combined with start_date/end_date.",
           "minimum": 1,
           "maximum": 14,
-          "default": 7
+          "default": 7,
+          "x-ui": {
+            "hidden": true
+          }
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date",
+          "description": "First forecast date, inclusive, in the location timezone. Must be today or later and supplied with end_date."
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Last forecast date, inclusive, in the location timezone. Must be within the 14-day forecast window and supplied with start_date."
         },
         "latitude": {
           "type": "number",
@@ -3831,13 +4469,458 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "summary": {
-          "type": "string"
+          "type": "string",
+          "example": "Weather forecast for Berlin"
+        },
+        "result_count": {
+          "type": "integer",
+          "example": 1
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date",
+          "example": "2026-09-21"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date",
+          "example": "2026-09-21"
         },
         "rain_probability": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ],
+          "example": 60
         },
         "max_temperature_c": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ],
+          "example": 20
+        },
+        "rain_expected": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "example": true
+        },
+        "rain_summary": {
+          "type": "string",
+          "example": "Rain is forecast today: 12:00\u201314:00 (Europe/Berlin)."
+        },
+        "forecast_day": {
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": "string",
+              "example": "2026-09-21"
+            },
+            "title": {
+              "type": "string",
+              "example": "Berlin weather"
+            },
+            "timezone": {
+              "type": "string",
+              "example": "Europe/Berlin"
+            },
+            "condition": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "example": "rain"
+            },
+            "temperature_min_c": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "example": 12
+            },
+            "temperature_max_c": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "example": 20
+            },
+            "precipitation_total_mm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "example": 1.2
+            },
+            "precipitation_probability_max_pct": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "example": 60
+            },
+            "hourly": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "timestamp": {
+                    "type": "string",
+                    "example": "2026-09-21T12:00:00+02:00"
+                  },
+                  "time": {
+                    "type": "string",
+                    "example": "12:00"
+                  },
+                  "precipitation_mm": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "example": 0.4
+                  },
+                  "precipitation_probability_pct": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "example": 60
+                  },
+                  "condition": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "example": "rain"
+                  },
+                  "temperature_c": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "example": 18
+                  }
+                },
+                "example": {
+                  "timestamp": "2026-09-21T12:00:00+02:00",
+                  "time": "12:00",
+                  "precipitation_mm": 0.4,
+                  "precipitation_probability_pct": 60,
+                  "condition": "rain",
+                  "temperature_c": 18
+                }
+              },
+              "example": [
+                {
+                  "timestamp": "2026-09-21T12:00:00+02:00",
+                  "time": "12:00",
+                  "precipitation_mm": 0.4,
+                  "precipitation_probability_pct": 60,
+                  "condition": "rain",
+                  "temperature_c": 18
+                }
+              ]
+            }
+          },
+          "example": {
+            "date": "2026-09-21",
+            "title": "Berlin weather",
+            "timezone": "Europe/Berlin",
+            "condition": "rain",
+            "temperature_min_c": 12,
+            "temperature_max_c": 20,
+            "precipitation_total_mm": 1.2,
+            "precipitation_probability_max_pct": 60,
+            "hourly": [
+              {
+                "timestamp": "2026-09-21T12:00:00+02:00",
+                "time": "12:00",
+                "precipitation_mm": 0.4,
+                "precipitation_probability_pct": 60,
+                "condition": "rain",
+                "temperature_c": 18
+              }
+            ]
+          }
+        },
+        "forecast_days": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "example": "2026-09-21"
+              },
+              "title": {
+                "type": "string",
+                "example": "Berlin weather"
+              },
+              "timezone": {
+                "type": "string",
+                "example": "Europe/Berlin"
+              },
+              "condition": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "example": "rain"
+              },
+              "temperature_min_c": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 12
+              },
+              "temperature_max_c": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 20
+              },
+              "precipitation_total_mm": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 1.2
+              },
+              "precipitation_probability_max_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 60
+              },
+              "hourly": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "timestamp": {
+                      "type": "string",
+                      "example": "2026-09-21T12:00:00+02:00"
+                    },
+                    "time": {
+                      "type": "string",
+                      "example": "12:00"
+                    },
+                    "precipitation_mm": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "example": 0.4
+                    },
+                    "precipitation_probability_pct": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "example": 60
+                    },
+                    "condition": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "example": "rain"
+                    },
+                    "temperature_c": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "example": 18
+                    }
+                  },
+                  "example": {
+                    "timestamp": "2026-09-21T12:00:00+02:00",
+                    "time": "12:00",
+                    "precipitation_mm": 0.4,
+                    "precipitation_probability_pct": 60,
+                    "condition": "rain",
+                    "temperature_c": 18
+                  }
+                },
+                "example": [
+                  {
+                    "timestamp": "2026-09-21T12:00:00+02:00",
+                    "time": "12:00",
+                    "precipitation_mm": 0.4,
+                    "precipitation_probability_pct": 60,
+                    "condition": "rain",
+                    "temperature_c": 18
+                  }
+                ]
+              }
+            },
+            "example": {
+              "date": "2026-09-21",
+              "title": "Berlin weather",
+              "timezone": "Europe/Berlin",
+              "condition": "rain",
+              "temperature_min_c": 12,
+              "temperature_max_c": 20,
+              "precipitation_total_mm": 1.2,
+              "precipitation_probability_max_pct": 60,
+              "hourly": [
+                {
+                  "timestamp": "2026-09-21T12:00:00+02:00",
+                  "time": "12:00",
+                  "precipitation_mm": 0.4,
+                  "precipitation_probability_pct": 60,
+                  "condition": "rain",
+                  "temperature_c": 18
+                }
+              ]
+            }
+          },
+          "example": [
+            {
+              "date": "2026-09-21",
+              "title": "Berlin weather",
+              "timezone": "Europe/Berlin",
+              "condition": "rain",
+              "temperature_min_c": 12,
+              "temperature_max_c": 20,
+              "precipitation_total_mm": 1.2,
+              "precipitation_probability_max_pct": 60,
+              "hourly": [
+                {
+                  "timestamp": "2026-09-21T12:00:00+02:00",
+                  "time": "12:00",
+                  "precipitation_mm": 0.4,
+                  "precipitation_probability_pct": 60,
+                  "condition": "rain",
+                  "temperature_c": 18
+                }
+              ]
+            }
+          ]
+        },
+        "hourly": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "string",
+                "example": "2026-09-21T12:00:00+02:00"
+              },
+              "time": {
+                "type": "string",
+                "example": "12:00"
+              },
+              "precipitation_mm": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 0.4
+              },
+              "precipitation_probability_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 60
+              },
+              "condition": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "example": "rain"
+              },
+              "temperature_c": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 18
+              }
+            },
+            "example": {
+              "timestamp": "2026-09-21T12:00:00+02:00",
+              "time": "12:00",
+              "precipitation_mm": 0.4,
+              "precipitation_probability_pct": 60,
+              "condition": "rain",
+              "temperature_c": 18
+            }
+          },
+          "example": [
+            {
+              "timestamp": "2026-09-21T12:00:00+02:00",
+              "time": "12:00",
+              "precipitation_mm": 0.4,
+              "precipitation_probability_pct": 60,
+              "condition": "rain",
+              "temperature_c": 18
+            }
+          ]
+        },
+        "rain_periods": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "string",
+                "example": "2026-09-21T12:00:00+02:00"
+              },
+              "end": {
+                "type": "string",
+                "example": "2026-09-21T14:00:00+02:00"
+              },
+              "start_time": {
+                "type": "string",
+                "example": "12:00"
+              },
+              "end_time": {
+                "type": "string",
+                "example": "14:00"
+              },
+              "timezone": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "example": "Europe/Berlin"
+              },
+              "probability_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 60
+              }
+            },
+            "example": {
+              "start": "2026-09-21T12:00:00+02:00",
+              "end": "2026-09-21T14:00:00+02:00",
+              "start_time": "12:00",
+              "end_time": "14:00",
+              "timezone": "Europe/Berlin",
+              "probability_pct": 60
+            }
+          },
+          "example": [
+            {
+              "start": "2026-09-21T12:00:00+02:00",
+              "end": "2026-09-21T14:00:00+02:00",
+              "start_time": "12:00",
+              "end_time": "14:00",
+              "timezone": "Europe/Berlin",
+              "probability_pct": 60
+            }
+          ]
         }
       }
     }
@@ -4799,7 +5882,7 @@ export class WeatherAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Get current and upcoming weather forecasts for a place, including daily weather, temperatures, rain likelihood, and hourly details stored in day embeds. Use this for weather questions, forecast requests, and trip/day planning involving weather.
+   * Get current and upcoming weather forecasts for a place, including daily weather, temperatures, rain likelihood, and hourly details stored in day embeds. Use start_date and end_date for an inclusive date range. Use this for weather questions, forecast requests, and trip/day planning involving weather.
    * Description key: apps.weather.forecast.description
    * Skill: weather/forecast
    */

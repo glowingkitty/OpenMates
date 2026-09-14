@@ -668,6 +668,56 @@ builder.details:
   en: "Details"
   verified_by_human: []
 
+builder.location:
+  context: Location label in a Workflow App skill input
+  en: "Location"
+  verified_by_human: []
+
+builder.choose_location:
+  context: Button that opens the shared map location picker in a Workflow App skill input
+  en: "Choose a location"
+  verified_by_human: []
+
+builder.home_location_scope:
+  context: Clarifies the geographic scope of a Home App Workflow search selected on the map
+  en: "Search covers the selected city."
+  verified_by_human: []
+
+builder.show_all_fields:
+  context: Link that reveals optional Workflow App skill inputs
+  en: "Show all fields"
+  verified_by_human: []
+
+builder.show_basic_fields:
+  context: Link that hides optional Workflow App skill inputs
+  en: "Show basic fields"
+  verified_by_human: []
+
+builder.date_range:
+  context: Label for a Workflow App skill date range
+  en: "Date range"
+  verified_by_human: []
+
+builder.specific_dates:
+  context: Workflow App skill date range option for choosing exact dates
+  en: "Specific dates"
+  verified_by_human: []
+
+builder.back_to_app_skill:
+  context: Breadcrumb in an expanded Workflow App skill node
+  en: "App skill"
+  verified_by_human: []
+
+builder.collapse:
+  context: Accessible label for collapsing an expanded Workflow node
+  en: "Collapse"
+  verified_by_human: []
+
+builder.step_in_use:
+  context: Error shown when another Workflow step still references the step being removed
+  en: "This step is used by {steps}. Update those fields before removing it."
+  verified_by_human: []
+
 builder.time_trigger:
   context: Workflow progressive builder control
   en: "Time trigger"

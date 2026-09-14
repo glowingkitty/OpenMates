@@ -32,7 +32,11 @@ const graph = (nodes: WorkflowNode[]): WorkflowGraph => ({
 export function dailyWeatherNewsGraph(): WorkflowGraph {
   return graph([
     schedule({ type: "daily", time: "09:00" }),
-    skill("weather", "weather", { location: "Berlin", days: 1 }),
+    skill("weather", "weather", {
+      location: "Berlin",
+      start_date: { $date: "today", format: "date" },
+      end_date: { $date: "today", format: "date" },
+    }),
     {
       id: "rain",
       type: "check",

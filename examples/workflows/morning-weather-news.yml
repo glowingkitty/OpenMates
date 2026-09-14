@@ -12,7 +12,12 @@ steps:
     use_app_skill: weather.forecast
     input:
       location: Berlin
-      days: 1
+      start_date:
+        $date: today
+        format: date
+      end_date:
+        $date: today
+        format: date
       timezone: Europe/Berlin
   - id: rain_check
     check:

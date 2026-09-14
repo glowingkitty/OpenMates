@@ -6,9 +6,10 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta
 import sys
 from types import ModuleType
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -33,6 +34,55 @@ def make_skill():
     )
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_forecast_request_resolves_inclusive_date_range_and_legacy_days() -> None:
+    from backend.apps.weather.skills.forecast_skill import ForecastRequest
+
+    today = date(2026, 9, 14)
+    request = ForecastRequest(location="Berlin", start_date="2026-09-16", end_date="2026-09-18")
+    assert request.resolve_date_range(today) == (date(2026, 9, 16), date(2026, 9, 18), 3)
+    assert ForecastRequest(location="Berlin", days=2).resolve_date_range(today) == (
+        today,
+        date(2026, 9, 15),
+        2,
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+@pytest.mark.parametrize(
+    ("values", "message"),
+    [
+        ({"start_date": "2026-09-14"}, "both start_date and end_date"),
+        ({"start_date": "2026-09-14", "end_date": "2026-09-14", "days": 1}, "instead of days"),
+    ],
+)
+def test_forecast_request_rejects_incomplete_or_mixed_date_range(values, message: str) -> None:
+    from backend.apps.weather.skills.forecast_skill import ForecastRequest
+
+    with pytest.raises(ValueError, match=message):
+        ForecastRequest(location="Berlin", **values)
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+@pytest.mark.parametrize(
+    ("start_date", "end_date", "message"),
+    [
+        (date(2026, 9, 15), date(2026, 9, 14), "on or after start_date"),
+        (date(2026, 9, 13), date(2026, 9, 14), "today or later"),
+        (date(2026, 9, 14), date(2026, 9, 28), "14-day forecast window"),
+    ],
+)
+def test_forecast_request_returns_readable_date_range_errors(
+    start_date: date, end_date: date, message: str
+) -> None:
+    from backend.apps.weather.skills.forecast_skill import ForecastRequest
+
+    request = ForecastRequest(location="Berlin", start_date=start_date, end_date=end_date)
+    with pytest.raises(ValueError, match=message):
+        request.resolve_date_range(date(2026, 9, 14))
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_bright_sky_normalization_returns_one_embed_ready_result_per_day() -> None:
     from backend.shared.providers.bright_sky.bright_sky import normalize_weather_days
 
@@ -106,6 +156,7 @@ def test_bright_sky_normalization_returns_one_embed_ready_result_per_day() -> No
     assert first["source"]["station_name"] == "BERLIN-ALEX."
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_open_meteo_normalization_matches_weather_day_shape() -> None:
     from backend.shared.providers.open_meteo.open_meteo import normalize_forecast_days
 
@@ -155,6 +206,56 @@ def test_open_meteo_normalization_matches_weather_day_shape() -> None:
     assert len(day["hourly"]) == 2
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+@pytest.mark.asyncio
+async def test_provider_wrappers_send_inclusive_date_ranges(monkeypatch) -> None:
+    from backend.shared.providers.bright_sky import bright_sky
+    from backend.shared.providers.open_meteo import open_meteo
+
+    requests = []
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {}
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, params):
+            requests.append((url, params))
+            return FakeResponse()
+
+    monkeypatch.setattr(bright_sky.httpx, "AsyncClient", lambda **kwargs: FakeClient())
+    monkeypatch.setattr(open_meteo.httpx, "AsyncClient", lambda **kwargs: FakeClient())
+    start = date(2026, 9, 14)
+    end = date(2026, 9, 16)
+
+    await bright_sky.fetch_weather(
+        latitude=52.52, longitude=13.405, start_date=start, end_date=end
+    )
+    await open_meteo.fetch_forecast(
+        latitude=35.6764,
+        longitude=139.65,
+        start_date=start,
+        end_date=end,
+        timezone="Asia/Tokyo",
+    )
+
+    assert requests[0][1]["date"] == "2026-09-14"
+    assert requests[0][1]["last_date"] == "2026-09-17"
+    assert requests[1][1]["start_date"] == "2026-09-14"
+    assert requests[1][1]["end_date"] == "2026-09-16"
+    assert "forecast_days" not in requests[1][1]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 @pytest.mark.asyncio
 async def test_forecast_skill_uses_bright_sky_for_germany(monkeypatch) -> None:
     from backend.apps.weather.skills import forecast_skill
@@ -170,8 +271,8 @@ async def test_forecast_skill_uses_bright_sky_for_germany(monkeypatch) -> None:
         }
 
     async def fake_fetch_weather(**kwargs):
-        assert kwargs["days"] == 2
         assert isinstance(kwargs["start_date"], date)
+        assert kwargs["end_date"] - kwargs["start_date"] == timedelta(days=1)
         return {"weather": [], "sources": []}
 
     def fake_normalize_weather_days(payload, **kwargs):
@@ -190,6 +291,7 @@ async def test_forecast_skill_uses_bright_sky_for_germany(monkeypatch) -> None:
     assert "hourly" in response.ignore_fields_for_inference
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 @pytest.mark.asyncio
 async def test_forecast_skill_uses_open_meteo_outside_germany(monkeypatch) -> None:
     from backend.apps.weather.skills import forecast_skill
@@ -205,7 +307,7 @@ async def test_forecast_skill_uses_open_meteo_outside_germany(monkeypatch) -> No
         }
 
     async def fake_fetch_forecast(**kwargs):
-        assert kwargs["days"] == 1
+        assert kwargs["end_date"] == kwargs["start_date"]
         return {"hourly": {}, "daily": {}}
 
     def fake_normalize_forecast_days(payload, **kwargs):
@@ -221,3 +323,71 @@ async def test_forecast_skill_uses_open_meteo_outside_germany(monkeypatch) -> No
     assert response.provider == "Open-Meteo"
     assert response.location["country_code"] == "JP"
     assert response.results[0]["type"] == "weather_day"
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+@pytest.mark.asyncio
+async def test_forecast_skill_passes_exact_inclusive_range_to_provider(monkeypatch) -> None:
+    from backend.apps.weather.skills import forecast_skill
+
+    async def fake_geocode_location(location: str):
+        return {
+            "name": "Tokyo",
+            "country_code": "JP",
+            "country": "Japan",
+            "latitude": 35.6764,
+            "longitude": 139.65,
+            "timezone": "Asia/Tokyo",
+        }
+
+    calls = []
+
+    async def fake_fetch_forecast(**kwargs):
+        calls.append(kwargs)
+        return {"hourly": {}, "daily": {}}
+
+    monkeypatch.setattr(forecast_skill, "geocode_location", fake_geocode_location)
+    monkeypatch.setattr(forecast_skill, "fetch_forecast", fake_fetch_forecast)
+
+    today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
+    start = today + timedelta(days=2)
+    end = today + timedelta(days=4)
+    response = await make_skill().execute(
+        location="Tokyo", start_date=start.isoformat(), end_date=end.isoformat()
+    )
+
+    assert calls[0]["start_date"] == start
+    assert calls[0]["end_date"] == end
+    assert response.days_requested == 3
+    assert response.start_date == start
+    assert response.end_date == end
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+@pytest.mark.asyncio
+async def test_forecast_skill_surfaces_readable_invalid_range_error(monkeypatch) -> None:
+    from backend.apps.weather.skills import forecast_skill
+
+    async def fake_geocode_location(location: str):
+        return {
+            "name": "Berlin",
+            "country_code": "DE",
+            "latitude": 52.52,
+            "longitude": 13.405,
+            "timezone": "Europe/Berlin",
+        }
+
+    monkeypatch.setattr(forecast_skill, "geocode_location", fake_geocode_location)
+    today = datetime.now(ZoneInfo("Europe/Berlin")).date()
+    response = await make_skill().execute(
+        location="Berlin",
+        start_date=today.isoformat(),
+        end_date=(today + timedelta(days=14)).isoformat(),
+    )
+
+    assert response.results == []
+    assert response.error is not None
+    assert "14-day forecast window" in response.error
+
+    incomplete = await make_skill().execute(location="Berlin", start_date=today.isoformat())
+    assert incomplete.error == "Provide both start_date and end_date for a forecast date range."

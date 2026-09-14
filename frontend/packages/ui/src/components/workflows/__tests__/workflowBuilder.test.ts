@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   insertNode,
+  removeNode,
+  WorkflowNodeDependencyError,
   messageDestinationConfig,
   workflowGraphReady,
   outputsBefore,
@@ -129,6 +131,10 @@ test("video starters use relative weekly dates and delivered-only lists without 
     (daily.nodes[0].config?.schedule as { time: string }).time,
     "09:00",
   );
+  const weather = daily.nodes[1].config?.input as Record<string, unknown>;
+  assert.deepEqual(weather.start_date, { $date: "today", format: "date" });
+  assert.deepEqual(weather.end_date, { $date: "today", format: "date" });
+  assert.equal(weather.days, undefined);
   const events = (
     weekly.nodes[1].config?.input as { requests: Record<string, unknown>[] }
   ).requests[0];
@@ -260,4 +266,29 @@ test("choosing a new chat omits the destination in preview and saved JSON withou
     assert.equal(existing.chat_id, "existing-chat");
   }
   assert.equal(messageDestinationConfig(existing, "another-chat").chat_id, "another-chat");
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows.control.check,workflows.control.typed-data
+test("removing a boolean passthrough Check preserves its message condition", () => {
+  const weather = { ...node("weather"), config: { app_id: "weather", skill_id: "forecast" } };
+  const check = { ...node("rain_check", "check"), config: { predicate: { left: "$nodes.weather.output.rain_expected", op: "eq", right: true } } };
+  const report = { ...node("report", "send_chat_message"), config: { blocks: [{ include_if: "$nodes.rain_check.output.matched", source: "$nodes.weather.output.rain_summary" }] } };
+  const input = { ...graph, nodes: [weather, check, report], edges: [{from: "weather", to: "rain_check"}, {from:"rain_check",to:"report"}] };
+  const next = removeNode(input, "rain_check", [{ ...capabilities[0], id:"weather.forecast", metadata: { app_id:"weather", skill_id:"forecast", output_schema:{properties:{rain_expected:{type:"boolean"}}} } }]);
+  assert.equal(next.nodes.length, 2);
+  assert.deepEqual(next.edges, [{from:"weather",to:"report"}]);
+  assert.equal((next.nodes[1].config?.blocks as {include_if:string}[])[0].include_if, "$nodes.weather.output.rain_expected");
+  assert.equal(report.config.blocks[0].include_if, "$nodes.rain_check.output.matched");
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows.control.typed-data
+test("removal names dependent steps instead of saving broken references", () => {
+  const message = { ...node("message", "send_chat_message"), title:"Morning report", config:{blocks:[{source:"$nodes.news.output.results"}]} };
+  assert.throws(() => removeNode({...graph,nodes:[node("news"),message]},"news"), (error: unknown) =>
+    error instanceof WorkflowNodeDependencyError && error.dependentNodeTitles[0] === "Morning report");
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows.control.typed-data,workflows.schedule.edge-cases
+test("calendar metadata seeds runtime Today and hides legacy day count", () => {
+  assert.deepEqual(schemaDefault({type:"object", "x-ui":{control:"date-range",start_field:"start_date",end_field:"end_date",default:"today"}, properties:{days:{type:"integer",default:7,"x-ui":{hidden:true}},start_date:{type:"string"},end_date:{type:"string"}}}), {start_date:{$date:"today",format:"date"},end_date:{$date:"today",format:"date"}});
 });

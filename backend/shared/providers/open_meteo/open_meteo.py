@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter, defaultdict
+from datetime import date, timedelta
 from typing import Any
 
 import httpx
@@ -53,19 +54,32 @@ async def fetch_forecast(
     *,
     latitude: float,
     longitude: float,
-    days: int,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    days: int | None = None,
     timezone: str,
 ) -> dict[str, Any]:
     """Fetch global weather forecast from Open-Meteo."""
-    params = {
+    if (start_date is None) != (end_date is None):
+        raise ValueError("Provide both start_date and end_date")
+    if start_date is not None and days is not None:
+        raise ValueError("Use start_date and end_date or days, not both")
+    if start_date is None and (days is None or days < 1):
+        raise ValueError("Provide a date range or a positive number of days")
+    if start_date is not None and end_date is not None and end_date < start_date:
+        raise ValueError("end_date must be on or after start_date")
+    params: dict[str, Any] = {
         "latitude": latitude,
         "longitude": longitude,
-        "forecast_days": days,
         "timezone": timezone,
         "current": "temperature_2m,precipitation,rain,showers,weather_code",
         "hourly": "temperature_2m,precipitation,precipitation_probability,rain,showers,weather_code,cloud_cover,relative_humidity_2m,wind_speed_10m,wind_gusts_10m",
         "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,rain_sum,showers_sum,precipitation_probability_max,precipitation_hours,wind_speed_10m_max,wind_gusts_10m_max",
     }
+    if start_date is not None and end_date is not None:
+        params.update({"start_date": start_date.isoformat(), "end_date": end_date.isoformat()})
+    else:
+        params["forecast_days"] = days
     async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT_SECONDS) as client:
         response = await client.get(OPEN_METEO_FORECAST_URL, params=params)
         response.raise_for_status()
@@ -83,6 +97,7 @@ def normalize_forecast_days(
     country_code: str | None,
     timezone: str,
     requested_days: int,
+    today: date | None = None,
 ) -> list[dict[str, Any]]:
     """Normalize Open-Meteo forecast rows into one weather_day result per day."""
     hourly = payload.get("hourly") or {}
@@ -143,7 +158,13 @@ def normalize_forecast_days(
             "type": "weather_day",
             "title": f"{location_name} weather {day}",
             "date": day,
-            "label": "today" if index == 0 else "tomorrow" if index == 1 else None,
+            "label": (
+                "today" if today is not None and day == today.isoformat()
+                else "tomorrow" if today is not None and day == (today + timedelta(days=1)).isoformat()
+                else "today" if today is None and index == 0
+                else "tomorrow" if today is None and index == 1
+                else None
+            ),
             "location_name": location_name,
             "country_code": country_code,
             "timezone": timezone,

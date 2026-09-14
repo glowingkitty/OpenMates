@@ -7,10 +7,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EmbedNodeAttributes } from '../../../../../message_parsing/types';
 import GenericAppSkillEmbedPreview from '../../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte';
+import WebsiteEmbedPreview from "../../../../embeds/web/WebsiteEmbedPreview.svelte";
 import WebSearchEmbedPreview from '../../../../embeds/web/WebSearchEmbedPreview.svelte';
 import InteractiveQuestionContainer from '../../../../interactive_questions/InteractiveQuestionContainer.svelte';
 import EmbedsMapView from '../../../../embeds/EmbedsMapView.svelte';
 import { GroupRenderer } from '../GroupRenderer';
+import { disposeEmbedTree } from '../mountedEmbedLifecycle';
 
 type MountCall = [unknown, { props: Record<string, unknown> }];
 
@@ -83,6 +85,101 @@ describe('GroupRenderer', () => {
         escape: (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '\\$&'),
       },
     });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=web-search.surface-parity,chats.surface.semantic-parity
+  it('passes nested workflow news images and legacy aliases to the website card and fullscreen', async () => {
+    const image = 'https://example.org/article.jpg';
+    for (const imageFields of [
+      { thumbnail: { original: image, src: 'https://example.org/small.jpg' } },
+      { thumbnail: { src: image } },
+      { thumbnail_src: image },
+      { preview_image_url: image },
+      { image_url: image },
+    ]) {
+      const renderer = new GroupRenderer();
+      const open = vi.spyOn(renderer as unknown as { openFullscreen: (...args: unknown[]) => void }, 'openFullscreen').mockImplementation(() => {});
+      const container = document.createElement('div');
+      const content = document.createElement('div');
+      container.append(content);
+      await renderer.render({
+        attrs: { id: 'workflow-news-result', type: 'web-website', status: 'finished', contentRef: 'embed:workflow-news-result' },
+        container, content,
+        decodedContent: { url: 'https://example.org/article', title: 'An article', description: 'Article summary', ...imageFields },
+      });
+      expect(svelteMountMocks.mount).toHaveBeenLastCalledWith(WebsiteEmbedPreview, expect.objectContaining({
+        props: expect.objectContaining({ image, status: 'finished' }),
+      }));
+      const props = (svelteMountMocks.mount.mock.calls as unknown as MountCall[]).at(-1)![1].props;
+      (props.onFullscreen as (metadata: Record<string, unknown>) => void)({});
+      expect(open.mock.calls.at(-1)?.[2]).toEqual(expect.objectContaining({ image }));
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=web-search.surface-parity,chats.surface.semantic-parity
+  it('keeps website fallback article images proxied and omits images for text-only results', async () => {
+    for (const imageFields of [{ thumbnail: { src: 'https://example.org/article.jpg' } }, {}]) {
+      const renderer = new GroupRenderer();
+      const container = document.createElement('div');
+      const content = document.createElement('div');
+      container.append(content);
+      svelteMountMocks.mount.mockImplementationOnce(() => { throw new Error('Test mount failure'); });
+      await renderer.render({
+        attrs: { id: 'fallback-news-result', type: 'web-website', status: 'finished', contentRef: 'embed:fallback-news-result' },
+        container, content,
+        decodedContent: { url: 'https://example.org/article', title: 'An article', ...imageFields },
+      });
+      const image = content.querySelector<HTMLImageElement>('img.og-image');
+      if ('thumbnail' in imageFields) {
+        expect(image).not.toBeNull();
+        const source = new URL(image!.src);
+        expect(source.pathname).toBe('/api/v1/image');
+        expect(source.searchParams.get('url')).toBe(imageFields.thumbnail!.src);
+      } else expect(image).toBeNull();
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
+  it('releases the current group observer and handlers when its message is disposed', () => {
+    const observers: Array<{ observe: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }> = [];
+    vi.stubGlobal('ResizeObserver', class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      constructor() { observers.push(this); }
+    });
+    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 42));
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const wrapper = document.createElement('div');
+    const scroll = document.createElement('div');
+    wrapper.append(scroll);
+    for (let index = 0; index < 2; index += 1) {
+      const card = document.createElement('div');
+      card.className = 'embed-group-item';
+      scroll.append(card);
+    }
+    document.body.append(wrapper);
+    const removeListener = vi.spyOn(scroll, 'removeEventListener');
+    try {
+      const renderer = new GroupRenderer() as unknown as {
+        syncGroupScrollIndicator: (wrapper: HTMLElement, scroll: HTMLElement) => void;
+      };
+      renderer.syncGroupScrollIndicator(wrapper, scroll);
+      renderer.syncGroupScrollIndicator(wrapper, scroll);
+      expect(observers).toHaveLength(2);
+      expect(observers[0].disconnect).toHaveBeenCalledOnce();
+      expect(observers[1].observe).toHaveBeenCalledTimes(3);
+      expect(observers[1].disconnect).not.toHaveBeenCalled();
+      disposeEmbedTree(wrapper);
+      expect(observers[1].disconnect).toHaveBeenCalledOnce();
+      expect(removeListener).toHaveBeenCalledWith('wheel', expect.any(Function));
+      expect(removeListener).toHaveBeenCalledWith('scroll', expect.any(Function));
+      expect(cancelAnimationFrame).toHaveBeenCalledWith(42);
+      renderer.syncGroupScrollIndicator(wrapper, scroll);
+      expect(observers).toHaveLength(2);
+    } finally {
+      wrapper.remove();
+      vi.unstubAllGlobals();
+    }
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity

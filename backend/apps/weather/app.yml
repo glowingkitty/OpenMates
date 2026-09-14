@@ -45,8 +45,9 @@ skills:
     icon_image: search.svg
     preprocessor_hint: >
       Get current and upcoming weather forecasts for a place, including daily weather, temperatures,
-      rain likelihood, and hourly details stored in day embeds. Use this for weather questions,
-      forecast requests, and trip/day planning involving weather.
+      rain likelihood, and hourly details stored in day embeds. Use start_date and end_date for an
+      inclusive date range. Use this for weather questions, forecast requests, and trip/day planning
+      involving weather.
     class_path: |
       backend.apps.weather.skills.forecast_skill.ForecastSkill
     providers:
@@ -67,16 +68,33 @@ skills:
       - data_quality
     tool_schema:
       type: object
+      x-ui:
+        control: date-range
+        start_field: start_date
+        end_field: end_date
+        min: today
+        max_offset_days: 13
+        default: today
       properties:
         location:
           type: string
           description: "Place name for the forecast, e.g. Berlin, Karlsruhe, Tokyo. Required unless latitude and longitude are provided."
         days:
           type: integer
-          description: "Number of forecast days to return. Defaults to 7. Maximum 14."
+          description: "Compatibility input for older clients. Number of days from today; defaults to 7 and cannot be combined with start_date/end_date."
           minimum: 1
           maximum: 14
           default: 7
+          x-ui:
+            hidden: true
+        start_date:
+          type: string
+          format: date
+          description: "First forecast date, inclusive, in the location timezone. Must be today or later and supplied with end_date."
+        end_date:
+          type: string
+          format: date
+          description: "Last forecast date, inclusive, in the location timezone. Must be within the 14-day forecast window and supplied with start_date."
         latitude:
           type: number
           description: "Optional latitude in decimal degrees. Use with longitude for exact coordinates."
@@ -103,7 +121,12 @@ skills:
       test_allowed: true
       test_example_input:
         location: Berlin
-        days: 1
+        start_date:
+          $date: today
+          format: date
+        end_date:
+          $date: today
+          format: date
       output_schema:
         type: object
         properties:
@@ -113,6 +136,14 @@ skills:
           result_count:
             type: integer
             example: 1
+          start_date:
+            type: string
+            format: date
+            example: '2026-09-21'
+          end_date:
+            type: string
+            format: date
+            example: '2026-09-21'
           rain_probability:
             type:
             - number
