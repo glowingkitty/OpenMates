@@ -1120,7 +1120,7 @@ builder.run_history:
 
 builder.run_now:
   context: Workflow progressive builder control
-  en: "Run workflow now"
+  en: "Run now"
   verified_by_human: []
 
 builder.delete_workflow:

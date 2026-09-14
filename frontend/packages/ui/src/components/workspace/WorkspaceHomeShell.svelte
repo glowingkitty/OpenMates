@@ -453,6 +453,8 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
+    container-type: inline-size;
+    container-name: chat-side;
   }
 
   .workspace-home-shell.content-slot-mode .workspace-scroll-layer {
@@ -820,7 +822,7 @@
     gap: var(--spacing-6);
     width: 100%;
     max-width: 400px;
-    min-height: 4.5rem;
+    min-height: 2.75rem;
     height: auto;
     padding: var(--spacing-5) var(--spacing-8);
     background-color: transparent;
@@ -828,7 +830,7 @@
     border-radius: var(--radius-8);
     cursor: pointer;
     overflow: hidden;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.11), 0 1px 4px rgba(0, 0, 0, 0.08);
     transition: background-position 0.25s ease, transform 0.15s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease;
     background-size: 140% 140%;
     background-position: 0% 50%;
@@ -986,7 +988,9 @@
     }
 
     .workspace-home-shell[data-surface='workflows']:not(.content-slot-mode) .workspace-center-content.center-content {
-      top: calc(50% + 127px);
+      /* Center between the 190px banner/action row and the 94px composer,
+         instead of using Chat's offset, which does not reserve this composer. */
+      top: calc(50% + 4.5rem);
     }
 
     .workspace-home-shell.all-items-mode .workspace-center-content.center-content {

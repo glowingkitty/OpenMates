@@ -5,6 +5,7 @@ execution blobs. They must not be reclassified as client-side object wrapper
 rows while the unified key-wrapper architecture expands elsewhere.
 """
 
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,7 @@ class FakeEncryptionService:
         return ciphertext.removeprefix(prefix)
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.access.boundaries
 def test_workflow_payload_cipher_requires_vault_key_reference():
     cipher = VaultWorkflowPayloadCipher(FakeEncryptionService())
 
@@ -37,6 +39,33 @@ def test_workflow_payload_cipher_requires_vault_key_reference():
     assert cipher.decrypt_json(encrypted, None) == {"step": "run"}
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
+def test_workflow_payload_cipher_serializes_dates_canonically():
+    cipher = VaultWorkflowPayloadCipher(FakeEncryptionService())
+
+    encrypted = cipher.encrypt_json(
+        {
+            "start_date": date(2026, 9, 14),
+            "started_at": datetime(2026, 9, 14, 6, 30, tzinfo=timezone.utc),
+        },
+        "vault-user-key-1",
+    )
+
+    assert cipher.decrypt_json(encrypted, None) == {
+        "start_date": "2026-09-14",
+        "started_at": "2026-09-14T06:30:00+00:00",
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
+def test_workflow_payload_cipher_rejects_unknown_python_objects():
+    cipher = VaultWorkflowPayloadCipher(FakeEncryptionService())
+
+    with pytest.raises(TypeError, match="Object of type object is not JSON serializable"):
+        cipher.encrypt_json({"unexpected": object()}, "vault-user-key-1")
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
 def test_workflow_blob_schema_stays_vault_not_client_wrapper():
     backend_root = Path(__file__).resolve().parents[1]
     schema = (backend_root / "core/directus/schemas/workflow_encrypted_blobs.yml").read_text()

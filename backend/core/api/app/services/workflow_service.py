@@ -18,6 +18,7 @@ import os
 import time
 import uuid
 from copy import deepcopy
+from datetime import date, datetime
 from typing import Any, Protocol
 
 import httpx
@@ -100,8 +101,21 @@ def _event_project_hash(event_config: dict[str, Any]) -> str | None:
     return _hash_project_id(project_id)
 
 
+def _stable_json_default(value: Any) -> str:
+    """Encode temporal workflow values using their canonical ISO representation."""
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    raise TypeError(f"Object of type {value.__class__.__name__} is not JSON serializable")
+
+
 def _stable_json(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        default=_stable_json_default,
+    )
 
 
 def _workflow_list_sort_key(record: dict[str, Any]) -> tuple[int, int, int]:
