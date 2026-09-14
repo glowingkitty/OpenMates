@@ -441,6 +441,14 @@ test.describe('Workflows web UI contract', () => {
 			});
 			await expectNoPageOverflow(page);
 
+			// Share remains reachable from Runs and opens the mounted workflow share panel.
+			if (!(await page.getByTestId('workflow-share').isVisible())) {
+				await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
+			}
+			await page.getByTestId('workflow-share').click();
+			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(runnerWorkflow.id));
+			await expect(page.getByTestId('workflow-template-share')).toBeVisible();
+
 			if (proof) await proof.attach();
 		} finally {
 			for (const workflowId of createdWorkflowIds) {

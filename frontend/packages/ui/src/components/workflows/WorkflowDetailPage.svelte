@@ -7,10 +7,10 @@
   import { tooltip } from '../../actions/tooltip';
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
-  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab, saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onUpdateIdentity }: {
+  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab, saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenShare, onUpdateIdentity }: {
     title: string; description: string; category: string; icon: string; createdAt?: number | null; nextRunAt?: number | null;
     enabled: boolean; canEnable: boolean; canRun: boolean; lastStartedRunId?: string | null; activeTab: 'template' | 'runs'; saving: boolean;
-    onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenHome: () => void; onOpenRuns: () => void; runsHref: string;
+    onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenHome: () => void; onOpenShare: () => void; onOpenRuns: () => void; runsHref: string;
     onUpdateIdentity: (title: string, description: string) => Promise<void>;
   } = $props();
   let editing = $state(false); let draftTitle = $state(''); let draftDescription = $state('');
@@ -25,14 +25,13 @@
     return `${tr('created')} ${new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(Math.abs(minutes) < 60 ? minutes : Math.round(minutes / 1440), Math.abs(minutes) < 60 ? 'minute' : 'day')}`;
   }
   function editIdentity(): void { draftTitle = title; draftDescription = description; editing = true; }
-  function openShare(): void { const panel = document.querySelector<HTMLDetailsElement>('[data-testid="workflow-more-options"]'); if (panel) panel.open = true; document.querySelector<HTMLElement>('[data-testid="workflow-template-share"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 </script>
 
 <section class="workflow-detail-header" data-testid="workspace-detail-header" data-header-system="workflow-detail" data-category={category} data-icon={getValidIconName(icon, category)} style={headerStyle}>
   <div class="header-toolbar" data-testid="workflow-detail-actions" use:headerOverlayControls>
     <HeaderActionMenu resetKey={title} hasShare actionCount={2}>
       {#snippet report()}<WorkspaceReportIssueButton toolbar/>{/snippet}
-      {#snippet share()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-share" aria-label={tr('share')} onclick={openShare} use:tooltip><span class="clickable-icon icon_share top-button" aria-hidden="true"></span><span class="action-label">{tr('share')}</span></button></div>{/snippet}
+      {#snippet share()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-share" aria-label={tr('share')} onclick={onOpenShare} use:tooltip><span class="clickable-icon icon_share top-button" aria-hidden="true"></span><span class="action-label">{tr('share')}</span></button></div>{/snippet}
       {#snippet actions()}
         <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="run-workflow" aria-label={tr('run_now')} disabled={saving || !canRun} onclick={() => void onRunWorkflow()} use:tooltip><AppIcon name="play" size="25px" color="currentColor" noMargin ariaHidden/><span class="action-label">{tr('run_now')}</span></button></div>
         <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="delete-workflow" aria-label={tr('delete_workflow')} disabled={saving} onclick={() => void onDeleteWorkflow()} use:tooltip><span class="clickable-icon icon_delete top-button" aria-hidden="true"></span><span class="action-label">{tr('delete_workflow')}</span></button></div>

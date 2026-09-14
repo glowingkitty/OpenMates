@@ -9,7 +9,7 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { replaceState } from '$app/navigation';
 	import {
 		Header,
@@ -305,6 +305,18 @@
 		requestNavigation(openWorkflowHome);
 	}
 
+	function requestWorkflowShare(): void {
+		if (!selectedWorkflow) return;
+		const workflowId = selectedWorkflow.id;
+		requestNavigation(async () => {
+			openWorkflowDetails(workflowId);
+			await tick();
+			const panel = document.querySelector<HTMLDetailsElement>('[data-testid="workflow-more-options"]');
+			if (panel) panel.open = true;
+			document.querySelector<HTMLElement>('[data-testid="workflow-template-share"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		});
+	}
+
 	function requestWorkflowTab(tab: 'template' | 'runs'): void {
 		if (!selectedWorkflow) return;
 		requestNavigation(() =>
@@ -477,7 +489,7 @@
 	}
 
 	async function createWorkflow(title: string, graph: WorkflowGraph, enabled: boolean) {
-		if (!canLoadWorkflows) return;
+		if (!canLoadWorkflows || saving) return;
 		saving = true;
 		routeError = null;
 		try {
@@ -789,6 +801,7 @@
 										onRunWorkflow={runSelectedWorkflow}
 										onDeleteWorkflow={deleteSelectedWorkflow}
 										onOpenHome={requestWorkflowHome}
+										onOpenShare={requestWorkflowShare}
 										onOpenRuns={() => requestWorkflowTab('runs')}
 										runsHref={workflowStateHref(selectedWorkflow.id, 'runs')}
 									/>
