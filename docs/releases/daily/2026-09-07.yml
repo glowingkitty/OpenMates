@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-07'
-generated_at: '2026-09-08T00:20:21+00:00'
+generated_at: '2026-09-14T00:45:22+00:00'
 range:
   since: '2026-09-07T00:00:00+00:00'
   until: '2026-09-08T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 14
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 8
   user_facing_items: 13
-  dev_only_items: 64
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -158,6 +158,13 @@ feature_availability:
     override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
 sections:
@@ -171,7 +178,7 @@ sections:
     - scripts/reviewed_deploy.py
     - scripts/sessions.py
     - scripts/tests/test_reviewed_deploy.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -179,7 +186,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(tooling): prepare bounded MindNode capability discovery'
     section: features
     commits:
@@ -189,7 +196,7 @@ sections:
     - docs/contributing/guides/apple-remote-mindnode.md
     - scripts/_apple_remote_mindnode.py
     - scripts/tests/test_apple_remote_mindnode.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -197,7 +204,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: prepare deterministic security digest cutover'
     section: features
     commits:
@@ -228,16 +235,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: bind Codex tasks to preserved worktrees and stage runtime admission'
     section: features
     commits:
@@ -266,16 +273,16 @@ sections:
     - scripts/tests/test_sessions_worktree_lifecycle.py
     - scripts/verify_codex_runtime.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: clarify orchestration tables and concurrency limits'
     section: features
     commits:
@@ -287,8 +294,8 @@ sections:
     - backend/apps/tasks/app.yml
     - backend/apps/tasks/focus_modes/daily-meeting-and-orchestration/SKILL.md
     - frontend/packages/ui/src/i18n/sources/focus_modes/tasks_daily_meeting_and_orchestration.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -304,7 +311,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:tasks'
   - title: 'feat(opencode): migrate specialist agents to central model policy'
     section: features
     commits:
@@ -336,7 +344,7 @@ sections:
     - docs/architecture/agent-tooling-parity.yml
     - docs/architecture/agent-workflow-decisions.md
     - scripts/tests/test_sync_agent_parity.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -344,7 +352,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(opencode): centralize Astra subchat routing'
     section: features
     commits:
@@ -353,7 +361,7 @@ sections:
     changed_paths:
     - opencode.json
     - scripts/sync_agent_parity.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -361,7 +369,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: add daily meeting and chat orchestration'
     section: features
     commits:
@@ -376,8 +384,8 @@ sections:
     - backend/apps/tasks/focus_modes/daily-meeting-and-orchestration/SKILL.md
     - frontend/packages/ui/src/i18n/sources/app_focus_modes/tasks.yml
     - frontend/packages/ui/src/i18n/sources/focus_modes/tasks_daily_meeting_and_orchestration.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -393,7 +401,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:tasks'
   bug_fixes:
   - title: 'fix: diagnose Chrome sandbox stops from crash metadata'
     section: bug_fixes
@@ -404,7 +413,7 @@ sections:
     - docs/architecture/apple-no-delete-safety.md
     - scripts/_apple_render_diagnostic.py
     - scripts/tests/test_apple_remote_repository_policy.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -412,7 +421,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: permit named read-only Chrome stop diagnosis'
     section: bug_fixes
     commits:
@@ -423,7 +432,7 @@ sections:
     - scripts/apple_no_delete_guard.py
     - scripts/apple_remote.py
     - scripts/tests/test_apple_remote_repository_policy.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -431,7 +440,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: provide runner-local CMS authentication to CI services'
     section: bug_fixes
     commits:
@@ -441,7 +450,7 @@ sections:
     - scripts/ci_environment.py
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_environment.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -449,7 +458,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: authenticate isolated CI services with private CMS credentials'
     section: bug_fixes
     commits:
@@ -457,7 +466,7 @@ sections:
     authored_at: '2026-09-07T22:38:58+00:00'
     changed_paths:
     - scripts/tests/test_ci_run_tests.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -465,7 +474,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: scope Mac deletion to verified repository descendants'
     section: bug_fixes
     commits:
@@ -482,7 +491,7 @@ sections:
     - scripts/apple_remote.py
     - scripts/tests/test_apple_remote_remotion.py
     - scripts/tests/test_apple_remote_repository_policy.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -490,7 +499,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: supervise retained render stages without nested sandbox'
     section: bug_fixes
     commits:
@@ -502,7 +511,7 @@ sections:
     - scripts/_apple_remotion_render.cjs
     - scripts/apple_remote.py
     - scripts/tests/test_apple_remote_remotion.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -510,7 +519,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: admit sandboxed compiler for retained render check'
     section: bug_fixes
     commits:
@@ -519,7 +528,7 @@ sections:
     changed_paths:
     - scripts/_apple_remotion_remote.py
     - scripts/_apple_remotion_render.cjs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -527,7 +536,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: add retained Mac render capability gate'
     section: bug_fixes
     commits:
@@ -540,7 +549,7 @@ sections:
     - scripts/apple_no_delete_guard.py
     - scripts/apple_remote.py
     - scripts/tests/test_apple_remote_remotion.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -548,7 +557,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: add exact authorized original-media relocation'
     section: bug_fixes
     commits:
@@ -559,7 +568,7 @@ sections:
     - scripts/_apple_remotion_remote.py
     - scripts/apple_remote.py
     - scripts/tests/test_apple_remote_remotion.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -567,7 +576,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: verify inherited Mac policy and bundled media probes'
     section: bug_fixes
     commits:
@@ -576,7 +585,7 @@ sections:
     changed_paths:
     - scripts/_apple_remotion_remote.py
     - scripts/tests/test_apple_remote_remotion.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -584,7 +593,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: expose scoped Mac media metadata under read-only sandbox'
     section: bug_fixes
     commits:
@@ -595,7 +604,7 @@ sections:
     - scripts/_apple_remotion_remote.py
     - scripts/apple_remote.py
     - scripts/tests/test_apple_remote_remotion.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -603,7 +612,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: add typed retained-source operations to Apple Remote'
     section: bug_fixes
     commits:
@@ -618,7 +627,7 @@ sections:
     - scripts/tests/test_apple_remote_patch.py
     - scripts/tests/test_apple_remote_recording.py
     - scripts/tests/test_apple_remote_remotion.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -626,7 +635,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: scope Groq transports to their owning async call'
     section: bug_fixes
     commits:
@@ -636,9 +645,9 @@ sections:
     - backend/apps/ai/llm_providers/groq_client.py
     - backend/tests/test_groq_client_retry_config.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -653,7 +662,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: fail anonymous turns without answer content'
     section: bug_fixes
     commits:
@@ -663,16 +672,16 @@ sections:
     - backend/core/api/app/routes/anonymous.py
     - backend/tests/test_anonymous_skill_access.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: strip requirement annotations from security scan versions'
     section: bug_fixes
     commits:
@@ -681,7 +690,7 @@ sections:
     changed_paths:
     - backend/tests/test__eu_vuln_helper.py
     - scripts/_eu_vuln_helper.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -689,7 +698,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve anonymous follow-ups after skill results'
     section: bug_fixes
     commits:
@@ -699,16 +708,16 @@ sections:
     - backend/core/api/app/routes/anonymous.py
     - backend/tests/test_anonymous_skill_access.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve adopted Codex ownership through disconnection'
     section: bug_fixes
     commits:
@@ -720,7 +729,7 @@ sections:
     - scripts/sessions.py
     - scripts/tests/test_sessions_codex_binding.py
     - scripts/verify_codex_runtime.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -728,7 +737,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: reject Mac deletion paths and persist terminal task stops'
     section: bug_fixes
     commits:
@@ -751,7 +760,7 @@ sections:
     - scripts/tests/test_apple_no_delete_hooks.mjs
     - scripts/tests/test_apple_remote_patch.py
     - scripts/tests/test_apple_remote_recording.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -759,7 +768,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: recover empty post-tool answers'
     section: bug_fixes
     commits:
@@ -769,9 +778,9 @@ sections:
     - backend/apps/ai/processing/main_processor.py
     - backend/tests/test_main_processor_invalid_tool_calls.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -786,7 +795,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: require chat progress tables in every orchestration reply'
     section: bug_fixes
     commits:
@@ -798,8 +807,8 @@ sections:
     - backend/apps/tasks/app.yml
     - backend/apps/tasks/focus_modes/daily-meeting-and-orchestration/SKILL.md
     - frontend/packages/ui/src/i18n/sources/focus_modes/tasks_daily_meeting_and_orchestration.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -815,7 +824,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:tasks'
   - title: 'fix: persist orchestration checkpoints across chat turns'
     section: bug_fixes
     commits:
@@ -836,8 +846,8 @@ sections:
     - scripts/tests/test_opencode_task_bridge.py
     - scripts/tests/test_orchestration_monitor.py
     - scripts/tests/test_spawn_chat_opencode.py
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -853,7 +863,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:tasks'
   - title: 'fix: cap preprocessing fallback latency'
     section: bug_fixes
     commits:
@@ -865,9 +876,9 @@ sections:
     - backend/apps/ai/utils/timeout_utils.py
     - backend/tests/test_llm_utils_preprocessing_retries.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -882,7 +893,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: classify rejected transcription interval content'
     section: bug_fixes
     commits:
@@ -894,9 +905,9 @@ sections:
     - scripts/tests/test_videos_get_transcript_real_dev.py
     - scripts/tests/videos_get_transcript_real_dev.mjs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:audio
@@ -925,7 +936,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:audio, embed:audio:transcribe, skill:audio:transcribe'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(opencode): preserve Zellij session during server restart'
     section: bug_fixes
     commits:
@@ -934,7 +945,7 @@ sections:
     changed_paths:
     - scripts/server-restart.sh
     - scripts/tests/test_spawn_chat_opencode.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -942,7 +953,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: expose daily meeting process and examples in API'
     section: bug_fixes
     commits:
@@ -950,8 +961,8 @@ sections:
     authored_at: '2026-09-07T12:43:27+00:00'
     changed_paths:
     - backend/apps/tasks/app.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -967,7 +978,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:tasks'
   improvements:
   - title: 'refactor: remove remaining obsolete OpenCode review launchers'
     section: improvements
@@ -992,7 +1004,7 @@ sections:
     - scripts/security-deep-audit.sh
     - scripts/tests/test_architecture_behavioral_claims.py
     - scripts/tests/test_opencode_automation_budget_audit.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1000,7 +1012,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   docs:
   - title: 'docs: make GitHub isolation the current test execution policy'
     section: docs
@@ -1009,7 +1021,7 @@ sections:
     authored_at: '2026-09-07T23:54:28+00:00'
     changed_paths:
     - .claude/rules/testing.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1017,7 +1029,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: clarify held Dependabot launcher removal'
     section: docs
     commits:
@@ -1025,7 +1037,7 @@ sections:
     authored_at: '2026-09-07T22:44:48+00:00'
     changed_paths:
     - scripts/check-dependabot-daily.sh
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1033,7 +1045,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: record verified orchestration scheduler rollout'
     section: docs
     commits:
@@ -1041,7 +1053,7 @@ sections:
     authored_at: '2026-09-07T14:55:49+00:00'
     changed_paths:
     - docs/plans/orchestration-checkpoint-scheduler/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1049,7 +1061,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: add Codex fallback to daily orchestration'
     section: docs
     commits:
@@ -1058,7 +1070,7 @@ sections:
     changed_paths:
     - .agents/skills/daily-meeting-and-orchestration/SKILL.md
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1066,7 +1078,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: simplify daily meeting focus mode'
     section: docs
     commits:
@@ -1076,7 +1088,7 @@ sections:
     - backend/apps/tasks/app.yml
     - backend/apps/tasks/focus_modes/daily-meeting-and-orchestration/SKILL.md
     - frontend/packages/ui/src/i18n/sources/focus_modes/tasks_daily_meeting_and_orchestration.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1092,7 +1104,7 @@ sections:
     rationale:
     - classified as documentation from commit subject/path rules
     - 'matches feature availability gates: app:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'ci: cache pip only when the job installs Python dependencies'
     section: tests
@@ -1101,7 +1113,7 @@ sections:
     authored_at: '2026-09-07T23:36:46+00:00'
     changed_paths:
     - .github/workflows/isolated-tests.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1109,7 +1121,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: register isolated workflow on dev without running an unrequested suite'
     section: tests
     commits:
@@ -1117,7 +1129,7 @@ sections:
     authored_at: '2026-09-07T21:23:04+00:00'
     changed_paths:
     - .github/workflows/isolated-tests.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1125,7 +1137,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: match email proof checkpoints to capture viewport'
     section: tests
     commits:
@@ -1133,7 +1145,7 @@ sections:
     authored_at: '2026-09-07T20:02:16+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/security-reporting-email-proof.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1141,7 +1153,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: preserve readable security email proof intervals'
     section: tests
     commits:
@@ -1149,7 +1161,7 @@ sections:
     authored_at: '2026-09-07T19:44:14+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/security-reporting-email-proof.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1157,7 +1169,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: verify runtime admission preserves the disk reserve'
     section: tests
     commits:
@@ -1165,7 +1177,7 @@ sections:
     authored_at: '2026-09-07T19:09:55+00:00'
     changed_paths:
     - backend/engineering_control_plane/tests/test_runtime_capacity.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1173,7 +1185,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: correlate nested chat message identity in acknowledgement probe'
     section: tests
     commits:
@@ -1182,7 +1194,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/hpfsl-acknowledgement-timing.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1190,7 +1202,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: add HPFSL acknowledgement timing regression'
     section: tests
     commits:
@@ -1199,7 +1211,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/hpfsl-acknowledgement-timing.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1207,7 +1219,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: exercise anonymous chat reliability'
     section: tests
     commits:
@@ -1216,7 +1228,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1224,7 +1236,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: reach anonymous repair flow'
     section: tests
     commits:
@@ -1233,7 +1245,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1241,7 +1253,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: run anonymous repair contract live'
     section: tests
     commits:
@@ -1249,7 +1261,7 @@ sections:
     authored_at: '2026-09-07T14:29:13+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1257,7 +1269,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: cover anonymous production repair'
     section: tests
     commits:
@@ -1266,7 +1278,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1274,7 +1286,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure:
   - title: 'ci: admit verified core coverage and hold unported profiles'
     section: infrastructure
@@ -1288,7 +1300,7 @@ sections:
     - scripts/ci_dispatch.py
     - scripts/tests/test_ci_coverage.py
     - scripts/tests/test_ci_dispatch.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1296,7 +1308,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: serve the exact candidate SPA build for browser tests'
     section: infrastructure
     commits:
@@ -1306,7 +1318,7 @@ sections:
     - scripts/ci_run_tests.py
     - scripts/ci_static_web.py
     - scripts/tests/test_ci_static_web.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1314,7 +1326,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore: remove obsolete Dependabot agent launch tail'
     section: infrastructure
     commits:
@@ -1324,7 +1336,7 @@ sections:
     - scripts/_dependabot_helper.py
     - scripts/audit_opencode_automation_budget.py
     - scripts/tests/test_opencode_automation_budget_audit.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1332,7 +1344,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: adopt legacy shell dispatchers before shared preflights'
     section: infrastructure
     commits:
@@ -1342,7 +1354,7 @@ sections:
     - scripts/ci_entrypoint.py
     - scripts/sessions.py
     - scripts/tests/test_ci_entrypoint.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1350,7 +1362,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: fail closed before remaining legacy shared-dev test paths'
     section: infrastructure
     commits:
@@ -1363,7 +1375,7 @@ sections:
     - .github/workflows/vscode-extension.yml
     - docs/architecture/isolated-github-tests.md
     - docs/plans/isolated-github-tests/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1371,7 +1383,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: give runner Vault startup headroom and capture OOM state'
     section: infrastructure
     commits:
@@ -1379,7 +1391,7 @@ sections:
     authored_at: '2026-09-07T22:50:36+00:00'
     changed_paths:
     - scripts/ci_environment.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1387,7 +1399,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: retire local runtime probes and forward legacy test launchers'
     section: infrastructure
     commits:
@@ -1405,7 +1417,7 @@ sections:
     - scripts/tests/test_ci_dispatch.py
     - scripts/tests/test_ci_entrypoint.py
     - scripts/verify_codex_runtime.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1413,7 +1425,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore: remove retired OpenCode orchestration monitor'
     section: infrastructure
     commits:
@@ -1431,7 +1443,7 @@ sections:
     - scripts/tests/test_opencode_spec_autocontinue.mjs
     - scripts/tests/test_opencode_task_bridge.py
     - scripts/tests/test_orchestration_monitor.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1439,7 +1451,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore: remove obsolete OpenCode automatic launchers'
     section: infrastructure
     commits:
@@ -1479,7 +1491,7 @@ sections:
     - scripts/weekly-codebase-audit.sh
     - scripts/weekly-contract-audits.sh
     - scripts/weekly-technical-debt.sh
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1487,7 +1499,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: issue a validated scoped Vault token for isolated API startup'
     section: infrastructure
     commits:
@@ -1496,7 +1508,7 @@ sections:
     changed_paths:
     - scripts/ci_environment.py
     - scripts/tests/test_ci_environment.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1504,7 +1516,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: enforce migration hold and separate candidate source from harness'
     section: infrastructure
     commits:
@@ -1526,7 +1538,7 @@ sections:
     - scripts/tests/test_ci_coordinator.py
     - scripts/tests/test_ci_dispatch.py
     - scripts/tests/test_ci_results.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1534,7 +1546,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: repair isolated startup and bind bounded results to candidates'
     section: infrastructure
     commits:
@@ -1551,7 +1563,7 @@ sections:
     - scripts/tests/test_ci_dispatch.py
     - scripts/tests/test_ci_environment.py
     - scripts/tests/test_ci_results.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1559,7 +1571,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: publish immutable candidates and remove superseded host runtime admission'
     section: infrastructure
     commits:
@@ -1577,7 +1589,7 @@ sections:
     - scripts/sessions.py
     - scripts/tests/test_ci_entrypoint.py
     - scripts/tests/test_ci_source.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1585,7 +1597,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: add isolated runner environment and durable dispatch pilot'
     section: infrastructure
     commits:
@@ -1600,7 +1612,7 @@ sections:
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_coordinator.py
     - scripts/tests/test_ci_environment.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1608,551 +1620,19 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'docs: make GitHub isolation the current test execution policy'
-    commits:
-    - 97b55fe3b
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: admit verified core coverage and hold unported profiles'
-    commits:
-    - 1e60d3b50
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: diagnose Chrome sandbox stops from crash metadata'
-    commits:
-    - e50e3fff9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: cache pip only when the job installs Python dependencies'
-    commits:
-    - e228f980a
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: serve the exact candidate SPA build for browser tests'
-    commits:
-    - 438d88352
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore: remove obsolete Dependabot agent launch tail'
-    commits:
-    - 1a788b104
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: adopt legacy shell dispatchers before shared preflights'
-    commits:
-    - dcecf8788
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: fail closed before remaining legacy shared-dev test paths'
-    commits:
-    - 3393060f2
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: deploy exact reviewed candidates without rewriting stale worktrees'
-    commits:
-    - d67c2c666
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: give runner Vault startup headroom and capture OOM state'
-    commits:
-    - eef2fd44b
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: permit named read-only Chrome stop diagnosis'
-    commits:
-    - 0a47f3289
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: retire local runtime probes and forward legacy test launchers'
-    commits:
-    - 9da8d2b33
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: clarify held Dependabot launcher removal'
-    commits:
-    - 62483c3aa
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'refactor: remove remaining obsolete OpenCode review launchers'
-    commits:
-    - a11739b71
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: provide runner-local CMS authentication to CI services'
-    commits:
-    - b17331170
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: authenticate isolated CI services with private CMS credentials'
-    commits:
-    - fb3671a2c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore: remove retired OpenCode orchestration monitor'
-    commits:
-    - 4dda2b684
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore: remove obsolete OpenCode automatic launchers'
-    commits:
-    - 66baa0745
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: issue a validated scoped Vault token for isolated API startup'
-    commits:
-    - a306fe55f
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: enforce migration hold and separate candidate source from harness'
-    commits:
-    - da2458f0e
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(tooling): prepare bounded MindNode capability discovery'
-    commits:
-    - ef0a233fb
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: scope Mac deletion to verified repository descendants'
-    commits:
-    - 7c7a6d067
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: repair isolated startup and bind bounded results to candidates'
-    commits:
-    - 24f18b0a2
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: publish immutable candidates and remove superseded host runtime admission'
-    commits:
-    - 5ecfbf246
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: register isolated workflow on dev without running an unrequested suite'
-    commits:
-    - 87e87c0ec
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: supervise retained render stages without nested sandbox'
-    commits:
-    - dec576e9f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: add isolated runner environment and durable dispatch pilot'
-    commits:
-    - fa2f1ff9f
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: admit sandboxed compiler for retained render check'
-    commits:
-    - 70eeffcba
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: add retained Mac render capability gate'
-    commits:
-    - e103ce979
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: add exact authorized original-media relocation'
-    commits:
-    - 0f4d38fa1
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: verify inherited Mac policy and bundled media probes'
-    commits:
-    - 60437534a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: expose scoped Mac media metadata under read-only sandbox'
-    commits:
-    - bf26220ca
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: add typed retained-source operations to Apple Remote'
-    commits:
-    - 69d83874e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: scope Groq transports to their owning async call'
-    commits:
-    - a291e507d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'test: match email proof checkpoints to capture viewport'
-    commits:
-    - de0b60c27
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: fail anonymous turns without answer content'
-    commits:
-    - 4ca225aa4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: preserve readable security email proof intervals'
-    commits:
-    - 599a426e5
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: strip requirement annotations from security scan versions'
-    commits:
-    - d04fb4b3e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve anonymous follow-ups after skill results'
-    commits:
-    - f325c97e1
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: verify runtime admission preserves the disk reserve'
-    commits:
-    - fcdddd1c9
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve adopted Codex ownership through disconnection'
-    commits:
-    - ef7221cab
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: reject Mac deletion paths and persist terminal task stops'
-    commits:
-    - 00d972816
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: prepare deterministic security digest cutover'
-    commits:
-    - 88f5b1c3e
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: bind Codex tasks to preserved worktrees and stage runtime admission'
-    commits:
-    - d3f5cb478
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: correlate nested chat message identity in acknowledgement probe'
-    commits:
-    - 07705b357
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: add HPFSL acknowledgement timing regression'
-    commits:
-    - aa1322ee8
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: recover empty post-tool answers'
-    commits:
-    - 743865c5e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'test: exercise anonymous chat reliability'
-    commits:
-    - 83bae7f61
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: require chat progress tables in every orchestration reply'
-    commits:
-    - 6c1382e81
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:tasks
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/tasks/app.yml
-  - title: 'docs: record verified orchestration scheduler rollout'
-    commits:
-    - f3733c40c
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: persist orchestration checkpoints across chat turns'
-    commits:
-    - 5850ea83a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:tasks
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/tasks/app.yml
-  - title: 'test: reach anonymous repair flow'
-    commits:
-    - 181bfa50f
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: cap preprocessing fallback latency'
-    commits:
-    - 9b2b0566e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'test: run anonymous repair contract live'
-    commits:
-    - 525c2b4c3
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: cover anonymous production repair'
-    commits:
-    - 31e947399
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: classify rejected transcription interval content'
-    commits:
-    - 6592fcbd2
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:audio
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/audio/app.yml
-    - id: embed:audio:transcribe
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:audio
-      source: backend/apps/audio/app.yml
-    - id: skill:audio:transcribe
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:audio
-      source: backend/apps/audio/app.yml
-  - title: 'feat: clarify orchestration tables and concurrency limits'
-    commits:
-    - 885c0a18e
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:tasks
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/tasks/app.yml
-  - title: 'fix(opencode): preserve Zellij session during server restart'
-    commits:
-    - e6f3ad515
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(opencode): migrate specialist agents to central model policy'
-    commits:
-    - ba050aadc
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(opencode): centralize Astra subchat routing'
-    commits:
-    - 8e745e031
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: add Codex fallback to daily orchestration'
-    commits:
-    - 1669408fd
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: simplify daily meeting focus mode'
-    commits:
-    - 3b4cd6973
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features:
-    - id: app:tasks
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/tasks/app.yml
-  - title: 'fix: expose daily meeting process and examples in API'
-    commits:
-    - bd4282864
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:tasks
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/tasks/app.yml
-  - title: 'feat: add daily meeting and chat orchestration'
-    commits:
-    - 6eafcf39a
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:tasks
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/tasks/app.yml
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'fix: require chat progress tables in every orchestration reply'
     commits:
     - 6c1382e81
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:tasks
       kind: app
@@ -2165,8 +1645,8 @@ unreleased_progress:
     commits:
     - 5850ea83a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:tasks
       kind: app
@@ -2179,8 +1659,8 @@ unreleased_progress:
     commits:
     - 885c0a18e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:tasks
       kind: app
@@ -2193,7 +1673,7 @@ unreleased_progress:
     commits:
     - 3b4cd6973
     section: docs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features:
     - id: app:tasks
@@ -2207,8 +1687,8 @@ unreleased_progress:
     commits:
     - bd4282864
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:tasks
       kind: app
@@ -2221,8 +1701,8 @@ unreleased_progress:
     commits:
     - 6eafcf39a
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:tasks
       kind: app
@@ -2232,14 +1712,13 @@ unreleased_progress:
       parent_id: null
       source: backend/apps/tasks/app.yml
 marketing_candidates:
-  newsletter: []
-  social_or_video:
+  newsletter:
   - title: 'fix: scope Groq transports to their owning async call'
     commits:
     - a291e507d
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2248,45 +1727,40 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: fail anonymous turns without answer content'
     commits:
     - 4ca225aa4
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: preserve anonymous follow-ups after skill results'
     commits:
     - f325c97e1
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat: prepare deterministic security digest cutover'
     commits:
     - 88f5b1c3e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat: bind Codex tasks to preserved worktrees and stage runtime admission'
     commits:
     - d3f5cb478
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: recover empty post-tool answers'
     commits:
     - 743865c5e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2295,43 +1769,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
-  - title: 'fix: require chat progress tables in every orchestration reply'
-    commits:
-    - 6c1382e81
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:tasks
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/tasks/app.yml
-    newsletter_ready: false
-  - title: 'fix: persist orchestration checkpoints across chat turns'
-    commits:
-    - 5850ea83a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:tasks
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/tasks/app.yml
-    newsletter_ready: false
   - title: 'fix: cap preprocessing fallback latency'
     commits:
     - 9b2b0566e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2340,13 +1783,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: classify rejected transcription interval content'
     commits:
     - 6592fcbd2
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:audio
       kind: app
@@ -2369,13 +1811,149 @@ marketing_candidates:
       override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
+  social_or_video:
+  - title: 'fix: scope Groq transports to their owning async call'
+    commits:
+    - a291e507d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: fail anonymous turns without answer content'
+    commits:
+    - 4ca225aa4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve anonymous follow-ups after skill results'
+    commits:
+    - f325c97e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: prepare deterministic security digest cutover'
+    commits:
+    - 88f5b1c3e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: bind Codex tasks to preserved worktrees and stage runtime admission'
+    commits:
+    - d3f5cb478
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: recover empty post-tool answers'
+    commits:
+    - 743865c5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: require chat progress tables in every orchestration reply'
+    commits:
+    - 6c1382e81
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
     newsletter_ready: false
+  - title: 'fix: persist orchestration checkpoints across chat turns'
+    commits:
+    - 5850ea83a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    newsletter_ready: false
+  - title: 'fix: cap preprocessing fallback latency'
+    commits:
+    - 9b2b0566e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: classify rejected transcription interval content'
+    commits:
+    - 6592fcbd2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: true
   - title: 'feat: clarify orchestration tables and concurrency limits'
     commits:
     - 885c0a18e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:tasks
       kind: app
@@ -2389,8 +1967,8 @@ marketing_candidates:
     commits:
     - bd4282864
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:tasks
       kind: app
@@ -2404,8 +1982,8 @@ marketing_candidates:
     commits:
     - 6eafcf39a
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:tasks
       kind: app
@@ -2426,7 +2004,7 @@ sources:
     short_sha: 97b55fe3b
     authored_at: '2026-09-07T23:54:28+00:00'
     subject: 'docs: make GitHub isolation the current test execution policy'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/rules/testing.md
@@ -2435,7 +2013,7 @@ sources:
     short_sha: 1e60d3b50
     authored_at: '2026-09-07T23:51:16+00:00'
     subject: 'ci: admit verified core coverage and hold unported profiles'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/isolated-github-tests.md
@@ -2449,7 +2027,7 @@ sources:
     short_sha: e50e3fff9
     authored_at: '2026-09-07T23:43:34+00:00'
     subject: 'fix: diagnose Chrome sandbox stops from crash metadata'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/apple-no-delete-safety.md
@@ -2460,7 +2038,7 @@ sources:
     short_sha: e228f980a
     authored_at: '2026-09-07T23:36:46+00:00'
     subject: 'ci: cache pip only when the job installs Python dependencies'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -2469,7 +2047,7 @@ sources:
     short_sha: 438d88352
     authored_at: '2026-09-07T23:11:52+00:00'
     subject: 'ci: serve the exact candidate SPA build for browser tests'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_run_tests.py
@@ -2480,7 +2058,7 @@ sources:
     short_sha: 1a788b104
     authored_at: '2026-09-07T23:04:54+00:00'
     subject: 'chore: remove obsolete Dependabot agent launch tail'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/_dependabot_helper.py
@@ -2491,7 +2069,7 @@ sources:
     short_sha: dcecf8788
     authored_at: '2026-09-07T23:03:46+00:00'
     subject: 'ci: adopt legacy shell dispatchers before shared preflights'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_entrypoint.py
@@ -2502,7 +2080,7 @@ sources:
     short_sha: 3393060f2
     authored_at: '2026-09-07T23:00:12+00:00'
     subject: 'ci: fail closed before remaining legacy shared-dev test paths'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/app-skill-cli-smoke.yml
@@ -2516,7 +2094,7 @@ sources:
     short_sha: d67c2c666
     authored_at: '2026-09-07T22:54:01+00:00'
     subject: 'feat: deploy exact reviewed candidates without rewriting stale worktrees'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/reviewed_deploy.py
@@ -2527,7 +2105,7 @@ sources:
     short_sha: eef2fd44b
     authored_at: '2026-09-07T22:50:36+00:00'
     subject: 'ci: give runner Vault startup headroom and capture OOM state'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_environment.py
@@ -2536,7 +2114,7 @@ sources:
     short_sha: 0a47f3289
     authored_at: '2026-09-07T22:49:19+00:00'
     subject: 'fix: permit named read-only Chrome stop diagnosis'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/_apple_render_diagnostic.py
@@ -2548,7 +2126,7 @@ sources:
     short_sha: 9da8d2b33
     authored_at: '2026-09-07T22:46:50+00:00'
     subject: 'ci: retire local runtime probes and forward legacy test launchers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -2567,7 +2145,7 @@ sources:
     short_sha: 62483c3aa
     authored_at: '2026-09-07T22:44:48+00:00'
     subject: 'docs: clarify held Dependabot launcher removal'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/check-dependabot-daily.sh
@@ -2576,7 +2154,7 @@ sources:
     short_sha: a11739b71
     authored_at: '2026-09-07T22:42:52+00:00'
     subject: 'refactor: remove remaining obsolete OpenCode review launchers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/infrastructure/cronjobs.md
@@ -2601,7 +2179,7 @@ sources:
     short_sha: b17331170
     authored_at: '2026-09-07T22:40:29+00:00'
     subject: 'fix: provide runner-local CMS authentication to CI services'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_environment.py
@@ -2612,7 +2190,7 @@ sources:
     short_sha: fb3671a2c
     authored_at: '2026-09-07T22:38:58+00:00'
     subject: 'fix: authenticate isolated CI services with private CMS credentials'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/tests/test_ci_run_tests.py
@@ -2621,7 +2199,7 @@ sources:
     short_sha: 4dda2b684
     authored_at: '2026-09-07T22:26:17+00:00'
     subject: 'chore: remove retired OpenCode orchestration monitor'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .opencode/plugins/openmates-hooks.js
@@ -2640,7 +2218,7 @@ sources:
     short_sha: 66baa0745
     authored_at: '2026-09-07T22:15:48+00:00'
     subject: 'chore: remove obsolete OpenCode automatic launchers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/tests/test__technical_debt_helper.py
@@ -2681,7 +2259,7 @@ sources:
     short_sha: a306fe55f
     authored_at: '2026-09-07T22:14:16+00:00'
     subject: 'ci: issue a validated scoped Vault token for isolated API startup'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_environment.py
@@ -2691,7 +2269,7 @@ sources:
     short_sha: da2458f0e
     authored_at: '2026-09-07T22:07:34+00:00'
     subject: 'ci: enforce migration hold and separate candidate source from harness'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -2714,7 +2292,7 @@ sources:
     short_sha: ef0a233fb
     authored_at: '2026-09-07T22:05:30+00:00'
     subject: 'feat(tooling): prepare bounded MindNode capability discovery'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/contributing/guides/apple-remote-mindnode.md
@@ -2725,7 +2303,7 @@ sources:
     short_sha: 7c7a6d067
     authored_at: '2026-09-07T21:55:04+00:00'
     subject: 'fix: scope Mac deletion to verified repository descendants'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/ios/SKILL.md
@@ -2743,7 +2321,7 @@ sources:
     short_sha: 24f18b0a2
     authored_at: '2026-09-07T21:53:25+00:00'
     subject: 'ci: repair isolated startup and bind bounded results to candidates'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -2761,7 +2339,7 @@ sources:
     short_sha: 5ecfbf246
     authored_at: '2026-09-07T21:36:02+00:00'
     subject: 'ci: publish immutable candidates and remove superseded host runtime admission'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -2780,7 +2358,7 @@ sources:
     short_sha: 87e87c0ec
     authored_at: '2026-09-07T21:23:04+00:00'
     subject: 'ci: register isolated workflow on dev without running an unrequested suite'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -2789,7 +2367,7 @@ sources:
     short_sha: dec576e9f
     authored_at: '2026-09-07T21:22:43+00:00'
     subject: 'fix: supervise retained render stages without nested sandbox'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/apple-no-delete-safety.md
@@ -2802,7 +2380,7 @@ sources:
     short_sha: fa2f1ff9f
     authored_at: '2026-09-07T21:21:13+00:00'
     subject: 'ci: add isolated runner environment and durable dispatch pilot'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -2818,7 +2396,7 @@ sources:
     short_sha: 70eeffcba
     authored_at: '2026-09-07T21:14:34+00:00'
     subject: 'fix: admit sandboxed compiler for retained render check'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/_apple_remotion_remote.py
@@ -2828,7 +2406,7 @@ sources:
     short_sha: e103ce979
     authored_at: '2026-09-07T21:11:00+00:00'
     subject: 'fix: add retained Mac render capability gate'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/apple-no-delete-safety.md
@@ -2842,7 +2420,7 @@ sources:
     short_sha: 0f4d38fa1
     authored_at: '2026-09-07T20:58:32+00:00'
     subject: 'fix: add exact authorized original-media relocation'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/apple-no-delete-safety.md
@@ -2854,7 +2432,7 @@ sources:
     short_sha: 60437534a
     authored_at: '2026-09-07T20:52:31+00:00'
     subject: 'fix: verify inherited Mac policy and bundled media probes'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/_apple_remotion_remote.py
@@ -2864,7 +2442,7 @@ sources:
     short_sha: bf26220ca
     authored_at: '2026-09-07T20:47:46+00:00'
     subject: 'fix: expose scoped Mac media metadata under read-only sandbox'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/apple-no-delete-safety.md
@@ -2876,7 +2454,7 @@ sources:
     short_sha: 69d83874e
     authored_at: '2026-09-07T20:42:25+00:00'
     subject: 'fix: add typed retained-source operations to Apple Remote'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/apple-no-delete-safety.md
@@ -2892,7 +2470,7 @@ sources:
     short_sha: a291e507d
     authored_at: '2026-09-07T20:10:35+00:00'
     subject: 'fix: scope Groq transports to their owning async call'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/groq_client.py
@@ -2904,7 +2482,7 @@ sources:
     short_sha: de0b60c27
     authored_at: '2026-09-07T20:02:16+00:00'
     subject: 'test: match email proof checkpoints to capture viewport'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/security-reporting-email-proof.spec.ts
@@ -2913,7 +2491,7 @@ sources:
     short_sha: 4ca225aa4
     authored_at: '2026-09-07T19:55:31+00:00'
     subject: 'fix: fail anonymous turns without answer content'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/anonymous.py
@@ -2924,7 +2502,7 @@ sources:
     short_sha: 599a426e5
     authored_at: '2026-09-07T19:44:14+00:00'
     subject: 'test: preserve readable security email proof intervals'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/security-reporting-email-proof.spec.ts
@@ -2933,7 +2511,7 @@ sources:
     short_sha: d04fb4b3e
     authored_at: '2026-09-07T19:40:59+00:00'
     subject: 'fix: strip requirement annotations from security scan versions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/tests/test__eu_vuln_helper.py
@@ -2943,7 +2521,7 @@ sources:
     short_sha: f325c97e1
     authored_at: '2026-09-07T19:39:35+00:00'
     subject: 'fix: preserve anonymous follow-ups after skill results'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/anonymous.py
@@ -2954,7 +2532,7 @@ sources:
     short_sha: fcdddd1c9
     authored_at: '2026-09-07T19:09:55+00:00'
     subject: 'test: verify runtime admission preserves the disk reserve'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/engineering_control_plane/tests/test_runtime_capacity.py
@@ -2963,7 +2541,7 @@ sources:
     short_sha: ef7221cab
     authored_at: '2026-09-07T19:07:52+00:00'
     subject: 'fix: preserve adopted Codex ownership through disconnection'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/agent-workflow-decisions.md
@@ -2976,7 +2554,7 @@ sources:
     short_sha: 00d972816
     authored_at: '2026-09-07T19:06:42+00:00'
     subject: 'fix: reject Mac deletion paths and persist terminal task stops'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/ios/SKILL.md
@@ -3000,7 +2578,7 @@ sources:
     short_sha: 88f5b1c3e
     authored_at: '2026-09-07T19:05:20+00:00'
     subject: 'feat: prepare deterministic security digest cutover'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/tests/test__eu_vuln_helper.py
@@ -3032,7 +2610,7 @@ sources:
     short_sha: d3f5cb478
     authored_at: '2026-09-07T19:01:46+00:00'
     subject: 'feat: bind Codex tasks to preserved worktrees and stage runtime admission'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/create-plan/SKILL.md
@@ -3062,7 +2640,7 @@ sources:
     short_sha: 07705b357
     authored_at: '2026-09-07T18:38:52+00:00'
     subject: 'test: correlate nested chat message identity in acknowledgement probe'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/hpfsl-acknowledgement-timing.spec.ts
@@ -3072,7 +2650,7 @@ sources:
     short_sha: aa1322ee8
     authored_at: '2026-09-07T15:55:23+00:00'
     subject: 'test: add HPFSL acknowledgement timing regression'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/hpfsl-acknowledgement-timing.spec.ts
@@ -3082,7 +2660,7 @@ sources:
     short_sha: 743865c5e
     authored_at: '2026-09-07T15:41:57+00:00'
     subject: 'fix: recover empty post-tool answers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -3094,7 +2672,7 @@ sources:
     short_sha: 83bae7f61
     authored_at: '2026-09-07T15:13:40+00:00'
     subject: 'test: exercise anonymous chat reliability'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
@@ -3104,7 +2682,7 @@ sources:
     short_sha: 6c1382e81
     authored_at: '2026-09-07T15:00:51+00:00'
     subject: 'fix: require chat progress tables in every orchestration reply'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/daily-meeting-and-orchestration/SKILL.md
@@ -3118,7 +2696,7 @@ sources:
     short_sha: f3733c40c
     authored_at: '2026-09-07T14:55:49+00:00'
     subject: 'docs: record verified orchestration scheduler rollout'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/orchestration-checkpoint-scheduler/plan.yml
@@ -3127,7 +2705,7 @@ sources:
     short_sha: 5850ea83a
     authored_at: '2026-09-07T14:47:35+00:00'
     subject: 'fix: persist orchestration checkpoints across chat turns'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/daily-meeting-and-orchestration/SKILL.md
@@ -3150,7 +2728,7 @@ sources:
     short_sha: 181bfa50f
     authored_at: '2026-09-07T14:43:58+00:00'
     subject: 'test: reach anonymous repair flow'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
@@ -3160,7 +2738,7 @@ sources:
     short_sha: 9b2b0566e
     authored_at: '2026-09-07T14:33:20+00:00'
     subject: 'fix: cap preprocessing fallback latency'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tests/test_timeout_utils.py
@@ -3174,7 +2752,7 @@ sources:
     short_sha: 525c2b4c3
     authored_at: '2026-09-07T14:29:13+00:00'
     subject: 'test: run anonymous repair contract live'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
@@ -3183,7 +2761,7 @@ sources:
     short_sha: 31e947399
     authored_at: '2026-09-07T14:15:51+00:00'
     subject: 'test: cover anonymous production repair'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
@@ -3193,7 +2771,7 @@ sources:
     short_sha: 6592fcbd2
     authored_at: '2026-09-07T14:07:21+00:00'
     subject: 'fix: classify rejected transcription interval content'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/audio/skills/transcribe_skill.py
@@ -3209,7 +2787,7 @@ sources:
     short_sha: 885c0a18e
     authored_at: '2026-09-07T14:01:07+00:00'
     subject: 'feat: clarify orchestration tables and concurrency limits'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/daily-meeting-and-orchestration/SKILL.md
@@ -3223,7 +2801,7 @@ sources:
     short_sha: e6f3ad515
     authored_at: '2026-09-07T13:55:29+00:00'
     subject: 'fix(opencode): preserve Zellij session during server restart'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/server-restart.sh
@@ -3233,7 +2811,7 @@ sources:
     short_sha: ba050aadc
     authored_at: '2026-09-07T13:51:48+00:00'
     subject: 'feat(opencode): migrate specialist agents to central model policy'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/clarify/SKILL.md
@@ -3266,7 +2844,7 @@ sources:
     short_sha: 8e745e031
     authored_at: '2026-09-07T13:50:14+00:00'
     subject: 'feat(opencode): centralize Astra subchat routing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - opencode.json
@@ -3276,7 +2854,7 @@ sources:
     short_sha: 1669408fd
     authored_at: '2026-09-07T13:07:12+00:00'
     subject: 'docs: add Codex fallback to daily orchestration'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/daily-meeting-and-orchestration/SKILL.md
@@ -3286,7 +2864,7 @@ sources:
     short_sha: 3b4cd6973
     authored_at: '2026-09-07T12:59:21+00:00'
     subject: 'docs: simplify daily meeting focus mode'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/tasks/app.yml
@@ -3298,7 +2876,7 @@ sources:
     short_sha: bd4282864
     authored_at: '2026-09-07T12:43:27+00:00'
     subject: 'fix: expose daily meeting process and examples in API'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/tasks/app.yml
@@ -3308,7 +2886,7 @@ sources:
     short_sha: 6eafcf39a
     authored_at: '2026-09-07T12:41:51+00:00'
     subject: 'feat: add daily meeting and chat orchestration'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/daily-meeting-and-orchestration/SKILL.md
@@ -3322,41 +2900,92 @@ sources:
     related_feature_ids:
     - app:tasks
 llm_summary:
-  overview: OpenMates focused on a major overhaul of its internal CI/CD infrastructure, transitioning to isolated test environments
-    and removing extensive legacy automation tooling. Development also continued on AI processing reliability, Mac rendering
-    safety protocols, and a new orchestration framework for daily meetings.
-  released_changes: []
-  bug_fixes: []
-  unreleased_progress:
-  - text: AI processing was refined to scope Groq transports to specific async calls, recover from empty post-tool answers,
-      and cap preprocessing fallback latency. Transcription services now better classify rejected audio intervals.
+  overview: OpenMates focused on AI reliability and infrastructure hardening today. Key updates include improved Codex task
+    isolation, enhanced anonymous chat stability, and a major transition to isolated GitHub test environments. Significant
+    work was also performed on task orchestration and daily meeting features, though these remain unreleased.
+  released_changes:
+  - text: Codex tasks are now bound to preserved worktrees with staged runtime admission to ensure session isolation.
+    evidence:
+      commits:
+      - d3f5cb478
+    release_status: released_main
+  - text: Infrastructure for deterministic security digests was added to improve the reliability of vulnerability reporting.
+    evidence:
+      commits:
+      - 88f5b1c3e
+    release_status: released_main
+  - text: The deployment process now supports exact reviewed candidates without requiring worktree rewrites.
+    evidence:
+      commits:
+      - d67c2c666
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved an issue where Groq transports were not correctly scoped to their owning asynchronous calls.
     evidence:
       commits:
       - a291e507d
+    release_status: released_main
+  - text: The main processor now recovers gracefully when tool calls result in empty answers.
+    evidence:
+      commits:
       - 743865c5e
+    release_status: released_main
+  - text: Latency for preprocessing fallback operations is now capped to improve response times.
+    evidence:
+      commits:
       - 9b2b0566e
-      - 6592fcbd2
+    release_status: released_main
+  - text: Anonymous chat reliability was improved by validating answer content and preserving follow-up turns after skill
+      execution.
+    evidence:
+      commits:
       - 4ca225aa4
       - f325c97e1
-    release_status: dev_only
-  - text: The project is developing a daily meeting and chat orchestration system, featuring persistent checkpoints across
-      chat turns and progress table requirements for replies.
+    release_status: released_main
+  - text: The transcription skill now correctly classifies rejected content within specific audio intervals.
+    evidence:
+      commits:
+      - 6592fcbd2
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on the Tasks app, including new daily meeting focus modes, chat orchestration checkpoints,
+      and API examples for meeting processes.
     evidence:
       commits:
       - 6eafcf39a
       - 885c0a18e
-      - bd4282864
       - 6c1382e81
       - 5850ea83a
+      - bd4282864
       - 3b4cd6973
-      - 1669408fd
-      - f3733c40c
-    release_status: dev_only
-  - text: Apple Remote capabilities were strengthened with 'no-delete' safety guards, sandboxed compiler admission for render
-      checks, and verified repository descendant scoping for file operations.
+    release_status: released_main
+  internal_progress:
+  - text: A major migration to isolated GitHub test environments was completed, including durable dispatch pilots and immutable
+      candidate publishing.
     evidence:
       commits:
-      - 00d972816
+      - fa2f1ff9f
+      - 5ecfbf246
+      - 24f18b0a2
+      - da2458f0e
+      - a306fe55f
+      - 3393060f2
+      - dcecf8788
+      - 438d88352
+      - 1e60d3b50
+    release_status: released_main
+  - text: Several obsolete OpenCode automatic launchers and orchestration monitors were removed to streamline the codebase.
+    evidence:
+      commits:
+      - 66baa0745
+      - 4dda2b684
+      - a11739b71
+      - 1a788b104
+    release_status: released_main
+  - text: Safety guards for remote Mac operations were strengthened, including stricter deletion scoping and sandboxed diagnostic
+      tools.
+    evidence:
+      commits:
       - 69d83874e
       - bf26220ca
       - 60437534a
@@ -3367,100 +2996,56 @@ llm_summary:
       - 7c7a6d067
       - 0a47f3289
       - e50e3fff9
-    release_status: dev_only
-  - text: Codex task integration now supports preserved worktrees and staged runtime admission, with new tests verifying disk
-      reserve preservation during session lifecycle.
-    evidence:
-      commits:
-      - d3f5cb478
-      - ef7221cab
-      - fcdddd1c9
-    release_status: dev_only
-  internal_progress:
-  - text: The project is migrating to an isolated GitHub test execution policy, introducing dedicated runner environments,
-      durable dispatch pilots, and validated Vault tokens for secure API startup.
-    evidence:
-      commits:
-      - fa2f1ff9f
-      - 5ecfbf246
-      - 24f18b0a2
-      - da2458f0e
-      - a306fe55f
-      - dcecf8788
-      - 438d88352
-      - 1e60d3b50
-      - 97b55fe3b
-    release_status: dev_only
-  - text: Significant technical debt was addressed by removing dozens of obsolete OpenCode automatic launchers, orchestration
-      monitors, and legacy cronjob scripts.
-    evidence:
-      commits:
-      - 66baa0745
-      - 4dda2b684
-      - a11739b71
-      - 1a788b104
-      - 62483c3aa
-    release_status: dev_only
-  - text: CI services now utilize runner-local CMS authentication and private credentials, with improved headroom for Vault
-      startup to prevent out-of-memory states.
-    evidence:
-      commits:
-      - b17331170
-      - fb3671a2c
-      - eef2fd44b
-    release_status: dev_only
-  - text: Work began on a deterministic security digest cutover, including refined version string parsing for vulnerability
-      scans and visual proofing for security reporting emails.
-    evidence:
-      commits:
-      - 88f5b1c3e
-      - d04fb4b3e
-      - de0b60c27
-      - 599a426e5
-    release_status: dev_only
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: AI processing and transcription improvements.
+    include:
+    - text: Codex task binding to preserved worktrees and new runtime admission staging.
+      evidence:
+        commits:
+        - d3f5cb478
+      reason: Introduces significant improvements to how Codex tasks are isolated and managed.
+    - text: Preparation for deterministic security digest reporting.
+      evidence:
+        commits:
+        - 88f5b1c3e
+      reason: Prepares the infrastructure for more reliable security reporting.
+    - text: Reliability enhancements for AI processing and LLM provider transports.
       evidence:
         commits:
         - a291e507d
         - 743865c5e
         - 9b2b0566e
-        - 6592fcbd2
+      reason: Improves the overall reliability and performance of AI-driven interactions.
+    - text: Stability fixes for anonymous chat turns and follow-up preservation.
+      evidence:
+        commits:
         - 4ca225aa4
         - f325c97e1
-      reason: These AI and processing refinements have not yet reached the main branch.
+      reason: Improves the user experience for anonymous or guest users.
+    exclude:
     - text: Daily meeting and chat orchestration features.
       evidence:
         commits:
         - 6eafcf39a
         - 885c0a18e
-        - bd4282864
         - 6c1382e81
         - 5850ea83a
-      reason: The tasks application is currently a disabled feature.
-    - text: Apple Remote and Mac rendering safety guards.
-      evidence:
-        commits:
-        - 00d972816
-        - 69d83874e
-        - bf26220ca
-        - 60437534a
-        - 0f4d38fa1
-        - e103ce979
-        - 70eeffcba
-        - dec576e9f
-        - 7c7a6d067
-        - 0a47f3289
-        - e50e3fff9
-      reason: Apple-related platforms and remote capabilities are currently disabled.
-    rationale: No user-facing changes reached the main branch or were marked ready for public communication during this period.
-      All work remains in development or is tied to disabled feature flags.
-  social_video_recommendations: []
+        - bd4282864
+        - 3b4cd6973
+      reason: These items relate to the Tasks app, which is currently a disabled feature.
+    rationale: The update focuses on core AI reliability, security infrastructure, and a significant overhaul of the internal
+      CI environment. While substantial work was done on task orchestration, those features remain disabled for the general
+      public.
+  social_video_recommendations:
+  - idea: A technical deep-dive into Codex runtime isolation.
+    priority: medium
+    reason: The binding of tasks to preserved worktrees is a significant architectural improvement for developer-focused AI
+      tools.
+    evidence:
+      commits:
+      - d3f5cb478
   quality_notes:
-  - The removal of over 30 legacy shell scripts and obsolete launchers significantly simplifies the codebase infrastructure.
-  - New safety guards for Mac remote operations implement strict path verification to prevent unauthorized file deletions
-    during rendering.
-  - AI processing now includes better handling of empty tool responses and latency caps for preprocessing fallbacks.
+  - Extensive testing was added for anonymous chat flows and CI infrastructure changes.
+  - Security reporting logic was updated to support deterministic digests.
+  - AI processing now handles edge cases like empty tool responses and high-latency fallbacks more gracefully.
   validation_warnings: []

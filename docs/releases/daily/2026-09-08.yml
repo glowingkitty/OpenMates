@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-08'
-generated_at: '2026-09-09T00:20:21+00:00'
+generated_at: '2026-09-14T00:45:40+00:00'
 range:
   since: '2026-09-08T00:00:00+00:00'
   until: '2026-09-09T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 7
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 26
   user_facing_items: 29
-  dev_only_items: 83
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -180,7 +180,7 @@ sections:
     - .claude/skills/review-example-chat/references/checklist.md
     - scripts/audit_example_chats.py
     - scripts/tests/test_example_chat_review_record.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -188,7 +188,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: download generated app skill files with explicit destination controls'
     section: features
     commits:
@@ -204,16 +204,16 @@ sections:
     - frontend/packages/openmates-cli/tests/generatedFiles.test.ts
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: connect Tasks to Codex and enable encrypted editing'
     section: features
     commits:
@@ -248,8 +248,8 @@ sections:
     - specifications/features/tasks/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -265,7 +265,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:tasks'
   bug_fixes:
   - title: 'fix: hide public response speech without audio fixtures'
     section: bug_fixes
@@ -277,16 +278,16 @@ sections:
     - frontend/packages/ui/src/components/ActiveChat.svelte
     - frontend/packages/ui/src/components/ChatHistory.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: defer concurrent Codex Task API requests on rate limits'
     section: bug_fixes
     commits:
@@ -298,7 +299,7 @@ sections:
     - scripts/codex_task_context.py
     - scripts/tests/test_codex_hook_context.py
     - scripts/tests/test_codex_task_lifecycle.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -306,7 +307,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: emit valid Codex Stop hook output'
     section: bug_fixes
     commits:
@@ -315,7 +316,7 @@ sections:
     changed_paths:
     - scripts/codex_hook_context.py
     - scripts/tests/test_codex_hook_context.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -323,7 +324,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: reject incomplete global CLI task inventories'
     section: bug_fixes
     commits:
@@ -334,16 +335,16 @@ sections:
     - frontend/packages/openmates-cli/src/client.ts
     - frontend/packages/openmates-cli/tests/taskDiscovery.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve generated appointment request identifiers'
     section: bug_fixes
     commits:
@@ -353,9 +354,9 @@ sections:
     - backend/apps/health/skills/search_appointments_skill.py
     - backend/tests/test_health_search_appointments_skill.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:health
@@ -384,7 +385,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:health, embed:health:search_appointments, skill:health:search_appointments'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve completion recovery across consent and embed saving'
     section: bug_fixes
     commits:
@@ -404,9 +405,9 @@ sections:
     - frontend/packages/openmates-cli/src/client.ts
     - frontend/packages/openmates-cli/tests/client.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -428,7 +429,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, skill:ai:ask'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: contain composer microphone permission warnings'
     section: bug_fixes
     commits:
@@ -440,16 +441,16 @@ sections:
     - scripts/lint_changed.sh
     - scripts/tests/test_lint_changed_css.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: enforce Calendar account and mutation target selection'
     section: bug_fixes
     commits:
@@ -464,9 +465,9 @@ sections:
     - backend/tests/test_sdk_chat_recovery.py
     - backend/tests/test_token_broker_refs.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -481,7 +482,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve Calendar account selection and token cleanup'
     section: bug_fixes
     commits:
@@ -489,7 +490,7 @@ sections:
     authored_at: '2026-09-08T15:20:55+00:00'
     changed_paths:
     - docs/plans/connected-accounts-calendar/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -497,7 +498,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: accept health tool enum values and exclude preventive visits'
     section: bug_fixes
     commits:
@@ -507,9 +508,9 @@ sections:
     - backend/apps/health/skills/search_appointments_skill.py
     - backend/tests/test_health_search_appointments_skill.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:health
@@ -538,7 +539,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:health, embed:health:search_appointments, skill:health:search_appointments'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: exclude condition treatments from general consultations'
     section: bug_fixes
     commits:
@@ -548,9 +549,9 @@ sections:
     - backend/apps/health/skills/search_appointments_skill.py
     - backend/tests/test_health_search_appointments_skill.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:health
@@ -579,7 +580,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:health, embed:health:search_appointments, skill:health:search_appointments'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve appointment purpose and provider eligibility'
     section: bug_fixes
     commits:
@@ -596,9 +597,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:health
@@ -627,7 +628,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:health, embed:health:search_appointments, skill:health:search_appointments'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: initialize fork title versions and tolerate legacy nulls'
     section: bug_fixes
     commits:
@@ -640,16 +641,16 @@ sections:
     - backend/tests/test_native_chats_api.py
     - docs/plans/preprocessing-failure-recovery/plan.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: show concrete examples beside approval PDF requirements'
     section: bug_fixes
     commits:
@@ -660,7 +661,7 @@ sections:
     - .claude/skills/define-specification/SKILL.md
     - scripts/specification_approval_pdf.py
     - scripts/tests/test_specification_approval_pdf.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -668,7 +669,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: restore priorities-first daily meeting flow'
     section: bug_fixes
     commits:
@@ -683,7 +684,7 @@ sections:
     - scripts/_daily_meeting_helper.py
     - scripts/codex_meeting.py
     - scripts/tests/test_codex_meeting.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -691,7 +692,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: reserve preprocessing time for configured fallbacks'
     section: bug_fixes
     commits:
@@ -702,9 +703,9 @@ sections:
     - backend/tests/test_llm_utils_preprocessing_retries.py
     - docs/plans/preprocessing-failure-recovery/plan.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -719,7 +720,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: converge memory consent requests across clients'
     section: bug_fixes
     commits:
@@ -744,16 +745,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve Responses stream progress for timeout detection'
     section: bug_fixes
     commits:
@@ -762,9 +763,9 @@ sections:
     changed_paths:
     - backend/apps/ai/llm_providers/openai_responses.py
     - backend/tests/test_openai_responses.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -779,7 +780,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: route Astra reasoning tools through stateless Responses'
     section: bug_fixes
     commits:
@@ -794,9 +795,9 @@ sections:
     - backend/tests/test_openai_responses.py
     - docs/plans/landing-example-quality-campaign/evidence/example-astra-worker.md
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -811,7 +812,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve compact mindmap zoom controls without source panel'
     section: bug_fixes
     commits:
@@ -821,9 +822,9 @@ sections:
     - frontend/apps/web_app/tests/components/mindmap-fullscreen.spec.ts
     - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: embed:mindmaps:mindmap
@@ -838,7 +839,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: embed:mindmaps:mindmap'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: recover missing preprocessing output and seal error responses'
     section: bug_fixes
     commits:
@@ -855,9 +856,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -872,7 +873,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: accept provider supported xhigh reasoning'
     section: bug_fixes
     commits:
@@ -883,9 +884,9 @@ sections:
     - backend/tests/test_openai_gpt56_models.py
     - docs/plans/landing-example-quality-campaign/evidence/example-astra-worker.md
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -900,7 +901,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve tool origin for orchestration checkpoints'
     section: bug_fixes
     commits:
@@ -911,7 +912,7 @@ sections:
     - docs/plans/codex-daily-orchestration/plan.yml
     - scripts/codex_orchestration.py
     - scripts/tests/test_codex_orchestration.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -919,7 +920,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: make Codex daily orchestration evidence-driven'
     section: bug_fixes
     commits:
@@ -948,7 +949,7 @@ sections:
     - scripts/tests/test_codex_hook_context.py
     - scripts/tests/test_codex_meeting.py
     - scripts/tests/test_codex_orchestration.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -956,7 +957,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: remove rejected public examples and disable get-docs'
     section: bug_fixes
     commits:
@@ -991,9 +992,9 @@ sections:
     - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_fitness_studios_berlin.yml
     - frontend/packages/ui/src/i18n/sources/example_chats/urban_sports_yoga_classes_berlin.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:openmates
@@ -1008,7 +1009,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:openmates'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: translate plumber privacy example into German'
     section: bug_fixes
     commits:
@@ -1016,7 +1017,7 @@ sections:
     authored_at: '2026-09-08T13:02:31+00:00'
     changed_paths:
     - frontend/packages/ui/src/i18n/sources/example_chats/plumber_message_email_phone_privacy.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1024,7 +1025,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve public example embed PII mappings'
     section: bug_fixes
     commits:
@@ -1038,7 +1039,7 @@ sections:
     - frontend/packages/ui/src/i18n/sources/example_chats/plumber_message_email_phone_privacy.yml
     - scripts/create-example-chat-from-share.mjs
     - scripts/tests/create_example_chat_from_share.test.mjs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1046,7 +1047,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: hide source JSON in normal mindmap fullscreen'
     section: bug_fixes
     commits:
@@ -1057,9 +1058,9 @@ sections:
     - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.preview.ts
     - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: embed:mindmaps:mindmap
@@ -1074,7 +1075,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: embed:mindmaps:mindmap'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: use supported Astra reasoning effort'
     section: bug_fixes
     commits:
@@ -1084,7 +1085,7 @@ sections:
     - backend/providers/openai.yml
     - backend/tests/test_ai_ask_model_metadata.py
     - docs/plans/landing-example-quality-campaign/evidence/example-astra-worker.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1092,7 +1093,7 @@ sections:
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve events date bounds with timezone annotations'
     section: bug_fixes
     commits:
@@ -1103,9 +1104,9 @@ sections:
     - backend/apps/events/skills/search_skill.py
     - backend/tests/test_events_provider_routing.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:events
@@ -1134,7 +1135,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:events, embed:events:search, skill:events:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: gate landing example conversion on source follow-ups'
     section: bug_fixes
     commits:
@@ -1143,7 +1144,7 @@ sections:
     changed_paths:
     - scripts/create-example-chat-from-share.mjs
     - scripts/tests/create_example_chat_from_share.test.mjs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1151,7 +1152,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: make CLI account output readable and actionable'
     section: bug_fixes
     commits:
@@ -1163,16 +1164,16 @@ sections:
     - frontend/packages/openmates-cli/tests/cli.test.ts
     - frontend/packages/openmates-cli/tests/storage.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: require an accepted turn before showing model selection'
     section: bug_fixes
     commits:
@@ -1183,16 +1184,16 @@ sections:
     - frontend/packages/ui/src/components/ActiveChat.svelte
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: restore CLI version aliases and identify release in help'
     section: bug_fixes
     commits:
@@ -1203,16 +1204,16 @@ sections:
     - frontend/packages/openmates-cli/src/cli.ts
     - frontend/packages/openmates-cli/tests/cli.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: retrieve code run artifacts when live streaming is unavailable'
     section: bug_fixes
     commits:
@@ -1224,16 +1225,16 @@ sections:
     - frontend/packages/openmates-cli/src/cli.ts
     - frontend/packages/openmates-cli/tests/cli.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: bind async skill polling to the submitting owner'
     section: bug_fixes
     commits:
@@ -1254,8 +1255,8 @@ sections:
     - specifications/generated/registry.yml
     - specifications/surfaces/cli/examples.yml
     - specifications/surfaces/cli/specification.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1278,7 +1279,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, platform:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:tasks'
   - title: 'fix: map browser proof timing from the first retained video frame'
     section: bug_fixes
     commits:
@@ -1287,7 +1289,7 @@ sections:
     changed_paths:
     - scripts/spec_demo.py
     - scripts/tests/test_spec_demonstration_pipeline.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1295,7 +1297,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep Task Activity attachment controls inside composer'
     section: bug_fixes
     commits:
@@ -1303,8 +1305,8 @@ sections:
     authored_at: '2026-09-08T05:38:22+00:00'
     changed_paths:
     - frontend/packages/ui/src/components/tasks/TaskActivity.svelte
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1320,7 +1322,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:tasks'
   - title: 'fix: add isolated live Caddy host removal with concurrency guard'
     section: bug_fixes
     commits:
@@ -1330,7 +1333,7 @@ sections:
     - deployment/apply-caddy-config.sh
     - scripts/caddy_remove_live_route.py
     - scripts/tests/test_caddy_remove_live_route.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1338,7 +1341,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve clean browser proof profiles and enforce real caption pacing'
     section: bug_fixes
     commits:
@@ -1347,7 +1350,7 @@ sections:
     changed_paths:
     - scripts/spec_demo.py
     - scripts/tests/test_spec_demonstration_pipeline.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1355,7 +1358,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: bind proof producer to original CI timeline and clock'
     section: bug_fixes
     commits:
@@ -1367,7 +1370,7 @@ sections:
     - scripts/sessions.py
     - scripts/tests/test_proof_video_workflow.py
     - scripts/tests/test_sessions_proof_video.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1375,7 +1378,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: recognize concrete Task controls in proof narration'
     section: bug_fixes
     commits:
@@ -1384,7 +1387,7 @@ sections:
     changed_paths:
     - scripts/spec_demo.py
     - scripts/tests/test_spec_demonstration_pipeline.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1392,7 +1395,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: resolve proof recordings from isolated CI receipts'
     section: bug_fixes
     commits:
@@ -1402,7 +1405,7 @@ sections:
     - scripts/proof_video_ci_source.py
     - scripts/proof_video_workflow.py
     - scripts/tests/test_proof_video_ci_source.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1410,7 +1413,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: resolve proof sessions from Codex or repository identity'
     section: bug_fixes
     commits:
@@ -1419,7 +1422,7 @@ sections:
     changed_paths:
     - scripts/proof_video_workflow.py
     - scripts/tests/test_proof_video_workflow.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1427,7 +1430,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: align SDK Task lookup with the server list bound'
     section: bug_fixes
     commits:
@@ -1438,16 +1441,16 @@ sections:
     - frontend/packages/openmates-cli/src/sdk.ts
     - packages/openmates-python/openmates/sdk.py
     - packages/openmates-python/tests/test_tasks.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: scope Chromium Mac temporary paths to render runs'
     section: bug_fixes
     commits:
@@ -1458,7 +1461,7 @@ sections:
     - scripts/_apple_remotion_remote.py
     - scripts/_apple_render_diagnostic.py
     - scripts/tests/test_apple_remote_remotion.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1466,7 +1469,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements:
   - title: 'refactor: retire obsolete OpenCode runtime and launch tooling'
     section: improvements
@@ -1573,7 +1576,7 @@ sections:
     - scripts/verify_opencode_native_worktree.py
     - scripts/verify_opencode_presence_live.py
     - scripts/verify_security_reporting.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1581,7 +1584,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   docs:
   - title: 'docs: record Calendar verification progress and OAuth setup hold'
     section: docs
@@ -1590,7 +1593,7 @@ sections:
     authored_at: '2026-09-08T15:26:36+00:00'
     changed_paths:
     - docs/plans/connected-accounts-calendar/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1598,7 +1601,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: publish approved shared focus mode contract'
     section: docs
     commits:
@@ -1610,7 +1613,7 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1618,7 +1621,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: record landing campaign worker assignments and specification decisions'
     section: docs
     commits:
@@ -1626,7 +1629,7 @@ sections:
     authored_at: '2026-09-08T13:27:47+00:00'
     changed_paths:
     - docs/plans/landing-example-quality-campaign/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1634,7 +1637,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: require concrete specification examples and reuse existing contracts'
     section: docs
     commits:
@@ -1645,7 +1648,7 @@ sections:
     - .agents/skills/define-specification/SKILL.md
     - .claude/skills/backfill-specification/SKILL.md
     - .claude/skills/define-specification/SKILL.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1653,7 +1656,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: record Berlin appointment candidate rejection'
     section: docs
     commits:
@@ -1661,7 +1664,7 @@ sections:
     authored_at: '2026-09-08T12:24:03+00:00'
     changed_paths:
     - docs/plans/landing-example-quality-campaign/appointments-handoff.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1669,7 +1672,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: record approved landing example coordination campaign'
     section: docs
     commits:
@@ -1677,7 +1680,7 @@ sections:
     authored_at: '2026-09-08T12:15:45+00:00'
     changed_paths:
     - docs/plans/landing-example-quality-campaign/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1685,7 +1688,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: record real generated-file CLI verification'
     section: docs
     commits:
@@ -1693,7 +1696,7 @@ sections:
     authored_at: '2026-09-08T10:30:44+00:00'
     changed_paths:
     - docs/plans/generated-file-cli-downloads/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1701,7 +1704,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: record verified isolated core pilot and remaining rollout'
     section: docs
     commits:
@@ -1709,7 +1712,7 @@ sections:
     authored_at: '2026-09-08T00:00:09+00:00'
     changed_paths:
     - docs/plans/isolated-github-tests/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1717,7 +1720,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'test: mark mail privacy proof transition'
     section: tests
@@ -1726,7 +1729,7 @@ sections:
     authored_at: '2026-09-08T17:30:29+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1734,7 +1737,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: bind plumber proof captures to runner profiles'
     section: tests
     commits:
@@ -1743,7 +1746,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1751,7 +1754,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: give memory consent history proof a bounded host'
     section: tests
     commits:
@@ -1762,7 +1765,7 @@ sections:
     - frontend/apps/web_app/tests/components/memory-consent.spec.ts
     - frontend/packages/ui/src/components/MemoryConsentHistoryPreview.preview.ts
     - frontend/packages/ui/src/components/MemoryConsentHistoryPreview.svelte
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1770,7 +1773,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: align speech proof caption with responsive player'
     section: tests
     commits:
@@ -1779,7 +1782,7 @@ sections:
     changed_paths:
     - docs/plans/landing-example-quality-campaign/speech-pilot-handoff.md
     - frontend/apps/web_app/tests/example-chat-speech.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1787,7 +1790,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: retain readable public speech proof interval'
     section: tests
     commits:
@@ -1797,7 +1800,7 @@ sections:
     - docs/plans/landing-example-quality-campaign/speech-pilot-handoff.md
     - frontend/apps/web_app/tests/example-chat-speech.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1805,7 +1808,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: disambiguate plumber guest signup assertion'
     section: tests
     commits:
@@ -1813,7 +1816,7 @@ sections:
     authored_at: '2026-09-08T14:45:21+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1821,7 +1824,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: verify guest signup after public example follow-up'
     section: tests
     commits:
@@ -1829,7 +1832,7 @@ sections:
     authored_at: '2026-09-08T14:20:39+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1837,7 +1840,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: attach public speech proof timeline'
     section: tests
     commits:
@@ -1845,7 +1848,7 @@ sections:
     authored_at: '2026-09-08T14:14:44+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/example-chat-speech.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1853,7 +1856,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: scope landing headline checks to visible layout'
     section: tests
     commits:
@@ -1862,7 +1865,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1870,7 +1873,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: verify public speech with current player selectors'
     section: tests
     commits:
@@ -1879,7 +1882,7 @@ sections:
     changed_paths:
     - docs/plans/landing-example-quality-campaign/speech-pilot-handoff.md
     - frontend/apps/web_app/tests/example-chat-speech.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1887,7 +1890,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: classify plumber example as public browser coverage'
     section: tests
     commits:
@@ -1895,7 +1898,7 @@ sections:
     authored_at: '2026-09-08T13:33:17+00:00'
     changed_paths:
     - scripts/ci_coverage_manifest.json
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1903,7 +1906,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: prove public plumber email and phone protection'
     section: tests
     commits:
@@ -1913,7 +1916,7 @@ sections:
     - docs/plans/landing-example-quality-campaign/evidence/example-pii-worker.md
     - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1921,7 +1924,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: record readable Task component proof intervals'
     section: tests
     commits:
@@ -1931,7 +1934,7 @@ sections:
     - frontend/apps/web_app/tests/task-activity.spec.ts
     - frontend/apps/web_app/tests/task-blocked-reason.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1939,7 +1942,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: use Task workspace composer and unique creator fixtures'
     section: tests
     commits:
@@ -1948,7 +1951,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/helpers/task-creator-e2e-helpers.ts
     - frontend/apps/web_app/tests/tasks-flow.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1964,7 +1967,7 @@ sections:
     rationale:
     - classified as tests from commit subject/path rules
     - 'matches feature availability gates: platform:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: avoid duplicate login before Task creator pairing'
     section: tests
     commits:
@@ -1973,7 +1976,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/tasks-flow.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1981,7 +1984,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: record readable Task detail proof intervals'
     section: tests
     commits:
@@ -1990,7 +1993,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1998,7 +2001,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: check initial Task dialog focus before editing'
     section: tests
     commits:
@@ -2007,7 +2010,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2015,7 +2018,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: verify Task detail editing controls in focused proof'
     section: tests
     commits:
@@ -2024,7 +2027,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2032,7 +2035,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure:
   - title: 'ci: admit public PDF view component regression'
     section: infrastructure
@@ -2041,7 +2044,7 @@ sections:
     authored_at: '2026-09-08T13:58:38+00:00'
     changed_paths:
     - scripts/ci_coverage_manifest.json
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2049,7 +2052,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: classify mindmap fullscreen component regression'
     section: infrastructure
     commits:
@@ -2057,7 +2060,7 @@ sections:
     authored_at: '2026-09-08T12:40:06+00:00'
     changed_paths:
     - scripts/ci_coverage_manifest.json
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2065,7 +2068,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore: retire automatic OpenCode proof reviewer launch'
     section: infrastructure
     commits:
@@ -2074,7 +2077,7 @@ sections:
     changed_paths:
     - scripts/proof_video_workflow.py
     - scripts/tests/test_proof_video_workflow.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2082,7 +2085,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: open ordinary suite routing and provision isolated Task metadata'
     section: infrastructure
     commits:
@@ -2098,7 +2101,7 @@ sections:
     - scripts/ci_static_web.py
     - scripts/tests/test_ci_codex_fixture.py
     - scripts/tests/test_ci_static_web.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2106,7 +2109,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: preserve reserved security account policy with fresh runner accounts'
     section: infrastructure
     commits:
@@ -2116,7 +2119,7 @@ sections:
     - scripts/ci_coverage.py
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_run_tests.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2124,7 +2127,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: admit ordinary accessibility and account settings suites'
     section: infrastructure
     commits:
@@ -2133,7 +2136,7 @@ sections:
     changed_paths:
     - scripts/ci_coverage.py
     - scripts/tests/test_ci_results.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2141,7 +2144,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci: run synthetic email proofs in an isolated browser profile'
     section: infrastructure
     commits:
@@ -2156,7 +2159,7 @@ sections:
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_coverage.py
     - scripts/tests/test_ci_run_tests.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2164,817 +2167,19 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'fix: hide public response speech without audio fixtures'
-    commits:
-    - 8e0d23634
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: defer concurrent Codex Task API requests on rate limits'
-    commits:
-    - 18b136ed8
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: mark mail privacy proof transition'
-    commits:
-    - 611379aa9
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: emit valid Codex Stop hook output'
-    commits:
-    - 0bc0dbc2d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: reject incomplete global CLI task inventories'
-    commits:
-    - 3c2c2b160
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: preserve generated appointment request identifiers'
-    commits:
-    - 670c9c712
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:health
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/health/app.yml
-    - id: embed:health:search_appointments
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:health
-      source: backend/apps/health/app.yml
-    - id: skill:health:search_appointments
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:health
-      source: backend/apps/health/app.yml
-  - title: 'test: bind plumber proof captures to runner profiles'
-    commits:
-    - 336339e35
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve completion recovery across consent and embed saving'
-    commits:
-    - fe098001a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: skill:ai:ask
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-  - title: 'fix: contain composer microphone permission warnings'
-    commits:
-    - 4b427518b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'docs: record Calendar verification progress and OAuth setup hold'
-    commits:
-    - c31e18b48
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: enforce Calendar account and mutation target selection'
-    commits:
-    - 74a508e07
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: preserve Calendar account selection and token cleanup'
-    commits:
-    - 6bd96772a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: accept health tool enum values and exclude preventive visits'
-    commits:
-    - 40b889891
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:health
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/health/app.yml
-    - id: embed:health:search_appointments
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:health
-      source: backend/apps/health/app.yml
-    - id: skill:health:search_appointments
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:health
-      source: backend/apps/health/app.yml
-  - title: 'test: give memory consent history proof a bounded host'
-    commits:
-    - f91fd2d85
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: align speech proof caption with responsive player'
-    commits:
-    - 52dada299
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: exclude condition treatments from general consultations'
-    commits:
-    - a6f38ecb6
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:health
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/health/app.yml
-    - id: embed:health:search_appointments
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:health
-      source: backend/apps/health/app.yml
-    - id: skill:health:search_appointments
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:health
-      source: backend/apps/health/app.yml
-  - title: 'test: retain readable public speech proof interval'
-    commits:
-    - 803b0db58
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: disambiguate plumber guest signup assertion'
-    commits:
-    - 97a22fda4
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve appointment purpose and provider eligibility'
-    commits:
-    - 278cac186
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:health
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/health/app.yml
-    - id: embed:health:search_appointments
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:health
-      source: backend/apps/health/app.yml
-    - id: skill:health:search_appointments
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:health
-      source: backend/apps/health/app.yml
-  - title: 'fix: initialize fork title versions and tolerate legacy nulls'
-    commits:
-    - 4bc366a34
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: show concrete examples beside approval PDF requirements'
-    commits:
-    - f5b6b5acf
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: verify guest signup after public example follow-up'
-    commits:
-    - 7e060f8fb
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: restore priorities-first daily meeting flow'
-    commits:
-    - e2f1cca0d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: attach public speech proof timeline'
-    commits:
-    - 5bb0b3356
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: publish approved shared focus mode contract'
-    commits:
-    - 79465ca67
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: scope landing headline checks to visible layout'
-    commits:
-    - db89247dd
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: reserve preprocessing time for configured fallbacks'
-    commits:
-    - c203154e1
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: converge memory consent requests across clients'
-    commits:
-    - 623274de5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: preserve Responses stream progress for timeout detection'
-    commits:
-    - 9767f60af
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'ci: admit public PDF view component regression'
-    commits:
-    - e82d48166
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: route Astra reasoning tools through stateless Responses'
-    commits:
-    - de40ae665
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: preserve compact mindmap zoom controls without source panel'
-    commits:
-    - 1b5be4e5f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: embed:mindmaps:mindmap
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:mindmaps
-      source: backend/apps/mindmaps/app.yml
-  - title: 'fix: recover missing preprocessing output and seal error responses'
-    commits:
-    - 2418c1bf4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'test: verify public speech with current player selectors'
-    commits:
-    - 7c4b796fe
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: classify plumber example as public browser coverage'
-    commits:
-    - 04c8074d3
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: prove public plumber email and phone protection'
-    commits:
-    - '719229205'
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: accept provider supported xhigh reasoning'
-    commits:
-    - f42e33579
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'docs: record landing campaign worker assignments and specification decisions'
-    commits:
-    - 60c9b2169
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: require concrete specification examples and reuse existing contracts'
-    commits:
-    - 83cff9425
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve tool origin for orchestration checkpoints'
-    commits:
-    - 9703fbce4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: make Codex daily orchestration evidence-driven'
-    commits:
-    - 64044ecd2
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: remove rejected public examples and disable get-docs'
-    commits:
-    - 3b9b6b69e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:openmates
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/openmates/app.yml
-  - title: 'fix: translate plumber privacy example into German'
-    commits:
-    - bfc3849ca
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve public example embed PII mappings'
-    commits:
-    - 9a51f28cf
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: hide source JSON in normal mindmap fullscreen'
-    commits:
-    - 383bf1b51
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: embed:mindmaps:mindmap
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:mindmaps
-      source: backend/apps/mindmaps/app.yml
-  - title: 'fix: use supported Astra reasoning effort'
-    commits:
-    - a8162d625
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: classify mindmap fullscreen component regression'
-    commits:
-    - d0802d26d
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: record Berlin appointment candidate rejection'
-    commits:
-    - 7bf8f5aa3
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve events date bounds with timezone annotations'
-    commits:
-    - a9efbf0ee
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-    - id: embed:events:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-    - id: skill:events:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-  - title: 'feat: add rendered example chat review skill and admission checks'
-    commits:
-    - d01d7d4e9
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: record approved landing example coordination campaign'
-    commits:
-    - 51d3ab575
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: gate landing example conversion on source follow-ups'
-    commits:
-    - 3151a10ad
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: make CLI account output readable and actionable'
-    commits:
-    - b04ce30b0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: require an accepted turn before showing model selection'
-    commits:
-    - 5bd0e38d2
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: restore CLI version aliases and identify release in help'
-    commits:
-    - a83dd319c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'docs: record real generated-file CLI verification'
-    commits:
-    - 94cbc779e
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: retrieve code run artifacts when live streaming is unavailable'
-    commits:
-    - 885c8ebb4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: download generated app skill files with explicit destination controls'
-    commits:
-    - e6676605e
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: bind async skill polling to the submitting owner'
-    commits:
-    - ca026069e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: platform:tasks
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'test: record readable Task component proof intervals'
-    commits:
-    - 536055a21
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: use Task workspace composer and unique creator fixtures'
-    commits:
-    - 6253cd422
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features:
-    - id: platform:tasks
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'fix: map browser proof timing from the first retained video frame'
-    commits:
-    - f46200b56
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: keep Task Activity attachment controls inside composer'
-    commits:
-    - 959ad0750
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:tasks
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'test: avoid duplicate login before Task creator pairing'
-    commits:
-    - ebd26535f
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: add isolated live Caddy host removal with concurrency guard'
-    commits:
-    - 7e9d803c5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: record readable Task detail proof intervals'
-    commits:
-    - cf7464c73
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve clean browser proof profiles and enforce real caption pacing'
-    commits:
-    - b456481f0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'refactor: retire obsolete OpenCode runtime and launch tooling'
-    commits:
-    - c0351c497
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: bind proof producer to original CI timeline and clock'
-    commits:
-    - 2087a7a9d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: recognize concrete Task controls in proof narration'
-    commits:
-    - 95111f851
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: check initial Task dialog focus before editing'
-    commits:
-    - c59368d72
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore: retire automatic OpenCode proof reviewer launch'
-    commits:
-    - '875082383'
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: resolve proof recordings from isolated CI receipts'
-    commits:
-    - c291757e3
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: resolve proof sessions from Codex or repository identity'
-    commits:
-    - 09e8d3637
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: verify Task detail editing controls in focused proof'
-    commits:
-    - 535fe7439
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: align SDK Task lookup with the server list bound'
-    commits:
-    - cbd964029
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: connect Tasks to Codex and enable encrypted editing'
-    commits:
-    - d8d2b2ca1
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:tasks
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'fix: scope Chromium Mac temporary paths to render runs'
-    commits:
-    - 59302df1b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: open ordinary suite routing and provision isolated Task metadata'
-    commits:
-    - 7617fa495
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: preserve reserved security account policy with fresh runner accounts'
-    commits:
-    - 4003e8046
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: admit ordinary accessibility and account settings suites'
-    commits:
-    - 2f4b25fa0
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci: run synthetic email proofs in an isolated browser profile'
-    commits:
-    - 703e3f949
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: record verified isolated core pilot and remaining rollout'
-    commits:
-    - 4466a82e1
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'fix: preserve appointment purpose and provider eligibility'
     commits:
     - 278cac186
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:health
       kind: app
@@ -3001,8 +2206,8 @@ unreleased_progress:
     commits:
     - 3b9b6b69e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:openmates
       kind: app
@@ -3015,15 +2220,15 @@ unreleased_progress:
     commits:
     - a8162d625
     section: bug_fixes
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features: []
   - title: 'fix: preserve events date bounds with timezone annotations'
     commits:
     - a9efbf0ee
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:events
       kind: app
@@ -3047,30 +2252,27 @@ unreleased_progress:
       parent_id: app:events
       source: backend/apps/events/app.yml
 marketing_candidates:
-  newsletter: []
-  social_or_video:
+  newsletter:
   - title: 'fix: hide public response speech without audio fixtures'
     commits:
     - 8e0d23634
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: reject incomplete global CLI task inventories'
     commits:
     - 3c2c2b160
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: preserve generated appointment request identifiers'
     commits:
     - 670c9c712
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:health
       kind: app
@@ -3093,13 +2295,12 @@ marketing_candidates:
       override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
-    newsletter_ready: false
   - title: 'fix: preserve completion recovery across consent and embed saving'
     commits:
     - fe098001a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3115,21 +2316,19 @@ marketing_candidates:
       override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: contain composer microphone permission warnings'
     commits:
     - 4b427518b
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: enforce Calendar account and mutation target selection'
     commits:
     - 74a508e07
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3138,13 +2337,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: accept health tool enum values and exclude preventive visits'
     commits:
     - 40b889891
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:health
       kind: app
@@ -3167,13 +2365,12 @@ marketing_candidates:
       override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
-    newsletter_ready: false
   - title: 'fix: exclude condition treatments from general consultations'
     commits:
     - a6f38ecb6
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:health
       kind: app
@@ -3196,13 +2393,12 @@ marketing_candidates:
       override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
-    newsletter_ready: false
   - title: 'fix: preserve appointment purpose and provider eligibility'
     commits:
     - 278cac186
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:health
       kind: app
@@ -3225,21 +2421,19 @@ marketing_candidates:
       override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
-    newsletter_ready: false
   - title: 'fix: initialize fork title versions and tolerate legacy nulls'
     commits:
     - 4bc366a34
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: reserve preprocessing time for configured fallbacks'
     commits:
     - c203154e1
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3248,21 +2442,19 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: converge memory consent requests across clients'
     commits:
     - 623274de5
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: preserve Responses stream progress for timeout detection'
     commits:
     - 9767f60af
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3271,13 +2463,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: route Astra reasoning tools through stateless Responses'
     commits:
     - de40ae665
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3286,13 +2477,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: preserve compact mindmap zoom controls without source panel'
     commits:
     - 1b5be4e5f
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: embed:mindmaps:mindmap
       kind: embed
@@ -3301,13 +2491,12 @@ marketing_candidates:
       override: null
       parent_id: app:mindmaps
       source: backend/apps/mindmaps/app.yml
-    newsletter_ready: false
   - title: 'fix: recover missing preprocessing output and seal error responses'
     commits:
     - 2418c1bf4
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3316,13 +2505,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: accept provider supported xhigh reasoning'
     commits:
     - f42e33579
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3331,13 +2519,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: remove rejected public examples and disable get-docs'
     commits:
     - 3b9b6b69e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:openmates
       kind: app
@@ -3346,13 +2533,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/openmates/app.yml
-    newsletter_ready: false
   - title: 'fix: hide source JSON in normal mindmap fullscreen'
     commits:
     - 383bf1b51
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: embed:mindmaps:mindmap
       kind: embed
@@ -3361,13 +2547,12 @@ marketing_candidates:
       override: null
       parent_id: app:mindmaps
       source: backend/apps/mindmaps/app.yml
-    newsletter_ready: false
   - title: 'fix: preserve events date bounds with timezone annotations'
     commits:
     - a9efbf0ee
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:events
       kind: app
@@ -3390,53 +2575,437 @@ marketing_candidates:
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
-    newsletter_ready: false
   - title: 'fix: make CLI account output readable and actionable'
     commits:
     - b04ce30b0
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: require an accepted turn before showing model selection'
     commits:
     - 5bd0e38d2
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: restore CLI version aliases and identify release in help'
     commits:
     - a83dd319c
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: retrieve code run artifacts when live streaming is unavailable'
     commits:
     - 885c8ebb4
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat: download generated app skill files with explicit destination controls'
     commits:
     - e6676605e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+  - title: 'fix: align SDK Task lookup with the server list bound'
+    commits:
+    - cbd964029
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: hide public response speech without audio fixtures'
+    commits:
+    - 8e0d23634
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reject incomplete global CLI task inventories'
+    commits:
+    - 3c2c2b160
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve generated appointment request identifiers'
+    commits:
+    - 670c9c712
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    newsletter_ready: true
+  - title: 'fix: preserve completion recovery across consent and embed saving'
+    commits:
+    - fe098001a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: contain composer microphone permission warnings'
+    commits:
+    - 4b427518b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: enforce Calendar account and mutation target selection'
+    commits:
+    - 74a508e07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: accept health tool enum values and exclude preventive visits'
+    commits:
+    - 40b889891
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    newsletter_ready: true
+  - title: 'fix: exclude condition treatments from general consultations'
+    commits:
+    - a6f38ecb6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    newsletter_ready: true
+  - title: 'fix: preserve appointment purpose and provider eligibility'
+    commits:
+    - 278cac186
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    newsletter_ready: true
+  - title: 'fix: initialize fork title versions and tolerate legacy nulls'
+    commits:
+    - 4bc366a34
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reserve preprocessing time for configured fallbacks'
+    commits:
+    - c203154e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: converge memory consent requests across clients'
+    commits:
+    - 623274de5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve Responses stream progress for timeout detection'
+    commits:
+    - 9767f60af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: route Astra reasoning tools through stateless Responses'
+    commits:
+    - de40ae665
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: preserve compact mindmap zoom controls without source panel'
+    commits:
+    - 1b5be4e5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: embed:mindmaps:mindmap
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mindmaps
+      source: backend/apps/mindmaps/app.yml
+    newsletter_ready: true
+  - title: 'fix: recover missing preprocessing output and seal error responses'
+    commits:
+    - 2418c1bf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: accept provider supported xhigh reasoning'
+    commits:
+    - f42e33579
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: remove rejected public examples and disable get-docs'
+    commits:
+    - 3b9b6b69e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    newsletter_ready: true
+  - title: 'fix: hide source JSON in normal mindmap fullscreen'
+    commits:
+    - 383bf1b51
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: embed:mindmaps:mindmap
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mindmaps
+      source: backend/apps/mindmaps/app.yml
+    newsletter_ready: true
+  - title: 'fix: preserve events date bounds with timezone annotations'
+    commits:
+    - a9efbf0ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: true
+  - title: 'fix: make CLI account output readable and actionable'
+    commits:
+    - b04ce30b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: require an accepted turn before showing model selection'
+    commits:
+    - 5bd0e38d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore CLI version aliases and identify release in help'
+    commits:
+    - a83dd319c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: retrieve code run artifacts when live streaming is unavailable'
+    commits:
+    - 885c8ebb4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: download generated app skill files with explicit destination controls'
+    commits:
+    - e6676605e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
   - title: 'fix: bind async skill polling to the submitting owner'
     commits:
     - ca026069e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -3457,8 +3026,8 @@ marketing_candidates:
     commits:
     - 959ad0750
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:tasks
       kind: platform
@@ -3472,16 +3041,16 @@ marketing_candidates:
     commits:
     - cbd964029
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: connect Tasks to Codex and enable encrypted editing'
     commits:
     - d8d2b2ca1
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:tasks
       kind: platform
@@ -3502,7 +3071,7 @@ sources:
     short_sha: 8e0d23634
     authored_at: '2026-09-08T18:01:22+00:00'
     subject: 'fix: hide public response speech without audio fixtures'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/example-chat-speech.spec.ts
@@ -3514,7 +3083,7 @@ sources:
     short_sha: 18b136ed8
     authored_at: '2026-09-08T17:33:03+00:00'
     subject: 'fix: defer concurrent Codex Task API requests on rate limits'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/codex-task-lifecycle.md
@@ -3527,7 +3096,7 @@ sources:
     short_sha: 611379aa9
     authored_at: '2026-09-08T17:30:29+00:00'
     subject: 'test: mark mail privacy proof transition'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
@@ -3536,7 +3105,7 @@ sources:
     short_sha: 0bc0dbc2d
     authored_at: '2026-09-08T17:18:13+00:00'
     subject: 'fix: emit valid Codex Stop hook output'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/codex_hook_context.py
@@ -3546,7 +3115,7 @@ sources:
     short_sha: 3c2c2b160
     authored_at: '2026-09-08T16:40:39+00:00'
     subject: 'fix: reject incomplete global CLI task inventories'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-cli/src/cli.ts
@@ -3558,7 +3127,7 @@ sources:
     short_sha: 670c9c712
     authored_at: '2026-09-08T15:57:01+00:00'
     subject: 'fix: preserve generated appointment request identifiers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/health/skills/search_appointments_skill.py
@@ -3572,7 +3141,7 @@ sources:
     short_sha: 336339e35
     authored_at: '2026-09-08T15:50:37+00:00'
     subject: 'test: bind plumber proof captures to runner profiles'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
@@ -3582,7 +3151,7 @@ sources:
     short_sha: fe098001a
     authored_at: '2026-09-08T15:45:01+00:00'
     subject: 'fix: preserve completion recovery across consent and embed saving'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -3605,7 +3174,7 @@ sources:
     short_sha: 4b427518b
     authored_at: '2026-09-08T15:28:33+00:00'
     subject: 'fix: contain composer microphone permission warnings'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/component-message-input.spec.ts
@@ -3618,7 +3187,7 @@ sources:
     short_sha: c31e18b48
     authored_at: '2026-09-08T15:26:36+00:00'
     subject: 'docs: record Calendar verification progress and OAuth setup hold'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/connected-accounts-calendar/plan.yml
@@ -3627,7 +3196,7 @@ sources:
     short_sha: 74a508e07
     authored_at: '2026-09-08T15:22:48+00:00'
     subject: 'fix: enforce Calendar account and mutation target selection'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/connected_account_execution.py
@@ -3644,7 +3213,7 @@ sources:
     short_sha: 6bd96772a
     authored_at: '2026-09-08T15:20:55+00:00'
     subject: 'fix: preserve Calendar account selection and token cleanup'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/connected-accounts-calendar/plan.yml
@@ -3653,7 +3222,7 @@ sources:
     short_sha: 40b889891
     authored_at: '2026-09-08T15:15:49+00:00'
     subject: 'fix: accept health tool enum values and exclude preventive visits'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/health/skills/search_appointments_skill.py
@@ -3667,7 +3236,7 @@ sources:
     short_sha: f91fd2d85
     authored_at: '2026-09-08T15:12:33+00:00'
     subject: 'test: give memory consent history proof a bounded host'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/landing-example-quality-campaign/evidence/example-work-memory.md
@@ -3679,7 +3248,7 @@ sources:
     short_sha: 52dada299
     authored_at: '2026-09-08T15:04:34+00:00'
     subject: 'test: align speech proof caption with responsive player'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/landing-example-quality-campaign/speech-pilot-handoff.md
@@ -3689,7 +3258,7 @@ sources:
     short_sha: a6f38ecb6
     authored_at: '2026-09-08T15:01:22+00:00'
     subject: 'fix: exclude condition treatments from general consultations'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/health/skills/search_appointments_skill.py
@@ -3703,7 +3272,7 @@ sources:
     short_sha: 803b0db58
     authored_at: '2026-09-08T14:58:33+00:00'
     subject: 'test: retain readable public speech proof interval'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/landing-example-quality-campaign/speech-pilot-handoff.md
@@ -3714,7 +3283,7 @@ sources:
     short_sha: 97a22fda4
     authored_at: '2026-09-08T14:45:21+00:00'
     subject: 'test: disambiguate plumber guest signup assertion'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
@@ -3723,7 +3292,7 @@ sources:
     short_sha: 278cac186
     authored_at: '2026-09-08T14:39:02+00:00'
     subject: 'fix: preserve appointment purpose and provider eligibility'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/health/app.yml
@@ -3744,7 +3313,7 @@ sources:
     short_sha: 4bc366a34
     authored_at: '2026-09-08T14:29:20+00:00'
     subject: 'fix: initialize fork title versions and tolerate legacy nulls'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
@@ -3758,7 +3327,7 @@ sources:
     short_sha: f5b6b5acf
     authored_at: '2026-09-08T14:27:29+00:00'
     subject: 'fix: show concrete examples beside approval PDF requirements'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/define-specification/SKILL.md
@@ -3770,7 +3339,7 @@ sources:
     short_sha: 7e060f8fb
     authored_at: '2026-09-08T14:20:39+00:00'
     subject: 'test: verify guest signup after public example follow-up'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
@@ -3779,7 +3348,7 @@ sources:
     short_sha: e2f1cca0d
     authored_at: '2026-09-08T14:16:26+00:00'
     subject: 'fix: restore priorities-first daily meeting flow'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/daily-meeting-and-orchestration/SKILL.md
@@ -3795,7 +3364,7 @@ sources:
     short_sha: 5bb0b3356
     authored_at: '2026-09-08T14:14:44+00:00'
     subject: 'test: attach public speech proof timeline'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/example-chat-speech.spec.ts
@@ -3804,7 +3373,7 @@ sources:
     short_sha: 79465ca67
     authored_at: '2026-09-08T14:12:52+00:00'
     subject: 'docs: publish approved shared focus mode contract'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - specifications/features/focus-modes/examples.yml
@@ -3817,7 +3386,7 @@ sources:
     short_sha: db89247dd
     authored_at: '2026-09-08T14:10:57+00:00'
     subject: 'test: scope landing headline checks to visible layout'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -3827,7 +3396,7 @@ sources:
     short_sha: c203154e1
     authored_at: '2026-09-08T14:08:45+00:00'
     subject: 'fix: reserve preprocessing time for configured fallbacks'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/utils/llm_utils.py
@@ -3840,7 +3409,7 @@ sources:
     short_sha: 623274de5
     authored_at: '2026-09-08T14:06:01+00:00'
     subject: 'fix: converge memory consent requests across clients'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/landing-example-quality-campaign/evidence/example-work-memory.md
@@ -3866,7 +3435,7 @@ sources:
     short_sha: 9767f60af
     authored_at: '2026-09-08T14:01:47+00:00'
     subject: 'fix: preserve Responses stream progress for timeout detection'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/openai_responses.py
@@ -3877,7 +3446,7 @@ sources:
     short_sha: e82d48166
     authored_at: '2026-09-08T13:58:38+00:00'
     subject: 'ci: admit public PDF view component regression'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_coverage_manifest.json
@@ -3886,7 +3455,7 @@ sources:
     short_sha: de40ae665
     authored_at: '2026-09-08T13:51:36+00:00'
     subject: 'fix: route Astra reasoning tools through stateless Responses'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/openai_client.py
@@ -3903,7 +3472,7 @@ sources:
     short_sha: 1b5be4e5f
     authored_at: '2026-09-08T13:48:40+00:00'
     subject: 'fix: preserve compact mindmap zoom controls without source panel'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/mindmap-fullscreen.spec.ts
@@ -3915,7 +3484,7 @@ sources:
     short_sha: 2418c1bf4
     authored_at: '2026-09-08T13:37:42+00:00'
     subject: 'fix: recover missing preprocessing output and seal error responses'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/stream_consumer.py
@@ -3934,7 +3503,7 @@ sources:
     short_sha: 7c4b796fe
     authored_at: '2026-09-08T13:35:18+00:00'
     subject: 'test: verify public speech with current player selectors'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/landing-example-quality-campaign/speech-pilot-handoff.md
@@ -3944,7 +3513,7 @@ sources:
     short_sha: 04c8074d3
     authored_at: '2026-09-08T13:33:17+00:00'
     subject: 'test: classify plumber example as public browser coverage'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_coverage_manifest.json
@@ -3953,7 +3522,7 @@ sources:
     short_sha: '719229205'
     authored_at: '2026-09-08T13:31:51+00:00'
     subject: 'test: prove public plumber email and phone protection'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/landing-example-quality-campaign/evidence/example-pii-worker.md
@@ -3964,7 +3533,7 @@ sources:
     short_sha: f42e33579
     authored_at: '2026-09-08T13:29:14+00:00'
     subject: 'fix: accept provider supported xhigh reasoning'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/openai_client.py
@@ -3977,7 +3546,7 @@ sources:
     short_sha: 60c9b2169
     authored_at: '2026-09-08T13:27:47+00:00'
     subject: 'docs: record landing campaign worker assignments and specification decisions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/landing-example-quality-campaign/plan.yml
@@ -3986,7 +3555,7 @@ sources:
     short_sha: 83cff9425
     authored_at: '2026-09-08T13:26:09+00:00'
     subject: 'docs: require concrete specification examples and reuse existing contracts'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/backfill-specification/SKILL.md
@@ -3998,7 +3567,7 @@ sources:
     short_sha: 9703fbce4
     authored_at: '2026-09-08T13:10:50+00:00'
     subject: 'fix: preserve tool origin for orchestration checkpoints'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/codex-orchestration.md
@@ -4010,7 +3579,7 @@ sources:
     short_sha: 64044ecd2
     authored_at: '2026-09-08T13:07:39+00:00'
     subject: 'fix: make Codex daily orchestration evidence-driven'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/daily-meeting-and-orchestration/SKILL.md
@@ -4040,7 +3609,7 @@ sources:
     short_sha: 3b9b6b69e
     authored_at: '2026-09-08T13:05:53+00:00'
     subject: 'fix: remove rejected public examples and disable get-docs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/openmates/app.yml
@@ -4077,7 +3646,7 @@ sources:
     short_sha: bfc3849ca
     authored_at: '2026-09-08T13:02:31+00:00'
     subject: 'fix: translate plumber privacy example into German'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/i18n/sources/example_chats/plumber_message_email_phone_privacy.yml
@@ -4086,7 +3655,7 @@ sources:
     short_sha: 9a51f28cf
     authored_at: '2026-09-08T12:59:09+00:00'
     subject: 'fix: preserve public example embed PII mappings'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/landing-example-quality-campaign/evidence/example-pii-public-fixture.json
@@ -4101,7 +3670,7 @@ sources:
     short_sha: 383bf1b51
     authored_at: '2026-09-08T12:51:52+00:00'
     subject: 'fix: hide source JSON in normal mindmap fullscreen'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/mindmap-fullscreen.spec.ts
@@ -4114,7 +3683,7 @@ sources:
     short_sha: a8162d625
     authored_at: '2026-09-08T12:41:28+00:00'
     subject: 'fix: use supported Astra reasoning effort'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/providers/openai.yml
@@ -4125,7 +3694,7 @@ sources:
     short_sha: d0802d26d
     authored_at: '2026-09-08T12:40:06+00:00'
     subject: 'ci: classify mindmap fullscreen component regression'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_coverage_manifest.json
@@ -4134,7 +3703,7 @@ sources:
     short_sha: 7bf8f5aa3
     authored_at: '2026-09-08T12:24:03+00:00'
     subject: 'docs: record Berlin appointment candidate rejection'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/landing-example-quality-campaign/appointments-handoff.md
@@ -4143,7 +3712,7 @@ sources:
     short_sha: a9efbf0ee
     authored_at: '2026-09-08T12:20:41+00:00'
     subject: 'fix: preserve events date bounds with timezone annotations'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/events/app.yml
@@ -4158,7 +3727,7 @@ sources:
     short_sha: d01d7d4e9
     authored_at: '2026-09-08T12:17:54+00:00'
     subject: 'feat: add rendered example chat review skill and admission checks'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/review-example-chat/SKILL.md
@@ -4171,7 +3740,7 @@ sources:
     short_sha: 51d3ab575
     authored_at: '2026-09-08T12:15:45+00:00'
     subject: 'docs: record approved landing example coordination campaign'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/landing-example-quality-campaign/plan.yml
@@ -4180,7 +3749,7 @@ sources:
     short_sha: 3151a10ad
     authored_at: '2026-09-08T12:14:22+00:00'
     subject: 'fix: gate landing example conversion on source follow-ups'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/create-example-chat-from-share.mjs
@@ -4190,7 +3759,7 @@ sources:
     short_sha: b04ce30b0
     authored_at: '2026-09-08T12:08:46+00:00'
     subject: 'fix: make CLI account output readable and actionable'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-cli/src/cli.ts
@@ -4203,7 +3772,7 @@ sources:
     short_sha: 5bd0e38d2
     authored_at: '2026-09-08T11:51:38+00:00'
     subject: 'fix: require an accepted turn before showing model selection'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
@@ -4215,7 +3784,7 @@ sources:
     short_sha: a83dd319c
     authored_at: '2026-09-08T11:27:16+00:00'
     subject: 'fix: restore CLI version aliases and identify release in help'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-cli/README.md
@@ -4227,7 +3796,7 @@ sources:
     short_sha: 94cbc779e
     authored_at: '2026-09-08T10:30:44+00:00'
     subject: 'docs: record real generated-file CLI verification'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/generated-file-cli-downloads/plan.yml
@@ -4236,7 +3805,7 @@ sources:
     short_sha: 885c8ebb4
     authored_at: '2026-09-08T10:20:33+00:00'
     subject: 'fix: retrieve code run artifacts when live streaming is unavailable'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/generated-file-cli-downloads/plan.yml
@@ -4249,7 +3818,7 @@ sources:
     short_sha: e6676605e
     authored_at: '2026-09-08T10:08:44+00:00'
     subject: 'feat: download generated app skill files with explicit destination controls'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/generated-file-cli-downloads/plan.yml
@@ -4266,7 +3835,7 @@ sources:
     short_sha: ca026069e
     authored_at: '2026-09-08T09:50:59+00:00'
     subject: 'fix: bind async skill polling to the submitting owner'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/celery_helpers.py
@@ -4290,7 +3859,7 @@ sources:
     short_sha: 536055a21
     authored_at: '2026-09-08T08:08:35+00:00'
     subject: 'test: record readable Task component proof intervals'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/task-activity.spec.ts
@@ -4301,7 +3870,7 @@ sources:
     short_sha: 6253cd422
     authored_at: '2026-09-08T05:59:41+00:00'
     subject: 'test: use Task workspace composer and unique creator fixtures'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/helpers/task-creator-e2e-helpers.ts
@@ -4312,7 +3881,7 @@ sources:
     short_sha: f46200b56
     authored_at: '2026-09-08T05:41:46+00:00'
     subject: 'fix: map browser proof timing from the first retained video frame'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/spec_demo.py
@@ -4322,7 +3891,7 @@ sources:
     short_sha: 959ad0750
     authored_at: '2026-09-08T05:38:22+00:00'
     subject: 'fix: keep Task Activity attachment controls inside composer'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/tasks/TaskActivity.svelte
@@ -4332,7 +3901,7 @@ sources:
     short_sha: ebd26535f
     authored_at: '2026-09-08T05:22:01+00:00'
     subject: 'test: avoid duplicate login before Task creator pairing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/tasks-flow.spec.ts
@@ -4342,7 +3911,7 @@ sources:
     short_sha: 7e9d803c5
     authored_at: '2026-09-08T05:00:39+00:00'
     subject: 'fix: add isolated live Caddy host removal with concurrency guard'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - deployment/apply-caddy-config.sh
@@ -4353,7 +3922,7 @@ sources:
     short_sha: cf7464c73
     authored_at: '2026-09-08T04:58:09+00:00'
     subject: 'test: record readable Task detail proof intervals'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
@@ -4363,7 +3932,7 @@ sources:
     short_sha: b456481f0
     authored_at: '2026-09-08T04:46:19+00:00'
     subject: 'fix: preserve clean browser proof profiles and enforce real caption pacing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/spec_demo.py
@@ -4373,7 +3942,7 @@ sources:
     short_sha: c0351c497
     authored_at: '2026-09-08T04:44:36+00:00'
     subject: 'refactor: retire obsolete OpenCode runtime and launch tooling'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/implement-opencode-improvements/SKILL.md
@@ -4480,7 +4049,7 @@ sources:
     short_sha: 2087a7a9d
     authored_at: '2026-09-08T04:30:18+00:00'
     subject: 'fix: bind proof producer to original CI timeline and clock'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/proof_video_ci_source.py
@@ -4493,7 +4062,7 @@ sources:
     short_sha: 95111f851
     authored_at: '2026-09-08T04:12:52+00:00'
     subject: 'fix: recognize concrete Task controls in proof narration'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/spec_demo.py
@@ -4503,7 +4072,7 @@ sources:
     short_sha: c59368d72
     authored_at: '2026-09-08T03:47:42+00:00'
     subject: 'test: check initial Task dialog focus before editing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
@@ -4513,7 +4082,7 @@ sources:
     short_sha: '875082383'
     authored_at: '2026-09-08T03:14:07+00:00'
     subject: 'chore: retire automatic OpenCode proof reviewer launch'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/proof_video_workflow.py
@@ -4523,7 +4092,7 @@ sources:
     short_sha: c291757e3
     authored_at: '2026-09-08T03:11:28+00:00'
     subject: 'fix: resolve proof recordings from isolated CI receipts'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/proof_video_ci_source.py
@@ -4534,7 +4103,7 @@ sources:
     short_sha: 09e8d3637
     authored_at: '2026-09-08T03:06:05+00:00'
     subject: 'fix: resolve proof sessions from Codex or repository identity'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/proof_video_workflow.py
@@ -4544,7 +4113,7 @@ sources:
     short_sha: 535fe7439
     authored_at: '2026-09-08T02:58:09+00:00'
     subject: 'test: verify Task detail editing controls in focused proof'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
@@ -4554,7 +4123,7 @@ sources:
     short_sha: cbd964029
     authored_at: '2026-09-08T02:09:56+00:00'
     subject: 'fix: align SDK Task lookup with the server list bound'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/user-guide/developers/sdk.md
@@ -4566,7 +4135,7 @@ sources:
     short_sha: d8d2b2ca1
     authored_at: '2026-09-08T01:39:37+00:00'
     subject: 'feat: connect Tasks to Codex and enable encrypted editing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/user_tasks.py
@@ -4603,7 +4172,7 @@ sources:
     short_sha: 59302df1b
     authored_at: '2026-09-08T00:40:55+00:00'
     subject: 'fix: scope Chromium Mac temporary paths to render runs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/apple-no-delete-safety.md
@@ -4615,7 +4184,7 @@ sources:
     short_sha: 7617fa495
     authored_at: '2026-09-08T00:32:39+00:00'
     subject: 'ci: open ordinary suite routing and provision isolated Task metadata'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -4632,7 +4201,7 @@ sources:
     short_sha: 4003e8046
     authored_at: '2026-09-08T00:23:55+00:00'
     subject: 'ci: preserve reserved security account policy with fresh runner accounts'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_coverage.py
@@ -4643,7 +4212,7 @@ sources:
     short_sha: 2f4b25fa0
     authored_at: '2026-09-08T00:15:45+00:00'
     subject: 'ci: admit ordinary accessibility and account settings suites'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_coverage.py
@@ -4653,7 +4222,7 @@ sources:
     short_sha: 703e3f949
     authored_at: '2026-09-08T00:07:18+00:00'
     subject: 'ci: run synthetic email proofs in an isolated browser profile'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -4669,145 +4238,168 @@ sources:
     short_sha: 4466a82e1
     authored_at: '2026-09-08T00:00:09+00:00'
     subject: 'docs: record verified isolated core pilot and remaining rollout'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/isolated-github-tests/plan.yml
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on AI processing reliability and internal orchestration efficiency. Key updates include refinements
-    to the Health app's appointment logic, enhanced CLI output and artifact handling, and the retirement of legacy OpenCode
-    tooling. Development also continued on the unreleased Tasks platform, specifically regarding Codex integration and encrypted
-    editing.
-  released_changes: []
-  bug_fixes:
-  - text: OpenMates improved AI reliability by refining preprocessing failure recovery, ensuring stream progress is preserved
-      for timeout detection, and sealing error responses when fallbacks are triggered.
+  overview: OpenMates focused on AI processing reliability, CLI asset management, and refining the precision of Health and
+    Event skills. Key updates include enhanced recovery for AI preprocessing failures, new CLI commands for downloading generated
+    files, and expanded support for Astra reasoning models.
+  released_changes:
+  - text: OpenMates CLI added the ability to download generated app skill files and retrieve code run artifacts when live
+      streaming is unavailable. Account output was also made more readable.
+    evidence:
+      commits:
+      - e6676605e
+      - 885c8ebb4
+      - b04ce30b0
+      - a83dd319c
+    release_status: released_main
+  - text: AI processing now features improved completion recovery across consent prompts, better timeout detection for streaming
+      responses, and optimized routing for Astra reasoning tools.
     evidence:
       commits:
       - fe098001a
       - c203154e1
       - 9767f60af
+      - de40ae665
       - 2418c1bf4
-    release_status: dev_only
-  - text: Model routing for Astra reasoning tools was updated to use supported effort levels and stateless Responses.
+      - f42e33579
+    release_status: released_main
+  - text: Memory consent requests were converged across web and CLI clients to provide a consistent privacy experience.
     evidence:
       commits:
-      - a8162d625
-      - de40ae665
-      - f42e33579
-    release_status: dev_only
-  - text: The Health app received several refinements to appointment searching, including better preservation of request identifiers,
-      improved provider eligibility checks, and the exclusion of preventive visits from general consultation results.
+      - 623274de5
+    release_status: released_main
+  bug_fixes:
+  - text: The Health app received several precision updates, including better preservation of appointment request identifiers,
+      exclusion of preventive visits and condition treatments from general searches, and improved provider eligibility checks.
     evidence:
       commits:
       - 670c9c712
       - 40b889891
       - a6f38ecb6
       - 278cac186
-    release_status: dev_only
-  - text: The OpenMates CLI now provides more readable account output, restores version aliases, and can retrieve code run
-      artifacts even when live streaming is unavailable.
+    release_status: released_main
+  - text: Events search now preserves date bounds more accurately using timezone annotations.
     evidence:
       commits:
-      - b04ce30b0
-      - a83dd319c
-      - 885c8ebb4
-    release_status: dev_only
-  - text: Mindmap embeds were updated to hide source JSON in fullscreen mode and preserve zoom controls when the source panel
-      is absent.
+      - a9efbf0ee
+    release_status: released_main
+  - text: Mindmap embeds were refined to preserve zoom controls in compact views and hide source JSON in fullscreen mode.
     evidence:
       commits:
       - 1b5be4e5f
       - 383bf1b51
-    release_status: dev_only
+    release_status: released_main
+  - text: General UI improvements include better handling of microphone permission warnings, initialization of fork title
+      versions, and a requirement for an accepted chat turn before showing model selection.
+    evidence:
+      commits:
+      - 8e0d23634
+      - 4b427518b
+      - 4bc366a34
+      - 5bd0e38d2
+    release_status: released_main
   unreleased_progress:
-  - text: OpenMates added Codex connectivity and encrypted editing to the Tasks platform, alongside improvements to attachment
-      controls and ownership-bound skill polling.
+  - text: Work continued on the Tasks platform, including Codex connectivity, encrypted editing, and SDK lookup alignment,
+      though the feature remains disabled.
     evidence:
       commits:
       - d8d2b2ca1
-      - 959ad0750
       - ca026069e
-      - 6253cd422
-    release_status: dev_only
-  - text: A new feature was added to the CLI allowing users to download generated app skill files with explicit destination
-      controls.
-    evidence:
-      commits:
-      - e6676605e
-    release_status: dev_only
-  - text: A new review skill was introduced to audit and admit rendered example chats.
-    evidence:
-      commits:
-      - d01d7d4e9
-    release_status: dev_only
-  internal_progress:
-  - text: The project retired the obsolete OpenCode runtime and its associated automatic proof reviewer launch tooling.
-    evidence:
-      commits:
-      - c0351c497
-      - '875082383'
-    release_status: dev_only
-  - text: Codex daily orchestration was transitioned to an evidence-driven model with improved rate limit handling for concurrent
-      API requests.
+      - 959ad0750
+      - cbd964029
+    release_status: released_main
+  - text: Internal Codex orchestration was updated to be more evidence-driven, with improved rate limit handling and tool
+      origin preservation.
     evidence:
       commits:
       - 64044ecd2
-      - 18b136ed8
-      - 0bc0dbc2d
+      - e2f1cca0d
       - 9703fbce4
-    release_status: dev_only
-  - text: CI infrastructure was updated to support isolated test routing, fresh runner account policies, and browser profile
-      isolation for synthetic email proofs.
+      - 0bc0dbc2d
+      - 18b136ed8
+    release_status: released_main
+  - text: The 'get-docs' skill was disabled and several public example chats were removed as part of a quality review.
+    evidence:
+      commits:
+      - 3b9b6b69e
+    release_status: released_main
+  internal_progress:
+  - text: The project retired the obsolete OpenCode runtime and associated launch tooling in favor of current agent workflows.
+    evidence:
+      commits:
+      - c0351c497
+    release_status: released_main
+  - text: CI infrastructure was updated to support isolated browser profiles for email proofs and provision metadata for upcoming
+      features.
     evidence:
       commits:
       - 7617fa495
       - 4003e8046
       - 2f4b25fa0
       - 703e3f949
-    release_status: dev_only
-  - text: The proof video pipeline was enhanced with better timing synchronization, improved narration recognition for Task
-      controls, and more robust session resolution from CI receipts.
+    release_status: released_main
+  - text: Documentation was updated to track Calendar verification progress, landing page quality campaigns, and isolated
+      test rollout plans.
     evidence:
       commits:
-      - f46200b56
-      - b456481f0
-      - 2087a7a9d
-      - 95111f851
-      - c291757e3
-      - 09e8d3637
-    release_status: dev_only
+      - c31e18b48
+      - 60c9b2169
+      - 51d3ab575
+      - 4466a82e1
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: Codex connection and encrypted editing for Tasks.
-      evidence:
-        commits:
-        - d8d2b2ca1
-      reason: The Tasks platform is currently a disabled feature.
-    - text: CLI support for downloading generated app skill files.
+    include:
+    - text: OpenMates CLI now supports downloading generated app skill files with explicit destination controls.
       evidence:
         commits:
         - e6676605e
-      reason: This feature is currently in dev_only status and not reachable from the main branch.
-    rationale: All user-facing changes from this period are currently in development and have not yet reached the main branch
-      for public release. Significant work is progressing on the Tasks platform and CLI capabilities.
+      reason: This is a significant new capability for CLI users to manage generated assets.
+    - text: Enhanced AI reliability with improved preprocessing failure recovery and better preservation of stream progress
+        during timeouts.
+      evidence:
+        commits:
+        - fe098001a
+        - c203154e1
+        - 2418c1bf4
+      reason: These updates significantly improve the reliability of AI interactions during network or processing failures.
+    - text: Support for Astra reasoning models was expanded, including routing through stateless responses and support for
+        high-effort reasoning levels.
+      evidence:
+        commits:
+        - de40ae665
+        - f42e33579
+      reason: Provides users with more control over high-effort reasoning models.
+    exclude:
+    - text: Encrypted Task editing and Codex integration.
+      evidence:
+        commits:
+        - d8d2b2ca1
+        - ca026069e
+        - 959ad0750
+      reason: These items relate to the Tasks platform, which is currently a disabled feature.
+    - text: Codex daily orchestration and meeting flow updates.
+      evidence:
+        commits:
+        - 64044ecd2
+        - e2f1cca0d
+        - 9703fbce4
+      reason: These updates concern internal Codex orchestration and meeting logic not visible to users.
+    rationale: The update focuses on professionalizing the CLI experience and hardening the AI processing pipeline, which
+      are key value propositions for technical users.
   social_video_recommendations:
-  - idea: Demonstrate the new CLI capability to download generated files from app skills directly to specific local destinations.
+  - idea: A short demo showing how to use the CLI to download files generated by an AI skill directly to a local directory.
     priority: medium
-    reason: This provides a concrete workflow improvement for developers using the OpenMates CLI.
+    reason: This demonstrates a concrete bridge between AI-generated content and a developer's local file system.
     evidence:
       commits:
       - e6676605e
-  - idea: A preview of the upcoming Tasks platform showing encrypted editing and Codex integration.
-    priority: low
-    reason: The feature is still disabled, but the encryption story is a strong differentiator for the project.
-    evidence:
-      commits:
-      - d8d2b2ca1
   quality_notes:
-  - Extensive test coverage was added for Task flows, including detail editing and component proof intervals.
-  - Example chat data was audited, resulting in the removal of rejected public examples and the translation of privacy-focused
-    examples into German.
+  - AI processing is now more resilient to timeouts and preprocessing errors.
+  - CLI output for accounts and tasks was made more readable and actionable.
+  - Health skill logic was tightened to prevent irrelevant appointment search results.
   validation_warnings: []

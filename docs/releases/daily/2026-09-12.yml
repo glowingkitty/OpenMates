@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-12'
-generated_at: '2026-09-13T00:20:19+00:00'
+generated_at: '2026-09-14T00:47:18+00:00'
 range:
   since: '2026-09-12T00:00:00+00:00'
   until: '2026-09-13T00:00:00+00:00'
@@ -590,20 +590,19 @@ sources:
     - platform:ios
     - platform:macos
 llm_summary:
-  overview: OpenMates focused on internal stability for Apple platforms, specifically restoring chat and component workflows
-    for the unreleased iOS and macOS versions.
+  overview: Development focused on internal stability for Apple platforms, specifically restoring chat responsiveness and
+    component workflows within the iOS and macOS environments.
   released_changes: []
   bug_fixes: []
   unreleased_progress:
-  - text: Work continued on the unreleased iOS and macOS platforms, with a significant update to restore responsive chat and
-      component workflows across the Apple ecosystem.
+  - text: Work continued on the unreleased iOS and macOS platforms to restore responsive chat functionality and component
+      workflows across the application.
     evidence:
       commits:
       - c702b9236
     release_status: dev_only
   internal_progress:
-  - text: The project updated its Apple-specific development environment, including parity audit scripts, UI test suites,
-      and architecture documentation.
+  - text: Updated parity audit scripts and generated model metadata to support ongoing Apple platform development.
     evidence:
       commits:
       - c702b9236
@@ -615,10 +614,10 @@ llm_summary:
       evidence:
         commits:
         - c702b9236
-      reason: The iOS and macOS platforms are currently disabled and the work is marked as dev-only.
+      reason: The work is restricted to unreleased iOS and macOS platforms and is currently marked as dev-only.
     rationale: No changes were released to the main branch or marked as ready for public communication during this period.
   social_video_recommendations: []
   quality_notes:
-  - The update included a broad range of unit and UI tests for Apple platforms, covering authentication, chat streaming, and
-    model preferences.
+  - Extensive updates to the Apple codebase include fixes for chat completion recovery, draft synchronization, and UI component
+    previews.
   validation_warnings: []

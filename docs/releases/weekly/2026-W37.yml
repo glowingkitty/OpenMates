@@ -1,0 +1,6389 @@
+schema_version: 1
+cadence: weekly
+week_start: '2026-09-07'
+week_end: '2026-09-13'
+generated_at: '2026-09-14T00:48:00+00:00'
+summary:
+  daily_files: 7
+  total_items: 228
+  newsletter_ready_items: 87
+  user_facing_items: 101
+  dev_only_items: 1
+  unknown_release_items: 0
+  themes: 9
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+daily_summaries:
+- date: '2026-09-07'
+  total_commits: 64
+  newsletter_ready_items: 8
+  dev_only_items: 0
+- date: '2026-09-08'
+  total_commits: 83
+  newsletter_ready_items: 26
+  dev_only_items: 0
+- date: '2026-09-09'
+  total_commits: 18
+  newsletter_ready_items: 1
+  dev_only_items: 0
+- date: '2026-09-10'
+  total_commits: 40
+  newsletter_ready_items: 38
+  dev_only_items: 0
+- date: '2026-09-11'
+  total_commits: 22
+  newsletter_ready_items: 14
+  dev_only_items: 0
+- date: '2026-09-12'
+  total_commits: 1
+  newsletter_ready_items: 0
+  dev_only_items: 1
+- date: '2026-09-13'
+  total_commits: 0
+  newsletter_ready_items: 0
+  dev_only_items: 0
+themes:
+- theme: infrastructure
+  item_count: 79
+  newsletter_ready_count: 28
+  dev_only_count: 0
+  source_items:
+  - date: '2026-09-07'
+    title: 'chore: remove retired OpenCode orchestration monitor'
+    commits:
+    - 4dda2b684
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: add isolated runner environment and durable dispatch pilot'
+    commits:
+    - fa2f1ff9f
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: admit verified core coverage and hold unported profiles'
+    commits:
+    - 1e60d3b50
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: adopt legacy shell dispatchers before shared preflights'
+    commits:
+    - dcecf8788
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: cache pip only when the job installs Python dependencies'
+    commits:
+    - e228f980a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: enforce migration hold and separate candidate source from harness'
+    commits:
+    - da2458f0e
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: give runner Vault startup headroom and capture OOM state'
+    commits:
+    - eef2fd44b
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: issue a validated scoped Vault token for isolated API startup'
+    commits:
+    - a306fe55f
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: publish immutable candidates and remove superseded host runtime admission'
+    commits:
+    - 5ecfbf246
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: register isolated workflow on dev without running an unrequested suite'
+    commits:
+    - 87e87c0ec
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: repair isolated startup and bind bounded results to candidates'
+    commits:
+    - 24f18b0a2
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: serve the exact candidate SPA build for browser tests'
+    commits:
+    - 438d88352
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'feat(tooling): prepare bounded MindNode capability discovery'
+    commits:
+    - ef0a233fb
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: authenticate isolated CI services with private CMS credentials'
+    commits:
+    - fb3671a2c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: cap preprocessing fallback latency'
+    commits:
+    - 9b2b0566e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-07'
+    title: 'fix: classify rejected transcription interval content'
+    commits:
+    - 6592fcbd2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - date: '2026-09-07'
+    title: 'fix: fail anonymous turns without answer content'
+    commits:
+    - 4ca225aa4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: preserve adopted Codex ownership through disconnection'
+    commits:
+    - ef7221cab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: preserve anonymous follow-ups after skill results'
+    commits:
+    - f325c97e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: provide runner-local CMS authentication to CI services'
+    commits:
+    - b17331170
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: recover empty post-tool answers'
+    commits:
+    - 743865c5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-07'
+    title: 'test: add HPFSL acknowledgement timing regression'
+    commits:
+    - aa1322ee8
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'test: cover anonymous production repair'
+    commits:
+    - 31e947399
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'test: reach anonymous repair flow'
+    commits:
+    - 181bfa50f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'test: verify runtime admission preserves the disk reserve'
+    commits:
+    - fcdddd1c9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'chore: retire automatic OpenCode proof reviewer launch'
+    commits:
+    - '875082383'
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'ci: admit public PDF view component regression'
+    commits:
+    - e82d48166
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'ci: classify mindmap fullscreen component regression'
+    commits:
+    - d0802d26d
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'ci: open ordinary suite routing and provision isolated Task metadata'
+    commits:
+    - 7617fa495
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'ci: run synthetic email proofs in an isolated browser profile'
+    commits:
+    - 703e3f949
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'docs: publish approved shared focus mode contract'
+    commits:
+    - 79465ca67
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'docs: record landing campaign worker assignments and specification decisions'
+    commits:
+    - 60c9b2169
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'docs: require concrete specification examples and reuse existing contracts'
+    commits:
+    - 83cff9425
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: accept health tool enum values and exclude preventive visits'
+    commits:
+    - 40b889891
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: bind proof producer to original CI timeline and clock'
+    commits:
+    - 2087a7a9d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: exclude condition treatments from general consultations'
+    commits:
+    - a6f38ecb6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: hide source JSON in normal mindmap fullscreen'
+    commits:
+    - 383bf1b51
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:mindmaps:mindmap
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mindmaps
+      source: backend/apps/mindmaps/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve appointment purpose and provider eligibility'
+    commits:
+    - 278cac186
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve clean browser proof profiles and enforce real caption pacing'
+    commits:
+    - b456481f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: preserve compact mindmap zoom controls without source panel'
+    commits:
+    - 1b5be4e5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:mindmaps:mindmap
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mindmaps
+      source: backend/apps/mindmaps/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve events date bounds with timezone annotations'
+    commits:
+    - a9efbf0ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve generated appointment request identifiers'
+    commits:
+    - 670c9c712
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: recover missing preprocessing output and seal error responses'
+    commits:
+    - 2418c1bf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: reserve preprocessing time for configured fallbacks'
+    commits:
+    - c203154e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: resolve proof recordings from isolated CI receipts'
+    commits:
+    - c291757e3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: resolve proof sessions from Codex or repository identity'
+    commits:
+    - 09e8d3637
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: show concrete examples beside approval PDF requirements'
+    commits:
+    - f5b6b5acf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: avoid duplicate login before Task creator pairing'
+    commits:
+    - ebd26535f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: bind plumber proof captures to runner profiles'
+    commits:
+    - 336339e35
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: check initial Task dialog focus before editing'
+    commits:
+    - c59368d72
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: classify plumber example as public browser coverage'
+    commits:
+    - 04c8074d3
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: prove public plumber email and phone protection'
+    commits:
+    - '719229205'
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: record readable Task component proof intervals'
+    commits:
+    - 536055a21
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: record readable Task detail proof intervals'
+    commits:
+    - cf7464c73
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: scope landing headline checks to visible layout'
+    commits:
+    - db89247dd
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: verify Task detail editing controls in focused proof'
+    commits:
+    - 535fe7439
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'ci: add daily live dev signup email health check'
+    commits:
+    - effdc6b85
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'ci: dispatch live email health from existing daily launcher'
+    commits:
+    - 99e6313f8
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'docs: remove compulsory Codex process retrospectives'
+    commits:
+    - ab2083cdf
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'docs: route dev orchestration through explicit-permission dispatch'
+    commits:
+    - e432d6c0f
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'docs: save approved Workflow MVP specifications'
+    commits:
+    - 9c8100b74
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'fix: align Codex task and testing instructions with active runtime'
+    commits:
+    - 22ee64095
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'test: retain privacy proof states for caption reading'
+    commits:
+    - 57dd049e5
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: add Specification fullscreen design preview'
+    commits:
+    - 199e72c1e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: clarify Spec flow identity and linked Check previews'
+    commits:
+    - b97e9758d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: preserve playback controls when a later chapter fails'
+    commits:
+    - df456ebe8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: render Spec flows with shared preview and fullscreen UI'
+    commits:
+    - ec1e59188
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: render web search child images and website fullscreen images'
+    commits:
+    - 79cea2e09
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-09-10'
+    title: 'fix: resolve Spec icons through the shared app icon map'
+    commits:
+    - bcbde2c02
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: restore event child reference rendering'
+    commits:
+    - 12effe35a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+  - date: '2026-09-10'
+    title: 'fix: restore legacy news thumbnails in previews and fullscreen'
+    commits:
+    - df809eb3f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+  - date: '2026-09-10'
+    title: 'fix: use fullscreen preview data contract for Specifications'
+    commits:
+    - aa53a78d4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: coordinate session refresh and prevent stale logout'
+    commits:
+    - 70abd3b76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: isolate map pins and use embed app colors'
+    commits:
+    - 0c79a7e47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: match results filters and calendar event durations to design'
+    commits:
+    - b8440a515
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: omit empty timeline for date-only calendar results'
+    commits:
+    - 4900d0579
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: restore shared result previews and map initialization'
+    commits:
+    - bce1f7755
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: support Safari range dragging and bound calendar weeks'
+    commits:
+    - 8c05cb9ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'test: use each panel close control for transition checks'
+    commits:
+    - b14c694d1
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: chat
+  item_count: 70
+  newsletter_ready_count: 42
+  dev_only_count: 1
+  source_items:
+  - date: '2026-09-07'
+    title: 'chore: remove obsolete OpenCode automatic launchers'
+    commits:
+    - 66baa0745
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'feat(opencode): centralize Astra subchat routing'
+    commits:
+    - 8e745e031
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'feat(opencode): migrate specialist agents to central model policy'
+    commits:
+    - ba050aadc
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'feat: add daily meeting and chat orchestration'
+    commits:
+    - 6eafcf39a
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-07'
+    title: 'fix(opencode): preserve Zellij session during server restart'
+    commits:
+    - e6f3ad515
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: persist orchestration checkpoints across chat turns'
+    commits:
+    - 5850ea83a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-07'
+    title: 'fix: require chat progress tables in every orchestration reply'
+    commits:
+    - 6c1382e81
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-07'
+    title: 'test: correlate nested chat message identity in acknowledgement probe'
+    commits:
+    - 07705b357
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'test: exercise anonymous chat reliability'
+    commits:
+    - 83bae7f61
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'feat: add rendered example chat review skill and admission checks'
+    commits:
+    - d01d7d4e9
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: contain composer microphone permission warnings'
+    commits:
+    - 4b427518b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: converge memory consent requests across clients'
+    commits:
+    - 623274de5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: enforce Calendar account and mutation target selection'
+    commits:
+    - 74a508e07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: gate landing example conversion on source follow-ups'
+    commits:
+    - 3151a10ad
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: hide public response speech without audio fixtures'
+    commits:
+    - 8e0d23634
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: initialize fork title versions and tolerate legacy nulls'
+    commits:
+    - 4bc366a34
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: keep Task Activity attachment controls inside composer'
+    commits:
+    - 959ad0750
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - date: '2026-09-08'
+    title: 'fix: preserve completion recovery across consent and embed saving'
+    commits:
+    - fe098001a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve public example embed PII mappings'
+    commits:
+    - 9a51f28cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: remove rejected public examples and disable get-docs'
+    commits:
+    - 3b9b6b69e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+  - date: '2026-09-08'
+    title: 'fix: require an accepted turn before showing model selection'
+    commits:
+    - 5bd0e38d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: translate plumber privacy example into German'
+    commits:
+    - bfc3849ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'refactor: retire obsolete OpenCode runtime and launch tooling'
+    commits:
+    - c0351c497
+    section: improvements
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: align speech proof caption with responsive player'
+    commits:
+    - 52dada299
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: attach public speech proof timeline'
+    commits:
+    - 5bb0b3356
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: retain readable public speech proof interval'
+    commits:
+    - 803b0db58
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: use Task workspace composer and unique creator fixtures'
+    commits:
+    - 6253cd422
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - date: '2026-09-08'
+    title: 'test: verify public speech with current player selectors'
+    commits:
+    - 7c4b796fe
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: email admins about managed-server chat failures'
+    commits:
+    - 3dcd167f1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-10'
+    title: 'feat: publish the approved privacy plumber example'
+    commits:
+    - 9deecd843
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: simplify chat and embed header actions'
+    commits:
+    - 0d3fa0ce4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: align split panes with workspace edges'
+    commits:
+    - e32f0232f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: clarify empty image results and improve chat header actions'
+    commits:
+    - 3bf756a38
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - date: '2026-09-10'
+    title: 'fix: close chats without focusing the composer'
+    commits:
+    - 5f30d7720
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: complete header overlay controls and chat close navigation'
+    commits:
+    - 36e8da229
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: expand composer when following message links'
+    commits:
+    - 0ebe52d05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: hide empty header overflow menus'
+    commits:
+    - cd45d602c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: improve shared chat privacy controls and action suggestions'
+    commits:
+    - 68ba9f6af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+  - date: '2026-09-10'
+    title: 'fix: keep composer send button text white across themes'
+    commits:
+    - 68125fd20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: keep scrolled chat text clear of narrow toolbar'
+    commits:
+    - bbe82798c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: polish header overflow menu interactions and styling'
+    commits:
+    - 1b87ba4d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: preserve CLI chat identity and explicit PII sharing'
+    commits:
+    - 68a79174e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: preserve embed when closing split-view chat'
+    commits:
+    - 94db67fd9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: release web embed resources and bound recoverable caches'
+    commits:
+    - 5ac2744f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:videos:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - date: '2026-09-10'
+    title: 'fix: remove unwanted chats and compact sidebar events'
+    commits:
+    - 2b015adb7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: render search images in previews and fade loaded header images'
+    commits:
+    - 96777e723
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-09-10'
+    title: 'fix: resolve historical chat embeds before global fallback'
+    commits:
+    - 158fa51d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: restore assistant speech and natural source attribution'
+    commits:
+    - ba6205cf1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-10'
+    title: 'fix: restore guest workspace slide when closing chat'
+    commits:
+    - 23bd4d8e9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: show blocked microphone feedback only on recording attempts'
+    commits:
+    - 03be165c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: smooth composer resizing and retain editor focus'
+    commits:
+    - 3a3a4e74d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: smoothly slide split chat beside expanding embed'
+    commits:
+    - 7d16f1c27
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: update Svelte runtime to release stale chat subscriptions'
+    commits:
+    - b47b66905
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: use available spacing for chat toolbar fade'
+    commits:
+    - f18399815
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'style: adapt fullscreen controls to header overlap'
+    commits:
+    - fde4cb5f3
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: complete panel and chat content recovery changes'
+    commits:
+    - 66f6c7133
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: expose current Apple composer accessibility text'
+    commits:
+    - fd2c48f85
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-09-11'
+    title: 'fix: hide invalid results views with dismissible admin diagnostics'
+    commits:
+    - 960f874c3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: make embed pane transitions responsive'
+    commits:
+    - 84246fb4c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: make panels responsive and recover valid chat content'
+    commits:
+    - 89825e462
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: paginate chats from the authoritative account inventory'
+    commits:
+    - 32ebe840c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: prevent deep Apple chat scroll hangs and preserve notification replies'
+    commits:
+    - 9fbba00f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-09-11'
+    title: 'fix: prevent generic fullscreen banner and duplicate entrance'
+    commits:
+    - ae67ef5cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: restore Apple history rendering and search usability'
+    commits:
+    - f5cc5d74f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-09-11'
+    title: 'fix: restore Apple login and core chat flow'
+    commits:
+    - 7c983250a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-09-11'
+    title: 'fix: restore chat fade and overlay interactions'
+    commits:
+    - a45f6f40a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: stack guest interests and retain examples on empty slides'
+    commits:
+    - 04d473385
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'refactor: streamline Codex agent coordination'
+    commits:
+    - 343888bf9
+    section: improvements
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-11'
+    title: 'test: recognize the observed notification reply control'
+    commits:
+    - a81c9fa11
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-09-12'
+    title: 'fix(apple): restore responsive chat and component workflows'
+    commits:
+    - c702b9236
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+- theme: docs
+  item_count: 24
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-09-07'
+    title: 'docs: record verified orchestration scheduler rollout'
+    commits:
+    - f3733c40c
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: add exact authorized original-media relocation'
+    commits:
+    - 0f4d38fa1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: add retained Mac render capability gate'
+    commits:
+    - e103ce979
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: add typed retained-source operations to Apple Remote'
+    commits:
+    - 69d83874e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: diagnose Chrome sandbox stops from crash metadata'
+    commits:
+    - e50e3fff9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: expose scoped Mac media metadata under read-only sandbox'
+    commits:
+    - bf26220ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: supervise retained render stages without nested sandbox'
+    commits:
+    - dec576e9f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'docs: record Berlin appointment candidate rejection'
+    commits:
+    - 7bf8f5aa3
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'docs: record Calendar verification progress and OAuth setup hold'
+    commits:
+    - c31e18b48
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'docs: record approved landing example coordination campaign'
+    commits:
+    - 51d3ab575
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'docs: record verified isolated core pilot and remaining rollout'
+    commits:
+    - 4466a82e1
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: defer concurrent Codex Task API requests on rate limits'
+    commits:
+    - 18b136ed8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: preserve Calendar account selection and token cleanup'
+    commits:
+    - 6bd96772a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: preserve tool origin for orchestration checkpoints'
+    commits:
+    - 9703fbce4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: restore priorities-first daily meeting flow'
+    commits:
+    - e2f1cca0d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: scope Chromium Mac temporary paths to render runs'
+    commits:
+    - 59302df1b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: use supported Astra reasoning effort'
+    commits:
+    - a8162d625
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: give memory consent history proof a bounded host'
+    commits:
+    - f91fd2d85
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'docs: record live signup email smoke failure evidence'
+    commits:
+    - b8c9a1fe4
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'docs: reduce routine Codex task context and activity noise'
+    commits:
+    - 34ac07a38
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'docs: retire legacy Codex lifecycle instructions'
+    commits:
+    - a7f3b4c12
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'fix: enforce configured campaign worker limits'
+    commits:
+    - 38a300ef3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'fix: provide durable remote Codex worker commands'
+    commits:
+    - 501a1b048
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'fix: verify Codex hook readiness before Task event activation'
+    commits:
+    - 5a2547a30
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: cli_sdk
+  item_count: 19
+  newsletter_ready_count: 11
+  dev_only_count: 0
+  source_items:
+  - date: '2026-09-07'
+    title: 'ci: fail closed before remaining legacy shared-dev test paths'
+    commits:
+    - 3393060f2
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'ci: retire local runtime probes and forward legacy test launchers'
+    commits:
+    - 9da8d2b33
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'feat: bind Codex tasks to preserved worktrees and stage runtime admission'
+    commits:
+    - d3f5cb478
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: scope Groq transports to their owning async call'
+    commits:
+    - a291e507d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'docs: record real generated-file CLI verification'
+    commits:
+    - 94cbc779e
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'feat: connect Tasks to Codex and enable encrypted editing'
+    commits:
+    - d8d2b2ca1
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - date: '2026-09-08'
+    title: 'feat: download generated app skill files with explicit destination controls'
+    commits:
+    - e6676605e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: accept provider supported xhigh reasoning'
+    commits:
+    - f42e33579
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: align SDK Task lookup with the server list bound'
+    commits:
+    - cbd964029
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: bind async skill polling to the submitting owner'
+    commits:
+    - ca026069e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - date: '2026-09-08'
+    title: 'fix: make CLI account output readable and actionable'
+    commits:
+    - b04ce30b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: make Codex daily orchestration evidence-driven'
+    commits:
+    - 64044ecd2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: reject incomplete global CLI task inventories'
+    commits:
+    - 3c2c2b160
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: restore CLI version aliases and identify release in help'
+    commits:
+    - a83dd319c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: retrieve code run artifacts when live streaming is unavailable'
+    commits:
+    - 885c8ebb4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: route Astra reasoning tools through stateless Responses'
+    commits:
+    - de40ae665
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-09'
+    title: 'feat: rebuild Codex orchestration around OpenMates Tasks'
+    commits:
+    - bd16c9eb0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: embed:tasks:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:tasks:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-09'
+    title: 'fix: keep live signup email smoke on dev host CLI only'
+    commits:
+    - de018a5fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'fix: preserve encrypted task access when relinking projects'
+    commits:
+    - 653e698b5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: other
+  item_count: 18
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-09-07'
+    title: 'docs: add Codex fallback to daily orchestration'
+    commits:
+    - 1669408fd
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'docs: make GitHub isolation the current test execution policy'
+    commits:
+    - 97b55fe3b
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'docs: simplify daily meeting focus mode'
+    commits:
+    - 3b4cd6973
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-07'
+    title: 'feat: deploy exact reviewed candidates without rewriting stale worktrees'
+    commits:
+    - d67c2c666
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: admit sandboxed compiler for retained render check'
+    commits:
+    - 70eeffcba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: permit named read-only Chrome stop diagnosis'
+    commits:
+    - 0a47f3289
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: verify inherited Mac policy and bundled media probes'
+    commits:
+    - 60437534a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'test: run anonymous repair contract live'
+    commits:
+    - 525c2b4c3
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: add isolated live Caddy host removal with concurrency guard'
+    commits:
+    - 7e9d803c5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: emit valid Codex Stop hook output'
+    commits:
+    - 0bc0dbc2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: map browser proof timing from the first retained video frame'
+    commits:
+    - f46200b56
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: recognize concrete Task controls in proof narration'
+    commits:
+    - 95111f851
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: disambiguate plumber guest signup assertion'
+    commits:
+    - 97a22fda4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: mark mail privacy proof transition'
+    commits:
+    - 611379aa9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'test: verify guest signup after public example follow-up'
+    commits:
+    - 7e060f8fb
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'fix: resume unloaded Codex workers before dispatch'
+    commits:
+    - 36e5c3bfe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-09'
+    title: 'test: preserve isolated daily dispatch on email health failure'
+    commits:
+    - 6a9ffc64a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-11'
+    title: 'docs: keep PR descriptions focused on public changes'
+    commits:
+    - 52c4565d6
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: security
+  item_count: 8
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-09-07'
+    title: 'chore: remove obsolete Dependabot agent launch tail'
+    commits:
+    - 1a788b104
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'docs: clarify held Dependabot launcher removal'
+    commits:
+    - 62483c3aa
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'feat: prepare deterministic security digest cutover'
+    commits:
+    - 88f5b1c3e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: strip requirement annotations from security scan versions'
+    commits:
+    - d04fb4b3e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'refactor: remove remaining obsolete OpenCode review launchers'
+    commits:
+    - a11739b71
+    section: improvements
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'test: match email proof checkpoints to capture viewport'
+    commits:
+    - de0b60c27
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'test: preserve readable security email proof intervals'
+    commits:
+    - 599a426e5
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-08'
+    title: 'ci: preserve reserved security account policy with fresh runner accounts'
+    commits:
+    - 4003e8046
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: product
+  item_count: 7
+  newsletter_ready_count: 5
+  dev_only_count: 0
+  source_items:
+  - date: '2026-09-07'
+    title: 'feat: clarify orchestration tables and concurrency limits'
+    commits:
+    - 885c0a18e
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-07'
+    title: 'fix: expose daily meeting process and examples in API'
+    commits:
+    - bd4282864
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve Responses stream progress for timeout detection'
+    commits:
+    - 9767f60af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-10'
+    title: 'fix: expose calendar downloads for guest and date-only entries'
+    commits:
+    - 36750c21a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+  - date: '2026-09-10'
+    title: 'fix: initialize header controls before color transitions'
+    commits:
+    - 54fd7a99e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: preserve email preview link behavior'
+    commits:
+    - 0e41b33b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+  - date: '2026-09-10'
+    title: 'fix: release cached imagery across remaining embed previews'
+    commits:
+    - 14881b508
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:models3d:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: embed:weather:rain_radar
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+- theme: apple
+  item_count: 2
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-09-07'
+    title: 'fix: reject Mac deletion paths and persist terminal task stops'
+    commits:
+    - 00d972816
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: scope Mac deletion to verified repository descendants'
+    commits:
+    - 7c7a6d067
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: settings
+  item_count: 1
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-09-08'
+    title: 'ci: admit ordinary accessibility and account settings suites'
+    commits:
+    - 2f4b25fa0
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - date: '2026-09-07'
+    title: 'feat: bind Codex tasks to preserved worktrees and stage runtime admission'
+    commits:
+    - d3f5cb478
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'feat: prepare deterministic security digest cutover'
+    commits:
+    - 88f5b1c3e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: cap preprocessing fallback latency'
+    commits:
+    - 9b2b0566e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-07'
+    title: 'fix: classify rejected transcription interval content'
+    commits:
+    - 6592fcbd2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - date: '2026-09-07'
+    title: 'fix: fail anonymous turns without answer content'
+    commits:
+    - 4ca225aa4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: preserve anonymous follow-ups after skill results'
+    commits:
+    - f325c97e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: recover empty post-tool answers'
+    commits:
+    - 743865c5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-07'
+    title: 'fix: scope Groq transports to their owning async call'
+    commits:
+    - a291e507d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'feat: download generated app skill files with explicit destination controls'
+    commits:
+    - e6676605e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: accept health tool enum values and exclude preventive visits'
+    commits:
+    - 40b889891
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: accept provider supported xhigh reasoning'
+    commits:
+    - f42e33579
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: align SDK Task lookup with the server list bound'
+    commits:
+    - cbd964029
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: contain composer microphone permission warnings'
+    commits:
+    - 4b427518b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: converge memory consent requests across clients'
+    commits:
+    - 623274de5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: enforce Calendar account and mutation target selection'
+    commits:
+    - 74a508e07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: exclude condition treatments from general consultations'
+    commits:
+    - a6f38ecb6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: hide public response speech without audio fixtures'
+    commits:
+    - 8e0d23634
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: hide source JSON in normal mindmap fullscreen'
+    commits:
+    - 383bf1b51
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:mindmaps:mindmap
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mindmaps
+      source: backend/apps/mindmaps/app.yml
+  - date: '2026-09-08'
+    title: 'fix: initialize fork title versions and tolerate legacy nulls'
+    commits:
+    - 4bc366a34
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: make CLI account output readable and actionable'
+    commits:
+    - b04ce30b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: preserve Responses stream progress for timeout detection'
+    commits:
+    - 9767f60af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve appointment purpose and provider eligibility'
+    commits:
+    - 278cac186
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve compact mindmap zoom controls without source panel'
+    commits:
+    - 1b5be4e5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:mindmaps:mindmap
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mindmaps
+      source: backend/apps/mindmaps/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve completion recovery across consent and embed saving'
+    commits:
+    - fe098001a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve events date bounds with timezone annotations'
+    commits:
+    - a9efbf0ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve generated appointment request identifiers'
+    commits:
+    - 670c9c712
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: recover missing preprocessing output and seal error responses'
+    commits:
+    - 2418c1bf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: reject incomplete global CLI task inventories'
+    commits:
+    - 3c2c2b160
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: remove rejected public examples and disable get-docs'
+    commits:
+    - 3b9b6b69e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+  - date: '2026-09-08'
+    title: 'fix: require an accepted turn before showing model selection'
+    commits:
+    - 5bd0e38d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: reserve preprocessing time for configured fallbacks'
+    commits:
+    - c203154e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: restore CLI version aliases and identify release in help'
+    commits:
+    - a83dd319c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: retrieve code run artifacts when live streaming is unavailable'
+    commits:
+    - 885c8ebb4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: route Astra reasoning tools through stateless Responses'
+    commits:
+    - de40ae665
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-09'
+    title: 'fix: preserve encrypted task access when relinking projects'
+    commits:
+    - 653e698b5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: add Specification fullscreen design preview'
+    commits:
+    - 199e72c1e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: clarify Spec flow identity and linked Check previews'
+    commits:
+    - b97e9758d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: email admins about managed-server chat failures'
+    commits:
+    - 3dcd167f1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-10'
+    title: 'feat: publish the approved privacy plumber example'
+    commits:
+    - 9deecd843
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: simplify chat and embed header actions'
+    commits:
+    - 0d3fa0ce4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: align split panes with workspace edges'
+    commits:
+    - e32f0232f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: clarify empty image results and improve chat header actions'
+    commits:
+    - 3bf756a38
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - date: '2026-09-10'
+    title: 'fix: close chats without focusing the composer'
+    commits:
+    - 5f30d7720
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: complete header overlay controls and chat close navigation'
+    commits:
+    - 36e8da229
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: expand composer when following message links'
+    commits:
+    - 0ebe52d05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: expose calendar downloads for guest and date-only entries'
+    commits:
+    - 36750c21a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+  - date: '2026-09-10'
+    title: 'fix: hide empty header overflow menus'
+    commits:
+    - cd45d602c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: improve shared chat privacy controls and action suggestions'
+    commits:
+    - 68ba9f6af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+  - date: '2026-09-10'
+    title: 'fix: initialize header controls before color transitions'
+    commits:
+    - 54fd7a99e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: keep composer send button text white across themes'
+    commits:
+    - 68125fd20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: keep scrolled chat text clear of narrow toolbar'
+    commits:
+    - bbe82798c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: polish header overflow menu interactions and styling'
+    commits:
+    - 1b87ba4d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: preserve CLI chat identity and explicit PII sharing'
+    commits:
+    - 68a79174e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: preserve email preview link behavior'
+    commits:
+    - 0e41b33b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+  - date: '2026-09-10'
+    title: 'fix: preserve embed when closing split-view chat'
+    commits:
+    - 94db67fd9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: release cached imagery across remaining embed previews'
+    commits:
+    - 14881b508
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:models3d:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: embed:weather:rain_radar
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+  - date: '2026-09-10'
+    title: 'fix: release web embed resources and bound recoverable caches'
+    commits:
+    - 5ac2744f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:videos:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - date: '2026-09-10'
+    title: 'fix: remove unwanted chats and compact sidebar events'
+    commits:
+    - 2b015adb7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: render Spec flows with shared preview and fullscreen UI'
+    commits:
+    - ec1e59188
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: render search images in previews and fade loaded header images'
+    commits:
+    - 96777e723
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-09-10'
+    title: 'fix: render web search child images and website fullscreen images'
+    commits:
+    - 79cea2e09
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-09-10'
+    title: 'fix: resolve Spec icons through the shared app icon map'
+    commits:
+    - bcbde2c02
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: restore assistant speech and natural source attribution'
+    commits:
+    - ba6205cf1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-10'
+    title: 'fix: restore event child reference rendering'
+    commits:
+    - 12effe35a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+  - date: '2026-09-10'
+    title: 'fix: restore guest workspace slide when closing chat'
+    commits:
+    - 23bd4d8e9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: restore legacy news thumbnails in previews and fullscreen'
+    commits:
+    - df809eb3f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+  - date: '2026-09-10'
+    title: 'fix: show blocked microphone feedback only on recording attempts'
+    commits:
+    - 03be165c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: smooth composer resizing and retain editor focus'
+    commits:
+    - 3a3a4e74d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: smoothly slide split chat beside expanding embed'
+    commits:
+    - 7d16f1c27
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: update Svelte runtime to release stale chat subscriptions'
+    commits:
+    - b47b66905
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: use available spacing for chat toolbar fade'
+    commits:
+    - f18399815
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: use fullscreen preview data contract for Specifications'
+    commits:
+    - aa53a78d4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'style: adapt fullscreen controls to header overlap'
+    commits:
+    - fde4cb5f3
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: complete panel and chat content recovery changes'
+    commits:
+    - 66f6c7133
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: coordinate session refresh and prevent stale logout'
+    commits:
+    - 70abd3b76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: hide invalid results views with dismissible admin diagnostics'
+    commits:
+    - 960f874c3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: isolate map pins and use embed app colors'
+    commits:
+    - 0c79a7e47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: make embed pane transitions responsive'
+    commits:
+    - 84246fb4c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: make panels responsive and recover valid chat content'
+    commits:
+    - 89825e462
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: match results filters and calendar event durations to design'
+    commits:
+    - b8440a515
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: omit empty timeline for date-only calendar results'
+    commits:
+    - 4900d0579
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: paginate chats from the authoritative account inventory'
+    commits:
+    - 32ebe840c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: prevent generic fullscreen banner and duplicate entrance'
+    commits:
+    - ae67ef5cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: restore chat fade and overlay interactions'
+    commits:
+    - a45f6f40a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: restore shared result previews and map initialization'
+    commits:
+    - bce1f7755
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: stack guest interests and retain examples on empty slides'
+    commits:
+    - 04d473385
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: support Safari range dragging and bound calendar weeks'
+    commits:
+    - 8c05cb9ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  social_or_video:
+  - date: '2026-09-07'
+    title: 'feat: add daily meeting and chat orchestration'
+    commits:
+    - 6eafcf39a
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-07'
+    title: 'feat: bind Codex tasks to preserved worktrees and stage runtime admission'
+    commits:
+    - d3f5cb478
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'feat: clarify orchestration tables and concurrency limits'
+    commits:
+    - 885c0a18e
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-07'
+    title: 'feat: prepare deterministic security digest cutover'
+    commits:
+    - 88f5b1c3e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: cap preprocessing fallback latency'
+    commits:
+    - 9b2b0566e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-07'
+    title: 'fix: classify rejected transcription interval content'
+    commits:
+    - 6592fcbd2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - date: '2026-09-07'
+    title: 'fix: expose daily meeting process and examples in API'
+    commits:
+    - bd4282864
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-07'
+    title: 'fix: fail anonymous turns without answer content'
+    commits:
+    - 4ca225aa4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: persist orchestration checkpoints across chat turns'
+    commits:
+    - 5850ea83a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-07'
+    title: 'fix: preserve anonymous follow-ups after skill results'
+    commits:
+    - f325c97e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-07'
+    title: 'fix: recover empty post-tool answers'
+    commits:
+    - 743865c5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-07'
+    title: 'fix: require chat progress tables in every orchestration reply'
+    commits:
+    - 6c1382e81
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-07'
+    title: 'fix: scope Groq transports to their owning async call'
+    commits:
+    - a291e507d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'feat: connect Tasks to Codex and enable encrypted editing'
+    commits:
+    - d8d2b2ca1
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - date: '2026-09-08'
+    title: 'feat: download generated app skill files with explicit destination controls'
+    commits:
+    - e6676605e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: accept health tool enum values and exclude preventive visits'
+    commits:
+    - 40b889891
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: accept provider supported xhigh reasoning'
+    commits:
+    - f42e33579
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: align SDK Task lookup with the server list bound'
+    commits:
+    - cbd964029
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: bind async skill polling to the submitting owner'
+    commits:
+    - ca026069e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - date: '2026-09-08'
+    title: 'fix: contain composer microphone permission warnings'
+    commits:
+    - 4b427518b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: converge memory consent requests across clients'
+    commits:
+    - 623274de5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: enforce Calendar account and mutation target selection'
+    commits:
+    - 74a508e07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: exclude condition treatments from general consultations'
+    commits:
+    - a6f38ecb6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: hide public response speech without audio fixtures'
+    commits:
+    - 8e0d23634
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: hide source JSON in normal mindmap fullscreen'
+    commits:
+    - 383bf1b51
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:mindmaps:mindmap
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mindmaps
+      source: backend/apps/mindmaps/app.yml
+  - date: '2026-09-08'
+    title: 'fix: initialize fork title versions and tolerate legacy nulls'
+    commits:
+    - 4bc366a34
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: keep Task Activity attachment controls inside composer'
+    commits:
+    - 959ad0750
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - date: '2026-09-08'
+    title: 'fix: make CLI account output readable and actionable'
+    commits:
+    - b04ce30b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: preserve Responses stream progress for timeout detection'
+    commits:
+    - 9767f60af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve appointment purpose and provider eligibility'
+    commits:
+    - 278cac186
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve compact mindmap zoom controls without source panel'
+    commits:
+    - 1b5be4e5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:mindmaps:mindmap
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mindmaps
+      source: backend/apps/mindmaps/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve completion recovery across consent and embed saving'
+    commits:
+    - fe098001a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve events date bounds with timezone annotations'
+    commits:
+    - a9efbf0ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - date: '2026-09-08'
+    title: 'fix: preserve generated appointment request identifiers'
+    commits:
+    - 670c9c712
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - date: '2026-09-08'
+    title: 'fix: recover missing preprocessing output and seal error responses'
+    commits:
+    - 2418c1bf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: reject incomplete global CLI task inventories'
+    commits:
+    - 3c2c2b160
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: remove rejected public examples and disable get-docs'
+    commits:
+    - 3b9b6b69e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+  - date: '2026-09-08'
+    title: 'fix: require an accepted turn before showing model selection'
+    commits:
+    - 5bd0e38d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: reserve preprocessing time for configured fallbacks'
+    commits:
+    - c203154e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-08'
+    title: 'fix: restore CLI version aliases and identify release in help'
+    commits:
+    - a83dd319c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: retrieve code run artifacts when live streaming is unavailable'
+    commits:
+    - 885c8ebb4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-08'
+    title: 'fix: route Astra reasoning tools through stateless Responses'
+    commits:
+    - de40ae665
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-09'
+    title: 'feat: rebuild Codex orchestration around OpenMates Tasks'
+    commits:
+    - bd16c9eb0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: embed:tasks:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:tasks:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+  - date: '2026-09-09'
+    title: 'fix: preserve encrypted task access when relinking projects'
+    commits:
+    - 653e698b5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: add Specification fullscreen design preview'
+    commits:
+    - 199e72c1e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: clarify Spec flow identity and linked Check previews'
+    commits:
+    - b97e9758d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: email admins about managed-server chat failures'
+    commits:
+    - 3dcd167f1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-10'
+    title: 'feat: publish the approved privacy plumber example'
+    commits:
+    - 9deecd843
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'feat: simplify chat and embed header actions'
+    commits:
+    - 0d3fa0ce4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: align split panes with workspace edges'
+    commits:
+    - e32f0232f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: clarify empty image results and improve chat header actions'
+    commits:
+    - 3bf756a38
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - date: '2026-09-10'
+    title: 'fix: close chats without focusing the composer'
+    commits:
+    - 5f30d7720
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: complete header overlay controls and chat close navigation'
+    commits:
+    - 36e8da229
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: expand composer when following message links'
+    commits:
+    - 0ebe52d05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: expose calendar downloads for guest and date-only entries'
+    commits:
+    - 36750c21a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+  - date: '2026-09-10'
+    title: 'fix: hide empty header overflow menus'
+    commits:
+    - cd45d602c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: improve shared chat privacy controls and action suggestions'
+    commits:
+    - 68ba9f6af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+  - date: '2026-09-10'
+    title: 'fix: initialize header controls before color transitions'
+    commits:
+    - 54fd7a99e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: keep composer send button text white across themes'
+    commits:
+    - 68125fd20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: keep scrolled chat text clear of narrow toolbar'
+    commits:
+    - bbe82798c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: polish header overflow menu interactions and styling'
+    commits:
+    - 1b87ba4d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: preserve CLI chat identity and explicit PII sharing'
+    commits:
+    - 68a79174e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: preserve email preview link behavior'
+    commits:
+    - 0e41b33b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+  - date: '2026-09-10'
+    title: 'fix: preserve embed when closing split-view chat'
+    commits:
+    - 94db67fd9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: release cached imagery across remaining embed previews'
+    commits:
+    - 14881b508
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:models3d:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: embed:weather:rain_radar
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+  - date: '2026-09-10'
+    title: 'fix: release web embed resources and bound recoverable caches'
+    commits:
+    - 5ac2744f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:videos:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - date: '2026-09-10'
+    title: 'fix: remove unwanted chats and compact sidebar events'
+    commits:
+    - 2b015adb7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: render Spec flows with shared preview and fullscreen UI'
+    commits:
+    - ec1e59188
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: render search images in previews and fade loaded header images'
+    commits:
+    - 96777e723
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-09-10'
+    title: 'fix: render web search child images and website fullscreen images'
+    commits:
+    - 79cea2e09
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - date: '2026-09-10'
+    title: 'fix: resolve Spec icons through the shared app icon map'
+    commits:
+    - bcbde2c02
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: restore assistant speech and natural source attribution'
+    commits:
+    - ba6205cf1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-09-10'
+    title: 'fix: restore event child reference rendering'
+    commits:
+    - 12effe35a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+  - date: '2026-09-10'
+    title: 'fix: restore guest workspace slide when closing chat'
+    commits:
+    - 23bd4d8e9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: restore legacy news thumbnails in previews and fullscreen'
+    commits:
+    - df809eb3f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+  - date: '2026-09-10'
+    title: 'fix: show blocked microphone feedback only on recording attempts'
+    commits:
+    - 03be165c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: smooth composer resizing and retain editor focus'
+    commits:
+    - 3a3a4e74d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: smoothly slide split chat beside expanding embed'
+    commits:
+    - 7d16f1c27
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: update Svelte runtime to release stale chat subscriptions'
+    commits:
+    - b47b66905
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: use available spacing for chat toolbar fade'
+    commits:
+    - f18399815
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'fix: use fullscreen preview data contract for Specifications'
+    commits:
+    - aa53a78d4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-10'
+    title: 'style: adapt fullscreen controls to header overlap'
+    commits:
+    - fde4cb5f3
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: complete panel and chat content recovery changes'
+    commits:
+    - 66f6c7133
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: coordinate session refresh and prevent stale logout'
+    commits:
+    - 70abd3b76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: expose current Apple composer accessibility text'
+    commits:
+    - fd2c48f85
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-09-11'
+    title: 'fix: hide invalid results views with dismissible admin diagnostics'
+    commits:
+    - 960f874c3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: isolate map pins and use embed app colors'
+    commits:
+    - 0c79a7e47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: make embed pane transitions responsive'
+    commits:
+    - 84246fb4c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: make panels responsive and recover valid chat content'
+    commits:
+    - 89825e462
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: match results filters and calendar event durations to design'
+    commits:
+    - b8440a515
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: omit empty timeline for date-only calendar results'
+    commits:
+    - 4900d0579
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: paginate chats from the authoritative account inventory'
+    commits:
+    - 32ebe840c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: prevent deep Apple chat scroll hangs and preserve notification replies'
+    commits:
+    - 9fbba00f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-09-11'
+    title: 'fix: prevent generic fullscreen banner and duplicate entrance'
+    commits:
+    - ae67ef5cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: restore Apple history rendering and search usability'
+    commits:
+    - f5cc5d74f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-09-11'
+    title: 'fix: restore Apple login and core chat flow'
+    commits:
+    - 7c983250a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-09-11'
+    title: 'fix: restore chat fade and overlay interactions'
+    commits:
+    - a45f6f40a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: restore shared result previews and map initialization'
+    commits:
+    - bce1f7755
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: stack guest interests and retain examples on empty slides'
+    commits:
+    - 04d473385
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-11'
+    title: 'fix: support Safari range dragging and bound calendar weeks'
+    commits:
+    - 8c05cb9ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-09-12'
+    title: 'fix(apple): restore responsive chat and component workflows'
+    commits:
+    - c702b9236
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+unreleased_progress:
+  dev_only:
+  - date: '2026-09-12'
+    title: 'fix(apple): restore responsive chat and component workflows'
+    commits:
+    - c702b9236
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  unknown_release_status: []
+risks:
+  communication:
+  - Use weekly themes for PR/release/newsletter drafting; do not list every daily item one-by-one.
+  - Keep dev_only and unknown_release_status items out of public newsletters until released on main.
+sources:
+  daily_files:
+  - docs/releases/daily/2026-09-07.yml
+  - docs/releases/daily/2026-09-08.yml
+  - docs/releases/daily/2026-09-09.yml
+  - docs/releases/daily/2026-09-10.yml
+  - docs/releases/daily/2026-09-11.yml
+  - docs/releases/daily/2026-09-12.yml
+  - docs/releases/daily/2026-09-13.yml
+llm_summary:
+  overview: OpenMates focused on AI reliability, workspace UI refinement, and professionalizing the CLI experience this week.
+    Key updates include a new fullscreen design for Specification documents, simplified header navigation, and the ability
+    to download generated assets via the CLI. Significant infrastructure work was also completed, including a migration to
+    isolated GitHub test environments and the retirement of the legacy OpenCode runtime. AI processing was hardened with improved
+    recovery for preprocessing failures and expanded support for high-effort reasoning models.
+  released_changes:
+  - text: Codex tasks are now bound to preserved worktrees with staged runtime admission to ensure session isolation.
+    evidence:
+      commits:
+      - d3f5cb478
+    release_status: released_main
+  - text: Infrastructure for deterministic security digests was added to improve the reliability of vulnerability reporting.
+    evidence:
+      commits:
+      - 88f5b1c3e
+    release_status: released_main
+  - text: The CLI now supports downloading generated app skill files with explicit destination controls.
+    evidence:
+      commits:
+      - e6676605e
+    release_status: released_main
+  - text: Chat and embed header action menus were simplified to provide a cleaner interface and more consistent navigation.
+    evidence:
+      commits:
+      - 0d3fa0ce4
+      - 36e8da229
+      - 1b87ba4d6
+      - 54fd7a99e
+      - cd45d602c
+      - fde4cb5f3
+    release_status: released_main
+  - text: A new fullscreen design for Specification documents was introduced, featuring clarified flow identities and linked
+      check previews.
+    evidence:
+      commits:
+      - 199e72c1e
+      - b97e9758d
+    release_status: released_main
+  - text: Managed-server administrators now receive automated email alerts for chat failures.
+    evidence:
+      commits:
+      - 3dcd167f1
+    release_status: released_main
+  - text: A new privacy-focused plumber email example was published to the demo chat library.
+    evidence:
+      commits:
+      - 9deecd843
+    release_status: released_main
+  - text: Support for Astra reasoning models was expanded, including routing through stateless responses and support for high-effort
+      reasoning levels.
+    evidence:
+      commits:
+      - de40ae665
+      - f42e33579
+    release_status: released_main
+  - text: Workspace panels and embed transitions were made more responsive across different screen sizes.
+    evidence:
+      commits:
+      - 84246fb4c
+      - 66f6c7133
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved an issue where Groq transports were not correctly scoped to their owning asynchronous calls.
+    evidence:
+      commits:
+      - a291e507d
+    release_status: released_main
+  - text: Improved anonymous chat reliability by validating answer content and preserving follow-up turns after skill execution.
+    evidence:
+      commits:
+      - 4ca225aa4
+      - f325c97e1
+    release_status: released_main
+  - text: Refined Health app precision, including better preservation of appointment identifiers and exclusion of irrelevant
+      preventive visits from general searches.
+    evidence:
+      commits:
+      - 670c9c712
+      - 40b889891
+      - a6f38ecb6
+      - 278cac186
+    release_status: released_main
+  - text: Ensured encrypted task access is preserved during project relinking operations.
+    evidence:
+      commits:
+      - 653e698b5
+    release_status: released_main
+  - text: Improved web memory management by releasing stale chat subscriptions and clearing cached imagery across embed previews.
+    evidence:
+      commits:
+      - b47b66905
+      - 14881b508
+      - 5ac2744f8
+    release_status: released_main
+  - text: Fixed search result rendering for web, news, and image previews, including improved thumbnail handling and image
+      fading.
+    evidence:
+      commits:
+      - 96777e723
+      - 79cea2e09
+      - df809eb3f
+      - 3bf756a38
+    release_status: released_main
+  - text: Coordinated session refresh logic to prevent unexpected logouts during active use.
+    evidence:
+      commits:
+      - 70abd3b76
+    release_status: released_main
+  - text: Isolated map pins and restored initialization for shared result previews.
+    evidence:
+      commits:
+      - 0c79a7e47
+      - bce1f7755
+    release_status: released_main
+  - text: Added support for Safari range dragging and refined calendar week bounding.
+    evidence:
+      commits:
+      - 8c05cb9ac
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on the Tasks app, including new daily meeting focus modes, chat orchestration checkpoints,
+      and API examples for meeting processes.
+    evidence:
+      commits:
+      - 6eafcf39a
+      - 885c0a18e
+      - 6c1382e81
+      - 5850ea83a
+      - bd4282864
+      - 3b4cd6973
+    release_status: released_main
+  - text: Work continued on the Tasks platform, including Codex connectivity, encrypted editing, and async skill polling.
+    evidence:
+      commits:
+      - d8d2b2ca1
+      - ca026069e
+      - 959ad0750
+    release_status: released_main
+  - text: Codex orchestration was rebuilt using the Tasks framework, including updated lifecycle instructions and reduced
+      activity noise.
+    evidence:
+      commits:
+      - bd16c9eb0
+      - 22ee64095
+      - a7f3b4c12
+      - 34ac07a38
+      - e432d6c0f
+    release_status: released_main
+  - text: Specifications for the upcoming Workflow MVP were finalized and saved.
+    evidence:
+      commits:
+      - 9c8100b74
+    release_status: released_main
+  - text: Development continued on Apple platform features, including fixes for chat scroll hangs, notification replies, and
+      core login flows for iOS and macOS.
+    evidence:
+      commits:
+      - 9fbba00f7
+      - f5cc5d74f
+      - fd2c48f85
+      - 7c983250a
+      - c702b9236
+    release_status: released_main
+  internal_progress:
+  - text: Completed a major migration to isolated GitHub test environments, including durable dispatch pilots and immutable
+      candidate publishing.
+    evidence:
+      commits:
+      - fa2f1ff9f
+      - 5ecfbf246
+      - 24f18b0a2
+      - da2458f0e
+      - a306fe55f
+      - 3393060f2
+      - dcecf8788
+      - 438d88352
+      - 1e60d3b50
+    release_status: released_main
+  - text: Retired the obsolete OpenCode runtime and associated orchestration monitors to streamline the codebase.
+    evidence:
+      commits:
+      - 66baa0745
+      - 4dda2b684
+      - a11739b71
+      - 1a788b104
+      - c0351c497
+    release_status: released_main
+  - text: Implemented daily live health checks for signup emails to monitor delivery success on development hosts.
+    evidence:
+      commits:
+      - effdc6b85
+      - 99e6313f8
+      - de018a5fe
+      - 6a9ffc64a
+      - b8c9a1fe4
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: OpenMates CLI now supports downloading generated app skill files with explicit destination controls.
+      evidence:
+        commits:
+        - e6676605e
+      reason: Significant new capability for CLI users to manage generated assets.
+    - text: Simplified chat and embed header action menus for a cleaner interface.
+      evidence:
+        commits:
+        - 0d3fa0ce4
+      reason: Major UI simplification for chat and embed navigation.
+    - text: Introduced a new fullscreen design for Specification documents.
+      evidence:
+        commits:
+        - 199e72c1e
+      reason: New fullscreen viewing capability for Specification documents.
+    - text: Managed-server administrators now receive automated email alerts for chat failures.
+      evidence:
+        commits:
+        - 3dcd167f1
+      reason: New administrative feature for managed-server monitoring.
+    - text: Published a new privacy-focused plumber email example to the demo chat library.
+      evidence:
+        commits:
+        - 9deecd843
+      reason: New privacy-focused demo content for users.
+    exclude:
+    - text: Daily meeting and chat orchestration features.
+      evidence:
+        commits:
+        - 6eafcf39a
+        - 885c0a18e
+        - 6c1382e81
+        - 5850ea83a
+        - bd4282864
+        - 3b4cd6973
+      reason: These items relate to the Tasks app, which is currently a disabled feature.
+    - text: Apple platform stability and login fixes.
+      evidence:
+        commits:
+        - 9fbba00f7
+        - f5cc5d74f
+        - fd2c48f85
+        - 7c983250a
+        - c702b9236
+      reason: These changes relate to iOS and macOS platforms which are currently listed as disabled features.
+    rationale: The week's highlights focus on professionalizing the CLI experience, overhauling the workspace UI with new
+      Specification views, and hardening core AI reliability. Features related to disabled modules like Tasks and Apple platforms
+      are excluded.
+  social_video_recommendations:
+  - idea: A short demo showing how to use the CLI to download files generated by an AI skill directly to a local directory.
+    priority: medium
+    reason: Demonstrates a concrete bridge between AI-generated content and a developer's local file system.
+    evidence:
+      commits:
+      - e6676605e
+  - idea: A walkthrough of the new Specification fullscreen design and the streamlined header action menu.
+    priority: high
+    reason: The Specification fullscreen view is a significant visual enhancement that is ready for public demo.
+    evidence:
+      commits:
+      - 199e72c1e
+      - 0d3fa0ce4
+  quality_notes:
+  - AI processing is now more resilient to timeouts and preprocessing errors.
+  - Significant focus on frontend performance, specifically addressing memory leaks in the Svelte runtime.
+  - CLI output for accounts and tasks was made more readable and actionable.
+  - Cross-browser compatibility was improved, specifically addressing Safari-specific interaction issues.
+  validation_warnings: []
