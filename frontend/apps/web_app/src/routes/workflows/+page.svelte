@@ -983,6 +983,10 @@
 		overflow: hidden;
 	}
 
+	#tabpanel-template { box-sizing:border-box; width:min(60rem,calc(100% - 4rem)); margin:0 auto; padding-top:2.5rem; border-radius:var(--radius-16); background:var(--color-grey-0); }
+	#tabpanel-template :global(.graph-panel) { width:100%; margin-block:0; }
+	@media(max-width:730px) { #tabpanel-template { width:calc(100% - 1rem); } }
+
 	.workflow-management {
 		position: absolute;
 		inset: 0;

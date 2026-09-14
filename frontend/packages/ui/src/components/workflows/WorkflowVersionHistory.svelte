@@ -213,11 +213,12 @@
 {/if}
 
 <style>
+  .version-history button { height:auto; min-width:0; margin:0; filter:none; }
   .version-history { display:grid; gap:var(--spacing-3); margin:0 auto var(--spacing-6); width:100%; font-size:var(--font-size-p); }
-  .version-selector { justify-self:center; display:flex; align-items:center; gap:var(--spacing-2); border:0; border-radius:var(--radius-full); padding:var(--spacing-2) var(--spacing-4); color:var(--color-font-secondary); background:var(--color-grey-10); font:inherit; font-weight:700; cursor:pointer; }
+  .version-selector { justify-self:center; display:flex; flex-wrap:wrap; justify-content:center; max-width:calc(100% - 2rem); align-items:center; gap:var(--spacing-2); border:0; border-radius:var(--radius-full); padding:var(--spacing-2) var(--spacing-4); color:var(--color-font-secondary); background:var(--color-grey-10); font:inherit; font-weight:700; cursor:pointer; }
   .version-list { position:relative; display:flex; justify-content:safe center; gap:var(--spacing-4); overflow-x:auto; padding:var(--spacing-3) var(--spacing-4) var(--spacing-6); scrollbar-width:thin; background:var(--color-grey-10); }
   .version-list::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1rem; background:repeating-linear-gradient(to right,transparent 0,transparent 7px,var(--color-grey-30) 7px,var(--color-grey-30) 8px); pointer-events:none; }
-  .version-list button { flex:0 0 7rem; display:grid; gap:var(--spacing-1); position:relative; padding:var(--spacing-2); border:0; background:transparent; color:var(--color-font-secondary); font:inherit; font-size:var(--font-size-small); text-align:center; cursor:pointer; }
+  .version-list button { flex:0 0 10rem; display:grid; gap:var(--spacing-1); position:relative; padding:var(--spacing-2); border:0; background:transparent; color:var(--color-font-secondary); font:inherit; font-size:var(--font-size-small); text-align:center; cursor:pointer; }
   .version-list button::after { content:''; position:absolute; bottom:-1.3rem; left:50%; height:1.1rem; width:2px; background:var(--color-font-secondary); z-index:1; }
   .version-list button.selected,.current-marker { color:var(--color-primary); } .version-list button.selected::after { background:var(--color-primary); }
   .version-label { font-weight:700; } p,h3 { margin:0; } h3 { font-size:var(--font-size-p); }

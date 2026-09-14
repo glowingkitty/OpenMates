@@ -15,7 +15,7 @@ from typing import Any
 from starlette.concurrency import run_in_threadpool
 
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter, WorkflowActionExecutionError
-from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter
+from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter, WorkflowSkillBillingError
 from backend.core.api.app.services.workflow_models import (
     WorkflowDetail,
     WorkflowNode,
@@ -93,6 +93,7 @@ class WorkflowRunner:
             # Persist a checkpoint before executing a side effect or making a reservation.
             progress = WorkflowRunDetail(id=run_id, workflow_id=workflow.id, version_id=version_id,
                 trigger_type=trigger_type, status=WorkflowRunStatus.RUNNING, started_at=started_at,
+                cost_summary=_workflow_cost_summary(node_runs),
                 node_runs=[*node_runs, WorkflowNodeRun(
                     id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow:{run_id}:{node.id}:node-run")),
                     run_id=run_id, workflow_id=workflow.id, node_id=node.id, node_type=node.type,
@@ -113,6 +114,7 @@ class WorkflowRunner:
                     started_at=started_at,
                     finished_at=int(time.time()),
                     error_summary=f"Step failed ({node_run.error_code or 'execution_error'})" if node_run.error_summary else None,
+                    cost_summary=_workflow_cost_summary(node_runs),
                     node_runs=node_runs,
                     output_summary=context,
                 )
@@ -125,6 +127,7 @@ class WorkflowRunner:
                     trigger_type=trigger_type,
                     status=WorkflowRunStatus.WAITING,
                     started_at=started_at,
+                    cost_summary=_workflow_cost_summary(node_runs),
                     node_runs=node_runs,
                     output_summary=context,
                 )
@@ -144,6 +147,7 @@ class WorkflowRunner:
             status=WorkflowRunStatus.COMPLETED,
             started_at=started_at,
             finished_at=int(time.time()),
+            cost_summary=_workflow_cost_summary(node_runs),
             node_runs=node_runs,
             output_summary=context,
         )
@@ -193,6 +197,7 @@ class WorkflowRunner:
             started_at=started_at,
             finished_at=None if status == WorkflowRunStatus.WAITING else int(time.time()),
             error_summary=f"Step failed ({node_run.error_code or 'execution_error'})" if node_run.error_summary else None,
+            cost_summary=_workflow_cost_summary([node_run]),
             node_runs=[node_run],
             output_summary=context,
         )
@@ -222,6 +227,7 @@ class WorkflowRunner:
             finished_at=now,
             cancellation_requested_at=now,
             cancelled_at=now,
+            cost_summary=_workflow_cost_summary(node_runs),
             node_runs=node_runs,
             output_summary=context,
         )
@@ -253,6 +259,9 @@ class WorkflowRunner:
         started_at = int(time.time())
         try:
             output = await self._execute_node(node, context, user_id)
+            credit_cost = output.pop("_workflow_credit_cost", 0)
+            if not isinstance(credit_cost, int) or credit_cost < 0:
+                raise WorkflowSkillBillingError("WORKFLOW_BILLING_INVALID_RECEIPT", "Workflow billing receipt is invalid")
             return WorkflowNodeRun(
                 id=str(uuid.uuid4()),
                 run_id=run_id,
@@ -265,8 +274,23 @@ class WorkflowRunner:
                 skipped_reason=output.get("skipped_reason"),
                 input_summary=node.input_mapping,
                 output_summary=output,
+                credit_cost=credit_cost,
             )
         except WorkflowActionExecutionError as exc:
+            return WorkflowNodeRun(
+                id=str(uuid.uuid4()),
+                run_id=run_id,
+                workflow_id=workflow_id,
+                node_id=node.id,
+                node_type=node.type,
+                status=WorkflowNodeRunStatus.FAILED,
+                started_at=started_at,
+                finished_at=int(time.time()),
+                error_code=exc.code,
+                error_summary=str(exc),
+                input_summary=node.input_mapping,
+            )
+        except WorkflowSkillBillingError as exc:
             return WorkflowNodeRun(
                 id=str(uuid.uuid4()),
                 run_id=run_id,
@@ -335,7 +359,18 @@ class WorkflowRunner:
         from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
         execution = context.get("workflow") or {}
         request = resolve_workflow_runtime_values(request, now=execution.get("started_at"), timezone=execution.get("timezone") or "UTC")
-        output = await self.app_skill_adapter.execute(app_id, skill_id, request, user_id=user_id)
+        output = await self.app_skill_adapter.execute(
+            app_id,
+            skill_id,
+            request,
+            user_id=user_id,
+            billing_context={
+                "workflow_id": execution.get("workflow_id"),
+                "run_id": execution.get("run_id"),
+                "node_id": node.id,
+                "source": "workflow_test" if execution.get("step_test") else "workflow",
+            },
+        )
         if output.get("error"):
             raise WorkflowActionExecutionError("WORKFLOW_SKILL_FAILED", "The selected app skill could not complete this step")
         return output
@@ -373,6 +408,11 @@ def _evaluate_predicate(predicate: dict[str, Any], context: dict[str, Any]) -> b
     if op == "starts_with":
         return str(left).startswith(str(right))
     return False
+
+
+def _workflow_cost_summary(node_runs: list[WorkflowNodeRun]) -> dict[str, int]:
+    credits = sum(node.credit_cost for node in node_runs)
+    return {"credits": credits} if credits > 0 else {}
 
 
 def _execute_repeat_control(node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:

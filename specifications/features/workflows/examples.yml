@@ -204,3 +204,17 @@ delivery_recovery:
   given: The CLI creates a new encrypted workflow chat while the web app is connected.
   when: The atomic persistence commits and sync is projected.
   then: The web receives ciphertext metadata, decrypts locally, and displays the same chat and included result embeds.
+
+skill_billing:
+- id: skill_billing-1
+  given: Alice has sufficient credits and a Workflow contains a paid app skill.
+  when: The skill executes in a full run and Alice separately tests its draft inputs.
+  then: Each successful paid invocation uses the existing skill price, reduces credits and appears in Billing and Usage as Workflow run or Workflow test with readable app and skill names.
+- id: skill_billing-2
+  given: A paid skill charge has already been accepted for a Workflow node execution.
+  when: Its billing or delivery acknowledgement is retried.
+  then: The original logical charge is not debited again and private Workflow inputs, results and messages are absent from billing attribution.
+- id: skill_billing-3
+  given: Alice has insufficient credits for a paid Workflow skill.
+  when: A full run or node Test attempts that skill.
+  then: Paid work is rejected, the failure is visible and downstream steps do not execute; deterministic Preview alone remains uncharged.

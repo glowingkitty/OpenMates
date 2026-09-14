@@ -9,10 +9,13 @@
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 from datetime import datetime, timedelta
+import uuid
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from backend.shared.python_utils.billing_utils import BillingError, ensure_credit_headroom
 from backend.shared.python_utils.app_skill_output_safety import (
     AppSkillOutputSafetyContext,
     APP_SKILL_SURFACE_WORKFLOW,
@@ -26,6 +29,15 @@ from backend.shared.python_utils.app_skill_output_safety import (
 AI_APP_ID = "ai"
 AI_ASK_SKILL_ID = "ask"
 OPENAI_USER_ROLE = "user"
+WORKFLOW_USAGE_SOURCES = frozenset({"workflow", "workflow_test"})
+
+
+class WorkflowSkillBillingError(RuntimeError):
+    """Typed, privacy-safe failure surfaced in workflow node history."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class WorkflowAppSkillAdapter:
@@ -54,21 +66,49 @@ class WorkflowAppSkillAdapter:
         if approved is not True:
             raise PermissionError("Workflow provider binding is no longer authorized")
 
-    async def execute(self, app_id: str, skill_id: str, request: dict[str, Any], *, user_id: str | None = None) -> dict[str, Any]:
+    async def execute(
+        self,
+        app_id: str,
+        skill_id: str,
+        request: dict[str, Any],
+        *,
+        user_id: str | None = None,
+        billing_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         registry = self.registry
         if registry is None:
             from backend.core.api.app.services.skill_registry import get_global_registry
 
             registry = get_global_registry()
         request_without_security = strip_request_security_controls(request)
-        skill_request = _prepare_workflow_skill_request(app_id, skill_id, request_without_security, user_id)
+        skill_request = _prepare_workflow_skill_request(
+            app_id,
+            skill_id,
+            request_without_security,
+            user_id,
+        )
+        metadata = registry.get_metadata(app_id) if hasattr(registry, "get_metadata") else None
+        if billing_context and (app_id, skill_id) != (AI_APP_ID, AI_ASK_SKILL_ID):
+            _workflow_usage_source(billing_context)
+            _workflow_billing_identity(
+                app_id=app_id,
+                skill_id=skill_id,
+                billing_context=billing_context,
+                item_index=0,
+            )
+            await _precheck_workflow_skill_billing(
+                app_id=app_id,
+                skill_id=skill_id,
+                request=skill_request,
+                user_id=user_id,
+                metadata=metadata,
+            )
         with central_app_skill_dispatch():
             raw_output = await registry.dispatch_skill(app_id, skill_id, skill_request)
         if hasattr(raw_output, "model_dump"):
             raw_output = raw_output.model_dump(mode="json")
         if not isinstance(raw_output, dict):
             raw_output = {"result": raw_output}
-        metadata = registry.get_metadata(app_id) if hasattr(registry, "get_metadata") else None
         raw_output = await sanitize_app_skill_output(
             raw_output,
             AppSkillOutputSafetyContext(
@@ -82,10 +122,31 @@ class WorkflowAppSkillAdapter:
                 log_prefix=f"[WorkflowAppSkill {app_id}.{skill_id}] ",
             ),
         )
-        return _normalize_skill_output(app_id, skill_id, skill_request, raw_output)
+        # ai.ask settles actual token usage in its existing worker pipeline;
+        # charging again here would double bill it.
+        workflow_credit_cost = 0
+        if billing_context and (app_id, skill_id) != (AI_APP_ID, AI_ASK_SKILL_ID):
+            workflow_credit_cost = await _charge_workflow_skill_result(
+                app_id=app_id,
+                skill_id=skill_id,
+                request=skill_request,
+                result=raw_output,
+                user_id=user_id,
+                metadata=metadata,
+                billing_context=billing_context,
+            )
+        output = _normalize_skill_output(app_id, skill_id, skill_request, raw_output)
+        if billing_context:
+            output["_workflow_credit_cost"] = workflow_credit_cost
+        return output
 
 
-def _prepare_workflow_skill_request(app_id: str, skill_id: str, request: dict[str, Any], user_id: str | None) -> dict[str, Any]:
+def _prepare_workflow_skill_request(
+    app_id: str,
+    skill_id: str,
+    request: dict[str, Any],
+    user_id: str | None,
+) -> dict[str, Any]:
     if app_id != AI_APP_ID or skill_id != AI_ASK_SKILL_ID:
         return request
     if "messages" in request:
@@ -100,6 +161,160 @@ def _prepare_workflow_skill_request(app_id: str, skill_id: str, request: dict[st
         skill_request["_user_id"] = user_id
     skill_request["_external_request"] = True
     return skill_request
+
+
+def _workflow_usage_source(billing_context: dict[str, Any]) -> str:
+    source = billing_context.get("source")
+    if source not in WORKFLOW_USAGE_SOURCES:
+        raise WorkflowSkillBillingError("WORKFLOW_BILLING_INVALID_CONTEXT", "Workflow billing context is invalid")
+    return str(source)
+
+
+def _workflow_billing_identity(
+    *,
+    app_id: str,
+    skill_id: str,
+    billing_context: dict[str, Any],
+    item_index: int,
+) -> str:
+    identity_parts = [
+        billing_context.get("workflow_id"),
+        billing_context.get("run_id"),
+        billing_context.get("node_id"),
+        app_id,
+        skill_id,
+        str(item_index),
+    ]
+    if not all(isinstance(value, str) and value for value in identity_parts):
+        raise WorkflowSkillBillingError("WORKFLOW_BILLING_INVALID_CONTEXT", "Workflow billing context is invalid")
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, "openmates:workflow-billing:" + ":".join(identity_parts)))
+
+
+def _find_skill_definition(metadata: Any, skill_id: str) -> Any | None:
+    if metadata is None:
+        return None
+    return next((skill for skill in (getattr(metadata, "skills", None) or []) if skill.id == skill_id), None)
+
+
+async def _precheck_workflow_skill_billing(
+    *,
+    app_id: str,
+    skill_id: str,
+    request: dict[str, Any],
+    user_id: str | None,
+    metadata: Any,
+) -> None:
+    if not user_id or metadata is None or _find_skill_definition(metadata, skill_id) is None:
+        raise WorkflowSkillBillingError("WORKFLOW_BILLING_UNAVAILABLE", "Workflow skill billing is unavailable")
+
+    from backend.core.api.app.routes import apps_api
+
+    reserved_credits = apps_api.get_variable_preflight_reserved_credits(app_id, skill_id, request)
+    estimated_credits = await apps_api.calculate_skill_credits(
+        app_metadata=metadata,
+        skill_id=skill_id,
+        input_data=request,
+        app_id=app_id,
+    )
+    try:
+        await ensure_credit_headroom(
+            user_id=user_id,
+            estimated_credits=max(reserved_credits, estimated_credits),
+            operation_name=f"workflow skill {app_id}.{skill_id}",
+            log_prefix="[WorkflowBilling]",
+        )
+    except BillingError as exc:
+        raise WorkflowSkillBillingError("INSUFFICIENT_CREDITS", "Insufficient credits for this workflow step") from exc
+
+
+async def _charge_workflow_skill_result(
+    *,
+    app_id: str,
+    skill_id: str,
+    request: dict[str, Any],
+    result: dict[str, Any],
+    user_id: str | None,
+    metadata: Any,
+    billing_context: dict[str, Any],
+) -> int:
+    if not user_id or metadata is None:
+        raise WorkflowSkillBillingError("WORKFLOW_BILLING_UNAVAILABLE", "Workflow skill billing is unavailable")
+
+    from backend.core.api.app.routes import apps_api
+    from backend.core.api.app.utils.config_manager import ConfigManager
+
+    if not apps_api.is_skill_execution_successful(result):
+        return 0
+    credits_charged = await apps_api.calculate_skill_credits(
+        app_metadata=metadata,
+        skill_id=skill_id,
+        input_data=request,
+        result_data=result,
+        app_id=app_id,
+    )
+    if credits_charged <= 0:
+        return 0
+
+    requests = request.get("requests")
+    units_processed = len(requests) if isinstance(requests, list) else 1
+    result_charge_items = apps_api.get_variable_result_charge_items(app_id, skill_id, result)
+    if result_charge_items is None:
+        per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
+        credits_remainder = credits_charged - (per_request_credits * units_processed)
+        charge_items = [
+            (index, per_request_credits + (credits_remainder if index == units_processed - 1 else 0))
+            for index in range(units_processed)
+        ]
+    else:
+        charge_items = result_charge_items
+
+    skill_definition = _find_skill_definition(metadata, skill_id)
+    if skill_definition is None:
+        raise WorkflowSkillBillingError("WORKFLOW_BILLING_UNAVAILABLE", "Workflow skill billing is unavailable")
+    provider_info = apps_api.resolve_skill_provider_info(skill_definition, app_id, ConfigManager())
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    source = _workflow_usage_source(billing_context)
+
+    charged_total = 0
+    for item_index, item_credits in charge_items:
+        if item_credits <= 0:
+            continue
+        operation_id = _workflow_billing_identity(
+            app_id=app_id,
+            skill_id=skill_id,
+            billing_context=billing_context,
+            item_index=item_index,
+        )
+        usage_details = {
+            "source": source,
+            "units_processed": 1,
+            "model_used": provider_info["model_used"],
+            "server_provider": provider_info["server_provider"],
+            "server_region": provider_info["server_region"],
+            "operation_id": operation_id,
+        }
+        usage_details.update(apps_api.get_variable_result_usage_details(app_id, skill_id, result, item_index))
+        try:
+            charge_result = await apps_api.charge_credits_via_internal_api(
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                credits=item_credits,
+                app_id=app_id,
+                skill_id=skill_id,
+                usage_details=usage_details,
+                idempotency_key=operation_id,
+                raise_on_error=True,
+            )
+            actual_credits = charge_result.get("charged_credits") if isinstance(charge_result, dict) else None
+            if not isinstance(actual_credits, int) or actual_credits < 0:
+                raise RuntimeError("Billing response did not include charged credits")
+            charged_total += actual_credits
+        except Exception as exc:
+            response = getattr(exc, "response", None)
+            code = "INSUFFICIENT_CREDITS" if getattr(response, "status_code", None) == 402 else "WORKFLOW_BILLING_UNAVAILABLE"
+            message = "Insufficient credits for this workflow step" if code == "INSUFFICIENT_CREDITS" else "Workflow skill billing could not be completed"
+            raise WorkflowSkillBillingError(code, message) from exc
+    return charged_total
 
 
 def _normalize_skill_output(

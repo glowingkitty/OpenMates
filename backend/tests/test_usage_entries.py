@@ -111,6 +111,33 @@ async def test_create_usage_entry_allows_benchmark_source() -> None:
     assert created["chat_id"] == "chat-1"
 
 
+@pytest.mark.parametrize("source", ["workflow", "workflow_test"])
+# contract-test: supporting surface=rest_api assertions=workflows.billing.skill-usage
+@pytest.mark.anyio
+async def test_create_usage_entry_preserves_workflow_source(source: str) -> None:
+    sdk = FakeDirectusSDK([])
+    usage = UsageMethods(sdk=sdk, encryption_service=FakeEncryption())
+
+    async def noop_summary(**_kwargs: Any) -> None:
+        return None
+
+    usage._update_monthly_summaries = noop_summary
+    usage._update_daily_summaries = noop_summary
+
+    await usage.create_usage_entry(
+        user_id_hash="user-hash",
+        app_id="weather",
+        skill_id="forecast",
+        usage_type="skill_execution",
+        timestamp=1780000000,
+        credits_charged=1,
+        user_vault_key_id="vault-key",
+        source=source,
+    )
+
+    assert sdk.calls[0]["payload"]["source"] == source
+
+
 # contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
 @pytest.mark.anyio
 async def test_create_usage_entry_saves_image_to_html_tokens_and_duration_second() -> None:

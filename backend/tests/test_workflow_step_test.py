@@ -15,6 +15,7 @@ from backend.tests.workflow_test_utils import workflow_service
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=workflows.control.typed-data,workflows.billing.skill-usage
 async def test_step_test_records_real_output_without_enabling_workflow() -> None:
     service = workflow_service()
     workflow = service.create_workflow("alice", "Draft rain", rain_graph(), enabled=False)
@@ -30,11 +31,21 @@ async def test_step_test_records_real_output_without_enabling_workflow() -> None
     assert run.trigger_type == "step_test"
     assert run.status == WorkflowRunStatus.COMPLETED
     assert run.node_runs[0].output_summary["summary"] == "Weather forecast for Paris"
+    assert run.node_runs[0].credit_cost == 5
+    assert "_workflow_credit_cost" not in run.node_runs[0].output_summary
+    assert run.cost_summary == {"credits": 5}
+    assert app_adapter.calls[0]["billing_context"] == {
+        "workflow_id": workflow.id,
+        "run_id": run.id,
+        "node_id": "weather",
+        "source": "workflow_test",
+    }
     assert service.get_workflow(workflow.id, "alice").enabled is False
     assert service.get_run(workflow.id, run.id, "alice").id == run.id
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=workflows.control.typed-data,workflows.billing.skill-usage
 async def test_step_test_missing_step_fails_visibly() -> None:
     service = workflow_service()
     workflow = service.create_workflow("alice", "Draft rain", rain_graph(), enabled=False)

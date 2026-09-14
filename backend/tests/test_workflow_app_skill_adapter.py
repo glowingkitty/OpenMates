@@ -8,24 +8,186 @@
 
 from __future__ import annotations
 
+import sys
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from backend.core.api.app.services import workflow_app_skill_adapter
-from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter
+from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter, WorkflowSkillBillingError
+from backend.shared.python_utils.billing_utils import BillingError
 from backend.shared.python_utils.app_skill_output_safety import is_central_app_skill_dispatch
 
 
 class FakeRegistry:
-    def __init__(self, response: dict[str, Any] | None = None) -> None:
+    def __init__(self, response: dict[str, Any] | None = None, metadata: Any | None = None) -> None:
         self.calls: list[tuple[str, str, dict[str, Any]]] = []
         self.response = response or {"choices": [{"message": {"content": "Workflow AI OK"}}]}
+        self.metadata = metadata
 
     async def dispatch_skill(self, app_id: str, skill_id: str, request: dict[str, Any]) -> dict[str, Any]:
         self.calls.append((app_id, skill_id, request))
         self.central_dispatch_active = is_central_app_skill_dispatch()
         return self.response
+
+    def get_metadata(self, app_id: str) -> Any | None:
+        del app_id
+        return self.metadata
+
+
+def _weather_metadata() -> Any:
+    return SimpleNamespace(
+        id="weather",
+        skills=[SimpleNamespace(id="forecast", full_model_reference=None, providers=[], pricing=None)],
+    )
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.billing.skill-usage
+async def test_workflow_skill_uses_actual_pricing_and_stable_charge_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = FakeRegistry(response={"results": [{"temperature_max_c": 20}]}, metadata=_weather_metadata())
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+    estimates: list[int] = []
+    charges: list[dict[str, Any]] = []
+
+    async def fake_calculate_skill_credits(**kwargs: Any) -> int:
+        return 7 if kwargs.get("result_data") else 3
+
+    async def fake_precheck(**kwargs: Any) -> None:
+        estimates.append(kwargs["estimated_credits"])
+
+    async def fake_charge(**kwargs: Any) -> dict[str, Any]:
+        charges.append(kwargs)
+        return {"status": "success", "charged_credits": kwargs["credits"]}
+
+    apps_api = SimpleNamespace(
+        calculate_skill_credits=fake_calculate_skill_credits,
+        get_variable_preflight_reserved_credits=lambda *_args: 0,
+        is_skill_execution_successful=lambda _result: True,
+        get_variable_result_charge_items=lambda *_args: None,
+        get_variable_result_usage_details=lambda *_args: {},
+        resolve_skill_provider_info=lambda *_args: {
+            "model_used": None, "server_provider": "Open-Meteo", "server_region": "EU",
+        },
+        charge_credits_via_internal_api=fake_charge,
+    )
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.apps_api", apps_api)
+    monkeypatch.setattr(workflow_app_skill_adapter, "ensure_credit_headroom", fake_precheck)
+
+    billing_context = {
+        "workflow_id": "workflow-1",
+        "run_id": "run-1",
+        "node_id": "weather",
+        "source": "workflow_test",
+    }
+    outputs = []
+    for _ in range(2):
+        outputs.append(await adapter.execute(
+            "weather",
+            "forecast",
+            {"location": "Berlin"},
+            user_id="alice",
+            billing_context=billing_context,
+        ))
+
+    assert estimates == [3, 3]
+    assert [charge["credits"] for charge in charges] == [7, 7]
+    assert charges[0]["idempotency_key"] == charges[1]["idempotency_key"]
+    assert charges[0]["usage_details"] == {
+        "source": "workflow_test",
+        "units_processed": 1,
+        "model_used": None,
+        "server_provider": "Open-Meteo",
+        "server_region": "EU",
+        "operation_id": charges[0]["idempotency_key"],
+    }
+    assert charges[0]["raise_on_error"] is True
+    assert [output.pop("_workflow_credit_cost") for output in outputs] == [7, 7]
+    assert all("_workflow_credit_cost" not in output for output in outputs)
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.billing.skill-usage
+async def test_workflow_skill_insufficient_credits_fails_before_provider_execution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = FakeRegistry(response={"results": [{"temperature_max_c": 20}]}, metadata=_weather_metadata())
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+
+    async def fake_calculate_skill_credits(**_kwargs: Any) -> int:
+        return 3
+
+    async def reject_precheck(**_kwargs: Any) -> None:
+        raise BillingError("Insufficient credits")
+
+    apps_api = SimpleNamespace(
+        calculate_skill_credits=fake_calculate_skill_credits,
+        get_variable_preflight_reserved_credits=lambda *_args: 0,
+    )
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.apps_api", apps_api)
+    monkeypatch.setattr(workflow_app_skill_adapter, "ensure_credit_headroom", reject_precheck)
+
+    with pytest.raises(WorkflowSkillBillingError) as exc_info:
+        await adapter.execute(
+            "weather",
+            "forecast",
+            {"location": "Berlin"},
+            user_id="alice",
+            billing_context={
+                "workflow_id": "workflow-1",
+                "run_id": "run-1",
+                "node_id": "weather",
+                "source": "workflow",
+            },
+        )
+
+    assert exc_info.value.code == "INSUFFICIENT_CREDITS"
+    assert registry.calls == []
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.billing.skill-usage
+async def test_failed_workflow_skill_result_is_not_charged(monkeypatch: pytest.MonkeyPatch) -> None:
+    registry = FakeRegistry(response={"error": "provider unavailable"}, metadata=_weather_metadata())
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+    charges: list[dict[str, Any]] = []
+
+    async def fake_calculate_skill_credits(**_kwargs: Any) -> int:
+        return 3
+
+    async def fake_precheck(**_kwargs: Any) -> None:
+        return None
+
+    async def fake_charge(**kwargs: Any) -> None:
+        charges.append(kwargs)
+
+    apps_api = SimpleNamespace(
+        calculate_skill_credits=fake_calculate_skill_credits,
+        get_variable_preflight_reserved_credits=lambda *_args: 0,
+        is_skill_execution_successful=lambda _result: False,
+        charge_credits_via_internal_api=fake_charge,
+    )
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.apps_api", apps_api)
+    monkeypatch.setattr(workflow_app_skill_adapter, "ensure_credit_headroom", fake_precheck)
+
+    result = await adapter.execute(
+        "weather",
+        "forecast",
+        {"location": "Berlin"},
+        user_id="alice",
+        billing_context={
+            "workflow_id": "workflow-1",
+            "run_id": "run-1",
+            "node_id": "weather",
+            "source": "workflow",
+        },
+    )
+
+    assert result["error"] == "provider unavailable"
+    assert charges == []
 
 
 @pytest.mark.anyio

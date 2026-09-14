@@ -88,6 +88,20 @@ LLM_PROVIDER_VAULT_PATHS = (
 LOCAL_LLM_SERVER_IDS = {"ollama", "lm_studio", "custom_openai_compatible"}
 
 
+def _usage_overview_order_value(value: Any) -> float:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str) and value:
+        try:
+            return float(value)
+        except ValueError:
+            try:
+                return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                return 0.0
+    return 0.0
+
+
 def _has_configured_secret_value(value: Optional[str]) -> bool:
     return bool(value and value.strip() and value.strip() != "IMPORTED_TO_VAULT")
 
@@ -2068,7 +2082,8 @@ async def get_daily_overview(
     reconcile: bool = False,
     current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
     directus_service: DirectusService = Depends(get_directus_service),
-    cache_service: CacheService = Depends(get_cache_service)
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
 ):
     """
     Fetch daily usage overview combining all usage types (chats, apps, API keys).
@@ -2106,6 +2121,46 @@ async def get_daily_overview(
             daily_data = await directus_service.usage.get_daily_overview(
                 user_id_hash=user_id_hash,
                 days=days,
+            )
+
+        # Workflow runs and node tests are app-only billing contexts, so they do
+        # not have chat/API summary rows. Merge a contentless projection from the
+        # authoritative usage rows into the existing Overview response.
+        user_vault_key_id = await cache_service.get_user_vault_key_id(current_user.id)
+        if not user_vault_key_id:
+            user_profile_result = await directus_service.get_user_profile(current_user.id)
+            if not user_profile_result or not user_profile_result[0]:
+                raise HTTPException(status_code=404, detail="User profile not found")
+            user_vault_key_id = user_profile_result[1].get("vault_key_id")
+            if not user_vault_key_id:
+                raise HTTPException(status_code=500, detail="User encryption key not found")
+            await cache_service.update_user(current_user.id, {"vault_key_id": user_vault_key_id})
+
+        from backend.core.api.app.services.usage_overview_service import UsageOverviewService
+
+        oldest_day = (
+            datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            - timedelta(days=days - 1)
+        )
+        workflow_items_by_date = await UsageOverviewService(
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+        ).get_workflow_daily_items(
+            user_id_hash=user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            period_start=int(oldest_day.timestamp()),
+        )
+        for day in daily_data:
+            workflow_items = workflow_items_by_date.get(str(day.get("date")), [])
+            if not workflow_items:
+                continue
+            day["items"] = [*(day.get("items") or []), *workflow_items]
+            day["items"].sort(
+                key=lambda item: _usage_overview_order_value(item.get("updated_at")),
+                reverse=True,
+            )
+            day["total_credits"] = int(day.get("total_credits") or 0) + sum(
+                int(item.get("total_credits") or 0) for item in workflow_items
             )
         
         # Calculate total days available by checking if the oldest requested day has data

@@ -78,7 +78,7 @@
   .toggle i::after { content:''; position:absolute; left:.12rem; top:.12rem; width:.96rem; height:.96rem; border-radius:50%; background:var(--color-font-button); transition:transform .2s; box-shadow:0 1px 3px #0002; }
   .toggle i.enabled::after { transform:translateX(.8rem); }
   .workflow-tabs { display:flex; position:relative; box-sizing:border-box; width:7.5rem; height:2.5rem; margin:1.5rem auto -1.25rem; padding:.1rem; border-radius:2rem; box-shadow:var(--shadow-sm); background:var(--color-grey-0); z-index:3; }
-  .workflow-tabs button { display:grid; place-items:center; flex:1; min-width:0; padding:0; border:0; border-radius:2rem; background:transparent; color:var(--color-font-secondary); cursor:pointer; }
+  .workflow-tabs button { height:100%; margin:0; filter:none; display:grid; place-items:center; flex:1; min-width:0; padding:0; border:0; border-radius:2rem; background:transparent; color:var(--color-font-secondary); cursor:pointer; }
   .workflow-tabs button.active { color:var(--color-font-button); background:var(--color-primary); }
   button:disabled { opacity:.5; cursor:default; }
   .identity form { display:grid; gap:.4rem; max-width:25rem; width:100%; }

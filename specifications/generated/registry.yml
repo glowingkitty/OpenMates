@@ -502,7 +502,7 @@ specifications:
     version: 4
     status: approved
     path: features/workflows
-    fingerprint: 5deac5b0e6e4a0610caaa90716dceca89bcfe27b7d7d58e90f83fa25eef77602
+    fingerprint: f5aa5fb890902f366c2de20c9da87ef5c7739e5c63e507cc2016222384390199
     required_applies_to:
     - rest_api
     - cli
@@ -5857,6 +5857,17 @@ assertions:
     specification_id: feature.workflows
     type: behavior
     fingerprint: 392dd8cb758df150740d6721232ca6f5b45a2452f9db60bef645e83ae65f0028
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  workflows.billing.skill-usage:
+    specification: feature.workflows@4
+    specification_id: feature.workflows
+    type: behavior
+    fingerprint: 9d6a231ae54fb4b51693eb9852e04ac2af1358bb5684f864532b16de64e0c536
     required_applies_to:
     - rest_api
     - cli

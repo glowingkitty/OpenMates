@@ -158,6 +158,19 @@ assertions:
       from empty success, and provider output is validated untrusted data rather than executable instructions.
     depends_on:
     - examples.skill_contract
+  - id: workflows.billing.skill-usage
+    type: behavior
+    must: Paid app skills in full Workflow runs and node Tests use the normal skill pricing, credit eligibility,
+      credit deduction and usage-recording path. Billing and Usage shows each charged skill with its app and
+      skill names and identifies Workflow run or Workflow test; the remaining balance updates through the
+      normal account sync. Node and run credit totals reflect accepted charges rather than reporting zero. Insufficient credits prevent paid work and stop downstream execution. Repeated
+      delivery or retry of the same accepted skill charge does not debit it twice. Deterministic checks,
+      message Preview and chat-delivery acknowledgement do not introduce an additional provider charge.
+      Billing attribution stores no plaintext Workflow titles, inputs, outputs or message contents. Existing
+      prices and free-skill policies remain authoritative; fixing the charging bypass does not back-charge
+      old unbilled executions.
+    depends_on:
+    - examples.skill_billing
   - id: workflows.control.filter
     type: behavior
     must: General Filter nodes are deferred. Provider criteria belong in supported app-skill inputs; only-new-results is a per-selected-list Send message option, not a general list-transform node.

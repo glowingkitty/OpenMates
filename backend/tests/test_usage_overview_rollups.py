@@ -4,9 +4,16 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend.core.api.app.services.usage_overview_service import aggregate_usage_entries, period_for_timestamp, recent_periods
+from backend.core.api.app.services.usage_overview_service import (
+    UsageOverviewService,
+    aggregate_usage_entries,
+    aggregate_workflow_daily_items,
+    period_for_timestamp,
+    recent_periods,
+)
 
 
+# contract-test: supporting surface=rest_api assertions=billing.surface.semantic-parity
 def test_usage_overview_period_keys_are_stable() -> None:
     timestamp = int(datetime(2026, 7, 20, 12, 30, tzinfo=timezone.utc).timestamp())
 
@@ -22,12 +29,14 @@ def test_usage_overview_period_keys_are_stable() -> None:
     assert monthly.period_start < timestamp < monthly.period_end
 
 
+# contract-test: supporting surface=rest_api assertions=billing.surface.semantic-parity
 def test_recent_months_cross_year_boundary() -> None:
     periods = recent_periods("monthly", 3, now=datetime(2026, 1, 15, tzinfo=timezone.utc))
 
     assert [period.period_key for period in periods] == ["2026-01", "2025-12", "2025-11"]
 
 
+# contract-test: supporting surface=rest_api assertions=billing.surface.semantic-parity
 def test_aggregate_usage_entries_groups_tokens_and_credits_without_double_counting() -> None:
     period = period_for_timestamp(int(datetime(2026, 7, 20, 12, tzinfo=timezone.utc).timestamp()), "daily")
     entries = [
@@ -82,6 +91,73 @@ def test_aggregate_usage_entries_groups_tokens_and_credits_without_double_counti
     assert {f"{item['app_id']}/{item['skill_id']}": item["credits"] for item in rollup["by_skill"]} == {"ai/ask": 10, "web/search": 5}
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.billing.skill-usage
+def test_workflow_daily_items_use_semantic_sources_and_app_skill_groups() -> None:
+    timestamp = int(datetime(2026, 9, 14, 12, tzinfo=timezone.utc).timestamp())
+
+    by_date = aggregate_workflow_daily_items([
+        {"source": "workflow", "app_id": "weather", "skill_id": "forecast", "credits": 4, "created_at": timestamp, "updated_at": timestamp},
+        {"source": "workflow", "app_id": "weather", "skill_id": "forecast", "credits": 6, "created_at": timestamp + 1, "updated_at": timestamp + 1},
+        {"source": "workflow_test", "app_id": "web", "skill_id": "search", "credits": 3, "created_at": timestamp + 2, "updated_at": timestamp + 2},
+        {"source": "chat", "app_id": "ai", "skill_id": "ask", "credits": 99, "created_at": timestamp + 3, "updated_at": timestamp + 3},
+    ])
+
+    items = by_date["2026-09-14"]
+    assert [(item["type"], item["app_id"], item["skill_id"]) for item in items] == [
+        ("workflow_test", "web", "search"),
+        ("workflow", "weather", "forecast"),
+    ]
+    assert items[1]["total_credits"] == 10
+    assert items[1]["entry_count"] == 2
+
+
+# contract-test: direct surface=rest_api assertions=workflows.billing.skill-usage
+@pytest.mark.asyncio
+async def test_workflow_daily_items_page_contentless_owner_scoped_usage_rows() -> None:
+    class FakeDirectus:
+        def __init__(self):
+            self.params: list[dict] = []
+
+        async def get_items(self, collection, params=None, **kwargs):
+            assert collection == "usage"
+            self.params.append(params)
+            offset = params["offset"]
+            count = 100 if offset == 0 else 1
+            return [
+                {
+                    "id": f"usage-{offset + index}",
+                    "source": "workflow" if offset == 0 else "workflow_test",
+                    "app_id": "weather",
+                    "skill_id": "forecast",
+                    "created_at": 1_757_851_200 + index,
+                    "updated_at": 1_757_851_200 + index,
+                    "encrypted_credits_costs_total": "cipher:1",
+                }
+                for index in range(count)
+            ]
+
+    class FakeEncryption:
+        async def decrypt_many_with_user_key(self, values, key_id):
+            assert key_id == "vault-key"
+            return [value.removeprefix("cipher:") for value in values]
+
+    directus = FakeDirectus()
+    service = UsageOverviewService(directus, FakeEncryption())
+
+    items = await service.get_workflow_daily_items(
+        user_id_hash="owner-hash",
+        user_vault_key_id="vault-key",
+        period_start=1_757_851_200,
+    )
+
+    assert [params["offset"] for params in directus.params] == [0, 100]
+    assert all(params["filter"]["user_id_hash"] == {"_eq": "owner-hash"} for params in directus.params)
+    assert all(params["filter"]["source"] == {"_in": ["workflow", "workflow_test"]} for params in directus.params)
+    assert all("content" not in params["fields"] and "workflow_id" not in params["fields"] for params in directus.params)
+    assert sum(item["total_credits"] for day_items in items.values() for item in day_items) == 101
+
+
+# contract-test: supporting surface=rest_api assertions=billing.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_usage_overview_rebuilds_missing_periods_with_one_raw_usage_read() -> None:
     class FakeUsage:
@@ -118,8 +194,6 @@ async def test_usage_overview_rebuilds_missing_periods_with_one_raw_usage_read()
 
         async def decrypt_with_user_key(self, encrypted, key_id):
             raise AssertionError("cached rollups should not be decrypted when none exist")
-
-    from backend.core.api.app.services.usage_overview_service import UsageOverviewService
 
     directus = FakeDirectus()
     service = UsageOverviewService(directus, FakeEncryption())

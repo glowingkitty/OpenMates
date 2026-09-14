@@ -258,7 +258,7 @@ class UsageMethods:
         charge_id: Optional[str] = None,
         operation_id: Optional[str] = None,
         message_id: Optional[str] = None,
-        source: str = "chat",  # "chat", "api_key", "direct", or "benchmark"
+        source: str = "chat",  # "chat", "api_key", "direct", "benchmark", or Workflow sources
         cost_system_prompt_credits: Optional[int] = None,
         cost_history_credits: Optional[int] = None,
         cost_response_credits: Optional[int] = None,
@@ -292,7 +292,7 @@ class UsageMethods:
             model_used: Optional model identifier (encrypted)
             chat_id: Optional chat ID (stored in cleartext for client-side matching, should be provided for chat-based usage)
             message_id: Optional message ID (stored in cleartext for client-side matching, should be provided for chat-based usage)
-            source: Source of usage - "chat" (default), "api_key", "direct", or "benchmark"
+            source: Source of usage - "chat" (default), "api_key", "direct", "benchmark", "workflow", or "workflow_test"
             cost_system_prompt_credits: Optional system prompt credit cost
             cost_history_credits: Optional history credit cost
             cost_response_credits: Optional response credit cost
@@ -329,7 +329,7 @@ class UsageMethods:
             skill_id = skill_id.strip()
             
             # Normalize source (default to "chat" if invalid)
-            if source not in ["chat", "api_key", "direct", "benchmark"]:
+            if source not in ["chat", "api_key", "direct", "benchmark", "workflow", "workflow_test"]:
                 logger.warning(f"{log_prefix} Invalid source '{source}', defaulting to 'chat'")
                 source = "chat"
             
@@ -470,7 +470,7 @@ class UsageMethods:
                 "app_id": app_id,  # Cleartext - not personally identifiable
                 "skill_id": skill_id,  # Cleartext - not personally identifiable
                 "type": usage_type,
-                "source": source,  # "chat", "api_key", "direct", or "benchmark"
+                "source": source,
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "encrypted_credits_costs_total": encrypted_credits_costs_total,

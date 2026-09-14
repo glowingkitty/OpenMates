@@ -992,6 +992,12 @@ def is_skill_execution_successful(result: Dict[str, Any]) -> bool:
                     if isinstance(item_results, list) and len(item_results) > 0:
                         all_failed = False
                         break
+                    # Some skills (for example weather.forecast) return a flat
+                    # list of successful result objects rather than grouped
+                    # {results: [...]} items.
+                    elif "results" not in result_item and not item_error:
+                        all_failed = False
+                        break
                     # If there's no error and no results, might be a valid empty result
                     # But we need at least one successful result to consider it successful
                     elif not item_error or (isinstance(item_error, str) and not item_error.strip()):
@@ -1413,7 +1419,9 @@ async def charge_credits_via_internal_api(
     usage_details: Optional[Dict[str, Any]] = None,
     api_key_hash: Optional[str] = None,  # SHA-256 hash of API key for tracking
     device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
-) -> None:
+    idempotency_key: Optional[str] = None,
+    raise_on_error: bool = False,
+) -> Optional[Dict[str, Any]]:
     """
     Charge credits via the internal billing API.
     This creates a usage entry and deducts credits from the user's account.
@@ -1427,6 +1435,8 @@ async def charge_credits_via_internal_api(
         usage_details: Optional additional usage metadata
         api_key_hash: Optional SHA-256 hash of the API key that created this usage entry
         device_hash: Optional SHA-256 hash of the device that created this usage entry
+        idempotency_key: Stable caller-owned identity for retry-safe background work.
+        raise_on_error: Propagate billing failures when the caller must fail closed.
     """
     if credits <= 0:
         logger.debug(f"Skipping credit charge for user {user_id} - credits is {credits}")
@@ -1438,7 +1448,7 @@ async def charge_credits_via_internal_api(
         "credits": credits,
         "skill_id": skill_id,
         "app_id": app_id,
-        "idempotency_key": _build_app_skill_billing_idempotency_key(
+        "idempotency_key": idempotency_key or _build_app_skill_billing_idempotency_key(
             app_id=app_id,
             skill_id=skill_id,
             user_id_hash=user_id_hash,
@@ -1461,12 +1471,19 @@ async def charge_credits_via_internal_api(
             response = await client.post(url, json=charge_payload, headers=headers)
             response.raise_for_status()
             logger.info(f"Successfully charged {credits} credits for skill '{app_id}.{skill_id}'")
+            response_data = response.json()
+            return response_data if isinstance(response_data, dict) else None
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error charging credits for skill '{app_id}.{skill_id}': {e.response.status_code} - {e.response.text}", exc_info=True)
-        # Don't raise - billing failure shouldn't break skill execution response
+        if raise_on_error:
+            raise
+        # Default REST behavior keeps returning successful provider output when billing is unavailable.
     except Exception as e:
         logger.error(f"Error charging credits for skill '{app_id}.{skill_id}': {e}", exc_info=True)
-        # Don't raise - billing failure shouldn't break skill execution response
+        if raise_on_error:
+            raise
+        # Default REST behavior keeps returning successful provider output when billing is unavailable.
+    return None
 
 
 async def get_api_key_budget_spend(

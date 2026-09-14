@@ -339,6 +339,16 @@ test.describe('Workflows web UI contract', () => {
 
 			await expect(page.getByTestId('workflow-version-selector')).toBeVisible();
 			await expect(page.getByTestId('workflow-version-timeline')).toBeVisible();
+			const versionPanel = page.getByTestId('workflow-template-panel');
+			await expect(versionPanel.getByTestId('workflow-version-timeline')).toBeVisible();
+			const tabBounds = await page.getByTestId('workflow-view-tabs').boundingBox();
+			const selectorBounds = await page.getByTestId('workflow-version-selector').boundingBox();
+			expect(selectorBounds.y).toBeGreaterThanOrEqual(tabBounds.y + tabBounds.height);
+			expect(await page.getByTestId('workflow-version-row').evaluateAll(rows =>
+				rows.every(row => [...row.children].every(label =>
+					label.getBoundingClientRect().bottom <= row.getBoundingClientRect().bottom + 1
+				))
+			)).toBe(true);
 			const historicalVersion = page
 				.locator('[data-testid="workflow-version-row"][data-current="false"]')
 				.first();
