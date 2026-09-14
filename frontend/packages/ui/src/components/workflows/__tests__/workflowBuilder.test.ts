@@ -6,6 +6,7 @@ import {
   outputsBefore,
   workflowIcon,
   normalizeSchema,
+  schemaDefault,
   type Capability,
 } from "../workflowBuilder.ts";
 import {
@@ -174,15 +175,23 @@ test("manual execution accepts a complete unscheduled graph but activation requi
     edges: graph.edges.filter((edge) => edge.from !== "trigger"),
   };
   assert.equal(workflowGraphReady(unscheduled), true);
-  assert.equal(workflowGraphReady(unscheduled, { requireSchedule: true }), false);
+  assert.equal(
+    workflowGraphReady(unscheduled, { requireSchedule: true }),
+    false,
+  );
   assert.equal(workflowGraphReady(graph), true);
   assert.equal(workflowGraphReady(graph, { requireSchedule: true }), true);
   const manualTrigger: WorkflowGraph = {
     ...graph,
-    nodes: graph.nodes.map((node) => node.id === "trigger" ? { ...node, type: "manual_trigger" } : node),
+    nodes: graph.nodes.map((node) =>
+      node.id === "trigger" ? { ...node, type: "manual_trigger" } : node,
+    ),
   };
   assert.equal(workflowGraphReady(manualTrigger), true);
-  assert.equal(workflowGraphReady(manualTrigger, { requireSchedule: true }), false);
+  assert.equal(
+    workflowGraphReady(manualTrigger, { requireSchedule: true }),
+    false,
+  );
 });
 
 // contract-test: supporting surface=gui.web assertions=workflows.activation.reachable-side-effect
@@ -194,17 +203,49 @@ test("manual execution rejects multiple disconnected starting nodes", () => {
     edges: [],
   };
   assert.equal(workflowGraphReady(disconnected), false);
-  assert.equal(workflowGraphReady(disconnected, { requireSchedule: true }), false);
+  assert.equal(
+    workflowGraphReady(disconnected, { requireSchedule: true }),
+    false,
+  );
 });
 
 // contract-test: supporting surface=gui.web assertions=workflows.activation.reachable-side-effect
 test("neither manual execution nor activation accepts a draft without a reachable result", () => {
   for (const draft of [
     { version: 2, trigger_node_id: null, nodes: [], edges: [] },
-    { ...graph, nodes: graph.nodes.filter((node) => node.id !== "message"), edges: graph.edges.filter((edge) => edge.to !== "message") },
+    {
+      ...graph,
+      nodes: graph.nodes.filter((node) => node.id !== "message"),
+      edges: graph.edges.filter((edge) => edge.to !== "message"),
+    },
     { ...graph, edges: graph.edges.filter((edge) => edge.to !== "message") },
   ] satisfies WorkflowGraph[]) {
     assert.equal(workflowGraphReady(draft), false);
     assert.equal(workflowGraphReady(draft, { requireSchedule: true }), false);
   }
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring,workflows.control.typed-data
+test("app skill object defaults can be edited independently from reactive schema metadata", () => {
+  const values = {
+    location: "Berlin",
+    dates: ["today"],
+    options: { rain: true },
+  };
+  const reactiveDefault = new Proxy(values, {});
+  assert.throws(() => structuredClone(reactiveDefault), {
+    name: "DataCloneError",
+  });
+  const result = schemaDefault({
+    type: "object",
+    default: reactiveDefault,
+  }) as typeof values;
+  assert.deepEqual(result, values);
+  result.dates.push("tomorrow");
+  result.options.rain = false;
+  assert.deepEqual(values, {
+    location: "Berlin",
+    dates: ["today"],
+    options: { rain: true },
+  });
 });

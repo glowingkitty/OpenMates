@@ -89,3 +89,6 @@ def test_editable_video_examples_compile_against_skill_metadata(filename: str) -
     source = Path(__file__).resolve().parents[2] / "examples" / "workflows" / filename
     result = validate_workflow_yaml(source.read_text())
     assert result.draft_valid and result.enable_ready, result.diagnostics
+    # Runtime preflight enforces the public input enums beyond YAML structure.
+    from backend.core.api.app.services.workflow_models import validate_workflow_readiness
+    validate_workflow_readiness(result.graph)

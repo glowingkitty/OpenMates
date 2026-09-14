@@ -9,6 +9,7 @@
 from backend.core.api.app.services.workflow_yaml_compiler import validate_workflow_yaml
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract,workflows.activation.reachable-side-effect
 def test_news_search_requests_array_is_enable_ready() -> None:
     result = validate_workflow_yaml(
         """
@@ -22,6 +23,12 @@ steps:
       requests:
         - query: OpenMates
           count: 1
+  - id: report
+    send_chat_message:
+      title: Latest news
+      blocks:
+        - id: news
+          source: $nodes.news.output.results
 """
     )
 
@@ -30,6 +37,7 @@ steps:
     assert result.diagnostics == []
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract,workflows.activation.reachable-side-effect
 def test_news_search_missing_requests_blocks_enablement_without_rejecting_draft() -> None:
     result = validate_workflow_yaml(
         """

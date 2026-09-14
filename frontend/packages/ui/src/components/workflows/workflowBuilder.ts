@@ -77,11 +77,13 @@ export function workflowGraphReady(
   if (
     requireSchedule &&
     nodesById.get(graph.trigger_node_id ?? "")?.type !== "schedule_trigger"
-  ) return false;
+  )
+    return false;
 
   const incoming = new Set(graph.edges.map((edge) => edge.to));
   const roots = graph.nodes.filter((node) => !incoming.has(node.id));
-  const start = graph.trigger_node_id ?? (roots.length === 1 ? roots[0].id : null);
+  const start =
+    graph.trigger_node_id ?? (roots.length === 1 ? roots[0].id : null);
   if (!start) return false;
   const qualifyingTypes = new Set([
     "send_chat_message",
@@ -99,13 +101,16 @@ export function workflowGraphReady(
     const node = nodesById.get(nodeId);
     if (!node) continue;
     if (qualifyingTypes.has(node.type)) return true;
-    for (const edge of graph.edges) if (edge.from === nodeId) pending.push(edge.to);
+    for (const edge of graph.edges)
+      if (edge.from === nodeId) pending.push(edge.to);
   }
   return false;
 }
 
 export function schemaDefault(schema: Schema): unknown {
-  if (schema.default !== undefined) return structuredClone(schema.default);
+  // Registry defaults are JSON data and may arrive through a Svelte state proxy.
+  if (schema.default !== undefined)
+    return JSON.parse(JSON.stringify(schema.default));
   if (schema.type === "object")
     return Object.fromEntries(
       Object.entries(schema.properties ?? {})

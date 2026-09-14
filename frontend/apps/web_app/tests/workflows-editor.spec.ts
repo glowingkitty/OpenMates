@@ -13,7 +13,7 @@ function apiUrl(): string {
 }
 
 test.describe('Workflows editor', () => {
-	// contract-test: supporting surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.versions.timeline-readonly-restore-new,workflows.activation.reachable-side-effect,workflows-ui.schedule.preview
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.versions.timeline-readonly-restore-new,workflows.activation.reachable-side-effect,workflows-ui.schedule.preview,workflows-ui.mvp.authoring
 	test('node Save persists, while testing current inputs leaves the definition unchanged', async ({
 		page
 	}) => {
@@ -49,9 +49,7 @@ test.describe('Workflows editor', () => {
 					}
 				}
 			],
-			edges: [
-				{ from: 'weather', to: 'message' }
-			]
+			edges: [{ from: 'weather', to: 'message' }]
 		};
 		const response = await page.request.post(`${apiUrl()}/v1/workflows`, {
 			data: { title: `Workflow node save ${Date.now()}`, graph, enabled: false }
@@ -75,8 +73,43 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0);
 			await expect(page.getByTestId('run-workflow')).toBeEnabled();
 			await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
+
+			// Nodes loaded into the route's reactive graph must open and save without
+			// passing a Svelte proxy directly to structuredClone.
+			const scheduled = await page.request.patch(`${apiUrl()}/v1/workflows/${workflow.id}`, {
+				data: {
+					graph: {
+						...graph,
+						trigger_node_id: 'trigger',
+						nodes: [
+							{
+								id: 'trigger',
+								type: 'schedule_trigger',
+								config: { schedule: { type: 'daily', time: '09:00', timezone: 'Europe/Berlin' } }
+							},
+							...graph.nodes
+						],
+						edges: [{ from: 'trigger', to: 'weather' }, ...graph.edges]
+					}
+				}
+			});
+			expect(scheduled.ok()).toBe(true);
+			await page.reload();
+			const trigger = page.locator('[data-node-id="trigger"]');
+			await trigger.getByTestId('workflow-node-summary').click();
+			await expect(trigger.getByTestId('workflow-time-trigger-schedule')).toHaveValue('daily');
+			const triggerSave = page.waitForResponse(
+				(response) =>
+					response.url().endsWith(`/v1/workflows/${workflow.id}`) &&
+					response.request().method() === 'PATCH'
+			);
+			await trigger.getByTestId('workflow-node-save').click();
+			expect((await triggerSave).ok()).toBe(true);
+			await expect(trigger.getByTestId('workflow-node-summary')).toBeVisible();
+
 			const node = page.locator('[data-node-id="weather"]');
 			await node.getByTestId('workflow-node-summary').click();
+			await expect(node.getByTestId('workflow-node-expanded')).toBeVisible();
 			await node.getByTestId('workflow-node-location-input').fill('Hamburg');
 			await expect(node.getByTestId('workflow-node-save')).toBeVisible();
 			const before = await (

@@ -78,6 +78,7 @@ export function weeklyEventsGraph(): WorkflowGraph {
       requests: [
         {
           query: "AI",
+          providers: ["Luma", "Eventbrite"],
           location: "Berlin",
           start_date: { $date: "next_week_start", format: "datetime" },
           end_date: { $date: "next_week_end", format: "datetime" },

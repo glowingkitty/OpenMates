@@ -22,6 +22,7 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowGraph,
     WorkflowNode,
     WorkflowNodeType,
+    validate_workflow_readiness,
 )
 
 
@@ -180,6 +181,15 @@ def validate_workflow_yaml(source: str, capability_registry: Any | None = None) 
         )
 
     readiness_diagnostics = _validate_enable_readiness(document, capability_registry)
+    if not readiness_diagnostics:
+        try:
+            # YAML and UI execution share typed app-input and graph preflight.
+            # Keep an incomplete draft editable while reporting it as not ready.
+            validate_workflow_readiness(graph)
+        except ValueError as error:
+            readiness_diagnostics.append(
+                WorkflowYamlDiagnostic(code="WORKFLOW_NOT_READY", path="$", message=str(error))
+            )
     return WorkflowYamlValidationResult(
         draft_valid=True,
         enable_ready=not readiness_diagnostics,

@@ -59,7 +59,7 @@
   function sameSlot(slot: Insertion): boolean { return insertion.after === slot.after && (insertion.branch ?? '') === (slot.branch ?? ''); }
   function openPicker(kind: typeof picker, slot: Insertion): void { if (busy || testStatus === 'processing') return; draft = null; nodeError = ''; preview = ''; insertion = slot; picker = kind; }
   function closeEditor(): void { draft = null; picker = null; nodeError = ''; preview = ''; chooseChat = false; showReferences = false; }
-  function edit(node: WorkflowNode): void { if (busy || testStatus === 'processing') return; if (readOnly) { expandedReadOnly = expandedReadOnly === node.id ? null : node.id; return; } closeEditor(); draft = structuredClone(node); testStatus = testOutputs[node.id] ? 'completed' : 'idle'; }
+  function edit(node: WorkflowNode): void { if (busy || testStatus === 'processing') return; if (readOnly) { expandedReadOnly = expandedReadOnly === node.id ? null : node.id; return; } closeEditor(); draft = structuredClone($state.snapshot(node)); testStatus = testOutputs[node.id] ? 'completed' : 'idle'; }
   function configure(type: WorkflowNode['type'], capability?: Capability): void {
     if (busy || testStatus === 'processing') return;
     picker = null; nodeError = ''; preview = ''; testStatus = 'idle';
@@ -95,7 +95,7 @@
     if (isMessage(draft) && !String(draft.config?.title ?? '').trim()) { nodeError = tr('title_required'); return; }
     if (isCheck(draft) && (!record(draft.config?.predicate).left || !record(draft.config?.predicate).op)) { nodeError = tr('check_required'); return; }
     busy = true; nodeError = '';
-    const saved = structuredClone(draft); saved.title ||= summary(saved);
+    const saved = structuredClone($state.snapshot(draft)); saved.title ||= summary(saved);
     try {
       await onSave({ ...insertNode(graph, saved, insertion), version: 2 }); closeEditor();
       if (isTrigger(saved) && !graph.nodes.some(node => !isTrigger(node) && node.type !== 'end')) openPicker('action', { after: saved.id });
@@ -106,7 +106,7 @@
   async function deleteNode(): Promise<void> { if (!draft || !onSave || busy) return; busy = true; try { await onSave({ ...removeNode(graph, draft.id), version: 2 }); closeEditor(); } catch (error) { nodeError = String(error); } finally { busy = false; } }
   async function testNode(): Promise<void> {
     if (!draft || !workflowId || testStatus === 'processing') return;
-    const node = structuredClone(draft); const revision = ++testRevision; testStatus = 'processing'; nodeError = '';
+    const node = structuredClone($state.snapshot(draft)); const revision = ++testRevision; testStatus = 'processing'; nodeError = '';
     try {
       const data = await workflowApiRequest<{ run: { id: string } }>(`/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(node.id)}/test`, { method: 'POST', body: JSON.stringify({ node, input: {}, upstream_outputs: testOutputs }) });
       testingRunId = data.run.id;
