@@ -13,6 +13,7 @@ const INITIALIZING_ATTRIBUTE = 'data-header-overlay-initializing';
 export function headerOverlayControls(node: HTMLElement) {
   const surface = node.closest<HTMLElement>('.chat-side, .fullscreen-container, .workflow-detail');
   if (!surface) return {};
+  const scrollSurface = surface.closest<HTMLElement>('.workflow-management') ?? surface;
 
   let frame: number | null = null;
   let header: HTMLElement | null = null;
@@ -29,7 +30,7 @@ export function headerOverlayControls(node: HTMLElement) {
       if (header) resizeObserver.observe(header);
     }
     const banner = header?.getBoundingClientRect();
-    const viewport = surface!.getBoundingClientRect();
+    const viewport = scrollSurface.getBoundingClientRect();
     for (const control of Array.from(node.querySelectorAll<HTMLElement>(CONTROL_SELECTOR))) {
       if (!initialized.has(control)) {
         initialized.add(control);
@@ -74,7 +75,7 @@ export function headerOverlayControls(node: HTMLElement) {
   mutations.observe(surface, { childList: true, subtree: true });
   resizeObserver.observe(surface);
   resizeObserver.observe(node);
-  surface.addEventListener('scroll', schedule, { capture: true, passive: true });
+  scrollSurface.addEventListener('scroll', schedule, { capture: true, passive: true });
   window.addEventListener('resize', schedule);
   measure();
 
@@ -86,7 +87,7 @@ export function headerOverlayControls(node: HTMLElement) {
       initializing.clear();
       mutations.disconnect();
       resizeObserver.disconnect();
-      surface.removeEventListener('scroll', schedule, true);
+      scrollSurface.removeEventListener('scroll', schedule, true);
       window.removeEventListener('resize', schedule);
       for (const control of Array.from(node.querySelectorAll(`[${OVERLAY_ATTRIBUTE}]`))) {
         control.removeAttribute(OVERLAY_ATTRIBUTE);
