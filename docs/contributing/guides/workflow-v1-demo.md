@@ -19,7 +19,7 @@ openmates workflows runs <workflow-id>
 openmates workflows run-show <workflow-id> <run-id>
 ```
 
-Reuse the same idempotency key only when retrying the same run. Enable the workflow after reviewing its schedule and costs. Normal chat encryption uses an authorized connected owner client; a pending delivery is not reported as an acknowledged chat write.
+`--wait` waits for this run and acknowledgement of its selected chat deliveries. If another owner client holds a delivery claim, the CLI waits for recovery within its timeout. Retry a timeout with the same idempotency key to resume delivery without fetching the skills again. A successful search with no new selected results finishes without creating an empty chat. Enable the workflow after reviewing its schedule and costs. Normal chat encryption uses an authorized connected owner client; a pending delivery is not reported as an acknowledged chat write.
 
 The SDKs expose the same controls:
 

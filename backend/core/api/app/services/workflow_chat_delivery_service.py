@@ -280,6 +280,10 @@ class DirectusWorkflowChatDeliveryRepository:
 
     def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
         headers = kwargs.pop("headers", {}) or {}
+        # Runtime transactions write through Knex, outside Directus cache invalidation.
+        # Fresh reads are required for claim CAS, run deletion fences and delivery ACKs.
+        if method.upper() == "GET":
+            headers["Cache-Control"] = "no-store"
         headers.setdefault("Authorization", f"Bearer {self._token()}")
         response = self._client.request(method, f"{self.base_url}{path}", headers=headers, **kwargs)
         if 200 <= response.status_code < 300:

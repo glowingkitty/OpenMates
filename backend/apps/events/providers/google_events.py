@@ -338,10 +338,10 @@ async def search_events_async(
                     exc.response.status_code,
                     exc.response.text[:200],
                 )
-                break
+                raise RuntimeError(f"Google Events provider returned HTTP {exc.response.status_code}") from exc
             except httpx.RequestError as exc:
                 logger.error("[google_events] SerpAPI request error: %s", exc)
-                break
+                raise RuntimeError("Google Events provider request failed") from exc
 
             # Extract events from response.
             raw_events = data.get("events_results") or []

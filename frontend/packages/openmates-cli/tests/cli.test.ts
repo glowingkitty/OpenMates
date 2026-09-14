@@ -32,6 +32,7 @@ import {
 } from "../dist/index.js";
 import {
   buildTravelConnectionsRequest,
+  waitForWorkflowRun,
   requireExactConfirmation,
   resolveProjectContext,
   shouldRequireTrustedAccountGuard,
@@ -1242,6 +1243,65 @@ describe("projects deterministic commands", () => {
   });
 });
 
+// contract-test: supporting surface=cli assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity,cli.surface.semantic-parity
+describe("workflow run wait delivery acknowledgement", () => {
+  const run = (deliveries: Record<string, unknown> = {}, status = "completed") => ({
+    id: "run-under-test", workflow_id: "workflow-under-test", version_id: "version-1",
+    trigger_type: "manual", status, output_summary: { deliveries },
+  });
+  const delivery = (status: string) => ({ delivery_id: "delivery-under-test", status, client_persisted: status === "acknowledged" });
+  const timing = { timeoutMs: 1000, pollIntervalMs: 1, syncIntervalMs: 3 };
+
+  it("waits through a claimed delivery until this run is acknowledged without redispatch", async () => {
+    let syncs = 0;
+    const reads: string[] = [];
+    const client = {
+      getWorkflowRun: async (workflowId: string, runId: string) => {
+        reads.push(`${workflowId}/${runId}`);
+        return run({ report: delivery(syncs >= 2 ? "acknowledged" : "claimed") });
+      },
+      ensureSynced: async (...args: unknown[]) => {
+        assert.deepEqual(args, [true, [], { personal: true }]);
+        syncs += 1;
+      },
+    };
+    const result = await waitForWorkflowRun(client as never, "workflow-under-test", run({}, "running") as never, timing);
+    assert.equal((result.output_summary!.deliveries as Record<string, { status: string }>).report.status, "acknowledged");
+    assert.equal(syncs, 2);
+    assert(reads.every(id => id === "workflow-under-test/run-under-test"));
+  });
+
+  it("skips chat sync when this run selected no delivery", async () => {
+    const client = {
+      getWorkflowRun: async () => run(),
+      ensureSynced: async () => { throw new Error("unrelated old delivery must not be synced"); },
+    };
+    const result = await waitForWorkflowRun(client as never, "workflow-under-test", run() as never, timing);
+    assert.equal(result.status, "completed");
+  });
+
+  it("does not mistake encrypted persistence for acknowledgement and reports terminal delivery failure", async () => {
+    for (const status of ["cancelled", "expired"]) {
+      const client = {
+        getWorkflowRun: async () => run({ report: { ...delivery(status), client_persisted: true } }),
+        ensureSynced: async () => { throw new Error("terminal delivery must not be claimed"); },
+      };
+      await assert.rejects(waitForWorkflowRun(client as never, "workflow-under-test", run() as never, timing), new RegExp(`chat delivery.*${status}`));
+    }
+  });
+
+  it("bounds pending delivery retries and preserves the sync failure in its timeout", async () => {
+    const client = {
+      getWorkflowRun: async () => run({ report: delivery("claimed") }),
+      ensureSynced: async () => { throw new Error("delivery_conflict"); },
+    };
+    await assert.rejects(
+      waitForWorkflowRun(client as never, "workflow-under-test", run() as never, { ...timing, timeoutMs: 20 }),
+      /waiting for chat delivery acknowledgement.*same --idempotency-key.*delivery_conflict/,
+    );
+  });
+});
+
 describe("workflows command", () => {
   it("is listed in global help and prints contextual help", () => {
     assert.match(runCli(["help"]), /openmates workflows \[--help\]/);
@@ -1252,6 +1312,7 @@ describe("workflows command", () => {
     assert.match(output, /openmates workflows input <text>/);
     assert.match(output, /openmates workflows input-follow-up <session-id> <text>/);
     assert.match(output, /openmates workflows run <workflow-id>/);
+    assert.match(output, /--wait waits up to three minutes for this run and its selected chat deliveries/);
   });
 
   it("accepts documented idempotency-key flag for workflow runs", () => {

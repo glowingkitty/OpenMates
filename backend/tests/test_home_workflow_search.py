@@ -56,3 +56,22 @@ def test_listing_links_preserve_provider_canonical_path():
     listing = _parse_listings_from_html(html, "rent", "Berlin")[0]
     assert listing["id"] == "ka_123"
     assert listing["url"] == "https://www.kleinanzeigen.de/s-anzeige/flat/123-203-3331"
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.surface.semantic-parity
+def test_current_kleinanzeigen_cards_keep_rental_price_and_canonical_listing_identity():
+    from backend.apps.home.providers.kleinanzeigen import _parse_listings_from_html
+    html = '''<article class="flex" data-adid="456" data-href="/s-anzeige/berlin-flat/456-203-3331">
+      <img src="https://img.kleinanzeigen.de/api/v1/prod-ads/images/example?rule=size">
+      <div><span>10115 Mitte</span></div>
+      <h3 class="line-clamp-2"><a href="/s-anzeige/berlin-flat/456-203-3331">Berlin &amp; Mitte apartment</a></h3>
+      <p class="font-strong">44 m² · 1 Zi.</p>
+      <div><p class="text-title3 font-strong">1.000 €</p><p class="line-through">1.800 €</p></div>
+      </article>'''
+    listing = _parse_listings_from_html(html, "rent", "Berlin")[0]
+    assert listing["id"] == "ka_456"
+    assert listing["url"] == "https://www.kleinanzeigen.de/s-anzeige/berlin-flat/456-203-3331"
+    assert listing["title"] == "Berlin & Mitte apartment"
+    assert listing["price"] == 1000 and listing["rooms"] == 1 and listing["size_sqm"] == 44
+    assert listing["address"] == "10115 Mitte"
+    assert listing["image_url"].startswith("https://img.kleinanzeigen.de/")

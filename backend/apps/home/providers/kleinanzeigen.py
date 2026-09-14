@@ -137,7 +137,11 @@ def _parse_listings_from_html(html: str, listing_type: str, city: str) -> List[D
             block_html,
             re.DOTALL,
         )
-        title = title_match.group(1).strip() if title_match else ""
+        if not title_match:
+            # Current SSR cards use semantic headings rather than the old
+            # ellipsis/aditem classes; retain support for both markup versions.
+            title_match = re.search(r'<h[23]\b[^>]*>\s*<a\b[^>]*>(.*?)</a>', block_html, re.DOTALL)
+        title = unescape(re.sub(r'<[^>]+>', '', title_match.group(1))).strip() if title_match else ""
         # Clean HTML entities from title
         title = title.replace("&amp;", "&").replace("&quot;", '"').replace("&#39;", "'")
 
@@ -158,6 +162,9 @@ def _parse_listings_from_html(html: str, listing_type: str, city: str) -> List[D
             re.DOTALL,
         )
         price_text = price_match.group(1).strip() if price_match else ""
+        if not price_text:
+            price_match = re.search(r'<p\b[^>]*>\s*([\d.,]+\s*(?:€|&euro;))(?:\s*VB)?\s*</p>', block_html, re.DOTALL)
+            price_text = unescape(price_match.group(1)).strip() if price_match else ""
         price = _parse_price(price_text)
 
         if price is not None:
@@ -181,11 +188,14 @@ def _parse_listings_from_html(html: str, listing_type: str, city: str) -> List[D
             address = re.sub(r'<[^>]+>', '', address_match.group(1)).strip()
             address = re.sub(r'\s+', ' ', address)
         if not address:
+            address_match = re.search(r'<span\b[^>]*>\s*(\d{5}\s+[^<]+)</span>', block_html)
+            address = unescape(address_match.group(1)).strip() if address_match else ""
+        if not address:
             address = city.title()
 
         # Extract image URL
         image_match = re.search(
-            r'<img[^>]*(?:data-)?src="(https://[^"]*\.(?:jpg|jpeg|png|webp)[^"]*)"',
+            r'<img[^>]*(?:data-)?src="(https://[^"]+)"',
             block_html,
             re.IGNORECASE,
         )
@@ -319,6 +329,8 @@ async def search_listings(
         raise RuntimeError("Kleinanzeigen search request failed") from e
 
     listings = _parse_listings_from_html(html, listing_type, city)
+    if not listings and ("data-adid" in html or not re.search(r'(?:keine|0)\s+(?:anzeigen|ergebnisse)', re.sub(r'<[^>]+>', ' ', html), re.IGNORECASE)):
+        raise RuntimeError("Kleinanzeigen returned an unrecognized search page; listings could not be read")
 
     logger.info(
         "Kleinanzeigen search city=%s type=%s -> %d listings",

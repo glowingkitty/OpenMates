@@ -6309,6 +6309,74 @@ async function openUrl(url: string): Promise<void> {
 // Workflows
 // ---------------------------------------------------------------------------
 
+/** Wait for this accepted run and its selected chat deliveries, never dispatch again. */
+export async function waitForWorkflowRun(
+  client: Pick<OpenMatesClient, "getWorkflowRun" | "ensureSynced">,
+  workflowId: string,
+  initialRun: WorkflowRunDetail,
+  options: { timeoutMs?: number; pollIntervalMs?: number; syncIntervalMs?: number } = {},
+): Promise<WorkflowRunDetail> {
+  const deadline = Date.now() + (options.timeoutMs ?? 180_000);
+  const runId = initialRun.id;
+  let run = initialRun;
+  let lastSyncError = "";
+  const timeoutError = () => new Error(
+    `Workflow run ${runId} is still ${run.status === "completed" ? "waiting for chat delivery acknowledgement" : run.status}. ` +
+    `Inspect it with workflows run-show; retry with the same --idempotency-key to avoid rerunning skills.` +
+    (lastSyncError ? ` Last delivery sync error: ${lastSyncError}` : ""),
+  );
+  async function withinBudget<T>(operation: () => Promise<T>): Promise<T> {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw timeoutError();
+    let timer: ReturnType<typeof setTimeout>;
+    try {
+      return await Promise.race([
+        operation(),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(timeoutError()), remaining); }),
+      ]);
+    } finally {
+      clearTimeout(timer!);
+    }
+  }
+  const pause = () => withinBudget(() => new Promise<void>(resolve => setTimeout(resolve, Math.min(options.pollIntervalMs ?? 2000, deadline - Date.now()))));
+  const refresh = async () => { run = await withinBudget(() => client.getWorkflowRun(workflowId, runId)); };
+  while (["queued", "planned", "running", "waiting", "cancellation_requested"].includes(run.status)) {
+    await pause();
+    await refresh();
+  }
+  // Acceptance can return an already-completed idempotent run without its live
+  // routing projection. Read it once before deciding whether delivery is needed.
+  await refresh();
+  let nextSyncAt = 0;
+  while (true) {
+    if (run.status !== "completed") {
+      throw new Error(`Workflow run ${runId} ${run.status}: ${run.error_summary ?? "inspect workflows run-show for details"}`);
+    }
+    const projection = run.output_summary?.deliveries;
+    const deliveries = isRecord(projection) ? Object.values(projection).filter(isRecord) : [];
+    const failed = deliveries.find(delivery => ["cancelled", "expired"].includes(String(delivery.status)));
+    if (failed) throw new Error(`Workflow run ${runId} completed, but chat delivery ${String(failed.delivery_id)} is ${String(failed.status)}.`);
+    if (deliveries.every(delivery => delivery.status === "acknowledged")) return run;
+    if (Date.now() >= deadline) throw timeoutError();
+    if (Date.now() >= nextSyncAt) {
+      // Personal workflow delivery uses this profile's owner session. The sync
+      // handler respects another device's claim lease before attempting a claim.
+      try {
+        await withinBudget(() => client.ensureSynced(true, [], { personal: true }));
+        lastSyncError = "";
+      } catch (error) {
+        lastSyncError = error instanceof Error ? error.message : String(error);
+        if (Date.now() >= deadline) throw timeoutError();
+      }
+      nextSyncAt = Date.now() + (options.syncIntervalMs ?? 10_000);
+      await refresh();
+      continue;
+    }
+    await pause();
+    await refresh();
+  }
+}
+
 async function handleWorkflows(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -6622,17 +6690,7 @@ async function handleWorkflows(
     const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
     let run = await client.runWorkflow(workflowId, { idempotencyKey, mode, input });
     if (flags.wait === true) {
-      const deadline = Date.now() + 180_000;
-      while (["queued", "planned", "running"].includes(run.status) && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        run = await client.getWorkflowRun(workflowId, run.id);
-      }
-      if (["queued", "planned", "running"].includes(run.status)) throw new Error(`Workflow run ${run.id} is still running. Inspect it with workflows run-show.`);
-      if (run.status === "failed") throw new Error(`Workflow run ${run.id} failed: ${run.error_summary ?? "inspect run-show for details"}`);
-      // An owner client encrypts and persists newly available chat deliveries.
-      // Sync owns claim fencing and waits for durable persistence before ACK.
-      await client.ensureSynced(true);
-      run = await client.getWorkflowRun(workflowId, run.id);
+      run = await waitForWorkflowRun(client, workflowId, run);
     }
     if (flags.json === true) {
       printJson(run);
@@ -14305,6 +14363,9 @@ function printWorkflowsHelp(): void {
 Workflows run on the OpenMates server, not in this terminal process. The CLI
 uses your paired session and shows the same workflow/run records as web, SDKs,
 and Apple clients.
+--wait waits up to three minutes for this run and its selected chat deliveries to
+be acknowledged. No new results completes without creating a chat. On timeout,
+inspect run-show or retry the same --idempotency-key; skills are not rerun.
 
 Examples:
   openmates workflows list
