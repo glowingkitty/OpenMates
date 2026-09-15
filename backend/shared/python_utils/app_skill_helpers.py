@@ -60,15 +60,20 @@ async def sanitize_external_content(
     cache_service: Optional[Any] = None,
 ) -> str:
     """Sanitize external content without importing AI LLM dependencies at module load."""
-    from backend.apps.ai.processing.content_sanitization import sanitize_external_content as _sanitize_external_content
+    from backend.shared.python_utils.app_skill_output_safety import is_central_app_skill_dispatch
+    from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
 
-    return await _sanitize_external_content(
-        content=content,
-        content_type=content_type,
+    cleaned, _ = sanitize_text_for_ascii_smuggling(content)
+    if is_central_app_skill_dispatch():
+        return cleaned
+    result = await sanitize_long_text_fields_in_payload(
+        payload={"text": cleaned},
         task_id=task_id,
         secrets_manager=secrets_manager,
         cache_service=cache_service,
+        always_sanitize_field_names={"text"},
     )
+    return result["text"]
 
 
 async def sanitize_long_text_fields_in_payload(
@@ -83,6 +88,14 @@ async def sanitize_long_text_fields_in_payload(
     skill_id: Optional[str] = None,
 ) -> Any:
     """Sanitize nested text fields without importing AI LLM dependencies at module load."""
+    from backend.shared.python_utils.app_skill_output_safety import is_central_app_skill_dispatch
+    from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
+
+    # ContextVar is owned by the dispatcher and cannot be supplied by providers.
+    # Background workers have no active scope and scan here before persistence.
+    if is_central_app_skill_dispatch():
+        cleaned, _ = sanitize_text_payload_for_ascii_smuggling(payload)
+        return cleaned
     from backend.apps.ai.processing.external_result_sanitizer import (
         sanitize_long_text_fields_in_payload as _sanitize_long_text_fields_in_payload,
     )

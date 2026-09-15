@@ -14,7 +14,7 @@ output_safety:
     surface: assistant
     external_data: true
     attempted_protection: disabled
-    expect: {ascii_cleanup: applied, semantic_scan: applied, failure_mode: fail_closed}
+    expect: {ascii_cleanup: before_semantic_scan, semantic_scan: applied, failure_mode: return_cleaned_content_and_log_unscanned}
   - id: direct-programmatic-opt-out
     surface: rest_api
     external_data: true
@@ -24,7 +24,10 @@ output_safety:
     surface: cli
     external_data: true
     protection: enabled
-    expect_error: {payload_returned: false, safe_visible_failure: true, retryable: true, automatic_retry: false}
+    given: The scanner provider is unavailable while a CLI request successfully retrieves a transcript.
+    when: The single semantic scan fails.
+    then: The CLI receives the ASCII-cleaned transcript and the server logs an unscanned result, without retrying or asking the user.
+    assertion_ids: [app-skills.output.external-semantic, app-skills.output.bounded-failure]
   - id: shared-boundary
     given: {skill_local_scan: completed, unchanged_text_at_dispatch: true, server_owned_coverage: complete}
     expect: {additional_semantic_calls: 0, coverage_checked_before_exposure: true}
@@ -35,8 +38,10 @@ output_safety:
     given: {server_owned_coverage: present, text_changed: true}
     expect: {old_decision_reused: false, changed_text_scan_required_before_exposure: true}
   - id: web-read-long-document
-    given: {skill: web/read, protection: enabled, sections: [safe, injection, safe]}
-    expect: {all_sections_covered: true, flagged_section_replaced_in_full: true, unaffected_sections_preserved: true, semantic_protection_removed_for_speed: false}
+    given: A retrieved article contains useful paragraphs around a sentence directing the assistant to leak private messages.
+    when: The one scan identifies the exact malicious sentence.
+    then: Only that sentence is replaced with a warning; every other paragraph is preserved.
+    assertion_ids: [app-skills.output.batch-equivalent]
 
 batch_outcomes:
   - id: unchanged-safe-batch
@@ -50,13 +55,23 @@ batch_outcomes:
   - id: incomplete-decisions
     fields: [{id: f0, text: Safe event}, {id: f1, text: Suspicious event}]
     decisions: [{id: f0, decision: safe}]
-    expect: {payload_returned: false, partial_payload_mutation: false, retryable_error: true, automatic_retry: false}
+    expect: {cleaned_payload_returned: true, partial_payload_mutation: false, status_logged: unscanned, automatic_retry: false}
   - id: invalid-decisions
     variants: [unknown_id, duplicate_id, invalid_decision, malformed_json, model_rewritten_text]
-    expect: {payload_returned: false, partial_payload_mutation: false, retryable_error: true, field_level_rescan: false}
+    expect: {cleaned_payload_returned: true, partial_payload_mutation: false, status_logged: unscanned, field_level_rescan: false}
   - id: scan-timeout
     given: {deadline_exhausted: true}
-    expect: {payload_returned: false, retryable_error: true, automatic_retry: false, unfinished_work_cancelled: true}
+    expect: {cleaned_payload_returned: true, status_logged: unscanned, automatic_retry: false, unfinished_work_cancelled: true}
+  - id: benign-security-transcript
+    given: A video transcript explains hiding files in audio and discusses prompt injection as a security topic.
+    when: The shared scanner processes it once after stripping invisible smuggling characters.
+    then: Descriptive narration and quoted demonstrations are preserved; uncertain classifications also preserve text.
+    assertion_ids: [app-skills.output.external-semantic, app-skills.output.batch-equivalent]
+  - id: oversized-result
+    given: Selected text and context exceed the configured single-call input bound.
+    when: The shared safety layer checks the input size.
+    then: It returns the ASCII-cleaned content and logs that it was unscanned, without truncating or starting additional scans.
+    assertion_ids: [app-skills.output.bounded-failure]
 
 surface_parity:
   - id: direct-cli-skill

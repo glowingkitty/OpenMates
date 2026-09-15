@@ -44,7 +44,8 @@ def main() -> int:
         "surface != APP_SKILL_SURFACE_REST",
         "providers = _read_attr(skill, \"providers\")",
         "name.lower() != OPENMATES_PROVIDER_NAME",
-        "raise RuntimeError(\"Prompt-injection protection failed for app-skill output\")",
+        "status=unscanned",
+        "return ascii_sanitized",
     ]))
     failures.extend(check_contains(REST_ROUTE, [
         "APP_SKILL_SURFACE_REST",

@@ -201,19 +201,18 @@ async def sanitize_app_skill_output(
     log_prefix = context.log_prefix or f"[AppSkillOutputSafety {context.app_id}/{context.skill_id}] "
     started_at = time.monotonic()
 
-    async def _sanitize() -> Any:
-        ascii_sanitized, ascii_stats = sanitize_text_payload_for_ascii_smuggling(
-            result,
-            log_prefix=log_prefix,
-            include_stats=True,
+    # Keep the cleaned baseline outside the semantic deadline/failure handler.
+    # A scanner error must never restore invisible characters from raw input.
+    ascii_sanitized, ascii_stats = sanitize_text_payload_for_ascii_smuggling(
+        result, log_prefix=log_prefix, include_stats=True,
+    )
+    if ascii_stats.get("removed_count", 0) > 0:
+        logger.warning(
+            "%sRemoved %s ASCII-smuggling characters across %s field(s)",
+            log_prefix, ascii_stats.get("removed_count", 0), ascii_stats.get("fields_sanitized", 0),
         )
-        if ascii_stats.get("removed_count", 0) > 0:
-            logger.warning(
-                "%sRemoved %s ASCII-smuggling characters from app-skill output across %s field(s)",
-                log_prefix,
-                ascii_stats.get("removed_count", 0),
-                ascii_stats.get("fields_sanitized", 0),
-            )
+
+    async def _sanitize() -> Any:
         if not context.external_data:
             return ascii_sanitized
         if prompt_injection_protection_disabled_for_surface(context.request_body, context.surface):
@@ -229,26 +228,27 @@ async def sanitize_app_skill_output(
             always_sanitize_field_names=ALWAYS_SEMANTIC_FIELD_NAMES,
             app_id=context.app_id,
             skill_id=context.skill_id,
+            timeout_seconds=_semantic_scan_timeout(context),
         )
     try:
         sanitized = await asyncio.wait_for(_sanitize(), timeout=_semantic_scan_timeout(context))
         logger.info(
-            "%sOutput safety completed in %dms",
+            "%sOutput safety processing finished in %dms",
             log_prefix,
             (time.monotonic() - started_at) * 1000,
         )
         return sanitized
-    except asyncio.TimeoutError as exc:
-        logger.error("%sPrompt-injection protection timed out", log_prefix)
-        raise RuntimeError("OUTPUT_SAFETY_TIMEOUT") from exc
+    except asyncio.TimeoutError:
+        logger.warning("%sSemantic scan status=unscanned reason=OUTPUT_SAFETY_TIMEOUT; returning ASCII-cleaned content", log_prefix)
+        return ascii_sanitized
     except Exception as exc:
         error_code = str(exc) if str(exc) in OUTPUT_SAFETY_ERROR_CODES else "OUTPUT_SAFETY_UNAVAILABLE"
         logger.error(
-            "%sPrompt-injection protection failed for app-skill output; failing closed: %s",
+            "%sSemantic scan status=unscanned reason=%s; returning ASCII-cleaned content",
             log_prefix,
             error_code,
         )
-        raise RuntimeError(error_code) from None
+        return ascii_sanitized
 
 
 def _semantic_scan_timeout(context: AppSkillOutputSafetyContext) -> float:
