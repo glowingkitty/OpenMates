@@ -1,0 +1,89 @@
+schema_version: 2
+id: single-pass-external-safety
+title: Single-pass external content safety with availability-preserving fallback
+status: approved
+goal: >
+  Implement and test the new shared prompt injection system, its token and money
+  costs, processing delay versus disabled detection, and reliability including
+  the original video example.
+approved_design:
+  - User approved one model call per external skill result, no retries or user input.
+  - ASCII-smuggling cleanup precedes semantic detection and remains on failure or explicit opt-out.
+  - Exact verified injection spans are redacted; safe and uncertain text is preserved.
+  - Scanner failures and oversized inputs return cleaned content and are logged as unscanned.
+  - Preserve existing external skill and field coverage across REST, CLI/SDK, assistant, Workflow, and background helpers.
+  - Keep gpt-oss-safeguard-20b and measure before considering a model change.
+scope:
+  in:
+    - Shared classifier, structured field sanitization, local helper deferral and REST opt-out preservation.
+    - Focused unit and API coverage, isolated CI, dev deployment and explicit dev global-CLI benchmark.
+    - Token/cost accounting, paired latency measurements and benign/adversarial reliability evaluation.
+  out:
+    - Changing downstream tool authorization or introducing additional semantic model calls.
+checks:
+  - Focused scanner, fallback, all-registered-skills, cancellation, helper-deferral and REST tests.
+  - Real model evaluation on versioned cases and both supplied transcript files, with repeated runs.
+  - Live global CLI requests with detection enabled and disabled; report changed provider responses.
+  - Report failed/unscanned requests separately from successful classifications and latency samples.
+authorization:
+  source: User approved the processing design and explicitly requested implementation and testing in this conversation.
+  dev_cli: User specifically requested use of globally installed openmates on the dev server.
+scenarios:
+  - id: S-1
+    title: Available external data with one semantic scan
+    given: [An external app skill returns multiline text.]
+    when: [The shared output safety boundary handles the result.]
+    then: [ASCII cleanup runs first and at most one model call produces verified span redactions or logged fail-open delivery.]
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Existing selected external fields use one call with exact span removal and fail-open delivery, measured on both original transcripts and synthetic attacks.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-SAFETY]
+tests:
+  - id: T-SAFETY
+    type: pytest
+    file: backend/tests/test_single_pass_output_safety.py
+    command: python3 -m pytest backend/tests/test_single_pass_output_safety.py
+    covers: [AC-1]
+    assertions: [All registered external skills defer local scans and apply ASCII cleanup before one semantic call; failure returns cleaned content.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Prior live false-positive evidence establishes the defect.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, result: Focused scanner suite passed 194 checks.}}
+implementation_state:
+  subject_commit: 8d8259abd987844f9c4e153854d0cde27f9102a4
+approvals:
+  specification: {status: approved, approved_at: '2026-09-15', source: Explicit user-approved processing design in this conversation.}
+  plan: {status: approved, approved_at: '2026-09-15', source: User requested implementation and measurement.}
+decisions:
+  - id: D-1
+    status: active
+    decision: Implement the approved_design above.
+    reason: User explicitly prioritizes availability while retaining one-pass detection across external skills.
+    decided_at: '2026-09-15'
+tasks:
+  - id: TASK-1
+    title: OpenMates Task 33452cf4-7ac7-45e8-a9f9-f909e0e212aa owns execution status.
+    status: in_progress
+    phase: running_checks
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
+    expected_files: [backend/shared/python_utils/structured_content_sanitization.py, backend/tests/test_single_pass_output_safety.py]
+    verification_ids: [T-SAFETY]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership: {owner: a1fc, files: [backend/shared/python_utils/structured_content_sanitization.py], shared_files: []}
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: succeeded
+    approach: Focused unit checks and 75 repeated live model evaluations on 25 cases.
+    recorded_at: '2026-09-15'
+handoff:
+  current_task_id: TASK-1
+  next_action: Complete isolated CI and deployed global CLI benchmark.
+  command: python3 scripts/ci_coordinator.py submit --session a1fc --source SOURCE --mode e2e --spec cli-external-output-safety.spec.ts
+  expected_outcome: Return measured correctness, cost and delay with all limitations recorded.
+  last_verified_commit: 8d8259abd987844f9c4e153854d0cde27f9102a4

@@ -16,7 +16,7 @@ scope:
     - Public web discovery for current general information
     - One to five independent search requests per invocation
     - Sanitized grouped website results and explicit empty/error behavior
-    - Whole-snippet prompt-injection warnings and measured safety/latency acceptance gates
+    - Exact-span prompt-injection warnings and measured safety/latency acceptance gates
   excludes:
     - Reading the complete contents of a known URL
     - Private or authenticated third-party pages
@@ -112,13 +112,13 @@ models:
     error:
       type: string
       nullable: true
-      constraints: {secrets: forbidden, raw_provider_diagnostics: forbidden, safety_technical_failure: shared_stable_retryable_error_code_prefix}
+      constraints: {secrets: forbidden, raw_provider_diagnostics: forbidden, safety_technical_failure: shared_logged_fail_open_policy}
 
   SearchSafety:
     warning: {type: string, required: true, default: "[PROMPT INJECTION DETECTED & REMOVED]"}
     unit_policy:
       type: deterministic
-      constraints: {flagged_snippet_or_description: replace_entire_field, unsafe_title_or_url: omit_result, unusable_result: omit_result, raw_flagged_text_in_warning: forbidden}
+      constraints: {flagged_text: replace_verified_spans_only, surrounding_content_and_result_structure: preserve, raw_flagged_text_in_warning: forbidden}
     scan_budget:
       type: bounded
       constraints: {typical_single_query_semantic_calls: 1, automatic_retries: 0, field_rescans: 0, safety_deadline_seconds: 5, empty_text_calls: 0}
@@ -151,11 +151,11 @@ assertions:
     depends_on: [models.WebSearchRequestItem.id, models.WebSearchResultGroup.id, examples.valid_inputs]
   - id: web-search.response.sanitized
     type: security
-    must: Provider titles, descriptions, extra snippets, and other policy-selected external text are protected before exposure, persistence, or inference. Semantic scanning stays enabled by default for every caller, with assistant/Workflow opt-out forbidden under the shared policy. Each flagged snippet or description is replaced entirely by the fixed warning, never a warning plus surviving source text; unsafe titles or URLs and unusable results are omitted. Unaffected fields and results are preserved.
+    must: Provider titles, descriptions, extra snippets, and other existing policy-selected external text use the shared output-safety policy before exposure, persistence, or inference. Scanning is enabled by default and assistant/Workflow opt-out is forbidden. Only exact verified injection spans are replaced with the fixed warning; surrounding text and result structure remain intact. Uncertainty and technical scan failure return ASCII-cleaned content with uncertainty or unscanned status recorded in server logs.
     depends_on: [models.WebSearchResult, models.SearchSafety, examples.successful_outputs, examples.safety_cases]
   - id: web-search.safety.single-pass
     type: invariant
-    must: With protection enabled, a typical six-result single-query response within the benchmark text bound uses exactly one structured semantic model call, including when snippets are flagged. Skill and dispatch layers must not duplicate scans; malformed, incomplete, unavailable, or timed-out scans fail closed with a safe retryable error, no automatic retry, and no field-by-field fallback. Empty results require no semantic call; larger supported requests retain complete bounded coverage rather than silent truncation or unchecked overflow.
+    must: With protection enabled, a nonempty response within the single-call input bound uses exactly one structured semantic model call, including when snippets are flagged. Skill and dispatch layers do not duplicate scans. Malformed, incomplete, unavailable, timed-out, or oversized scans return cleaned content and log an unscanned reason without retries, extra model calls, or user input. Empty selected text requires no model call. Input is never silently truncated or falsely reported as scanned.
     depends_on: [models.SearchSafety, models.SearchSafetyBenchmark.workload, examples.safety_cases]
   - id: web-search.safety.quality-gate
     type: security

@@ -1080,6 +1080,13 @@ async def call_preprocessing_llm(
                             "count": len(sanitized_args["injection_strings"]),
                             "content": "[REDACTED_CONTENT]",
                         }
+                    if "decisions" in sanitized_args and isinstance(sanitized_args["decisions"], list):
+                        # Span evidence can quote private mail/documents. Retain
+                        # diagnostics without copying that source text into logs.
+                        sanitized_args["decisions"] = {
+                            "count": len(sanitized_args["decisions"]),
+                            "content": "[REDACTED_CONTENT]",
+                        }
                     tc_dict["function_arguments_parsed"] = sanitized_args
                 # Also sanitize function_arguments_raw if it's a string that might contain sensitive data
                 if "function_arguments_raw" in tc_dict and isinstance(tc_dict["function_arguments_raw"], str):

@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/app-skill-execution
-    fingerprint: 624a7be64198d2fa3326f65b8129e82dab5b876726758335741ccdbd5db72cb5
+    fingerprint: 4b8617f03769180bbf9b282d86ffbf01acd0df9b7f8d21815ef05c489c75d143
     required_applies_to:
     - rest_api
     - cli
@@ -247,7 +247,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/web-search
-    fingerprint: 593c95c94708ac4dc0b57063972934dfe590a5b0a372a7fcc705909b11a7dbcd
+    fingerprint: 2d94ff85a02d094500189e3c1d0ee7365fcda668fcae73a19b1e12c9f32140e7
     required_applies_to:
     - rest_api
     - cli
@@ -631,7 +631,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: security
-    fingerprint: 6c8283d241073fb6637da4298d5bb62af7857fbdd384457a416686fc7eca8919
+    fingerprint: dda7b57d9a50ea14b2e7c8999af92f341881f14ac469ee0b606287e346a302c9
     required_applies_to:
     - rest_api
     - cli
@@ -643,7 +643,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: security
-    fingerprint: 5b20f228db5d4fe7601541212951458d73b4fad5872290c7405eb2a0e04b887b
+    fingerprint: eeb7030634fcc0d2b581396eae602d067c83056c7eba0d40102312d9123aba51
     required_applies_to:
     - rest_api
     - cli
@@ -655,7 +655,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: security
-    fingerprint: 025dba8c7451a8b378a09d80f29ba02c60803ee6351af0aaab40b7a7b975ed05
+    fingerprint: aa0140bbc365163eac0f2f46043364b616c8b563889d70dd063edab8dcfe496b
     required_applies_to:
     - rest_api
     - cli
@@ -667,7 +667,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: security
-    fingerprint: 98711a47abba346212e635c89e5659b48851107d7baeae0a354b7f6b5b9225a6
+    fingerprint: 36b976e52235eb5b2f8c9f7a3ce6e12360e249bf19ad573a5263e67856817630
     required_applies_to:
     - rest_api
     - cli
@@ -679,7 +679,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: failure
-    fingerprint: 76abc8f7353d32be6a8b55f36818c1b72160a0b13fde250c412112001605fe5b
+    fingerprint: 2034abe86708ce14a838c73eb7952f8cb2b000bc61f78c3ccc2991b969f80491
     required_applies_to:
     - rest_api
     - cli
@@ -703,7 +703,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: parity
-    fingerprint: c0e02972d1c3ddfe0084b28392739f9c1057c3c2928536a00be92a0cbaf4058a
+    fingerprint: 9354c83d14031b9da97224ebea673533e052e9a5e4804567030c8aa8d007b30a
     required_applies_to:
     - rest_api
     - cli
@@ -2956,7 +2956,7 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: security
-    fingerprint: e7de6d6d95c5e6b235389f7019cb2396c22bd3fdc60993a8685120a98369372c
+    fingerprint: 8a8d7a741fd31470089cce74d8552a866483f89bf341705cacff2586fa0649c3
     required_applies_to:
     - rest_api
     - cli
@@ -2968,7 +2968,7 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: invariant
-    fingerprint: 669896e7cb21f759e201c1b533fd9d7f909ebec25792b552ecb6ead491879822
+    fingerprint: cdadf621d42e3dd33902fa049dda6d264ebf7e2e31ef66811d66002a42aedbb3
     required_applies_to:
     - rest_api
     - cli
@@ -2980,7 +2980,7 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: security
-    fingerprint: 57d84505c08dc226479b481c53951404579db419bceb31d9d8db45e1d4e48324
+    fingerprint: 0ae42dcee6b8dde1bf7f5fa7a6db1d6dfff42a42d9288e5704852768bf988df6
     required_applies_to:
     - rest_api
     - cli
@@ -3016,7 +3016,7 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: behavior
-    fingerprint: 788a084aa9626ab80a15429a850d395ea472a014d282055104529fa14b186644
+    fingerprint: 8ad235c9d902cc4106688c36a8d398986f28ad2d054553dfd9309a104897153a
     required_applies_to:
     - rest_api
     - cli
@@ -3028,7 +3028,7 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: failure
-    fingerprint: 2a5a8b046f5d0bc24f1040a40ce4b080563be0da73441866965ef8369dd8fe3a
+    fingerprint: f18d280837d953ccbea85242a0f24efb1f96452e2fa85b0248c89c7feaa35dd7
     required_applies_to:
     - rest_api
     - cli
@@ -3040,7 +3040,7 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: privacy
-    fingerprint: 3825d4c19a5ba52efd1b371045cef97b6f5875b5041dc84effc790a0be90676d
+    fingerprint: fa1a707329fd4817a6f071fddb4ae015e4df7c0c3c4db79a94452adba9b37827
     required_applies_to:
     - rest_api
     - cli
@@ -3052,7 +3052,7 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: parity
-    fingerprint: 302c8f6dabf25dadf950ba22f4a8af8600bd4fdbc52c84caa0c0e565ad34ab38
+    fingerprint: 25fadaaa247a265772f08033213d911be39d2405c883e259d9400c2f9b727c9f
     required_applies_to:
     - rest_api
     - cli

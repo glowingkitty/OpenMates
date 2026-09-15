@@ -35,6 +35,7 @@ from backend.shared.python_utils.app_skill_output_safety import (
     OUTPUT_SAFETY_ERROR_CODES,
     central_app_skill_dispatch,
     is_external_data_skill,
+    prompt_injection_protection_disabled_for_surface,
     sanitize_app_skill_output,
     strip_request_security_controls,
 )
@@ -369,6 +370,18 @@ def _sanitize_dict_recursively(data: Any, log_prefix: str = "") -> Any:
     """
     sanitized, _ = sanitize_text_payload_for_ascii_smuggling(data, log_prefix=log_prefix)
     return sanitized
+
+
+async def _preserve_direct_app_skill_safety_control(
+    request: Optional[Request], validated_body: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Keep authenticated REST/CLI opt-out after Pydantic drops extra fields."""
+    if request is None:
+        return validated_body
+    raw_body = await request.json()
+    if prompt_injection_protection_disabled_for_surface(raw_body, APP_SKILL_SURFACE_REST):
+        return {**validated_body, "security": {"prompt_injection_protection": "disabled"}}
+    return validated_body
 
 
 def resolve_translation(translation_service, translation_key: str, namespace: str, fallback: str = "") -> str:
@@ -3008,6 +3021,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             
                             # Convert Pydantic model to dict for skill execution
                             request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)
+                            request_dict = await _preserve_direct_app_skill_safety_control(request, request_dict)
 
                             preflight_reserved_credits = get_variable_preflight_reserved_credits(
                                 captured_app_id,
@@ -3251,6 +3265,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             
                             # Convert Pydantic model to dict for skill execution
                             request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)
+                            request_dict = await _preserve_direct_app_skill_safety_control(request, request_dict)
                             
                             # Execute the skill - pass request_dict directly
                             result = await call_app_skill(
