@@ -1,0 +1,2070 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-14'
+generated_at: '2026-09-15T00:20:21+00:00'
+range:
+  since: '2026-09-14T00:00:00+00:00'
+  until: '2026-09-15T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 13
+  section_counts:
+    features: 1
+    bug_fixes: 12
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 12
+  dev_only_items: 13
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: implement workflow v1 builder and encrypted result delivery'
+    section: features
+    commits:
+    - 249bc8ea7
+    authored_at: '2026-09-14T13:00:30+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/home/providers/immoscout24.py
+    - backend/apps/home/providers/kleinanzeigen.py
+    - backend/apps/home/providers/results.py
+    - backend/apps/home/providers/wg_gesucht.py
+    - backend/apps/home/skills/search_skill.py
+    - backend/apps/news/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - backend/core/api/app/services/workflow_chat_delivery_service.py
+    - backend/core/api/app/services/workflow_delivery_history.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_runtime_values.py
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/services/workflow_trigger_projection.py
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/delivery_history.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/delivery-history.test.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/history-fake.js
+    - backend/core/directus/schemas/workflow_chat_deliveries.yml
+    - backend/core/directus/schemas/workflow_delivery_history.yml
+    - backend/core/directus/schemas/workflows.yml
+    - backend/core/directus/setup/migrate_workflow_runtime_indexes.sql
+    - backend/tests/test_home_workflow_search.py
+    - backend/tests/test_workflow_builder_v1.py
+    - backend/tests/test_workflow_delivery_history.py
+    - backend/tests/test_workflow_delivery_sync_projection.py
+    - backend/tests/test_workflow_demo_inputs.py
+    - backend/tests/test_workflow_next_run_projection.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflow_scheduler_contract.py
+    - backend/tests/test_workflows_models.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/contributing/guides/workflow-v1-demo.md
+    - docs/plans/workflows-design-v1/implementation.md
+    - docs/plans/workflows-design-v1/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - examples/workflows/hourly-apartments.yml
+    - examples/workflows/morning-weather-news.yml
+    - examples/workflows/weekly-ai-events.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflow-chat-delivery.test.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowExamples.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, app:home, app:news, app:weather, embed:home:search, embed:weather:forecast,
+      platform:workflows, skill:home:search, skill:weather:forecast'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: update workflow toolbar colors while scrolling'
+    section: bug_fixes
+    commits:
+    - 89cf55154
+    authored_at: '2026-09-14T17:04:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/actions/headerOverlayControls.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist workflow dates and match compact chat spacing'
+    section: bug_fixes
+    commits:
+    - 15c75200d
+    authored_at: '2026-09-14T17:01:32+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_service.py
+    - backend/tests/test_workflow_key_boundary.py
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align responsive workflows and stop hidden rendering'
+    section: bug_fixes
+    commits:
+    - da9e0352e
+    authored_at: '2026-09-14T16:46:56+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/tests/test_workflow_builder_v1.py
+    - backend/tests/test_workflow_capability_metadata.py
+    - backend/tests/test_workflow_delivery_history.py
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowRunTimeline.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceContinueCard.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/welcome.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: simplify workflow inputs and release embed resources'
+    section: bug_fixes
+    commits:
+    - 754fd4fbd
+    authored_at: '2026-09-14T16:21:04+00:00'
+    changed_paths:
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/shared/providers/bright_sky/bright_sky.py
+    - backend/shared/providers/open_meteo/open_meteo.py
+    - backend/tests/test_weather_forecast_skill.py
+    - backend/tests/test_workflow_demo_inputs.py
+    - examples/workflows/morning-weather-news.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-definition-history.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MapsView.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDateRangeField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowLocationField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowExamples.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:weather, app:workflows, embed:weather:forecast, platform:workflows, skill:weather:forecast'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bill workflow runs and tests through normal skill usage'
+    section: bug_fixes
+    commits:
+    - 0a8bc4fbd
+    authored_at: '2026-09-14T15:51:15+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/api/app/services/usage_overview_service.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/tests/test_usage_entries.py
+    - backend/tests/test_usage_overview_rollups.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflow_runtime_python_transactions.py
+    - backend/tests/test_workflow_step_test.py
+    - docs/plans/workflows-design-v1/implementation.md
+    - docs/plans/workflows-design-v1/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflow-billing-usage.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: match workflow controls and motion to the approved design'
+    section: bug_fixes
+    commits:
+    - d77ef0a5a
+    authored_at: '2026-09-14T15:18:53+00:00'
+    changed_paths:
+    - docs/plans/workflows-design-v1/implementation.md
+    - docs/plans/workflows-design-v1/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowValueView.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: open workflow sharing from run history'
+    section: bug_fixes
+    commits:
+    - 41a822c29
+    authored_at: '2026-09-14T14:54:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align workflow UI with approved Figma designs'
+    section: bug_fixes
+    commits:
+    - 07de6b438
+    authored_at: '2026-09-14T14:44:40+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/workflows.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/plans/workflows-design-v1/implementation.md
+    - docs/plans/workflows-design-v1/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/actions/headerOverlayControls.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowValueView.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowMessageTokens.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowValuePresentation.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowMessageTokens.ts
+    - frontend/packages/ui/src/components/workflows/workflowValuePresentation.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceContinueCard.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceReportIssueButton.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/static/icons/workflow-check.svg
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore workflow inspiration and readable skill labels'
+    section: bug_fixes
+    commits:
+    - a996c1d36
+    authored_at: '2026-09-14T13:54:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make workflow node editing and demo validation reliable'
+    section: bug_fixes
+    commits:
+    - b350350c0
+    authored_at: '2026-09-14T13:48:14+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/tests/test_workflow_demo_inputs.py
+    - backend/tests/test_workflow_yaml_news_readiness.py
+    - backend/tests/test_workflow_yaml_typed_readiness.py
+    - examples/workflows/weekly-ai-events.yml
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowExamples.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete workflow delivery and real search results'
+    section: bug_fixes
+    commits:
+    - 317585ecf
+    authored_at: '2026-09-14T13:22:57+00:00'
+    changed_paths:
+    - backend/apps/events/providers/google_events.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/home/providers/kleinanzeigen.py
+    - backend/core/api/app/services/workflow_chat_delivery_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/tests/test_events_provider_routing.py
+    - backend/tests/test_home_workflow_search.py
+    - backend/tests/test_workflow_delivery_cache.py
+    - docs/contributing/guides/workflow-v1-demo.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, app:home, embed:events:search, platform:workflows, skill:events:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow manual workflow runs before scheduling'
+    section: bug_fixes
+    commits:
+    - f298ab3f0
+    authored_at: '2026-09-14T13:06:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: update workflow toolbar colors while scrolling'
+    commits:
+    - 89cf55154
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: persist workflow dates and match compact chat spacing'
+    commits:
+    - 15c75200d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: align responsive workflows and stop hidden rendering'
+    commits:
+    - da9e0352e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: simplify workflow inputs and release embed resources'
+    commits:
+    - 754fd4fbd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+  - title: 'fix: bill workflow runs and tests through normal skill usage'
+    commits:
+    - 0a8bc4fbd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: match workflow controls and motion to the approved design'
+    commits:
+    - d77ef0a5a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: open workflow sharing from run history'
+    commits:
+    - 41a822c29
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: align workflow UI with approved Figma designs'
+    commits:
+    - 07de6b438
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: restore workflow inspiration and readable skill labels'
+    commits:
+    - a996c1d36
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: make workflow node editing and demo validation reliable'
+    commits:
+    - b350350c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: complete workflow delivery and real search results'
+    commits:
+    - 317585ecf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix: allow manual workflow runs before scheduling'
+    commits:
+    - f298ab3f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: implement workflow v1 builder and encrypted result delivery'
+    commits:
+    - 249bc8ea7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: align responsive workflows and stop hidden rendering'
+    commits:
+    - da9e0352e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: simplify workflow inputs and release embed resources'
+    commits:
+    - 754fd4fbd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+  - title: 'fix: bill workflow runs and tests through normal skill usage'
+    commits:
+    - 0a8bc4fbd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: implement workflow v1 builder and encrypted result delivery'
+    commits:
+    - 249bc8ea7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: persist workflow dates and match compact chat spacing'
+    commits:
+    - 15c75200d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align responsive workflows and stop hidden rendering'
+    commits:
+    - da9e0352e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: simplify workflow inputs and release embed resources'
+    commits:
+    - 754fd4fbd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    newsletter_ready: false
+  - title: 'fix: bill workflow runs and tests through normal skill usage'
+    commits:
+    - 0a8bc4fbd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: match workflow controls and motion to the approved design'
+    commits:
+    - d77ef0a5a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: open workflow sharing from run history'
+    commits:
+    - 41a822c29
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align workflow UI with approved Figma designs'
+    commits:
+    - 07de6b438
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore workflow inspiration and readable skill labels'
+    commits:
+    - a996c1d36
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: make workflow node editing and demo validation reliable'
+    commits:
+    - b350350c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: complete workflow delivery and real search results'
+    commits:
+    - 317585ecf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: allow manual workflow runs before scheduling'
+    commits:
+    - f298ab3f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: implement workflow v1 builder and encrypted result delivery'
+    commits:
+    - 249bc8ea7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 89cf55154e50fc6766d6a4045c4db49697678b11
+    short_sha: 89cf55154
+    authored_at: '2026-09-14T17:04:19+00:00'
+    subject: 'fix: update workflow toolbar colors while scrolling'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/actions/headerOverlayControls.ts
+    related_feature_ids: []
+  - sha: 15c75200d62525406c4a42ddb5ba33f2b46ad4e6
+    short_sha: 15c75200d
+    authored_at: '2026-09-14T17:01:32+00:00'
+    subject: 'fix: persist workflow dates and match compact chat spacing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_service.py
+    - backend/tests/test_workflow_key_boundary.py
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: da9e0352ecb8ab2afa305bd10c2620461a8514b9
+    short_sha: da9e0352e
+    authored_at: '2026-09-14T16:46:56+00:00'
+    subject: 'fix: align responsive workflows and stop hidden rendering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/tests/test_workflow_builder_v1.py
+    - backend/tests/test_workflow_capability_metadata.py
+    - backend/tests/test_workflow_delivery_history.py
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowRunTimeline.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceContinueCard.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/welcome.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 754fd4fbdc82c62d4d5fb909b660b870e949df01
+    short_sha: 754fd4fbd
+    authored_at: '2026-09-14T16:21:04+00:00'
+    subject: 'fix: simplify workflow inputs and release embed resources'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/shared/providers/bright_sky/bright_sky.py
+    - backend/shared/providers/open_meteo/open_meteo.py
+    - backend/tests/test_weather_forecast_skill.py
+    - backend/tests/test_workflow_demo_inputs.py
+    - examples/workflows/morning-weather-news.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-definition-history.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MapsView.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDateRangeField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowLocationField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowExamples.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:weather
+    - app:workflows
+    - embed:weather:forecast
+    - platform:workflows
+    - skill:weather:forecast
+  - sha: 0a8bc4fbd3535867ebc673695d821e5df6a73574
+    short_sha: 0a8bc4fbd
+    authored_at: '2026-09-14T15:51:15+00:00'
+    subject: 'fix: bill workflow runs and tests through normal skill usage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/api/app/services/usage_overview_service.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/tests/test_usage_entries.py
+    - backend/tests/test_usage_overview_rollups.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflow_runtime_python_transactions.py
+    - backend/tests/test_workflow_step_test.py
+    - docs/plans/workflows-design-v1/implementation.md
+    - docs/plans/workflows-design-v1/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflow-billing-usage.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:events
+    - platform:workflows
+  - sha: d77ef0a5a0bf4c5b6be29778d7d1dd3f1d5fd70d
+    short_sha: d77ef0a5a
+    authored_at: '2026-09-14T15:18:53+00:00'
+    subject: 'fix: match workflow controls and motion to the approved design'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/workflows-design-v1/implementation.md
+    - docs/plans/workflows-design-v1/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowValueView.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 41a822c294aece5af5918b5d1962998d63236ebe
+    short_sha: 41a822c29
+    authored_at: '2026-09-14T14:54:28+00:00'
+    subject: 'fix: open workflow sharing from run history'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    related_feature_ids:
+    - platform:workflows
+  - sha: 07de6b438ac849785bb8842b378ce98436cb42d9
+    short_sha: 07de6b438
+    authored_at: '2026-09-14T14:44:40+00:00'
+    subject: 'fix: align workflow UI with approved Figma designs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/workflows.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/plans/workflows-design-v1/implementation.md
+    - docs/plans/workflows-design-v1/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/actions/headerOverlayControls.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowValueView.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowMessageTokens.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowValuePresentation.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowMessageTokens.ts
+    - frontend/packages/ui/src/components/workflows/workflowValuePresentation.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceContinueCard.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceReportIssueButton.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/static/icons/workflow-check.svg
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: a996c1d36a771b2f1ff470bce3004e72d205f446
+    short_sha: a996c1d36
+    authored_at: '2026-09-14T13:54:27+00:00'
+    subject: 'fix: restore workflow inspiration and readable skill labels'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    related_feature_ids: []
+  - sha: b350350c0bd7c7ff22a1a1af8cff888bb73582d0
+    short_sha: b350350c0
+    authored_at: '2026-09-14T13:48:14+00:00'
+    subject: 'fix: make workflow node editing and demo validation reliable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/tests/test_workflow_demo_inputs.py
+    - backend/tests/test_workflow_yaml_news_readiness.py
+    - backend/tests/test_workflow_yaml_typed_readiness.py
+    - examples/workflows/weekly-ai-events.yml
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowExamples.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 317585ecfe5128e9cee750d3e0be58e0470b3ca2
+    short_sha: 317585ecf
+    authored_at: '2026-09-14T13:22:57+00:00'
+    subject: 'fix: complete workflow delivery and real search results'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/providers/google_events.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/home/providers/kleinanzeigen.py
+    - backend/core/api/app/services/workflow_chat_delivery_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/tests/test_events_provider_routing.py
+    - backend/tests/test_home_workflow_search.py
+    - backend/tests/test_workflow_delivery_cache.py
+    - docs/contributing/guides/workflow-v1-demo.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:events
+    - app:home
+    - embed:events:search
+    - platform:workflows
+    - skill:events:search
+  - sha: f298ab3f06cf984809d3aeb0ea15dc4f45ba367f
+    short_sha: f298ab3f0
+    authored_at: '2026-09-14T13:06:55+00:00'
+    subject: 'fix: allow manual workflow runs before scheduling'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 249bc8ea77a65541beeae54a0e32835ed9bf1419
+    short_sha: 249bc8ea7
+    authored_at: '2026-09-14T13:00:30+00:00'
+    subject: 'feat: implement workflow v1 builder and encrypted result delivery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/home/providers/immoscout24.py
+    - backend/apps/home/providers/kleinanzeigen.py
+    - backend/apps/home/providers/results.py
+    - backend/apps/home/providers/wg_gesucht.py
+    - backend/apps/home/skills/search_skill.py
+    - backend/apps/news/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - backend/core/api/app/services/workflow_chat_delivery_service.py
+    - backend/core/api/app/services/workflow_delivery_history.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_runtime_values.py
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/services/workflow_trigger_projection.py
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/delivery_history.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/delivery-history.test.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/history-fake.js
+    - backend/core/directus/schemas/workflow_chat_deliveries.yml
+    - backend/core/directus/schemas/workflow_delivery_history.yml
+    - backend/core/directus/schemas/workflows.yml
+    - backend/core/directus/setup/migrate_workflow_runtime_indexes.sql
+    - backend/tests/test_home_workflow_search.py
+    - backend/tests/test_workflow_builder_v1.py
+    - backend/tests/test_workflow_delivery_history.py
+    - backend/tests/test_workflow_delivery_sync_projection.py
+    - backend/tests/test_workflow_demo_inputs.py
+    - backend/tests/test_workflow_next_run_projection.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflow_scheduler_contract.py
+    - backend/tests/test_workflows_models.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/contributing/guides/workflow-v1-demo.md
+    - docs/plans/workflows-design-v1/implementation.md
+    - docs/plans/workflows-design-v1/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - examples/workflows/hourly-apartments.yml
+    - examples/workflows/morning-weather-news.yml
+    - examples/workflows/weekly-ai-events.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflow-chat-delivery.test.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowExamples.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:events
+    - app:home
+    - app:news
+    - app:weather
+    - embed:home:search
+    - embed:weather:forecast
+    - platform:workflows
+    - skill:home:search
+    - skill:weather:forecast
+llm_summary:
+  overview: OpenMates focused heavily on the development of the Workflows v1 system, introducing the builder interface, encrypted
+    result delivery, and comprehensive UI refinements to match design specifications.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: The Workflow v1 builder was implemented, featuring encrypted delivery of results and a new graph-based editor.
+    evidence:
+      commits:
+      - 249bc8ea7
+    release_status: dev_only
+  - text: Significant UI updates aligned the workflow interface with approved designs, including improvements to toolbar behavior,
+      responsive layouts, and motion.
+    evidence:
+      commits:
+      - 89cf55154
+      - da9e0352e
+      - d77ef0a5a
+      - 07de6b438
+      - a996c1d36
+    release_status: dev_only
+  - text: Workflow functionality was expanded to support manual runs before scheduling, sharing from run history, and simplified
+      input fields.
+    evidence:
+      commits:
+      - f298ab3f0
+      - 41a822c29
+      - 754fd4fbd
+    release_status: dev_only
+  - text: Backend reliability for workflows was improved through better node validation, persistent date handling, and refined
+      search result delivery.
+    evidence:
+      commits:
+      - b350350c0
+      - 317585ecf
+      - 15c75200d
+    release_status: dev_only
+  internal_progress:
+  - text: Workflow runs and tests are now integrated into the standard billing and usage tracking services.
+    evidence:
+      commits:
+      - 0a8bc4fbd
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Workflows v1 Builder and UI updates
+      evidence:
+        commits:
+        - 249bc8ea7
+        - 07de6b438
+        - da9e0352e
+        - f298ab3f0
+      reason: Workflows is currently a disabled feature and not yet ready for public communication.
+    rationale: No items from this period are released to the main branch or marked as ready for public communication.
+  social_video_recommendations:
+  - idea: A walkthrough of the new Workflow v1 builder, demonstrating how to create automated tasks with encrypted delivery.
+    priority: medium
+    reason: The workflow builder is a major new feature with a strong visual component, though it remains unreleased.
+    evidence:
+      commits:
+      - 249bc8ea7
+      - 07de6b438
+  quality_notes:
+  - The workflow UI underwent extensive refinement to ensure alignment with Figma design specifications and improved responsiveness.
+  - Backend systems were updated to ensure workflow usage is correctly billed and tracked.
+  validation_warnings: []
