@@ -2,12 +2,13 @@
 #
 # Deterministic external result sanitization helpers for app skills.
 # Applies prompt-injection scanning to long text fields from external APIs.
-# Fails closed if sanitization fails or content is blocked, so issues are visible.
+# One semantic call; scanner failures return ASCII-cleaned content and are logged.
 
 from __future__ import annotations
 
 import asyncio
 import copy
+import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -16,10 +17,12 @@ from backend.core.api.app.utils.text_sanitization import (
     PAYLOAD_SANITIZER_SKIP_FIELD_NAMES,
     _should_skip_payload_text_field,
     sanitize_text_for_ascii_smuggling,
+    sanitize_text_payload_for_ascii_smuggling,
 )
 from backend.shared.python_utils.structured_content_sanitization import (
     MAX_UNIT_CHARS,
     StructuredScanError,
+    TextDecision,
     classify_text_units,
     serialized_units_size,
 )
@@ -28,6 +31,7 @@ from backend.shared.python_utils.structured_content_sanitization import (
 SEMANTIC_SCAN_BATCH_TARGET_CHARS = 50_000
 BOUNDARY_CONTEXT_CHARS = 256
 PROMPT_INJECTION_PLACEHOLDER = "[PROMPT INJECTION DETECTED & REMOVED]"
+logger = logging.getLogger(__name__)
 
 SKIP_FIELD_NAMES = {
     "url",
@@ -254,18 +258,23 @@ def _split_text_units(path: str, text: str, first_unit_number: int) -> List[Dict
     } for index, chunk in enumerate(chunks)]
 
 
-def _batch_candidates(candidates: List[Dict[str, str]]) -> List[List[Dict[str, str]]]:
-    batches: List[List[Dict[str, str]]] = []
-    current: List[Dict[str, str]] = []
-    for candidate in candidates:
-        if current and serialized_units_size([*current, candidate]) > SEMANTIC_SCAN_BATCH_TARGET_CHARS:
-            batches.append(current)
-            current = []
-        current.append(candidate)
-
-    if current:
-        batches.append(current)
-    return batches
+def _redact_spans(text: str, decision: TextDecision) -> str:
+    """Replace verified source spans, merging overlaps without touching other text."""
+    if decision.verdict != "injection":
+        return text
+    merged: list[tuple[int, int]] = []
+    for start, end in sorted(decision.spans):
+        if not (0 <= start < end <= len(text)):
+            raise StructuredScanError("OUTPUT_SAFETY_INVALID")
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+        else:
+            merged.append((start, end))
+    if not merged:
+        raise StructuredScanError("OUTPUT_SAFETY_INVALID")
+    for start, end in reversed(merged):
+        text = text[:start] + PROMPT_INJECTION_PLACEHOLDER + text[end:]
+    return text
 
 
 async def sanitize_long_text_fields_in_payload(
@@ -279,14 +288,17 @@ async def sanitize_long_text_fields_in_payload(
     skip_field_names: Optional[set[str]] = None,
     app_id: Optional[str] = None,
     skill_id: Optional[str] = None,
+    timeout_seconds: float = 20.0,
 ) -> Any:
     """
     Sanitize long external text fields in a nested payload.
 
-    Selected fields share bounded structured scans. Complete decisions are
-    validated before applying whole-unit replacements to a copy of the payload;
-    any failed batch cancels unfinished work and leaves the input unchanged.
+    Selected fields share one bounded model call. Exact evidence is validated
+    before editing a copy. Uncertainty and technical failure preserve cleaned
+    text; external task cancellation still propagates. max_parallel is retained
+    for existing callers but never creates additional model calls.
     """
+    payload, _ = sanitize_text_payload_for_ascii_smuggling(payload)
     candidates: List[Tuple[str, str]] = []
     normalized_skip = {field.lower() for field in skip_field_names or set()}
     if always_sanitize_field_names:
@@ -325,52 +337,36 @@ async def sanitize_long_text_fields_in_payload(
         for path, cleaned in cleaned_by_path.items():
             _set_path_value(sanitized, path, cleaned)
         return sanitized
-    semaphore = asyncio.Semaphore(min(max_parallel, 4))
-
-    async def _classify(batch: List[Dict[str, str]], index: int) -> Dict[str, str]:
-        async with semaphore:
-            return await classify_text_units(
-                batch, task_id=f"{task_id}_batch_{index}", secrets_manager=secrets_manager, cache_service=cache_service
-            )
-
-    batch_tasks = [asyncio.create_task(_classify(batch, index)) for index, batch in enumerate(_batch_candidates(units))]
     try:
-        classified_batches = await asyncio.gather(*batch_tasks)
-    except BaseException:
-        for batch_task in batch_tasks:
-            batch_task.cancel()
-        await asyncio.gather(*batch_tasks, return_exceptions=True)
-        raise
-    decisions_by_id: Dict[str, str] = {}
-    for decisions in classified_batches:
-        decisions_by_id.update(decisions)
-    expected_ids = {unit["id"] for unit in units}
-    if set(decisions_by_id) != expected_ids or any(
-        decision not in {"safe", "injection"} for decision in decisions_by_id.values()
-    ):
-        raise StructuredScanError("OUTPUT_SAFETY_INVALID")
-
-    # Build every replacement before touching the original payload, so errors remain atomic.
-    replacements: Dict[str, str] = dict(cleaned_by_path)
-    unsafe_paths: set[str] = set()
-    for path, _ in candidates:
-        field_units = [unit for unit in units if unit["path"] == path]
-        has_injection = any(decisions_by_id[unit["id"]] == "injection" for unit in field_units)
-        if app_id == "web" and skill_id == "search" and has_injection:
-            replacements[path] = PROMPT_INJECTION_PLACEHOLDER
-        else:
+        if serialized_units_size(units) > SEMANTIC_SCAN_BATCH_TARGET_CHARS:
+            raise StructuredScanError("OUTPUT_SAFETY_TOO_LARGE")
+        decisions_by_id = await asyncio.wait_for(
+            classify_text_units(units, task_id=task_id, secrets_manager=secrets_manager, cache_service=cache_service),
+            timeout=timeout_seconds,
+        )
+        if set(decisions_by_id) != {unit["id"] for unit in units} or any(
+            not isinstance(d, TextDecision) or d.verdict not in {"safe", "injection", "uncertain"}
+            for d in decisions_by_id.values()
+        ):
+            raise StructuredScanError("OUTPUT_SAFETY_INVALID")
+        replacements: Dict[str, str] = dict(cleaned_by_path)
+        for path, _ in candidates:
+            field_units = [unit for unit in units if unit["path"] == path]
             replacements[path] = "".join(
-                PROMPT_INJECTION_PLACEHOLDER if decisions_by_id[unit["id"]] == "injection" else unit["text"]
+                _redact_spans(unit["text"], decisions_by_id[unit["id"]])
                 for unit in field_units
             )
-        if has_injection:
-            unsafe_paths.add(path)
-    sanitized = copy.deepcopy(payload)
-    for path, value in replacements.items():
-        _set_path_value(sanitized, path, value)
-    if app_id == "web" and skill_id == "search":
-        _omit_unsafe_search_results(sanitized, unsafe_paths)
-    return sanitized
+        sanitized = copy.deepcopy(payload)
+        for path, value in replacements.items():
+            _set_path_value(sanitized, path, value)
+        return sanitized
+    except Exception as exc:
+        # Never include provider exception text or untrusted source content in logs.
+        reason = "OUTPUT_SAFETY_TIMEOUT" if isinstance(exc, TimeoutError) else (
+            str(exc) if isinstance(exc, StructuredScanError) else "OUTPUT_SAFETY_UNAVAILABLE"
+        )
+        logger.warning("[%s] Semantic scan status=unscanned reason=%s; returning ASCII-cleaned content", task_id, reason)
+        return payload
 
 
 def _omit_unsafe_search_results(payload: Any, unsafe_paths: set[str]) -> None:

@@ -54,6 +54,25 @@ class FakeRegistry:
         return SimpleNamespace(id=app_id, skills=self.skills)
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.output.ascii-always,app-skills.surface.semantic-parity
+@pytest.mark.anyio
+async def test_raw_rest_opt_out_survives_typed_request_validation():
+    import json
+    from starlette.requests import Request
+    from pydantic import BaseModel
+
+    class TypedInput(BaseModel):
+        url: str
+
+    raw = {"url": "https://example.com", "security": {"prompt_injection_protection": "disabled"}}
+    async def receive():
+        return {"type": "http.request", "body": json.dumps(raw).encode(), "more_body": False}
+    request = Request({"type": "http", "method": "POST", "path": "/"}, receive)
+    validated = TypedInput.model_validate(raw).model_dump()
+    assert "security" not in validated
+    assert await apps_api._preserve_direct_app_skill_safety_control(request, validated) == raw
+
+
 @pytest.mark.anyio
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_call_app_skill_passes_user_vault_key_context(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -219,15 +219,14 @@ async def test_non_external_output_skips_semantic_scan_and_preserves_binary_fiel
 
 @pytest.mark.anyio
 # contract-test: supporting surface=rest_api assertions=app-skills.output.external-semantic,app-skills.output.bounded-failure
-async def test_external_semantic_scan_failure_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_external_semantic_scan_failure_returns_ascii_cleaned_content(monkeypatch: pytest.MonkeyPatch, caplog) -> None:
     async def fake_semantic_sanitizer(**_kwargs: Any) -> Any:
         raise RuntimeError("safeguard unavailable")
 
     monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", fake_semantic_sanitizer)
 
-    with pytest.raises(RuntimeError, match="OUTPUT_SAFETY_UNAVAILABLE"):
-        await sanitize_app_skill_output(
-            {"results": [{"description": "External visible text"}]},
+    result = await sanitize_app_skill_output(
+            {"results": [{"description": "External visible text\u200b"}]},
             AppSkillOutputSafetyContext(
                 app_id="web",
                 skill_id="search",
@@ -236,6 +235,8 @@ async def test_external_semantic_scan_failure_fails_closed(monkeypatch: pytest.M
                 request_body={},
             ),
         )
+    assert result == {"results": [{"description": "External visible text"}]}
+    assert "status=unscanned reason=OUTPUT_SAFETY_UNAVAILABLE" in caplog.text
 
 
 @pytest.mark.anyio
@@ -247,8 +248,7 @@ async def test_whole_semantic_scan_has_a_finite_timeout(monkeypatch: pytest.Monk
     monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", slow_semantic_sanitizer)
     monkeypatch.setattr(app_skill_output_safety, "WEB_SEARCH_SEMANTIC_SCAN_TIMEOUT_SECONDS", 0.001)
 
-    with pytest.raises(RuntimeError, match="OUTPUT_SAFETY_TIMEOUT"):
-        await sanitize_app_skill_output(
+    result = await sanitize_app_skill_output(
             {"results": [{"description": "External visible text"}]},
             AppSkillOutputSafetyContext(
                 app_id="web",
@@ -258,6 +258,7 @@ async def test_whole_semantic_scan_has_a_finite_timeout(monkeypatch: pytest.Monk
                 request_body={},
             ),
         )
+    assert result == {"results": [{"description": "External visible text"}]}
 
 
 @pytest.mark.anyio
@@ -315,11 +316,11 @@ async def test_provider_error_logs_do_not_include_external_content(monkeypatch, 
         raise RuntimeError(private_provider_text)
 
     monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", failed)
-    with pytest.raises(RuntimeError, match="^OUTPUT_SAFETY_UNAVAILABLE$"):
-        await sanitize_app_skill_output(
+    result = await sanitize_app_skill_output(
             {"description": "public text"},
             AppSkillOutputSafetyContext("web", "search", APP_SKILL_SURFACE_REST, {}, True),
         )
+    assert result == {"description": "public text"}
     assert private_provider_text not in caplog.text
 
 
@@ -336,9 +337,9 @@ async def test_scan_deadline_cancels_inflight_work(monkeypatch):
 
     monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", pending)
     monkeypatch.setattr(app_skill_output_safety, "WEB_SEARCH_SEMANTIC_SCAN_TIMEOUT_SECONDS", 0.001)
-    with pytest.raises(RuntimeError, match="^OUTPUT_SAFETY_TIMEOUT$"):
-        await sanitize_app_skill_output(
+    result = await sanitize_app_skill_output(
             {"description": "public text"},
             AppSkillOutputSafetyContext("web", "search", APP_SKILL_SURFACE_REST, {}, True),
         )
+    assert result == {"description": "public text"}
     assert cancelled.is_set()
