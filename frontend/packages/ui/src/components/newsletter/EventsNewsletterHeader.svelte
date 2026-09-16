@@ -30,22 +30,37 @@
     },
   };
 
-  let { language = 'en', variant = 'desktop' }: { language?: HeaderLanguage | string; variant?: HeaderVariant | string } = $props();
+  let {
+    language = 'en',
+    variant = 'desktop',
+    title,
+    eyebrow,
+    ariaLabel,
+  }: {
+    language?: HeaderLanguage | string;
+    variant?: HeaderVariant | string;
+    title?: string;
+    eyebrow?: string;
+    ariaLabel?: string;
+  } = $props();
 
   let normalizedLanguage = $derived(language === 'de' ? 'de' : 'en');
   let normalizedVariant = $derived(variant === 'mobile' ? 'mobile' : 'desktop');
-  let labels = $derived(copy[normalizedLanguage]);
+  let defaultLabels = $derived(copy[normalizedLanguage]);
+  let displayedTitle = $derived(title?.trim() || defaultLabels.title);
+  let displayedEyebrow = $derived(eyebrow?.trim() || defaultLabels.eyebrow);
+  let displayedAriaLabel = $derived(ariaLabel?.trim() || defaultLabels.ariaLabel);
 </script>
 
-<section class="events-newsletter-header" class:mobile={normalizedVariant === 'mobile'} aria-label={labels.ariaLabel} data-testid="events-newsletter-header">
+<section class="events-newsletter-header" class:mobile={normalizedVariant === 'mobile'} aria-label={displayedAriaLabel} data-testid="events-newsletter-header">
   <div class="eyebrow-row">
     <div class="app-icon" aria-hidden="true">
       <img src="/favicon.svg" alt="" />
     </div>
-    <div class="eyebrow">{labels.eyebrow}</div>
+    <div class="eyebrow">{displayedEyebrow}</div>
   </div>
 
-  <h1>{labels.title}</h1>
+  <h1>{displayedTitle}</h1>
 
   <span class="event-mask decorative decorative-left" aria-hidden="true"></span>
   <span class="event-mask decorative decorative-right" aria-hidden="true"></span>
@@ -143,10 +158,10 @@
   }
 
   .mobile h1 {
-    top: 94px;
+    top: 88px;
     left: 167px;
     width: 485px;
-    font-size: calc(var(--font-size-h1, 3.75rem) * 2 / 3);
+    font-size: 2rem;
   }
 
   .mobile .decorative-left {

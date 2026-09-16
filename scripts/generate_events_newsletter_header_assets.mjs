@@ -29,6 +29,8 @@ const CANVASES = {
 };
 const DEFAULT_LANGUAGES = ['en', 'de'];
 const DEFAULT_VARIANTS = ['desktop', 'mobile'];
+const DEFAULT_FILENAME_PREFIX = 'events-newsletter-header';
+const SAFE_FILENAME_PREFIX = /^[a-z0-9][a-z0-9-]*$/;
 
 const TEMP_DEPENDENCIES = [
   '@fontsource-variable/lexend-deca@5.2.9',
@@ -41,7 +43,9 @@ const TEMP_DEPENDENCIES = [
 function parseArgs(argv) {
   const languages = [];
   const variants = [];
+  const titles = {};
   let outDir = OUTPUT_DIR;
+  let filenamePrefix = DEFAULT_FILENAME_PREFIX;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--lang') {
@@ -63,8 +67,24 @@ function parseArgs(argv) {
       }
       variants.push(value);
       index += 1;
+    } else if (arg === '--title-en' || arg === '--title-de') {
+      const value = argv[index + 1];
+      if (!value?.trim()) throw new Error(`${arg} requires non-empty text`);
+      titles[arg.endsWith('-de') ? 'de' : 'en'] = value.replaceAll('\\n', '\n');
+      index += 1;
+    } else if (arg === '--filename-prefix') {
+      const value = argv[index + 1];
+      if (!value || !SAFE_FILENAME_PREFIX.test(value)) {
+        throw new Error('--filename-prefix must be lowercase kebab-case');
+      }
+      filenamePrefix = value;
+      index += 1;
     } else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/generate_events_newsletter_header_assets.mjs [--lang en|de] [--variant desktop|mobile] [--out-dir <path>]');
+      console.log(
+        'Usage: node scripts/generate_events_newsletter_header_assets.mjs ' +
+          '[--lang en|de] [--variant desktop|mobile] [--title-en <text>] ' +
+          '[--title-de <text>] [--filename-prefix <kebab-case>] [--out-dir <path>]',
+      );
       process.exit(0);
     } else {
       throw new Error(`Unknown argument: ${arg}`);
@@ -73,6 +93,8 @@ function parseArgs(argv) {
   return {
     languages: languages.length ? languages : DEFAULT_LANGUAGES,
     variants: variants.length ? variants : DEFAULT_VARIANTS,
+    titles,
+    filenamePrefix,
     outDir,
   };
 }
@@ -152,7 +174,7 @@ function writeTemporaryApp() {
   const componentImport = `/@fs/${COMPONENT_PATH.replace(/\\/g, '/')}`;
   writeFileSync(
     path.join(srcDir, 'main.ts'),
-    `import '@fontsource-variable/lexend-deca/index.css';\nimport { mount } from 'svelte';\nimport EventsNewsletterHeader from '${componentImport}';\nimport './page.css';\n\nconst params = new URLSearchParams(window.location.search);\nconst language = params.get('lang') === 'de' ? 'de' : 'en';\nconst variant = params.get('variant') === 'mobile' ? 'mobile' : 'desktop';\nconst target = document.getElementById('app');\nif (!target) throw new Error('Missing #app target');\nmount(EventsNewsletterHeader, { target, props: { language, variant } });\n`,
+    `import '@fontsource-variable/lexend-deca/index.css';\nimport { mount } from 'svelte';\nimport EventsNewsletterHeader from '${componentImport}';\nimport './page.css';\n\nconst params = new URLSearchParams(window.location.search);\nconst language = params.get('lang') === 'de' ? 'de' : 'en';\nconst variant = params.get('variant') === 'mobile' ? 'mobile' : 'desktop';\nconst title = params.get('title') || undefined;\nconst target = document.getElementById('app');\nif (!target) throw new Error('Missing #app target');\nmount(EventsNewsletterHeader, { target, props: { language, variant, title } });\n`,
   );
   writeFileSync(
     path.join(srcDir, 'page.css'),
@@ -161,7 +183,7 @@ function writeTemporaryApp() {
 }
 
 async function main() {
-  const { languages, variants, outDir } = parseArgs(process.argv.slice(2));
+  const { languages, variants, titles, filenamePrefix, outDir } = parseArgs(process.argv.slice(2));
   if (!existsSync(COMPONENT_PATH)) throw new Error(`Missing Svelte component: ${COMPONENT_PATH}`);
   const depsRoot = ensureTempDependencies();
   const [{ createServer }, { svelte }, { chromium }] = await Promise.all([
@@ -202,10 +224,35 @@ async function main() {
       for (const variant of variants) {
         const canvas = CANVASES[variant];
         await page.setViewportSize({ width: canvas.width, height: canvas.height });
-        const outputPath = path.join(outDir, `events-newsletter-header${canvas.filenameSuffix}_${language}.png`);
-        await page.goto(`http://127.0.0.1:${port}/?lang=${language}&variant=${variant}`, { waitUntil: 'networkidle' });
+        const outputPath = path.join(outDir, `${filenamePrefix}${canvas.filenameSuffix}_${language}.png`);
+        const params = new URLSearchParams({ lang: language, variant });
+        if (titles[language]) params.set('title', titles[language]);
+        await page.goto(`http://127.0.0.1:${port}/?${params.toString()}`, { waitUntil: 'networkidle' });
         const header = page.locator('[data-testid="events-newsletter-header"]');
         await header.waitFor({ state: 'visible', timeout: 15_000 });
+        await page.evaluate(() => document.fonts.ready);
+        const titleFit = await header.locator('h1').evaluate((titleElement, minimumFontSize) => {
+          const container = titleElement.parentElement;
+          if (!container) return { fits: false, fontSize: 0 };
+
+          const fitsInsideHeader = () => {
+            const titleBounds = titleElement.getBoundingClientRect();
+            const headerBounds = container.getBoundingClientRect();
+            return titleBounds.right <= headerBounds.right && titleBounds.bottom <= headerBounds.bottom - 8;
+          };
+
+          let fontSize = Number.parseFloat(getComputedStyle(titleElement).fontSize);
+          while (!fitsInsideHeader() && fontSize > minimumFontSize) {
+            fontSize -= 1;
+            titleElement.style.fontSize = `${fontSize}px`;
+          }
+          return { fits: fitsInsideHeader(), fontSize };
+        }, variant === 'mobile' ? 24 : 30);
+        if (!titleFit.fits) {
+          throw new Error(
+            `Title does not fit the ${variant} header for ${language}, even at ${titleFit.fontSize}px`,
+          );
+        }
         const box = await header.boundingBox();
         if (!box || Math.round(box.width) !== canvas.width || Math.round(box.height) !== canvas.height) {
           throw new Error(`Unexpected header bounds for ${language}/${variant}: ${JSON.stringify(box)}`);
