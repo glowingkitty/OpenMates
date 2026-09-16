@@ -465,6 +465,26 @@ def _local_header_image_alt(manifest: Dict[str, Any], lang: str) -> str:
     return "OpenMates events newsletter header"
 
 
+def _local_hero_image_data_uri(hero: Dict[str, Any]) -> Optional[str]:
+    """Embed a repo-local campaign hero image as a data URI."""
+    raw_path = str(hero.get("path") or "").strip()
+    if not raw_path:
+        return None
+    relative_path = Path(raw_path)
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        raise ValueError(f"Newsletter hero image path must be repo-relative: {raw_path}")
+    path = REPO_ROOT / relative_path
+    if path.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
+        raise ValueError(f"Newsletter hero image must be PNG or JPEG: {raw_path}")
+    if not path.exists():
+        raise FileNotFoundError(f"Newsletter hero image missing: {path}")
+    data = path.read_bytes()
+    if len(data) > HERO_IMAGE_MAX_BYTES:
+        raise ValueError(f"Newsletter hero image too large to embed: {raw_path}")
+    content_type = "image/png" if path.suffix.lower() == ".png" else "image/jpeg"
+    return f"data:{content_type};base64,{base64.b64encode(data).decode('ascii')}"
+
+
 def _markdown_renderer():
     try:
         from markdown_it import MarkdownIt
@@ -778,7 +798,13 @@ def build_context(
     thumb_uri = _intro_thumbnail_data_uri(lang) if video.get("intro_fullscreen") else None
     hero = manifest.get("hero_image") or {}
     header_icon = manifest.get("header_icon") or {}
-    hero_data_uri = _remote_image_data_uri(hero.get("url")) if hero.get("url") else None
+    hero_data_uri = (
+        _local_hero_image_data_uri(hero)
+        if hero.get("path")
+        else _remote_image_data_uri(hero.get("url")) if hero.get("url") else None
+    )
+    header_image_src = _local_header_image_data_uri(manifest, lang)
+    header_mobile_image_src = _local_header_image_data_uri(manifest, lang, "mobile_path")
     hero_link_url = hero.get("link_url") or manifest.get("cta_url")
     subtitle = (manifest.get("subtitle") or {}).get(lang)
     # Alt text cannot contain the brand name — the MJML brand-name processor
@@ -813,6 +839,14 @@ def build_context(
         "newsletter_subtitle": subtitle,
         "newsletter_header_icon_src": _local_header_icon_data_uri(header_icon),
         "newsletter_header_icon_alt": header_icon.get("alt") or "Newsletter icon",
+        "newsletter_header_image_src": header_image_src,
+        "newsletter_header_mobile_image_src": header_mobile_image_src,
+        "newsletter_header_image_alt": _local_header_image_alt(manifest, lang),
+        "newsletter_header_image_width": "600px",
+        "newsletter_header_mobile_image_width": "390px",
+        "newsletter_header_image_padding": "0",
+        "newsletter_content_padding": "0 25px 20px 25px" if header_image_src else None,
+        "hide_email_brand_header": bool(header_image_src),
         "cta_url": None if cta_in_body else manifest.get("cta_url"),
         "cta_text": None if cta_in_body else cta_text,
         "show_social_media": False,
