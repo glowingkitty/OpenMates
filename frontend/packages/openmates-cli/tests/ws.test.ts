@@ -530,6 +530,141 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
+  it("keeps one post-processing timer across duplicate completion frames and resolves on timeout", async () => {
+    const postProcessingWindowMs = 12_000;
+    const originalSetTimeout = globalThis.setTimeout;
+    const originalClearTimeout = globalThis.clearTimeout;
+    const activePostProcessingTimers = new Set<ReturnType<typeof setTimeout>>();
+    let postProcessingTimersCreated = 0;
+
+    globalThis.setTimeout = ((
+      callback: (...args: unknown[]) => void,
+      delay?: number,
+      ...args: unknown[]
+    ) => {
+      const wrappedCallback = (...callbackArgs: unknown[]) => {
+        activePostProcessingTimers.delete(timer);
+        callback(...callbackArgs);
+      };
+      const timer = originalSetTimeout(
+        wrappedCallback,
+        delay === postProcessingWindowMs ? 25 : delay,
+        ...args,
+      );
+      if (delay === postProcessingWindowMs) {
+        postProcessingTimersCreated += 1;
+        activePostProcessingTimers.add(timer);
+      }
+      return timer;
+    }) as typeof globalThis.setTimeout;
+    globalThis.clearTimeout = ((timer: ReturnType<typeof setTimeout>) => {
+      activePostProcessingTimers.delete(timer);
+      originalClearTimeout(timer);
+    }) as typeof globalThis.clearTimeout;
+
+    try {
+      const chatId = "chat-duplicate-completion";
+      const userMessageId = "user-message-duplicate-completion";
+      server.once("connection", (socket) => {
+        originalSetTimeout(() => {
+          socket.send(JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: userMessageId,
+              message_id: "assistant-duplicate-completion",
+              chat_id: chatId,
+              is_final_chunk: true,
+              full_content_so_far: "Final streamed answer.",
+            },
+          }));
+          socket.send(JSON.stringify({
+            type: "chat_message_added",
+            payload: {
+              chat_id: chatId,
+              message: {
+                message_id: "assistant-duplicate-completion",
+                role: "assistant",
+                status: "completed",
+                content: "Final persisted answer.",
+              },
+            },
+          }));
+          socket.send(JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId },
+          }));
+        }, 5);
+      });
+
+      const client = new OpenMatesWsClient({
+        apiUrl,
+        sessionId: "session-duplicate-completion",
+        wsToken: "token",
+        refreshToken: null,
+      });
+      await client.open();
+
+      let resolutionCount = 0;
+      try {
+        const response = await client.collectAiResponse(userMessageId, chatId, {
+          timeoutMs: 1_000,
+        }).then((value) => {
+          resolutionCount += 1;
+          return value;
+        });
+
+        assert.equal(response.content, "Final persisted answer.");
+        assert.equal(postProcessingTimersCreated, 1);
+        assert.equal(activePostProcessingTimers.size, 0);
+        await new Promise((resolve) => originalSetTimeout(resolve, 50));
+        assert.equal(resolutionCount, 1);
+      } finally {
+        client.close();
+      }
+
+      const timeoutChatId = "chat-post-processing-timeout";
+      const timeoutUserMessageId = "user-message-post-processing-timeout";
+      server.once("connection", (socket) => {
+        originalSetTimeout(() => {
+          socket.send(JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: timeoutUserMessageId,
+              message_id: "assistant-post-processing-timeout",
+              chat_id: timeoutChatId,
+              is_final_chunk: true,
+              full_content_so_far: "Answer without metadata.",
+            },
+          }));
+        }, 5);
+      });
+
+      const timeoutClient = new OpenMatesWsClient({
+        apiUrl,
+        sessionId: "session-post-processing-timeout",
+        wsToken: "token",
+        refreshToken: null,
+      });
+      await timeoutClient.open();
+
+      try {
+        const response = await timeoutClient.collectAiResponse(
+          timeoutUserMessageId,
+          timeoutChatId,
+          { timeoutMs: 1_000 },
+        );
+        assert.equal(response.content, "Answer without metadata.");
+        assert.equal(postProcessingTimersCreated, 2);
+        assert.equal(activePostProcessingTimers.size, 0);
+      } finally {
+        timeoutClient.close();
+      }
+    } finally {
+      globalThis.setTimeout = originalSetTimeout;
+      globalThis.clearTimeout = originalClearTimeout;
+    }
+  });
+
   it("buffers reconnect-advertised task update jobs before response collection starts", async () => {
     const chatId = "chat-reconnect-jobs";
     const userMessageId = "user-message-reconnect";

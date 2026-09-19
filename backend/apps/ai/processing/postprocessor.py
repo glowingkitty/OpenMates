@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 import datetime
 
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult, resolve_fallback_servers_from_provider_config
+from backend.apps.ai.utils.utility_model_fallbacks import utility_model_fallbacks
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
@@ -448,11 +449,10 @@ async def handle_postprocessing(
     # Mistral fallback chain after the assistant answer is already available.
     model_id = POSTPROCESSING_MODEL_ID
 
-    # Resolve fallback providers from the model's provider config (e.g. openrouter)
-    # so that post-processing is resilient to Mistral API timeouts/outages,
-    # the same way the preprocessor handles fallbacks.
-    postprocess_fallbacks = _with_deepseek_utility_fallback(
-        resolve_fallback_servers_from_provider_config(model_id)
+    # Use independent Mistral recovery before the alternate Google server, with
+    # the same deadline and attempt count as foreground routing.
+    postprocess_fallbacks = utility_model_fallbacks(
+        model_id, resolve_fallback_servers_from_provider_config(model_id)
     )
 
     # Call the LLM with function calling
@@ -764,8 +764,8 @@ async def translate_postprocessing_metadata(
         {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
     ]
     model_id = POSTPROCESSING_MODEL_ID
-    fallbacks = _with_deepseek_utility_fallback(
-        resolve_fallback_servers_from_provider_config(model_id)
+    fallbacks = utility_model_fallbacks(
+        model_id, resolve_fallback_servers_from_provider_config(model_id)
     )
 
     try:

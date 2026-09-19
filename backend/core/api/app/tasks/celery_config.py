@@ -556,6 +556,7 @@ async def prewarm_ai_services():
         return
     
     logger.info("[PERF] Pre-warming AI provider services for app-ai-worker...")
+    warm_ai_tokenizers()
     start_time = asyncio.get_event_loop().time()
     secrets_manager = None
     
@@ -649,6 +650,27 @@ async def prewarm_ai_services():
         if secrets_manager:
             await secrets_manager.aclose()
             logger.info("[PERF] SecretsManager closed after AI pre-warming")
+
+
+def warm_ai_tokenizers() -> None:
+    """Load token estimators before the first AI task pays their cold-start cost.
+
+    Both Gemini and Mistral use the shared o200k fallback estimator; context
+    budgeting also uses cl100k. Parent warmup lets prefork children inherit these
+    immutable encodings, and the child call covers non-prefork worker pools.
+    """
+    if not _worker_needs_ai_services():
+        return
+    started = time.monotonic()
+    try:
+        import tiktoken
+
+        for encoding_name in ("o200k_base", "cl100k_base"):
+            tiktoken.get_encoding(encoding_name)
+    except Exception:
+        logger.warning("[PERF] AI tokenizer warmup failed; first use will retry", exc_info=True)
+        return
+    logger.info("[PERF] AI tokenizer warmup completed in %.3fs", time.monotonic() - started)
 
 
 def warm_translation_cache() -> None:
@@ -945,6 +967,7 @@ def warm_parent_translation_cache(sender, instance, **kwargs):
     """
     logger.info("[PERF] Warming translation cache in Celery parent process")
     warm_translation_cache()
+    warm_ai_tokenizers()
 
 
 # Configure logging on worker start as well

@@ -69,7 +69,12 @@ from backend.apps.ai.utils.embeds_map_view import (
     normalize_embeds_map_view_blocks,
     should_include_embeds_map_view_hint,
 )
-from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
+from backend.shared.python_utils.billing_utils import (
+    calculate_credits_from_tokens,
+    calculate_real_and_charged_costs,
+    calculate_total_credits,
+    get_usd_per_credit,
+)
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
 from backend.apps.ai.llm_providers.google_client import invoke_google_chat_completions
@@ -3059,18 +3064,20 @@ async def _handle_normal_billing(
     cumulative_input_tokens: Optional[int] = None,
     cumulative_output_tokens: Optional[int] = None,
     tool_inference_iterations: int = 0,
+    successful_model_id: Optional[str] = None,
+    usage_by_model: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Handle billing for normal processing flow.
     Returns usage information for Redis publishing.
 
     When tool use is involved the LLM is called multiple times. In that case
-    cumulative_input_tokens / cumulative_output_tokens contain the sum across
-    all iterations (emitted via the __cumulative_llm_usage__ sentinel from
-    handle_main_processing).  We use those totals for billing so every iteration
-    is charged, not just the last one.  Falls back to the single-iteration
-    token counts from the usage metadata object when no sentinel was received
-    (i.e. no tool calls were made).
+    ``usage_by_model`` contains provider-reported usage grouped by canonical
+    model id, including reported usage from an attempt that later fell back.
+    This matters when a tool continuation changes provider: every bucket must
+    use its own price. Older callers can still provide only cumulative totals,
+    which are priced against the successful final model rather than the
+    preprocessor's original selection.
     """
     # Extract token counts and provider name based on usage type
     user_input_tokens = None
@@ -3083,52 +3090,33 @@ async def _handle_normal_billing(
         output_tokens = usage.completion_tokens
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
-        provider_name = "mistral"
+        usage_provider_name = "mistral"
     elif isinstance(usage, GoogleUsageMetadata):
         # Handle optional fields - Google API may return None for these in edge cases
         input_tokens = usage.prompt_token_count or 0
         output_tokens = usage.candidates_token_count or 0
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
-        # For third-party models hosted on Google Vertex AI (MaaS), use the original provider for pricing
-        # e.g., "deepseek/deepseek-v4-pro" -> provider_name = "deepseek", not "together"
-        # This ensures we look up pricing from the model's actual provider config file
-        try:
-            selected_full_model = preprocessing_result.selected_main_llm_model_id or "google/unknown"
-            provider_name = selected_full_model.split("/", 1)[0]
-            logger.info(f"{log_prefix} Google usage - extracted billing provider from model_id: {provider_name}")
-        except Exception:
-            provider_name = "google"
+        usage_provider_name = "google"
     elif isinstance(usage, AnthropicUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
-        provider_name = "anthropic"
+        usage_provider_name = "anthropic"
     elif isinstance(usage, BedrockUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
-        # Bedrock is provider-agnostic — determine billing provider from model_id prefix
-        try:
-            selected_full_model = preprocessing_result.selected_main_llm_model_id or "anthropic/unknown"
-            provider_name = selected_full_model.split("/", 1)[0]
-            logger.info(f"{log_prefix} Bedrock usage - extracted billing provider from model_id: {provider_name}")
-        except Exception:
-            provider_name = "anthropic"
+        usage_provider_name = "anthropic"
     elif isinstance(usage, OpenAIUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
         logger.info(f"{log_prefix} Billing: OpenAI usage - user_input={user_input_tokens}, system_prompt={system_prompt_tokens}")
-        # Determine billing provider from the selected model id prefix (e.g., "alibaba/...", "openai/...")
-        try:
-            selected_full_model = preprocessing_result.selected_main_llm_model_id or "openai/unknown"
-            provider_name = selected_full_model.split("/", 1)[0]
-        except Exception:
-            provider_name = "openai"
+        usage_provider_name = "openai"
     else:
         logger.error(f"{log_prefix} Unknown usage type: {type(usage)}. Billing cannot proceed.")
         raise RuntimeError(f"Unknown usage metadata type: {type(usage)}")
@@ -3137,7 +3125,13 @@ async def _handle_normal_billing(
         logger.critical(f"{log_prefix} ConfigManager not initialized. Billing cannot proceed.")
         raise RuntimeError("Billing configuration is not available. Task cannot be completed.")
 
-    logger.info(f"{log_prefix} Determined provider_name for billing: {provider_name}")
+    actual_model_id = successful_model_id or preprocessing_result.selected_main_llm_model_id
+    if not actual_model_id:
+        logger.error(f"{log_prefix} Successful model identity is missing. Billing cannot proceed.")
+        raise RuntimeError("Successful model identity is missing. Billing cannot proceed.")
+
+    logger.info(f"{log_prefix} Successful model selected for billing: {actual_model_id}")
+    used_preprocessor_model = actual_model_id == preprocessing_result.selected_main_llm_model_id
 
     # Override per-iteration token counts with cumulative totals when tool calls were made.
     # The cumulative values are populated by the __cumulative_llm_usage__ sentinel emitted
@@ -3154,36 +3148,93 @@ async def _handle_normal_billing(
         input_tokens = cumulative_input_tokens
         output_tokens = cumulative_output_tokens or 0
 
-    # Get pricing configuration
-    pricing_config = celery_config.config_manager.get_provider_config(provider_name)
-    if not pricing_config:
-        logger.critical(f"{log_prefix} Could not load pricing_config for provider '{provider_name}'. Billing cannot proceed.")
-        raise RuntimeError(f"Pricing configuration for provider '{provider_name}' is not available.")
+    model_usage_buckets: List[Dict[str, Any]] = []
+    for bucket in usage_by_model or []:
+        model_id = bucket.get("model_id")
+        if not isinstance(model_id, str) or not model_id:
+            continue
+        model_usage_buckets.append({
+            "model_id": model_id,
+            "input_tokens": int(bucket.get("input_tokens") or 0),
+            "output_tokens": int(bucket.get("output_tokens") or 0),
+            "user_input_tokens": int(bucket.get("user_input_tokens") or 0),
+            "system_prompt_tokens": int(bucket.get("system_prompt_tokens") or 0),
+        })
 
-    # Preserve full model suffix after provider prefix (supports nested ids like "alibaba/qwen3-...")
-    full_selected_model_id = preprocessing_result.selected_main_llm_model_id
-    model_id_suffix = full_selected_model_id.split('/', 1)[1] if '/' in full_selected_model_id else full_selected_model_id
-    logger.info(f"{log_prefix} Extracted model_id_suffix for pricing lookup: {model_id_suffix}")
+    if model_usage_buckets:
+        input_tokens = sum(bucket["input_tokens"] for bucket in model_usage_buckets)
+        output_tokens = sum(bucket["output_tokens"] for bucket in model_usage_buckets)
+        user_input_tokens = sum(bucket["user_input_tokens"] for bucket in model_usage_buckets)
+        system_prompt_tokens = sum(bucket["system_prompt_tokens"] for bucket in model_usage_buckets)
+    else:
+        model_usage_buckets = [{
+            "model_id": actual_model_id,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "user_input_tokens": user_input_tokens or 0,
+            "system_prompt_tokens": system_prompt_tokens or 0,
+        }]
 
-    model_pricing_details = celery_config.config_manager.get_model_pricing(provider_name, model_id_suffix)
-    if not model_pricing_details:
-        logger.critical(f"{log_prefix} Could not find model_pricing_details for '{model_id_suffix}' with provider '{provider_name}'. Billing cannot proceed.")
-        raise RuntimeError(f"Pricing details for model '{model_id_suffix}' are not available.")
+    raw_credits = 0.0
+    real_cost_usd = 0.0
+    all_models_local = True
+    for bucket in model_usage_buckets:
+        bucket_model_id = bucket["model_id"]
+        if "/" in bucket_model_id:
+            provider_name, model_id_suffix = bucket_model_id.split("/", 1)
+        else:
+            provider_name = usage_provider_name
+            model_id_suffix = bucket_model_id
 
-    # Calculate costs and credits
-    credits_charged = calculate_total_credits(
-        pricing_config=model_pricing_details,
-        input_tokens=input_tokens,
-        output_tokens=output_tokens
-    )
-    
-    costs = calculate_real_and_charged_costs(
-        input_tokens=input_tokens,
-        output_tokens=output_tokens,
-        model_pricing_details=model_pricing_details,
-        total_credits_charged=credits_charged,
-        pricing_config=pricing_config
-    )
+        pricing_config = celery_config.config_manager.get_provider_config(provider_name)
+        if not pricing_config:
+            logger.critical(
+                f"{log_prefix} Could not load pricing_config for provider '{provider_name}'. Billing cannot proceed."
+            )
+            raise RuntimeError(f"Pricing configuration for provider '{provider_name}' is not available.")
+
+        model_pricing_details = celery_config.config_manager.get_model_pricing(provider_name, model_id_suffix)
+        if not model_pricing_details:
+            logger.critical(
+                f"{log_prefix} Could not find model_pricing_details for '{model_id_suffix}' "
+                f"with provider '{provider_name}'. Billing cannot proceed."
+            )
+            raise RuntimeError(f"Pricing details for model '{model_id_suffix}' are not available.")
+
+        pricing_rules = model_pricing_details.get("pricing", model_pricing_details)
+        bucket_raw_credits = calculate_credits_from_tokens(
+            bucket["input_tokens"],
+            bucket["output_tokens"],
+            pricing_rules,
+        )
+        bucket_costs = calculate_real_and_charged_costs(
+            input_tokens=bucket["input_tokens"],
+            output_tokens=bucket["output_tokens"],
+            model_pricing_details=model_pricing_details,
+            total_credits_charged=0,
+            pricing_config=pricing_config,
+        )
+        raw_credits += bucket_raw_credits
+        real_cost_usd += bucket_costs["real_cost_usd"]
+        all_models_local = all_models_local and bool(
+            model_pricing_details.get("local") or model_pricing_details.get("self_hosted")
+        )
+        logger.info(
+            f"{log_prefix} Billing bucket: model={bucket_model_id}, "
+            f"input={bucket['input_tokens']}, output={bucket['output_tokens']}, "
+            f"raw_credits={bucket_raw_credits:.6f}"
+        )
+
+    # This is one user-visible AI usage charge even when provider fallback creates
+    # several pricing buckets. Sum fractional credits first, then apply the normal
+    # floor/minimum exactly once to avoid per-provider rounding distortion.
+    credits_charged = calculate_total_credits(pricing_config={"fixed": raw_credits})
+    charged_cost_usd = credits_charged * get_usd_per_credit()
+    costs = {
+        "real_cost_usd": real_cost_usd,
+        "charged_cost_usd": charged_cost_usd,
+        "margin_usd": charged_cost_usd - real_cost_usd,
+    }
 
     logger.info(f"{log_prefix} Billing calculation: "
                 f"Input Tokens: {input_tokens}, Output Tokens: {output_tokens}, "
@@ -3193,7 +3244,7 @@ async def _handle_normal_billing(
     # Prepare usage details for billing
     usage_details = {
         **costs,
-        "model_used": preprocessing_result.selected_main_llm_model_id,
+        "model_used": actual_model_id,
         "chat_id": request_data.chat_id,
         "message_id": request_data.message_id,
         "input_tokens": input_tokens,
@@ -3202,12 +3253,14 @@ async def _handle_normal_billing(
         "system_prompt_tokens": system_prompt_tokens,
         "api_key_name": request_data.api_key_name,
         "external_request": request_data.is_external,
-        "server_provider": preprocessing_result.server_provider_name,
-        "server_region": preprocessing_result.server_region,
+        # Provider/region metadata was resolved for the preprocessor-selected
+        # model. Never attach it to a different successful fallback model.
+        "server_provider": preprocessing_result.server_provider_name if used_preprocessor_model else None,
+        "server_region": preprocessing_result.server_region if used_preprocessor_model else None,
         "tool_inference_iterations": tool_inference_iterations,
     }
 
-    if model_pricing_details.get("local") or model_pricing_details.get("self_hosted"):
+    if all_models_local:
         usage_details["local_self_hosted"] = True
         usage_details["charged_cost_usd"] = 0
         usage_details["margin_usd"] = 0
@@ -5078,6 +5131,8 @@ async def _consume_main_processing_stream(
     cumulative_input_tokens: Optional[int] = None
     cumulative_output_tokens: Optional[int] = None
     tool_inference_iterations: int = 0
+    successful_model_id: Optional[str] = None
+    usage_by_model: List[Dict[str, Any]] = []
 
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
     thinking_channel_name = f"chat_stream_thinking::{request_data.chat_id}"  # Separate channel for thinking content
@@ -5537,10 +5592,14 @@ async def _consume_main_processing_stream(
                 cumulative_input_tokens = chunk.get("total_input_tokens")
                 cumulative_output_tokens = chunk.get("total_output_tokens")
                 tool_inference_iterations = chunk.get("tool_inference_iterations", 0)
+                successful_model_id = chunk.get("successful_model_id")
+                raw_usage_by_model = chunk.get("usage_by_model")
+                usage_by_model = raw_usage_by_model if isinstance(raw_usage_by_model, list) else []
                 logger.info(
                     f"{log_prefix} Received cumulative LLM usage sentinel: "
                     f"input={cumulative_input_tokens}, output={cumulative_output_tokens}, "
-                    f"tool_iterations={tool_inference_iterations}"
+                    f"tool_iterations={tool_inference_iterations}, "
+                    f"successful_model={successful_model_id}, model_buckets={len(usage_by_model)}"
                 )
                 continue
             
@@ -9548,6 +9607,8 @@ async def _consume_main_processing_stream(
                     cumulative_input_tokens=cumulative_input_tokens,
                     cumulative_output_tokens=cumulative_output_tokens,
                     tool_inference_iterations=tool_inference_iterations,
+                    successful_model_id=successful_model_id,
+                    usage_by_model=usage_by_model,
                 )
         except Exception as e:
             # CRITICAL: Don't let billing errors prevent the final chunk from being sent

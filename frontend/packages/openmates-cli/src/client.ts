@@ -125,6 +125,7 @@ import {
 import {
   buildEncryptedObjectSlugMetadata,
   decryptObjectSlug,
+  normalizeObjectSlug,
   objectSlugMatches,
 } from "./objectSlugs.js";
 import { hasRememberMessageReference, rewriteRememberMessageReferences } from "./rememberMessage.js";
@@ -132,6 +133,32 @@ import { hasRememberMessageReference, rewriteRememberMessageReferences } from ".
 const PROMPT_INJECTION_DISABLED = "disabled";
 const DEFAULT_CHAT_MESSAGE_CONFIRMATION_TIMEOUT_MS = 20_000;
 const CANONICAL_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_CHAT_SLUG_LENGTH = 80;
+
+/**
+ * Automatic chat slugs retain a readable prompt prefix and the full chat UUID,
+ * making independently created chats unique without weakening explicit-slug errors.
+ */
+export function selectNewChatSlugValue(input: {
+  message: string;
+  chatId: string;
+  explicitSlug?: string;
+}): string {
+  if (input.explicitSlug !== undefined) return input.explicitSlug;
+
+  let normalizedMessage: string;
+  try {
+    normalizedMessage = normalizeObjectSlug(input.message);
+  } catch {
+    // Some valid prompts (for example Japanese text or emoji) have no ASCII
+    // characters after slug normalization. The UUID still makes this unique.
+    normalizedMessage = "chat";
+  }
+  const normalizedChatId = input.chatId.toLowerCase();
+  const prefixLength = MAX_CHAT_SLUG_LENGTH - normalizedChatId.length - 1;
+  const prefix = normalizedMessage.slice(0, prefixLength).replace(/-+$/g, "");
+  return `${prefix}-${normalizedChatId}`;
+}
 
 function normalizeObjectSelectorLabel(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -6775,7 +6802,11 @@ export class OpenMatesClient {
         }
         const initialTitle = teamId && !shouldWaitForAi ? "New team chat" : "";
         const slugMetadata = await buildEncryptedObjectSlugMetadata({
-          value: params.slug ?? finalMessage,
+          value: selectNewChatSlugValue({
+            message: finalMessage,
+            chatId,
+            explicitSlug: params.slug,
+          }),
           encryptionKey: chatKeyBytes,
           lookupKey: chatSlugLookupKey,
         });

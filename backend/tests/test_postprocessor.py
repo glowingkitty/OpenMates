@@ -292,7 +292,10 @@ class TestQuickTips:
 async def test_postprocessing_batches_metadata_translation_when_output_language_matches_ui(monkeypatch):
     """Language enforcement remains reliable without sequential translation calls."""
 
+    provider_calls = []
+
     async def fake_call_preprocessing_llm(**kwargs):
+        provider_calls.append(kwargs)
         return LLMPreprocessingCallResult(
             arguments={
                 "follow_up_app_skill_suggestions": ["Finde passende Stellenangebote in Berlin"],
@@ -325,6 +328,10 @@ async def test_postprocessing_batches_metadata_translation_when_output_language_
         fake_call_preprocessing_llm,
     )
     monkeypatch.setattr(
+        "backend.apps.ai.processing.postprocessor.resolve_fallback_servers_from_provider_config",
+        lambda _model: ["google/gemini-3.5-flash-lite"],
+    )
+    monkeypatch.setattr(
         "backend.apps.ai.processing.postprocessor.translate_postprocessing_metadata",
         fake_translate_postprocessing_metadata,
     )
@@ -350,6 +357,11 @@ async def test_postprocessing_batches_metadata_translation_when_output_language_
     assert result.chat_summary == "User creates German job application documents."
     assert result.updated_chat_title == "Create Application Documents"
     assert result.chat_tags == ["Bewerbung", "Karriere"]
+    assert len(provider_calls) == 1
+    assert provider_calls[0]["model_id"] == "google/gemini-3.5-flash-lite"
+    assert provider_calls[0]["fallback_models"] == [
+        "mistral/mistral-small-2506", "google/gemini-3.5-flash-lite",
+    ]
     assert len(translation_calls) == 1
     assert translation_calls[0]["target_language"] == "en"
     assert translation_calls[0]["chat_summary"] == "Nutzer erstellt deutsche Bewerbungsunterlagen."

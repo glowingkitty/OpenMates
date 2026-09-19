@@ -222,11 +222,11 @@ implementation_progress:
     - A steady-state authenticated dev CLI no-skill turn published answer text 2.217 seconds after worker receipt and completed server work in 6.212 seconds; the foreground classifier used 8,170 input and 136 output tokens in 1.079 seconds.
     - A cold/degraded-primary authenticated dev CLI no-skill turn recovered through the independent Vertex fallback and published answer text in 7.31 seconds; the successful fallback used 7,750 input and 151 output tokens in 1.556 seconds.
     - The final steady-state turn used 16,315 utility-model tokens across foreground routing, postprocessing and one batched translation request; its answer-model request used 13,667 input and 2 output tokens.
-    - The CLI command still took 21.39 seconds wall-clock because roughly 15.18 seconds occurred before or around worker dispatch in encrypted-chat preflight/synchronization. That separate client/preflight latency is not presented as AI-worker latency.
+    - The CLI command took 21.39 seconds wall-clock. The earlier attribution of the 15.18-second difference to pre-dispatch/preflight was incorrect; later phase tracing measured preflight at 78ms, forced history sync at 2.324s, and a leaked postprocessing timer keeping Node alive roughly 9.5s after normal completion.
     - A weather request selected weather.forecast correctly from the compact catalogue. The later main-processor tool continuation failed because fallback transported an orphan tool_result and billing paired an Anthropic provider with a Gemini model; that separate downstream defect is not classified as a preprocessing failure.
   remaining:
     - A production canary, production server update and statistically valid percentile/reliability claim require separate authorization.
-    - Treat encrypted-chat CLI startup latency and main-processor tool-loop fallback/billing as separate follow-up defects; neither is hidden inside preprocessing measurements.
+    - Follow-up work below repairs CLI completion-timer leakage, automatic slug collisions and main-processor tool-loop fallback/billing; none is hidden inside preprocessing measurements.
 
 # Strict-profile records below keep the executable repository gate compatible
 # with this goal-first Plan. They summarize existing sections; they do not add
@@ -435,3 +435,96 @@ handoff:
   last_verified_commit: 6058b1260a3bdf9df4c0ab78ffb271e18ad86981
 
 next_action: Production canary and production server update remain separately authorized; the approved implementation task is complete on dev.
+
+followup_evaluation:
+  schema_version: 2
+  goal: >-
+    Keep Gemini as the primary utility model and properly evaluate whether it delays
+    responses. Investigate and fix tool-use and billing failures with multiple real
+    CLI chats; investigate Directus preflight rejection and CLI delay and propose a
+    concrete repair plan.
+  scope:
+    - Compare identical synthetic routing and metadata requests through the actual
+      utility client for Gemini and Mistral; alternate model order, retain failures,
+      distinguish first calls, and report sample limits and Google credit economics.
+    - Verify independent non-Google recovery for preprocessing and postprocessing,
+      including Mistral, while preserving one healthy-path request and bounded retries.
+    - Repair tool-call/result preservation during provider fallback and correct usage
+      identity after fallback without duplicating skills or changing billing rates.
+    - Trace saved-chat preflight rejection and CLI command overhead to specific
+      protocol/runtime steps; produce evidence-backed fixes and verification plans.
+  constraints:
+    - Gemini remains the primary model per the user's explicit clarification.
+    - Main-model history, encryption boundaries and paragraph streaming are preserved.
+    - No production mutation or deliberate shared-service outage.
+    - Existing failures are sufficient red evidence; do not repeat them just for red tests.
+  verification:
+    - Focused provider-history, billing identity and utility-recovery unit regressions.
+    - Relevant existing product-path regression coverage through isolated CI.
+    - Bounded matched live provider probe plus several real authenticated OpenMates CLI
+      conversations covering simple answers, weather, search and follow-up skill use.
+    - Report answer publication, full CLI duration, token usage, actual executing model,
+      skill completion and errors separately; do not infer client latency attribution
+      merely by subtracting worker duration.
+  observations:
+    - Before this follow-up, both active utility chains used AI Studio then Vertex
+      then DeepSeek. Neither chain contained Mistral; Google primary is retained.
+    - The prior small unmatched timeout/success sample does not prove Gemini speed or
+      quality superiority. Historical Mistral benchmark used a different prompt shape.
+    - A final matched evaluation used 18 primary-only calls with both tokenizers
+      prewarmed, alternating model order, and the current 41-app/68-skill/18-focus
+      catalogue. Gemini and repaired Mistral each passed 6 routing and 3 metadata
+      cases, with correct expected skill selection and language. This bounded
+      corpus is not a broad quality, p95/p99 or availability claim.
+    - Gemini routing averaged 959.0ms (median 968.5, range 865.6-1043.7); Mistral
+      averaged 1223.8ms (median 1214.2, range 1151.0-1349.1). Gemini used 47198 input
+      and 986 output tokens; Mistral used 47813 input and 973 output tokens across
+      the same six routing inputs.
+    - Gemini metadata averaged 1601.9ms (range 1454.1-1839.2); Mistral averaged
+      2539.3ms (range 2226.4-3032.5). Input/output totals were 21084/1053 and
+      21190/967 respectively across the three metadata inputs.
+    - Before named-tool repair, Mistral returned an unoffered skill name on four
+      routing inputs and timed out at 12 seconds on two. Single-tool required
+      selection now pins the actual routing function by name, preserving multi-tool
+      behavior; repaired Mistral passed all six cases. The compact prompt alone is
+      not proven to have caused the earlier failure.
+    - Initial provider probes exposed 3323.7ms of shared local tokenizer cold start;
+      final prewarmed estimation was 7.2-11.5ms per request. Worker startup now loads
+      o200k_base and cl100k_base before accepting AI work.
+    - Tool continuation dropped assistant tool_calls while constructing Anthropic
+      tool_result blocks; billing combined the final provider type with the initial
+      model name and priced mixed-model token totals as one model. Both defects
+      existed on main/dev before this session's preprocessing changes.
+    - Weather tool schemas contained frontend-only x-ui annotations, rejected locally
+      by the Google SDK before network dispatch. Provider schema sanitization now
+      removes schema extension annotations while preserving actual argument names
+      and leaving the original frontend schema unchanged.
+    - Repeated opening prompts generated identical automatic slug hashes, violating
+      chats_personal_slug_hash_uq. The fix uses a bounded chat-ID suffix for automatic
+      slugs; explicit slug behavior and encrypted persistence stay intact.
+    - Duplicate final-stream and fallback completion frames each scheduled a 12-second
+      postprocessing timer. The second handle overwrote the first; metadata cleared
+      only the second. Live timer tracing measured a 9.48-second process-exit penalty.
+  preflight_and_cli_plan:
+    immediate_repairs:
+      - Make response completion scheduling idempotent and test duplicate terminal
+        frames followed by metadata, plus the required metadata-timeout path.
+      - Make automatic saved-chat slugs owner-unique with a length-safe chat-ID suffix;
+        preserve explicit slugs and test repeated first messages.
+    next_optimization:
+      - Instrument authentication, memory load, history sync, preflight, answer,
+        metadata and process exit with monotonic phase timings before changing sync.
+      - Reuse the already loaded memory snapshot and coalesce duplicate session/socket
+        setup; evaluate eliminating the measured 2.324-second second-socket forced sync
+        while retaining authorized up-to-date history and encrypted persistence.
+      - Translate only the named personal/team slug uniqueness constraints to a safe
+        409 conflict, with atomic rollback and no sensitive database detail exposure.
+    measured_boundary: Preflight itself was 78ms total and 49.7ms durable; no evidence supports attributing the former 15-second excess to Directus preflight latency.
+  openmates_tasks:
+    utility_evaluation: da41fc58-274a-48f8-b7ee-552794aba77e
+    tool_billing_repair: 4eae41f3-813e-4ae5-94f3-90179f05911c
+    preflight_plan_delivery: f2d25e77aa97b22e0c889ac94da8cfe190c774986db661f45972a698f7af7d86
+    preflight_plan_status: pending_delivery_not_acknowledged
+  focused_verification:
+    backend: Independent review ran 66 focused tests successfully across tool history, schema sanitization, model usage, billing and utility recovery.
+    cli: All 18 WebSocket tests and focused automatic-slug/encrypted-preflight regressions passed; no changed-file diagnostics in the existing broadly failing CLI typecheck.

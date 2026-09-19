@@ -100,6 +100,14 @@ test.describe('App: Web / Skill: search', () => {
 
 		const parsed = parseCliJson(result);
 		expect(parsed).toBeTruthy();
+		const assistant = String(parsed.assistant || '');
+		expect(
+			assistant.trim().length,
+			'tool continuation should return a final assistant answer'
+		).toBeGreaterThan(20);
+		expect(assistant).not.toMatch(
+			/unexpected `tool_use_id`|all providers failed|something went wrong/i
+		);
 		console.log(`[P3] CLI chat response length: ${result.stdout.length}`);
 
 		// Cleanup: extract chat ID and delete

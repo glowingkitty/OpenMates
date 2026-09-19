@@ -111,6 +111,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     task_tool_skill_id,
     task_tool_name_variants,
 )
+from backend.apps.ai.processing.model_usage_tracker import ModelUsageTracker
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     has_transcribed_web_audio_recording,
@@ -3987,9 +3988,8 @@ async def handle_main_processing(
     # tool use (i.e., total iterations minus 1).  A value of 0 means no tool calls
     # were made (single LLM call, baseline behaviour).  This is stored in the usage
     # entry so users can see it in Settings → Usage detail view.
-    cumulative_input_tokens: int = 0
-    cumulative_output_tokens: int = 0
     tool_inference_iterations: int = 0  # Number of extra LLM calls caused by tool use
+    model_usage_tracker = ModelUsageTracker()
 
     # === SKILL CALL BUDGET TRACKING ===
     # Track total skill calls across all iterations to prevent runaway research loops.
@@ -4201,6 +4201,9 @@ async def handle_main_processing(
         # When set, the outer loop will attempt the next model in the fallback list.
         _stream_all_servers_failed = False
         _stream_all_servers_error: Optional[AllServersFailedError] = None
+        iteration_usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = None
+        iteration_input_tokens = 0
+        iteration_output_tokens = 0
         try:
           with ai_phase_span("main.iteration"):
            # Observe raw provider delivery before paragraph aggregation so
@@ -4213,10 +4216,12 @@ async def handle_main_processing(
            )
            async for chunk in aggregate_paragraphs(observed_llm_stream):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
-                usage = chunk
-                # Accumulate token counts from every LLM call in this turn.
-                # Each tool-use iteration re-sends the full history plus tool results,
-                # so all iterations contribute real API costs that must be billed.
+                iteration_usage = chunk
+                # Keep the final usage object local until the stream completes so
+                # a failed attempt cannot become the recorded successful model.
+                # Provider-reported tokens are still accumulated immediately:
+                # once reported, that incurred usage remains billable even if a
+                # later stream event triggers fallback.
                 _iter_input = 0
                 _iter_output = 0
                 if isinstance(chunk, MistralUsage):
@@ -4231,12 +4236,22 @@ async def handle_main_processing(
                 elif isinstance(chunk, OpenAIUsageMetadata):
                     _iter_input = chunk.input_tokens or 0
                     _iter_output = chunk.output_tokens or 0
-                cumulative_input_tokens += _iter_input
-                cumulative_output_tokens += _iter_output
+                iteration_input_tokens += _iter_input
+                iteration_output_tokens += _iter_output
+                usage_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
+                if usage_model_id:
+                    model_usage_tracker.record_reported_usage(
+                        model_id=usage_model_id,
+                        input_tokens=_iter_input,
+                        output_tokens=_iter_output,
+                        user_input_tokens=chunk.user_input_tokens,
+                        system_prompt_tokens=chunk.system_prompt_tokens,
+                    )
                 logger.debug(
-                    f"{log_prefix} [CUMULATIVE_TOKENS] Iteration {iteration + 1}: "
+                    f"{log_prefix} [ITERATION_TOKENS] Iteration {iteration + 1}: "
                     f"+{_iter_input} input, +{_iter_output} output tokens. "
-                    f"Running totals: {cumulative_input_tokens} in / {cumulative_output_tokens} out"
+                    f"Billed totals: {model_usage_tracker.total_input_tokens} in / "
+                    f"{model_usage_tracker.total_output_tokens} out"
                 )
                 continue
             if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall)):
@@ -4771,6 +4786,17 @@ async def handle_main_processing(
                 )
                 yield STANDARDIZED_USER_ERROR_MESSAGE
                 break
+
+        if iteration_usage is not None:
+            usage = iteration_usage
+            successful_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
+            if successful_model_id:
+                model_usage_tracker.mark_successful_model(successful_model_id)
+            logger.debug(
+                f"{log_prefix} [CUMULATIVE_TOKENS] Successful model for iteration: "
+                f"'{successful_model_id}' ({iteration_input_tokens} input / "
+                f"{iteration_output_tokens} output tokens)."
+            )
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
 
@@ -8333,15 +8359,11 @@ async def handle_main_processing(
         # A future FAQ link can explain why input_tokens may be higher than expected:
         # each tool result is injected back into the context, making the next call's
         # input larger.  See docs/billing.md (TODO: create) for the full explanation.
-        yield {
-            "__cumulative_llm_usage__": True,
-            "total_input_tokens": cumulative_input_tokens,
-            "total_output_tokens": cumulative_output_tokens,
-            "tool_inference_iterations": tool_inference_iterations,
-        }
+        yield model_usage_tracker.sentinel(tool_inference_iterations=tool_inference_iterations)
         logger.info(
             f"{log_prefix} [CUMULATIVE_TOKENS] Final totals: "
-            f"{cumulative_input_tokens} input tokens, {cumulative_output_tokens} output tokens, "
+            f"{model_usage_tracker.total_input_tokens} input tokens, "
+            f"{model_usage_tracker.total_output_tokens} output tokens, "
             f"{tool_inference_iterations} tool inference iteration(s)."
         )
         yield usage

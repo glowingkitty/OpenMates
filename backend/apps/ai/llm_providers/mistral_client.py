@@ -69,6 +69,23 @@ class UnifiedMistralResponse(BaseModel):
     raw_response: Optional[RawMistralChatCompletionResponse] = None
     usage: Optional[MistralUsage] = None
 
+
+def _resolve_mistral_tool_choice(
+    tool_choice: Optional[Union[str, Dict[str, Any]]],
+    tools: List[Dict[str, Any]],
+) -> Union[str, Dict[str, Any]]:
+    """Pin a single required utility function while preserving multi-tool choice."""
+    if tool_choice == "required":
+        if len(tools) == 1:
+            function = tools[0].get("function")
+            name = function.get("name") if isinstance(function, dict) else None
+            if isinstance(name, str) and name:
+                return {"type": "function", "function": {"name": name}}
+        return "any"
+    if tool_choice:
+        return tool_choice
+    return "auto"
+
 async def initialize_mistral_client(secrets_manager: SecretsManager):
     global MISTRAL_API_KEY
     if MISTRAL_API_KEY:
@@ -97,7 +114,7 @@ async def invoke_mistral_chat_completions(
     temperature: float = 0.7,
     max_tokens: Optional[int] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
-    tool_choice: Optional[str] = None,
+    tool_choice: Optional[Union[str, Dict[str, Any]]] = None,
     stream: bool = False
 ) -> Union[UnifiedMistralResponse, AsyncIterator[Union[str, ParsedMistralToolCall, MistralUsage]]]:
     global MISTRAL_API_KEY
@@ -131,13 +148,7 @@ async def invoke_mistral_chat_completions(
         payload["max_tokens"] = max_tokens
     if tools:
         payload["tools"] = tools
-        # Map tool_choice to Mistral-specific values
-        if tool_choice == "required":
-            payload["tool_choice"] = "any"
-        elif tool_choice:
-            payload["tool_choice"] = tool_choice
-        else:
-            payload["tool_choice"] = "auto"
+        payload["tool_choice"] = _resolve_mistral_tool_choice(tool_choice, tools)
 
     payload_summary = {
         "model": payload.get("model"),

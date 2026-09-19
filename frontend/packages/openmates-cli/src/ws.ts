@@ -892,6 +892,7 @@ export class OpenMatesWsClient {
       };
 
       const finishPostProcessingWait = () => {
+        postProcessingTimer = null;
         postProcessingDone = true;
         maybeResolve();
       };
@@ -1086,8 +1087,14 @@ export class OpenMatesWsClient {
         aiResponseDone = true;
         latestContent = content;
         clearTimeout(timeout);
+        if (postProcessingDone) {
+          maybeResolve();
+          return;
+        }
         // Start the post-processing window — resolve early if we get suggestions.
-        postProcessingTimer = setTimeout(finishPostProcessingWait, POST_PROCESSING_WINDOW_MS);
+        if (!postProcessingTimer) {
+          postProcessingTimer = setTimeout(finishPostProcessingWait, POST_PROCESSING_WINDOW_MS);
+        }
       };
 
       const beginSubChatContinuation = (payload: Record<string, unknown>) => {

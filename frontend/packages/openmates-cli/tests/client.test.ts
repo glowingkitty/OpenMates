@@ -74,6 +74,7 @@ const {
   buildSubChatEncryptedMetadataPayloads,
   buildTurnTokenRefsRequestPayload,
   getClientMessagesVersionForSync,
+  selectNewChatSlugValue,
 } = await import("../src/client.ts");
 const {
   decryptBytesWithAesGcm,
@@ -110,6 +111,36 @@ describe("OpenMatesClient session API URL", () => {
   beforeEach(() => {
     writeLegacySession();
     rmSync(serverConfigPath, { force: true });
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=cli.slugs.encrypted-stable
+  it("adds a length-safe chat ID suffix only to automatic new-chat slugs", () => {
+    const repeatedPrompt = "Compare these apartment listings in detail ".repeat(8);
+    const firstChatId = "11111111-1111-4111-8111-111111111111";
+    const secondChatId = "22222222-2222-4222-8222-222222222222";
+    const firstSlug = selectNewChatSlugValue({
+      message: repeatedPrompt,
+      chatId: firstChatId,
+    });
+    const secondSlug = selectNewChatSlugValue({
+      message: repeatedPrompt,
+      chatId: secondChatId,
+    });
+
+    assert.notEqual(firstSlug, secondSlug);
+    assert.ok(firstSlug.length <= 80);
+    assert.ok(secondSlug.length <= 80);
+    assert.equal(firstSlug.endsWith(firstChatId), true);
+    assert.equal(secondSlug.endsWith(secondChatId), true);
+    assert.equal(selectNewChatSlugValue({
+      message: repeatedPrompt,
+      chatId: firstChatId,
+      explicitSlug: "My Explicit Chat!",
+    }), "My Explicit Chat!");
+    assert.equal(selectNewChatSlugValue({
+      message: "東京でおすすめの喫茶店を探して ☕",
+      chatId: firstChatId,
+    }), `chat-${firstChatId}`);
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
@@ -2153,6 +2184,16 @@ describe("CLI saved-chat recovery preflight", () => {
       const encryptedChatKey = String(captured.preflightPayload.encrypted_chat_key);
       const chatKey = await decryptBytesWithAesGcm(encryptedChatKey, masterKey);
       assert.ok(chatKey);
+      const automaticChatSlug = await decryptWithAesGcmCombined(
+        String(newChatMetadata.encrypted_slug),
+        chatKey,
+      );
+      assert.ok(automaticChatSlug);
+      assert.ok(automaticChatSlug.length <= 80);
+      assert.equal(
+        automaticChatSlug.endsWith(String(captured.preflightPayload.chat_id)),
+        true,
+      );
       const mappingsJson = await decryptWithAesGcmCombined(
         String(encryptedUserMessage.encrypted_pii_mappings),
         chatKey,

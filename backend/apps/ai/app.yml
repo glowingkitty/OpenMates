@@ -80,8 +80,8 @@ skills:
       # When true, uses intelligent auto-selection based on leaderboard rankings.
       enable_auto_model_selection: true
       default_llms:
-        # Latency-sensitive routing primary. AI Studio and Vertex are independent
-        # server paths resolved from google.yml; DeepSeek remains cross-provider recovery.
+        # Latency-sensitive routing primary. Recovery uses Mistral before the
+        # alternate Vertex server so Google outages have independent recovery.
         preprocessing_model: google/gemini-3.5-flash-lite
         request_safety_model: mistral/mistral-small-2506
         # main_processing_simple: google/gemini-3.5-flash-lite

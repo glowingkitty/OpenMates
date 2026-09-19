@@ -59,6 +59,7 @@ from backend.apps.ai.processing.routing_ledger import (
     build_preprocessing_history_projection,
     load_skill_ledger,
 )
+from backend.apps.ai.utils.utility_model_fallbacks import utility_model_fallbacks
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -2092,8 +2093,9 @@ async def handle_preprocessing(
     # Resolve fallback servers from provider config instead of hardcoded list in app.yml
     # This allows fallback servers to be configured in provider YAML files (e.g., mistral.yml)
     from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
-    preprocessing_fallbacks = _with_deepseek_utility_fallback(
-        resolve_fallback_servers_from_provider_config(preprocessing_model)
+    preprocessing_fallbacks = utility_model_fallbacks(
+        preprocessing_model,
+        resolve_fallback_servers_from_provider_config(preprocessing_model),
     )
 
     logger.info(f"{log_prefix} Using preprocessing_model: {preprocessing_model} from skill_config.")
