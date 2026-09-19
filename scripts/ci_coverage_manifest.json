@@ -17,6 +17,8 @@
         "apple-settings-ui-contracts.spec.ts",
         "backup-code-login-flow.spec.ts",
         "backup-codes-settings.spec.ts",
+        "audio-recording-deferred-send.spec.ts",
+        "components/audio-recording-realtime.spec.ts",
         "calendar-connected-accounts.spec.ts",
         "calendar-permission-flow.spec.ts",
         "chat-error-report-consent.spec.ts",
@@ -114,7 +116,6 @@
       "enabling_work": "AI/app workers and original app/provider fixtures. Preserve live-vs-recorded mode; dedicated credentials/spend caps before real inference. Pure browser fixtures can move independently after checking interception scope.",
       "specs": [
         "apple-cross-client-chat.spec.ts",
-        "audio-recording-deferred-send.spec.ts",
         "background-chat-notification.spec.ts",
         "cli-embed-diff-versions.spec.ts",
         "cli-file-upload.spec.ts",
@@ -462,12 +463,6 @@
       "committed_cache_files": {
         "assistant_response_speech_web": 0
       }
-    },
-    "audio-recording-deferred-send.spec.ts": {
-      "dependency": "live_media_provider_and_storage",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: sending while transcription is pending finalizes the same audio message. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
-      "user_input_required": true,
-      "source_environment_names": []
     },
     "background-chat-notification.spec.ts": {
       "dependency": "original_live_inference",

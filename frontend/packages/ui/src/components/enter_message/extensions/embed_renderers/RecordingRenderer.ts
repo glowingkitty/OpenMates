@@ -66,7 +66,7 @@ const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
  */
 interface RecordingEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
   /** Upload lifecycle status */
-  status: "uploading" | "transcribing" | "finished" | "error";
+  status: "uploading" | "transcribing" | "correcting" | "finished" | "error";
   /** Local blob URL for immediate audio playback (editor context only, ephemeral) */
   blobUrl?: string;
   /** Error message set on failure */
@@ -379,6 +379,7 @@ export class RecordingRenderer implements EmbedRenderer {
           status: (attrs.status || "finished") as
             | "uploading"
             | "transcribing"
+            | "correcting"
             | "finished"
             | "error",
           blobUrl: attrs.blobUrl,

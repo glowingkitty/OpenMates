@@ -65,7 +65,7 @@
     /** Original filename of the recorded audio */
     filename?: string;
     /** Upload + transcription status */
-    status: 'uploading' | 'transcribing' | 'finished' | 'error';
+    status: 'uploading' | 'transcribing' | 'correcting' | 'finished' | 'error';
     /**
      * Local blob URL for audio playback while in editor context.
      * Not present in read-only message display (blob URLs are ephemeral).
@@ -194,7 +194,7 @@
 
   /** Map upload-specific status to UnifiedEmbedPreview's status union */
   let unifiedStatus = $derived(
-    (status === 'uploading' || status === 'transcribing')
+    (status === 'uploading' || status === 'transcribing' || status === 'correcting')
       ? 'processing'
       : (status as 'processing' | 'finished' | 'error'),
   );
@@ -292,7 +292,7 @@
    * completes/fails, so cancelUpload() aborts either the upload fetch or the
    * transcription fetch, whichever is currently in flight.
    */
-  let showStop = $derived(hasAudioSrc && (status === 'uploading' || status === 'transcribing') && !!onStop);
+  let showStop = $derived(hasAudioSrc && (status === 'uploading' || status === 'transcribing' || status === 'correcting') && !!onStop);
 
   /**
    * Card subtitle text (shown below "Audio recording" in BasicInfosBar):
@@ -314,6 +314,9 @@
         );
       }
       return $text('common.processing');
+    }
+    if (status === 'correcting') {
+      return $text('app_skills.audio.transcribe.auto_correcting');
     }
     if (status === 'error') {
       return uploadError || $text('common.upload_failed');
@@ -547,6 +550,21 @@
           {/if}
         </div>
 
+      {:else if status === 'correcting' && transcriptPreview}
+        <div class="correction-state" data-testid="recording-auto-correction">
+          <p class="transcript-preview">{transcriptPreview}</p>
+          <span class="correction-label">
+            <span class="correction-spinner" aria-hidden="true"></span>
+            {$text('app_skills.audio.transcribe.auto_correcting')}
+          </span>
+        </div>
+
+      {:else if (status === 'uploading' || status === 'transcribing') && transcriptPreview}
+        <div class="correction-state" data-testid="recording-raw-transcript">
+          <p class="transcript-preview">{transcriptPreview}</p>
+          <span class="correction-label">{statusText}</span>
+        </div>
+
       {:else if status === 'uploading' || status === 'transcribing' || isLoadingAudio}
         <!--
           Processing / loading state: provider info row (when model is known) above
@@ -706,6 +724,38 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     word-break: break-word;
+  }
+
+  .correction-state {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
+  .correction-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    color: var(--color-grey-50, #888);
+    font-size: var(--font-size-xxs);
+    font-weight: 600;
+  }
+
+  .correction-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--color-grey-20, #e8e8e8);
+    border-top-color: var(--color-primary, #667eea);
+    border-radius: 50%;
+    animation: correction-spin 0.8s linear infinite;
+  }
+
+  @keyframes correction-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .correction-spinner { animation: none; }
   }
 
   /* ---- No transcript message ---- */

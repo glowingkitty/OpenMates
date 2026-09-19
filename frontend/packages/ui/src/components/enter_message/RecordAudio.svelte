@@ -31,9 +31,20 @@
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
     import { buildWaveformFromLevels, type AudioWaveformData } from '../../utils/audioWaveform';
+    import {
+        startAudioRealtimeTranscription,
+        type AudioRealtimeTranscriptionHandle,
+    } from '../../services/audioRealtimeTranscription';
 
     const dispatch = createEventDispatcher<{
-        audiorecorded: { blob: Blob; duration: number; mimeType: string; waveform?: AudioWaveformData };
+        audiorecorded: {
+            blob: Blob;
+            duration: number;
+            mimeType: string;
+            waveform?: AudioWaveformData;
+            realtime?: AudioRealtimeTranscriptionHandle;
+            liveTranscript?: string;
+        };
         close: void;
         cancel: void;
         recordingStateChange: { active: boolean };
@@ -41,12 +52,14 @@
 
     // --- Props ---
     interface Props {
-    initialPosition: { x: number; y: number };
+        initialPosition: { x: number; y: number };
         externalStream?: MediaStream | null;
+        enableRealtime?: boolean;
     }
     let {
         initialPosition,
         externalStream = null,
+        enableRealtime = false,
     }: Props = $props();
 
     // --- Internal State ---
@@ -86,6 +99,13 @@
     let waveformAnimationFrame: number | null = null;
     let lastWaveformSampleAt = 0;
     let recordOverlayElement: HTMLDivElement | null = null;
+    let liveTranscript = $state('');
+    let liveTranscriptTail = $derived(
+        liveTranscript.length > 240 ? `…${liveTranscript.slice(-239)}` : liveTranscript,
+    );
+    let realtimeStatus = $state<'connecting' | 'listening' | 'correcting' | 'failed'>('connecting');
+    let realtimeHandle: AudioRealtimeTranscriptionHandle | null = null;
+    let realtimeHandedOff = false;
 
     const logger = {
         debug: (...args: unknown[]) => console.debug('[RecordAudio]', ...args),
@@ -113,6 +133,7 @@
     onDestroy(() => {
         logger.debug('Component destroying.');
         stopWaveform();
+        if (!realtimeHandedOff) realtimeHandle?.cancel();
         // Guard: don't double-stop if stop/cancel already ran
         if (!stopAlreadyCalled) {
             stopInternal(true);
@@ -156,6 +177,13 @@
                 audioBitsPerSecond: 128000
             });
 
+            if (enableRealtime) {
+                realtimeHandle = startAudioRealtimeTranscription(streamToUse, {
+                    onTranscript: (value) => { liveTranscript = value; },
+                    onStatus: (value) => { realtimeStatus = value; },
+                });
+            }
+
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data && e.data.size > 0) recordedChunks.push(e.data);
             };
@@ -181,7 +209,15 @@
                         mimeType:  blob.type,
                         waveformSamples: waveform?.samples.length ?? 0,
                     });
-                    dispatch('audiorecorded', { blob, duration: finalDuration, mimeType: finalMimeType, waveform });
+                    realtimeHandedOff = !!realtimeHandle;
+                    dispatch('audiorecorded', {
+                        blob,
+                        duration: finalDuration,
+                        mimeType: finalMimeType,
+                        waveform,
+                        realtime: realtimeHandle ?? undefined,
+                        liveTranscript: liveTranscript || undefined,
+                    });
                 } else {
                     logger.info(isCancelled ? 'Recording cancelled.' : 'Recording stopped with no data.');
                     dispatch('cancel');
@@ -245,6 +281,8 @@
         logger.info(`Stopping recording. Cancelled: ${isCancelled}`);
 
         stopRecordingTimer();
+        if (isCancelled) realtimeHandle?.cancel();
+        else realtimeHandle?.finish();
         stopWaveform();
         isRecording = false;
 
@@ -467,6 +505,13 @@
                 ></span>
             {/each}
         </div>
+        {#if liveTranscript}
+            <p class="live-transcript" data-testid="recording-live-transcript" aria-live="polite">
+                {liveTranscriptTail}
+            </p>
+        {:else if enableRealtime && realtimeStatus === 'connecting'}
+            <span class="live-transcript-placeholder" aria-hidden="true">•••</span>
+        {/if}
     </div>
 
     <!-- Bottom controls: timer | explicit actions -->
@@ -572,6 +617,26 @@
         flex: 0 1 3px;
         background-color: currentColor;
         border-radius: var(--radius-full);
+    }
+
+    .live-transcript {
+        width: min(100%, 560px);
+        margin: 0;
+        color: white;
+        font-size: var(--font-size-small);
+        font-weight: 600;
+        line-height: 1.4;
+        text-align: center;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .live-transcript-placeholder {
+        color: rgba(255, 255, 255, 0.72);
+        letter-spacing: 0.18em;
     }
 
     /* Bottom controls row */

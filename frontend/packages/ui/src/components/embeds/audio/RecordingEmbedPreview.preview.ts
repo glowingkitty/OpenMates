@@ -44,6 +44,19 @@ export const variants = {
     isAuthenticated: true,
   },
 
+  /** Raw transcript is visible while AI correction is running */
+  correcting: {
+    id: "preview-audio-correcting",
+    filename: "voice-memo.webm",
+    status: "correcting" as const,
+    duration: "0:42",
+    transcript: "Please schedule the project review for Thursday afternoon.",
+    transcriptOriginal: "Please schedule the project review for Thursday afternoon.",
+    model: "voxtral-mini-transcribe-realtime-2602",
+    isMobile: false,
+    isAuthenticated: true,
+  },
+
   /** Error state */
   error: {
     id: "preview-audio-error",

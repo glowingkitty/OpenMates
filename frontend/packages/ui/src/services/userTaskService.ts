@@ -215,7 +215,7 @@ export interface CreateUserTaskActivityInput {
 
 export function canSubmitUserTaskActivity(message: string, embedStatuses: string[]): boolean {
   return message.trim().length > 0
-    && !embedStatuses.some((status) => status === "uploading" || status === "transcribing" || status === "error");
+    && !embedStatuses.some((status) => status === "uploading" || status === "transcribing" || status === "correcting" || status === "error");
 }
 
 export interface WorkflowRunTaskProjectionViewModel {

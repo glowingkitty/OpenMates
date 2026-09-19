@@ -3618,6 +3618,8 @@
               </div>
             {:else if embedProg.status === 'transcribing'}
               <span class="upload-progress-text">{$text('enter_message.upload_progress.transcribing')}</span>
+            {:else if embedProg.status === 'correcting'}
+              <span class="upload-progress-text">{$text('app_skills.audio.transcribe.auto_correcting')}</span>
             {:else if embedProg.status === 'processing'}
               <span class="upload-progress-text">{$text('common.processing')}</span>
             {:else if embedProg.status === 'error'}

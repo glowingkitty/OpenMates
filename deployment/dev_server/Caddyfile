@@ -109,7 +109,7 @@ api.dev.openmates.org {
 	@options_method method OPTIONS # Renamed for clarity
 	@revolut_webhook path /v1/payments/webhook # Matcher for payment provider webhooks (Stripe / Polar / Revolut Business)
 	@ci_tunnel path /internal/tunnel/open /internal/tunnel/close # CI ephemeral tunnel management (HMAC-auth, GitHub Actions only)
-	@websocket_path path /v1/ws* # Matcher for WebSocket paths (to exclude from compression)
+	@websocket_path path /v1/ws* /v1/apps/audio/realtime-transcription # Matcher for WebSocket paths (to exclude from compression)
 
 	# --- PUBLIC RUNTIME / DEVELOPER API MATCHERS ---
 	# These paths may be reachable without the web-app Origin so FastAPI can return
@@ -202,7 +202,7 @@ api.dev.openmates.org {
 
 	# Combined matcher for actual WebSocket requests (non-OPTIONS) from the correct origin
 	@websocket_actual {
-		path /v1/ws /v1/code/run/* /v1/code/notebooks/run/*
+		path /v1/ws /v1/apps/audio/realtime-transcription /v1/code/run/* /v1/code/notebooks/run/*
 		not method OPTIONS # Ensure it's not an OPTIONS request
 	}
 
@@ -514,4 +514,3 @@ jupyter.dev.openmates.org {
 		header_up Upgrade {http.request.header.Upgrade}
 	}
 }
-

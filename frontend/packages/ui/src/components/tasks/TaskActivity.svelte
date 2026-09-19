@@ -18,6 +18,8 @@
   import { extractEmbedReferences } from '../../services/embedResolver';
   import { embedStore } from '../../services/embedStore';
   import { base64ToUint8Array, uint8ArrayToBase64 } from '../../services/cryptoService';
+  import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
+  import type { AudioWaveformData } from '../../utils/audioWaveform';
   import {
     canSubmitUserTaskActivity,
     createUserTaskActivity,
@@ -30,7 +32,7 @@
   } from '../../services/userTaskService';
   import { text } from '../../i18n/translations';
 
-  type ProcessingState = 'idle' | 'uploading' | 'transcribing' | 'error';
+  type ProcessingState = 'idle' | 'uploading' | 'transcribing' | 'correcting' | 'error';
   type CreateHandler = (input: CreateUserTaskActivityInput) => Promise<UserTaskActivityEntry>;
   type DeleteHandler = (entryId: string) => Promise<UserTaskActivityEntry>;
 
@@ -178,12 +180,12 @@
     }
   }
 
-  async function handleAudioRecorded(event: CustomEvent<{ blob: Blob; duration: number; mimeType: string; waveform?: { samples: number[]; duration: number } }>): Promise<void> {
+  async function handleAudioRecorded(event: CustomEvent<{ blob: Blob; duration: number; mimeType: string; waveform?: AudioWaveformData; realtime?: AudioRealtimeTranscriptionHandle; liveTranscript?: string }>): Promise<void> {
     if (!editor) return;
-    const { blob, duration, mimeType, waveform } = event.detail;
+    const { blob, duration, mimeType, waveform, realtime, liveTranscript } = event.detail;
     const minutes = Math.floor(duration / 60);
     const seconds = Math.floor(duration % 60).toString().padStart(2, '0');
-    await insertRecording(editor, blob, mimeType, `${minutes}:${seconds}`, true, undefined, waveform);
+    await insertRecording(editor, blob, mimeType, `${minutes}:${seconds}`, true, undefined, waveform, realtime, liveTranscript);
     updateComposerState(editor);
   }
 
@@ -251,7 +253,7 @@
   <form class="composer" data-testid="task-activity-composer" onsubmit={(event) => { event.preventDefault(); void submit(); }}>
     <div
       class="editor prose"
-      class:processing={previewProcessingState === 'uploading' || previewProcessingState === 'transcribing'}
+      class:processing={previewProcessingState === 'uploading' || previewProcessingState === 'transcribing' || previewProcessingState === 'correcting'}
       bind:this={editorElement}
       data-testid="task-activity-editor"
       role="textbox"
@@ -269,13 +271,13 @@
       <button type="button" class="icon-button mic" data-testid="task-activity-voice" aria-label={$text('tasks.activity.voice')} onclick={() => recording = true}></button>
       <button type="submit" class="send" data-testid="task-activity-submit" disabled={!canSubmit}>{submitting ? $text('tasks.activity.sending') : $text('tasks.activity.send')}</button>
     </div>
-    {#if previewProcessingState === 'uploading' || previewProcessingState === 'transcribing'}
-      <p class="processing-state" data-testid="task-activity-processing">{previewProcessingState === 'uploading' ? $text('tasks.activity.uploading') : $text('tasks.activity.transcribing')}</p>
+    {#if previewProcessingState === 'uploading' || previewProcessingState === 'transcribing' || previewProcessingState === 'correcting'}
+      <p class="processing-state" data-testid="task-activity-processing">{previewProcessingState === 'uploading' ? $text('tasks.activity.uploading') : previewProcessingState === 'correcting' ? $text('app_skills.audio.transcribe.auto_correcting') : $text('tasks.activity.transcribing')}</p>
     {:else if previewProcessingState === 'error' || embedStatuses.includes('error')}
       <p class="embed-error" data-testid="task-activity-embed-error">{$text('tasks.activity.processing_error')}</p>
     {/if}
     {#if recording}
-      <RecordAudio initialPosition={{ x: 0, y: 0 }} on:audiorecorded={handleAudioRecorded} on:close={() => recording = false} on:cancel={() => recording = false} />
+      <RecordAudio initialPosition={{ x: 0, y: 0 }} enableRealtime={true} on:audiorecorded={handleAudioRecorded} on:close={() => recording = false} on:cancel={() => recording = false} />
     {/if}
   </form>
 

@@ -1,0 +1,301 @@
+schema_version: 2
+id: realtime-audio-recording-transcription
+title: Realtime Audio Recording Transcription
+status: verified
+
+goal: >
+  Make web voice messages feel immediate by showing a live transcript while the
+  user records, preserving the final raw transcript in the audio embed as soon
+  as recording ends, visibly applying automatic correction in parallel with the
+  encrypted upload, and finalizing the same embed whether it remains in the
+  composer or is sent immediately.
+
+scope:
+  in:
+    - Authenticated web recordings stream 16 kHz PCM through a first-party WebSocket proxy to Mistral Voxtral Realtime.
+    - The recording overlay shows the latest bounded transcript text while audio is still being captured.
+    - The audio embed shows the raw realtime transcript immediately and a distinct automatic-correction processing state.
+    - Gemini transcript correction begins after the final realtime transcript and overlaps the encrypted audio upload.
+    - Successful realtime recordings do not invoke the existing batch Voxtral transcription endpoint a second time.
+    - Realtime failure falls back to the existing encrypted upload plus batch transcription path.
+    - Cancellation closes capture and provider work without creating an embed; provider usage already incurred remains billable.
+    - Immediate send continues to use deferred embed finalization and updates the same optimistic chat message.
+    - Provider usage is authenticated, rate/concurrency bounded, duration bounded, and billed at six credits per started minute.
+    - Focused backend, frontend unit, component-preview, and browser E2E coverage for the new states and fallback.
+  out:
+    - Anonymous live transcription or new anonymous provider spend.
+    - Apple/native live transcription parity in this slice.
+    - Self-hosting the open-weight realtime model.
+    - Replacing the existing batch endpoint for uploaded audio files or CLI/SDK clients.
+    - Persisting plaintext transcript or audio in backend caches or logs.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Proxy realtime audio through an authenticated first-party WebSocket instead of issuing reusable provider client tokens to browsers.
+    reason: The proxy prevents token replay and unmetered provider use while keeping the Mistral API key outside the browser.
+    decided_at: "2026-09-19T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Use Voxtral Mini Transcribe Realtime at one second target delay and replace, rather than duplicate, the batch Voxtral call on success.
+    reason: Native streaming provides progressive text without repeatedly billing overlapping chunks; the managed price is $0.006/min versus $0.003/min for batch.
+    decided_at: "2026-09-19T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Run transcript correction on the same backend WebSocket after the provider's final transcript while the client uploads encrypted audio independently.
+    reason: This exposes the raw transcript immediately, overlaps two independent waits, and avoids temporarily caching plaintext transcript state.
+    decided_at: "2026-09-19T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Keep the current batch transcription request as the transparent fallback when realtime capture, transport, or finalization fails.
+    reason: Recording must remain usable on browsers or networks where realtime PCM capture cannot complete.
+    decided_at: "2026-09-19T00:00:00Z"
+
+scenarios:
+  - id: S-1
+    title: Transcript grows during recording
+    given:
+      - Alice is authenticated and microphone access is granted.
+    when:
+      - Alice records a voice message and Voxtral emits text deltas.
+    then:
+      - The recording overlay keeps the waveform and controls usable.
+      - The most recent transcript text is visible and updates without waiting for recording to finish.
+      - Transcript content is not written to logs or durable backend storage.
+  - id: S-2
+    title: Finished recording shows raw text while auto correction runs
+    given:
+      - Realtime transcription has produced a final raw transcript.
+    when:
+      - Alice finishes recording.
+    then:
+      - An audio embed appears immediately with local playback, waveform, and raw transcript.
+      - The embed labels automatic correction as processing while encrypted upload and correction run concurrently.
+      - The corrected transcript and generated title replace the raw presentation when correction succeeds.
+      - Correction failure finishes the embed with the raw transcript instead of failing the recording.
+  - id: S-3
+    title: Immediate send finalizes the same message
+    given:
+      - Alice has finished recording and upload or correction is still pending.
+    when:
+      - Alice presses Send immediately.
+    then:
+      - One optimistic user message appears in chat history.
+      - Completion patches that same message with the persisted audio embed, final transcript, title, waveform, and provider attribution.
+      - No duplicate message or second batch transcription is created.
+  - id: S-4
+    title: Realtime failure falls back safely
+    given:
+      - Realtime capture, WebSocket transport, or provider transcription fails.
+    when:
+      - Alice finishes a valid local recording.
+    then:
+      - The encrypted audio upload continues.
+      - The existing batch transcription and correction request runs once.
+      - The embed finishes or exposes its existing retryable error state.
+
+verification:
+  required:
+    - python3 scripts/plan_validate.py docs/plans/realtime-audio-recording-transcription/plan.yml
+    - Focused pytest coverage for WebSocket auth, protocol validation, provider relay, correction fallback, billing, and cancellation.
+    - Focused Vitest coverage for PCM conversion, realtime lifecycle, transcript accumulation, and fallback selection.
+    - Focused component-preview Playwright coverage for live transcript and automatic-correction states in bare chrome=0 mode.
+    - Browser E2E coverage for an immediately sent recording finalizing in place without a duplicate batch request.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: An authenticated recording renders incremental provider transcript text in the active recording overlay without disrupting recording controls.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-VITEST-REALTIME, T-PLAYWRIGHT-FLOW]
+  - id: AC-2
+    scenario: S-2
+    text: Finishing a successful realtime recording inserts an audio embed with raw text immediately and exposes automatic correction as an in-progress state.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-VITEST-REALTIME, T-PLAYWRIGHT-COMPONENT]
+  - id: AC-3
+    scenario: S-2
+    text: Successful realtime transcription and correction overlap encrypted upload and never call batch Voxtral for the same recording.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-VITEST-REALTIME, T-PYTEST-REALTIME]
+  - id: AC-4
+    scenario: S-4
+    text: A realtime failure invokes the existing batch transcription path exactly once without losing the recording.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-VITEST-REALTIME, T-PLAYWRIGHT-FLOW]
+  - id: AC-5
+    scenario: S-3
+    text: Sending before upload or correction completes finalizes one existing chat-history message with the completed embed.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PLAYWRIGHT-FLOW]
+  - id: AC-6
+    scenario: S-1
+    text: The first-party WebSocket enforces authentication, one active stream per user, bounded audio, payload validation, and six-credit-per-started-minute billing.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-REALTIME]
+
+tests:
+  - id: T-PYTEST-REALTIME
+    type: pytest
+    command: PYTHONPATH=/tmp/openmates-audio-test-deps:. python3 -m pytest backend/tests/test_audio_realtime_transcription.py backend/tests/test_audio_transcribe_ascii_sanitization.py -q
+    file: backend/tests/test_audio_realtime_transcription.py
+    assertions:
+      - Origin validation and one-stream admission fail closed before provider use.
+      - Provider PCM, text deltas, and final text are relayed without persisting transcript content.
+      - Correction success and failure produce the documented terminal events.
+      - Provider usage is billed once at six credits per started minute, including client disconnect after audio use.
+    covers: [AC-3, AC-6]
+    red_phase: {required: true, expected: fail, evidence: {status: skipped_with_reason, reason: "Focused proxy tests were added with the implementation; no pre-implementation route existed to execute.", timestamp: "2026-09-19T20:02:46Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "PYTHONPATH=/tmp/openmates-audio-test-deps:. python3 -m pytest backend/tests/test_audio_realtime_transcription.py backend/tests/test_audio_transcribe_ascii_sanitization.py -q", run_id: "local-audio-realtime-20260919", subject_commit: "ac16ba9d4f2a73c5898bba0727b937be6dad7136", timestamp: "2026-09-19T20:30:39Z", notes: "12 focused tests passed after the final fail-closed admission and disconnect cleanup changes. Isolated backend run 35465829256 also passed every audio-focused test on candidate f08bf400 while the broad baseline had 126 unrelated failures."}}
+  - id: T-VITEST-REALTIME
+    type: vitest
+    command: pnpm --dir frontend/packages/ui exec vitest run src/services/__tests__/audioRealtimeTranscription.test.ts
+    file: frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
+    assertions:
+      - Float microphone samples are downmixed, resampled, and encoded as bounded PCM16 messages.
+      - Text deltas accumulate in order and final transcript plus correction promises resolve independently.
+      - Finishing before readiness flushes buffered PCM followed by the end signal.
+      - Server failure rejects both result phases and closes the capture cleanly for batch fallback.
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    red_phase: {required: true, expected: fail, evidence: {status: skipped_with_reason, reason: "The browser capture service and its focused unit test were introduced together.", timestamp: "2026-09-19T20:02:46Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "corepack pnpm --config.engine-strict=false --dir frontend/packages/ui exec vitest run src/services/__tests__/audioRealtimeTranscription.test.ts", run_id: "local-audio-realtime-vitest-20260919", subject_commit: "ac16ba9d4f2a73c5898bba0727b937be6dad7136", timestamp: "2026-09-19T20:30:40Z", notes: "Four focused PCM, lifecycle, late-readiness, and failure tests passed; the final upload-state ordering follow-up is lint-verified and does not change the capture protocol."}}
+  - id: T-PLAYWRIGHT-COMPONENT
+    type: playwright
+    command: Run focused bare component-preview specs through isolated GitHub CI.
+    file: frontend/apps/web_app/tests/components/audio-recording-realtime.spec.ts
+    target: /dev/preview/embeds/audio/RecordingEmbedPreview?variant=correcting&chrome=0
+    execution_environment: isolated_github_ci
+    assertions:
+      - The recording embed renders raw transcript text and an Auto correction processing indicator without clipping.
+    covers: [AC-1, AC-2]
+    red_phase: {required: true, expected: fail, evidence: {status: skipped_with_reason, reason: "The new correcting preview variant and its focused component spec were added together.", timestamp: "2026-09-19T20:02:46Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/ci_coordinator.py wait 2fb3a3189a67004c8f9c084522fdc3da87680085755adb5b5a55e4fbc35697bc --json", run_id: "35465830799", subject_commit: "ac16ba9d4f2a73c5898bba0727b937be6dad7136", target: "github-isolated://localhost:5173/dev/preview/embeds/audio/RecordingEmbedPreview?variant=correcting&chrome=0", deployment_reference: "github-actions:35465830799", timestamp: "2026-09-19T20:12:00Z", notes: "Isolated GitHub component preview executed one assertion set with zero skips, unexpected results, or flakes on candidate f08bf400; subsequent candidate changes only extend flow mocks, coverage registration, and verification records."}}
+  - id: T-PLAYWRIGHT-FLOW
+    type: playwright
+    command: Run the audio recording immediate-send regression spec through isolated GitHub CI.
+    file: frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    target: https://app.dev.openmates.org/
+    execution_environment: isolated_github_ci
+    assertions:
+      - Realtime text appears before recording stops.
+      - Immediate send creates one optimistic message and patches it with the completed corrected embed.
+      - The successful realtime path performs no batch transcription request.
+      - Realtime failure performs one batch fallback and preserves the recording.
+    covers: [AC-4, AC-5]
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/ci_coordinator.py wait 89e69b0517fad4c71b4a26b702735ff937ecac72def78e5be0b32a96288463c4 --json", run_id: "35465827524", subject_commit: "f08bf40099fa4dabf93e3905d52090808076f771", timestamp: "2026-09-19T20:12:30Z", reason: "The isolated runner correctly exposed that the external upload boundary was still live; the final cost-free daily spec now mocks that boundary explicitly."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/ci_coordinator.py wait 4156d77f53d6aed10ab607460d0a2dc6bac4f93d01a4e6c29237bdde943125a0 --json", run_id: "35466853762", subject_commit: "ac16ba9d4f2a73c5898bba0727b937be6dad7136", target: "github-isolated://localhost:5173/", deployment_reference: "github-actions:35466853762", timestamp: "2026-09-19T20:33:00Z", notes: "Both authenticated audio recording scenarios passed with zero skips, unexpected results, or flakes. Provider and upload boundaries are mocked, so daily execution incurs no Mistral, Gemini, storage, or ElevenLabs spend."}}
+
+implementation_state:
+  subject_commit: ac16ba9d4f2a73c5898bba0727b937be6dad7136
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: The user requested implementation and tests, not a proof video; focused bare component and full browser lifecycle assertions provide the required UI evidence without publishing media.
+    classified_at: "2026-09-19T20:12:00Z"
+    verification_ids: [T-PLAYWRIGHT-COMPONENT, T-PLAYWRIGHT-FLOW]
+    blockers: []
+  narration_outline: []
+  evidence:
+    status: not_applicable
+    privacy_status: not_applicable
+    audio_status: not_applicable
+    review_status: not_applicable
+    publication_status: not_applicable
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""
+
+approvals:
+  specification:
+    status: not_required
+    reason: The user supplied the product behavior directly; this plan records implementation and verification without creating a separate reusable Specification.
+  plan:
+    status: approved
+    approved_at: "2026-09-19T00:00:00Z"
+    reason: The user explicitly requested implementation if research found a feasible low-cost option; provider research found a $0.003/min incremental managed cost.
+
+tasks:
+  - id: TASK-1
+    title: Implement and verify realtime voice transcription
+    status: done
+    phase: complete
+    covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]}
+    expected_files:
+      - backend/core/api/app/routes/audio_realtime.py
+      - backend/shared/providers/gemini_transcript_correction.py
+      - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+      - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+      - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    verification_ids: [T-PYTEST-REALTIME, T-VITEST-REALTIME, T-PLAYWRIGHT-COMPONENT, T-PLAYWRIGHT-FLOW]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      session: "18df"
+      files:
+        - backend/core/api/app/routes/audio_realtime.py
+        - backend/shared/providers/gemini_transcript_correction.py
+        - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+        - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+        - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+      shared_files: []
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Trace the current recording, batch transcription, correction, upload, and deferred-send code and compare it with current official Mistral realtime documentation and SDK protocol.
+    outcome: succeeded
+    recorded_at: "2026-09-19T00:00:00Z"
+    evidence: Native Voxtral Realtime supports PCM streaming and text deltas at $0.006/min; current batch processing waits for correction before returning.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Complete; deploy the verified scoped change through the bound repository session.
+  command: 'python3 scripts/sessions.py deploy --session 18df --title "feat: stream voice message transcripts"'
+  expected_outcome: The verified implementation is integrated into dev without changing unrelated work.
+  blocker: null
+  last_verified_commit: ac16ba9d4f2a73c5898bba0727b937be6dad7136
+
+context_discovery:
+  code_patterns:
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte currently records a complete MediaRecorder blob and only displays time plus waveform.
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts uploads first, then calls the blocking batch transcribe endpoint, which also waits for Gemini correction.
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts already snapshots uploading and transcribing embeds and finalizes immediate sends in place.
+    - backend/apps/audio/skills/transcribe_skill.py currently performs batch Voxtral transcription, waveform extraction, and Gemini correction serially.
+    - backend/core/api/app/routes/auth_ws.py provides the existing session, device, and short-lived WebSocket-token authentication contract.
+  provider_research:
+    - Mistral documents voxtral-mini-transcribe-realtime-2602 as a native streaming model with configurable sub-second latency.
+    - Mistral prices realtime transcription at $0.006 per minute and batch Voxtral Mini Transcribe V2 at $0.003 per minute.
+    - Mistral's protocol accepts base64 PCM append messages and emits incremental transcription.text.delta plus final transcription.done events.
+
+clarification:
+  rounds: []
+  vision_summary: >
+    The user explicitly requested research followed by implementation when the
+    cost increase is small. Native provider streaming makes the requested UX
+    possible for an additional $0.003 per recorded minute while eliminating the
+    old batch call on successful live recordings.
+  approved_by_user: true

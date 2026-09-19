@@ -86,6 +86,7 @@
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
     import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
+    import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -582,7 +583,7 @@
             if (node.type.name !== 'embed') return true;
             const attrs = node.attrs as Record<string, unknown>;
             const status = typeof attrs.status === 'string' ? attrs.status : '';
-            if (status === 'uploading' || status === 'processing' || status === 'transcribing') {
+            if (status === 'uploading' || status === 'processing' || status === 'transcribing' || status === 'correcting') {
                 found = true;
                 return false;
             }
@@ -4548,8 +4549,15 @@
      *     });
      * }
      */
-    async function handleAudioRecorded(event: CustomEvent<{ blob: Blob, duration: number, mimeType: string, waveform?: AudioWaveformData }>) {
-        const { blob, duration, mimeType, waveform } = event.detail;
+    async function handleAudioRecorded(event: CustomEvent<{
+        blob: Blob,
+        duration: number,
+        mimeType: string,
+        waveform?: AudioWaveformData,
+        realtime?: AudioRealtimeTranscriptionHandle,
+        liveTranscript?: string,
+    }>) {
+        const { blob, duration, mimeType, waveform, realtime, liveTranscript } = event.detail;
         const formattedDuration = formatDuration(duration);
         if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
 
@@ -4587,9 +4595,20 @@
             markChatIdAsDraftAudio(draftChatId);
             chatIdForRecording = draftChatId;
         }
+        if (chatIdForRecording) realtime?.setChatId(chatIdForRecording);
         // insertRecording() uploads to server + triggers Mistral Voxtral transcription in parallel.
         // It does NOT need a pre-created blob URL — it creates its own internally.
-        await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated, chatIdForRecording, waveform);
+        await insertRecording(
+            editor,
+            blob,
+            mimeType,
+            formattedDuration,
+            $authStore.isAuthenticated,
+            chatIdForRecording,
+            waveform,
+            realtime,
+            liveTranscript,
+        );
         hasContent = editorHasSendableText(editor);
         refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
@@ -6387,6 +6406,7 @@
             <RecordAudio
                 bind:this={recordAudioComponent}
                 initialPosition={$recordingState.recordStartPosition}
+                enableRealtime={$authStore.isAuthenticated}
                 on:audiorecorded={handleAudioRecorded}
                 on:close={handleStopRecordingCleanup}
                 on:cancel={handleStopRecordingCleanup}
