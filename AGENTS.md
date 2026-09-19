@@ -27,6 +27,9 @@ serializes integration, and commits/pushes to `dev`. This scoped dev deployment
 is authorized for assigned implementation work. The canonical checkout stays on
 `dev`; isolated task worktrees may use detached commits. Do not use raw commit,
 push, stash, destructive git commands, or change the default branch.
+`dev` and `main` are the repository's only branches. Never create task, candidate,
+hotfix, automation, or dependency branches; candidate CI source uses the private
+artifact path behind `sessions.py ci-source`.
 
 Shared dev-service mutations use `sessions.py docker restart --service <name>`
 with an explicit session. Preserve runtime leases and short push locks. Product

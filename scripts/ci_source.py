@@ -2,19 +2,26 @@
 
 A temporary Git index preserves the user's branch and staging area. Only tracked
 changes and explicitly session-tracked new files enter the candidate. Publication
-uses a dedicated Codex CI ref; it never integrates into dev or restarts services.
+uses a private expiring patch artifact; it never creates a Git ref, integrates
+into dev, or restarts services.
 See docs/plans/isolated-github-tests/plan.yml.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
 import tempfile
+
+try:
+    from scripts.ci_candidate_artifact import upload_patch
+except ModuleNotFoundError:
+    from ci_candidate_artifact import upload_patch
 
 DISK_RESERVE = 30 * 1024**3
 MAX_CHANGED_BYTES = 100 * 1024**2
@@ -86,6 +93,7 @@ def publish(
     base: str = "",
     resolved_patch: Path | None = None,
     patch_sha256: str = "",
+    artifact_uploader=upload_patch,
 ) -> dict:
     if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", session_id):
         raise ValueError("Invalid session identity")
@@ -134,6 +142,15 @@ def publish(
             patch is None and fingerprint(root, paths) != before
         ):
             raise RuntimeError("Source changed during capture; request a new snapshot")
+        if tree == git(root, "rev-parse", parent + "^{tree}"):
+            return {
+                "source": parent,
+                "tree": tree,
+                "session": session_id,
+                "changed_paths": [],
+                "base": parent,
+                "unchanged": True,
+            }
         timestamp = git(root, "show", "-s", "--format=%cI", parent)
         env.update(
             GIT_AUTHOR_NAME="OpenMates CI",
@@ -152,14 +169,43 @@ def publish(
             env=env,
             input=f"CI candidate for session {session_id}\n",
         )
-        ref = f"refs/heads/codex/ci/{session_id}/{source}"
-        git(root, "push", "origin", f"{source}:{ref}")
-    return {
+    candidate_patch = git(root, "diff", "--binary", "--no-renames", parent, source)
+    candidate_bytes = candidate_patch.encode()
+    if len(candidate_bytes) > MAX_CHANGED_BYTES:
+        raise ValueError("CI candidate patch exceeds the source publication limit")
+    candidate_sha256 = hashlib.sha256(candidate_bytes).hexdigest()
+    common_dir = Path(git(root, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+    canonical = common_dir.resolve().parent
+    candidate_dir = canonical / "logs/ci-candidates" / source
+    candidate_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    local_patch = candidate_dir / "candidate.patch"
+    temporary_patch = candidate_dir / ".candidate.patch.tmp"
+    temporary_patch.write_bytes(candidate_bytes)
+    temporary_patch.chmod(0o600)
+    temporary_patch.replace(local_patch)
+    artifact = artifact_uploader(
+        local_patch,
+        source=source,
+        sha256=candidate_sha256,
+    )
+    result = {
         "source": source,
-        "ref": ref,
         "tree": tree,
         "session": session_id,
         "changed_paths": paths,
         "base": parent,
         "resolved_patch_sha256": patch_sha256,
+        "patch_sha256": candidate_sha256,
+        "patch_url": artifact["url"],
+        "artifact_bucket": artifact["bucket"],
+        "artifact_key": artifact["key"],
+        "artifact_expires_at": artifact["expires_at"],
+        "local_patch": str(local_patch),
     }
+    manifest = candidate_dir / "manifest.json"
+    temporary_manifest = candidate_dir / ".manifest.json.tmp"
+    temporary_manifest.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+    temporary_manifest.chmod(0o600)
+    temporary_manifest.replace(manifest)
+    result["manifest"] = str(manifest)
+    return result

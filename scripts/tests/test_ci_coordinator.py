@@ -8,7 +8,9 @@ See docs/plans/isolated-github-tests/plan.yml.
 """
 
 from concurrent.futures import ThreadPoolExecutor
-from scripts.ci_coordinator import Queue, GitHubError
+import datetime as dt
+
+from scripts.ci_coordinator import Queue, GitHub, GitHubError
 
 
 class Remote:
@@ -154,3 +156,27 @@ def test_owned_prerequisite_runs_first_without_exceeding_four_slots(tmp_path):
     assert len(remote.sent) == 4
     assert remote.sent[0]["id"] == jobs[-1]["id"]
     assert queue.status(jobs[-1]["id"])[0]["source"] == "a" * 40
+
+
+def test_candidate_identity_is_persisted_and_dispatched_from_base(tmp_path, monkeypatch):
+    queue = Queue(tmp_path / "queue.db")
+    candidate = {
+        "source": "c" * 40,
+        "base": "b" * 40,
+        "tree": "d" * 40,
+        "session": "owner",
+        "patch_sha256": "e" * 64,
+        "patch_url": "https://nbg1.your-objectstorage.com/private.patch?signature=test",
+        "artifact_expires_at": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)).isoformat(),
+    }
+    job = queue.enqueue("owner", "c" * 40, ["x.spec.ts"], candidate=candidate)
+    assert job["candidate_base"] == "b" * 40
+    github = GitHub.__new__(GitHub)
+    github.repo = "example/repo"
+    requests = []
+    github.request = lambda endpoint, payload=None: requests.append((endpoint, payload))
+    github.dispatch(job)
+    inputs = requests[0][1]["inputs"]
+    assert inputs["checkout_ref"] == "b" * 40
+    assert inputs["source_commit"] == "c" * 40
+    assert inputs["candidate_patch_sha256"] == "e" * 64

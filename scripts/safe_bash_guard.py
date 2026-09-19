@@ -171,6 +171,20 @@ def check_invocation(command: str, args: list[str]) -> str | None:
         return "BLOCKED: git stash is forbidden. Commit your work via sessions.py deploy instead."
     if subcommand == "worktree":
         return "BLOCKED: raw git worktree is forbidden. Use python3 scripts/sessions.py worktree ensure --session <id> so metadata and cleanup stay consistent."
+    if subcommand in {"switch", "checkout"} and any(
+        arg in {"-c", "-C", "-b", "-B", "--create", "--orphan"}
+        or arg.startswith(("--create=", "--orphan="))
+        for arg in subcommand_args
+    ):
+        return "BLOCKED: OpenMates permits only dev and main branches. Use a detached sessions.py worktree instead of creating a branch."
+    if subcommand == "branch":
+        mutation_flags = {"-c", "-C", "-d", "-D", "-m", "-M", "--copy", "--delete", "--move"}
+        if any(arg in mutation_flags for arg in subcommand_args):
+            return "BLOCKED: OpenMates branch mutations must use the two-branch invariant tooling; only dev and main may exist."
+        if subcommand_args and not any(arg.startswith("-") for arg in subcommand_args):
+            return "BLOCKED: OpenMates permits only dev and main branches. Use a detached sessions.py worktree instead of creating a branch."
+    if subcommand == "update-ref" and any(arg.startswith("refs/heads/") for arg in subcommand_args):
+        return "BLOCKED: Direct branch-ref mutation is forbidden; OpenMates permits only dev and main branches."
     if subcommand == "add" and any(arg in {"-A", "--all", "."} for arg in subcommand_args):
         return "BLOCKED: git add -A / git add . stages everything. Add specific files by name instead."
     return None

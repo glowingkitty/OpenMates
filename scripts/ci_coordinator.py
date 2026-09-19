@@ -86,12 +86,19 @@ class GitHub:
         )["workflow_runs"]
 
     def dispatch(self, job: dict):
+        if job.get("candidate_expires") and float(job["candidate_expires"]) <= time.time():
+            raise ValueError("CI candidate artifact expired before dispatch; publish again")
         self.request(
             f"repos/{self.repo}/actions/workflows/{WORKFLOW}/dispatches",
             {
                 "ref": "dev",
                 "inputs": {
-                    "checkout_ref": job["source"],
+                    "checkout_ref": job.get("candidate_base") or job["source"],
+                    "source_commit": job["source"],
+                    "candidate_tree": job.get("candidate_tree", ""),
+                    "candidate_owner": job.get("candidate_owner", ""),
+                    "candidate_patch_sha256": job.get("candidate_patch_sha256", ""),
+                    "candidate_patch_url": job.get("candidate_patch_url", ""),
                     "specs_json": job["specs"],
                     "mode": job["mode"],
                     "dispatch_token": job["token"],
@@ -128,6 +135,17 @@ class Queue:
                         row[1] for row in db.execute("PRAGMA table_info(jobs)")
                     }:
                         raise
+            candidate_columns = {
+                "candidate_base": "TEXT NOT NULL DEFAULT ''",
+                "candidate_tree": "TEXT NOT NULL DEFAULT ''",
+                "candidate_owner": "TEXT NOT NULL DEFAULT ''",
+                "candidate_patch_sha256": "TEXT NOT NULL DEFAULT ''",
+                "candidate_patch_url": "TEXT NOT NULL DEFAULT ''",
+                "candidate_expires": "REAL NOT NULL DEFAULT 0",
+            }
+            for name, definition in candidate_columns.items():
+                if name not in columns:
+                    db.execute(f"ALTER TABLE jobs ADD COLUMN {name} {definition}")
         path.chmod(0o600)
 
     def connect(self):
@@ -143,6 +161,7 @@ class Queue:
         mode="e2e",
         nonce="",
         proof_profile="",
+        candidate: dict | None = None,
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
@@ -152,6 +171,44 @@ class Queue:
             proof_profile and mode not in ("e2e", "artifact")
         ):
             raise ValueError("Invalid proof video profile")
+        candidate = candidate or {}
+        candidate_values = {
+            "candidate_base": "",
+            "candidate_tree": "",
+            "candidate_owner": "",
+            "candidate_patch_sha256": "",
+            "candidate_patch_url": "",
+            "candidate_expires": 0.0,
+        }
+        if candidate:
+            from datetime import datetime
+            try:
+                from scripts.ci_candidate_artifact import validate_url
+            except ModuleNotFoundError:
+                from ci_candidate_artifact import validate_url
+            if candidate.get("source") != source or candidate.get("session") != owner:
+                raise ValueError("CI candidate identity does not match queue owner and source")
+            for field in ("base", "tree"):
+                if not re.fullmatch(r"[0-9a-f]{40}", str(candidate.get(field, ""))):
+                    raise ValueError(f"CI candidate requires a full {field} SHA")
+            digest = str(candidate.get("patch_sha256", ""))
+            if not re.fullmatch(r"[0-9a-f]{64}", digest):
+                raise ValueError("CI candidate requires a SHA-256 patch digest")
+            url = validate_url(str(candidate.get("patch_url", "")))
+            expires_value = datetime.fromisoformat(str(candidate.get("artifact_expires_at", "")))
+            if expires_value.tzinfo is None:
+                raise ValueError("CI candidate artifact expiry must include a timezone")
+            expires = expires_value.timestamp()
+            if expires <= time.time():
+                raise ValueError("CI candidate artifact is expired")
+            candidate_values = {
+                "candidate_base": candidate["base"],
+                "candidate_tree": candidate["tree"],
+                "candidate_owner": candidate["session"],
+                "candidate_patch_sha256": digest,
+                "candidate_patch_url": url,
+                "candidate_expires": expires,
+            }
         specs = sorted(set(specs))
         if mode == "visual-smoke":
             try:
@@ -177,14 +234,14 @@ class Queue:
                 from ci_coverage import validate_runtime_batch
             validate_runtime_batch(specs)
         encoded = json.dumps(specs, separators=(",", ":"))
-        identity = [owner, source, specs, mode, nonce]
+        identity = [owner, source, specs, mode, nonce, candidate_values]
         if proof_profile:
             identity.append(proof_profile)
         key = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
         now = time.time()
         with self.connect() as db:
             db.execute(
-                "INSERT OR IGNORE INTO jobs(id,owner,source,specs,mode,token,state,created,updated,proof_profile) VALUES(?,?,?,?,?,?,?, ?,?,?)",
+                "INSERT OR IGNORE INTO jobs(id,owner,source,specs,mode,token,state,created,updated,proof_profile,candidate_base,candidate_tree,candidate_owner,candidate_patch_sha256,candidate_patch_url,candidate_expires) VALUES(?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?)",
                 (
                     key,
                     owner,
@@ -196,6 +253,12 @@ class Queue:
                     now,
                     now,
                     proof_profile,
+                    candidate_values["candidate_base"],
+                    candidate_values["candidate_tree"],
+                    candidate_values["candidate_owner"],
+                    candidate_values["candidate_patch_sha256"],
+                    candidate_values["candidate_patch_url"],
+                    candidate_values["candidate_expires"],
                 ),
             )
             return dict(db.execute("SELECT * FROM jobs WHERE id=?", (key,)).fetchone())
@@ -366,6 +429,13 @@ class Queue:
                             break
                         if job["state"] != "queued" or by_token[job["token"]]:
                             continue
+                        if job.get("candidate_expires") and float(job["candidate_expires"]) <= now:
+                            db.execute(
+                                "UPDATE jobs SET state='attention',updated=?,error='Candidate artifact expired; publish again' WHERE id=?",
+                                (now, job["id"]),
+                            )
+                            db.commit()
+                            continue
                         db.execute(
                             "UPDATE jobs SET state='dispatching',sent=?,updated=? WHERE id=?",
                             (now, now, job["id"]),
@@ -494,8 +564,13 @@ def main():
                 raise RuntimeError("Selected specs require a different isolated runtime mode")
             if held:
                 raise RuntimeError("Unsupported isolated coverage: " + json.dumps(held))
+        try:
+            from scripts.ci_candidate import load as load_candidate
+        except ModuleNotFoundError:
+            from ci_candidate import load as load_candidate
+        candidate = load_candidate(root, args.source, require_fresh=True)
         print_receipt(queue.enqueue(args.session, args.source, args.spec, args.mode,
-                                    args.attempt, args.proof_video_profile), as_json=args.json)
+                                    args.attempt, args.proof_video_profile, candidate), as_json=args.json)
     elif args.action == "prioritize":
         print_receipt(queue.prioritize(args.id, args.session, args.reason), as_json=args.json)
     elif args.action == "status":

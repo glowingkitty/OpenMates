@@ -7501,7 +7501,9 @@ def cmd_ci_source(args: argparse.Namespace) -> None:
     result = publish(root, args.session, session.get("modified_files", []),
                      base=args.base or "", resolved_patch=Path(args.resolved_patch) if args.resolved_patch else None,
                      patch_sha256=args.patch_sha256 or "")
-    print(json.dumps(result, sort_keys=True))
+    # Presigned candidate URLs are credentials. The dispatcher reads them from
+    # the mode-0600 local manifest; never print them into chat or shell logs.
+    print(json.dumps({key: value for key, value in result.items() if key != "patch_url"}, sort_keys=True))
 
 
 def cmd_ci_adopt(args: argparse.Namespace) -> None:

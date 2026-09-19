@@ -39,6 +39,11 @@ def test_all_executable_dependency_ecosystems_are_covered() -> None:
 
 
 # contract-test: infrastructure
+def test_dependabot_version_updates_cannot_create_branches() -> None:
+    assert all(entry["open-pull-requests-limit"] == 0 for entry in _updates())
+
+
+# contract-test: infrastructure
 def test_every_python_requirements_directory_is_covered() -> None:
     pip = next(entry for entry in _updates() if entry["package-ecosystem"] == "pip")
     configured_directories = set(pip["directories"])

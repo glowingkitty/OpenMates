@@ -6,7 +6,8 @@ New full-application testing uses isolated GitHub Actions Docker and web runtime
 and cutover readiness remain enforced. Unsupported coverage is not a pass and
 must not fall back to mutating the shared dev stack.
 
-Prepare a source with `sessions.py ci-source`, submit the matching supported
+Prepare a source with `sessions.py ci-source`; dirty candidate bytes move through
+a private expiring patch artifact, never a Git branch. Submit the matching supported
 mode/spec, then use `ci_coordinator.py wait <id>`. Waiting reads the cache and
 validates exact-source result artifacts once when a workflow succeeds. Status,
 submission and result commands default to concise text; `--json` retains complete

@@ -7,12 +7,13 @@ Implementation status: migration HOLD. The coordinator must not release dependen
 ```mermaid
 flowchart LR
   W[Preserved Codex worktree] --> U[Local focused unit tests]
-  W --> P[Publish immutable candidate SHA]
+  W --> P[Publish private expiring patch + immutable identity]
   D[Daily scheduler: exact dev SHA] --> Q[Shared durable CI queue]
   P --> Q
   Q --> G[GitHub-hosted VM]
   G --> H[Versioned CI harness]
-  G --> S[Exact candidate checkout]
+  G --> B[Detached base checkout]
+  B --> S[Verify patch digest and reconstruct exact candidate]
   S --> I[Cached dependency image builds]
   I --> A[Local API and workers]
   I --> F[Local web app and browser]
@@ -28,7 +29,7 @@ flowchart LR
 
 The Hetzner host retains source worktrees, focused unit execution, the queue and bounded result artifacts. It does not start candidate Docker stacks. `ci_environment.py` rejects execution outside a GitHub-hosted job before Docker is invoked. Shared dev domains resolve to a rejected loopback endpoint in both the runner and application containers; verification checks the runner's failed HTTPS connection.
 
-The workflow checks out its trusted harness separately from the immutable subject. Old worktrees and reviewed resolved patches may predate CI tooling. The tested subject and harness commits are recorded separately. Image builds and frontend compilation use the subject checkout. Existing build caches accelerate dependencies without substituting stale application source.
+The workflow checks out its trusted harness separately from the immutable subject. For a worktree candidate it checks out the reachable base in detached state, downloads a private 48-hour patch, verifies its SHA-256, reconstructs the deterministic tree and commit, and rejects any identity mismatch. No candidate branch or other Git ref is created. Old worktrees and reviewed resolved patches may predate CI tooling. The tested subject and harness commits are recorded separately. Image builds and frontend compilation use the subject checkout. Existing build caches accelerate dependencies without substituting stale application source.
 
 ## Commands
 
@@ -70,7 +71,7 @@ This publishes a candidate through a temporary index. It does not integrate or d
 
 One flocked reconciler dispatches at most four active jobs. Intent is durable before the request; ambiguous dispatches retain their slot and are reconciled rather than resent. Routine status polling is shared at 30 seconds. GitHub request reserve and backoff also apply to artifact retrieval. The coordinator exposes attention states instead of silently rerunning uncertain jobs.
 
-Candidate publication and artifact retrieval preserve at least 30 GiB free on the host. Artifact downloads are bounded to 256 MiB, extracted data to 512 MiB and 10,000 files, with a one-minute download deadline. Unsafe paths, symlinks and private account state are rejected. GitHub artifact retention is seven days. Local result-cache and candidate-ref retention automation remains pending.
+Candidate publication and artifact retrieval preserve at least 30 GiB free on the host. Candidate patches are bounded to 100 MiB, stored in a private bucket, addressed by digest, and expire after two days. Result artifact downloads are bounded to 256 MiB, extracted data to 512 MiB and 10,000 files, with a one-minute download deadline. Unsafe paths, symlinks and private account state are rejected. GitHub result-artifact retention is seven days. Local manifests retain the exact reviewed bytes needed by reviewed deployment.
 
 Fresh accounts are created through real CLI signup and security initialization. Generated credentials and client state stay in a private runner directory. The private email verification code is obtained from that account's local cache key; no shared Gmail account is used for account provisioning. This is not a replacement for email-delivery assertions. Any skipped selected case makes coverage incomplete. Signup creation is paced against the real per-IP rate limit. Fresh CLI keys have a lifetime credit cap and expiry; the fresh owner approves the exact registered CLI device through the authenticated API. Earlier completed results survive later fixture failures.
 
@@ -87,7 +88,8 @@ Publishing a candidate is not deployment. A preserved worktree can deploy an exa
 reviewed candidate with `sessions.py deploy --session <existing> --reviewed-candidate
 <full-sha> --reviewed-base <parent-sha> --only <all-candidate-paths> --title ...`.
 Use `ci-source --base ... --resolved-patch ... --patch-sha256 ...` first. The adapter
-requires the session candidate ref, exact parent and full changed-path inventory.
+requires the session's retained local candidate manifest and patch, exact parent,
+digest, tree, commit identity, and full changed-path inventory.
 It runs the ordinary integration gates and push lock, rejects selected-path upstream
 drift and deletion amplification, and requires staged selected files to equal the
 candidate. It checks original worktree/HEAD/index identity and skips source

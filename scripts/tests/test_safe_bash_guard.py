@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Contracts for the shared shell safety guard.
 
 The guard must keep all Docker Compose lifecycle mutations behind the
@@ -57,3 +58,22 @@ def test_allows_compose_inspection_and_openmates_lifecycle_commands() -> None:
         result = run_guard(command)
         assert result.returncode == 0, command
         assert result.stderr == ""
+
+
+def test_blocks_local_branch_creation_and_mutation() -> None:
+    for command in [
+        "git branch feature",
+        "git branch -D feature",
+        "git switch -c feature",
+        "git checkout -b feature",
+        "git update-ref refs/heads/feature HEAD",
+    ]:
+        result = run_guard(command)
+        assert result.returncode == 2, command
+        assert "branch" in json.loads(result.stderr)["reason"].lower()
+
+
+def test_allows_branch_inventory_and_detached_checkout() -> None:
+    for command in ["git branch --show-current", "git branch --list", "git switch --detach HEAD"]:
+        result = run_guard(command)
+        assert result.returncode == 0, command

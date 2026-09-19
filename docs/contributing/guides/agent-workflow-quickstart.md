@@ -20,6 +20,12 @@ Task, binding, owned paths, evidence and unresolved decisions in 100–200 words
 Use canonical `codex_worker.py` and stable operation IDs for authorized dev-host
 workers; preserve explicit per-turn permissions.
 
+The repository has exactly two branches: `dev` and `main`. Sessions use detached
+managed worktrees. `ci-source` transports candidate bytes through a private,
+expiring, SHA-verified artifact; it never creates a branch. Do not create task,
+candidate, hotfix, automation, or dependency branches. Audit the invariant with
+`python3 scripts/branch_invariant.py audit`.
+
 Read `.claude/rules/testing.md` for E2E maintenance and bounded debugging. Ask
 before a materially broader or uncertain repair. Explicit user waivers persist.
 Keep Claude source skills/agents and run `sync_agent_parity.py` plus `--check` after

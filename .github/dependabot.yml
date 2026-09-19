@@ -1,8 +1,8 @@
 version: 2
 
-# Security updates are enabled in repository settings and bypass these cooldowns.
-# Routine releases wait here so newly published malicious or withdrawn artifacts
-# do not enter OpenMates merely because they are the latest available version.
+# Version-update pull requests are intentionally disabled: this repository only
+# permits dev and main branches. Vulnerability alerts and the repository's
+# deterministic security scanners remain enabled without creating Git refs.
 updates:
   - package-ecosystem: npm
     directory: /
@@ -12,7 +12,7 @@ updates:
       day: monday
       time: "04:30"
       timezone: Etc/UTC
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     labels: [dependencies, javascript]
     cooldown: &safe-cooldown
       default-days: 14
@@ -48,7 +48,7 @@ updates:
       day: monday
       time: "04:40"
       timezone: Etc/UTC
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     labels: [dependencies, python]
     cooldown: *safe-cooldown
 
@@ -77,7 +77,7 @@ updates:
       day: monday
       time: "04:50"
       timezone: Etc/UTC
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     labels: [dependencies, docker]
     cooldown: *safe-cooldown
 
@@ -89,6 +89,6 @@ updates:
       day: monday
       time: "05:00"
       timezone: Etc/UTC
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     labels: [dependencies, github-actions]
     cooldown: *safe-cooldown

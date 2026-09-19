@@ -1,3 +1,4 @@
+# contract-test-file: tooling
 """Keep package workflow path filters aligned with scripts/ci_impact.py.
 
 Purpose: prevent drift between declarative GitHub triggers and classifier rules.
@@ -48,3 +49,16 @@ def test_package_workflows_exclude_apple_only_paths() -> None:
 
     assert impact.classify_paths([apple_path]).cli_package is False
     assert impact.classify_paths([apple_path]).python_package is False
+
+
+def test_isolated_workflow_reconstructs_verified_candidate_without_git_refs() -> None:
+    workflow = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+    for value in (
+        "source_commit", "candidate_tree", "candidate_owner",
+        "candidate_patch_sha256", "candidate_patch_url",
+        "'git', 'apply', '--binary', '--index", "'git', 'commit-tree'",
+        "Candidate commit identity mismatch", "symbolic-ref', '-q', 'HEAD'",
+    ):
+        assert value in workflow
+    assert "refs/heads/codex/ci" not in workflow
+    assert "git push" not in workflow
