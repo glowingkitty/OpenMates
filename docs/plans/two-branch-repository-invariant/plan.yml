@@ -1,7 +1,7 @@
 schema_version: 2
 id: two-branch-repository-invariant
 title: Enforce a dev/main-only repository
-status: implementing
+status: verified
 
 goal: >
   Keep exactly two local and remote Git branches, dev and main. Agent work stays
@@ -155,7 +155,7 @@ tests:
       - Publishing a dirty detached worktree creates a private candidate artifact and no Git branch or push.
     covers: [AC-1]
     red_phase: {required: false, expected: fail, evidence: {status: not_run}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_ci_source.py", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Included in the 44-test focused repository-workflow suite."}}
   - id: T-CI-DISPATCH
     type: pytest
     file: scripts/tests/test_ci_dispatch.py
@@ -164,7 +164,7 @@ tests:
       - Dispatch persists and forwards the base, tree, digest, owner, and expiring artifact URL as one immutable candidate identity.
     covers: [AC-1]
     red_phase: {required: false, expected: fail, evidence: {status: not_run}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_ci_dispatch.py scripts/tests/test_ci_coordinator.py", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Included in the 44-test focused repository-workflow suite."}}
   - id: T-CI-WORKFLOW
     type: pytest
     file: scripts/tests/test_ci_workflow_scope.py
@@ -173,7 +173,7 @@ tests:
       - The isolated runner verifies the artifact digest and reconstructs the expected detached commit before tests run.
     covers: [AC-1]
     red_phase: {required: false, expected: fail, evidence: {status: not_run}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_ci_workflow_scope.py", run_id: "github-35452694871-and-local", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Hosted run reconstructed and verified the exact detached source successfully; local workflow-scope coverage also passed."}}
   - id: T-REVIEWED-DEPLOY
     type: pytest
     file: scripts/tests/test_reviewed_deploy.py
@@ -182,7 +182,7 @@ tests:
       - Reviewed deployment authenticates the retained local manifest and patch without a remote candidate ref.
     covers: [AC-2]
     red_phase: {required: false, expected: fail, evidence: {status: not_run}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_reviewed_deploy.py", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Included in the 44-test focused repository-workflow suite."}}
   - id: T-AUTOMATION
     type: pytest
     file: scripts/tests/test_advance_dev_version_workflow.py
@@ -191,7 +191,7 @@ tests:
       - Version advancement writes only to dev with a dedicated repository deploy key and cannot create an automation branch or pull request.
     covers: [AC-3]
     red_phase: {required: false, expected: fail, evidence: {status: not_run}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_advance_dev_version_workflow.py", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Workflow requires VERSION_BUMP_DEPLOY_KEY, forbids GITHUB_TOKEN, creates no branch, and pushes only HEAD:dev; the secret, sole write deploy key, and DeployKey protection bypass are active in GitHub."}}
   - id: T-DEPENDENCY
     type: pytest
     file: scripts/tests/test_dependency_update_policy.py
@@ -200,7 +200,7 @@ tests:
       - Dependabot version-update pull requests are disabled while vulnerability scanning remains configured externally.
     covers: [AC-3]
     red_phase: {required: false, expected: fail, evidence: {status: not_run}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_dependency_update_policy.py", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Included in the 44-test focused repository-workflow suite; GitHub automated security fixes remain disabled to prevent branch creation."}}
   - id: T-BRANCH-GUARD
     type: pytest
     file: scripts/tests/test_branch_invariant.py
@@ -209,7 +209,7 @@ tests:
       - Local command guards and repository audits reject creation or publication of branches other than dev and main.
     covers: [AC-4]
     red_phase: {required: false, expected: fail, evidence: {status: not_run}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_branch_invariant.py && python3 scripts/branch_invariant.py audit", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Guard tests passed and the audit reported no code, local-ref, or remote-ref violations."}}
   - id: T-RULESET
     type: manual
     command: gh api repos/glowingkitty/OpenMates/rulesets
@@ -217,7 +217,7 @@ tests:
       - An active GitHub ruleset restricts creation of every branch except dev and main for ordinary actors and retains only an administrator break-glass bypass.
     covers: [AC-4]
     red_phase: {required: false, expected: fail, evidence: {status: not_run}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "gh api repos/glowingkitty/OpenMates/rulesets/23701449 && gh api repos/glowingkitty/OpenMates/rulesets/6180344", run_id: "github-rulesets-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", reason: "GitHub API output directly verifies the active server-side rules and bypass actors.", notes: "Creation protection is active outside dev/main with an admin break-glass bypass; dev/main protection accepts the repository's sole write deploy key and repository admins."}}
   - id: T-CLEANUP
     type: manual
     command: git ls-remote --heads origin
@@ -225,7 +225,7 @@ tests:
       - A verified external bundle and manifest exist and authoritative local and remote branch inventories contain only dev and main.
     covers: [AC-5]
     red_phase: {required: false, expected: fail, evidence: {status: not_run}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "git ls-remote --heads origin && git for-each-ref --format='%(refname) %(objectname)' refs/heads", run_id: "branch-audit-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", reason: "The remote and local ref inventories are the authoritative branch state.", notes: "Authoritative local and remote inventories contain only dev and main; external recovery bundle SHA-256 is dbde0d12261adb4e35afb3a3aebaf4e8a47b812b31a2a4f184c3f320d44f0022."}}
 
 tasks:
   - id: TASK-1
@@ -286,8 +286,16 @@ rollback:
   - Revert the code commit on dev if artifact transport fails before cleanup.
   - Disable the GitHub ruleset temporarily only for an explicitly reviewed recovery operation.
 
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: This plan changes Git transport, repository refs, credentials, and server-side rulesets with no user-visible visual surface; command and API evidence are the direct proof.
+    classified_at: "2026-09-19T16:03:49Z"
+    verification_ids: [T-CI-SOURCE, T-CI-DISPATCH, T-CI-WORKFLOW, T-REVIEWED-DEPLOY, T-AUTOMATION, T-DEPENDENCY, T-BRANCH-GUARD, T-RULESET, T-CLEANUP]
+
 implementation_state:
-  subject_commit: fe580b64261c08a187fbced705a1f0de9eb3176e
+  subject_commit: 28dc933c2a34ef8c78bd1fb788d7638bf475b5a6
 
 attempts:
   - id: ATTEMPT-1
@@ -311,8 +319,8 @@ attempts:
 
 handoff:
   current_task_id: TASK-2
-  next_action: Deploy the credential-wired workflow and complete final verification.
-  command: python3 scripts/sessions.py deploy --session aefd
-  expected_outcome: The protected dev workflow uses VERSION_BUMP_DEPLOY_KEY and all branch inventories remain dev/main-only.
+  next_action: Observe the next merged main release PR triggering automatic dev version advancement.
+  command: gh run list --workflow advance-dev-version.yml --limit 1
+  expected_outcome: The workflow commits the next alpha line directly to dev without creating another branch.
   blocker: null
-  last_verified_commit: fe580b64261c08a187fbced705a1f0de9eb3176e
+  last_verified_commit: 28dc933c2a34ef8c78bd1fb788d7638bf475b5a6
