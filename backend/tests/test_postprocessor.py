@@ -289,8 +289,8 @@ class TestQuickTips:
 
 
 @pytest.mark.anyio
-async def test_postprocessing_translates_metadata_even_when_output_language_matches_ui(monkeypatch):
-    """German-heavy history can produce German metadata even if output_language is misdetected as English."""
+async def test_postprocessing_batches_metadata_translation_when_output_language_matches_ui(monkeypatch):
+    """Language enforcement remains reliable without sequential translation calls."""
 
     async def fake_call_preprocessing_llm(**kwargs):
         return LLMPreprocessingCallResult(
@@ -309,30 +309,24 @@ async def test_postprocessing_translates_metadata_even_when_output_language_matc
             }
         )
 
-    translations = []
+    translation_calls = []
 
-    async def fake_translate_chat_summary(task_id, summary, target_language, secrets_manager):
-        translations.append((summary, target_language))
-        if summary == "Nutzer erstellt deutsche Bewerbungsunterlagen.":
-            return "User creates German job application documents."
-        if summary == "Bewerbungsunterlagen erstellen":
-            return "Create Application Documents"
-        return summary
-
-    async def fake_translate_new_chat_suggestions(**kwargs):
-        return kwargs["suggestions"]
+    async def fake_translate_postprocessing_metadata(**kwargs):
+        translation_calls.append(kwargs)
+        return {
+            "chat_summary": "User creates German job application documents.",
+            "share_cta_text": kwargs["share_cta_text"],
+            "updated_chat_title": "Create Application Documents",
+            "new_chat_suggestions": kwargs["new_chat_suggestions"],
+        }
 
     monkeypatch.setattr(
         "backend.apps.ai.processing.postprocessor.call_preprocessing_llm",
         fake_call_preprocessing_llm,
     )
     monkeypatch.setattr(
-        "backend.apps.ai.processing.postprocessor.translate_chat_summary",
-        fake_translate_chat_summary,
-    )
-    monkeypatch.setattr(
-        "backend.apps.ai.processing.postprocessor.translate_new_chat_suggestions",
-        fake_translate_new_chat_suggestions,
+        "backend.apps.ai.processing.postprocessor.translate_postprocessing_metadata",
+        fake_translate_postprocessing_metadata,
     )
     result = await handle_postprocessing(
         task_id="test-task",
@@ -356,10 +350,10 @@ async def test_postprocessing_translates_metadata_even_when_output_language_matc
     assert result.chat_summary == "User creates German job application documents."
     assert result.updated_chat_title == "Create Application Documents"
     assert result.chat_tags == ["Bewerbung", "Karriere"]
-    assert translations == [
-        ("Nutzer erstellt deutsche Bewerbungsunterlagen.", "en"),
-        ("Bewerbungsunterlagen erstellen", "en"),
-    ]
+    assert len(translation_calls) == 1
+    assert translation_calls[0]["target_language"] == "en"
+    assert translation_calls[0]["chat_summary"] == "Nutzer erstellt deutsche Bewerbungsunterlagen."
+    assert translation_calls[0]["updated_chat_title"] == "Bewerbungsunterlagen erstellen"
 
 
 @pytest.mark.anyio

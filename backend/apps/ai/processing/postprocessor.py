@@ -8,6 +8,7 @@
 # to inline deep links in the main AI response. See docs/architecture/app-skills.md.
 
 import copy
+import json
 import logging
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
@@ -586,49 +587,21 @@ async def handle_postprocessing(
     else:
         postproc_updated_title = None
 
-    # Translate the chat summary into the user's system/UI language. This mirrors the
-    # translate_new_chat_suggestions pattern: an isolated call with no conversation context
-    # avoids language bleed reliably.
-    # The system prompt already instructs the LLM to use user_system_language, but that
-    # instruction is frequently overridden when the entire conversation history is in a
-    # foreign language. The post-hoc translation call is the reliable enforcement layer.
-    if postproc_chat_summary:
-        logger.info(
-            f"[Task ID: {task_id}] [PostProcessor] Ensuring chat summary is in "
-            f"UI language '{user_system_language}'."
-        )
-        postproc_chat_summary = await translate_chat_summary(
-            task_id=task_id,
-            summary=postproc_chat_summary,
-            target_language=user_system_language,
-            secrets_manager=secrets_manager,
-        )
-
-    if share_cta_text:
-        logger.info(
-            f"[Task ID: {task_id}] [PostProcessor] Ensuring share_cta_text is in "
-            f"UI language '{user_system_language}'."
-        )
-        share_cta_text = await translate_chat_summary(
-            task_id=task_id,
-            summary=share_cta_text,
-            target_language=user_system_language,
-            secrets_manager=secrets_manager,
-        )
-
-    # Translate the updated title into the user's system/UI language (same pattern as chat_summary).
-    # Reuses translate_chat_summary since it's the same isolated translation pattern.
-    if postproc_updated_title:
-        logger.info(
-            f"[Task ID: {task_id}] [PostProcessor] Ensuring updated_chat_title is in "
-            f"UI language '{user_system_language}'"
-        )
-        postproc_updated_title = await translate_chat_summary(
-            task_id=task_id,
-            summary=postproc_updated_title,
-            target_language=user_system_language,
-            secrets_manager=secrets_manager,
-        )
+    # Enforce the UI language in one isolated request. This preserves the reliable
+    # language-bleed guard while avoiding three or four sequential translation calls.
+    translated_metadata = await translate_postprocessing_metadata(
+        task_id=task_id,
+        chat_summary=postproc_chat_summary,
+        share_cta_text=share_cta_text,
+        updated_chat_title=postproc_updated_title,
+        new_chat_suggestions=sanitized_new_chat,
+        target_language=user_system_language,
+        secrets_manager=secrets_manager,
+    )
+    postproc_chat_summary = translated_metadata["chat_summary"]
+    share_cta_text = translated_metadata["share_cta_text"]
+    postproc_updated_title = translated_metadata["updated_chat_title"]
+    translated_new_chat_suggestions = translated_metadata["new_chat_suggestions"]
 
     # Parse and validate daily inspiration topic suggestions
     # These are short topic phrases (English, 2-5 words) capturing user interests from the conversation.
@@ -665,28 +638,6 @@ async def handle_postprocessing(
                 logger=logger,
             )
             quick_tip_slugs = [sanitized_quick_tip_slug] if sanitized_quick_tip_slug else []
-
-    # Translate new chat suggestions into the user's system/UI language.
-    #
-    # Why: The main postprocessor call sees the full conversation history (potentially in any
-    # language). Even with explicit language instructions, the model frequently "bleeds" the
-    # conversation language into new_chat_request_suggestions. A separate isolated translation
-    # call with no conversation context is far more reliable.
-    #
-    # Follow-up suggestions are intentionally NOT translated here — they should remain in the
-    # conversation language (a French chat should show French follow-ups).
-    #
-    # Note: The sanitized_new_chat list is used here (not raw LLM output) so that the
-    # translated suggestions are already free of hidden routing syntax before translation.
-    if sanitized_new_chat:
-        translated_new_chat_suggestions = await translate_new_chat_suggestions(
-            task_id=task_id,
-            suggestions=sanitized_new_chat,
-            target_language=user_system_language,
-            secrets_manager=secrets_manager,
-        )
-    else:
-        translated_new_chat_suggestions = sanitized_new_chat
 
     result = PostProcessingResult(
         follow_up_request_suggestions=sanitized_follow_up,
@@ -733,6 +684,138 @@ async def handle_postprocessing(
     )
 
     return result
+
+
+async def translate_postprocessing_metadata(
+    task_id: str,
+    chat_summary: Optional[str],
+    share_cta_text: Optional[str],
+    updated_chat_title: Optional[str],
+    new_chat_suggestions: List[str],
+    target_language: str,
+    secrets_manager: SecretsManager,
+) -> Dict[str, Any]:
+    """Translate all UI-language metadata in one bounded provider request."""
+    original: Dict[str, Any] = {
+        "chat_summary": chat_summary,
+        "share_cta_text": share_cta_text,
+        "updated_chat_title": updated_chat_title,
+        "new_chat_suggestions": new_chat_suggestions,
+    }
+    if not any((chat_summary, share_cta_text, updated_chat_title, new_chat_suggestions)):
+        return original
+
+    language_names = {
+        "en": "English", "de": "German", "fr": "French", "es": "Spanish",
+        "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "pl": "Polish",
+        "ru": "Russian", "ja": "Japanese", "zh": "Chinese", "ko": "Korean",
+        "ar": "Arabic", "tr": "Turkish", "sv": "Swedish", "no": "Norwegian",
+        "da": "Danish", "fi": "Finnish", "cs": "Czech", "ro": "Romanian",
+        "hu": "Hungarian", "el": "Greek", "he": "Hebrew", "hi": "Hindi",
+        "uk": "Ukrainian",
+    }
+    language_name = language_names.get(target_language, target_language.upper())
+    translation_tool = {
+        "type": "function",
+        "function": {
+            "name": "translate_postprocessing_metadata",
+            "description": (
+                f"Translate the supplied UI metadata into {language_name}. Preserve meaning, "
+                "brevity, item order, and empty values. Return plain text without routing syntax."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "chat_summary": {"type": "string"},
+                    "share_cta_text": {"type": "string"},
+                    "updated_chat_title": {"type": "string"},
+                    "new_chat_suggestions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+                "required": [
+                    "chat_summary",
+                    "share_cta_text",
+                    "updated_chat_title",
+                    "new_chat_suggestions",
+                ],
+            },
+        },
+    }
+    payload = {
+        "chat_summary": chat_summary or "",
+        "share_cta_text": share_cta_text or "",
+        "updated_chat_title": updated_chat_title or "",
+        "new_chat_suggestions": new_chat_suggestions,
+    }
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                f"Translate every non-empty value to {language_name} ({target_language}). "
+                "Keep the summary concise, the CTA under 12 words, the title concise, and "
+                "the suggestions action-oriented. Preserve empty values and array length."
+            ),
+        },
+        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+    ]
+    model_id = "mistral/mistral-small-2506"
+    fallbacks = _with_deepseek_utility_fallback(
+        resolve_fallback_servers_from_provider_config(model_id)
+    )
+
+    try:
+        llm_result = await call_preprocessing_llm(
+            task_id=task_id,
+            model_id=model_id,
+            message_history=messages,
+            tool_definition=translation_tool,
+            secrets_manager=secrets_manager,
+            fallback_models=fallbacks,
+            observability_purpose="translation",
+        )
+        if llm_result.error_message or not llm_result.arguments:
+            logger.warning(
+                "[Task ID: %s] [TranslateMetadata] Translation failed; preserving original metadata.",
+                task_id,
+            )
+            return original
+
+        translated = llm_result.arguments
+        translated_suggestions = translated.get("new_chat_suggestions")
+        if not isinstance(translated_suggestions, list) or len(translated_suggestions) != len(new_chat_suggestions):
+            logger.warning(
+                "[Task ID: %s] [TranslateMetadata] Suggestion count changed; preserving original metadata.",
+                task_id,
+            )
+            return original
+        sanitized_suggestions = sanitize_plain_suggestions(
+            translated_suggestions,
+            task_id,
+            "translated new-chat",
+        )
+        if len(sanitized_suggestions) != len(new_chat_suggestions):
+            return original
+
+        def translated_optional(field: str, original_value: Optional[str]) -> Optional[str]:
+            if not original_value:
+                return None
+            value = translated.get(field)
+            return value.strip() if isinstance(value, str) and value.strip() else original_value
+
+        return {
+            "chat_summary": translated_optional("chat_summary", chat_summary),
+            "share_cta_text": translated_optional("share_cta_text", share_cta_text),
+            "updated_chat_title": translated_optional("updated_chat_title", updated_chat_title),
+            "new_chat_suggestions": sanitized_suggestions,
+        }
+    except Exception:
+        logger.exception(
+            "[Task ID: %s] [TranslateMetadata] Unexpected failure; preserving original metadata.",
+            task_id,
+        )
+        return original
 
 
 async def translate_chat_summary(

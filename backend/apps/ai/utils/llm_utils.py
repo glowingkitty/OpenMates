@@ -25,7 +25,6 @@ from backend.apps.ai.llm_providers.bedrock_shared import UnifiedBedrockResponse 
 from backend.apps.ai.llm_providers.openai_shared import (
     UnifiedOpenAIResponse,
     _sanitize_schema_for_llm_providers,
-    calculate_token_breakdown,
 )
 from backend.apps.ai.utils.timeout_utils import (
     stream_with_first_chunk_timeout,
@@ -1052,16 +1051,17 @@ async def call_preprocessing_llm(
         )
     transformed_messages_for_llm = filtered_messages_for_llm
 
-    # Privacy-safe request telemetry. This estimates the exact request shape sent
-    # to providers without logging any message, catalogue, or memory content.
-    # Provider-reported usage is logged separately after a successful response.
-    estimated_token_breakdown = calculate_token_breakdown(
-        transformed_messages_for_llm,
-        model_id,
-        tools=[current_tool_definition],
+    # Privacy-safe, constant-time request telemetry. Do not invoke a tokenizer on
+    # the foreground path: loading its vocabulary added several seconds to cold
+    # workers. Provider-reported exact usage is logged after a successful response.
+    schema_characters = len(
+        json.dumps(current_tool_definition, ensure_ascii=False, separators=(",", ":"))
     )
-    estimated_system_tokens = estimated_token_breakdown.get("system_prompt_tokens", 0)
-    estimated_user_tokens = estimated_token_breakdown.get("user_input_tokens", 0)
+    history_characters = sum(
+        len(str(message.get("content", ""))) for message in transformed_messages_for_llm
+    )
+    estimated_system_tokens = (schema_characters + 3) // 4
+    estimated_user_tokens = (history_characters + 3) // 4
     logger.info(
         "[%s] LLM Utils: Preprocessing request footprint: "
         "estimated_input_tokens=%d, schema_tokens=%d, history_tokens=%d, history_messages=%d",
