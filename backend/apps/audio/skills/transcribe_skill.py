@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field, StrictInt
 from fastapi import HTTPException
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from backend.apps.audio.pricing import BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.text_sanitization import (
@@ -1035,7 +1036,7 @@ class TranscribeSkill(BaseSkill):
                 from backend.core.api.app.utils.server_mode import is_payment_enabled
                 if is_payment_enabled():
                     current_credits = await self.app.get_user_credits(user_id)
-                    min_credits_needed = 3  # Minimum: 1 minute × 3 credits/min
+                    min_credits_needed = BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
                     # Only block when we have a confirmed zero balance (cached=True response implies
                     # the cache had data; get_user_credits returns 0 for cache misses too, but
                     # we accept that risk to avoid false-blocking on infra issues)
@@ -1098,8 +1099,9 @@ class TranscribeSkill(BaseSkill):
         )
 
         # --- Billing ---
-        # Charge 3 credits/min (minimum 1 minute) for each successfully transcribed audio.
-        # Pricing rationale: Mistral Voxtral Mini costs $0.003/min ≈ 1 credit; 3x markup applied.
+        # Keep the established batch price of 3 credits/min (minimum 1 minute)
+        # for regular audio.transcribe skill use. Message-input voice recordings
+        # use the separately billed realtime WebSocket path.
         # The 1-minute minimum ensures very short clips are still charged fairly.
         # Billing is non-fatal: failures are logged but do not break the transcription response.
         if user_id and grouped_results:
@@ -1133,11 +1135,12 @@ class TranscribeSkill(BaseSkill):
                 if total_duration_seconds > 0 and success_count > 0:
                     # Round up to nearest minute, enforce 1-minute minimum per request
                     total_minutes = max(success_count, math.ceil(total_duration_seconds / 60))
-                    credits_to_charge = total_minutes * 3
+                    credits_to_charge = total_minutes * BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
                     logger.info(
                         f"[TranscribeSkill] Charging {credits_to_charge} credits for user "
                         f"{user_id_hash[:8]}... ({total_duration_seconds:.1f}s total, "
-                        f"{total_minutes} billed minutes × 3 credits)"
+                        f"{total_minutes} billed minutes × "
+                        f"{BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE} credits)"
                     )
                     usage_details: Dict[str, Any] = {
                         "duration_seconds": total_duration_seconds,
@@ -1160,7 +1163,7 @@ class TranscribeSkill(BaseSkill):
                     )
                 elif success_count > 0:
                     # Duration not returned by Mistral — apply 1-minute minimum per successful request
-                    credits_to_charge = success_count * 3
+                    credits_to_charge = success_count * BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
                     logger.warning(
                         f"[TranscribeSkill] No duration returned from Mistral for {success_count} request(s). "
                         f"Applying 1-minute minimum: {credits_to_charge} credits."

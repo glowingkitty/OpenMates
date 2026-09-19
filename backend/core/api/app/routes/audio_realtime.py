@@ -19,6 +19,11 @@ from typing import Any, Optional
 import aiohttp
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 
+from backend.apps.audio.pricing import (
+    REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE,
+    REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER,
+    REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE,
+)
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
 from backend.core.api.app.utils.server_mode import is_payment_enabled
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
@@ -38,7 +43,7 @@ PCM_BYTES_PER_SECOND = PCM_SAMPLE_RATE * 2
 MAX_CHUNK_BYTES = 256 * 1024
 MAX_AUDIO_SECONDS = 20 * 60
 LOCK_TTL_SECONDS = MAX_AUDIO_SECONDS + 120
-REALTIME_CREDITS_PER_MINUTE = 6
+REALTIME_CREDITS_PER_MINUTE = REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
 
 
 def _origin_is_allowed(websocket: WebSocket) -> bool:
@@ -112,6 +117,13 @@ async def _bill_realtime_usage(
         "billed_minutes": billed_minutes,
         "requests_transcribed": 1,
         "model": MISTRAL_REALTIME_MODEL,
+        "provider_cost_usd_per_minute": float(
+            REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE
+        ),
+        "price_markup_percent": int(
+            (REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER - 1) * 100
+        ),
+        "credits_per_started_minute": REALTIME_CREDITS_PER_MINUTE,
     }
     if chat_id:
         usage_details["chat_id"] = chat_id

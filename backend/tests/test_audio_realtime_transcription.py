@@ -3,10 +3,20 @@
 import asyncio
 import base64
 import json
+from decimal import Decimal
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
+from backend.apps.audio.pricing import (
+    BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE,
+    REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE,
+    REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER,
+    REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE,
+)
+from backend.apps.audio.skills.transcribe_skill import VOXTRAL_MODEL
 from backend.core.api.app.routes import audio_realtime
 
 
@@ -22,6 +32,42 @@ class _FakeWebSocket:
                 server_stats_service=object(),
             )
         )
+
+
+# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
+def test_message_input_realtime_pricing_is_separate_from_batch_skill() -> None:
+    assert VOXTRAL_MODEL == "voxtral-mini-2602"
+    assert audio_realtime.MISTRAL_REALTIME_MODEL == (
+        "voxtral-mini-transcribe-realtime-2602"
+    )
+    assert VOXTRAL_MODEL != audio_realtime.MISTRAL_REALTIME_MODEL
+    assert BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE == 3
+    assert REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE == Decimal("0.006")
+    assert REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER == Decimal("1.20")
+    assert REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE == 8
+
+
+# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
+def test_batch_skill_and_realtime_model_metadata_keep_separate_prices() -> None:
+    backend_root = Path(__file__).resolve().parents[1]
+    app_config = yaml.safe_load(
+        (backend_root / "apps/audio/app.yml").read_text(encoding="utf-8")
+    )
+    transcribe_skill = next(
+        skill for skill in app_config["skills"] if skill["id"] == "transcribe"
+    )
+    assert transcribe_skill["full_model_reference"] == "mistral/voxtral-mini-2602"
+    assert transcribe_skill["pricing"]["per_minute"] == 3
+
+    provider_config = yaml.safe_load(
+        (backend_root / "providers/mistral.yml").read_text(encoding="utf-8")
+    )
+    models = {model["id"]: model for model in provider_config["models"]}
+    assert models["voxtral-mini-2602"]["pricing"]["per_minute"] == 3
+    assert (
+        models["voxtral-mini-transcribe-realtime-2602"]["pricing"]["per_minute"]
+        == 8
+    )
 
 
 # contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
@@ -69,13 +115,16 @@ async def test_realtime_audio_billing_rounds_started_minutes_once(
         chat_id="chat-1",
     )
 
-    assert captured["credits_to_deduct"] == 12
+    assert captured["credits_to_deduct"] == 16
     assert captured["idempotency_key"] == "audio-realtime:provider-request-1"
     assert captured["usage_details"] == {
         "duration_seconds": 61.2,
         "billed_minutes": 2,
         "requests_transcribed": 1,
         "model": audio_realtime.MISTRAL_REALTIME_MODEL,
+        "provider_cost_usd_per_minute": 0.006,
+        "price_markup_percent": 20,
+        "credits_per_started_minute": 8,
         "chat_id": "chat-1",
     }
 
