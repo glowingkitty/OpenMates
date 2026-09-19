@@ -17,7 +17,7 @@ def test_preprocessing_timeout_default_is_interactive(monkeypatch):
 
     reloaded = importlib.reload(timeout_utils)
     try:
-        assert 3.0 <= reloaded.PREPROCESSING_TIMEOUT_SECONDS <= 5.0
+        assert 4.0 <= reloaded.PREPROCESSING_TIMEOUT_SECONDS <= 5.0
     finally:
         importlib.reload(timeout_utils)
 
@@ -40,7 +40,7 @@ def test_preprocessing_total_timeout_bounds_exhausted_fallbacks(monkeypatch):
     reloaded = importlib.reload(timeout_utils)
     try:
         assert reloaded.PREPROCESSING_TOTAL_TIMEOUT_SECONDS > reloaded.PREPROCESSING_TIMEOUT_SECONDS
-        assert reloaded.PREPROCESSING_TOTAL_TIMEOUT_SECONDS <= 10.0
+        assert reloaded.PREPROCESSING_TOTAL_TIMEOUT_SECONDS <= 12.0
         assert reloaded.PREPROCESSING_TOTAL_TIMEOUT_SECONDS < reloaded.PREPROCESSING_TIMEOUT_SECONDS * 3
     finally:
         importlib.reload(timeout_utils)

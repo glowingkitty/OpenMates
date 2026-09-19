@@ -123,18 +123,19 @@ def get_inter_chunk_timeout_seconds(*, is_reasoning: bool = False) -> float:
 # overloaded primary cannot consume the user's entire response-latency budget.
 # Bounded recent context and the single routing schema keep healthy calls small.
 # Override via env: AI_PREPROCESSING_TIMEOUT_SECONDS
-DEFAULT_PREPROCESSING_TIMEOUT_SECONDS = 4.0
+DEFAULT_PREPROCESSING_TIMEOUT_SECONDS = 5.0
 PREPROCESSING_TIMEOUT_SECONDS = _get_env_float(
     "AI_PREPROCESSING_TIMEOUT_SECONDS",
     DEFAULT_PREPROCESSING_TIMEOUT_SECONDS,
 )
 
 # Overall wall-clock budget for one interactive preprocessing fallback chain.
-# Nine seconds preserves bounded recovery while guaranteeing that the old serial
-# 15s/15s/15s failure mode cannot recur under default configuration. Set <= 0 only
-# for explicit offline diagnostics; production should retain a finite deadline.
+# Twelve seconds gives each of the three configured providers a four-second fair
+# share while guaranteeing that the old serial 15s/15s/15s failure mode cannot
+# recur under default configuration. Set <= 0 only for explicit offline
+# diagnostics; production should retain a finite deadline.
 # Override via env: AI_PREPROCESSING_TOTAL_TIMEOUT_SECONDS
-DEFAULT_PREPROCESSING_TOTAL_TIMEOUT_SECONDS = 9.0
+DEFAULT_PREPROCESSING_TOTAL_TIMEOUT_SECONDS = 12.0
 PREPROCESSING_TOTAL_TIMEOUT_SECONDS = _get_env_float(
     "AI_PREPROCESSING_TOTAL_TIMEOUT_SECONDS",
     DEFAULT_PREPROCESSING_TOTAL_TIMEOUT_SECONDS,

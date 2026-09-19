@@ -209,7 +209,7 @@ implementation_progress:
     - Preprocessing uses the latest two user turns, their intervening assistant response, the latest compression summary, and a content-free bounded skill ledger; missing/stale state uses the same-call wider-history path.
     - Skill ledger rows contain only app-skill identity, outcome, output count and turn recency; cache retention matches the 72-hour AI-history TTL and deletion invalidates the ledger.
     - First and follow-up turns use exactly one foreground preprocessing call. Summary and tags moved to existing post-answer processing.
-    - Nested Groq SDK retries are disabled, each provider is attempted once, and the default fallback chain is capped at nine seconds with a four-second per-attempt ceiling.
+    - Nested Groq SDK retries are disabled and each provider is attempted once. Real dev evidence showed that a nine-second chain split across three providers cancelled all three at roughly three seconds, so the corrected default is a twelve-second chain with a five-second per-attempt ceiling (four-second fair shares when all three providers are configured).
   deliberately_unchanged:
     - Main-model history/compression and selected full tool schemas/focus prompts.
     - Paragraph-level user streaming behavior; only raw timing moved before aggregation pending evidence for a hybrid follow-up.
@@ -270,7 +270,7 @@ acceptance_criteria:
     verification_ids: [T-BACKEND-FOCUSED, T-FRONTEND-TRANSPORT]
   - id: AC-3
     scenario: S-3
-    text: Default preprocessing recovery cannot repeat the old serial fifteen-second attempts, nested provider retries are disabled, and logical failure terminal classes remain visible.
+    text: Default preprocessing recovery cannot repeat the old serial fifteen-second attempts, the three-provider chain is bounded to twelve seconds, nested provider retries are disabled, and logical failure terminal classes remain visible.
     required: true
     status: satisfied
     coverage_status: covered
