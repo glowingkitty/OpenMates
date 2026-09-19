@@ -271,7 +271,12 @@ async def _charge_workflow_skill_result(
     skill_definition = _find_skill_definition(metadata, skill_id)
     if skill_definition is None:
         raise WorkflowSkillBillingError("WORKFLOW_BILLING_UNAVAILABLE", "Workflow skill billing is unavailable")
-    provider_info = apps_api.resolve_skill_provider_info(skill_definition, app_id, ConfigManager())
+    provider_info = apps_api.resolve_skill_provider_info(
+        skill_definition,
+        app_id,
+        ConfigManager(),
+        result,
+    )
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
     source = _workflow_usage_source(billing_context)
 

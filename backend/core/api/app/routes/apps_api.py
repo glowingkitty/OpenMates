@@ -29,6 +29,7 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.python_utils.billing_utils import calculate_total_credits
+from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
 from backend.shared.python_utils.app_skill_output_safety import (
     AppSkillOutputSafetyContext,
     APP_SKILL_SURFACE_REST,
@@ -1363,11 +1364,13 @@ def resolve_skill_provider_info(
     skill: AppSkillDefinition,
     app_id: str,
     config_manager: ConfigManager,
+    result_data: Any = None,
 ) -> Dict[str, Optional[str]]:
     """
     Resolve provider display name, region, and model reference for a skill.
     Used to populate usage_details so the usage detail view shows provider/region
-    for all skills, not just AI Ask.
+    for all skills, not just AI Ask. Dynamic skills use result_data to attribute
+    the provider that actually executed.
     
     Returns dict with keys: model_used, server_provider, server_region
     """
@@ -1376,13 +1379,16 @@ def resolve_skill_provider_info(
     server_region = None
     
     # Determine provider_id
-    provider_id = None
-    if skill.full_model_reference and "/" in skill.full_model_reference:
-        provider_id = skill.full_model_reference.split("/", 1)[0]
-    elif skill.providers and len(skill.providers) > 0:
-        pname = skill.providers[0].name
+    provider_id = resolve_skill_usage_provider_id(
+        app_id,
+        skill.id,
+        skill,
+        result_data,
+    )
+    if provider_id:
+        pname = provider_id
         provider_id = pname.lower().replace(" ", "_")
-        # Same name-to-ID mapping as main_processor.py
+        # Preserve compatibility for legacy human-readable provider refs.
         if pname == "Google" and app_id == "maps":
             provider_id = "google_maps"
         elif pname in ("Brave", "Brave Search"):
@@ -3086,7 +3092,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                     
                                     # Resolve provider info for usage tracking
-                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
+                                    provider_info = resolve_skill_provider_info(
+                                        captured_skill,
+                                        captured_app_id,
+                                        get_config_manager(request),
+                                        result,
+                                    )
                                     
                                     result_charge_items = get_variable_result_charge_items(
                                         captured_app_id,
@@ -3302,7 +3313,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 
                                 if credits_charged > 0:
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
-                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
+                                    provider_info = resolve_skill_provider_info(
+                                        captured_skill,
+                                        captured_app_id,
+                                        get_config_manager(request),
+                                        result,
+                                    )
                                     usage_details = {
                                         "api_key_name": user_info.get('api_key_encrypted_name'),
                                         "external_request": True,
@@ -3424,7 +3440,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 
                                 if credits_charged > 0:
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
-                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
+                                    provider_info = resolve_skill_provider_info(
+                                        captured_skill,
+                                        captured_app_id,
+                                        get_config_manager(request),
+                                        result,
+                                    )
                                     result_charge_items = get_variable_result_charge_items(
                                         captured_app_id,
                                         captured_skill.id,
@@ -3538,7 +3559,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                     
                                     # Resolve provider info for usage tracking
-                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
+                                    provider_info = resolve_skill_provider_info(
+                                        captured_skill,
+                                        captured_app_id,
+                                        get_config_manager(request),
+                                        result,
+                                    )
                                     
                                     # Calculate per-request credits (distribute evenly, remainder on last)
                                     per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged

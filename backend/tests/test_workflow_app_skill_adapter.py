@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from backend.core.api.app import routes as routes_package
 from backend.core.api.app.services import workflow_app_skill_adapter
 from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter, WorkflowSkillBillingError
 from backend.shared.python_utils.billing_utils import BillingError
@@ -43,15 +44,22 @@ def _weather_metadata() -> Any:
     )
 
 
+def _patch_apps_api_module(monkeypatch: pytest.MonkeyPatch, apps_api: Any) -> None:
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.apps_api", apps_api)
+    monkeypatch.setattr(routes_package, "apps_api", apps_api, raising=False)
+
+
 @pytest.mark.anyio
 # contract-test: direct surface=rest_api assertions=workflows.billing.skill-usage
 async def test_workflow_skill_uses_actual_pricing_and_stable_charge_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    registry = FakeRegistry(response={"results": [{"temperature_max_c": 20}]}, metadata=_weather_metadata())
+    result = {"provider_id": "open_meteo", "results": [{"temperature_max_c": 20}]}
+    registry = FakeRegistry(response=result, metadata=_weather_metadata())
     adapter = WorkflowAppSkillAdapter(registry=registry)
     estimates: list[int] = []
     charges: list[dict[str, Any]] = []
+    attributed_results: list[dict[str, Any]] = []
 
     async def fake_calculate_skill_credits(**kwargs: Any) -> int:
         return 7 if kwargs.get("result_data") else 3
@@ -63,18 +71,20 @@ async def test_workflow_skill_uses_actual_pricing_and_stable_charge_identity(
         charges.append(kwargs)
         return {"status": "success", "charged_credits": kwargs["credits"]}
 
+    def resolve_provider_info(*args):
+        attributed_results.append(args[3])
+        return {"model_used": None, "server_provider": "Open-Meteo", "server_region": "EU"}
+
     apps_api = SimpleNamespace(
         calculate_skill_credits=fake_calculate_skill_credits,
         get_variable_preflight_reserved_credits=lambda *_args: 0,
         is_skill_execution_successful=lambda _result: True,
         get_variable_result_charge_items=lambda *_args: None,
         get_variable_result_usage_details=lambda *_args: {},
-        resolve_skill_provider_info=lambda *_args: {
-            "model_used": None, "server_provider": "Open-Meteo", "server_region": "EU",
-        },
+        resolve_skill_provider_info=resolve_provider_info,
         charge_credits_via_internal_api=fake_charge,
     )
-    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.apps_api", apps_api)
+    _patch_apps_api_module(monkeypatch, apps_api)
     monkeypatch.setattr(workflow_app_skill_adapter, "ensure_credit_headroom", fake_precheck)
 
     billing_context = {
@@ -94,6 +104,7 @@ async def test_workflow_skill_uses_actual_pricing_and_stable_charge_identity(
         ))
 
     assert estimates == [3, 3]
+    assert attributed_results == [result, result]
     assert [charge["credits"] for charge in charges] == [7, 7]
     assert charges[0]["idempotency_key"] == charges[1]["idempotency_key"]
     assert charges[0]["usage_details"] == {
@@ -127,7 +138,7 @@ async def test_workflow_skill_insufficient_credits_fails_before_provider_executi
         calculate_skill_credits=fake_calculate_skill_credits,
         get_variable_preflight_reserved_credits=lambda *_args: 0,
     )
-    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.apps_api", apps_api)
+    _patch_apps_api_module(monkeypatch, apps_api)
     monkeypatch.setattr(workflow_app_skill_adapter, "ensure_credit_headroom", reject_precheck)
 
     with pytest.raises(WorkflowSkillBillingError) as exc_info:
@@ -170,7 +181,7 @@ async def test_failed_workflow_skill_result_is_not_charged(monkeypatch: pytest.M
         is_skill_execution_successful=lambda _result: False,
         charge_credits_via_internal_api=fake_charge,
     )
-    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.apps_api", apps_api)
+    _patch_apps_api_module(monkeypatch, apps_api)
     monkeypatch.setattr(workflow_app_skill_adapter, "ensure_credit_headroom", fake_precheck)
 
     result = await adapter.execute(

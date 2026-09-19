@@ -50,10 +50,14 @@ skills:
       involving weather.
     class_path: |
       backend.apps.weather.skills.forecast_skill.ForecastSkill
+    pricing:
+      fixed: 1
     providers:
-      - name: Deutscher Wetterdienst (DWD)
+      - name: deutscher_wetterdienst
+        display_name: Deutscher Wetterdienst (DWD)
         no_api_key: true
-      - name: Open-Meteo
+      - name: open_meteo
+        display_name: Open-Meteo
         no_api_key: true
     suggestions_follow_up_requests:
       - "When will it rain exactly?"
@@ -474,7 +478,8 @@ skills:
     class_path: |
       backend.apps.weather.skills.rain_radar_skill.RainRadarSkill
     providers:
-      - name: Deutscher Wetterdienst (DWD)
+      - name: deutscher_wetterdienst
+        display_name: Deutscher Wetterdienst (DWD)
         no_api_key: true
     suggestions_follow_up_requests:
       - "Show the regular forecast"

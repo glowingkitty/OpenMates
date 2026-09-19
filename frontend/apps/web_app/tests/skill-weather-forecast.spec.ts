@@ -35,12 +35,13 @@ function getForecastResults(parsed: any): any[] {
 	return parsed.data?.results || parsed.results || [];
 }
 
-function expectForecastPayload(parsed: any, expectedProvider: string): void {
+function expectForecastPayload(parsed: any, expectedProvider: string, expectedProviderId: string): void {
 	const results = getForecastResults(parsed);
 	expect(results.length).toBe(2);
 	expect(results.every((day) => day.type === 'weather_day')).toBeTruthy();
 	expect(results.every((day) => Array.isArray(day.hourly) && day.hourly.length > 0)).toBeTruthy();
 	expect(parsed.data?.provider).toContain(expectedProvider);
+	expect(parsed.data?.provider_id).toBe(expectedProviderId);
 }
 
 const linkedExampleChatCases = [
@@ -87,6 +88,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
+	// contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity,billing.surface.semantic-parity
 	test('Phase 0: Apps metadata exposes weather forecast', async ({ request }: { request: any }) => {
 		const response = await request.get(`${apiUrl}/v1/apps/metadata`);
 		expect(response.ok()).toBeTruthy();
@@ -107,8 +109,10 @@ test.describe('App: Weather / Skill: forecast', () => {
 		const forecast = (weather.skills || []).find((skill: { id: string }) => skill.id === 'forecast');
 		expect(forecast?.description).toBe('apps.weather.forecast.description');
 		expect(forecast?.description).not.toContain('app_skills.apps.weather.forecast');
+		expect(forecast?.pricing).toEqual({ fixed: 1 });
 	});
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.surface.semantic-parity
 	test('Phase 1: embed preview renders through direct component preview', async ({ page }: { page: any }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		const response = await page.goto('/dev/preview/embeds/weather/WeatherForecastEmbedPreview', {
@@ -121,6 +125,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(page.getByTestId('weather-forecast-preview').first()).toBeVisible();
 	});
 
+	// contract-test: direct surface=gui.web assertions=settings-ui.localization.visible-content-resolves,public-example-chats.catalog.discoverable,public-example-chats.navigation.static-public-link
 	test('Phase 1b: Apps weather linked example chat has translations, provider icons, and opens the chat', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 		await page.setViewportSize({ width: 1600, height: 900 });
@@ -159,6 +164,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 15_000 });
 	});
 
+	// contract-test: direct surface=gui.web assertions=settings-ui.shell.lifecycle-and-routing,public-example-chats.navigation.static-public-link
 	test('Phase 1b mobile: Apps example chat closes settings on narrow viewports', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 		await page.setViewportSize({ width: 390, height: 844 });
@@ -180,6 +186,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0, { timeout: 15_000 });
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.navigation.static-public-link
 	test('Phase 1c: Apps linked example chat uses the large continue-card preview and opens the chat', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 		await page.setViewportSize({ width: 1600, height: 900 });
@@ -207,6 +214,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 15_000 });
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.navigation.static-public-link
 	test('Phase 1d: representative Apps linked example chats are visible and open', async ({ page }: { page: any }) => {
 		test.setTimeout(180_000);
 		await page.setViewportSize({ width: 1600, height: 900 });
@@ -237,6 +245,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		}
 	});
 
+	// contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,billing.surface.semantic-parity
 	test('Phase 2: CLI apps weather forecast returns daily child results for Germany and international cities', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'OPENMATES_TEST_ACCOUNT_API_KEY required.');
 
@@ -253,7 +262,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		expectCliSuccess(berlinResult, 'weather/forecast CLI Berlin');
 		const berlinParsed = parseCliJson(berlinResult);
 		expect(berlinParsed.success).toBe(true);
-		expectForecastPayload(berlinParsed, 'Deutscher Wetterdienst');
+		expectForecastPayload(berlinParsed, 'Deutscher Wetterdienst', 'deutscher_wetterdienst');
 
 		const tokyoResult = await runCli(
 			apiUrl,
@@ -268,9 +277,10 @@ test.describe('App: Weather / Skill: forecast', () => {
 		expectCliSuccess(tokyoResult, 'weather/forecast CLI Tokyo');
 		const tokyoParsed = parseCliJson(tokyoResult);
 		expect(tokyoParsed.success).toBe(true);
-		expectForecastPayload(tokyoParsed, 'Open-Meteo');
+		expectForecastPayload(tokyoParsed, 'Open-Meteo', 'open_meteo');
 	});
 
+	// contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity
 	test('Phase 3: CLI chats new triggers weather forecast', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'OPENMATES_TEST_ACCOUNT_API_KEY required.');
 
@@ -288,6 +298,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=app-skills.surface.semantic-parity
 	test('Phase 4: Web chat triggers weather forecast with embed', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);

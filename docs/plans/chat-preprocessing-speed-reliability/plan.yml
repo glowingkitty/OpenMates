@@ -246,7 +246,7 @@ scenarios:
     title: Slow or failing utility providers recover within one deadline
     given: [The primary preprocessing provider times out or returns retryable missing output.]
     when: [Configured fallback routing runs.]
-    then: [Each provider is attempted at most once within the shared nine-second default deadline and terminal telemetry reports logical failure accurately if recovery is exhausted.]
+    then: [Each provider is attempted at most once within the shared twelve-second default deadline and terminal telemetry reports logical failure accurately if recovery is exhausted.]
   - id: S-4
     title: Answer presentation stays stable while raw delivery becomes measurable
     given: [The main provider streams thinking, metadata or text chunks.]
@@ -566,6 +566,29 @@ followup_evaluation:
       - Correct canonical and noncanonical quote-link punctuation extraction while preserving strict source verification and removing rejected quotes without orphan punctuation.
     verification:
       - Anthropic streaming and tool-result dedup focused suite passed 27 tests.
+      - Quote extraction and verification passed 46 focused tests; the five-file backend deployment gate also passed.
       - Independent review found one punctuated bare-citation edge case, now repaired with focused regression coverage; final review has no remaining must-fix.
-      - The earlier isolated CLI search and post-tool completion cases passed; two browser cases failed waiting for embeds. Those artifacts are under bounded read-only investigation, not assumed unrelated and not rerun.
-    next_action: Deploy the scoped follow-up repairs and verify a real Anthropic weather answer and search explanation; keep the settings-memory API optimization as a separately scoped proposed follow-up.
+      - The earlier isolated CLI search and post-tool completion cases passed. Artifact investigation traced both browser failures to a pre-existing missing LIVE-mock enablement gate; the marker was omitted and CI tried providers without credentials. No repeat of those known failures was requested.
+    deployed_source: 02a1c8bc437a727373d5b0ae67a20d47441344d2
+    runtime_restart: docker-18c3a228
+    real_cli_recheck:
+      - Anthropic London weather now returns actual forecast data. Full CLI time fell from 35.220s to 20.701s; provider-reported main input fell from 52687 to 21114 tokens, and main-model credits from 315 to 130. This is one before/after case, not a percentile claim.
+      - Live Anthropic arguments contained London and start/end 2026-09-20; the skill produced one result and one child embed. Tool iterations fell from four to one, with no duplicate-skip or cached-error marker. First text arrived 12.570s after CLI start (7.712s after worker start); charge, save and final marker all succeeded.
+      - The Anthropic response mislabeled the weekday for 2026-09-20 as Saturday (it is Sunday). Record this as a model-answer quality issue rather than claiming perfect semantic accuracy or a preprocessor quality upgrade.
+      - Gemini web search returned both the official Python pathlib URL and the requested full Path explanation; full CLI time was 16.723s, with 31551 main input tokens, 90 output tokens and 29 main-model credits.
+      - Gemini search first text arrived 9.256s after CLI start; the one-iteration result was saved and charged under the correct Google model bucket.
+      - Neither final command encountered a settings 429; this does not fix or invalidate the earlier burst-limit finding.
+    quote_browser_ci:
+      source: 02a1c8bc437a727373d5b0ae67a20d47441344d2
+      job: feb05dde05d89234c85ab866bc6ba93dca55f535df4fa79e6f8d7a1133797764
+      status: changed_case_passed_suite_partial_failure
+      result: Two passed and two failed. The changed false-quote/orphan-punctuation case and grouped-citation/image fixture passed. Both hardcoded public shared-chat navigation cases failed with ERR_CONNECTION_REFUSED before any quote assertion; no rerun was submitted.
+      run: https://github.com/glowingkitty/OpenMates/actions/runs/35458025686
+      note: Ordinary TEST_MOCK quote fixtures bypass the separate broken LIVE-mock gate. This result verifies filtering, persistence and rendering, not provider dispatch.
+    weather_billing_followup:
+      finding: Weather skill charging succeeded through the one-credit fallback, but a display-derived DWD provider key caused pricing/provider lookups to fail and did not identify Open-Meteo serving London.
+      existing_policy: Shared billing utilities, BaseSkill, both skill execution paths and the user guide establish a flat minimum of one credit per request. Weather has no separate rate; forecast-day and child-result counts do not multiply the existing fallback.
+      repair: Explicitly declare weather forecast fixed pricing of one credit per execution, use canonical provider metadata IDs and attribute usage to the validated provider actually used. Preserve the amount and unit; do not invent a per-day or per-result price.
+      status: implemented_pending_live_verification
+      verification: Eighty focused chat/weather/Anthropic, direct app API and workflow tests passed; independent review is clear. Trusted top-level provider metadata survives chat result flattening; repeated same-provider results are accepted while mixed, unknown and missing attribution remains unset.
+    next_action: Deploy and verify a real multi-day London weather request is charged one credit with Open-Meteo attribution; keep the settings-memory API optimization and proactive-tool policy tuning as separately scoped proposed follow-ups. Main-model billing and the changed quote-rendering case are verified.

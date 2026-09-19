@@ -33,6 +33,8 @@ DEFAULT_TIMEZONE = "Europe/Berlin"
 METRIC_UNITS = "metric"
 DWD_PROVIDER_LABEL = "Deutscher Wetterdienst (DWD)"
 OPEN_METEO_PROVIDER_LABEL = "Open-Meteo"
+DWD_PROVIDER_ID = "deutscher_wetterdienst"
+OPEN_METEO_PROVIDER_ID = "open_meteo"
 WEATHER_INFERENCE_EXCLUDE_FIELDS = [
     "type",
     "hourly",
@@ -111,6 +113,7 @@ class ForecastResponse(BaseModel):
 
     results: list[dict[str, Any]] = Field(default_factory=list)
     provider: str
+    provider_id: str | None = None
     location: dict[str, Any]
     days_requested: int
     start_date: date | None = None
@@ -236,6 +239,7 @@ class ForecastSkill(BaseSkill):
                     today=today,
                 )
                 provider = DWD_PROVIDER_LABEL
+                provider_id = DWD_PROVIDER_ID
             else:
                 provider_payload = await fetch_forecast(
                     latitude=lat,
@@ -253,10 +257,12 @@ class ForecastSkill(BaseSkill):
                     today=today,
                 )
                 provider = OPEN_METEO_PROVIDER_LABEL
+                provider_id = OPEN_METEO_PROVIDER_ID
 
             return ForecastResponse(
                 results=results,
                 provider=provider,
+                provider_id=provider_id,
                 location={
                     "name": location_name,
                     "country": resolved_location.get("country"),

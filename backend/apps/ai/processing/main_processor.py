@@ -151,6 +151,7 @@ from backend.apps.ai.processing.skill_executor import (
 )
 # Import billing utilities
 from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
+from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
 
 
 logger = logging.getLogger(__name__)
@@ -2081,6 +2082,7 @@ async def _charge_skill_credits(
     parsed_args: Dict[str, Any],
     log_prefix: str,
     grouped_results: Optional[List[Dict[str, Any]]] = None,
+    provider_result_data: Any = None,
     directus_service: Optional[DirectusService] = None,
     reserved_operation_ids: Optional[List[str]] = None,
 ) -> None:
@@ -2092,6 +2094,8 @@ async def _charge_skill_credits(
         grouped_results: Optional grouped results from multi-request skills.
             Each group has {"id": ..., "results": [...], "error": "..."}.
             Used to count only successful requests for billing (failed requests are not charged).
+        provider_result_data: Original top-level execution response retained for
+            provider attribution before results are flattened for model inference.
     """
     charged_operation_ids: set[str] = set()
     anonymous_settlement_failed = False
@@ -2227,13 +2231,16 @@ async def _charge_skill_credits(
         resolved_model_used = skill_def.full_model_reference  # e.g., "bfl/flux-schnell" or None
         
         # Determine provider_id for info lookup
-        info_provider_id = None
-        if skill_def.full_model_reference and "/" in skill_def.full_model_reference:
-            info_provider_id = skill_def.full_model_reference.split("/", 1)[0]
-        elif skill_def.providers and len(skill_def.providers) > 0:
-            # Re-use the same name-to-ID mapping as the pricing lookup.
-            pname = skill_def.providers[0].name
-            info_provider_id = pname.lower().replace(" ", "_")
+        info_provider_id = resolve_skill_usage_provider_id(
+            app_id,
+            skill_id,
+            skill_def,
+            provider_result_data if provider_result_data is not None else results,
+        )
+        if info_provider_id:
+            # Preserve compatibility for legacy human-readable provider refs.
+            pname = info_provider_id
+            info_provider_id = info_provider_id.lower().replace(" ", "_")
             if pname == "Google" and app_id == "maps":
                 info_provider_id = "google_maps"
             elif pname in ("Brave", "Brave Search"):
@@ -6904,6 +6911,7 @@ async def handle_main_processing(
                 response_ignore_fields: Optional[List[str]] = None
                 first_response: Optional[Dict[str, Any]] = None  # Initialize to avoid UnboundLocalError
                 grouped_results: Optional[List[Dict[str, Any]]] = None  # Preserve grouping for embed creation
+                provider_result_data = results  # Preserve trusted response wrappers before LLM flattening.
                 
                 # Detect multimodal content block results from view skills (e.g., images.view).
                 # These return [[{"type": "text", ...}, {"type": "image_url", ...}]] — a list
@@ -7355,6 +7363,7 @@ async def handle_main_processing(
                         parsed_args=parsed_args,
                         log_prefix=log_prefix,
                         grouped_results=grouped_results,
+                        provider_result_data=provider_result_data,
                         directus_service=directus_service,
                         reserved_operation_ids=reserved_skill_operation_ids,
                     )

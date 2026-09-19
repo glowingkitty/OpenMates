@@ -7,11 +7,15 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+from pathlib import Path
 import sys
 from types import ModuleType
 from zoneinfo import ZoneInfo
 
 import pytest
+import yaml
+
+from backend.shared.python_utils.billing_utils import calculate_total_credits
 
 celery_stub = ModuleType("celery")
 celery_stub.Celery = object
@@ -32,6 +36,29 @@ def make_skill():
         skill_name="Forecast",
         skill_description="Get a weather forecast.",
     )
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity,billing.surface.semantic-parity
+def test_forecast_declares_flat_execution_price_and_provider_ids() -> None:
+    app_path = Path(__file__).resolve().parents[1] / "apps" / "weather" / "app.yml"
+    app = yaml.safe_load(app_path.read_text(encoding="utf-8"))
+    forecast = next(skill for skill in app["skills"] if skill["id"] == "forecast")
+
+    assert forecast["pricing"] == {"fixed": 1}
+    assert forecast["providers"] == [
+        {
+            "name": "deutscher_wetterdienst",
+            "display_name": "Deutscher Wetterdienst (DWD)",
+            "no_api_key": True,
+        },
+        {
+            "name": "open_meteo",
+            "display_name": "Open-Meteo",
+            "no_api_key": True,
+        },
+    ]
+    assert calculate_total_credits(pricing_config=forecast["pricing"], units_processed=1) == 1
+    assert calculate_total_credits(pricing_config=forecast["pricing"], units_processed=14) == 1
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
@@ -286,6 +313,7 @@ async def test_forecast_skill_uses_bright_sky_for_germany(monkeypatch) -> None:
     response = await make_skill().execute(location="Berlin", days=2)
 
     assert response.provider == "Deutscher Wetterdienst (DWD)"
+    assert response.provider_id == "deutscher_wetterdienst"
     assert response.location["country_code"] == "DE"
     assert len(response.results) == 1
     assert "hourly" in response.ignore_fields_for_inference
@@ -321,6 +349,7 @@ async def test_forecast_skill_uses_open_meteo_outside_germany(monkeypatch) -> No
     response = await make_skill().execute(location="Tokyo", days=1)
 
     assert response.provider == "Open-Meteo"
+    assert response.provider_id == "open_meteo"
     assert response.location["country_code"] == "JP"
     assert response.results[0]["type"] == "weather_day"
 
