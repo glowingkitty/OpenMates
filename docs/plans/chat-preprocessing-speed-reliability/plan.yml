@@ -512,6 +512,20 @@ followup_evaluation:
       - Make automatic saved-chat slugs owner-unique with a length-safe chat-ID suffix;
         preserve explicit slugs and test repeated first messages.
     next_optimization:
+      - Share one authorized memory snapshot per CLI command across redaction,
+        mention resolution and sendMessage; preserve PII protection and consent.
+        Current callers each read the heavy account-export endpoint, which is
+        limited to five requests per minute by remote IP. Three sequential chats
+        can therefore trigger the CLI's hard-coded 61-second settings retry.
+      - Add an authenticated owner-filtered personal-memory read endpoint analogous
+        to team memories; do not raise the GDPR export limit to mask duplicate
+        reads. Keep encrypted content and personal/team boundaries unchanged.
+      - Separate optional memory enrichment from explicit export retries. Reuse an
+        authorized command snapshot on enrichment throttling, never silently skip
+        required privacy/redaction data, fail closed for automatic consent, and
+        honor bounded Retry-After for explicit operations.
+        Cover command-level read count, invalidation, 429, owner isolation and
+        three sequential saved-chat sends in tests before rollout.
       - Instrument authentication, memory load, history sync, preflight, answer,
         metadata and process exit with monotonic phase timings before changing sync.
       - Reuse the already loaded memory snapshot and coalesce duplicate session/socket
@@ -528,3 +542,30 @@ followup_evaluation:
   focused_verification:
     backend: Independent review ran 66 focused tests successfully across tool history, schema sanitization, model usage, billing and utility recovery.
     cli: All 18 WebSocket tests and focused automatic-slug/encrypted-preflight regressions passed; no changed-file diagnostics in the existing broadly failing CLI typecheck.
+  live_validation:
+    deployed_source: 354ae80761ed2b9dbe5abe3b0febcf9b509ee0a6
+    installed_cli: Built successfully and installed globally; executable bundle SHA-256 matches the isolated source build.
+    runtime: Coordinated dev restart docker-09713f4c completed with all selected/coherence-dependent services healthy; AI parent tokenizer preload took 6.306s before serving work, inherited child lookup took 0.000s.
+    successful_cases:
+      - Repeated identical opening prompts saved as separate chats with no Directus slug collision; both invoked search skills, so they are not no-tool latency samples.
+      - Gemini weather for Berlin and follow-up Paris both returned forecasts and a final answer, persisted successfully and charged the correct Gemini model bucket.
+      - Explicit tool-free arithmetic returned only "4"; full CLI duration was 9.74s, with 13848 main input tokens and one output token, charged 12 credits.
+    findings_from_first_run:
+      - A weather command took 76.662s because the second memory/export read received HTTP 429 and slept 61s before AI dispatch. CLI-to-worker was 63.852s, worker-to-first-text 5.358s, CLI-to-first-text 69.210s. This was not model-provider throttling.
+      - An explicit Anthropic weather test exposed discarded input_json_delta fragments and error-wrapped skill results incorrectly cached as completed. These pre-existing defects need repair and a fresh successful real tool turn before tool validation is complete.
+      - Search returned its link but quote finalization removed the requested explanation after misparsing a punctuation-suffixed quoted embed link. Preserve strict source verification while fixing the extraction regression, then recheck a real search answer.
+      - The existing proactive main-model tool policy caused both sky-explanation prompts to search despite the requested one-sentence answer. This is not evidence that the new utility model caused the policy; policy tuning is a separate proposal.
+    limitations:
+      - Small dev sample only; no production rollout, broad quality or latency-percentile claim.
+      - Raw backend mention syntax was rejected by one CLI invocation before dispatch; use display-name mentions such as Claude-Sonnet-5 for actual CLI validation.
+      - OpenObserve trace DNS was unavailable; timing evidence uses full ISO Docker timestamps, retaining minute rollovers and all client delay.
+  followup_repairs:
+    implementation:
+      - Accumulate Anthropic tool argument JSON fragments by content-block index and emit each complete object once; malformed or non-object arguments fail visibly.
+      - Do not deduplicate explicit-error tool results as successful; preserve caching for valid zero-hit results without an error.
+      - Correct canonical and noncanonical quote-link punctuation extraction while preserving strict source verification and removing rejected quotes without orphan punctuation.
+    verification:
+      - Anthropic streaming and tool-result dedup focused suite passed 27 tests.
+      - Independent review found one punctuated bare-citation edge case, now repaired with focused regression coverage; final review has no remaining must-fix.
+      - The earlier isolated CLI search and post-tool completion cases passed; two browser cases failed waiting for embeds. Those artifacts are under bounded read-only investigation, not assumed unrelated and not rerun.
+    next_action: Deploy the scoped follow-up repairs and verify a real Anthropic weather answer and search explanation; keep the settings-memory API optimization as a separately scoped proposed follow-up.

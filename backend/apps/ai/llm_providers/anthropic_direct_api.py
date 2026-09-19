@@ -193,7 +193,7 @@ async def _iterate_direct_api_stream(
     
     output_buffer = ""
     usage = None
-    current_tool_calls = {}
+    current_tool_calls: Dict[int, Dict[str, Any]] = {}
     
     try:
         request_kwargs["stream"] = True
@@ -208,30 +208,63 @@ async def _iterate_direct_api_stream(
                     text_chunk = event.delta.text
                     output_buffer += text_chunk
                     yield text_chunk
+                elif event.delta.type == "input_json_delta":
+                    block_index = getattr(event, "index", None)
+                    if block_index not in current_tool_calls:
+                        raise ValueError(
+                            "Received Anthropic tool input JSON for an unknown "
+                            f"content block index: {block_index}"
+                        )
+                    current_tool_calls[block_index]["input_json_parts"].append(
+                        event.delta.partial_json
+                    )
             
             elif event.type == "content_block_start":
                 if event.content_block.type == "tool_use":
+                    block_index = getattr(event, "index", None)
+                    if block_index is None:
+                        raise ValueError(
+                            "Anthropic tool content block is missing its stream index"
+                        )
                     tool_id = event.content_block.id
                     tool_name = event.content_block.name
-                    current_tool_calls[tool_id] = {
+                    current_tool_calls[block_index] = {
                         "id": tool_id,
                         "name": tool_name,
-                        "input": event.content_block.input
+                        "initial_input": event.content_block.input,
+                        "input_json_parts": [],
                     }
             
             elif event.type == "content_block_stop":
-                # Tool call completed
-                for tool_call in current_tool_calls.values():
-                    args_dict = tool_call["input"]
+                block_index = getattr(event, "index", None)
+                tool_call = current_tool_calls.pop(block_index, None)
+                if tool_call is not None:
+                    input_json_parts = tool_call["input_json_parts"]
+                    if input_json_parts:
+                        arguments_raw = "".join(input_json_parts)
+                        try:
+                            args_dict = json.loads(arguments_raw)
+                        except json.JSONDecodeError as exc:
+                            raise ValueError(
+                                f"Anthropic tool '{tool_call['name']}' emitted invalid JSON arguments"
+                            ) from exc
+                    else:
+                        args_dict = tool_call["initial_input"]
+                        arguments_raw = json.dumps(args_dict)
+
+                    if not isinstance(args_dict, dict):
+                        raise ValueError(
+                            f"Anthropic tool '{tool_call['name']}' arguments must decode to an object"
+                        )
+
                     parsed_tool_call = ParsedAnthropicToolCall(
                         tool_call_id=tool_call["id"],
                         function_name=tool_call["name"],
                         function_arguments_parsed=args_dict,
-                        function_arguments_raw=json.dumps(args_dict)
+                        function_arguments_raw=arguments_raw,
                     )
                     logger.info(f"{log_prefix} Yielding a tool call from stream: {tool_call['name']}")
                     yield parsed_tool_call
-                current_tool_calls.clear()
             
             elif event.type == "message_delta":
                 # Check stop_reason for truncation/blocking detection.

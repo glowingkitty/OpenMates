@@ -909,6 +909,23 @@ def _hash_skill_arguments(app_id: str, skill_id: str, arguments: Dict[str, Any])
     return hashlib.md5(hash_input.encode()).hexdigest()
 
 
+def _has_explicit_skill_error(result: Any) -> bool:
+    """Return whether a skill result wrapper explicitly reports failure."""
+    if isinstance(result, list):
+        return any(_has_explicit_skill_error(item) for item in result)
+    if not isinstance(result, dict):
+        return False
+    if result.get("status") in ("error", "cancelled") or bool(result.get("error")):
+        return True
+    nested_results = result.get("results")
+    return isinstance(nested_results, list) and _has_explicit_skill_error(nested_results)
+
+
+def _should_cache_skill_call_for_dedup(results: Any) -> bool:
+    """Cache non-empty successful wrappers, including valid zero-hit results."""
+    return bool(results) and not _has_explicit_skill_error(results)
+
+
 def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
     """
     Flatten nested objects into primitive fields for TOON tabular format encoding.
@@ -6622,7 +6639,7 @@ async def handle_main_processing(
                     # This prevents duplicate side effects (e.g., multiple reminders) when LLMs
                     # repeatedly call the same tool across iterations.
                     # Only record if we got valid results (not cancelled, not error).
-                    if results:
+                    if _should_cache_skill_call_for_dedup(results):
                         embed_id_for_dedup = placeholder_embed_data.get("embed_id") if placeholder_embed_data else None
                         completed_skill_calls[call_hash] = {
                             "embed_id": embed_id_for_dedup,

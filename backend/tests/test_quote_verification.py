@@ -43,6 +43,7 @@ def _run(coro):
 class TestSourceQuotePatternMatching:
     """Test that _SOURCE_QUOTE_PATTERN catches the expected blockquote formats."""
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_canonical_format(self):
         line = '> [We want a country where everyone is free](embed:thepinknews.com-XSi)'
         m = _SOURCE_QUOTE_PATTERN.search(line)
@@ -50,24 +51,42 @@ class TestSourceQuotePatternMatching:
         assert m.group(1) == "We want a country where everyone is free"
         assert m.group(2) == "thepinknews.com-XSi"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_canonical_with_leading_spaces(self):
         line = '>   [verbatim snippet](embed:bbc.co.uk-a9F)'
         m = _SOURCE_QUOTE_PATTERN.search(line)
         assert m is not None
 
+    @pytest.mark.parametrize("punctuation", [".", "!", "?", "…"])
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+    def test_canonical_with_trailing_sentence_punctuation(self, punctuation):
+        line = (
+            "> [This module offers classes representing filesystem paths.]"
+            f"(embed:docs.python.org-jq1){punctuation}"
+        )
+        m = _SOURCE_QUOTE_PATTERN.search(line)
+        assert m is not None
+        assert m.group(1) == "This module offers classes representing filesystem paths."
+        assert m.group(2) == "docs.python.org-jq1"
+        assert m.group(0) == line
+
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_no_match_plain_blockquote(self):
         line = '> This is just a regular blockquote'
         assert _SOURCE_QUOTE_PATTERN.search(line) is None
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_no_match_inline_link_no_embed(self):
         line = '> [text](https://example.com)'
         assert _SOURCE_QUOTE_PATTERN.search(line) is None
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_quoted_text_with_curly_quotes(self):
         line = '> [\u201cWe want a country\u2026\u201d](embed:thepinknews.com-XSi)'
         m = _SOURCE_QUOTE_PATTERN.search(line)
         assert m is not None, "Curly-quoted text inside brackets should match"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_multiline_response_extracts_all(self):
         text = (
             "Some intro text.\n"
@@ -91,12 +110,14 @@ class TestSourceQuotePatternMatching:
 
 class TestExtractSearchableText:
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_flat_dict(self):
         decoded = {"title": "Article Title", "description": "Some description text"}
         result = EmbedService._extract_searchable_text(decoded)
         assert "Article Title" in result
         assert "Some description text" in result
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_extra_snippets_pipe_delimited(self):
         decoded = {"extra_snippets": "snippet one|snippet two|snippet three"}
         result = EmbedService._extract_searchable_text(decoded)
@@ -104,6 +125,7 @@ class TestExtractSearchableText:
         assert "snippet two" in result
         assert "snippet three" in result
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_nested_results_array(self):
         decoded = {
             "results": [
@@ -115,12 +137,15 @@ class TestExtractSearchableText:
         assert "Result 1" in result
         assert "Desc 2" in result
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_empty_dict(self):
         assert EmbedService._extract_searchable_text({}) == ""
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_non_dict(self):
         assert EmbedService._extract_searchable_text("plain string") == "plain string"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_none_input(self):
         assert EmbedService._extract_searchable_text(None) == ""
 
@@ -170,12 +195,14 @@ def _verify_with_cached_toon(cached_toon: str | None, quoted_text: str) -> bool:
 
 class TestVerifyQuoteNormalization:
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_exact_match(self):
         assert _verify(
             {"description": "We want a country where everyone is free."},
             "We want a country where everyone is free.",
         ) is True
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_case_insensitive(self):
         assert _verify(
             {"description": "We Want A Country Where Everyone Is Free."},
@@ -184,6 +211,7 @@ class TestVerifyQuoteNormalization:
 
     # ---- BUG REPRODUCERS (OPE-431): must fail before fix ----
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_curly_quotes_in_llm_vs_straight_in_embed(self):
         """Embed stores straight quotes, LLM outputs curly quotes."""
         assert _verify(
@@ -191,6 +219,7 @@ class TestVerifyQuoteNormalization:
             '\u201cWe want a country where everyone is free,\u201d Magyar said.',
         ) is True, "Curly vs straight quotes should match"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_straight_quotes_in_llm_vs_curly_in_embed(self):
         """Embed stores curly quotes, LLM outputs straight quotes."""
         assert _verify(
@@ -198,6 +227,7 @@ class TestVerifyQuoteNormalization:
             '"We want a country where everyone is free," Magyar said.',
         ) is True, "Straight vs curly quotes should match"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_typographic_ellipsis_vs_three_dots(self):
         """Embed has '...' but LLM uses Unicode ellipsis '…'."""
         assert _verify(
@@ -205,6 +235,7 @@ class TestVerifyQuoteNormalization:
             "The plan includes reforms\u2026 but details are unclear.",
         ) is True, "Ellipsis vs three dots should match"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_three_dots_vs_typographic_ellipsis(self):
         """Embed has '…', LLM writes '...'."""
         assert _verify(
@@ -212,6 +243,7 @@ class TestVerifyQuoteNormalization:
             "The plan includes reforms... but details are unclear.",
         ) is True, "Three dots vs ellipsis should match"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_curly_single_quotes(self):
         """LLM uses curly single quotes vs ASCII apostrophe."""
         assert _verify(
@@ -219,6 +251,7 @@ class TestVerifyQuoteNormalization:
             "It\u2019s a landmark decision for the country\u2019s future.",
         ) is True, "Curly vs straight single quotes should match"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_nbsp_vs_regular_space(self):
         """Embed contains NBSP; LLM uses regular space."""
         assert _verify(
@@ -226,6 +259,7 @@ class TestVerifyQuoteNormalization:
             "100 percent of voters agreed.",
         ) is True, "NBSP vs regular space should match"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_em_dash_vs_double_hyphen(self):
         """Embed has em-dash; LLM uses double-hyphen."""
         assert _verify(
@@ -233,6 +267,7 @@ class TestVerifyQuoteNormalization:
             "The leader--who won by a landslide--celebrated.",
         ) is True, "Em-dash vs double-hyphen should match"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_en_dash_vs_hyphen(self):
         """Embed has en-dash; LLM uses regular hyphen."""
         assert _verify(
@@ -240,6 +275,7 @@ class TestVerifyQuoteNormalization:
             "Pages 10-20 cover the topic.",
         ) is True, "En-dash vs hyphen should match"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_combined_typography_mismatch(self):
         """Multiple typography differences in a single quote."""
         assert _verify(
@@ -247,6 +283,7 @@ class TestVerifyQuoteNormalization:
             '\u201cIt\u2019s clear\u2026 the leader\u2014who won\u201420 seats\u2014is confident,\u201d he said.',
         ) is True, "Combined typography differences should match"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_missing_embed_cache_is_not_valid_source_quote(self):
         """Unverifiable source quotes must be filtered instead of trusted."""
         assert _verify_with_cached_toon(
@@ -268,6 +305,7 @@ class TestExtractSourceCitations:
     tuples for ALL blockquote lines that reference an embed, regardless of format.
     """
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_canonical_format(self):
         """Standard format: > [text](embed:ref)"""
         text = '> [Flights start at 29 euros](embed:skyscanner.com-p3R)'
@@ -276,6 +314,24 @@ class TestExtractSourceCitations:
         assert results[0][0] == "Flights start at 29 euros"
         assert results[0][1] == "skyscanner.com-p3R"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+    def test_canonical_with_trailing_period_excludes_markdown_brackets(self):
+        """Regression: outside punctuation must not force canonical links through fallback parsing."""
+        text = (
+            "> [This module offers classes representing filesystem paths with semantics "
+            "appropriate for different operating systems.](embed:docs.python.org-jq1)."
+        )
+        results = _extract_source_citations(text)
+        assert results == [
+            (
+                "This module offers classes representing filesystem paths with semantics "
+                "appropriate for different operating systems.",
+                "docs.python.org-jq1",
+                text,
+            )
+        ]
+
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_multiple_canonical(self):
         text = (
             "Intro.\n"
@@ -289,6 +345,7 @@ class TestExtractSourceCitations:
 
     # ---- NON-CANONICAL FORMATS (the blind spot) ----
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_quoted_text_then_source_link(self):
         """Format: > "quoted text" [source](embed:ref) — text outside brackets."""
         text = '> "We want a country where everyone is free" [PinkNews](embed:thepinknews.com-XSi)'
@@ -298,6 +355,7 @@ class TestExtractSourceCitations:
         # Quoted text should be the blockquote content minus the embed link
         assert "We want a country" in results[0][0]
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_quoted_text_with_bare_embed_ref(self):
         """Format: > "quoted text" (embed:ref) — no brackets around source label."""
         text = '> "We want a country where everyone is free" (embed:thepinknews.com-XSi)'
@@ -305,6 +363,14 @@ class TestExtractSourceCitations:
         assert len(results) == 1
         assert results[0][1] == "thepinknews.com-XSi"
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+    def test_quoted_text_with_punctuated_bare_embed_ref(self):
+        """Punctuation outside a bare embed marker is not part of the source quote."""
+        text = '> "Exact source text." (embed:source.example-a1B).'
+        results = _extract_source_citations(text)
+        assert results == [("Exact source text.", "source.example-a1B", text)]
+
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_blockquote_with_trailing_source(self):
         """Format: > Some claim about policy. [source](embed:ref)"""
         text = '> Magyar stated they want freedom for all. [source](embed:thepinknews.com-XSi)'
@@ -313,6 +379,7 @@ class TestExtractSourceCitations:
         assert results[0][1] == "thepinknews.com-XSi"
         assert "Magyar stated" in results[0][0]
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_attribution_line_after_quote(self):
         """Format: > "quoted text"\\n> — [Source](embed:ref)"""
         text = (
@@ -323,18 +390,21 @@ class TestExtractSourceCitations:
         assert len(results) >= 1
         assert any(r[1] == "thepinknews.com-XSi" for r in results)
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_no_match_plain_blockquote(self):
         """Plain blockquote without any embed reference."""
         text = '> This is just a regular blockquote with no embed link.'
         results = _extract_source_citations(text)
         assert len(results) == 0
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_no_match_non_blockquote_embed(self):
         """Embed link NOT inside a blockquote should not be caught."""
         text = 'Check out [this article](embed:example.com-x1Y) for more info.'
         results = _extract_source_citations(text)
         assert len(results) == 0
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_mixed_canonical_and_noncanonical(self):
         """Response containing both formats — both should be detected."""
         text = (
@@ -366,6 +436,7 @@ def _quote_verification_services() -> tuple[MagicMock, MagicMock, MagicMock]:
 
 class TestVerifyAndStripBadQuotes:
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_starwars_false_quote_is_removed_from_response(self, monkeypatch):
         """Regression for a StarWars.com quote that was not present in the cited embed."""
         from toon_format import encode
@@ -429,6 +500,7 @@ class TestVerifyAndStripBadQuotes:
         assert "Midi-chlorians are not the powerhouse of the Force." in stripped
         assert "They are described differently in the cited source." in stripped
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_modified_quote_is_removed_from_response(self, monkeypatch):
         """Regression for issue 8eff9401: shortened/edited Wikipedia quote must disappear."""
         from toon_format import encode
@@ -481,6 +553,7 @@ class TestVerifyAndStripBadQuotes:
         assert "The Burj Khalifa was renamed during the opening." in stripped
         assert "That helped Dubai manage the debt crisis." in stripped
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_unknown_embed_ref_quote_is_removed_from_response(self, monkeypatch):
         from toon_format import encode
 
@@ -516,6 +589,7 @@ class TestVerifyAndStripBadQuotes:
         assert "This quote points at a non-existing embed ref" not in stripped
         assert stripped.strip() == "Intro.\n\nOutro."
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
     def test_exact_quote_is_preserved_in_response(self, monkeypatch):
         from toon_format import encode
 
@@ -535,6 +609,117 @@ class TestVerifyAndStripBadQuotes:
 
         cache_service, directus_service, encryption_service = _quote_verification_services()
         response = f"Answer.\n\n> [{exact_quote}](embed:{embed_ref})"
+
+        verified = _run(_verify_and_strip_bad_quotes(
+            aggregated_response=response,
+            tool_calls_info=[{"embed_id": parent_embed_id}],
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id="key-1",
+            known_valid_refs=set(),
+        ))
+
+        assert verified == response
+
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+    def test_pathlib_quote_with_trailing_period_is_preserved(self, monkeypatch):
+        """Regression for the live pathlib answer whose verified quote was stripped."""
+        from toon_format import encode
+
+        parent_embed_id = "pathlib-search-parent"
+        child_embed_id = "pathlib-docs-child"
+        embed_ref = "docs.python.org-jq1"
+        exact_quote = (
+            "This module offers classes representing filesystem paths with semantics "
+            "appropriate for different operating systems."
+        )
+        encoded_by_id = {
+            parent_embed_id: encode({"embed_ids": child_embed_id}),
+            child_embed_id: encode({"embed_ref": embed_ref, "description": exact_quote}),
+        }
+
+        async def fake_get_cached_embed_toon(self, embed_id, user_vault_key_id, log_prefix=""):
+            return encoded_by_id.get(embed_id)
+
+        monkeypatch.setattr(EmbedService, "_get_cached_embed_toon", fake_get_cached_embed_toon)
+
+        cache_service, directus_service, encryption_service = _quote_verification_services()
+        response = f"Official docs.\n\n> [{exact_quote}](embed:{embed_ref}).\n\nAfter."
+
+        verified = _run(_verify_and_strip_bad_quotes(
+            aggregated_response=response,
+            tool_calls_info=[{"embed_id": parent_embed_id}],
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id="key-1",
+            known_valid_refs=set(),
+        ))
+
+        assert verified == response
+
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+    def test_unverified_quote_with_trailing_period_removes_the_period(self, monkeypatch):
+        """A rejected punctuated quote must not leave an orphan punctuation paragraph."""
+        from toon_format import encode
+
+        parent_embed_id = "pathlib-search-parent"
+        child_embed_id = "pathlib-docs-child"
+        embed_ref = "docs.python.org-jq1"
+        encoded_by_id = {
+            parent_embed_id: encode({"embed_ids": child_embed_id}),
+            child_embed_id: encode({
+                "embed_ref": embed_ref,
+                "description": "Path objects represent filesystem paths.",
+            }),
+        }
+
+        async def fake_get_cached_embed_toon(self, embed_id, user_vault_key_id, log_prefix=""):
+            return encoded_by_id.get(embed_id)
+
+        monkeypatch.setattr(EmbedService, "_get_cached_embed_toon", fake_get_cached_embed_toon)
+
+        cache_service, directus_service, encryption_service = _quote_verification_services()
+        response = (
+            "Official docs.\n\n"
+            f"> [Path objects always point to cloud resources.](embed:{embed_ref}).\n\n"
+            "After."
+        )
+
+        stripped = _run(_verify_and_strip_bad_quotes(
+            aggregated_response=response,
+            tool_calls_info=[{"embed_id": parent_embed_id}],
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id="key-1",
+            known_valid_refs=set(),
+        ))
+
+        assert stripped == "Official docs.\n\nAfter."
+
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+    def test_bare_embed_quote_with_trailing_period_is_preserved(self, monkeypatch):
+        """A verified noncanonical quote ignores punctuation after its bare embed marker."""
+        from toon_format import encode
+
+        parent_embed_id = "search-parent"
+        child_embed_id = "source-child"
+        embed_ref = "source.example-a1B"
+        exact_quote = "Exact source text."
+        encoded_by_id = {
+            parent_embed_id: encode({"embed_ids": child_embed_id}),
+            child_embed_id: encode({"embed_ref": embed_ref, "description": exact_quote}),
+        }
+
+        async def fake_get_cached_embed_toon(self, embed_id, user_vault_key_id, log_prefix=""):
+            return encoded_by_id.get(embed_id)
+
+        monkeypatch.setattr(EmbedService, "_get_cached_embed_toon", fake_get_cached_embed_toon)
+
+        cache_service, directus_service, encryption_service = _quote_verification_services()
+        response = f'Answer.\n\n> "{exact_quote}" (embed:{embed_ref}).\n\nAfter.'
 
         verified = _run(_verify_and_strip_bad_quotes(
             aggregated_response=response,

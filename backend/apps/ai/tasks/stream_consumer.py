@@ -840,10 +840,11 @@ _TOOL_CALL_XML_PATTERN = re.compile(
 _GARBLED_NUMBER_SEQUENCE_PATTERN = re.compile(r'[\d,\-\s\n]{200,}')
 
 # Regex pattern to detect source quotes in blockquotes — canonical format.
-# Matches lines like: > [quoted text](embed:some-ref-k8D)
+# Matches lines like: > [quoted text](embed:some-ref-k8D) and the common
+# Markdown variant with sentence punctuation after the link.
 # Group 1 = quoted text, Group 2 = embed_ref slug.
 _SOURCE_QUOTE_PATTERN = re.compile(
-    r'^>\s*\[([^\]]+)\]\(embed:([^)]+)\)\s*$',
+    r'^>\s*\[([^\]\n]+)\]\(embed:([^)]+)\)[.!?,;:\u2026]?\s*$',
     re.MULTILINE
 )
 
@@ -851,8 +852,9 @@ _SOURCE_QUOTE_PATTERN = re.compile(
 # where the format isn't the canonical > [text](embed:ref).
 # Used by _extract_source_citations to catch non-canonical LLM output.
 _BLOCKQUOTE_EMBED_REF_PATTERN = re.compile(
-    r'^(>\s*.+?)'            # blockquote line content (non-greedy)
-    r'\(embed:([^)]+)\)',    # (embed:ref) anywhere on the line
+    r'^(>\s*.+?'             # blockquote line content (non-greedy)
+    r'\(embed:([^)]+)\)'     # (embed:ref) anywhere on the line
+    r'[^\r\n]*)$',           # include trailing punctuation/text in full match
     re.MULTILINE
 )
 
@@ -930,15 +932,22 @@ def _extract_source_citations(
         embed_ref = m.group(2)
         full_match = m.group(0)
 
-        # Extract quoted text: strip the > prefix, the embed link, and any
-        # [label](embed:ref) or (embed:ref) suffix.
-        raw_line = m.group(1)
+        # Extract quoted text from the complete line so markdown link syntax is
+        # removed as a unit. Previously group 1 stopped before ``(embed:...)``,
+        # leaving a leading ``[`` in canonical links with trailing punctuation;
+        # that bracket made otherwise verbatim quotes fail source verification.
+        raw_line = full_match
         # Remove "> " prefix
         quoted = re.sub(r'^>\s*', '', raw_line).strip()
-        # Remove [label](embed:...) patterns
-        quoted = re.sub(r'\[[^\]]*\]\(embed:[^)]*\)', '', quoted).strip()
-        # Remove bare (embed:...) patterns
-        quoted = re.sub(r'\(embed:[^)]*\)', '', quoted).strip()
+        # Remove [label](embed:...) or bare (embed:...) markers together with
+        # sentence punctuation attached *after* the marker. Punctuation inside
+        # the quoted prose remains part of the strict source-verification text.
+        quoted = re.sub(
+            r'\[[^\]]*\]\(embed:[^)]*\)[.!?,;:\u2026]?',
+            '',
+            quoted,
+        ).strip()
+        quoted = re.sub(r'\(embed:[^)]*\)[.!?,;:\u2026]?', '', quoted).strip()
         # Remove leading/trailing punctuation used for attribution (—, -, :)
         quoted = re.sub(r'^[\u2014\u2013\-:]+\s*', '', quoted).strip()
         quoted = re.sub(r'\s*[\u2014\u2013\-:]+$', '', quoted).strip()
@@ -950,7 +959,9 @@ def _extract_source_citations(
         if not quoted:
             # The line was just an embed link with no quotable text —
             # check adjacent blockquote lines above for the quoted text.
-            lines = text[:m.start()].split('\n')
+            # ``m.start()`` is immediately after the previous line's newline;
+            # trim only line endings so the reverse scan starts on that line.
+            lines = text[:m.start()].rstrip('\r\n').splitlines()
             adjacent_quote_lines = []
             for line in reversed(lines):
                 if line.strip().startswith('>'):

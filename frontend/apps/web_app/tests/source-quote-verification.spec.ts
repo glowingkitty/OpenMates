@@ -37,12 +37,18 @@ const WEBSITE_SOURCE_QUOTE =
 const SHARED_CHAT_WITH_VIDEO_QUOTE = 'https://app.dev.openmates.org/s/Is8cygIa#fBhhCJ';
 const VIDEO_SOURCE_QUOTE =
 	'LLMs can get you 80% there, but the other 20%, man, if you’re not an expert, you are gonna have a hard time.';
-const VIDEO_SOURCE_LABEL = '"I had Fable build several projects for me. I\'m disturbed by what I saw." by Mo Bitar';
+const VIDEO_SOURCE_LABEL =
+	'"I had Fable build several projects for me. I\'m disturbed by what I saw." by Mo Bitar';
 
 test.describe('Source quote verification', () => {
 	test.setTimeout(240_000);
 
-	test('auto-removes false source quotes before rendering assistant message', async ({ page }: { page: any }) => {
+	// contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
+	test('auto-removes false source quotes before rendering assistant message', async ({
+		page
+	}: {
+		page: any;
+	}) => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
 		const log = createSignupLogger('source-quote-verification');
@@ -66,19 +72,32 @@ test.describe('Source quote verification', () => {
 			.last();
 		await expect(assistantMessage).toBeVisible({ timeout: 120_000 });
 
-		await expect(assistantMessage).toContainText('The source says the Burj Khalifa had a previous name.');
+		await expect(assistantMessage).toContainText(
+			'The source says the Burj Khalifa had a previous name.'
+		);
 		await expect(assistantMessage).not.toContainText(FALSE_QUOTE);
 		await expect(assistantMessage).not.toContainText('embed:en.wikipedia.org-gDS');
 		await expect(assistantMessage.locator('[data-testid="source-quote-block"]')).toHaveCount(0);
+		const renderedText = (await assistantMessage.innerText()).replace(/\s+/g, ' ').trim();
+		expect(renderedText).not.toContain(
+			'previous name. . This sentence should remain after the invalid quote is removed.'
+		);
 
-		const embed = page.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]').first();
+		const embed = page
+			.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]')
+			.first();
 		await expect(embed).toBeVisible({ timeout: 30_000 });
 		await screenshot(page, 'false-source-quote-stripped');
 
 		await deleteActiveChat(page, log, screenshot, 'false-source-quote');
 	});
 
-	test('normalizes grouped cite links and promotes image results to large previews', async ({ page }: { page: any }) => {
+	// contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
+	test('normalizes grouped cite links and promotes image results to large previews', async ({
+		page
+	}: {
+		page: any;
+	}) => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
 		const log = createSignupLogger('grouped-cites-image-preview');
@@ -102,8 +121,12 @@ test.describe('Source quote verification', () => {
 		await expect(assistantMessage).toBeVisible({ timeout: 120_000 });
 
 		await expect(assistantMessage).not.toContainText('[cite:');
-		await expect(assistantMessage.getByRole('link', { name: 'CNBC AI Infrastructure' })).toBeVisible();
-		await expect(assistantMessage.getByRole('link', { name: 'Second Talent Market Report' })).toBeVisible();
+		await expect(
+			assistantMessage.getByRole('link', { name: 'CNBC AI Infrastructure' })
+		).toBeVisible();
+		await expect(
+			assistantMessage.getByRole('link', { name: 'Second Talent Market Report' })
+		).toBeVisible();
 
 		const largePreview = assistantMessage.getByTestId('embed-preview-large').first();
 		await expect(largePreview).toBeVisible({ timeout: 30_000 });
@@ -117,13 +140,21 @@ test.describe('Source quote verification', () => {
 		await deleteActiveChat(page, log, screenshot, 'grouped-cites-image-preview');
 	});
 
-	test('clicking a website source quote highlights matching fullscreen text', async ({ page }: { page: any }) => {
+	// contract-test: direct surface=gui.web assertions=chats.rendering.inline-entity-interaction
+	test('clicking a website source quote highlights matching fullscreen text', async ({
+		page
+	}: {
+		page: any;
+	}) => {
 		test.setTimeout(120_000);
 
 		const response = await page.goto(SHARED_CHAT_WITH_WEBSITE_QUOTE, { waitUntil: 'networkidle' });
 		expect(response?.status()).toBe(200);
 
-		const sourceQuote = page.getByTestId('source-quote-block').filter({ hasText: WEBSITE_SOURCE_QUOTE }).first();
+		const sourceQuote = page
+			.getByTestId('source-quote-block')
+			.filter({ hasText: WEBSITE_SOURCE_QUOTE })
+			.first();
 		await expect(sourceQuote).toBeVisible({ timeout: 30_000 });
 		await sourceQuote.click();
 
@@ -141,20 +172,28 @@ test.describe('Source quote verification', () => {
 			const computed = window.getComputedStyle(el);
 			return {
 				backgroundColor: computed.backgroundColor,
-				boxShadow: computed.boxShadow,
+				boxShadow: computed.boxShadow
 			};
 		});
 		expect(styles.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
 		expect(styles.boxShadow).not.toBe('none');
 	});
 
-	test('clicking a video source quote opens transcript fullscreen', async ({ page }: { page: any }) => {
+	// contract-test: direct surface=gui.web assertions=chats.rendering.inline-entity-interaction
+	test('clicking a video source quote opens transcript fullscreen', async ({
+		page
+	}: {
+		page: any;
+	}) => {
 		test.setTimeout(120_000);
 
 		const response = await page.goto(SHARED_CHAT_WITH_VIDEO_QUOTE, { waitUntil: 'networkidle' });
 		expect(response?.status()).toBe(200);
 
-		const sourceQuote = page.getByTestId('source-quote-block').filter({ hasText: VIDEO_SOURCE_QUOTE }).first();
+		const sourceQuote = page
+			.getByTestId('source-quote-block')
+			.filter({ hasText: VIDEO_SOURCE_QUOTE })
+			.first();
 		await expect(sourceQuote).toBeVisible({ timeout: 30_000 });
 		await expect(sourceQuote).toContainText(VIDEO_SOURCE_LABEL);
 		await expect(sourceQuote).not.toContainText('vS-gfLhxYDg');
@@ -177,5 +216,4 @@ test.describe('Source quote verification', () => {
 		expect(highlightedText).toContain('LLMs can get you 80% there');
 		expect(highlightedText).not.toMatch(/\b\d{1,2}:\d{2}:\d{2}(?:\.\d+)?\b/);
 	});
-
 });
