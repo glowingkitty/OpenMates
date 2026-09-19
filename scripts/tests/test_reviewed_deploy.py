@@ -11,7 +11,7 @@ import hashlib
 import json
 import pytest
 from scripts import reviewed_deploy as review
-from scripts.ci_source import git
+from scripts.ci_source import git, git_bytes
 from test_ci_source import repository
 from test_sessions_worktree_lifecycle import load_sessions_module
 
@@ -27,18 +27,18 @@ def fixture(tmp_path):
     root = repository(tmp_path)
     base = commit(root, "source.py", "old\nupstream\n")
     candidate = commit(root, "source.py", "old\n")
-    patch = git(root, "diff", "--binary", "--no-renames", base, candidate)
+    patch = git_bytes(root, "diff", "--binary", "--no-renames", base, candidate)
     candidate_dir = root / "logs/ci-candidates" / candidate
     candidate_dir.mkdir(parents=True)
     patch_path = candidate_dir / "candidate.patch"
-    patch_path.write_text(patch)
+    patch_path.write_bytes(patch)
     patch_path.chmod(0o600)
     (candidate_dir / "manifest.json").write_text(json.dumps({
         "source": candidate,
         "base": base,
         "tree": git(root, "rev-parse", candidate + "^{tree}"),
         "session": "fixture",
-        "patch_sha256": hashlib.sha256(patch.encode()).hexdigest(),
+        "patch_sha256": hashlib.sha256(patch).hexdigest(),
         "patch_url": "https://nbg1.your-objectstorage.com/private?signature=test",
         "artifact_expires_at": "2099-01-01T00:00:00+00:00",
         "local_patch": str(patch_path),

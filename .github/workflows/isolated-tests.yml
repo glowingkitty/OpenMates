@@ -86,19 +86,19 @@ jobs:
           EXPECTED_TREE: ${{ inputs.candidate_tree }}
           CANDIDATE_OWNER: ${{ inputs.candidate_owner }}
           CANDIDATE_PATCH_SHA256: ${{ inputs.candidate_patch_sha256 }}
-          CANDIDATE_PATCH_URL: ${{ inputs.candidate_patch_url }}
         run: |
-          if [ -n "$CANDIDATE_PATCH_URL" ]; then
-            echo "::add-mask::$CANDIDATE_PATCH_URL"
-          fi
           python3 - <<'PY'
-          import hashlib, os, re, subprocess, urllib.parse, urllib.request
+          import hashlib, json, os, re, subprocess, urllib.parse, urllib.request
 
           expected = os.environ['EXPECTED_SOURCE']
           assert re.fullmatch('[0-9a-f]{40}', expected), 'Full source SHA required'
+          event = json.load(open(os.environ['GITHUB_EVENT_PATH']))
+          patch_url = event.get('inputs', {}).get('candidate_patch_url', '')
+          if patch_url:
+              print(f'::add-mask::{patch_url}')
           values = [
               os.environ['EXPECTED_TREE'], os.environ['CANDIDATE_OWNER'],
-              os.environ['CANDIDATE_PATCH_SHA256'], os.environ['CANDIDATE_PATCH_URL'],
+              os.environ['CANDIDATE_PATCH_SHA256'], patch_url,
           ]
           if any(values):
               assert all(values), 'Candidate artifact identity must be complete'

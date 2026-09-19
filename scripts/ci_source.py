@@ -33,6 +33,11 @@ def git(root, *args, env=None, input=None):
     ).strip()
 
 
+def git_bytes(root, *args, env=None) -> bytes:
+    """Return byte-exact Git output for patches and other framed content."""
+    return subprocess.check_output(["git", *args], cwd=root, env=env)
+
+
 def reviewed_paths(root: Path, session_files: list[str]) -> list[str]:
     changed = set(git(root, "diff", "HEAD", "--name-only", "-z").split("\0")) - {""}
     tracked = set(git(root, "ls-files", "-z").split("\0"))
@@ -169,8 +174,7 @@ def publish(
             env=env,
             input=f"CI candidate for session {session_id}\n",
         )
-    candidate_patch = git(root, "diff", "--binary", "--no-renames", parent, source)
-    candidate_bytes = candidate_patch.encode()
+    candidate_bytes = git_bytes(root, "diff", "--binary", "--no-renames", parent, source)
     if len(candidate_bytes) > MAX_CHANGED_BYTES:
         raise ValueError("CI candidate patch exceeds the source publication limit")
     candidate_sha256 = hashlib.sha256(candidate_bytes).hexdigest()

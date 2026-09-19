@@ -62,3 +62,5 @@ def test_isolated_workflow_reconstructs_verified_candidate_without_git_refs() ->
         assert value in workflow
     assert "refs/heads/codex/ci" not in workflow
     assert "git push" not in workflow
+    assert "CANDIDATE_PATCH_URL: ${{ inputs.candidate_patch_url }}" not in workflow
+    assert "event.get('inputs', {}).get('candidate_patch_url', '')" in workflow

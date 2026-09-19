@@ -473,7 +473,16 @@ class Queue:
 def print_receipt(value, *, as_json=False):
     """Keep machine receipts available without flooding ordinary agent calls."""
     if as_json:
-        print(json.dumps(value))
+        def redact(item):
+            if isinstance(item, dict):
+                return {
+                    key: ("<redacted>" if key == "candidate_patch_url" and child else redact(child))
+                    for key, child in item.items()
+                }
+            if isinstance(item, list):
+                return [redact(child) for child in item]
+            return item
+        print(json.dumps(redact(value)))
         return
     rows = value if isinstance(value, list) else [value]
     for row in rows:

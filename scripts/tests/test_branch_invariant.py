@@ -54,3 +54,13 @@ def test_cleanup_rejects_ref_drift_after_archive(tmp_path, monkeypatch):
     run("git", "-C", str(root), "update-ref", "refs/heads/extra", "dev")
     with pytest.raises(RuntimeError, match="changed after archival"):
         branch_invariant.cleanup(root, Path(archived["manifest"]))
+
+
+def test_cleanup_accepts_archived_remote_branch_already_removed(tmp_path, monkeypatch):
+    root = repository(tmp_path)
+    monkeypatch.setattr(branch_invariant, "code_violations", lambda _: [])
+    archived = branch_invariant.archive(root, tmp_path / "backup")
+    run("git", "-C", str(root), "push", "origin", ":extra")
+    result = branch_invariant.cleanup(root, Path(archived["manifest"]))
+    assert result["already_absent_remote"] == ["extra"]
+    assert result["deleted_remote"] == []

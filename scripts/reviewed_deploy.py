@@ -13,10 +13,10 @@ from pathlib import Path
 import re
 
 try:
-    from scripts.ci_source import git, source_path, fingerprint, MAX_CHANGED_BYTES
+    from scripts.ci_source import git, git_bytes, source_path, fingerprint, MAX_CHANGED_BYTES
     from scripts.ci_candidate import load as load_candidate
 except ModuleNotFoundError:
-    from ci_source import git, source_path, fingerprint, MAX_CHANGED_BYTES
+    from ci_source import git, git_bytes, source_path, fingerprint, MAX_CHANGED_BYTES
     from ci_candidate import load as load_candidate
 
 
@@ -52,10 +52,10 @@ def validate(root: Path, session: str, candidate: str, base: str, selected: list
     entries = git(root, "ls-tree", "-r", candidate, "--", *paths).splitlines()
     if any(entry.startswith(("120000 ", "160000 ")) for entry in entries):
         raise RuntimeError("Reviewed deployment cannot introduce symlinks or submodules")
-    patch = git(root, "diff", "--binary", "--no-renames", base, candidate, "--", *paths)
-    if len(patch.encode()) > MAX_CHANGED_BYTES:
+    patch = git_bytes(root, "diff", "--binary", "--no-renames", base, candidate, "--", *paths)
+    if len(patch) > MAX_CHANGED_BYTES:
         raise RuntimeError("Reviewed deployment exceeds the source publication limit")
-    if hashlib.sha256(patch.encode()).hexdigest() != retained["patch_sha256"]:
+    if hashlib.sha256(patch).hexdigest() != retained["patch_sha256"]:
         raise RuntimeError("Reviewed candidate patch differs from the retained artifact")
     deletions = {}
     for line in git(root, "diff", "--no-renames", "--numstat", base, candidate).splitlines():
@@ -65,7 +65,7 @@ def validate(root: Path, session: str, candidate: str, base: str, selected: list
         "candidate": candidate,
         "base": base,
         "paths": paths,
-        "patch_id": hashlib.sha256(patch.encode()).hexdigest(),
+        "patch_id": hashlib.sha256(patch).hexdigest(),
         "deletions": deletions,
         "source_identity": source_identity(root, paths),
     }

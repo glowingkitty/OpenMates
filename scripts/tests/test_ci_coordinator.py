@@ -180,3 +180,12 @@ def test_candidate_identity_is_persisted_and_dispatched_from_base(tmp_path, monk
     assert inputs["checkout_ref"] == "b" * 40
     assert inputs["source_commit"] == "c" * 40
     assert inputs["candidate_patch_sha256"] == "e" * 64
+
+
+def test_json_receipts_redact_presigned_candidate_url(capsys):
+    from scripts.ci_coordinator import print_receipt
+
+    print_receipt({"candidate_patch_url": "https://secret", "source": "a" * 40}, as_json=True)
+    value = __import__("json").loads(capsys.readouterr().out)
+    assert value["candidate_patch_url"] == "<redacted>"
+    assert value["source"] == "a" * 40

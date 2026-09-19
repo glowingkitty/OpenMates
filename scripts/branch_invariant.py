@@ -126,8 +126,15 @@ def cleanup(root: Path, manifest_path: Path) -> dict:
     extra_remote = {name: sha for name, sha in current_remote.items() if name not in ALLOWED}
     if extra_local != {name: sha for name, sha in expected_local.items() if name not in ALLOWED}:
         raise RuntimeError("Local branch inventory changed after archival")
-    if extra_remote != {name: sha for name, sha in expected_remote.items() if name not in ALLOWED}:
+    expected_extra_remote = {name: sha for name, sha in expected_remote.items() if name not in ALLOWED}
+    changed_remote = {
+        name: sha
+        for name, sha in extra_remote.items()
+        if expected_extra_remote.get(name) != sha
+    }
+    if changed_remote:
         raise RuntimeError("Remote branch inventory changed after archival")
+    already_absent_remote = sorted(set(expected_extra_remote) - set(extra_remote))
     occupied = {name: path for name, path in checked_out_heads(root).items() if name in extra_local}
     if occupied:
         raise RuntimeError("Extra branches remain checked out: " + json.dumps(occupied, sort_keys=True))
@@ -143,7 +150,12 @@ def cleanup(root: Path, manifest_path: Path) -> dict:
     final = audit(root)
     if not final["ok"]:
         raise RuntimeError("Two-branch invariant is still violated: " + json.dumps(final, sort_keys=True))
-    return {"deleted_local": sorted(extra_local), "deleted_remote": sorted(extra_remote), "final": final}
+    return {
+        "deleted_local": sorted(extra_local),
+        "deleted_remote": sorted(extra_remote),
+        "already_absent_remote": already_absent_remote,
+        "final": final,
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
