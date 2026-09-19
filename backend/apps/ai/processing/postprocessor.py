@@ -37,6 +37,7 @@ from backend.shared.python_utils.learning_mode import (
 logger = logging.getLogger(__name__)
 
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
+POSTPROCESSING_MODEL_ID = "google/gemini-3.5-flash-lite"
 
 
 def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
@@ -442,8 +443,10 @@ async def handle_postprocessing(
     )
     messages.append({"role": "user", "content": combined_context})
 
-    # Use same model as preprocessing (Mistral Small) for consistency
-    model_id = "mistral/mistral-small-2506"
+    # Use the low-latency utility model for optional metadata. Keeping this
+    # post-answer call fast prevents CLI/task completion from waiting on a slow
+    # Mistral fallback chain after the assistant answer is already available.
+    model_id = POSTPROCESSING_MODEL_ID
 
     # Resolve fallback providers from the model's provider config (e.g. openrouter)
     # so that post-processing is resilient to Mistral API timeouts/outages,
@@ -760,7 +763,7 @@ async def translate_postprocessing_metadata(
         },
         {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
     ]
-    model_id = "mistral/mistral-small-2506"
+    model_id = POSTPROCESSING_MODEL_ID
     fallbacks = _with_deepseek_utility_fallback(
         resolve_fallback_servers_from_provider_config(model_id)
     )
