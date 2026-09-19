@@ -59,6 +59,10 @@ def code_violations(root: Path) -> list[str]:
         violations.append("advance-dev-version.yml can create an intermediate branch")
     if "git push origin HEAD:dev" not in workflow:
         violations.append("advance-dev-version.yml does not target dev directly")
+    if "ssh-key: ${{ secrets.VERSION_BUMP_DEPLOY_KEY }}" not in workflow:
+        violations.append("advance-dev-version.yml lacks its dedicated protected-dev credential")
+    if "secrets.GITHUB_TOKEN" in workflow:
+        violations.append("advance-dev-version.yml uses the ordinary Actions token for protected-dev writes")
     if any(entry.get("open-pull-requests-limit") != 0 for entry in dependabot.get("updates", [])):
         violations.append("Dependabot version updates can create pull-request branches")
     return violations

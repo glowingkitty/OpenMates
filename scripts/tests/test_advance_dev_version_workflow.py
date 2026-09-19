@@ -24,7 +24,7 @@ def test_advance_dev_version_workflow_runs_after_merged_main_pr() -> None:
     pull_request = workflow[True]["pull_request"]
     assert pull_request["branches"] == ["main"]
     assert pull_request["types"] == ["closed"]
-    assert workflow["permissions"] == {"contents": "write"}
+    assert workflow["permissions"] == {"contents": "read"}
     assert workflow["jobs"]["advance"]["if"] == "github.event.pull_request.merged == true"
 
 
@@ -35,6 +35,8 @@ def test_advance_dev_version_workflow_uses_canonical_bump_script() -> None:
     assert "minor + 1" in text
     assert "scripts/bump_alpha_version_line.py --minor" in text
     assert "git push origin HEAD:dev" in text
+    assert "ssh-key: ${{ secrets.VERSION_BUMP_DEPLOY_KEY }}" in text
+    assert "secrets.GITHUB_TOKEN" not in text
     assert "gh pr create" not in text
     assert "automation/advance-dev" not in text
     assert 'branch="' not in text

@@ -8,7 +8,7 @@ on:
       - closed
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: advance-dev-version
@@ -47,7 +47,7 @@ jobs:
         with:
           ref: dev
           path: dev
-          token: ${{ secrets.GITHUB_TOKEN }}
+          ssh-key: ${{ secrets.VERSION_BUMP_DEPLOY_KEY }}
 
       - name: Advance dev version line
         working-directory: dev
