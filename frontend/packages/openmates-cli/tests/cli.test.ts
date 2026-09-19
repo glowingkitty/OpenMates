@@ -132,8 +132,8 @@ async function withUpdateRequiredMock<T>(
       });
       return;
     }
-    if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
-      writeJson(response, { data: { app_settings_memories: [] } });
+    if (request.method === "GET" && request.url === "/v1/sdk/memories") {
+      writeJson(response, { memories: [] });
       return;
     }
     if (request.method === "GET" && request.url === "/v1/learning-mode") {
@@ -2467,6 +2467,8 @@ describe("CLI update-required cutover", () => {
       assert.match(result.stderr, /OpenMates CLI update required\. Run `openmates upgrade` and retry\./);
       assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /success/i);
       assert.equal(requestPaths.includes("GET /v1/learning-mode"), false);
+      assert.equal(requestPaths.filter((path) => path === "GET /v1/sdk/memories").length, 1);
+      assert.equal(requestPaths.some((path) => path.includes("export-account-data")), false);
       assert.equal(frameTypes.includes("chat_turn_preflight"), true);
       assert.equal(frameTypes.includes("chat_message_added"), false);
     });

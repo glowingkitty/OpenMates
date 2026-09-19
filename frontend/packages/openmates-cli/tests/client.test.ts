@@ -1405,6 +1405,58 @@ describe("memory type registry", () => {
       "web/read_later",
     ]);
   });
+
+  // contract-test: direct surface=cli assertions=app-memories.surface.semantic-parity
+  it("loads personal memories from the owner-scoped memory endpoint without account export", async () => {
+    const encryptedItem = await encryptWithAesGcmCombined(
+      JSON.stringify({
+        title: "Private preference",
+        settings_group: "code",
+        _original_item_key: "preferred_tech",
+      }),
+      new Uint8Array(32),
+    );
+    const requestPaths: string[] = [];
+    const server = createServer((request, response) => {
+      requestPaths.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+      if (request.method === "GET" && request.url === "/v1/sdk/memories") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          memories: [{
+            id: "11111111-1111-4111-8111-111111111111",
+            app_id: "code",
+            item_type: "preferred_tech",
+            item_key: "hashed-memory-key",
+            item_version: 3,
+            created_at: 1710000000,
+            updated_at: 1710000100,
+            encrypted_item_json: encryptedItem,
+          }],
+        }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const memories = await client.listMemories({ personal: true });
+
+      assert.equal(memories.length, 1);
+      assert.equal(memories[0]?.data.title, "Private preference");
+      assert.deepEqual(requestPaths, ["GET /v1/sdk/memories"]);
+      assert.equal(requestPaths.some((path) => path.includes("export-account-data")), false);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });
 
 describe("CLI streamed embed persistence", () => {

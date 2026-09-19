@@ -6377,6 +6377,12 @@ export class OpenMatesClient {
     benchmarkMetadata?: BenchmarkMetadata;
     /** Full plaintext history for incognito benchmark turns. */
     messageHistory?: BenchmarkHistoryMessage[];
+    /**
+     * Decrypted memories already loaded by the command preparing this turn.
+     * Reusing this snapshot keeps PII redaction, mention resolution, memory
+     * metadata, and approval on one consistent owner-scoped read.
+     */
+    memorySnapshot?: DecryptedMemoryEntry[];
     /** Account-wide Learning Mode context when already known by the caller. */
     learningMode?: LearningModeContext;
     /** Start collecting before send for latency-sensitive benchmark turns. */
@@ -6462,7 +6468,7 @@ export class OpenMatesClient {
     let memoryMetadataKeys: string[] = [];
     if (!params.incognito) {
       try {
-        availableMemories = await this.listMemories({ teamId });
+        availableMemories = params.memorySnapshot ?? await this.listMemories({ teamId });
         memoryCountsLoaded = true;
         memoryMetadataKeys = [
           ...new Set(
@@ -10995,9 +11001,9 @@ export class OpenMatesClient {
 
   /**
    * List all memories for the current user, decrypted.
-   * Fetches from the GDPR export endpoint and decrypts each entry with the master key.
+   * Fetches from the owner-scoped memory surface and decrypts each entry with the master key.
    */
-  private async sdkGetMemories(teamId: string): Promise<Array<Record<string, unknown>>> {
+  private async sdkGetTeamMemories(teamId: string): Promise<Array<Record<string, unknown>>> {
     const response = await this.http.get<{ memories?: Array<Record<string, unknown>> }>(
       `/v1/teams/${encodeURIComponent(teamId)}/memories`,
       this.getCliRequestHeaders(),
@@ -11006,15 +11012,36 @@ export class OpenMatesClient {
     return response.data.memories ?? [];
   }
 
+  private async sdkGetPersonalMemories(): Promise<Array<Record<string, unknown>>> {
+    const response = await this.http.get<{ memories?: Array<Record<string, unknown>> }>(
+      "/v1/sdk/memories",
+      this.getCliRequestHeaders(),
+    );
+    if (response.ok) return response.data.memories ?? [];
+
+    // Compatibility only for older OpenMates servers that predate the
+    // owner-scoped memory surface. Do not fall back on throttling or server
+    // errors: that would put chat preparation back on the heavyweight export
+    // route and could reintroduce its long retry delay.
+    if (response.status !== 404 && response.status !== 501) {
+      throw Object.assign(
+        new Error(`Personal memory list failed with HTTP ${response.status}`),
+        { status: response.status, retryAfterMs: response.retryAfterMs },
+      );
+    }
+
+    const legacy = (await this.settingsGet(
+      "/v1/settings/export-account-data?include_usage=false&include_invoices=false",
+    )) as { data?: { app_settings_memories?: Array<Record<string, unknown>> } };
+    return legacy.data?.app_settings_memories ?? [];
+  }
+
   async listMemories(options: TeamContextOptions = {}): Promise<DecryptedMemoryEntry[]> {
     const masterKey = this.getMasterKeyBytes();
     const teamId = this.resolveTeamContext(options);
-    const data = teamId
-      ? ({ data: { app_settings_memories: (await this.sdkGetMemories(teamId)) } } as { data?: { app_settings_memories?: Array<Record<string, unknown>> } })
-      : (await this.settingsGet(
-          "/v1/settings/export-account-data?include_usage=false&include_invoices=false",
-        )) as { data?: { app_settings_memories?: Array<Record<string, unknown>> } };
-    const rawEntries = data.data?.app_settings_memories ?? [];
+    const rawEntries = teamId
+      ? await this.sdkGetTeamMemories(teamId)
+      : await this.sdkGetPersonalMemories();
     const results: DecryptedMemoryEntry[] = [];
 
     for (const raw of rawEntries) {
@@ -11726,7 +11753,9 @@ export class OpenMatesClient {
    *
    * Mirrors: mentionSearchService.ts data sources
    */
-  async buildMentionContext(): Promise<MentionContext> {
+  async buildMentionContext(options: {
+    memorySnapshot?: DecryptedMemoryEntry[];
+  } = {}): Promise<MentionContext> {
     // Fetch apps data (includes skills, focus modes, memory categories)
     let apps: AppInfo[] = [];
     try {
@@ -11741,7 +11770,7 @@ export class OpenMatesClient {
     // Fetch memory entries for entry-level mentions
     let memoryEntries: MemoryEntryInfo[] = [];
     try {
-      const memories = await this.listMemories();
+      const memories = options.memorySnapshot ?? await this.listMemories();
       memoryEntries = memories.map((m) => ({
         id: m.id,
         app_id: m.app_id,

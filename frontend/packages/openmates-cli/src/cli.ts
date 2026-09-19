@@ -23,6 +23,7 @@ import {
   type ChatRewindResult,
   type DecryptedEmbed,
   type DecryptedMessage,
+  type DecryptedMemoryEntry,
   type DailyInspiration,
   type DecryptedNewChatSuggestion,
   type DocsTree,
@@ -283,16 +284,6 @@ async function main(): Promise<void> {
   }
 
   const redactor = new OutputRedactor();
-  const piiDetectionEnabled = parsed.flags["no-pii-detection"] !== true;
-  if (piiDetectionEnabled && shouldInitializeRedactor(command, subcommand)) {
-    try {
-      const memories = client.hasSession() ? await client.listMemories() : [];
-      redactor.initializeFromMemories(memories);
-    } catch {
-      // Keep high-confidence pattern detection active even if memory loading fails.
-      redactor.initializeFromMemories([]);
-    }
-  }
 
   if (!command) {
     if (parsed.flags.version !== undefined) {
@@ -4652,16 +4643,6 @@ async function createEncryptedRemoteAccessProject(
     projectKey,
     encrypted: payload,
   };
-}
-
-function shouldInitializeRedactor(
-  command: string | undefined,
-  subcommand: string | undefined,
-): boolean {
-  return (
-    command === "chats" &&
-    ["new", "send", "answer-interactive", "incognito"].includes(subcommand ?? "")
-  );
 }
 
 function parseJsonFlag<T>(value: string, flagName: string): T {
@@ -11143,6 +11124,32 @@ async function sendMessageStreaming(
   }>;
   acceptedTaskProposals: Array<Record<string, unknown>>;
 } | WaitingForUserResult | SignupRequiredResult> {
+  let memorySnapshot: DecryptedMemoryEntry[] = [];
+  const needsMemorySnapshot = client.hasSession() && (
+    params.incognito !== true
+    || params.piiDetection !== false
+    || params.message.includes("@")
+  );
+  if (needsMemorySnapshot) {
+    try {
+      memorySnapshot = await client.listMemories({
+        teamId: params.teamId,
+        personal: params.personal,
+      });
+    } catch (error) {
+      if (params.autoApproveMemories && params.incognito !== true) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to load memories for auto-approval: ${message}`);
+      }
+      // Keep high-confidence pattern detection active and preserve the
+      // existing non-auto-approval behavior when memory loading is unavailable.
+      memorySnapshot = [];
+    }
+  }
+  if (params.piiDetection !== false && redactor) {
+    redactor.initializeFromMemories(memorySnapshot);
+  }
+
   let headerPrinted = false;
   let typingShown = false;
   // Track which embed IDs we've already rendered during streaming
@@ -11303,7 +11310,7 @@ async function sendMessageStreaming(
         (query, language, limit) => client.searchWikipediaTitles(query, language, limit),
       );
       resolvedWikipediaMentions = wikipediaResult.resolved;
-      const mentionCtx = await client.buildMentionContext();
+      const mentionCtx = await client.buildMentionContext({ memorySnapshot });
       const parsed = parseMentions(wikipediaResult.processedMessage, mentionCtx);
       finalMessage = parsed.processedMessage;
 
@@ -11583,6 +11590,7 @@ async function sendMessageStreaming(
     autoApproveMemories: params.autoApproveMemories,
     taskUpdateJobs: params.taskUpdateJobs,
     responseTimeoutMs: params.responseTimeoutMs,
+    memorySnapshot,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
     piiMappings: piiResult.mappings.map((mapping) => ({
       placeholder: mapping.placeholder,
