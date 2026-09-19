@@ -40,6 +40,10 @@ from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     remove_audio_transcribe_for_transcribed_recordings,
 )
+from backend.apps.ai.processing.chat_request_safety import (
+    confirm_chat_request_safety,
+    needs_safety_confirmation,
+)
 from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
@@ -2235,45 +2239,62 @@ async def handle_preprocessing(
         logger.warning(f"{log_prefix} 'misuse_risk_score' is not a valid number: {misuse_risk_val}. Defaulting to 0.")
         misuse_risk_val = 0
 
-    # Values are already converted to float above
-    if harmful_or_illegal_val >= float(HARM_THRESHOLD):
-        logger.warning(f"{log_prefix} Request flagged for harmful content. Score: {harmful_or_illegal_val}, Threshold: {HARM_THRESHOLD}")
-        return PreprocessingResult(
-            can_proceed=False,
-            rejection_reason="harmful_or_illegal_detected",
-            error_message=f"Request flagged as potentially harmful or illegal (score: {harmful_or_illegal_val}).",
-            raw_llm_response=llm_analysis_args,
-            harmful_or_illegal_score=harmful_or_illegal_val,
-            category=llm_analysis_args.get("category"),
-            llm_response_temp=llm_analysis_args.get("llm_response_temp"),
-            complexity=llm_analysis_args.get("complexity"),
-            misuse_risk_score=misuse_risk_val,
-            load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
-            relevant_embedded_previews=llm_analysis_args.get("relevant_embedded_previews"),
-            title=llm_analysis_args.get("title"), # Also pass title here for consistency in rejection cases
-            icon_names=llm_analysis_args.get("icon_names", []) # Also pass icon names for consistency
+    # Preliminary scores are candidate signals only. A user-visible block requires
+    # separate deterministic confirmation with a supported category and exact evidence.
+    safety_candidate = needs_safety_confirmation(
+        harmful_or_illegal_val,
+        misuse_risk_val,
+        harm_threshold=float(HARM_THRESHOLD),
+        misuse_threshold=float(MISUSE_THRESHOLD),
+    )
+    if safety_candidate:
+        request_safety_model = (
+            getattr(skill_config.default_llms, "request_safety_model", None)
+            or preprocessing_model
         )
-
-    elif misuse_risk_val >= float(MISUSE_THRESHOLD):
-        logger.warning(f"{log_prefix} Request flagged for high misuse risk. Score: {misuse_risk_val}, Threshold: {MISUSE_THRESHOLD}")
-        return PreprocessingResult(
-            can_proceed=False,
-            rejection_reason="misuse_detected",
-            error_message=f"Request flagged for high misuse risk (score: {misuse_risk_val}).",
-            raw_llm_response=llm_analysis_args,
-            harmful_or_illegal_score=harmful_or_illegal_val,
-            category=llm_analysis_args.get("category"),
-            llm_response_temp=llm_analysis_args.get("llm_response_temp"),
-            complexity=llm_analysis_args.get("complexity"),
-            misuse_risk_score=misuse_risk_val,
-            load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
-            relevant_embedded_previews=llm_analysis_args.get("relevant_embedded_previews"),
-            title=llm_analysis_args.get("title"), # Also pass title here for consistency in rejection cases
-            icon_names=llm_analysis_args.get("icon_names", []) # Also pass icon names for consistency
+        confirmation = await confirm_chat_request_safety(
+            message_history=sanitized_message_history,
+            task_id=f"{request_data.chat_id}_{request_data.message_id}",
+            model_id=request_safety_model,
+            secrets_manager=secrets_manager,
         )
-
+        if confirmation.should_block:
+            harmful_candidate = harmful_or_illegal_val >= float(HARM_THRESHOLD)
+            rejection_reason = "harmful_or_illegal_detected" if harmful_candidate else "misuse_detected"
+            logger.warning(
+                f"{log_prefix} Request safety block confirmed. "
+                f"reason={rejection_reason}, category={confirmation.category}, "
+                f"evidence_count={confirmation.evidence_count}"
+            )
+            detected_language = llm_analysis_args.get("output_language", "en")
+            if not isinstance(detected_language, str):
+                detected_language = "en"
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason=rejection_reason,
+                error_message="Request blocked by confirmed chat request safety policy.",
+                raw_llm_response=llm_analysis_args,
+                harmful_or_illegal_score=harmful_or_illegal_val,
+                category=llm_analysis_args.get("category"),
+                llm_response_temp=llm_analysis_args.get("llm_response_temp"),
+                complexity=llm_analysis_args.get("complexity"),
+                misuse_risk_score=misuse_risk_val,
+                load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
+                relevant_embedded_previews=llm_analysis_args.get("relevant_embedded_previews"),
+                title=llm_analysis_args.get("title"),
+                icon_names=llm_analysis_args.get("icon_names", []),
+                output_language=detected_language,
+            )
+        logger.info(
+            f"{log_prefix} Preliminary safety candidate allowed after confirmation. "
+            f"status={confirmation.status}, harmful_score={harmful_or_illegal_val}, "
+            f"misuse_score={misuse_risk_val}."
+        )
     else:
-        logger.info(f"{log_prefix} Request passed harmful content and misuse risk checks. Scores: Harmful={harmful_or_illegal_val}, Misuse={misuse_risk_val}.")
+        logger.info(
+            f"{log_prefix} Request did not require safety confirmation. "
+            f"Scores: Harmful={harmful_or_illegal_val}, Misuse={misuse_risk_val}."
+        )
     
     # --- Validate complexity field (enum: ["simple", "complex", "most_demanding"]) ---
     # CRITICAL: Invalid complexity values could break model selection logic

@@ -1,0 +1,95 @@
+schema_version: 1
+id: feature.chat-request-safety
+version: 1
+status: draft
+title: Chat Request Safety Decisions
+summary: >
+  OpenMates allows requests that discuss sensitive, harmful, or illegal subjects
+  without facilitating wrongdoing, while clearly actionable harmful or illegal
+  assistance is blocked through an evidence-backed safety decision.
+
+scope:
+  includes:
+    - Safety decisions for ordinary user chat requests before answer-model processing.
+    - First-message and follow-up classification across first-party chat surfaces.
+    - Allow-biased handling of uncertain intent and informational sensitive-topic requests.
+    - Evidence-backed confirmation before a preprocessing safety signal becomes a user-visible block.
+    - Permanent regression coverage for benign and clearly harmful or illegal requests.
+  excludes:
+    - Provider-owned refusals or safety filters applied by the selected answer model.
+    - Image, video, audio, file-upload, URL, and app-skill output safety pipelines.
+    - Prompt-injection classification of retrieved external content.
+    - User-facing controls for disabling request safety processing.
+
+models:
+  RequestSafetyDecision:
+    outcome:
+      type: enum
+      values: [allow, block]
+      required: true
+    basis:
+      type: requested_assistance_and_context
+      required: true
+      constraints:
+        topic_alone_never_blocks: true
+        latest_user_action_is_primary: true
+        bounded_prior_context_only_when_needed: true
+    block_support:
+      type: structured_policy_evidence
+      required: false
+      constraints:
+        required_for_block: true
+        policy_category_required: true
+        evidence_from_user_request_required: true
+        unsupported_or_uncertain_block_forbidden: true
+
+assertions:
+  - id: chat-request-safety.intent-over-topic
+    type: behavior
+    must: Requests for news, history, biography, legal or ethical analysis, criticism, harm reduction, defensive security, or other information about harmful or illegal people, events, or material proceed to the answer model when the requested assistance does not meaningfully facilitate wrongdoing; sensitive names and topic words alone never cause a block, and doubt about intent resolves to allow.
+    depends_on: [models.RequestSafetyDecision.basis, examples.intent_over_topic]
+
+  - id: chat-request-safety.block-clear-facilitation
+    type: security
+    must: A request is blocked before answer generation when its current requested assistance clearly seeks material help to plan, execute, conceal, evade responsibility for, or acquire or distribute the products of harmful or illegal activity; every block identifies a policy category and evidence from the user's request, and unsupported or uncertain block decisions are invalid.
+    depends_on: [models.RequestSafetyDecision.block_support, examples.clear_facilitation]
+
+  - id: chat-request-safety.confirm-before-block
+    type: invariant
+    must: A preliminary preprocessing score or candidate signal never produces a user-visible refusal by itself; a separate deterministic safety decision confirms clear facilitation before blocking, while an uncertain, malformed, unavailable, or unsupported confirmation allows the request to continue to the selected answer model and its normal provider safety controls.
+    depends_on: [models.RequestSafetyDecision, examples.confirmation]
+
+  - id: chat-request-safety.context-bounded-to-intent
+    type: privacy
+    must: Safety processing treats the latest user request as the action being classified and uses only the minimum preceding conversation needed to resolve that action; earlier discussion of a sensitive subject does not taint a later benign request, while prior context may establish clear harmful intent when the latest turn continues that intent.
+    depends_on: [models.RequestSafetyDecision.basis, examples.context]
+
+  - id: chat-request-safety.regression-gate
+    type: behavior
+    must: The actual first-message and follow-up safety paths are covered by a versioned release-blocking corpus containing the Cyberleak GTA 6 false-positive regression and paired benign and clearly harmful or illegal scenarios; benign hard blocks and missed clearly actionable blocks fail the safety regression gate rather than being logged as warnings.
+    depends_on: [examples.regression_gate]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Existing first-party chat request processing applies the shared safety outcome without adding a new public endpoint or changing authentication, billing, or encryption boundaries.
+  cli:
+    required: true
+    parity: semantic
+    role: CLI chat requests receive the same allow or block outcome as other first-party chat surfaces.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [intent_over_topic, clear_facilitation, confirmation, context, regression_gate]

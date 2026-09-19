@@ -941,10 +941,17 @@ async def call_preprocessing_llm(
     fallback_models: Optional[List[str]] = None,  # List of fallback model IDs to try if primary fails
     allow_retries: bool = True,
     reasoning_effort: Optional[str] = None,
+    temperature: Optional[float] = None,
     observability_purpose: str = "preprocess",
 ) -> LLMPreprocessingCallResult:
     if reasoning_effort not in {None, "low", "medium", "high"}:
         raise ValueError("reasoning_effort must be one of: low, medium, high")
+    if temperature is not None and (
+        isinstance(temperature, bool)
+        or not isinstance(temperature, (int, float))
+        or not 0.0 <= temperature <= 2.0
+    ):
+        raise ValueError("temperature must be a number between 0.0 and 2.0")
 
     logger.info(f"[{task_id}] LLM Utils: Calling preprocessing LLM {model_id}.")
 
@@ -1302,6 +1309,8 @@ async def call_preprocessing_llm(
                         provider_request_kwargs["max_retries"] = 0
                     if provider_prefix == "groq" and reasoning_effort:
                         provider_request_kwargs["reasoning_effort"] = reasoning_effort
+                    if temperature is not None:
+                        provider_request_kwargs["temperature"] = temperature
                     effective_timeout = PREPROCESSING_TIMEOUT_SECONDS
                     if timeout_seconds is not None:
                         effective_timeout = min(PREPROCESSING_TIMEOUT_SECONDS, max(0.0, timeout_seconds))

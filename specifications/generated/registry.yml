@@ -310,6 +310,18 @@ specifications:
     fingerprint: dd611ce040ddb4c76df15564cd36a87cba906abe09311985be8180cae9725fd9
     required_applies_to:
     - gui.web
+  feature.chat-request-safety:
+    version: 1
+    status: draft
+    path: features/chat-request-safety
+    fingerprint: 16174ee67eb618053d9c7876ab7c0ad26506a16d3343869d1b26bc826fd94145
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.chat-share-settings:
     version: 1
     status: draft
@@ -3715,6 +3727,66 @@ assertions:
     fingerprint: 82aa556146da1d5add94581cb85ec2e540e685bafb23ee582d97aae185012f10
     required_applies_to:
     - gui.web
+  chat-request-safety.intent-over-topic:
+    specification: feature.chat-request-safety@1
+    specification_id: feature.chat-request-safety
+    type: behavior
+    fingerprint: 895e78b9ba96288255db108233dc0a3c1d2c46318632ea4bf2f25b6a7c600307
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  chat-request-safety.block-clear-facilitation:
+    specification: feature.chat-request-safety@1
+    specification_id: feature.chat-request-safety
+    type: security
+    fingerprint: a5956cab0b4c6b21d3b746b35fe8e611770e382a4f99c3f98208cfe0532a8d38
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  chat-request-safety.confirm-before-block:
+    specification: feature.chat-request-safety@1
+    specification_id: feature.chat-request-safety
+    type: invariant
+    fingerprint: a28fb028c6c0c86c80e7a34b0d201e2e2eef5e0c8e93e364cbc7f7975b18634f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  chat-request-safety.context-bounded-to-intent:
+    specification: feature.chat-request-safety@1
+    specification_id: feature.chat-request-safety
+    type: privacy
+    fingerprint: b22ba9f3e9bcb0cf7a0d842603007033f975a11509da0040509af0e630f002e6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  chat-request-safety.regression-gate:
+    specification: feature.chat-request-safety@1
+    specification_id: feature.chat-request-safety
+    type: behavior
+    fingerprint: c9801f3ebd4693e806e457fc691d9fad530993d9d165454795bece56707cd464
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   chat-share-settings.shell-navigation:
     specification: feature.chat-share-settings@1
     specification_id: feature.chat-share-settings

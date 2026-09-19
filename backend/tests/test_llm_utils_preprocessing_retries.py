@@ -208,6 +208,41 @@ async def test_call_preprocessing_llm_keeps_reasoning_effort_out_of_other_provid
     assert result.error_message == "Client call failed for preprocessing: Request timeout after 25s"
 
 
+# contract-test: supporting surface=rest_api assertions=chat-request-safety.confirm-before-block
+@pytest.mark.anyio
+async def test_call_preprocessing_llm_forwards_explicit_safety_temperature(monkeypatch: pytest.MonkeyPatch) -> None:
+    temperatures: list[float | None] = []
+
+    async def primary_provider(*, temperature: float | None = None, **_kwargs):
+        temperatures.append(temperature)
+        return UnifiedOpenAIResponse(
+            task_id="test",
+            model_id="model",
+            success=False,
+            error_message="Request timeout after 25s",
+        )
+
+    class CacheServiceWithoutClient:
+        @property
+        async def client(self):
+            return None
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda provider_prefix: primary_provider if provider_prefix == "primary" else None)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _model_id: (None, None))
+    monkeypatch.setattr(llm_utils, "CacheService", CacheServiceWithoutClient)
+
+    await llm_utils.call_preprocessing_llm(
+        task_id="test",
+        model_id="primary/model",
+        message_history=[{"role": "user", "content": "classify this"}],
+        tool_definition=_tool_definition(),
+        allow_retries=False,
+        temperature=0.0,
+    )
+
+    assert temperatures == [0.0]
+
+
 # contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
 @pytest.mark.anyio
 async def test_call_preprocessing_llm_rejects_invalid_reasoning_effort_before_provider_lookup(
