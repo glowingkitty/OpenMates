@@ -25,14 +25,9 @@ def test_retired_repository_roots_are_not_committed() -> None:
         capture_output=True,
         text=True,
     )
-    present_tracked_paths = [
-        path
-        for path in result.stdout.splitlines()
-        if (ROOT / path).exists()
-    ]
     clutter = [
         path
-        for path in present_tracked_paths
+        for path in result.stdout.splitlines()
         if path.startswith(FORBIDDEN_ROOTS)
     ]
 
