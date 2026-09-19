@@ -27,6 +27,8 @@ def test_core_ask_skill_request_preserves_runtime_flags() -> None:
         has_image_upload_embed=True,
         auto_speak_response=True,
         assistant_response_source_revision=7,
+        current_chat_summary="Previous discussion summary",
+        current_chat_summary_v=4,
     )
 
     dumped = request.model_dump()
@@ -38,3 +40,5 @@ def test_core_ask_skill_request_preserves_runtime_flags() -> None:
     assert dumped["has_image_upload_embed"] is True
     assert dumped["auto_speak_response"] is True
     assert dumped["assistant_response_source_revision"] == 7
+    assert dumped["current_chat_summary"] == "Previous discussion summary"
+    assert dumped["current_chat_summary_v"] == 4

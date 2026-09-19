@@ -173,6 +173,20 @@ async def handle_delete_chat(
                     logger.info(f"Deleted specific general cache keys for chat {chat_id} (user: {user_id}). Results: {results}")
             else:
                  logger.error(f"Cache client not available, cannot delete specific general keys for chat {chat_id}.")
+
+            # Routing metadata must never block the primary chat deletion path.
+            try:
+                from backend.apps.ai.processing.routing_ledger import delete_skill_ledger
+                await delete_skill_ledger(
+                    cache_service,
+                    hashlib.sha256(user_id.encode()).hexdigest(),
+                    chat_id,
+                )
+            except Exception as ledger_error:
+                logger.warning(
+                    "Failed to invalidate routing ledger after chat deletion: %s",
+                    ledger_error.__class__.__name__,
+                )
         
             # Delete app settings/memories for this chat (chat-specific caching)
             # This ensures sensitive app settings/memories are removed when chat is deleted

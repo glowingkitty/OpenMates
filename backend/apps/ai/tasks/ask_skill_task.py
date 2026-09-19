@@ -10,7 +10,11 @@
 # that the 'task-worker' is configured to use. This is how tasks defined here
 # are registered with and executed by that worker.
 
-from backend.shared.python_utils.chat_failure_notifications import failure_stage, notify_chat_failure
+from backend.shared.python_utils.chat_failure_notifications import (
+    failure_stage,
+    notify_chat_failure,
+    terminal_class as classify_terminal_result,
+)
 
 import logging
 import asyncio
@@ -2289,39 +2293,26 @@ async def _async_process_ai_skill_ask_task(
         # the debug caching code below references it regardless of which branch is taken.
         available_app_ids = list(discovered_apps_metadata.keys()) if discovered_apps_metadata else []
 
-        # CRITICAL: chat_summary is required for post-processing
-        # If missing, log detailed information to understand why the preprocessing LLM didn't return it
-        if preprocessing_failed or not chat_summary:
-            # Determine the specific reason for failure
-            if preprocessing_failed:
-                failure_reason = (
-                    preprocessing_result.error_message 
-                    if preprocessing_result and preprocessing_result.error_message 
-                    else "Preprocessing failed (can_proceed=False)"
-                )
-                logger.error(
-                    f"[Task ID: {task_id}] CRITICAL: Preprocessing failed - cannot generate suggestions. "
-                    f"Failure reason: {failure_reason}. "
-                    f"Preprocessing result available: {preprocessing_result is not None}. "
-                    f"Can proceed: {preprocessing_result.can_proceed if preprocessing_result else 'N/A'}. "
-                    f"Raw LLM response from preprocessing: {preprocessing_result.raw_llm_response if preprocessing_result else 'N/A'}. "
-                    f"Chat ID: {request_data.chat_id}. "
-                    f"Message ID: {request_data.message_id}. "
-                    f"Message history length: {len(request_data.message_history) if request_data.message_history else 0}. "
-                    f"This indicates the preprocessing LLM call failed or returned an error."
-                )
-            else:
-                logger.error(
-                    f"[Task ID: {task_id}] CRITICAL: Chat summary not available from preprocessing - cannot generate suggestions. "
-                    f"This indicates the preprocessing LLM failed to return a required field. "
-                    f"Preprocessing result available: {preprocessing_result is not None}. "
-                    f"Preprocessing result keys: {list(preprocessing_result.model_dump().keys()) if preprocessing_result else 'N/A'}. "
-                    f"Raw LLM response from preprocessing: {preprocessing_result.raw_llm_response if preprocessing_result else 'N/A'}. "
-                    f"Chat ID: {request_data.chat_id}. "
-                    f"Message ID: {request_data.message_id}. "
-                    f"Message history length: {len(request_data.message_history) if request_data.message_history else 0}. "
-                    f"This is a critical error that needs investigation - the preprocessing LLM should always return chat_summary."
-                )
+        # A technical preprocessing failure still blocks metadata work, but summary/tags
+        # are no longer foreground requirements: the postprocessor creates them after
+        # answer delivery from full history plus the completed response.
+        if preprocessing_failed:
+            failure_reason = (
+                preprocessing_result.error_message
+                if preprocessing_result and preprocessing_result.error_message
+                else "Preprocessing failed (can_proceed=False)"
+            )
+            logger.error(
+                f"[Task ID: {task_id}] CRITICAL: Preprocessing failed - cannot generate suggestions. "
+                f"Failure reason: {failure_reason}. "
+                f"Preprocessing result available: {preprocessing_result is not None}. "
+                f"Can proceed: {preprocessing_result.can_proceed if preprocessing_result else 'N/A'}. "
+                f"Raw LLM response from preprocessing: {preprocessing_result.raw_llm_response if preprocessing_result else 'N/A'}. "
+                f"Chat ID: {request_data.chat_id}. "
+                f"Message ID: {request_data.message_id}. "
+                f"Message history length: {len(request_data.message_history) if request_data.message_history else 0}. "
+                f"This indicates the preprocessing LLM call failed or returned an error."
+            )
             # Skip post-processing but log the error for debugging
             postprocessing_result = None
         else:
@@ -2411,8 +2402,13 @@ async def _async_process_ai_skill_ask_task(
             # Publish post-processing results to Redis for WebSocket delivery to client
             # Client will encrypt with chat-specific key and sync back to Directus
             # chat_summary: prefer post-processing version (includes latest exchange) over preprocessing
-            # chat_tags: from preprocessing (full history context)
-            final_chat_summary = postprocessing_result.chat_summary or chat_summary
+            # chat_tags: prefer the post-answer version generated from full history
+            final_chat_summary = (
+                postprocessing_result.chat_summary
+                or chat_summary
+                or getattr(request_data, "current_chat_summary", None)
+                or ""
+            )
             source_title_v = getattr(request_data, 'current_chat_title_v', None)
             source_metadata_v = getattr(request_data, 'current_chat_metadata_v', None)
             if preprocessing_result and preprocessing_result.title and not request_data.chat_has_title:
@@ -2434,7 +2430,7 @@ async def _async_process_ai_skill_ask_task(
                 "new_chat_request_suggestions": postprocessing_result.new_chat_request_suggestions,
                 "chat_summary": final_chat_summary,  # Prefer post-processing summary (includes latest exchange), fall back to preprocessing
                 "share_cta_text": postprocessing_result.share_cta_text,
-                "chat_tags": chat_tags,  # From preprocessing (full history context)
+                "chat_tags": postprocessing_result.chat_tags or chat_tags,
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
                 "quick_tip_slugs": postprocessing_result.quick_tip_slugs,
@@ -2692,6 +2688,10 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         )
         from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
         alert_stage = failure_stage(task_result_dict, STANDARDIZED_USER_ERROR_MESSAGE)
+        terminal_class = classify_terminal_result(
+            task_result_dict,
+            STANDARDIZED_USER_ERROR_MESSAGE,
+        )
         if alert_stage:
             loop.run_until_complete(notify_chat_failure(
                 f"{request_data.chat_id}:{request_data.message_id}", stage=alert_stage,
@@ -2717,7 +2717,6 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
 
         # Handle results that indicate logical failure within the async logic
         if isinstance(task_result_dict, dict) and task_result_dict.get("_celery_task_state") == "FAILURE":
-            terminal_class = "failed_before_main"
             failure_meta = {k: v for k, v in task_result_dict.items() if k not in ["_celery_task_state", "task_id"]}
             failure_meta['exc_type'] = str(task_result_dict.get('reason', 'AsyncLogicError'))
             failure_meta['exc_message'] = str(task_result_dict.get('message', 'Async task indicated failure.'))
@@ -2734,11 +2733,6 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         
         # If successful or partially successful (due to interruption)
         if isinstance(task_result_dict, dict):
-            terminal_class = (
-                "revoked" if task_result_dict.get("interrupted_by_revocation")
-                else "soft_limited" if task_result_dict.get("interrupted_by_soft_time_limit")
-                else "completed"
-            )
             success_meta = {
                 'status_message': task_result_dict.get('status'),
                 'preprocessing_summary': task_result_dict.get('preprocessing_summary'),

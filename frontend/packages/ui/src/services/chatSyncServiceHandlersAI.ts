@@ -2824,6 +2824,24 @@ export async function handleRequestChatHistoryImpl(
       }
     }
 
+    let currentChatSummary: string | null = null;
+    if (chat?.encrypted_chat_summary) {
+      try {
+        const chatKey = await chatKeyManager.getKey(payload.chat_id);
+        if (chatKey) {
+          currentChatSummary = await decryptWithChatKey(
+            chat.encrypted_chat_summary,
+            chatKey,
+          );
+        }
+      } catch (e) {
+        console.warn(
+          "[ChatSyncService:AI] Failed to decrypt chat summary for resend:",
+          e,
+        );
+      }
+    }
+
     // Build resend payload. active_focus_id goes at top-level (matches sendNewMessageImpl
     // in chatSyncServiceSenders.ts) so the backend reads it from payload.get("active_focus_id").
     const resendPayload: Record<string, unknown> = {
@@ -2836,8 +2854,12 @@ export async function handleRequestChatHistoryImpl(
         sender_name: latestUserMessage.sender_name,
         chat_has_title: chatHasTitle,
         current_chat_title: currentChatTitle,  // OPE-265
-        message_history: messageHistory, // Include full history
+        current_chat_title_v: chat?.title_v ?? 0,
+        current_chat_metadata_v: chat?.metadata_v ?? chat?.title_v ?? 0,
+        current_chat_summary: currentChatSummary,
+        current_chat_summary_v: chat?.metadata_v ?? chat?.title_v ?? 0,
       },
+      message_history: messageHistory, // Include full history at the same level as normal sends
       // Include encrypted_chat_key for device-sync broadcast (mirrors normal send path)
       encrypted_chat_key: chat?.encrypted_chat_key ?? null,
     };

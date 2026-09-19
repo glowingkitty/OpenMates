@@ -969,6 +969,8 @@ export async function sendNewMessageImpl(
 			model_name?: string;
 			chat_has_title?: boolean;
 			current_chat_title?: string | null; // OPE-265: Decrypted title for post-processing title update evaluation
+			current_chat_summary?: string | null; // Decrypted only for this request's bounded preprocessing context
+			current_chat_summary_v?: number;
 			current_chat_title_v?: number;
 			current_chat_metadata_v?: number;
 			auto_speak_response?: boolean;
@@ -1107,6 +1109,29 @@ export async function sendNewMessageImpl(
 		} catch (e) {
 			console.warn(
 				"[ChatSyncService:Senders] Failed to decrypt chat title for post-processing title evaluation:",
+				e
+			);
+		}
+	}
+
+	// The summary is already client-encrypted at rest. Send its plaintext only in this
+	// authorized inference request so preprocessing can avoid replaying the full chat.
+	if (!isIncognitoChat && chat?.encrypted_chat_summary) {
+		try {
+			const chatKey = await chatKeyManager.getKey(message.chat_id);
+			if (chatKey) {
+				const currentSummary = await decryptWithChatKey(
+					chat.encrypted_chat_summary,
+					chatKey
+				);
+				if (currentSummary) {
+					payload.message.current_chat_summary = currentSummary;
+					payload.message.current_chat_summary_v = chat.metadata_v ?? chat.title_v ?? 0;
+				}
+			}
+		} catch (e) {
+			console.warn(
+				"[ChatSyncService:Senders] Failed to decrypt chat summary for bounded preprocessing:",
 				e
 			);
 		}

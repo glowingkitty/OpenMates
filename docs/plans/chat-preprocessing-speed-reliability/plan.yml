@@ -1,0 +1,404 @@
+schema_version: 2
+id: chat-preprocessing-speed-reliability
+title: Fast, reliable single-stage chat preprocessing
+status: implementing
+goal: >-
+  We must optimize the chat processing both for fast speed and reliability.
+  We can't accept the user has to wait 15 seconds for a simple answer,
+  except if the assistant is using app skills.
+
+authorization:
+  current_request: User approved the plan and explicitly requested implementation.
+  explicit_exclusion: No additional app-selection preprocessing phase.
+  execution_authority: OpenMates Tasks owns live status, ownership and dependencies; this file is design and verification intent, not a second Task ledger.
+  task_creation: Attempted linked planning Task in the existing engineering Project; CLI returned HTTP 401 before creation. No Task or pending delivery was acknowledged; do not assume one exists.
+  workspace: agent-6309
+  inspected_dev_commit: 8424baa6cbf6fa413ce92f255bc37f14a81b07bb
+
+scope:
+  in:
+    - Preserve one-stage discovery of all currently available skill and focus hints; load full schemas/prompts only through existing selected-skill/active-focus assembly.
+    - Remove repeated catalogue expansions and redundant instructions without deleting selection distinctions.
+    - Build a preprocessing-only recent-history projection with a deterministic, content-free overview of older skill usage.
+    - Unify first/follow-up routing into one normal foreground model call; move nonblocking metadata into existing background postprocessing.
+    - Bound and account for provider recovery, concurrency, quotas and cost; correctly report logical failures and true answer latency.
+    - Prove routing, safety, privacy, main-context preservation, end-to-end latency and completion reliability before rollout.
+  out:
+    - App-first discovery, another foreground classifier, mandatory model races, speculative main inference before safety/routing, and new providers.
+    - Removing skill/focus candidates with keyword shortlists or changing the default web-search, companion-skill or explicit-selection policies.
+    - Changing main-processor history/compression, safety policy, permissions, billing semantics or encrypted persistence protocols.
+    - Raw-token streaming or a paragraph-parser rewrite; hybrid streaming remains a separate evidence-driven follow-up.
+    - Production deployment, load tests against production quotas, broad workflow-tooling repairs, or automatic paid chat replay.
+
+evidence:
+  - Current routing templates expand focus hints three times and topic descriptions twice; skill hints appear once. Default catalogue reconstruction suggests about 21% instruction-payload reduction from deduplication alone, not 21% guaranteed latency reduction.
+  - Ordinary first-message A/B calls receive the same available history; follow-ups resend it, subject to compression, sanitization and estimated 120k history truncation.
+  - Tool messages are removed after truncation, so discarded tool results can first evict useful older context. Latest-user and compression-summary retention need explicit protection.
+  - Two investigated production turns without recorded skill execution spent about 14.5-15.0 seconds preprocessing and first published answer content after about 17.3-18.2 seconds; these are server observations, not browser-render timings or proof the requests were semantically simple.
+  - Observed failures exhausted three serial roughly 15-second attempts; logical preprocessing failures could be classified completed. The current TTFT observer sits after paragraph aggregation and cannot establish raw answer-token latency.
+  - Earlier prompt-budget changes failed a quality comparison and were reverted; use the existing evaluation harness and require quality parity rather than assuming smaller prompts are equivalent.
+
+references:
+  existing_plans:
+    - docs/plans/preprocessing-failure-recovery/plan.yml
+    - docs/plans/prompt-budget-cli-evaluation/plan.yml
+    - docs/plans/streaming-message-render-convergence/plan.yml
+  contracts_to_preserve:
+    - ai-model-routing.preprocessing.missing-output-recovery
+    - ai-model-routing.precedence.chat-over-tier-over-auto
+    - chats.persistence.client-encrypted
+    - chats.completion.recovery-takeover
+    - chats.streaming.ordered-final
+    - chats.streaming.progressive-presentation
+    - chats.followups.non-destructive-reconciliation
+    - assistant-speech.execution.text-stream-independent
+  contract_note: Existing recovery approval is recorded in preprocessing-failure-recovery; current registry draft labels are not new approvals. No Specification is edited by this plan. Recheck owning contracts before implementation and separately review any actual semantic change.
+
+architecture:
+  foreground:
+    - Normalize and sanitize permitted history without changing the main-processor request; compact/filter tool records before applying the preprocessing budget.
+    - Assemble recent chronological text, the latest available chat/routing summary, existing compression context and a versioned content-free skill ledger. Do not retrieve or inject older raw messages on the normal path.
+    - Send the complete skill/focus hint catalogues once to one foreground decision call. Provider recovery remains exceptional and bounded, not another classification phase.
+    - Validate decisions and preserve safety/misuse, language, mate/topic continuity, model restrictions/overrides, memory permissions, focus activation, subchat, attachment/embed and deterministic skill guards before main inference.
+    - Keep existing main-context assembly, selected full schemas, app instructions and active-focus prompt behavior unchanged.
+  recent_context:
+    starting_window: Latest two user messages including the current request, plus the intervening latest assistant response, in original chronological order.
+    tuning_start: Approximately 2-4k tokens of recent text plus a tightly bounded chat/routing summary and content-free skill ledger; measure actual tokenizer usage and tune against recall, not message count alone.
+    exceptions: Pin the current user request in full and preserve relevant compression context. Oversized input uses an explicit larger bounded path or a visible existing context-limit failure; never silently drop the newest message or slice away safety-critical text.
+    ambiguous_followups: For short references such as "and Paris?" or "same again", include a bounded set of recently used or still-pending skill IDs from the deterministic ledger as candidate skills. The main processor receives the normal conversation history and resolves the semantic reference. Do not retrieve older raw messages or start another preprocessor call.
+    stale_or_missing: State carries its covered message/execution revision; append uncovered changes. During rollout, if the summary/ledger is absent, stale or cannot be rebuilt safely, make the same single preprocessing call with the prior wider permitted history projection. This is a compatibility fallback, not a second request or a search for selected older messages. Never assume server access to client-only Directus plaintext or invent an empty successful state.
+    key_unavailable: Use only already-authorized ephemeral plaintext supplied for this request and state decryptable with its authorized key. Never fetch client-encrypted Directus content as server plaintext, reuse another owner's state, or persist a replacement ledger without the required key. If sufficient safe context is unavailable, fail visibly within budget instead of inventing context.
+    total_budget: Reserve space for instructions, catalogues, output and safety margin against the actual model context limit; a 120k history-only allowance is not a total-input budget.
+  older_skill_context:
+    source: Reuse actual execution events, canonical app-skill embed metadata and async-continuation state, not model guesses inferred from assistant prose.
+    stored_identity: Keep message/execution IDs internally only for idempotency, revision fencing and lifecycle cleanup; never include those opaque IDs in the preprocessor prompt.
+    prompt_record: One compact deterministic row per recently relevant skill containing only `app-skill-id`, last outcome (`pending`, `success`, `empty`, `error`, or `cancelled`), output count (`unknown` when the protocol cannot determine it), and turn recency.
+    example: "web-search | success | outputs=5 | 4 turns ago"
+    explicit_exclusions: Never include skill inputs, queries, arguments, output text, result titles/snippets/URLs, entities, generated semantic summaries, embed/result references or content fingerprints.
+    bounded_retention: Start evaluation with at most eight most-recent unique completed skill rows plus up to three unresolved pending rows beyond the three-message window; tune downward or upward only from routing-quality and token evidence. Drop least-recent completed rows deterministically; do not inject an unbounded lifetime log or auto-select every previously used skill.
+    summaries: Keep the general chat/routing summary separate from this skill ledger. Deterministic skill rows update on execution settlement and must not wait for a model-generated metadata job.
+    privacy: Treat even IDs and counts as owner/chat-scoped metadata. Tool-derived content never enters the ledger or prompt; logs expose only aggregate ledger size and outcome classes.
+    lifecycle: Owner/chat scoped, vault-encrypted where retained, revision-fenced atomic merges and execution-ID idempotency, retention no longer than existing permitted AI context, deletion/fork/rewind invalidation, and no new durable incognito storage.
+  background_metadata:
+    - Reuse one existing postprocessing job for title/icons, display summary, tags and suggestions; do not add a summarizer call per turn.
+    - Remove the current requirement that a preprocessing summary exist before postprocessing can run, and allow the background job to create the initial title.
+    - Keep category/mate, safety, language and other response-critical fields foreground. Initial title/icons may arrive later; do not delay answer start or completion for them.
+    - Key updates by owner/chat/turn/revision, reject stale writes, and reuse existing recovery/idempotency patterns. Metadata failures remain separately visible and retryable without rerunning paid answer inference or changing a completed answer into failure.
+  recovery_and_capacity:
+    - Keep one foreground attempt in flight; no hedging. Preserve configured missing-output fallback, retry-disable behavior, explicit answer-model selection and visible failure after exhaustion.
+    - Replace static 15/15/15 waiting with a measured short interactive budget and provider-specific attempt allocation that leaves recovery time. A six-second foreground total is an initial benchmark candidate, not an untested production default; expanded/long-input cases are classified and reported separately.
+    - Use one attempt/deadline budget for permitted malformed/missing-output and provider recovery; no nested retry chains or increased total allowance. Recent context, summary and deterministic skill rows are assembled locally before the single paid model phase.
+    - Coordinate request/token/concurrency reservations across workers by the real credential/quota pool, including postprocessing and applicable shared utility calls. Reuse existing limiting infrastructure where suitable; nonessential background jobs have lower priority.
+    - Preserve typed 429/quota failures and Retry-After. Respect cooldowns, route away from unavailable capacity, and bound probes; never probe known exhausted quota just to satisfy a fallback count.
+    - Charge/account for attempted and cancelled requests conservatively; smaller input does not reduce RPM. Verify existing Celery/turn dedup under duplicate delivery, and never claim provider exactly-once charging after an ambiguous network failure.
+
+implementation_sequence:
+  - phase: 1
+    outcome: Make bottlenecks and failures measurable; eliminate duplicate catalogues.
+    depends_on: []
+    changes:
+      - Instrument queue, context preparation, provider attempts, raw first answer text, paragraph-ready output, safe publication, client receive/render, final marker and metadata separately.
+      - Distinguish thinking/status/title events from answer content and logical failures from successful completion; preserve existing failure alerts and sealed recovery.
+      - Define each catalogue once, reference it from field descriptions, and retain language substitution and all selection hints.
+    owners_to_touch: [backend/shared/python_utils/tracing/ai_observability.py, backend/apps/ai/base_instructions.yml, backend/apps/ai/utils/llm_utils.py, backend/apps/ai/processing/main_processor.py, backend/apps/ai/tasks/ask_skill_task.py]
+    verification: Catalogue occurrence/size fixtures; logical-error and first-answer timing tests; existing recovery and routing tests. Independently deliverable before history reduction.
+  - phase: 2
+    outcome: Preserve older skill-use and conversation routing evidence without full-history repetition.
+    depends_on: [1]
+    changes:
+      - Add a small shared routing-ledger/context builder; project only deterministic skill identity, outcome, count and recency from existing execution events.
+      - Add revision fencing, late/concurrent completion merging, lifecycle cleanup and deterministic pending/terminal distinctions including zero results.
+      - Build recent-context projections in fixture comparison mode first; then enable bounded input behind a flag with a same-call wider-history compatibility fallback for missing/stale state.
+    owners_to_touch: [backend/apps/ai/processing/routing_ledger.py, backend/apps/ai/processing/preprocessor.py, backend/apps/ai/processing/main_processor.py, backend/apps/ai/utils/app_skill_json_cleanup.py, backend/core/api/app/services/cache_chat_mixin.py]
+    verification: Old-tool follow-ups, content-exclusion snapshots, deterministic counts/recency, ambiguous follow-ups, multilingual/safety sequences, cache miss/stale revisions, fork/rewind, privacy and unchanged main-input tests.
+  - phase: 3
+    outcome: One normal foreground classification call with metadata outside answer latency.
+    depends_on: [2]
+    changes:
+      - Decouple postprocessing from the preprocessing display summary before removing metadata fields from the foreground schema.
+      - Merge mandatory first-turn A/B decisions into one call; retain non-model preprocessing for explicit model requests.
+      - Add initial-title support and idempotent revision-guarded metadata updates using existing background work; maintain deterministic ledger updates independently.
+    owners_to_touch: [backend/apps/ai/base_instructions.yml, backend/apps/ai/processing/preprocessor.py, backend/apps/ai/processing/postprocessor.py, backend/apps/ai/tasks/ask_skill_task.py]
+    verification: Exactly one normal first/follow-up call, preserved mandatory decisions, metadata failure/late delivery, quick successive turns and no duplicate provider invocation on concurrent delivery.
+  - phase: 4
+    outcome: Fast recovery without multiplying costs or exceeding shared provider quotas.
+    depends_on: [1, 3]
+    changes:
+      - Add interactive/background quota reservations and typed cooldown handling; reconcile actual usage and expiry safely.
+      - Tune shorter total/per-attempt budgets from representative measurements; preserve configured recovery and disabled-retry semantics.
+      - Inject missing-output, timeout, 429, exhausted quota and cancellation failures in isolated tests; do not create real production outages.
+    owners_to_touch: [backend/apps/ai/utils/llm_utils.py, backend/apps/ai/utils/timeout_utils.py, backend/apps/ai/processing/rate_limiting.py, backend/apps/ai/tasks/ask_skill_task.py]
+    verification: Shared-worker admission, healthy fallback within budget, exhausted providers, cancellation cleanup, bounded spend/RPM and accurate error outcomes.
+  - phase: 5
+    outcome: Demonstrate quality, speed and reliability together and prepare a reversible rollout.
+    depends_on: [2, 3, 4]
+    changes:
+      - Extend the existing product-path prompt-budget benchmark and affected E2E cases; compare the same corpus and selected model/provider configurations.
+      - Release flags independently after green evidence; retain the same-call wider-history compatibility fallback for missing/stale summary or ledger state while keeping main context unchanged.
+      - Prepare dev evidence and a production canary/rollback proposal; production changes require separate authorization.
+    owners_to_touch: [frontend/packages/openmates-cli/src/benchmark.ts, frontend/apps/web_app/tests/chat-flow.spec.ts, frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts, frontend/apps/web_app/tests/focus-mode-mention.spec.ts]
+    verification: Required acceptance checks below. Do not mark the work complete merely because prompt size or first-token latency improved.
+
+acceptance:
+  required_correctness:
+    - All discovery IDs/hints remain available once; selected full schemas, focus prompts and memory permissions remain equivalent on the regression corpus.
+    - Main-provider history/content is unchanged for identical synthetic inputs, including existing compression behavior; preprocessing never mutates the shared request object.
+    - Latest input, chat/routing summary, content-free old-skill overview and safety context survive projection. Missing/stale state uses the same-call wider-history compatibility path; no raw older-message retrieval, fabricated classification or added routine model call.
+    - No critical safety/tool/focus/model-selection regression on first/follow-up, old-tool, permission, attachment, multilingual and ambiguous-reference cases; evaluate answer quality as well as routing agreement.
+    - Metadata timing/errors do not delay answer completion or cause stale writes, duplicate answers, tool re-execution, extra routine model calls, or lost final/recovery markers.
+    - No new durable plaintext, cross-chat/account state leak, retention extension or tool-derived instruction authority.
+  proposed_latency_targets:
+    cohort: Synthetic/private-test short-answer requests requiring no app skill, no research or explicit deep reasoning, no giant latest input; include both new and long-history follow-up chats. Classify by expected task and actual execution, not by whether a request happened to finish quickly.
+    preprocessing: "p95 <= 1.5 seconds; p99 <= 3 seconds."
+    first_rendered_answer: "User send to actual answer text: p95 <= 3 seconds; p99 <= 5 seconds. Titles, thinking and processing indicators do not count."
+    short_answer_completion: "User send to final answer: p95 <= 8 seconds; p99 <= 12 seconds. Any eligible no-skill turn still incomplete at 15 seconds is an SLO violation that blocks promotion, not merely a diagnostic outlier."
+    interpretation: Targets to prove, not promises derived from token counts. Failures/timeouts are not discarded from latency or success reporting; report load/queue separately without subtracting it from user-perceived latency.
+    outage_behavior: Return a truthful recoverable failure within the new short bounded deadline when providers are unavailable; a fast failure is not a successful fast answer. Never conceal a 45-second fallback wait or exclude failed turns to satisfy the SLO.
+  required_capacity:
+    - One foreground classification request on the healthy path, no new routine summarization call, and no increase in all-in utility-model cost/RPM on the same corpus and configuration.
+    - Exceptional retries are bounded and included in cost/usage; interactive and background work together respect configured shared quota and concurrency limits.
+  reliability_goal: At least 99.9% eligible turns deliver actual answer content and a final marker; policy refusals/permission waits/cancellations have distinct correct terminal states, not hidden technical successes. Demonstrate mechanisms in tests and report production sample size/confidence before claiming this rate.
+
+verification:
+  required: true
+  local_units_to_extend:
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_preprocessing_history_guard.py
+    - backend/tests/test_preprocessor_skill_resolver.py
+    - backend/tests/test_llm_utils_preprocessing_retries.py
+    - backend/apps/ai/tests/test_timeout_utils.py
+    - backend/tests/test_ai_request_observability.py
+    - backend/tests/test_chat_failure_notifications.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - backend/tests/test_celery_dedup.py
+  new_focused_units: [backend/tests/test_routing_ledger.py, backend/tests/test_ai_async_metadata.py]
+  product_path:
+    coordinator: sessions.py ci-source, ci_coordinator.py submit, and ci_coordinator.py wait; isolated GitHub stack with disposable accounts, not shared dev.
+    extend: [frontend/apps/web_app/tests/chat-flow.spec.ts, frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts, frontend/apps/web_app/tests/focus-mode-mention.spec.ts]
+    benchmark: Reuse frontend/packages/openmates-cli/src/benchmark.ts and docs/plans/prompt-budget-cli-evaluation/plan.yml; provider-only probes are supplemental, not end-to-end proof.
+    cases: Short plain answers, 17-21k baseline inputs and older-history references, first/follow-up, earlier successful/empty/failed/pending skill calls, focus/explicit model, memory consent, embeddings, multilingual and multi-turn safety, missing metadata, rapid follow-up, cache eviction with unavailable encryption key, fork/rewind, and synthetic provider failure.
+    measurements: Input/output tokens and cost by purpose/attempt; bounded-projection versus compatibility-fallback rate; queue and each stage; raw text, publication, client render and final-marker timestamps; success/error classes; aggregate utility RPM/TPM and concurrent calls.
+    sampling: Start with paired quality fixtures; then a budgeted opt-in repeated real-provider corpus across at least three time windows. Plan roughly 300 eligible observations per compared configuration, publish uncertainty and avoid claiming a stable p99 or 99.9% reliability from that sample. Do not launch an unbounded evaluation or double-run live user inference.
+    reliability_sampling: Before claiming 99.9% success, use a separately authorized observation budget and a one-sided confidence bound over all eligible turns, including missing markers and logical failures. About 3,000 zero-failure observations are needed even for an approximate 95% upper failure bound of 0.1%; failures or segment-specific claims require more evidence. Report primary/fallback and cold/warm segments rather than hiding sparse cohorts.
+  rollout:
+    - Separate flags for deduplication, bounded projection, foreground schema/metadata and retry budgets; migrate/read ledger versions safely across old/new workers.
+    - After required isolated checks, prepare a separately authorized low-percentage production canary with contemporaneous control, privacy-safe metrics and an explicit observation/spend budget.
+    - Roll back the affected flag for critical safety/routing/privacy failure, worse technical completion, latency target breach including an eligible 15-second incomplete turn, stale-state behavior or quota/cost inflation. Preserve already completed answers and existing encrypted history.
+  conditional_streaming_followup: Only if raw-to-render measurements show paragraph buffering remains material after these fixes, propose a separately scoped safe-prose hybrid with structured-block parity; require at least 500ms p95 first-render improvement without content, privacy, embed, speech, cost or rendering regressions. Not required to implement under this plan.
+
+planning_checks:
+  focused_document_checks: Passed YAML parsing, goal/schema presence, phase ordering/dependencies, existing source/test/reference paths, and whitespace checks. A read-only review was incorporated for strict latency violations, pre-call-only context expansion, key-unavailable privacy and reliability sample size.
+  repository_validator: Run; rejected the lightweight schema_version 2 document because the current validator still requires legacy scenarios/acceptance/tests and implementation/approval/attempt/handoff ledgers. Current create-plan guidance requires only schema_version and the user goal, with useful optional fields. No validator changes or invented Task/approval records were made.
+  verification_gate: >-
+    Partial by design: focused implementation evidence is green, but the proposed
+    production latency percentiles and 99.9% reliability target require a separately
+    authorized dev measurement and production canary. They are not claimed as proven.
+  product_tests: >-
+    Isolated CI ran against source 5c3f3ae841b056d27e0bfaabd8675b204bfdd1d7.
+    All three affected frontend transport suites passed (36 assertions total), as did
+    the web-app and CLI unit jobs. The broad UI job remained red in unrelated existing
+    suites; those failures were inspected and were outside this diff. The coordinator
+    correctly rejected the uncapped live chat-flow case, so no paid production-style
+    inference was repeated merely to reconfirm the known latency problem.
+
+implementation_progress:
+  completed:
+    - Catalogue expansion is single-site in the active routing schema; raw provider first-chunk and first-text timing are measured before paragraph aggregation.
+    - Logical failures now produce failed terminal classes instead of completed telemetry.
+    - The web client supplies its decrypted, revision-fenced summary only for the authorized inference request; the main processor history remains unchanged.
+    - Preprocessing uses the latest two user turns, their intervening assistant response, the latest compression summary, and a content-free bounded skill ledger; missing/stale state uses the same-call wider-history path.
+    - Skill ledger rows contain only app-skill identity, outcome, output count and turn recency; cache retention matches the 72-hour AI-history TTL and deletion invalidates the ledger.
+    - First and follow-up turns use exactly one foreground preprocessing call. Summary and tags moved to existing post-answer processing.
+    - Nested Groq SDK retries are disabled, each provider is attempted once, and the default fallback chain is capped at nine seconds with a four-second per-attempt ceiling.
+  deliberately_unchanged:
+    - Main-model history/compression and selected full tool schemas/focus prompts.
+    - Paragraph-level user streaming behavior; only raw timing moved before aggregation pending evidence for a hybrid follow-up.
+    - Initial title/icon generation remains in the single foreground call because current encrypted new-chat persistence expects it; it no longer causes a second provider request.
+  local_evidence:
+    - 103 focused backend tests passed across ledger/privacy, single-call schema, retries/deadlines, postprocessing, request-schema parity, raw timing and paragraph contracts.
+    - Python compilation and whitespace checks passed for the touched backend paths.
+    - The affected chatSyncServiceHandlersAI and sender protocol/response suites passed in isolated CI with 36 assertions and no failures.
+  remaining:
+    - Measure the new stage timings on dev, then request separate authorization for any production canary or server update.
+
+# Strict-profile records below keep the executable repository gate compatible
+# with this goal-first Plan. They summarize existing sections; they do not add
+# new scope, approvals, or claims of production SLO proof.
+scenarios:
+  - id: S-1
+    title: Plain chat turn reaches main inference through one bounded routing call
+    given: [A user sends a normal first or follow-up message without requiring an app skill.]
+    when: [The AI worker prepares and routes the request.]
+    then: [One foreground preprocessing call returns safety, language and routing decisions, and the selected main model receives its unchanged normal history.]
+  - id: S-2
+    title: Older skill use remains available without replaying tool content
+    given: [A chat has older completed or pending app-skill calls and a current encrypted summary.]
+    when: [A later user message is preprocessed.]
+    then: [The preprocessor receives bounded recent messages and identity-only skill rows, while arguments and result content remain excluded.]
+  - id: S-3
+    title: Slow or failing utility providers recover within one deadline
+    given: [The primary preprocessing provider times out or returns retryable missing output.]
+    when: [Configured fallback routing runs.]
+    then: [Each provider is attempted at most once within the shared nine-second default deadline and terminal telemetry reports logical failure accurately if recovery is exhausted.]
+  - id: S-4
+    title: Answer presentation stays stable while raw delivery becomes measurable
+    given: [The main provider streams thinking, metadata or text chunks.]
+    when: [The worker observes and publishes the stream.]
+    then: [Raw first-item and first-text timings are recorded before aggregation, while users continue receiving the existing paragraph-level stream contract.]
+  - id: S-5
+    title: Dev and production evidence proves or rejects the latency targets
+    given: [The implementation is deployed to dev and a separately authorized production canary is available.]
+    when: [Eligible no-skill turns are measured end to end.]
+    then: [Latency, completion reliability and utility-model cost are reported without excluding failures or claiming unsupported percentiles.]
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: First and follow-up healthy paths contain one foreground preprocessing provider call, preserve required safety/routing fields, and do not mutate main-model history.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-FOCUSED]
+  - id: AC-2
+    scenario: S-2
+    text: Bounded preprocessing context includes the latest two user turns, intervening assistant response, authorized summary and at most eight terminal plus three pending content-free skill rows, with wider same-call fallback when state is unavailable.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-FOCUSED, T-FRONTEND-TRANSPORT]
+  - id: AC-3
+    scenario: S-3
+    text: Default preprocessing recovery cannot repeat the old serial fifteen-second attempts, nested provider retries are disabled, and logical failure terminal classes remain visible.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-FOCUSED]
+  - id: AC-4
+    scenario: S-4
+    text: Raw first-item and first-text timing occurs before paragraph aggregation without changing the downstream paragraph stream contract.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-FOCUSED]
+  - id: AC-5
+    scenario: S-5
+    text: The proposed dev and production latency, reliability and cost targets are measured on eligible turns before they are claimed as verified.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-DEV-CANARY]
+
+tests:
+  - id: T-BACKEND-FOCUSED
+    type: pytest
+    file: backend/tests/test_preprocessing_prompt_budget.py
+    command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest -q backend/tests/test_routing_ledger.py backend/tests/test_preprocessing_prompt_budget.py backend/tests/test_ai_request_observability.py backend/tests/test_stream_paragraph_contract.py backend/tests/test_llm_utils_preprocessing_retries.py backend/apps/ai/tests/test_timeout_utils.py backend/tests/test_postprocessor.py backend/tests/test_ai_skill_request_schema.py backend/tests/test_teams_chat_ai.py
+    assertions: [Bounded routing context excludes skill content, the healthy path has one provider call, retries and deadlines are bounded, metadata is postprocessed, and raw timing preserves paragraph streaming.]
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    red_phase:
+      required: false
+      expected: Existing production logs and the reported incident already established the slow and failing baseline; no redundant live failure replay was requested.
+      evidence: {status: waived_by_existing_evidence}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: {status: passed, run_id: local-focused-20260919, subject_commit: working-tree-session-6309, summary: 103 focused tests passed before final cleanup and 43 affected retry/context/deletion tests passed after the cleanup., timestamp: "2026-09-19T00:00:00Z"}
+  - id: T-FRONTEND-TRANSPORT
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    command: python3 scripts/ci_coordinator.py wait 91e65544f059d9191dfa4e02fe4c991a4f633de0a561e3d969c1750562bd02fb
+    assertions: [Normal and resend transports pass the authorized summary and matching metadata revision without changing encrypted persistence.]
+    covers: [AC-2]
+    red_phase:
+      required: false
+      expected: Existing protocol tests were extended directly because the production slowness was already confirmed.
+      evidence: {status: not_repeated}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: {status: passed, run_id: 35448650633, subject_commit: 5c3f3ae841b056d27e0bfaabd8675b204bfdd1d7, summary: All three affected transport suites passed with 36 assertions; unrelated broad UI suites remained red., timestamp: "2026-09-19T00:00:00Z"}
+  - id: T-DEV-CANARY
+    type: manual
+    assertions: [Dev stage timings and any separately authorized production canary include failures, actual answer text, final markers, cost and fallback attempts.]
+    covers: [AC-5]
+    red_phase:
+      required: false
+      expected: Production evidence already established roughly fifteen-second preprocessing and forty-five-second exhausted recovery examples.
+      evidence: {status: existing_incident_evidence}
+    green_phase:
+      required: true
+      expected: Meet or reject the documented targets with bounded representative evidence after dev deployment and separate production authorization.
+      evidence: {}
+
+implementation_state:
+  subject_commit: working-tree-session-6309
+
+approvals:
+  specification:
+    status: not_required
+    reason: This implementation preserves the cited existing chat, routing, privacy and streaming contracts without changing product semantics.
+  plan:
+    status: approved
+    approved_at: "2026-09-19T00:00:00Z"
+    reason: The user explicitly approved the implementation and excluded an additional app-selection preprocessing phase.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use one foreground preprocessing phase with the full compact skill and focus catalogues.
+    reason: A second app-selection model phase would add delay, cost and rate-limit pressure.
+    decided_at: "2026-09-19T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Give preprocessing recent full messages plus an authorized summary and a deterministic content-free older-skill ledger.
+    reason: This removes repeated full-history tokens without exposing tool inputs or outputs or losing older skill identity.
+    decided_at: "2026-09-19T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Preserve paragraph streaming and measure raw provider delivery before considering a hybrid presentation follow-up.
+    reason: Current evidence supports removing routing delay but does not yet prove a streaming-parser change is worth its correctness risk.
+    decided_at: "2026-09-19T00:00:00Z"
+
+tasks:
+  - id: TASK-1
+    title: Implement and verify fast reliable chat preprocessing
+    status: in_progress
+    phase: running_checks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]}
+    expected_files: [backend/apps/ai/processing/preprocessor.py, backend/apps/ai/processing/routing_ledger.py, backend/apps/ai/utils/llm_utils.py, frontend/packages/ui/src/services/sendersChatMessages.ts, docs/plans/chat-preprocessing-speed-reliability/plan.yml]
+    verification_ids: [T-BACKEND-FOCUSED, T-FRONTEND-TRANSPORT, T-DEV-CANARY]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership: {session: "6309", files: [backend/apps/ai/processing/preprocessor.py, backend/apps/ai/processing/routing_ledger.py, backend/apps/ai/utils/llm_utils.py, frontend/packages/ui/src/services/sendersChatMessages.ts, docs/plans/chat-preprocessing-speed-reliability/plan.yml], shared_files: []}
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Implement catalogue deduplication, bounded recent context, a content-free skill ledger, one foreground call, post-answer metadata, bounded independent fallback and raw-stream timing.
+    outcome: succeeded
+    recorded_at: "2026-09-19T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Deploy the focused implementation to dev after local and isolated CI verification.
+    outcome: rejected
+    recorded_at: "2026-09-19T00:00:00Z"
+    evidence: The pre-push specification gate required contract-test annotations and strict-profile compatibility fields; no integration push occurred.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Deploy the specification-gate-compatible scoped diff to dev, then collect dev timing evidence without claiming production SLO proof.
+  command: >-
+    python3 scripts/sessions.py deploy --session 6309
+    --title "perf: speed up chat preprocessing"
+    --message "Focused implementation and verification evidence"
+  expected_outcome: The scoped commit lands on dev while the separately authorized production canary remains pending.
+  blocker: null
+  last_verified_commit: 5c3f3ae841b056d27e0bfaabd8675b204bfdd1d7
+
+next_action: Deploy the scoped implementation to dev. Production canary and production server update remain separately authorized.

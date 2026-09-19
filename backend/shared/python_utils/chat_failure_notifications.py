@@ -56,6 +56,23 @@ def failure_stage(result: Any, error_marker: str) -> str | None:
     return None
 
 
+def terminal_class(result: Any, error_marker: str) -> str:
+    """Classify the actual turn outcome for privacy-safe request telemetry."""
+    if not isinstance(result, dict):
+        return "failed_before_main"
+    if result.get("interrupted_by_revocation"):
+        return "revoked"
+    if result.get("interrupted_by_soft_time_limit"):
+        return "soft_limited"
+
+    stage = failure_stage(result, error_marker)
+    if stage == "preprocessing":
+        return "failed_before_main"
+    if stage is not None:
+        return "failed_during_main"
+    return "completed"
+
+
 async def notify_chat_failure(request_identity: str, *, stage: str, category: str = "processing_error") -> None:
     """Queue bounded best-effort delivery, without content or raw identifiers."""
     try:

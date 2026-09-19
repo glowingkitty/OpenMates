@@ -9,7 +9,6 @@
 import json
 import logging
 import re
-import time
 from typing import Dict, Any, List, Optional
 import datetime # For current date/time in system prompt
 
@@ -50,6 +49,11 @@ from backend.apps.ai.processing.model_routing import (
     default_profile_for_tier,
     normalize_request_tier,
     tier_preference_key,
+)
+from backend.apps.ai.processing.routing_ledger import (
+    RoutingLedgerSnapshot,
+    build_preprocessing_history_projection,
+    load_skill_ledger,
 )
 
 # Import comprehensive ASCII smuggling sanitization
@@ -1686,15 +1690,47 @@ async def handle_preprocessing(
                 logger.warning(f"{log_prefix} Could not retrieve cached user data for user_id: {request_data.user_id}, but continuing (self-hosted mode).")
     # --- End Credit Check ---
  
-    # Sanitize user messages in the history
+    # Build the preprocessing-only projection before expensive URL sanitization.
+    # The main processor continues to receive request_data.message_history unchanged.
+    try:
+        routing_ledger = await load_skill_ledger(cache_service, request_data)
+    except Exception as ledger_error:
+        logger.warning(
+            "%s Routing ledger unavailable; using same-call wider history (%s)",
+            log_prefix,
+            ledger_error.__class__.__name__,
+        )
+        routing_ledger = RoutingLedgerSnapshot(available=False, prompt_rows=())
+
+    summary_version = request_data.current_chat_summary_v
+    metadata_version = request_data.current_chat_metadata_v
+    summary_is_fresh = bool(request_data.current_chat_summary) and summary_version is not None and (
+        metadata_version is None or summary_version == metadata_version
+    )
+    projection_source, used_bounded_projection = build_preprocessing_history_projection(
+        request_data.message_history,
+        chat_summary=request_data.current_chat_summary if summary_is_fresh else None,
+        state_available=routing_ledger.available,
+    )
+    logger.info(
+        "%s Preprocessing context projection: bounded=%s, source_messages=%s, projected_messages=%s, "
+        "skill_rows=%s",
+        log_prefix,
+        used_bounded_projection,
+        len(request_data.message_history),
+        len(projection_source),
+        len(routing_ledger.prompt_rows),
+    )
+
+    # Sanitize user messages in the projected history.
     # SECURITY: This sanitization protects against ASCII smuggling attacks
     # which use invisible Unicode characters to embed hidden instructions.
     # See: docs/architecture/prompt_injection_protection.md
     sanitized_message_history = []
-    for msg in request_data.message_history: # msg is AIHistoryMessage
-        msg_dict = msg.model_dump() # Convert Pydantic model to dict
-        if msg.role == "user":
-            original_content = msg.content # Accessing attribute from original msg Pydantic object
+    for msg in projection_source:
+        msg_dict = msg.model_dump() if hasattr(msg, "model_dump") else dict(msg)
+        if msg_dict.get("role") == "user":
+            original_content = msg_dict.get("content")
             if isinstance(original_content, str):
                 # Use comprehensive ASCII smuggling sanitization
                 sanitized_content = _sanitize_text_content(original_content, log_prefix=log_prefix)
@@ -1717,17 +1753,28 @@ async def handle_preprocessing(
             # For non-user messages, append the dict representation
             sanitized_message_history.append(msg_dict)
     
-    # Truncate message history to fit within 120k token budget for summary generation
-    # This ensures the preprocessing LLM (Mistral Small, 128k context) receives as much
-    # conversation context as possible for generating accurate chat summaries,
-    # while leaving room for the system prompt, tool definitions, and output tokens.
-    # Uses fast character-based estimation (~4 chars/token) to avoid expensive tokenization.
+    # Compatibility histories can still be large. The bounded path is normally a
+    # few recent messages, but both paths retain an explicit provider safety margin.
     from backend.apps.ai.utils.llm_utils import truncate_message_history_to_token_budget
     PREPROCESSING_MAX_HISTORY_TOKENS = 120000
+    latest_projected_user = next(
+        (message for message in reversed(sanitized_message_history) if message.get("role") == "user"),
+        None,
+    )
     sanitized_message_history = truncate_message_history_to_token_budget(
         sanitized_message_history,
         max_tokens=PREPROCESSING_MAX_HISTORY_TOKENS,
     )
+    if latest_projected_user is not None and latest_projected_user not in sanitized_message_history:
+        logger.warning(
+            "%s Latest user message exceeds the preprocessing context budget; failing visibly instead of dropping it.",
+            log_prefix,
+        )
+        return PreprocessingResult(
+            can_proceed=False,
+            rejection_reason="preprocessing_context_limit_exceeded",
+            error_message="The latest message is too large to route safely. Please shorten it or attach the content as a file.",
+        )
     
     if "preprocess_request_tool" not in base_instructions:
         logger.error(f"{log_prefix} Missing 'preprocess_request_tool' in base_instructions.")
@@ -1740,55 +1787,31 @@ async def handle_preprocessing(
     # Deepcopy the tool definitions to allow modification
     import copy
     tool_definition_for_llm = copy.deepcopy(base_instructions["preprocess_request_tool"])
-    # Initialized to None here so Pyright doesn't flag it as possibly-unbound at the usage sites
-    # below (which are all guarded by `if is_first_message:`, but static analysis can't always tell).
-    fast_tool_definition: Optional[Dict[str, Any]] = None
 
     # Determine whether this is the first message (no title yet) or a follow-up.
     # CRITICAL: Use chat_has_title flag from client, NOT message_history length
     # (message_history can be empty on first request when cache is used)
     is_first_message = not request_data.chat_has_title
 
+    # Safety, language and topic routing are mandatory on every turn. New chats
+    # additionally request their initial title/icons from this same foreground call.
+    required_fields = [
+        "topic_area",
+        "topic_shift",
+        "harmful_or_illegal",
+        "misuse_risk",
+        "output_language",
+    ]
     if is_first_message:
-        # --- First message: two-call split ---
-        # Call A (fast_preprocess_request_tool): title, topic_area, topic_shift, icon_names, harmful_or_illegal,
-        #   misuse_risk, output_language.  Small schema → fast response → UI shown immediately.
-        # Call B (preprocess_request_tool): routing fields (complexity, task_area, skills, etc.)
-        #   + chat_summary + chat_tags.  Does NOT include title/category/icons/safety/language.
-        # Both calls are fired in parallel and awaited together.
-        logger.info(f"{log_prefix} First message — using two-call parallel preprocessing (Call A: fast UI, Call B: routing).")
-
-        if "fast_preprocess_request_tool" not in base_instructions:
-            logger.error(f"{log_prefix} Missing 'fast_preprocess_request_tool' in base_instructions.")
-            return PreprocessingResult(
-                can_proceed=False,
-                rejection_reason="internal_error_missing_instructions",
-                error_message="Critical fast preprocessing instructions are missing."
-            )
-        fast_tool_definition = copy.deepcopy(base_instructions["fast_preprocess_request_tool"])
-
-        # Call B does NOT need harmful_or_illegal / misuse_risk / output_language on first messages
-        # (those come from Call A).  They are defined as optional in the schema and not in required,
-        # so nothing to remove — the LLM simply won't be asked for them.
-        logger.info(f"{log_prefix} Loaded fast_preprocess_request_tool (Call A) and preprocess_request_tool (Call B).")
-    else:
-        # --- Follow-up message: single call (same as before the split) ---
-        # Add topic routing, harmful_or_illegal, misuse_risk, and output_language to the required list for Call B
-        # (on first messages those come from Call A, but on follow-ups there is no Call A).
-        # Topic routing is critical for follow-ups: without it, backend category derivation falls
-        # back to general_knowledge, losing the specialized mate from the first message.
-        logger.info(f"{log_prefix} Follow-up message — single-call preprocessing (no Call A).")
-        follow_up_extra_required = [
-            "topic_area",
-            "topic_shift",
-            "harmful_or_illegal",
-            "misuse_risk",
-            "output_language",
-        ]
-        required_list = tool_definition_for_llm.get("function", {}).get("parameters", {}).get("required", [])
-        for field in follow_up_extra_required:
-            if field not in required_list:
-                required_list.append(field)
+        required_fields.extend(["title", "icon_names"])
+    required_list = tool_definition_for_llm.get("function", {}).get("parameters", {}).get("required", [])
+    for field in required_fields:
+        if field not in required_list:
+            required_list.append(field)
+    logger.info(
+        f"{log_prefix} {'First message' if is_first_message else 'Follow-up'} — "
+        "using one foreground preprocessing call."
+    )
 
     logger.info(f"{log_prefix} Loaded and potentially modified instruction tool(s) for preprocessing.")
     
@@ -2117,164 +2140,46 @@ async def handle_preprocessing(
         "TOPIC_AREAS_LIST": _build_topic_areas_list(),
         "AVAILABLE_APP_SKILLS": available_skills_list if available_skills_list else [],
         "AVAILABLE_FOCUS_MODES": available_focus_modes_list if available_focus_modes_list else [],
+        "RECENT_SKILL_ACTIVITY": (
+            "\n".join(f"- {row}" for row in routing_ledger.prompt_rows)
+            if routing_ledger.prompt_rows
+            else "- None recorded"
+        ),
         "CURRENT_DATE_TIME": date_time_str,
+        "USER_SYSTEM_LANGUAGE": user_system_language,
         # PREVIOUS_CATEGORY: provided for follow-up messages so the LLM defaults to the
         # previous category unless the topic has clearly changed. Empty string if unknown.
         "PREVIOUS_CATEGORY": previous_category or "none (first message or unknown)"
     }
 
-    import asyncio as _asyncio
+    logger.info(f"{log_prefix} Firing single preprocessing call (routing + safety + language).")
+    llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+        task_id=f"{request_data.chat_id}_{request_data.message_id}",
+        model_id=preprocessing_model,
+        fallback_models=preprocessing_fallbacks,
+        message_history=sanitized_message_history,
+        tool_definition=tool_definition_for_llm,
+        secrets_manager=secrets_manager,
+        user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
+        dynamic_context=dynamic_context,
+    )
 
-    if is_first_message:
-        # -----------------------------------------------------------------------
-        # Two-call parallel preprocessing for first messages.
-        #
-        # Call A (fast_preprocess_request_tool): small schema, fires and resolves
-        #   quickly.  Provides title, topic_area, topic_shift, icon_names, safety scores, and
-        #   output_language.  Results are used to emit the title_generated event
-        #   to the frontend before Call B even finishes.
-        #
-        # Call B (preprocess_request_tool): full routing / metadata schema without
-        #   the UI fields (no title, topic_area, topic_shift, icons, safety, language).  Provides
-        #   complexity, task_area, skills, focus modes, memories, summary and tags.
-        #
-        # Both coroutines are awaited with asyncio.gather so they run in parallel
-        # over the network and we wait for both before doing any further work.
-        # -----------------------------------------------------------------------
-        # Call B: fast_tool only needs topic areas and CURRENT_DATE_TIME.
-        # Call A (main tool): needs the full dynamic_context.
-        # Include the user's UI language so the title is generated in the user's preferred language,
-        # regardless of the language the user is chatting in (mirrors how chat_summary works).
-        fast_dynamic_context = {
-            "TOPIC_AREAS_LIST": _build_topic_areas_list(),
-            "CURRENT_DATE_TIME": date_time_str,
-            "USER_SYSTEM_LANGUAGE": user_system_language,
-        }
-
-        logger.info(f"{log_prefix} Firing Call A (fast UI) and Call B (routing) in parallel.")
-
-        # fast_tool_definition is guaranteed non-None here: the early-return guard above
-        # (missing 'fast_preprocess_request_tool' key) ensures we only reach this point if
-        # fast_tool_definition was set at line 614.  The assert narrows the type for Pyright.
-        assert fast_tool_definition is not None, "fast_tool_definition must be set before parallel calls"
-
-        async def _timed_preprocessing_call(
-            call_name: str,
-            call_coro: Any,
-        ) -> LLMPreprocessingCallResult:
-            started_at = time.perf_counter()
-            try:
-                return await call_coro
-            finally:
-                elapsed_ms = int((time.perf_counter() - started_at) * 1000)
-                logger.info(f"{log_prefix} Preprocessing {call_name} completed in {elapsed_ms}ms.")
-
-        parallel_calls_started_at = time.perf_counter()
-        call_a_coro = _timed_preprocessing_call("Call A (fast UI)", call_preprocessing_llm(
-            task_id=f"{request_data.chat_id}_{request_data.message_id}_A",
-            model_id=preprocessing_model,
-            fallback_models=preprocessing_fallbacks,
-            message_history=sanitized_message_history,
-            tool_definition=fast_tool_definition,
-            secrets_manager=secrets_manager,
-            user_app_settings_and_memories_metadata=None,  # fast tool doesn't need memories
-            dynamic_context=fast_dynamic_context,
-        ))
-        call_b_coro = _timed_preprocessing_call("Call B (routing)", call_preprocessing_llm(
-            task_id=f"{request_data.chat_id}_{request_data.message_id}_B",
-            model_id=preprocessing_model,
-            fallback_models=preprocessing_fallbacks,
-            message_history=sanitized_message_history,
-            tool_definition=tool_definition_for_llm,
-            secrets_manager=secrets_manager,
-            user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-            dynamic_context=dynamic_context,
-        ))
-
-        call_a_result, call_b_result = await _asyncio.gather(call_a_coro, call_b_coro)
-        parallel_calls_elapsed_ms = int((time.perf_counter() - parallel_calls_started_at) * 1000)
-        logger.info(
-            f"{log_prefix} Preprocessing Call A/B parallel LLM calls completed in "
-            f"{parallel_calls_elapsed_ms}ms."
+    if llm_call_result.error_message or not llm_call_result.arguments:
+        default_err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
+        final_err_msg = llm_call_result.error_message or default_err_msg
+        logger.error(f"{log_prefix} Preprocessing LLM call failed. Model: {preprocessing_model}. Error: {final_err_msg}")
+        raw_response_data: Dict[str, Any] = {"error": final_err_msg}
+        if llm_call_result.raw_provider_response_summary:
+            raw_response_data["provider_response_summary"] = llm_call_result.raw_provider_response_summary
+        return PreprocessingResult(
+            can_proceed=False,
+            rejection_reason="internal_error_llm_preprocessing_failed",
+            error_message=final_err_msg,
+            raw_llm_response=raw_response_data,
         )
 
-        # Handle Call A failure — fast UI fields missing means we cannot safely show the chat
-        # title or perform safety checks on those fields; treat as hard failure.
-        if call_a_result.error_message or not call_a_result.arguments:
-            final_err_msg = call_a_result.error_message or "Fast preprocessing LLM (Call A) returned no arguments."
-            logger.error(f"{log_prefix} Call A failed. Error: {final_err_msg}")
-            raw_response_data: Dict[str, Any] = {"error": final_err_msg}
-            if call_a_result.raw_provider_response_summary:
-                raw_response_data["provider_response_summary"] = call_a_result.raw_provider_response_summary
-            return PreprocessingResult(
-                can_proceed=False,
-                rejection_reason="internal_error_llm_preprocessing_failed",
-                error_message=final_err_msg,
-                raw_llm_response=raw_response_data,
-            )
-
-        # Handle Call B failure — routing fields are essential; also treat as hard failure.
-        if call_b_result.error_message or not call_b_result.arguments:
-            final_err_msg = call_b_result.error_message or "Preprocessing LLM (Call B) returned no arguments."
-            logger.error(f"{log_prefix} Call B failed. Error: {final_err_msg}")
-            raw_response_data = {"error": final_err_msg}
-            if call_b_result.raw_provider_response_summary:
-                raw_response_data["provider_response_summary"] = call_b_result.raw_provider_response_summary
-            return PreprocessingResult(
-                can_proceed=False,
-                rejection_reason="internal_error_llm_preprocessing_failed",
-                error_message=final_err_msg,
-                raw_llm_response=raw_response_data,
-            )
-
-        # Merge the two result dicts: Call A fields take priority for the fields it owns
-        # (title, topic_area, topic_shift, icon_names, harmful_or_illegal, misuse_risk, output_language),
-        # Call B provides all routing/metadata fields.
-        llm_analysis_args: Dict[str, Any] = {}
-        llm_analysis_args.update(call_b_result.arguments)  # routing fields first
-        llm_analysis_args.update(call_a_result.arguments)  # UI + safety fields override / fill in
-        logger.info(f"{log_prefix} Both LLM calls succeeded. Merged results from Call A + Call B.")
-        # Build a combined raw response summary for debug logging below (used in both paths).
-        combined_raw_response_summary: Optional[Any] = {
-            "call_a": call_a_result.raw_provider_response_summary,
-            "call_b": call_b_result.raw_provider_response_summary,
-        }
-
-    else:
-        # -----------------------------------------------------------------------
-        # Single-call preprocessing for follow-up messages (unchanged behaviour).
-        # Call B includes harmful_or_illegal, misuse_risk, and output_language since
-        # there is no parallel Call A on follow-ups.
-        # -----------------------------------------------------------------------
-        logger.info(f"{log_prefix} Follow-up: firing single Call B (routing + safety + language).")
-        llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
-            task_id=f"{request_data.chat_id}_{request_data.message_id}",
-            model_id=preprocessing_model,
-            fallback_models=preprocessing_fallbacks,
-            message_history=sanitized_message_history,
-            tool_definition=tool_definition_for_llm,
-            secrets_manager=secrets_manager,
-            user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-            dynamic_context=dynamic_context,
-        )
-
-        if llm_call_result.error_message or not llm_call_result.arguments:
-            default_err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
-            final_err_msg = llm_call_result.error_message or default_err_msg
-            logger.error(f"{log_prefix} Preprocessing LLM call failed. Model: {preprocessing_model}. Error: {final_err_msg}")
-            raw_response_data = {"error": final_err_msg}
-            if llm_call_result.raw_provider_response_summary:
-                raw_response_data["provider_response_summary"] = llm_call_result.raw_provider_response_summary
-            return PreprocessingResult(
-                can_proceed=False,
-                rejection_reason="internal_error_llm_preprocessing_failed",
-                error_message=final_err_msg,
-                raw_llm_response=raw_response_data,
-            )
-
-        llm_analysis_args = llm_call_result.arguments
-        # Store for unified debug logging below.
-        combined_raw_response_summary = llm_call_result.raw_provider_response_summary
+    llm_analysis_args = llm_call_result.arguments
+    combined_raw_response_summary = llm_call_result.raw_provider_response_summary
     
     # Sanitize llm_analysis_args for logging: show only metadata for chat_summary and chat_tags
     sanitized_args = llm_analysis_args.copy()
@@ -3003,42 +2908,12 @@ async def handle_preprocessing(
 
     # Note: icon_names validation is handled client-side, so we pass through the LLM value as-is
     
-    # --- Validate chat_summary field (required field) ---
-    # CRITICAL: chat_summary is required for post-processing suggestions generation
-    # If missing, we need to understand why and log detailed information for debugging
+    # Summary/tags are now generated after the answer and are intentionally absent
+    # from the foreground routing schema. Accept them only for rollback compatibility.
     chat_summary_val = llm_analysis_args.get("chat_summary")
-    if not chat_summary_val:
-        # chat_summary is missing or empty - this is a critical issue that needs investigation
-        logger.error(
-            f"{log_prefix} CRITICAL: 'chat_summary' is missing or empty from LLM response! "
-            f"This field is REQUIRED in the tool definition. "
-            f"LLM response keys: {list(llm_analysis_args.keys())}. "
-            f"Raw LLM response summary: {combined_raw_response_summary}. "
-            f"This will cause post-processing to fail. "
-            f"Message history length: {len(sanitized_message_history)}. "
-            f"Preprocessing model: {preprocessing_model}."
-        )
-        # Log the full sanitized args to see what the LLM actually returned
-        logger.error(
-            f"{log_prefix} Full LLM analysis args (sanitized): {sanitized_args}. "
-            f"This will help identify if the LLM is not following the tool definition correctly."
-        )
-        # Set to None explicitly so we can track this issue
-        chat_summary_val = None
-    elif not isinstance(chat_summary_val, str):
-        logger.error(
-            f"{log_prefix} CRITICAL: 'chat_summary' is not a string: {type(chat_summary_val)}. "
-            f"Expected a string. This will cause post-processing to fail."
-        )
-        chat_summary_val = None
-    elif not chat_summary_val.strip():
-        logger.error(
-            f"{log_prefix} CRITICAL: 'chat_summary' is an empty or whitespace-only string. "
-            f"This will cause post-processing to fail."
-        )
+    if not isinstance(chat_summary_val, str) or not chat_summary_val.strip():
         chat_summary_val = None
     else:
-        # chat_summary is valid - log its length for debugging
         logger.debug(f"{log_prefix} 'chat_summary' is valid (length: {len(chat_summary_val)} characters)")
     
     # --- Validate chat_tags field (maxItems: 10) ---

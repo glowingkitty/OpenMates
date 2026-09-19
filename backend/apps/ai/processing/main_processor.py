@@ -1241,6 +1241,26 @@ async def _publish_skill_status(
     if request_data.is_external:
         logger.debug(f"[Task ID: {task_id}] External request detected. Skipping skill status publish for Web App.")
         return
+
+    # Update the routing ledger independently from WebSocket delivery. The helper
+    # retains identity/outcome/count only and never stores preview contents.
+    try:
+        from backend.apps.ai.processing.routing_ledger import record_skill_event
+
+        await record_skill_event(
+            cache_service,
+            request_data,
+            task_id=task_id,
+            app_id=app_id,
+            skill_id=skill_id,
+            status=status,
+            preview_data=preview_data,
+        )
+    except Exception as ledger_error:
+        logger.warning(
+            f"[Task ID: {task_id}] Failed to update content-free routing ledger: "
+            f"{ledger_error.__class__.__name__}"
+        )
     
     try:
         # Construct the skill status payload matching frontend expectations
@@ -4183,11 +4203,15 @@ async def handle_main_processing(
         _stream_all_servers_error: Optional[AllServersFailedError] = None
         try:
           with ai_phase_span("main.iteration"):
-           async for chunk in observe_ai_stream(
-               aggregate_paragraphs(llm_stream),
+           # Observe raw provider delivery before paragraph aggregation so
+           # ai.ttft_ms/ai.first_text_ms are not inflated by presentation
+           # buffering. The downstream paragraph contract remains unchanged.
+           observed_llm_stream = observe_ai_stream(
+               llm_stream,
                "provider",
                provider_purpose="main",
-           ):
+           )
+           async for chunk in aggregate_paragraphs(observed_llm_stream):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 # Accumulate token counts from every LLM call in this turn.

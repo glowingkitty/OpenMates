@@ -178,6 +178,7 @@ class PostProcessingResult(BaseModel):
     harmful_response: float = Field(default=0.0, description="Score 0-10 for harmful response detection")
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
     chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
+    chat_tags: List[str] = Field(default_factory=list, description="Up to 10 search and categorization tags for the completed conversation")
     share_cta_text: Optional[str] = Field(None, description="Short call-to-open text for shared chat previews and OG images")
     # Updated chat title: only set when the conversation has evolved significantly beyond the original title.
     # None means the current title still fits. See OPE-265 for feature context.
@@ -206,7 +207,7 @@ async def handle_postprocessing(
     task_id: str,
     user_message: str,
     assistant_response: str,
-    chat_summary: str,
+    chat_summary: Optional[str],
     chat_tags: List[str],
     message_history: List[Dict[str, Any]],
     base_instructions: Dict[str, Any],
@@ -234,8 +235,8 @@ async def handle_postprocessing(
         task_id: Task ID for logging
         user_message: Last user message content
         assistant_response: Last assistant response content
-        chat_summary: Chat summary from preprocessing (based on full chat history)
-        chat_tags: Chat tags from preprocessing (topics, technologies, concepts discussed)
+        chat_summary: Optional prior summary for rollback compatibility. The postprocessor generates the new summary.
+        chat_tags: Optional prior tags; the postprocessor generates the new tags.
         message_history: Full chat message history (list of dicts with role/content),
             truncated to 120k token budget. Used for generating accurate updated summaries.
         base_instructions: Base instructions from yml
@@ -370,6 +371,7 @@ async def handle_postprocessing(
     language_lines.extend([
         f"- **new_chat_app_skill_suggestions** and **new_chat_general_suggestions**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **chat_summary**: Generate in '{user_system_language}' (the user's system/UI language).",
+        f"- **chat_tags**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **share_cta_text**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **updated_chat_title**: Generate in '{user_system_language}' (the user's system/UI language), if needed.",
     ])
@@ -541,6 +543,22 @@ async def handle_postprocessing(
         logger.warning(f"[Task ID: {task_id}] [PostProcessor] chat_summary missing or empty from post-processing LLM. Will fall back to preprocessing summary.")
         postproc_chat_summary = None
 
+    raw_chat_tags = llm_result.arguments.get("chat_tags", [])
+    postproc_chat_tags: List[str] = []
+    if isinstance(raw_chat_tags, list):
+        seen_chat_tags: set[str] = set()
+        for raw_tag in raw_chat_tags:
+            if not isinstance(raw_tag, str):
+                continue
+            tag = raw_tag.strip()
+            tag_key = tag.casefold()
+            if not tag or tag_key in seen_chat_tags:
+                continue
+            seen_chat_tags.add(tag_key)
+            postproc_chat_tags.append(tag)
+            if len(postproc_chat_tags) == 10:
+                break
+
     raw_share_cta_text = llm_result.arguments.get("share_cta_text")
     share_cta_text = raw_share_cta_text.strip() if isinstance(raw_share_cta_text, str) else None
     if share_cta_text:
@@ -676,6 +694,7 @@ async def handle_postprocessing(
         harmful_response=llm_result.arguments.get("harmful_response", 0.0),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
+        chat_tags=postproc_chat_tags,
         share_cta_text=share_cta_text,
         updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)
         daily_inspiration_topic_suggestions=validated_topic_suggestions,

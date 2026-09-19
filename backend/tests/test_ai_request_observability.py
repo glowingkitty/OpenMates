@@ -109,6 +109,23 @@ def test_stream_span_records_ttft_without_chunk_content(phase_exporter):
     assert "private response content" not in str(span.attributes)
 
 
+# contract-test: supporting surface=rest_api assertions=ai-request-observability.waterfall.complete
+def test_stream_span_distinguishes_first_item_from_first_text(phase_exporter):
+    async def exercise():
+        async def chunks():
+            yield {"kind": "thinking"}
+            yield ""
+            yield "answer text"
+
+        return [item async for item in observe_ai_stream(chunks(), "provider")]
+
+    output = asyncio.run(exercise())
+    assert output == [{"kind": "thinking"}, "", "answer text"]
+    span = phase_exporter.get_finished_spans()[0]
+    assert "ai.ttft_ms" in span.attributes
+    assert "ai.first_text_ms" in span.attributes
+
+
 # contract-test: direct surface=rest_api assertions=ai-request-observability.default-metrics.identity-free
 def test_unreviewed_phase_is_rejected():
     with pytest.raises(ValueError, match="Unreviewed AI observability phase"):

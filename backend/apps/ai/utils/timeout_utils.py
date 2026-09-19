@@ -118,21 +118,23 @@ def get_inter_chunk_timeout_seconds(*, is_reasoning: bool = False) -> float:
     return REASONING_INTER_CHUNK_TIMEOUT_SECONDS if is_reasoning else INTER_CHUNK_TIMEOUT_SECONDS
 
 
-# Timeout for non-streaming preprocessing requests.
-# A live DeepSeek fallback completed just over the old 10s limit, causing healthy
-# fallback attempts to be cancelled before they could rescue a failed primary.
+# Per-attempt ceiling for non-streaming interactive preprocessing requests.
+# The total deadline below is shared fairly across configured providers, so an
+# overloaded primary cannot consume the user's entire response-latency budget.
+# Bounded recent context and the single routing schema keep healthy calls small.
 # Override via env: AI_PREPROCESSING_TIMEOUT_SECONDS
-DEFAULT_PREPROCESSING_TIMEOUT_SECONDS = 25.0
+DEFAULT_PREPROCESSING_TIMEOUT_SECONDS = 4.0
 PREPROCESSING_TIMEOUT_SECONDS = _get_env_float(
     "AI_PREPROCESSING_TIMEOUT_SECONDS",
     DEFAULT_PREPROCESSING_TIMEOUT_SECONDS,
 )
 
-# Overall wall-clock budget for one preprocessing fallback chain.
-# Keeps a slow primary plus slow fallbacks from delaying signed-in chat for a full
-# per-provider timeout on every configured server. Set <= 0 to disable.
+# Overall wall-clock budget for one interactive preprocessing fallback chain.
+# Nine seconds preserves bounded recovery while guaranteeing that the old serial
+# 15s/15s/15s failure mode cannot recur under default configuration. Set <= 0 only
+# for explicit offline diagnostics; production should retain a finite deadline.
 # Override via env: AI_PREPROCESSING_TOTAL_TIMEOUT_SECONDS
-DEFAULT_PREPROCESSING_TOTAL_TIMEOUT_SECONDS = 45.0
+DEFAULT_PREPROCESSING_TOTAL_TIMEOUT_SECONDS = 9.0
 PREPROCESSING_TOTAL_TIMEOUT_SECONDS = _get_env_float(
     "AI_PREPROCESSING_TOTAL_TIMEOUT_SECONDS",
     DEFAULT_PREPROCESSING_TOTAL_TIMEOUT_SECONDS,

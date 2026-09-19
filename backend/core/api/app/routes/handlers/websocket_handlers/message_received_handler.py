@@ -2033,6 +2033,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         current_chat_title_from_client = message_payload_from_client.get("current_chat_title")
         if current_chat_title_from_client and not isinstance(current_chat_title_from_client, str):
             current_chat_title_from_client = None
+        current_chat_summary_from_client = message_payload_from_client.get("current_chat_summary")
+        if current_chat_summary_from_client and not isinstance(current_chat_summary_from_client, str):
+            current_chat_summary_from_client = None
+        if isinstance(current_chat_summary_from_client, str):
+            current_chat_summary_from_client = current_chat_summary_from_client[:4000]
+        current_chat_summary_v_from_client = _optional_int(message_payload_from_client.get("current_chat_summary_v"))
         current_chat_title_v_from_client = _optional_int(message_payload_from_client.get("current_chat_title_v"))
         current_chat_metadata_v_from_client = _optional_int(message_payload_from_client.get("current_chat_metadata_v"))
         auto_speak_response_from_client = message_payload_from_client.get("auto_speak_response") is True
@@ -2059,6 +2065,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             current_user_content=content_plain,
             chat_has_title=chat_has_title_from_client, # Pass the flag to preprocessing
             current_chat_title=current_chat_title_from_client,  # OPE-265: For post-processing title update evaluation
+            current_chat_summary=current_chat_summary_from_client,
+            current_chat_summary_v=current_chat_summary_v_from_client,
             current_chat_title_v=current_chat_title_v_from_client,
             current_chat_metadata_v=current_chat_metadata_v_from_client,
             auto_speak_response=auto_speak_response_from_client,

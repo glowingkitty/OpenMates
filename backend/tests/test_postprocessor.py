@@ -302,6 +302,7 @@ async def test_postprocessing_translates_metadata_even_when_output_language_matc
                 "harmful_response": 0.0,
                 "top_recommended_apps_for_user": ["ai"],
                 "chat_summary": "Nutzer erstellt deutsche Bewerbungsunterlagen.",
+                "chat_tags": ["Bewerbung", "Karriere", "bewerbung", ""],
                 "updated_chat_title": "Bewerbungsunterlagen erstellen",
                 "daily_inspiration_topic_suggestions": ["job applications", "cover letters", "career planning"],
                 "quick_tip_slug": "",
@@ -354,6 +355,7 @@ async def test_postprocessing_translates_metadata_even_when_output_language_matc
 
     assert result.chat_summary == "User creates German job application documents."
     assert result.updated_chat_title == "Create Application Documents"
+    assert result.chat_tags == ["Bewerbung", "Karriere"]
     assert translations == [
         ("Nutzer erstellt deutsche Bewerbungsunterlagen.", "en"),
         ("Bewerbungsunterlagen erstellen", "en"),

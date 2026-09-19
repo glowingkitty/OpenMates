@@ -1271,7 +1271,10 @@ async def call_preprocessing_llm(
                         "tool_choice": "required",
                         "stream": False,
                     }
-                    if provider_prefix == "groq" and not allow_retries:
+                    # The outer preprocessing chain owns retries and its shared
+                    # deadline. Disable nested SDK retries so one logical attempt
+                    # cannot multiply RPM or silently consume the fallback budget.
+                    if provider_prefix == "groq":
                         provider_request_kwargs["max_retries"] = 0
                     if provider_prefix == "groq" and reasoning_effort:
                         provider_request_kwargs["reasoning_effort"] = reasoning_effort
@@ -1370,21 +1373,9 @@ async def call_preprocessing_llm(
         ]
         return any(indicator in error_lower for indicator in retryable_indicators)
 
-    def is_wrong_tool_error(error_message: Optional[str]) -> bool:
-        """True when the LLM called a different tool than the expected one (model hallucination).
-
-        These errors get one same-provider retry before falling through to the fallback, because
-        LLM tool selection is stochastic and a second attempt often succeeds.
-        Infra errors (rate-limit, timeout, 5xx) skip the same-provider retry — retrying the same
-        unhealthy or overloaded provider would only waste time.
-        """
-        if not error_message:
-            return False
-        return "not found in tool calls. actual tool calls made:" in error_message.lower()
-
-    # Try primary provider first, then fallbacks.
-    # For wrong-tool errors (model hallucination) we attempt the same provider once more before
-    # moving on — LLM tool selection is stochastic and one retry often clears it.
+    # Try primary provider once, then configured fallbacks. The bounded chain owns
+    # recovery; repeating the same provider would spend extra RPM and delay a known
+    # independent fallback.
     providers_to_try = [model_id]
     if fallback_models:
         providers_to_try.extend(fallback_models)
@@ -1394,9 +1385,7 @@ async def call_preprocessing_llm(
     budget_exhausted_error: Optional[str] = None
 
     for provider_idx, provider_model_id in enumerate(providers_to_try):
-        # Allow one same-provider retry for wrong-tool errors; infra errors go straight to fallback.
-        WRONG_TOOL_SAME_PROVIDER_RETRIES = 1
-        attempts_for_this_provider = WRONG_TOOL_SAME_PROVIDER_RETRIES + 1  # updated after first call
+        attempts_for_this_provider = 1
         is_last_provider = (provider_idx == len(providers_to_try) - 1)
 
         attempt = 0
@@ -1415,7 +1404,7 @@ async def call_preprocessing_llm(
             attempted_providers.append(provider_model_id)
             logger.info(
                 f"[{task_id}] LLM Utils: Attempting preprocessing with provider: {provider_model_id} "
-                f"(attempt {len(attempted_providers)}/{len(providers_to_try) + WRONG_TOOL_SAME_PROVIDER_RETRIES})"
+                f"(attempt {len(attempted_providers)}/{len(providers_to_try)})"
             )
 
             # Reserve a share of the existing deadline for each configured fallback.
@@ -1459,15 +1448,7 @@ async def call_preprocessing_llm(
                 )
                 return result
 
-            # Wrong-tool error on first attempt — retry same provider once.
-            if is_wrong_tool_error(result.error_message) and attempt == 1:
-                logger.warning(
-                    f"[{task_id}] LLM Utils: Provider {provider_model_id} called the wrong tool "
-                    f"(attempt {attempt}). Retrying same provider once before trying fallback..."
-                )
-                continue  # loop again with same provider_model_id
-
-            # Any other retryable error, or wrong-tool on the retry attempt — move to next provider.
+            # Any retryable error moves directly to the next independent provider.
             last_error = result.error_message
             logger.warning(
                 f"[{task_id}] LLM Utils: Provider {provider_model_id} failed "
