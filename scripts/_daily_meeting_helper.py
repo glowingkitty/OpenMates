@@ -20,7 +20,6 @@ Data sources:
     F. Nightly job state files          — file reads (logs/nightly-reports/)
     G. User-reported issues             — docker exec debug_issue.py (Vault key)
     H. Linear tasks                     — queried live by meeting session (MCP)
-    I. Milestone state                  — file read (.planning/)
     J. Server stats                     — docker exec server_stats_query.py
     N. SEO health                       — HTTP requests to production sitemap + pages
 
@@ -440,24 +439,6 @@ def gather_user_issues(project_root: str) -> str:
         return f"[DATA UNAVAILABLE: user issues — {e}]"
 
 
-def gather_milestone_state() -> str:
-    """Source J: milestone state from .planning/."""
-    planning_dir = PROJECT_ROOT / ".planning"
-
-    project_md = planning_dir / "PROJECT.md"
-    if project_md.is_file():
-        content = project_md.read_text(errors="replace")
-        if len(content) > 3000:
-            content = content[:3000] + "\n\n[...truncated...]"
-        return content
-
-    config = planning_dir / "config.json"
-    if config.is_file():
-        return _safe_json_read(config, "planning config")
-
-    return "(No milestone state found in .planning/ directory.)"
-
-
 def gather_ephemeral_error_context() -> str:
     """Source L: browser error context from all users (ephemeral error-context stream)."""
     cmd = [
@@ -617,7 +598,6 @@ def gather_legacy_data(project_root: str, yesterday: str) -> dict:
 
     # Sequential: fast file reads
     data["nightly_states"] = gather_nightly_state_files()
-    data["milestone_state"] = gather_milestone_state()
 
     # Load previous meeting state
     data["previous_state"] = load_meeting_state()

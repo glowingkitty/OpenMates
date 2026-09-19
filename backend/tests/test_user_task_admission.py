@@ -50,7 +50,7 @@ def _service(tasks, *, policy=None, plans=None):
 @pytest.mark.asyncio
 async def test_external_ai_tasks_never_enter_native_openmates_admission() -> None:
     service, methods, _plans = _service([
-        _task("opencode", assignee_type="external_ai", assignee_identity="opencode"),
+        _task("codex", assignee_type="external_ai", assignee_identity="codex"),
     ])
 
     result = await service.admit_available("user-1", now=200)

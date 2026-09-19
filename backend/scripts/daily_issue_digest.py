@@ -4,7 +4,7 @@
 Generate the daily OpenMates issue digest on demand.
 
 This CLI reuses the Celery task implementation so manual runs and scheduled
-runs produce the same JSON, Markdown, OpenCode prompt, and admin email output.
+runs produce the same JSON, Markdown, and admin email output.
 It is safe to run from the host or from inside the API container.
 """
 

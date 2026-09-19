@@ -3,7 +3,7 @@
 # Contract tests for the canonical OpenAI-compatible API surface.
 # These run against a tiny in-process FastAPI app so failures stay focused on
 # route/auth/error shape instead of live model inference or billing.
-# The live SDK/OpenCode smoke tests are covered separately by the executable
+# The live SDK smoke tests are covered separately by the executable
 # spec for docs/specs/openai-compatible-api/spec.yml.
 
 import json
@@ -182,10 +182,6 @@ def test_get_model_returns_one_model_or_openai_style_404() -> None:
     assert known.status_code == 200
     assert known.json()["id"] == "openai/gpt-4o-mini"
 
-    opencode_prefixed = _client().get("/v1/models/openmates/openai/gpt-4o-mini")
-    assert opencode_prefixed.status_code == 200
-    assert opencode_prefixed.json()["id"] == "openai/gpt-4o-mini"
-
     unknown = _client().get("/v1/models/openai/unknown-model")
     assert unknown.status_code == 404
     body = unknown.json()
@@ -236,39 +232,6 @@ def test_chat_completions_reuses_ai_ask_dispatch_for_plain_non_streaming(
     assert response.status_code == 200
     assert response.json()["object"] == "chat.completion"
     assert captured["request_body"]["model"] == "openai/gpt-4o-mini"
-
-
-# contract-test: direct surface=rest_api assertions=ai-model-routing.surface.semantic-parity
-def test_chat_completions_accepts_opencode_prefixed_model_id(monkeypatch) -> None:
-    captured: Dict[str, Any] = {}
-
-    async def fake_dispatch(
-        *,
-        request_body: Dict[str, Any],
-        user_info: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        del user_info
-        captured["model"] = request_body["model"]
-        return {
-            "id": "chatcmpl-test",
-            "object": "chat.completion",
-            "created": 1,
-            "model": request_body["model"],
-            "choices": [{"index": 0, "message": {"role": "assistant", "content": "hello"}, "finish_reason": "stop"}],
-        }
-
-    monkeypatch.setattr(openai_compat, "_dispatch_ai_ask_chat_completion", fake_dispatch)
-
-    response = _client().post(
-        "/v1/chat/completions",
-        json={
-            "model": "openmates/openai/gpt-4o-mini",
-            "messages": [{"role": "user", "content": "Say hello"}],
-        },
-    )
-
-    assert response.status_code == 200
-    assert captured["model"] == "openai/gpt-4o-mini"
 
 
 # contract-test: direct surface=rest_api assertions=ai-model-routing.surface.semantic-parity

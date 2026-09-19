@@ -1538,7 +1538,7 @@ app.conf.beat_schedule = {
         'options': {'queue': 'persistence'},
     },
     # Daily issue digest - aggregates sanitized prod/dev errors, default client
-    # diagnostics, and latest test failures into email + OpenCode handoff files.
+    # diagnostics, and latest test failures into durable email artifacts.
     'daily-issue-digest-weekdays': {
         'task': 'app.tasks.email_tasks.daily_issue_digest_task.send_daily_issue_digest',
         'schedule': crontab(hour=8, minute=30, day_of_week='1-5'),  # Weekdays 08:30 UTC

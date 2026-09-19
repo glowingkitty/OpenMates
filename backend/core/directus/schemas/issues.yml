@@ -99,19 +99,19 @@ issues:
       type: string
       length: 20
       nullable: true
-      note: "Legacy admin-requested agent action for retired automatic OpenCode handoff. Kept for old records only."
+      note: "Legacy admin-requested agent action for a retired automatic handoff. Kept for old records only."
 
     agent_status:
       type: string
       length: 20
       nullable: true
-      note: "Legacy automatic OpenCode handoff status. Kept for old records only."
+      note: "Legacy automatic agent handoff status. Kept for old records only."
 
     agent_session_title:
       type: string
       length: 100
       nullable: true
-      note: "Legacy OpenCode session title from retired automatic issue handoff."
+      note: "Legacy session title from a retired automatic issue handoff."
 
     agent_error:
       type: text
@@ -121,4 +121,4 @@ issues:
     agent_started_at:
       type: timestamp
       nullable: true
-      note: "Legacy timestamp from retired automatic OpenCode issue handoff."
+      note: "Legacy timestamp from a retired automatic issue handoff."

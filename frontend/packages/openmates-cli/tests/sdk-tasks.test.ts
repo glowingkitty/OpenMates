@@ -289,7 +289,7 @@ describe("OpenMates SDK user tasks", () => {
   });
 
   // contract-test: direct surface=sdks.npm assertions=tasks.external-chat.encrypted-context,tasks.blocking.encrypted-reason,tasks.surface.semantic-parity
-  for (const provider of ["codex", "opencode"] as const) {
+  for (const provider of ["codex"] as const) {
   it(`encrypts ${provider} external chat and block text without plaintext HTTP payloads`, async () => {
     const masterKey = Buffer.alloc(32, 10);
     const material = await createApiKeyCryptoMaterial("sdk external task parity", masterKey.toString("base64"));
@@ -334,9 +334,9 @@ describe("OpenMates SDK user tasks", () => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
         const created = await client.tasks.create({
           title: "Implement task bridge",
-          externalChat: { provider: provider, id: "ses_external_123", title: "OpenCode task bridge" },
+          externalChat: { provider: provider, id: "ses_external_123", title: "Codex task bridge" },
         });
-        assert.deepEqual(created.externalChat, { provider: provider, id: "ses_external_123", title: "OpenCode task bridge" });
+        assert.deepEqual(created.externalChat, { provider: provider, id: "ses_external_123", title: "Codex task bridge" });
         assert.equal((await client.tasks.list({ externalChat: { provider: provider, id: "ses_external_123" } }))[0]?.taskId, created.taskId);
         const blocked = await client.tasks.block("TASK-EXT", "Missing Credentials", { reasonText: "A repository write token is required." });
         assert.equal(blocked.blockedReason, "A repository write token is required.");
@@ -345,7 +345,7 @@ describe("OpenMates SDK user tasks", () => {
         assert.equal(native.externalChat, null);
 
         const payloads = seen.filter((entry) => entry.body !== undefined).map((entry) => JSON.stringify(entry.body));
-        assert.ok(payloads.every((payload) => !/ses_external_123|OpenCode task bridge|repository write token/.test(payload)));
+        assert.ok(payloads.every((payload) => !/ses_external_123|Codex task bridge|repository write token/.test(payload)));
         const externalList = seen.find((entry) => entry.method === "GET" && entry.url?.includes(`external_chat_provider=${provider}`));
         assert.ok(externalList?.url?.includes("external_chat_lookup_hash="));
         assert.doesNotMatch(externalList?.url ?? "", /ses_external_123/);

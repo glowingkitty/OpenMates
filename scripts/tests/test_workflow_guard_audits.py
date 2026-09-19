@@ -1,4 +1,4 @@
-"""Tests for OpenCode workflow guardrail audits.
+"""Tests for workflow guardrail audits.
 
 Purpose: keep Apple release preflight, UI control visibility, and Figma visual
 evidence checks deterministic, path-scoped, and importable from

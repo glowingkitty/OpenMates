@@ -39,7 +39,6 @@ OPENAI_LIST_OBJECT = "list"
 OPENAI_CHAT_COMPLETION_OBJECT = "chat.completion"
 OPENAI_CHAT_COMPLETION_CHUNK_OBJECT = "chat.completion.chunk"
 SUPPORTED_TOOL_TYPE = "function"
-OPENCODE_PROVIDER_PREFIX = "openmates/"
 
 
 def _openai_error(
@@ -178,12 +177,6 @@ async def _find_model(config: Any, model_id: str, secrets_manager: Any = None) -
         if model["id"] == model_id:
             return model
     return None
-
-
-def _normalize_model_id(model_id: Any) -> Any:
-    if isinstance(model_id, str) and model_id.startswith(OPENCODE_PROVIDER_PREFIX):
-        return model_id[len(OPENCODE_PROVIDER_PREFIX):]
-    return model_id
 
 
 def _model_config_for_id(config: Any, model_id: str) -> Optional[Dict[str, Any]]:
@@ -561,8 +554,7 @@ async def get_model(
     model_id: str,
     request: Request,
 ) -> Any:
-    canonical_model_id = _normalize_model_id(model_id)
-    model = await _find_model(_get_config_manager(request), canonical_model_id, _get_secrets_manager(request))
+    model = await _find_model(_get_config_manager(request), model_id, _get_secrets_manager(request))
     if not model:
         return _openai_error(
             status_code=404,
@@ -594,7 +586,6 @@ async def create_chat_completion(
             code="invalid_type",
         )
     body = dict(body)
-    body["model"] = _normalize_model_id(body.get("model"))
 
     validation_error = await _validate_chat_request(_get_config_manager(request), body, _get_secrets_manager(request))
     if validation_error:

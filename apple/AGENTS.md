@@ -124,7 +124,7 @@ Diagnostics must remain privacy-safe: never log message plaintext, encryption ke
 
 ## Remote Mac Verification
 
-When the active OpenCode session runs on a Linux/dev server, attempt Apple
+When the active coding session runs on a Linux/dev server, attempt Apple
 verification through the redacted wrapper in `scripts/apple_remote.py` before
 saying Mac/Xcode verification is unavailable. This is mandatory for changes that
 affect Apple-backed surfaces such as chat, sync, auth, settings, embeds,

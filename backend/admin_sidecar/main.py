@@ -878,32 +878,6 @@ async def get_version() -> JSONResponse:
 
 
 
-@app.post(
-    "/admin/claude-investigate",
-    summary="Deprecated OpenCode trigger endpoint",
-    description=(
-        "Deprecated. Automatic OpenCode issue handoff is disabled; copy the issue "
-        "ID into OpenCode manually when investigation is needed."
-    ),
-    include_in_schema=False,
-)
-async def post_claude_investigate(
-    x_admin_log_key: Optional[str] = Header(None),
-) -> JSONResponse:
-    """
-    Deprecated: automatic OpenCode issue handoff has been disabled.
-    """
-    _require_admin_key(x_admin_log_key)
-
-    raise HTTPException(
-        status_code=410,
-        detail=(
-            "Automatic OpenCode issue handoff is disabled. "
-            "Copy the issue ID into OpenCode manually."
-        ),
-    )
-
-
 # =============================================================================
 # Startup log
 # =============================================================================

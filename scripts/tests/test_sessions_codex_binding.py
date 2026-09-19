@@ -3,7 +3,6 @@
 
 Use isolated metadata and never create real worktrees or contact Docker.
 Exercise exact task identity, repository separation and concurrent registration.
-The existing OpenCode and Zellij paths remain independently supported.
 See docs/plans/codex-session-runtime-isolation/plan.yml.
 """
 
@@ -30,7 +29,6 @@ def test_disconnected_binding_survives_stale_pruning():
 
 
 def test_codex_identity_does_not_fall_back_to_zellij(monkeypatch):
-    monkeypatch.delenv("OPENCODE_SESSION_ID", raising=False)
     monkeypatch.setenv("CODEX_THREAD_ID", TASK)
     monkeypatch.setenv("ZELLIJ_SESSION_NAME", "shared")
     records = {
@@ -90,7 +88,6 @@ def test_adoption_preserves_worktree_and_requires_explicit_attestation(
     worktree.mkdir()
     original = {
         "repo_id": "openmates",
-        "opencode_session_id": "ses_historic",
         "task_id": "existing-task",
         "modified_files": ["dirty.py"],
         "worktree": {"path": str(worktree)},

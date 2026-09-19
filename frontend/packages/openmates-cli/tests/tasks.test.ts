@@ -261,28 +261,28 @@ describe("OpenMatesClient user tasks", () => {
   // contract-test: direct surface=cli assertions=tasks.content.client-encrypted,tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
   it("encrypts and filters an allowlisted external chat locally", async () => {
     const masterKey = Buffer.alloc(32, 7);
-    const context = parseExternalChatRef("opencode:ses_external_123");
+    const context = parseExternalChatRef("codex:ses_external_123");
     const lookupHash = externalChatLookupHash(masterKey, context);
     const input = await buildCreateUserTaskInput(masterKey, {
       title: "Implement task bridge",
-      externalChat: { ...context, title: "OpenCode task bridge" },
+      externalChat: { ...context, title: "Codex task bridge" },
     });
 
-    assert.deepEqual(context, { provider: "opencode", id: "ses_external_123" });
+    assert.deepEqual(context, { provider: "codex", id: "ses_external_123" });
     assert.match(lookupHash, /^[0-9a-f]{64}$/);
     assert.equal(input.primary_chat_id, null);
     assert.equal("key_wrappers" in input, false, "personal external tasks retain the master-wrapped encrypted_task_key only");
-    assert.equal(input.external_chat_provider, "opencode");
+    assert.equal(input.external_chat_provider, "codex");
     assert.equal(input.external_chat_lookup_hash, lookupHash);
     assert.ok(input.encrypted_external_chat_id);
     assert.ok(input.encrypted_external_chat_title);
-    assert.doesNotMatch(JSON.stringify(input), /ses_external_123|OpenCode task bridge/);
+    assert.doesNotMatch(JSON.stringify(input), /ses_external_123|Codex task bridge/);
 
     const decrypted = await decryptUserTask(input, masterKey);
     assert.deepEqual(decrypted.externalChat, {
-      provider: "opencode",
+      provider: "codex",
       id: "ses_external_123",
-      title: "OpenCode task bridge",
+      title: "Codex task bridge",
     });
     assert.throws(() => parseExternalChatRef("unknown:session"), /Unsupported external chat provider/);
     await assert.rejects(
@@ -298,7 +298,7 @@ describe("OpenMatesClient user tasks", () => {
   // contract-test: supporting surface=cli assertions=tasks.external-chat.encrypted-context
   it("derives the external-chat lookup hash with the shared HKDF info literal", () => {
     const masterKey = Buffer.from([...Array(32).keys()]);
-    const context = { provider: "opencode" as const, id: "ses_known_derivation" };
+    const context = { provider: "codex" as const, id: "ses_known_derivation" };
     const indexKey = hkdfSync(
       "sha256",
       masterKey,
@@ -318,7 +318,7 @@ describe("OpenMatesClient user tasks", () => {
     const masterKey = Buffer.alloc(32, 7);
     const encrypted = await buildCreateUserTaskInput(masterKey, {
       title: "Move task context",
-      externalChat: { provider: "opencode", id: "ses_external_123" },
+      externalChat: { provider: "codex", id: "ses_external_123" },
     });
     const task = await decryptUserTask(encrypted, masterKey);
     const patch = await buildUpdateUserTaskInput(task, masterKey, { chatId: "chat-native-1" });
@@ -337,7 +337,7 @@ describe("OpenMatesClient user tasks", () => {
   // contract-test: direct surface=cli assertions=tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
   it("sends only the external provider and blind lookup hash when filtering", async () => {
     const masterKey = Buffer.alloc(32, 5);
-    const context = parseExternalChatRef("opencode:ses_private_456");
+    const context = parseExternalChatRef("codex:ses_private_456");
     const lookupHash = externalChatLookupHash(masterKey, context);
     await withServer(
       () => ({ tasks: [] }),
@@ -350,7 +350,7 @@ describe("OpenMatesClient user tasks", () => {
 
         assert.equal(
           seen[0]?.url,
-          `/v1/user-tasks?external_chat_provider=opencode&external_chat_lookup_hash=${lookupHash}&limit=500`,
+          `/v1/user-tasks?external_chat_provider=codex&external_chat_lookup_hash=${lookupHash}&limit=500`,
         );
         assert.doesNotMatch(seen[0]?.url ?? "", /ses_private_456/);
       },
@@ -459,14 +459,13 @@ describe("OpenMatesClient user tasks", () => {
 
 describe("Codex Task provider compatibility", () => {
   // contract-test: supporting surface=cli assertions=tasks.assignment.identity-separated,tasks.external-chat.encrypted-context
-  it("defaults external assignment to Codex and keeps provider-specific encrypted indexes", async () => {
+  it("defaults external assignment to Codex and encrypts its external context", async () => {
     assert.equal(parseAssignee("external-ai").assigneeIdentity, "codex");
     assert.equal(parseAssignee("codex").assigneeIdentity, "codex");
     const masterKey = Buffer.alloc(32, 4);
     const id = "00000000-0000-4000-8000-000000000001";
     const codex = parseExternalChatRef(`codex:${id}`);
-    const legacy = parseExternalChatRef(`opencode:${id}`);
-    assert.notEqual(externalChatLookupHash(masterKey, codex), externalChatLookupHash(masterKey, legacy));
+    assert.match(externalChatLookupHash(masterKey, codex), /^[0-9a-f]{64}$/);
     const input = await buildCreateUserTaskInput(masterKey, {
       title: "Codex task", assign: "external-ai", externalChat: { ...codex, title: "Private thread title" },
     });

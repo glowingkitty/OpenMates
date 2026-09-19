@@ -94,7 +94,7 @@ describe("account-guard command policy", () => {
 
   it("pins the trusted profile and dev API", () => {
     const environment = {
-      OPENMATES_PROFILE: "opencode-personal",
+      OPENMATES_PROFILE: "codex-personal",
       OPENMATES_API_URL: "https://api.dev.openmates.org",
     };
     assert.doesNotThrow(() => assertTrustedAccountGuardEnvironment({}, environment));
@@ -2776,9 +2776,9 @@ describe("CLI named authentication profiles", () => {
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /profile.*lowercase/i);
   });
-  it("does not let a flag override the trusted OpenCode profile", () => {
+  it("does not let a flag override the trusted Codex profile", () => {
     assert.throws(() => assertTrustedAccountGuardEnvironment({ profile: "other" }, {
-      OPENMATES_PROFILE: "opencode-personal", OPENMATES_API_URL: "https://api.dev.openmates.org",
+      OPENMATES_PROFILE: "codex-personal", OPENMATES_API_URL: "https://api.dev.openmates.org",
     }), /profile/i);
   });
 });

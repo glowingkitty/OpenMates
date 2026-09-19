@@ -1,10 +1,10 @@
 # contract-test-file: infrastructure
-"""Tests for the temporary OpenCode response-media S3 bucket.
+"""Tests for the temporary agent review-media S3 bucket.
 
 Purpose: keep assistant response media private while still embeddable in
-OpenCode Web via short-lived presigned URLs.
+review surfaces via short-lived presigned URLs.
 Security: the bucket must never become public-read and must auto-expire.
-Run: python3 -m pytest backend/tests/test_opencode_response_media_bucket.py.
+Run: python3 -m pytest backend/tests/test_review_media_bucket.py.
 """
 
 import importlib.util
@@ -28,11 +28,11 @@ CORS_ENABLED_BUCKETS = s3_config.CORS_ENABLED_BUCKETS
 get_allowed_origins = s3_config.get_allowed_origins
 
 
-def test_opencode_response_media_bucket_is_private_and_short_lived() -> None:
-    bucket = BUCKETS["opencode_response_media"]
+def test_review_media_bucket_is_private_and_short_lived() -> None:
+    bucket = BUCKETS["review_media"]
 
-    assert bucket["name"] == "openmates-opencode-response-media"
-    assert bucket["dev_name"] == "dev-openmates-opencode-response-media"
+    assert bucket["name"] == "openmates-review-media"
+    assert bucket["dev_name"] == "dev-openmates-review-media"
     assert bucket["access"] == "private"
     assert bucket["lifecycle_policy"] == 2
     assert bucket["cache_control"] == "private, max-age=172800"
@@ -40,12 +40,10 @@ def test_opencode_response_media_bucket_is_private_and_short_lived() -> None:
     assert "video/mp4" in bucket["allowed_types"]
 
 
-def test_opencode_response_media_bucket_gets_cors_for_web_chat() -> None:
-    assert "openmates-opencode-response-media" in CORS_ENABLED_BUCKETS
-    assert "dev-openmates-opencode-response-media" in CORS_ENABLED_BUCKETS
+def test_review_media_bucket_gets_cors_for_web_chat() -> None:
+    assert "openmates-review-media" in CORS_ENABLED_BUCKETS
+    assert "dev-openmates-review-media" in CORS_ENABLED_BUCKETS
 
     dev_origins = get_allowed_origins("development")
 
-    assert "https://code.dev.openmates.org" in dev_origins
-    assert "http://127.0.0.1:4096" in dev_origins
-    assert "http://localhost:4096" in dev_origins
+    assert "https://app.dev.openmates.org" in dev_origins

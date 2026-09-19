@@ -1,6 +1,6 @@
 """Tests for reviewed demonstration response-media publication and cleanup.
 
-Purpose: confirm OpenCode response-media publication before deleting video and bound failed-publication storage.
+Purpose: confirm Response-media publication before deleting video and bound failed-publication storage.
 Architecture: use the response-media helper plus manifest-owned cleanup functions.
 Privacy: response-media snippets, media, and identifiers are synthetic.
 Tests: python3 -m pytest scripts/tests/test_spec_demonstration_discord.py.
@@ -148,7 +148,7 @@ def response_media_result() -> dict[str, object]:
     caption_bytes = b"WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nSanitized captions.\n"
     return {
         "expires_in": 172800,
-        "key": "opencode-responses/2026/08/14/demo.mp4",
+        "key": "review-responses/2026/08/14/demo.mp4",
         "kind": "video",
         "sha256": "sha256:" + hashlib.sha256(b"synthetic-video").hexdigest(),
         "url": "https://media.invalid/demo.mp4",
@@ -159,7 +159,7 @@ def response_media_result() -> dict[str, object]:
         "captions": {
             "content_type": "text/vtt",
             "expires_in": 172800,
-            "key": "opencode-responses/2026/08/14/captions.vtt",
+            "key": "review-responses/2026/08/14/captions.vtt",
             "sha256": f"sha256:{hashlib.sha256(caption_bytes).hexdigest()}",
             "url": "https://media.invalid/captions.vtt",
         },
@@ -190,7 +190,7 @@ def test_response_media_upload_helper_parses_json(monkeypatch, tmp_path: Path) -
         alt="Demo",
     )
 
-    assert result["key"] == "opencode-responses/2026/08/14/demo.mp4"
+    assert result["key"] == "review-responses/2026/08/14/demo.mp4"
 
 
 def test_confirmed_response_media_publication_deletes_video_and_frames_but_retains_text(tmp_path: Path) -> None:
@@ -206,8 +206,8 @@ def test_confirmed_response_media_publication_deletes_video_and_frames_but_retai
     )
 
     assert result["publication"]["status"] == "delivered"
-    assert result["publication"]["delivery_kind"] == "opencode_response_media"
-    assert result["publication"]["response_media_key"] == "opencode-responses/2026/08/14/demo.mp4"
+    assert result["publication"]["delivery_kind"] == "response_media"
+    assert result["publication"]["response_media_key"] == "review-responses/2026/08/14/demo.mp4"
     assert result["publication"]["response_media_html"].startswith("<video")
     assert result["publication"]["snippet_html"].startswith("<video")
     assert result["publication"]["snippet_markdown"].startswith("[Demo]")
@@ -328,8 +328,8 @@ def test_delivered_publication_is_idempotent_after_video_cleanup(tmp_path: Path)
     run_dir, manifest = demo_run(tmp_path)
     manifest["publication"] = {
         "status": "delivered",
-        "delivery_kind": "opencode_response_media",
-        "response_media_key": "opencode-responses/2026/08/14/demo.mp4",
+        "delivery_kind": "response_media",
+        "response_media_key": "review-responses/2026/08/14/demo.mp4",
     }
     Path(manifest["video_path"]).unlink()
 
@@ -341,7 +341,7 @@ def test_delivered_publication_is_idempotent_after_video_cleanup(tmp_path: Path)
     )
 
     assert result["publication"]["status"] == "delivered"
-    assert result["publication"]["response_media_key"] == "opencode-responses/2026/08/14/demo.mp4"
+    assert result["publication"]["response_media_key"] == "review-responses/2026/08/14/demo.mp4"
 
 
 def test_failed_response_media_publication_keeps_video_during_retry_window(tmp_path: Path) -> None:
@@ -361,7 +361,7 @@ def test_failed_response_media_publication_keeps_video_during_retry_window(tmp_p
 
     assert result["publication"]["status"] == "publication_pending"
     assert result["publication"]["retry_until"] == "2026-08-07T00:00:00Z"
-    assert "response-media upload did not complete" in result["publication"]["failure_reason"]
+    assert "response-media upload did not complete" in result["publication"]["failure_reason"].lower()
     assert Path(manifest["video_path"]).is_file()
 
 
@@ -392,7 +392,7 @@ def test_pending_video_is_deleted_after_24_hours(tmp_path: Path) -> None:
     assert result["publication"]["status"] == "expired_deleted"
     assert not Path(manifest["video_path"]).exists()
     assert (run_dir / "transcript.txt").is_file()
-    assert result["publication"]["failure_reason"] == "OpenCode response-media proof embed did not complete within 24 hours."
+    assert result["publication"]["failure_reason"] == "Response-media proof embed did not complete within 24 hours."
 
 
 def test_cleanup_rejects_paths_outside_manifest_run_directory(tmp_path: Path) -> None:

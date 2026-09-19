@@ -1,12 +1,14 @@
 """Tests for skill/embed registry guard worktree path support.
 
-Purpose: ensure OpenCode worktree edits to backend app metadata still trigger
+Purpose: ensure worktree edits to backend app metadata still trigger
 the app-skill embed registry audits when routed through bridged hooks.
 Architecture: inspect the shell guard source and the Python audit path resolver
 without launching hooks or mutating app metadata.
 Security: uses synthetic paths only and does not read credentials or private data.
 Run: python3 -m pytest scripts/tests/test_skill_embed_registry_worktree_paths.py.
 """
+
+# contract-test-file: infrastructure
 
 from __future__ import annotations
 

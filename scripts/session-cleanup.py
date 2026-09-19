@@ -9,8 +9,8 @@ updated in the last 2 hours AND the Zellij session still exists. Before
 killing, posts a resume comment on the Linear issue so work can be
 continued later.
 
-Protected sessions (containing 'claude', 'zellij', 'openmates', or
-'opencode' in their Zellij session name) are never killed — these are
+Protected sessions (containing 'claude', 'zellij', or 'openmates' in their
+Zellij session name) are never killed — these are
 infrastructure/management sessions, not task-specific ones.
 
 Designed to run every 5 minutes via systemd timer (see linear-cron-setup.sh).
@@ -64,7 +64,7 @@ POLLER_DEAD_THRESHOLD_SECS = 300  # 5 minutes
 
 # Session names containing any of these substrings are protected from cleanup.
 # These are infrastructure/management sessions, not task-specific ones.
-PROTECTED_NAME_PARTS = ("claude", "zellij", "openmates", "opencode")
+PROTECTED_NAME_PARTS = ("claude", "zellij", "openmates")
 
 
 def _is_protected_session(session_name: str) -> bool:

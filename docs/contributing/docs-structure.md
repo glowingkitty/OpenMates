@@ -111,6 +111,6 @@ Some documentation intentionally lives outside this folder:
 | `CLAUDE.md` (repo root) | AI assistant session rules and project overview |
 | `README.md` (repo root) | Project introduction and feature overview |
 | `*/README.md` (in modules) | Module-specific documentation, kept close to the code |
-| `marketing/` (repo root) | Marketing materials, pitch decks, brand assets |
+| Sibling `openmates-marketing` repository | Marketing materials, pitch decks, campaign plans, and brand assets |
 
 Module README files should stay local to their code. Only move content to `docs/` if it's broadly useful beyond that module.

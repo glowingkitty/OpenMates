@@ -24,7 +24,7 @@ scope:
   excludes:
     - A custom media.openmates.org domain, CDN origin failover, or initial replication of openmates-product-media.
     - Cross-provider disaster recovery outside Hetzner.
-    - Replication of transient reverse-search images, test artifacts, or short-lived OpenCode response media unless a later contract opts them in.
+    - Replication of transient reverse-search images, test artifacts, or other short-lived response media unless a later contract opts them in.
     - Automatic retention changes for Directus revisions, activity records, or test-control data.
     - Server-side plaintext decryption of client-encrypted personal or Team content.
 

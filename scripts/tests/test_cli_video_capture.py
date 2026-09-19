@@ -132,7 +132,7 @@ def test_main_does_not_fail_cli_capture_when_response_media_upload_fails(tmp_pat
         }
 
     def fake_publish_response_media(*_args, **_kwargs):
-        raise module.CliCaptureError("opencode_response_media: Error response from daemon: No such container: api")
+        raise module.CliCaptureError("response_media: Error response from daemon: No such container: api")
 
     monkeypatch.setattr(module, "capture_cli_video", fake_capture_cli_video)
     monkeypatch.setattr(module, "publish_response_media", fake_publish_response_media)
@@ -154,7 +154,7 @@ def test_main_does_not_fail_cli_capture_when_response_media_upload_fails(tmp_pat
     assert status == 0
     payload = module.json.loads(capsys.readouterr().out)
     assert payload["status"] == "passed"
-    assert payload["manifest"]["response_media_error"].startswith("opencode_response_media:")
+    assert payload["manifest"]["response_media_error"].startswith("response_media:")
 
 
 def test_timeout_finalizes_video_and_keeps_failure_verdict(tmp_path, monkeypatch):

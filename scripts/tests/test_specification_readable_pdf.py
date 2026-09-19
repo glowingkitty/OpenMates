@@ -201,7 +201,7 @@ def test_main_renders_and_publishes_readable_pdf(tmp_path: Path, monkeypatch, ca
         published.append(path)
         return {"bucket": "private-bucket", "key": "readable.pdf", "sha256": "sha256:" + "c" * 64, "snippets": {"markdown": "[Read PDF](https://example.invalid/readable.pdf)", "html": "<a>Read PDF</a>"}}
 
-    monkeypatch.setattr(readable_pdf.opencode_response_media, "upload_file", upload)
+    monkeypatch.setattr(readable_pdf.response_media, "upload_file", upload)
 
     code = readable_pdf.main([str(tmp_path), "--output", str(output)])
 

@@ -2,8 +2,9 @@
 #
 # Unit coverage for the deterministic technical debt scanner. These tests focus
 # on stable report math and Markdown output without walking the full repository
-# or spawning OpenCode.
+# or spawning an editing agent.
 # Architecture context: scripts/technical_debt_scan.py
+# contract-test-file: infrastructure
 
 import sys
 from pathlib import Path

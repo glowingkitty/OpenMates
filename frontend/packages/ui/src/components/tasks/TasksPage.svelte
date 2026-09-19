@@ -325,10 +325,6 @@
       notificationStore.error('Name Codex explicitly when assigning work to it.');
       return;
     }
-    if (/\bopencode\b/i.test(value) && /\b(assign|start|handoff|hand off)\b/i.test(value)) {
-      notificationStore.error('New external tasks use Codex. Existing OpenCode connections remain readable.');
-      return;
-    }
     const mentionedTask = findTaskMention(value);
     const normalized = value.toLowerCase();
     if (/\b(delete|remove)\b/.test(normalized)) {

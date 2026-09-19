@@ -88,7 +88,7 @@ async def test_evidence_gates_and_material_edits_invalidate_revision_approval():
     service = UserWorkControlService(repository)
     repository.assumptions["active"] = [{"assumption_id": "A-1", "required_before": "implementation", "status": "confirmed"}]
     assert await service.execution_blockers("active") == [{"kind": "assumption", "id": "A-1", "status": "missing_investigation"}]
-    repository.assumptions["active"][0].update({"linked_sub_chat_id": "opencode:ses-proof", "encrypted_sources": "cipher-sources", "encrypted_evidence_summary": "cipher-summary"})
+    repository.assumptions["active"][0].update({"linked_sub_chat_id": "f10c4f77-74ba-472c-b5d5-472ca4fb4e2b", "encrypted_sources": "cipher-sources", "encrypted_evidence_summary": "cipher-summary"})
     assert await service.execution_blockers("active") == []
     revision = await service.submit_revision("active", "fingerprint", "cipher-snapshot", created_at=1)
     await service.approve_revision("active", revision["revision_id"], approver_hash="owner", approved_at=2)

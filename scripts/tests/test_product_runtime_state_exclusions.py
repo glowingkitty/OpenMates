@@ -1,4 +1,6 @@
-"""Keep coordinator-only runtime state out of OpenCode filesystem patches."""
+"""Keep coordinator-only runtime state out of filesystem patches."""
+
+# contract-test-file: infrastructure
 
 from pathlib import Path
 

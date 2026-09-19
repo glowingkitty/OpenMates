@@ -192,7 +192,7 @@ def test_dry_run_upload_writes_an_ineligible_review_artifact(tmp_path: Path, mon
         digest = approval_pdf.hashlib.sha256(path.read_bytes()).hexdigest()
         return {"bucket": "private-bucket", "key": "contract.pdf", "sha256": f"sha256:{digest}", "snippets": {"markdown": "", "html": ""}}
 
-    monkeypatch.setattr(approval_pdf.opencode_response_media, "upload_file", upload)
+    monkeypatch.setattr(approval_pdf.response_media, "upload_file", upload)
 
     assert approval_pdf.main([str(tmp_path), "--output", str(output), "--dry-run-upload"]) == 0
     artifact = approval_pdf.json.loads(output.with_suffix(".approval.json").read_text(encoding="utf-8"))
@@ -222,7 +222,7 @@ def test_main_renders_and_publishes_exact_fingerprint(tmp_path: Path, monkeypatc
             "snippets": {"markdown": "[Read PDF](https://example.invalid/contract.pdf)", "html": "<a>Read PDF</a>"},
         }
 
-    monkeypatch.setattr(approval_pdf.opencode_response_media, "upload_file", upload)
+    monkeypatch.setattr(approval_pdf.response_media, "upload_file", upload)
 
     code = approval_pdf.main([str(tmp_path), "--output", str(output)])
 

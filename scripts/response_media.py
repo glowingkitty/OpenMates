@@ -24,10 +24,9 @@ import sys
 import uuid
 
 
-# Stable storage identifiers preserve existing retained media and backend configuration.
-BUCKET_NAME = "openmates-opencode-response-media"
-DEV_BUCKET_NAME = "dev-openmates-opencode-response-media"
-BUCKET_KEY = "opencode_response_media"
+BUCKET_NAME = "openmates-review-media"
+DEV_BUCKET_NAME = "dev-openmates-review-media"
+BUCKET_KEY = "review_media"
 LIFECYCLE_DAYS = 2
 DEFAULT_EXPIRES_SECONDS = 48 * 60 * 60
 MIN_EXPIRES_SECONDS = 60
@@ -35,7 +34,7 @@ MAX_EXPIRES_SECONDS = DEFAULT_EXPIRES_SECONDS
 DEFAULT_CONTAINER = "api"
 CONTAINER_TMP_DIR = "/tmp/agent-response-media"
 MAX_MEDIA_BYTES = 500 * 1024 * 1024
-RUN_KEY_PREFIX = "opencode-responses/runs"
+RUN_KEY_PREFIX = "review-responses/runs"
 LATEST_RUN_TYPE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
 WEBVTT_TIMESTAMP_RE = re.compile(
     r"^(\d{2}):(\d{2}):(\d{2})\.(\d{3}) --> (\d{2}):(\d{2}):(\d{2})\.(\d{3})$"
@@ -183,7 +182,7 @@ async def main():
     content = Path(REQUEST["container_path"]).read_bytes()
     metadata = {
         "media-kind": REQUEST["media_kind"],
-        "purpose": "opencode-response-media",
+        "purpose": "agent-review-media",
         "lifecycle-policy": f"expire-after-{REQUEST['lifecycle_days']}-days",
         "source-sha256": REQUEST["sha256"],
     }
@@ -240,7 +239,7 @@ def object_key(path: Path, content: bytes, now: dt.datetime | None = None) -> st
     digest = hashlib.sha256(content).hexdigest()[:16]
     unique = uuid.uuid4().hex[:12]
     return (
-        f"opencode-responses/{instant:%Y/%m/%d}/"
+        f"review-responses/{instant:%Y/%m/%d}/"
         f"{unique}-{digest}-{safe_filename(path.name)}"
     )
 
@@ -259,7 +258,7 @@ def latest_run_object_key(path: Path, content_type: str, run_type: str, content_
 def run_poster_object_key(run_type: str, video_sha256: str, poster_path: Path, poster_sha256: str) -> str:
     if not LATEST_RUN_TYPE_RE.fullmatch(run_type):
         raise ValueError("--latest-run-type must be 1-80 chars of letters, numbers, dots, underscores, or hyphens")
-    return f"opencode-responses/runs/{run_type}/{video_sha256}/poster-{poster_sha256}{poster_path.suffix.lower()}"
+    return f"review-responses/runs/{run_type}/{video_sha256}/poster-{poster_sha256}{poster_path.suffix.lower()}"
 
 
 def container_path_for(source: Path, key: str) -> str:

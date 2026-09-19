@@ -40,8 +40,8 @@ def write_sessions_file(path: Path) -> None:
                 "locks": {},
                 "edit_leases": {},
                 "sessions": {
-                    "a111": {"task": "first", "opencode_session_id": "oc-a", "modified_files": [], "last_active": "2026-08-01T00:00:00Z"},
-                    "b222": {"task": "second", "opencode_session_id": "oc-b", "modified_files": [], "last_active": "2026-08-01T00:00:00Z"},
+                    "a111": {"task": "first", "modified_files": [], "last_active": "2026-08-01T00:00:00Z"},
+                    "b222": {"task": "second", "modified_files": [], "last_active": "2026-08-01T00:00:00Z"},
                 },
             }
         )

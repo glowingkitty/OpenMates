@@ -362,7 +362,7 @@ function beginEngineeringRuntimeOperation(
   const manager = join(installPath, "scripts", "engineering_control_plane.py");
   const sharedConfig = join(homedir(), ".config", "openmates", "engineering-control-plane.env");
   if (!existsSync(manager) || !existsSync(sharedConfig)) return null;
-  const requestedBy = process.env.OPENCODE_SESSION_ID || `openmates-cli:${process.pid}`;
+  const requestedBy = process.env.CODEX_THREAD_ID || `openmates-cli:${process.pid}`;
   const args = [
     manager,
     "operation",

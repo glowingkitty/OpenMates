@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regression tests for immutable, root-independent session deploy manifests.
 
-These tests cover the selection bugs observed in long-running OpenCode chats:
+These tests cover selection bugs observed in long-running coding chats:
 an explicit staged or path-scoped correction must not grow to include older
 session-tracked files, and every managed worktree mode uses isolated deploy.
 """

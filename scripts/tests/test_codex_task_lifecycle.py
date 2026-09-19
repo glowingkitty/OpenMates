@@ -29,11 +29,11 @@ def test_global_only_preserves_auth_context(monkeypatch, tmp_path):
     assert cli(tmp_path, ["list"])["complete"]
     monkeypatch.setattr(
         "codex_task_context.subprocess.run",
-        lambda *a, **k: SimpleNamespace(returncode=1, stderr="Only opencode allowed"),
+        lambda *a, **k: SimpleNamespace(returncode=1, stderr="Only Codex allowed"),
     )
     from codex_task_context import _INVOCATION_READS
     _INVOCATION_READS.clear()
-    with pytest.raises(RuntimeError, match="Only opencode allowed"):
+    with pytest.raises(RuntimeError, match="Only Codex allowed"):
         cli(tmp_path, ["list"])
 
 

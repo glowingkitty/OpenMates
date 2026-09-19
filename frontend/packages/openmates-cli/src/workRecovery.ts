@@ -4,7 +4,7 @@
  * Purpose: create an explicit, deterministic cleartext recovery projection.
  * Architecture: recovery stays local, outside Git/worktrees, and is never watched.
  * Security: callers decrypt work records before writing; this module never contacts APIs.
- * Spec: docs/specs/opencode-openmates-work-control/spec.yml.
+ * Spec: docs/specs/codex-openmates-work-control/spec.yml.
  */
 
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";

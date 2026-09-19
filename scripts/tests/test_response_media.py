@@ -1,5 +1,5 @@
 # contract-test-file: tooling
-"""Tests for the OpenCode response-media upload helper.
+"""Tests for the agent review-media upload helper.
 
 Purpose: agents need a deterministic way to upload temporary screenshots,
 videos, audio clips, and PDFs for responses without exposing files through
@@ -184,7 +184,7 @@ def test_latest_run_type_uses_content_addressed_immutable_keys(tmp_path: Path, c
     assert data["latest_run_type"] == "spec-ts-web-laptop"
     video_digest = media.hashlib.sha256(video.read_bytes()).hexdigest()
     captions_digest = media.hashlib.sha256(captions.read_bytes()).hexdigest()
-    prefix = f"opencode-responses/runs/spec-ts-web-laptop/{video_digest}"
+    prefix = f"review-responses/runs/spec-ts-web-laptop/{video_digest}"
     assert data["key"] == f"{prefix}/video.webm"
     assert data["captions"]["key"] == f"{prefix}/captions-{captions_digest}.vtt"
 
@@ -219,7 +219,7 @@ def test_latest_run_type_uses_audio_key_stem(tmp_path: Path, capsys) -> None:
     assert code == 0
     data = json.loads(capsys.readouterr().out)
     digest = media.hashlib.sha256(audio.read_bytes()).hexdigest()
-    assert data["key"] == f"opencode-responses/runs/assistant-acknowledgements/{digest}/audio.mp3"
+    assert data["key"] == f"review-responses/runs/assistant-acknowledgements/{digest}/audio.mp3"
 
 
 def test_latest_run_type_rejects_unsafe_scope(tmp_path: Path, capsys) -> None:
@@ -365,7 +365,7 @@ def test_dry_run_video_with_poster_outputs_uploaded_poster(tmp_path: Path, capsy
     video_digest = media.hashlib.sha256(video.read_bytes()).hexdigest()
     poster_digest = media.hashlib.sha256(poster.read_bytes()).hexdigest()
     assert data["poster"]["key"] == (
-        f"opencode-responses/runs/spec-ts-web-laptop/{video_digest}/poster-{poster_digest}.png"
+        f"review-responses/runs/spec-ts-web-laptop/{video_digest}/poster-{poster_digest}.png"
     )
     assert f'poster="{data["poster"]["url"]}"' in data["snippets"]["html"]
 

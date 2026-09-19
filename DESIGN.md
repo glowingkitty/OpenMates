@@ -1,6 +1,6 @@
 # OpenMates Design Guidelines
 
-This file is the agent-facing source of truth for generating OpenMates UI and media designs. Claude Code, Codex, OpenCode, Remotion/video agents, and future design-capable agents should read this before creating or changing visual output.
+This file is the agent-facing source of truth for generating OpenMates UI and media designs. Claude Code, Codex, Remotion/video agents, and future design-capable agents should read this before creating or changing visual output.
 
 Use this document to keep new Svelte, React, native app, video, print, social, and marketing designs consistent with the existing OpenMates design language. It describes the current implementation; do not invent a new brand direction unless the user explicitly asks.
 

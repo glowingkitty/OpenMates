@@ -15,15 +15,16 @@ task_lifecycle:
     expect: {task_status_after_message: in_progress}
 
 task_assignment_identity:
-  - id: opencode-created-task
-    input: {creator: opencode, work_kind: software, assignee_type: external_ai, assignee_identity: opencode}
-    expect: {created_atomically: true, assignee_display_name: OpenCode, native_openmates_queue_admitted: false}
-  - id: native-openmates-task
-    input: {assignee_type: openmates, assignee_identity: openmates}
-    expect: {assignee_display_name: OpenMates, native_openmates_queue_eligible: true}
-  - id: requested-real-world-task
-    input: {creator: opencode, user_request: Remind me to connect the physical device, assignee_type: user}
-    expect: {assignee_identity: null, human_assignee_hash_present: true, native_openmates_queue_admitted: false}
+  - id: codex-created-task
+    assertion_ids: [tasks.assignment.identity-separated]
+    given: A trusted Codex session creates a software Task assigned to itself.
+    when: The Task is stored.
+    then: It is created atomically as an external-AI Task attributed to Codex and does not enter the native OpenMates queue.
+  - id: native-and-real-world-tasks
+    assertion_ids: [tasks.assignment.identity-separated]
+    given: OpenMates creates one Task for itself while Codex creates a reminder for the user to connect a physical device.
+    when: Both Tasks are stored with their requested assignees.
+    then: The OpenMates Task is eligible for its native queue; the user Task has no AI identity, retains the hashed human assignee, and does not enter that queue.
 
 task_blocked_reason:
   - id: encrypted-user-input-blocker
@@ -34,12 +35,14 @@ task_blocked_reason:
     expect: {status_after: blocked, web_reason_source: localized_reason_code}
 
 task_external_chat_context:
-  - id: opencode-chat-task
-    input: {provider: opencode, external_chat_id: ses_example, external_chat_title: Task bridge implementation}
-    expect: {primary_chat_id: null, external_chat_provider: opencode, external_chat_lookup_hash_present: true, durable_plaintext_external_id: false, durable_plaintext_external_title: false, key_source: owner_master_wrapper}
+  - id: codex-chat-task
+    given: A Codex chat creates a Task linked to its external thread and supplies a private thread title.
+    when: The Task is stored.
+    then: Codex is the provider, the lookup hash is present, and neither the external ID nor title is stored as plaintext.
   - id: native-and-external-rejected
-    input: {primary_chat_id: chat-1, external_chat_provider: opencode, external_chat_id: ses_example}
-    expect_error: {code: TASK_CONTEXT_CONFLICT, mutation: false}
+    given: A client supplies both a native OpenMates chat and a Codex thread for one Task.
+    when: It tries to create the Task.
+    then: Creation fails with TASK_CONTEXT_CONFLICT and nothing is mutated.
 
 task_dependencies:
   - id: flat-blocked-by
@@ -112,31 +115,27 @@ task_activity_encryption:
 
 task_activity_attribution:
   - id: personal-mate-is-openmates
-    given: {context: personal, actor_kind: openmates, actual_mate_name: Kai}
-    expect: {display_name: OpenMates, actual_mate_name_visible: false}
-  - id: team-web-and-apple-user
-    given: {context: team, surfaces: [gui_web, gui_apple], user: Sam, profile_image: present}
-    expect: {display_name: Sam, profile_image_visible: true, via_suffix_visible: false}
-  - id: team-cli-user
-    given: {context: team, surface: cli, user: Sam, profile_image: present}
-    expect: {display_name: Sam, profile_image_visible: true, via_suffix: via OpenMates CLI}
-  - id: team-sdk-user
-    given: {context: team, surfaces: [sdk_npm, sdk_pip], user: Sam, profile_image: present}
-    expect: {display_name: Sam, profile_image_visible: true, via_suffix: via OpenMates SDK}
-  - id: opencode-comment
-    given: {actor_kind: external_ai, actor_identity: opencode, source_surface: cli, event_type: comment_added}
-    expect: {display_name: OpenCode, arbitrary_display_name_accepted: false, comment_category_added: false}
+    assertion_ids: [tasks.activity.context-attribution]
+    given: A personal mate named Kai comments, while Team member Sam comments through the web, CLI, and SDK.
+    when: Those Activity entries are displayed.
+    then: Kai appears as OpenMates; Sam keeps their name and profile image, with the CLI or SDK suffix shown only on those terminal surfaces.
+  - id: codex-comment
+    assertion_ids: [tasks.activity.context-attribution]
+    given: Codex adds a normal Activity comment through the CLI.
+    when: The comment is displayed.
+    then: It is attributed to Codex and the client cannot replace that name with an arbitrary label.
 
 task_activity_lifecycle:
   - id: automatic-start-status-entry
-    given: {task_status: todo, mutation_surface: cli, requested_status: in_progress}
-    expect: {task_status: in_progress, activity_kind: lifecycle_update, activity_actor: system, event_type: status, previous_status: todo, next_status: in_progress, opencode_hook_required: false, committed_atomically: true}
-  - id: automatic-blocked-status-entry
-    given: {task_status: in_progress, mutation_surface: web, requested_status: blocked}
-    expect: {task_status: blocked, activity_kind: lifecycle_update, activity_actor: system, event_type: status, previous_status: in_progress, next_status: blocked, committed_atomically: true}
-  - id: ordinary-opencode-milestone-comment
-    given: {actor_kind: external_ai, actor_identity: opencode, summary: Backend contract verified}
-    expect: {activity_kind: comment, event_type: comment_added, custom_milestone_event_type: false}
+    assertion_ids: [tasks.activity.lifecycle-system-generated]
+    given: A Todo Task is started through the CLI and an in-progress Task is later blocked through the web.
+    when: Each status transition succeeds.
+    then: Each transition atomically appends a system-authored lifecycle update containing the previous and next status.
+  - id: ordinary-codex-milestone-comment
+    assertion_ids: [tasks.activity.lifecycle-system-generated]
+    given: Codex posts the summary "Backend contract verified" to a Task.
+    when: The activity is stored.
+    then: It is an ordinary comment_added entry rather than a custom milestone event.
 
 task_activity_tombstones:
   - id: openmates-deleted-by-sam
@@ -186,15 +185,9 @@ codex_connection_compatibility:
   - id: codex-verified-creator
     input: {provider: codex, external_chat_id: 00000000-0000-4000-8000-000000000001, cli_actor: assignee, paired_session: true, installed_thread_read: matched}
     expect: {creator_identity: codex, eligible_external_ai: [codex], encrypted_external_id: true, automatic_turn_start: false}
-  - id: legacy-is-not-codex-eligibility
-    input: {existing_creation_identity: opencode, requested_assignment: codex}
-    expect: {assignment_rejected: true, original_identity: opencode, original_ciphertext_unchanged: true}
   - id: status-does-not-resume
     input: {command: tasks_connection, provider: codex, linked_thread_exists: true}
     expect: {method: thread/read, includeTurns: false, resume_called: false, turn_started: false}
-  - id: legacy-resume-rejected
-    input: {command: tasks_resume, provider: opencode}
-    expect: {runtime_launched: false, original_link_readable: true, explicit_codex_connection_required: true}
 
 task_owner_claim:
   - id: native-and-cli-defaults

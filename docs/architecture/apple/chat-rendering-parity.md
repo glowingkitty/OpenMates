@@ -128,4 +128,4 @@ python3 scripts/compare_chat_render_parity.py --strict-order --minimum-overlap 5
 - Tighten loaded-chat comparison to group count, row ordering, pinned/unpinned sections, and hidden/show-more states.
 - Add an active-chat transcript oracle for message roles, markdown blocks, highlighted ranges, embed type counts, image dimensions, and interactive question controls.
 - Add screenshot comparison with masked dynamic regions for timestamps, status bars, cursors, and transient syncing indicators.
-- Wrap the workflow in a dedicated OpenCode skill after this first slice proves useful across at least two parity tasks.
+- Wrap the workflow in a dedicated Codex skill after this first slice proves useful across at least two parity tasks.

@@ -6904,8 +6904,9 @@ def cmd_end(args: argparse.Namespace) -> None:
     # Never close a shared agent host; only a recorded task-owned terminal may end.
     candidate_zellij_name = session.get("zellij_session")
     # Historical shared-host metadata is read only to prevent accidentally closing it.
-    zellij_name = None if (session.get("codex_task_id") or session.get("opencode_session_id")
-                          or candidate_zellij_name in {"code", os.environ.get("OPENCODE_ZELLIJ_SESSION", "code")}) else candidate_zellij_name
+    zellij_name = None if (
+        session.get("codex_task_id") or candidate_zellij_name == "code"
+    ) else candidate_zellij_name
     if zellij_name:
         current_zellij = os.environ.get("ZELLIJ_SESSION_NAME")
         if current_zellij == zellij_name:

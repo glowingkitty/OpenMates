@@ -676,7 +676,7 @@ const TRUST_GUARD_EXEMPT_COMMANDS = new Set([
   "upgrade",
 ]);
 const TRUST_GUARD_BLOCKED_COMMANDS = new Set(["signup", "e2e"]);
-const TRUST_GUARD_PROFILE = "opencode-personal";
+const TRUST_GUARD_PROFILE = "codex-personal";
 const TRUST_GUARD_API_URL = "https://api.dev.openmates.org";
 
 export function shouldRequireTrustedAccountGuard(command: string | undefined): boolean {
@@ -685,7 +685,7 @@ export function shouldRequireTrustedAccountGuard(command: string | undefined): b
 
 export function assertTrustedAccountCommandAllowed(command: string | undefined): void {
   if (command && TRUST_GUARD_BLOCKED_COMMANDS.has(command)) {
-    throw new Error(`The '${command}' command is disabled for the trusted OpenCode CLI profile.`);
+    throw new Error(`The '${command}' command is disabled for the trusted Codex CLI profile.`);
   }
 }
 
@@ -694,20 +694,20 @@ export function assertTrustedAccountGuardEnvironment(
   environment: NodeJS.ProcessEnv = process.env,
 ): void {
   if (flags.profile !== undefined && flags.profile !== TRUST_GUARD_PROFILE) {
-    throw new Error(`Trusted OpenCode CLI commands cannot override profile ${TRUST_GUARD_PROFILE}.`);
+    throw new Error(`Trusted Codex CLI commands cannot override profile ${TRUST_GUARD_PROFILE}.`);
   }
   if (environment.OPENMATES_PROFILE !== TRUST_GUARD_PROFILE) {
-    throw new Error(`Trusted OpenCode CLI commands require OPENMATES_PROFILE=${TRUST_GUARD_PROFILE}.`);
+    throw new Error(`Trusted Codex CLI commands require OPENMATES_PROFILE=${TRUST_GUARD_PROFILE}.`);
   }
   if (environment.OPENMATES_STATE_DIR) {
-    throw new Error("Trusted OpenCode CLI commands cannot override OPENMATES_STATE_DIR.");
+    throw new Error("Trusted Codex CLI commands cannot override OPENMATES_STATE_DIR.");
   }
   if (environment.OPENMATES_API_URL?.replace(/\/$/, "") !== TRUST_GUARD_API_URL) {
-    throw new Error(`Trusted OpenCode CLI commands require ${TRUST_GUARD_API_URL}.`);
+    throw new Error(`Trusted Codex CLI commands require ${TRUST_GUARD_API_URL}.`);
   }
   const requestedApiUrl = flags["api-url"];
   if (typeof requestedApiUrl === "string" && requestedApiUrl.replace(/\/$/, "") !== TRUST_GUARD_API_URL) {
-    throw new Error("Trusted OpenCode CLI commands cannot override the configured dev API URL.");
+    throw new Error("Trusted Codex CLI commands cannot override the configured dev API URL.");
   }
 }
 
@@ -1274,7 +1274,7 @@ async function handleTasks(
   throw new Error(`Unknown tasks command '${subcommand}'. Run 'openmates tasks --help'.`);
 }
 
-function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: "codex" | "opencode"; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
+function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: "codex"; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
   const externalChat = externalChatFromFlags(flags);
   return {
     status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
@@ -1291,7 +1291,7 @@ function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: 
   };
 }
 
-function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: "codex" | "opencode"; id: string; title?: string } | undefined {
+function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: "codex"; id: string; title?: string } | undefined {
   if (typeof flags["external-chat"] !== "string") return undefined;
   const ref = parseExternalChatRef(flags["external-chat"]);
   return {
@@ -14092,7 +14092,7 @@ function printPlansHelp(): void {
   openmates plans dependencies list <plan-id|short-id> [--json]
   openmates plans dependencies add|remove <plan-id|short-id> --target plan:<id>|task:<id> [--recovery-root <external-root>] [--json]
   openmates plans assumptions list <plan-id|short-id> [--json]
-  openmates plans assumptions create|update <plan-id|short-id> [--assumption <id>] [--text <text>] [--sub-chat opencode:<session>] [--proof-embed <id>|--proof-file <path[:start[:end]]>|--proof-url <https-url>] [--json]
+  openmates plans assumptions create|update <plan-id|short-id> [--assumption <id>] [--text <text>] [--sub-chat <chat-id>] [--proof-embed <id>|--proof-file <path[:start[:end]]>|--proof-url <https-url>] [--json]
   openmates plans revisions list|submit-for-review|status|diff <plan-id|short-id> [--json]
   openmates plans success-criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]
   openmates plans criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]

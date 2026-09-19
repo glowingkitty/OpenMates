@@ -54,7 +54,7 @@ classification, routing, structured summaries, and background automation.
 
 ## Internal Automation
 
-For OpenCode hooks, release intelligence, and translation scripts, a shared
+For release intelligence and translation scripts, a shared
 one-shot adapter can invoke:
 
 ```bash
@@ -78,11 +78,10 @@ Relevant Gemini-backed migration seams include:
 - `scripts/release_intelligence.py`
 - `scripts/audit_example_chat_quality.py`
 
-OpenCode supports `session.idle`, `session.compacted`, `session.diff`, and other
-session events. A future summarizer should run as a separate plugin and enqueue
-detached, deduplicated work rather than blocking an OpenCode lifecycle hook.
-`session.idle` occurs after responses, not only when a user is permanently done
-with a chat, so it requires debouncing and content-hash deduplication.
+A future summarizer should enqueue detached, deduplicated work rather than
+blocking an interactive coding session. Idle events can occur after ordinary
+responses, so any such integration requires debouncing and content-hash
+deduplication.
 
 ## Hosted App Server Authentication
 

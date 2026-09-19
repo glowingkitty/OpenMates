@@ -10,7 +10,7 @@ openmates tasks create --title "Implement bridge" --assign codex --external-chat
 openmates tasks create --title "Buy test device" --assign user
 ```
 
-Assignment has two separate parts. `user`, `openmates`, `external_ai`, and `unassigned` describe who owns execution. An allowlisted identity describes a named AI: `openmates` displays as OpenMates and `codex` displays as Codex; legacy `opencode` records display as OpenCode. The `external-ai` CLI value creates `external_ai/codex`; callers cannot supply arbitrary display names.
+Assignment has two separate parts. `user`, `openmates`, `external_ai`, and `unassigned` describe who owns execution. An allowlisted identity describes a named AI: `openmates` displays as OpenMates and `codex` displays as Codex; legacy `codex` records display as Codex. The `external-ai` CLI value creates `external_ai/codex`; callers cannot supply arbitrary display names.
 
 Task Activity uses ordinary comments and server-generated lifecycle rows:
 
@@ -51,5 +51,5 @@ openmates tasks create --title "Implement the requested change" --assign codex \
 The CLI verifies the thread before declaring Codex creator identity. This is
 an authenticated user declaration, not remote process attestation. It enables
 assignment, not automatic execution. Changing an old assignment does not grant
-eligibility. Existing OpenCode links remain readable with their original labels;
-resuming an OpenCode link is rejected. No historical records are rewritten.
+eligibility. Existing Codex links remain readable with their original labels;
+resuming an Codex link is rejected. No historical records are rewritten.

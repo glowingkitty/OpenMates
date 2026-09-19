@@ -1872,7 +1872,6 @@ class TestRunSummaryEmailPayload(BaseModel):
     suites: List[Dict[str, Any]]
     failed_tests: List[Dict[str, Any]]
     all_tests: Optional[List[Dict[str, Any]]] = None  # All tests with name, suite, status, duration
-    opencode_chat_url: Optional[str] = None  # Shareable opencode session URL for failure analysis
     subject_override: Optional[str] = None  # Used only for urgent essential-flow failure emails
     summary_copy: Optional[Dict[str, str]] = None  # Optional labels for non-test summary emails
     failure_groups: Optional[List[Dict[str, str]]] = None  # Canonical suite/product-area email grouping
@@ -1937,7 +1936,6 @@ async def dispatch_test_summary_email(
             ],
             kwargs={
                 "all_tests": payload.all_tests,
-                "opencode_chat_url": payload.opencode_chat_url,
                 "subject_override": payload.subject_override,
                 "summary_copy": payload.summary_copy,
                 "failure_groups": payload.failure_groups,

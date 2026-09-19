@@ -4,8 +4,7 @@ Daily issue digest for production/dev reliability triage.
 
 Collects the top backend error clusters, privacy-safe client diagnostic clusters,
 and latest daily test failures, then writes durable handoff artifacts and emails
-SERVER_OWNER_EMAIL or ADMIN_NOTIFY_EMAIL. The generated OpenCode prompt lets the owner approve a
-follow-up investigation/fix session without exposing raw user content.
+SERVER_OWNER_EMAIL or ADMIN_NOTIFY_EMAIL without exposing raw user content.
 """
 
 import asyncio
@@ -29,7 +28,6 @@ logger.addFilter(SensitiveDataFilter())
 TOP_N = 10
 REPO_ROOT = Path(os.getenv("OPENMATES_REPO_ROOT", "/app"))
 DIGEST_DIR = REPO_ROOT / "test-results" / "daily-issue-digests"
-PROMPT_PATH = REPO_ROOT / "scripts" / ".tmp" / "daily-issue-opencode-prompt.md"
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[mKHJABCDsuGfFnRh]")
 _CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
@@ -143,12 +141,10 @@ def _read_failed_tests() -> list[dict[str, Any]]:
 
 def _write_digest_artifacts(digest: dict[str, Any]) -> None:
     DIGEST_DIR.mkdir(parents=True, exist_ok=True)
-    PROMPT_PATH.parent.mkdir(parents=True, exist_ok=True)
     (DIGEST_DIR / "latest.json").write_text(json.dumps(digest, indent=2), encoding="utf-8")
 
     markdown = _render_markdown(digest)
     (DIGEST_DIR / "latest.md").write_text(markdown, encoding="utf-8")
-    PROMPT_PATH.write_text(_render_opencode_prompt(digest), encoding="utf-8")
 
 
 def _render_markdown(digest: dict[str, Any]) -> str:
@@ -182,15 +178,6 @@ def _render_markdown(digest: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _render_opencode_prompt(digest: dict[str, Any]) -> str:
-    return (
-        "Investigate and fix the top OpenMates reliability issues from this daily digest. "
-        "Start with the highest-impact production errors, then client diagnostics, then failed tests. "
-        "Do not expose raw user content; use sanitized logs and existing debug tooling.\n\n"
-        + _render_markdown(digest)
-    )
-
-
 async def _send_digest_email(admin_email: str, digest: dict[str, Any]) -> bool:
     try:
         from backend.core.api.app.services.email_template import EmailTemplateService
@@ -214,7 +201,6 @@ async def _send_digest_email(admin_email: str, digest: dict[str, Any]) -> bool:
                 }
                 for item in digest["failed_tests"]
             ],
-            "opencode_prompt_path": str(PROMPT_PATH),
         }
         ok = await email_svc.send_email(
             template="daily_issue_digest",

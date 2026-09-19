@@ -35,7 +35,7 @@
   import { userProfile } from '../../stores/userProfile';
   import { text } from '../../i18n/translations';
 
-  type TaskAssigneeChoice = 'user' | 'openmates' | 'codex' | 'opencode' | 'unassigned';
+  type TaskAssigneeChoice = 'user' | 'openmates' | 'codex' | 'unassigned';
   type TaskPatch = Parameters<typeof updateUserTask>[1];
 
   interface TaskDetailRelatedData {
@@ -153,7 +153,6 @@
   function resolveAssigneeChoice(value: UserTaskViewModel): TaskAssigneeChoice {
     if (value.assigneeType === 'openmates') return 'openmates';
     if (value.assigneeType === 'external_ai' && value.assigneeIdentity === 'codex') return 'codex';
-    if (value.assigneeType === 'external_ai' && value.assigneeIdentity === 'opencode') return 'opencode';
     if (value.assigneeType === 'unassigned') return 'unassigned';
     return 'user';
   }
@@ -161,7 +160,7 @@
   function assignmentPatch(choice: TaskAssigneeChoice): Pick<TaskPatch, 'assigneeType' | 'assigneeIdentity' | 'primaryChatId'> {
     const clearExternalChat = task.externalChat ? { primaryChatId: task.primaryChatId ?? null } : {};
     if (choice === 'openmates') return { assigneeType: 'openmates', assigneeIdentity: 'openmates', ...clearExternalChat };
-    if (choice === 'codex') return { assigneeType: 'external_ai', assigneeIdentity: 'codex', ...(task.externalChat?.provider === 'opencode' ? { primaryChatId: null } : {}) };
+    if (choice === 'codex') return { assigneeType: 'external_ai', assigneeIdentity: 'codex' };
     if (choice === 'unassigned') return { assigneeType: 'unassigned', assigneeIdentity: null, ...clearExternalChat };
     return { assigneeType: 'user', assigneeIdentity: null, ...clearExternalChat };
   }
@@ -230,10 +229,6 @@
       select.value = assigneeChoice;
       return;
     }
-    if (choice === 'opencode') {
-      select.value = assigneeChoice;
-      return; // Existing OpenCode records are readable, not new assignments.
-    }
     if (choice === 'codex' && !canAssignCodex) {
       select.value = assigneeChoice;
       notificationStore.error('Codex must create its first task before it can be assigned work.');
@@ -295,7 +290,6 @@
         <option value="user">Me</option>
         <option value="unassigned">Unassigned</option>
         <option value="openmates">OpenMates</option>
-        {#if task.assigneeIdentity === 'opencode'}<option value="opencode" disabled>OpenCode (legacy)</option>{/if}
         {#if codexAssignable}<option value="codex" disabled={!canAssignCodex}>Codex</option>{/if}
       </select>
     </div>
@@ -371,7 +365,7 @@
       {#if task.externalChat}
         <div class="linked-card compact external" data-testid="task-detail-external-chat">
           <strong>{task.externalChat.title || task.externalChat.id}</strong>
-          <span>{task.externalChat.provider === 'codex' ? 'Codex' : 'OpenCode'}</span>
+          <span>Codex</span>
         </div>
       {:else if resolvedRelated.chat}
         <a class="linked-card compact" href={`/#chat-id=${encodeURIComponent(resolvedRelated.chat.id)}`}><strong>{resolvedRelated.chat.title}</strong></a>

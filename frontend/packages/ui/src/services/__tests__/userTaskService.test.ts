@@ -4,7 +4,7 @@
 // blocked-reason explanations. The API receives opaque ciphertext, safe
 // provider metadata, and an owner-scoped blind index only.
 //
-// Plan: docs/plans/opencode-external-task-bridge/plan.yml
+// Specification: specifications/features/tasks/specification.yml
 
 import { webcrypto } from 'node:crypto';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,7 +34,6 @@ import {
   deleteUserTaskActivity,
   externalChatLookupHash,
   getTaskAssignmentEligibility,
-  taskAssigneeDisplayName,
   listUserTaskActivity,
   listUserTasks,
   startUserTaskWithAI,
@@ -43,7 +42,7 @@ import {
   type UserTaskViewModel,
 } from '../userTaskService';
 
-const externalChat = { provider: 'opencode' as const, id: 'ses-private-session', title: 'Private external title' };
+const externalChat = { provider: 'codex' as const, id: 'ses-private-session', title: 'Private external title' };
 
 function taskResponse(overrides: Record<string, unknown> = {}): EncryptedUserTaskRecord {
   return {
@@ -87,7 +86,7 @@ describe('userTaskService external chat privacy', () => {
   it('encrypts external context and sends only the provider plus blind index when filtering', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({ task: taskResponse({
-        external_chat_provider: 'opencode',
+        external_chat_provider: 'codex',
         encrypted_external_chat_id: 'sealed:c2VzLXByaXZhdGUtc2Vzc2lvbg==',
         encrypted_external_chat_title: 'sealed:UHJpdmF0ZSBleHRlcm5hbCB0aXRsZQ==',
       }) }), { status: 200 }))
@@ -100,14 +99,14 @@ describe('userTaskService external chat privacy', () => {
     const listUrl = String(fetchMock.mock.calls[1]?.[0]);
     expect(createBody).toMatchObject({
       primary_chat_id: null,
-      external_chat_provider: 'opencode',
+      external_chat_provider: 'codex',
       encrypted_external_chat_id: 'sealed:c2VzLXByaXZhdGUtc2Vzc2lvbg==',
       encrypted_external_chat_title: 'sealed:UHJpdmF0ZSBleHRlcm5hbCB0aXRsZQ==',
     });
     expect(createBody.external_chat_lookup_hash).toBe(await externalChatLookupHash(externalChat));
     expect(JSON.stringify(createBody)).not.toContain(externalChat.id);
     expect(JSON.stringify(createBody)).not.toContain(externalChat.title);
-    expect(listUrl).toContain('external_chat_provider=opencode');
+    expect(listUrl).toContain('external_chat_provider=codex');
     expect(listUrl).toContain(`external_chat_lookup_hash=${await externalChatLookupHash(externalChat)}`);
     expect(listUrl).not.toContain(externalChat.id);
     expect(listUrl).not.toContain(externalChat.title);
@@ -137,7 +136,7 @@ describe('userTaskService external chat privacy', () => {
   // contract-test: direct surface=gui.web assertions=tasks.content.client-encrypted,tasks.external-chat.encrypted-context
   it('encrypts an external context update with a null native chat assignment', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({ task: taskResponse({
-      external_chat_provider: 'opencode',
+      external_chat_provider: 'codex',
       encrypted_external_chat_id: 'sealed:c2VzLXByaXZhdGUtc2Vzc2lvbg==',
       encrypted_external_chat_title: 'sealed:UHJpdmF0ZSBleHRlcm5hbCB0aXRsZQ==',
     }) }), { status: 200 }));
@@ -147,7 +146,7 @@ describe('userTaskService external chat privacy', () => {
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
     expect(body).toMatchObject({
       primary_chat_id: null,
-      external_chat_provider: 'opencode',
+      external_chat_provider: 'codex',
       encrypted_external_chat_id: 'sealed:c2VzLXByaXZhdGUtc2Vzc2lvbg==',
       encrypted_external_chat_title: 'sealed:UHJpdmF0ZSBleHRlcm5hbCB0aXRsZQ==',
     });
@@ -308,21 +307,4 @@ it('uses owner creator eligibility independently of visible Tasks and fails clos
   expect(await getTaskAssignmentEligibility()).toBe(true);
   expect(await getTaskAssignmentEligibility()).toBe(false);
   await expect(getTaskAssignmentEligibility()).rejects.toThrow();
-});
-
-// contract-test: supporting surface=gui.web assertions=tasks.assignment.identity-separated,tasks.external-chat.encrypted-context
-it('separates Codex from preserved legacy OpenCode labels and keyed context', async () => {
-  expect(taskAssigneeDisplayName('codex')).toBe('Codex');
-  expect(taskAssigneeDisplayName('opencode')).toBe('OpenCode');
-  const legacy = { provider: 'opencode' as const, id: 'same-synthetic-id' };
-  const codex = { provider: 'codex' as const, id: legacy.id };
-  expect(await externalChatLookupHash(codex)).not.toBe(await externalChatLookupHash(legacy));
-});
-
-// contract-test: supporting surface=gui.web assertions=tasks.assignment.identity-separated
-it('does not infer Codex eligibility from a legacy OpenCode creator', async () => {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
-    tasks: [], eligible_external_ai: ['opencode'],
-  }), { status: 200 }));
-  expect(await getTaskAssignmentEligibility()).toBe(false);
 });

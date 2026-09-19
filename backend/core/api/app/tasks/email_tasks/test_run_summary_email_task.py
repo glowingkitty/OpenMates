@@ -1,4 +1,5 @@
 # backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+# contract-test-file: infrastructure
 """
 Celery task for sending a daily automated test run summary email to the admin.
 
@@ -118,7 +119,6 @@ def send_test_run_summary(
     failed_tests: List[Dict[str, Any]],
     environment: str = "development",
     all_tests: List[Dict[str, Any]] = None,
-    opencode_chat_url: str = None,
     subject_override: str = None,
     summary_copy: Dict[str, str] = None,
     failure_groups: List[Dict[str, str]] = None,
@@ -177,7 +177,6 @@ def send_test_run_summary(
                 failed_tests=failed_tests,
                 environment=environment,
                 all_tests=all_tests,
-                opencode_chat_url=opencode_chat_url,
                 subject_override=subject_override,
                 summary_copy=summary_copy,
                 failure_groups=failure_groups,
@@ -219,7 +218,6 @@ async def _async_send_test_run_summary(
     failed_tests: List[Dict[str, Any]],
     environment: str = "development",
     all_tests: List[Dict[str, Any]] = None,
-    opencode_chat_url: str = None,
     subject_override: str = None,
     summary_copy: Dict[str, str] = None,
     failure_groups: List[Dict[str, str]] = None,
@@ -359,11 +357,6 @@ async def _async_send_test_run_summary(
 
         all_tests_omitted_count = 0 if include_all_tests else len(all_tests)
 
-        # Sanitize the opencode chat URL — only allow https://opencode.ai/s/... links
-        sanitized_chat_url = None
-        if opencode_chat_url and opencode_chat_url.startswith("https://opencode.ai/s/"):
-            sanitized_chat_url = escape(opencode_chat_url)
-
         email_context = {
             "darkmode": True,  # Admin emails always use dark mode
             "subject": subject,
@@ -387,7 +380,6 @@ async def _async_send_test_run_summary(
             "has_all_tests": len(sanitized_all_tests_by_suite) > 0,
             "all_tests_omitted_count": all_tests_omitted_count,
             "all_tests_limit": MAX_ALL_TESTS_IN_EMAIL,
-            "opencode_chat_url": sanitized_chat_url,  # AI analysis session link (None if no failures or analysis unavailable)
             "summary_copy": sanitized_summary_copy,
         }
 
