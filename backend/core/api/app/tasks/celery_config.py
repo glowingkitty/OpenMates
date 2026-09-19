@@ -606,6 +606,17 @@ async def prewarm_ai_services():
         except Exception as e:
             logger.warning(f"[PERF] Failed to pre-warm Google client: {e}")
             providers_failed.append("google")
+
+        # Google AI Studio uses a separate API key from Vertex. Warm that key as
+        # well so the first foreground routing request does not spend its timeout
+        # allowance on a Vault lookup.
+        try:
+            from backend.apps.ai.llm_providers.google_client import initialize_google_ai_studio_client
+            await initialize_google_ai_studio_client(secrets_manager)
+            providers_initialized.append("google_ai_studio")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm Google AI Studio client: {e}")
+            providers_failed.append("google_ai_studio")
         
         # Mistral client
         try:

@@ -1225,6 +1225,7 @@ async def call_preprocessing_llm(
         provider_model_id: str,
         is_last_provider: bool = False,
         timeout_seconds: Optional[float] = None,
+        is_primary_model: bool = False,
     ) -> LLMPreprocessingCallResult:
         """Calls a single provider with the given model_id. Returns result with error if provider fails."""
         provider_prefix = ""
@@ -1237,10 +1238,20 @@ async def call_preprocessing_llm(
             temp_provider_prefix = parts[0]
             temp_actual_model_id = parts[1]
             
-            # Always try to resolve default server for ANY provider (not just hardcoded ones)
-            # This allows any provider to have a default_server configured in their YAML
-            # For example: "openai/gpt-oss-safeguard-20b" can be routed to Groq or OpenRouter
-            default_server_id, transformed_model_id = resolve_default_server_from_provider_config(provider_model_id)
+            # Resolve the logical primary model to its configured default server.
+            # Fallback entries produced from provider YAML are already concrete
+            # server/model pairs and must not be resolved back to the default
+            # (notably google/* means Vertex when it is a Gemini server fallback).
+            # Cross-provider logical fallbacks such as deepseek/* still need
+            # resolution because they have no direct registered client.
+            should_resolve_default = (
+                is_primary_model or temp_provider_prefix not in PROVIDER_CLIENT_REGISTRY
+            )
+            default_server_id, transformed_model_id = (
+                resolve_default_server_from_provider_config(provider_model_id)
+                if should_resolve_default
+                else (None, None)
+            )
             if default_server_id and transformed_model_id:
                 logger.debug(f"[{task_id}] LLM Utils: Resolved default server '{default_server_id}' for preprocessing model '{provider_model_id}'. Using transformed model_id: '{transformed_model_id}'")
                 # Update provider_model_id to use the transformed version with server prefix
@@ -1479,6 +1490,7 @@ async def call_preprocessing_llm(
                     provider_model_id,
                     is_last_provider=is_last_provider,
                     timeout_seconds=attempt_budget_seconds,
+                    is_primary_model=provider_idx == 0,
                 )
 
             # Success — return immediately.

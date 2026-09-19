@@ -1213,22 +1213,22 @@ assertions:
       surface: rest_api
     - &id148
       path: backend/tests/test_llm_utils_preprocessing_retries.py
-      line: 145
+      line: 208
       name: test_call_preprocessing_llm_forwards_reasoning_effort_only_to_groq
       surface: rest_api
     - &id149
       path: backend/tests/test_llm_utils_preprocessing_retries.py
-      line: 180
+      line: 243
       name: test_call_preprocessing_llm_keeps_reasoning_effort_out_of_other_providers
       surface: rest_api
     - &id150
       path: backend/tests/test_llm_utils_preprocessing_retries.py
-      line: 248
+      line: 311
       name: test_call_preprocessing_llm_rejects_invalid_reasoning_effort_before_provider_lookup
       surface: rest_api
     - &id151
       path: backend/tests/test_llm_utils_preprocessing_retries.py
-      line: 269
+      line: 332
       name: test_call_preprocessing_llm_stops_when_total_retry_budget_is_exhausted
       surface: rest_api
     - &id152
@@ -9105,12 +9105,12 @@ assertions:
     supporting_tests:
     - &id1071
       path: backend/tests/test_llm_utils_preprocessing_retries.py
-      line: 306
+      line: 369
       name: test_missing_preprocessing_output_uses_bounded_fallback
       surface: rest_api
     - &id1072
       path: backend/tests/test_llm_utils_preprocessing_retries.py
-      line: 360
+      line: 423
       name: test_preprocessing_reserves_budget_for_remaining_configured_providers
       surface: rest_api
     tests:
@@ -20656,7 +20656,7 @@ assertions:
     supporting_tests:
     - &id2382
       path: backend/tests/test_llm_utils_preprocessing_retries.py
-      line: 213
+      line: 276
       name: test_call_preprocessing_llm_forwards_explicit_safety_temperature
       surface: rest_api
     tests:

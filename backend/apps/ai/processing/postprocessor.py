@@ -40,10 +40,10 @@ DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
 
 
 def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
-    """Prefer a non-Mistral utility fallback when direct Mistral is degraded."""
-    return [DEEPSEEK_V4_FLASH_FALLBACK] + [
+    """Keep same-model server recovery first, then add a cross-provider fallback."""
+    return [
         fallback for fallback in fallbacks if fallback != DEEPSEEK_V4_FLASH_FALLBACK
-    ]
+    ] + [DEEPSEEK_V4_FLASH_FALLBACK]
 
 
 def extract_available_skills(

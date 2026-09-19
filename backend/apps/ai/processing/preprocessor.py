@@ -331,10 +331,10 @@ TOPIC_AREA_TO_MATE_CATEGORY: Dict[str, str] = {
 
 
 def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
-    """Prefer a non-Mistral utility fallback when direct Mistral is degraded."""
-    return [DEEPSEEK_V4_FLASH_FALLBACK] + [
+    """Keep same-model server recovery first, then add a cross-provider fallback."""
+    return [
         fallback for fallback in fallbacks if fallback != DEEPSEEK_V4_FLASH_FALLBACK
-    ]
+    ] + [DEEPSEEK_V4_FLASH_FALLBACK]
 
 
 def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:

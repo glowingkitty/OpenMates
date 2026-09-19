@@ -217,6 +217,13 @@ async def _get_google_ai_studio_api_key(secrets_manager: Optional[SecretsManager
         return None
 
 
+async def initialize_google_ai_studio_client(secrets_manager: SecretsManager) -> None:
+    """Warm the AI Studio credential cache before latency-sensitive requests."""
+    api_key = await _get_google_ai_studio_api_key(secrets_manager)
+    if not api_key:
+        raise ValueError("Google AI Studio API key is not configured")
+
+
 def _map_tools_to_google_format(tools: List[Dict[str, Any]]) -> Optional[List[types.Tool]]:
     """
     Maps tools from internal format to Google's expected format.

@@ -140,6 +140,69 @@ async def test_call_preprocessing_llm_disables_groq_sdk_retries(monkeypatch: pyt
     assert result.error_message == "Client call failed for preprocessing: Request timeout after 25s"
 
 
+@pytest.mark.anyio
+async def test_concrete_server_fallback_is_not_resolved_back_to_primary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, str]] = []
+    resolution_calls: list[str] = []
+
+    async def primary_provider(**kwargs):
+        calls.append(("primary", kwargs["model_id"]))
+        return UnifiedOpenAIResponse(
+            task_id="test",
+            model_id=kwargs["model_id"],
+            success=False,
+            error_message="Request timeout",
+        )
+
+    async def vertex_provider(**kwargs):
+        calls.append(("vertex", kwargs["model_id"]))
+        return UnifiedOpenAIResponse(
+            task_id="test",
+            model_id=kwargs["model_id"],
+            success=True,
+            tool_calls_made=[
+                ParsedOpenAIToolCall(
+                    tool_call_id="valid",
+                    function_name="expected_tool",
+                    function_arguments_raw="{}",
+                    function_arguments_parsed={},
+                )
+            ],
+        )
+
+    def resolve(model_id: str):
+        resolution_calls.append(model_id)
+        return "primary_server", "primary_server/resolved-model"
+
+    class CacheServiceWithoutClient:
+        @property
+        async def client(self):
+            return None
+
+    monkeypatch.setitem(llm_utils.PROVIDER_CLIENT_REGISTRY, "google", vertex_provider)
+    monkeypatch.setattr(
+        llm_utils,
+        "_get_provider_client",
+        lambda prefix: primary_provider if prefix == "primary_server" else vertex_provider,
+    )
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", resolve)
+    monkeypatch.setattr(llm_utils, "CacheService", CacheServiceWithoutClient)
+
+    result = await llm_utils.call_preprocessing_llm(
+        task_id="test",
+        model_id="logical/model",
+        message_history=[{"role": "user", "content": "classify this"}],
+        tool_definition=_tool_definition(),
+        fallback_models=["google/gemini-model"],
+    )
+
+    assert resolution_calls == ["logical/model"]
+    assert calls == [("primary", "resolved-model"), ("vertex", "gemini-model")]
+    assert result.arguments == {}
+
+
 # contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
 @pytest.mark.anyio
 async def test_call_preprocessing_llm_forwards_reasoning_effort_only_to_groq(monkeypatch: pytest.MonkeyPatch) -> None:
