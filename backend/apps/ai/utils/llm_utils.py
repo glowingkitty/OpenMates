@@ -22,7 +22,11 @@ from backend.apps.ai.llm_providers.mistral_client import UnifiedMistralResponse 
 from backend.apps.ai.llm_providers.google_client import UnifiedGoogleResponse, ParsedGoogleToolCall as ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import UnifiedAnthropicResponse
 from backend.apps.ai.llm_providers.bedrock_shared import UnifiedBedrockResponse  # noqa: F401
-from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, _sanitize_schema_for_llm_providers
+from backend.apps.ai.llm_providers.openai_shared import (
+    UnifiedOpenAIResponse,
+    _sanitize_schema_for_llm_providers,
+    calculate_token_breakdown,
+)
 from backend.apps.ai.utils.timeout_utils import (
     stream_with_first_chunk_timeout,
     PREPROCESSING_TIMEOUT_SECONDS,
@@ -1041,6 +1045,26 @@ async def call_preprocessing_llm(
         )
     transformed_messages_for_llm = filtered_messages_for_llm
 
+    # Privacy-safe request telemetry. This estimates the exact request shape sent
+    # to providers without logging any message, catalogue, or memory content.
+    # Provider-reported usage is logged separately after a successful response.
+    estimated_token_breakdown = calculate_token_breakdown(
+        transformed_messages_for_llm,
+        model_id,
+        tools=[current_tool_definition],
+    )
+    estimated_system_tokens = estimated_token_breakdown.get("system_prompt_tokens", 0)
+    estimated_user_tokens = estimated_token_breakdown.get("user_input_tokens", 0)
+    logger.info(
+        "[%s] LLM Utils: Preprocessing request footprint: "
+        "estimated_input_tokens=%d, schema_tokens=%d, history_tokens=%d, history_messages=%d",
+        task_id,
+        estimated_system_tokens + estimated_user_tokens,
+        estimated_system_tokens,
+        estimated_user_tokens,
+        len(transformed_messages_for_llm),
+    )
+
     def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse, UnifiedAnthropicResponse, UnifiedOpenAIResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
         current_raw_provider_response_summary = response.model_dump(
             exclude_none=True,
@@ -1284,9 +1308,35 @@ async def call_preprocessing_llm(
                     if effective_timeout <= 0:
                         return LLMPreprocessingCallResult(error_message=_preprocessing_budget_exhausted_error())
 
+                    provider_started_at = asyncio.get_running_loop().time()
                     response = await asyncio.wait_for(
                         provider_client(**provider_request_kwargs),
                         timeout=effective_timeout
+                    )
+                    provider_elapsed_seconds = asyncio.get_running_loop().time() - provider_started_at
+                    usage = getattr(response, "usage", None)
+                    usage_data = usage.model_dump(exclude_none=True) if hasattr(usage, "model_dump") else {}
+                    provider_input_tokens = (
+                        usage_data.get("prompt_token_count")
+                        or usage_data.get("prompt_tokens")
+                        or usage_data.get("input_tokens")
+                        or 0
+                    )
+                    provider_output_tokens = (
+                        usage_data.get("candidates_token_count")
+                        or usage_data.get("completion_tokens")
+                        or usage_data.get("output_tokens")
+                        or 0
+                    )
+                    logger.info(
+                        "[%s] LLM Utils: Preprocessing provider completed: "
+                        "provider=%s, elapsed_seconds=%.3f, input_tokens=%d, output_tokens=%d, success=%s",
+                        task_id,
+                        provider_model_id,
+                        provider_elapsed_seconds,
+                        provider_input_tokens,
+                        provider_output_tokens,
+                        bool(getattr(response, "success", False)),
                     )
                     return handle_response(response, expected_tool_name)
                 except asyncio.TimeoutError:

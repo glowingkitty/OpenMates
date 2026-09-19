@@ -2,6 +2,7 @@
 """Contracts for bounded preprocessing prompt construction."""
 
 import ast
+import json
 
 from pathlib import Path
 
@@ -27,6 +28,15 @@ def test_dynamic_catalogues_have_one_canonical_expansion_site() -> None:
     assert serialized.count("{AVAILABLE_APP_SKILLS}") == 1
     assert serialized.count("{AVAILABLE_FOCUS_MODES}") == 1
     assert serialized.count("{TOPIC_AREAS_LIST}") == 1
+    assert serialized.count("{AVAILABLE_APP_SETTINGS_AND_MEMORIES}") == 1
+    assert serialized.count("{RECENT_SKILL_ACTIVITY}") == 1
+
+
+def test_static_routing_contract_stays_compact() -> None:
+    """Verbose duplicated policy must not silently regrow the foreground prompt."""
+    serialized = json.dumps(_preprocessing_tool(), separators=(",", ":"))
+
+    assert len(serialized) < 7000
 
 
 def test_catalogue_output_fields_reference_canonical_guidance() -> None:
