@@ -390,7 +390,9 @@ planning_amendments:
   authority: >-
     User approved R1, R2 and R3 implementation on 2026-09-20 and authorized restoring the
     existing personal dev-test CLI login. Larger architectural changes still require
-    confirmation. LATENCY-1 approval remains in force.
+    confirmation. After the artifact-visibility explanation, the user additionally approved
+    keeping unpublished code private by using the existing private storage for reusable
+    builds, including runner upload/download support. LATENCY-1 approval remains in force.
   execution_authority: OpenMates Tasks remains the status authority; recommendation IDs describe outcomes, not a second task ledger.
   tasks:
     R1: ed78f2b4-e70e-42c8-b1b7-c9f2929e24a2

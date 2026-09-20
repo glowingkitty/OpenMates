@@ -237,7 +237,14 @@ def compose_profile(
             },
             "volumes": ["postgres:/var/lib/postgresql/data"],
             "healthcheck": {
-                "test": ["CMD-SHELL", "pg_isready -U openmates"],
+                "test": [
+                    "CMD",
+                    "pg_isready",
+                    "-h",
+                    "127.0.0.1",
+                    "-U",
+                    "openmates",
+                ],
                 "interval": "3s",
                 "timeout": "3s",
                 "retries": 30,

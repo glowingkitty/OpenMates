@@ -97,14 +97,17 @@ flowchart LR
   C --> R
 ```
 
-Already-public-source E2E submissions attach to one preparation for the exact
-source and capabilities. Consumers download only that successful producer run's artifact;
+E2E submissions attach to one preparation for the exact source and capabilities.
+Consumers download only that successful producer run's artifact;
 they verify the manifest, source/tree, harness, build contract and content hashes.
 Published compatible images use immutable digests. Cache misses build once and
-travel as checksummed Actions Docker archives. These artifacts are not private
-in this public repository: unpublished worktree candidates bypass preparation
-and retain cold execution until a private preparation transport is approved.
-The workflow independently rejects candidate metadata in preparation mode.
+travel as checksummed Docker archives in the existing private candidate bucket.
+Public Actions artifacts must not contain preparation bundles. The coordinator
+keeps owner-readable, expiring upload/download capabilities for each preparation;
+only its producer receives upload permission, and consumers receive read-only
+access. Upload writes the source/run-bound manifest last; download verifies it
+before accepting the allowlisted, size-bounded and checksummed files. Objects
+use the existing two-day candidate lifecycle. No storage credentials go to CI.
 Schema carriers must pass two independent fresh-database restores before
 publication. Each consumer still receives new databases, volumes, credentials,
 accounts and containers. Only immutable build output is shared.

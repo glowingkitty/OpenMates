@@ -87,9 +87,24 @@ class GitHub:
             f"repos/{self.repo}/actions/workflows/{WORKFLOW}/runs?event=workflow_dispatch&per_page=100"
         )["workflow_runs"]
 
+    def prepare_dispatch(self, job: dict) -> dict:
+        """Resolve private capabilities before recording any remote send intent."""
+        prepared = dict(job)
+        if job.get("preparation_key"):
+            try:
+                from scripts.ci_preparation_transport import dispatch_ticket
+            except ModuleNotFoundError:
+                from ci_preparation_transport import dispatch_ticket
+            # Capability URLs live only in an owner-readable ticket, never in
+            # queue status/results. Consumers receive read-only capabilities.
+            prepared["_preparation_transport"] = dispatch_ticket(self.root, job)
+        return prepared
+
     def dispatch(self, job: dict):
         if job.get("candidate_expires") and float(job["candidate_expires"]) <= time.time():
             raise ValueError("CI candidate artifact expired before dispatch; publish again")
+        if job.get("preparation_key") and "_preparation_transport" not in job:
+            job = self.prepare_dispatch(job)
         self.request(
             f"repos/{self.repo}/actions/workflows/{WORKFLOW}/dispatches",
             {
@@ -110,6 +125,7 @@ class GitHub:
                         "prepared_run_id": str(job.get("prepared_run_id") or ""),
                         "prepare_cli": "true" if job.get("prepare_cli") else "false",
                         "prepare_upload": "true" if job.get("prepare_upload") else "false",
+                        "preparation_transport": job.get("_preparation_transport", ""),
                     } if job.get("preparation_key") else {}),
                 },
             },
@@ -205,8 +221,6 @@ class Queue:
         ):
             raise ValueError("Invalid proof video profile")
         candidate = candidate or {}
-        if mode == "prepare" and candidate:
-            raise ValueError("Unpublished candidates require a private preparation transport")
         candidate_values = {
             "candidate_base": "",
             "candidate_tree": "",
@@ -545,12 +559,25 @@ class Queue:
                             break
                         job = min(eligible, key=lambda item: (item["id"] != priority, owners.get(item["owner"], 0), item["owner"] == last_owner, item["created"], item["id"]))
                         pending.remove(job)
+                        dispatch_job = job
+                        if hasattr(github, "prepare_dispatch"):
+                            try:
+                                dispatch_job = github.prepare_dispatch(job)
+                            except (RuntimeError, ValueError, OSError, subprocess.TimeoutExpired):
+                                # No GitHub request has happened. Do not retain
+                                # an uncertain slot or log capability-bearing errors.
+                                db.execute(
+                                    "UPDATE jobs SET state='failure',phase='private transport setup failed',updated=?,error='Private preparation transport could not be prepared; no GitHub dispatch occurred' WHERE id=?",
+                                    (now, job["id"]),
+                                )
+                                db.commit()
+                                continue
                         db.execute(
                             "UPDATE jobs SET state='dispatching',phase='GitHub dispatch',sent=?,updated=? WHERE id=?",
                             (now, now, job["id"]),
                         )
                         db.commit()
-                        github.dispatch(job)
+                        github.dispatch(dispatch_job)
                         db.execute(
                             "UPDATE jobs SET state='submitted',updated=? WHERE id=?",
                             (now, job["id"]),
@@ -597,7 +624,7 @@ def enqueue_submission(
     source_root: Path | None = None,
     supersede: bool = True,
 ) -> list[dict]:
-    """Split browser E2Es; share public-source builds, never private candidates."""
+    """Split browser E2Es and share immutable builds through private storage."""
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
     if mode in ("component", "e2e") and not selections:
         raise ValueError("Browser requests require explicit specs")
@@ -607,10 +634,9 @@ def enqueue_submission(
         else [selections]
     )
     preparation = None
-    # This repository is public: Actions artifacts are not a private transport.
-    # Unpublished worktree candidates retain the existing cold execution path
-    # until an approved private preparation transport is available.
-    if source_root is not None and not candidate and mode in ("e2e", "visual-smoke"):
+    # Public Actions artifacts must never carry unpublished build output.
+    # GitHub.dispatch issues private-bucket capabilities before any preparation.
+    if source_root is not None and mode in ("e2e", "visual-smoke"):
         try:
             from scripts.ci_artifacts import preparation_key
         except ModuleNotFoundError:

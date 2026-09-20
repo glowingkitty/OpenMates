@@ -43,6 +43,10 @@ on:
         description: Exact successful producer run; consumers never search by artifact name
         type: string
         default: ''
+      preparation_transport:
+        description: Private presigned preparation transfer ticket
+        type: string
+        default: ''
       prepare_cli:
         description: Whether this preparation/consumer requires CLI output
         type: string
@@ -85,6 +89,7 @@ jobs:
       VITE_ENV: self_hosted
       E2E_USE_MOCKS: '1'
       E2E_USE_LIVE_MOCKS: '1'
+      DOCKER_BUILD_RECORD_UPLOAD: 'false'
       NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
@@ -92,40 +97,18 @@ jobs:
           ref: ${{ inputs.checkout_ref }}
           path: subject
           persist-credentials: false
-      - name: Reject unpublished preparation source
-        if: inputs.mode == 'prepare'
-        env:
-          EXPECTED_SOURCE: ${{ inputs.source_commit }}
-          EXPECTED_TREE: ${{ inputs.candidate_tree }}
-          CANDIDATE_OWNER: ${{ inputs.candidate_owner }}
-          CANDIDATE_PATCH_SHA256: ${{ inputs.candidate_patch_sha256 }}
-        run: |
-          python3 - <<'PY'
-          import json, os, re, subprocess
-
-          expected = os.environ['EXPECTED_SOURCE']
-          assert re.fullmatch('[0-9a-f]{40}', expected), 'Full source SHA required'
-          event = json.load(open(os.environ['GITHUB_EVENT_PATH']))
-          candidate_metadata = [
-              os.environ['EXPECTED_TREE'], os.environ['CANDIDATE_OWNER'],
-              os.environ['CANDIDATE_PATCH_SHA256'],
-              event.get('inputs', {}).get('candidate_patch_url', ''),
-          ]
-          assert not any(candidate_metadata), (
-              'Preparation artifacts are limited to source already published '
-              'in the public repository'
-          )
-          actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
-          assert actual == expected, (
-              'Preparation source must resolve directly from checkout_ref'
-          )
-          PY
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           path: tooling
           sparse-checkout: scripts
           persist-credentials: false
+      - name: Require private preparation transport ticket
+        if: >-
+          inputs.mode == 'prepare' ||
+          ((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
+           inputs.preparation_key != '')
+        run: python3 ../tooling/scripts/ci_preparation_transport.py validate
       - name: Reconstruct and verify exact detached source
         env:
           EXPECTED_SOURCE: ${{ inputs.source_commit }}
@@ -225,19 +208,15 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Download exact prepared artifact bytes
+      - name: Download exact private prepared build
         id: preparation-download
         if: >-
           (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
           inputs.prepared_run_id != '' && inputs.preparation_key != ''
         continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: ci-preparation-${{ inputs.preparation_key }}
-          path: subject/test-results/ci-preparation-download
-          repository: ${{ github.repository }}
-          run-id: ${{ inputs.prepared_run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          python3 ../tooling/scripts/ci_preparation_transport.py download
+          --directory test-results/ci-preparation-download
       - name: Verify and restore prepared web and CLI bytes
         id: artifacts
         if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
@@ -305,7 +284,7 @@ jobs:
           load: true
           tags: openmates-ci-api:local
           cache-from: type=gha,scope=ci-api
-          cache-to: type=gha,scope=ci-api,mode=max
+          cache-to: ${{ inputs.candidate_patch_sha256 == '' && 'type=gha,scope=ci-api,mode=max' || '' }}
           labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.api }}
       - name: Build cached upload dependencies and current source
         if: >-
@@ -320,7 +299,7 @@ jobs:
           load: true
           tags: openmates-ci-upload:local
           cache-from: type=gha,scope=ci-upload
-          cache-to: type=gha,scope=ci-upload,mode=max
+          cache-to: ${{ inputs.candidate_patch_sha256 == '' && 'type=gha,scope=ci-upload,mode=max' || '' }}
           labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.upload }}
       - name: Build current Directus extensions
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.cms != 'true'
@@ -330,7 +309,7 @@ jobs:
           load: true
           tags: openmates-ci-cms:local
           cache-from: type=gha,scope=ci-cms
-          cache-to: type=gha,scope=ci-cms,mode=max
+          cache-to: ${{ inputs.candidate_patch_sha256 == '' && 'type=gha,scope=ci-cms,mode=max' || '' }}
           labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.cms }}
       - name: Build current schema initializer
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.setup != 'true'
@@ -341,7 +320,7 @@ jobs:
           load: true
           tags: openmates-ci-setup:local
           cache-from: type=gha,scope=ci-setup
-          cache-to: type=gha,scope=ci-setup,mode=max
+          cache-to: ${{ inputs.candidate_patch_sha256 == '' && 'type=gha,scope=ci-setup,mode=max' || '' }}
           labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.setup }}
       - name: Prepare missing sanitized schema bundle
         if: inputs.mode == 'prepare' && steps.images.outputs.schema != 'true'
@@ -355,7 +334,7 @@ jobs:
           load: true
           tags: openmates-ci-database:local
           cache-from: type=gha,scope=ci-schema-carrier
-          cache-to: type=gha,scope=ci-schema-carrier,mode=max
+          cache-to: ${{ inputs.candidate_patch_sha256 == '' && 'type=gha,scope=ci-schema-carrier,mode=max' || '' }}
           labels: |
             org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.schema }}
             org.openmates.ci.schema-bundle-format=openmates-postgres-plain-gzip-v2
@@ -380,7 +359,7 @@ jobs:
           (inputs.mode == 'prepare' ||
            (inputs.mode == 'e2e' && steps.artifacts.outputs.cli != 'true'))
         run: pnpm --filter openmates build
-      - name: Export cold runtime images into Actions preparation bytes
+      - name: Export cold runtime images into private preparation bundle
         if: inputs.mode == 'prepare'
         run: |
           python3 ../tooling/scripts/ci_artifacts.py export-images \
@@ -402,17 +381,11 @@ jobs:
             --include-upload "${{ inputs.prepare_upload }}" \
             --runtime-receipt test-results/ci-runtime-images.json \
             --output-dir test-results/ci-preparation
-      # This public repository's Actions artifacts are repository-readable, so
-      # the fail-closed guard above restricts preparation to already-public source.
-      - name: Upload immutable Actions preparation artifact
+      - name: Upload immutable private preparation bundle
         if: inputs.mode == 'prepare'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-preparation-${{ inputs.preparation_key }}
-          retention-days: 2
-          compression-level: 0
-          path: subject/test-results/ci-preparation/
-          if-no-files-found: error
+        run: >-
+          python3 ../tooling/scripts/ci_preparation_transport.py upload
+          --directory test-results/ci-preparation
       - name: Start isolated backend
         if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
         run: |

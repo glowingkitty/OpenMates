@@ -66,43 +66,103 @@ def test_isolated_workflow_reconstructs_verified_candidate_without_git_refs() ->
     assert "event.get('inputs', {}).get('candidate_patch_url', '')" in workflow
 
 
-def test_preparation_uses_exact_run_artifacts_and_preserves_component_bypass() -> None:
+def test_preparation_uses_private_transport_and_preserves_component_bypass() -> None:
     workflow = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
     assert "options: [prepare, component, e2e" in workflow
-    assert "run-id: ${{ inputs.prepared_run_id }}" in workflow
-    assert "name: ci-preparation-${{ inputs.preparation_key }}" in workflow
+    assert "preparation_transport:" in workflow
+    assert "ci_preparation_transport.py download" in workflow
+    assert "--directory test-results/ci-preparation-download" in workflow
+    assert "ci_preparation_transport.py upload" in workflow
+    assert "--directory test-results/ci-preparation" in workflow
+    assert "actions/download-artifact@v4" not in workflow
     assert "python3 ../tooling/scripts/ci_artifacts.py restore" in workflow
     assert '--manifest "${{ steps.artifacts.outputs.manifest }}"' in workflow
     assert "if: inputs.mode != 'prepare'" in workflow
     assert "inputs.mode == 'component' || inputs.mode == 'e2e'" in workflow
 
 
-def test_preparation_fails_closed_for_unpublished_candidate_source() -> None:
+def test_preparation_requires_private_ticket_before_build() -> None:
     workflow = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
-    checkout = workflow.index("ref: ${{ inputs.checkout_ref }}")
-    guard = workflow.index("- name: Reject unpublished preparation source")
     tooling = workflow.index("sparse-checkout: scripts")
+    guard = workflow.index("- name: Require private preparation transport ticket")
     reconstruction = workflow.index("- name: Reconstruct and verify exact detached source")
-    assert checkout < guard < tooling < reconstruction
-    guard_section = workflow[guard:tooling]
-    assert "if: inputs.mode == 'prepare'" in guard_section
-    assert "candidate_patch_url" in guard_section
-    assert "assert not any(candidate_metadata)" in guard_section
-    assert "['git', 'rev-parse', 'HEAD']" in guard_section
-    assert "actual == expected" in guard_section
-    assert "source already published" in guard_section
+    install = workflow.index("- name: Install workspace dependencies")
+    assert tooling < guard < reconstruction < install
+    guard_section = workflow[guard:reconstruction]
+    assert "inputs.mode == 'prepare'" in guard_section
+    assert "inputs.mode == 'e2e'" in guard_section
+    assert "inputs.mode == 'visual-smoke'" in guard_section
+    assert "inputs.preparation_key != ''" in guard_section
+    assert "ci_preparation_transport.py validate" in guard_section
+    assert "GITHUB_EVENT_PATH" not in guard_section
+    assert "Reject unpublished preparation source" not in workflow
+    assert "source already published" not in workflow
 
 
-def test_preparation_artifact_labels_do_not_claim_private_storage() -> None:
+def test_legacy_unkeyed_cold_consumers_do_not_require_transport_ticket() -> None:
+    workflow = yaml.safe_load(
+        (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+    )
+    guard = next(
+        step
+        for step in workflow["jobs"]["test"]["steps"]
+        if step.get("name") == "Require private preparation transport ticket"
+    )
+    assert " ".join(guard["if"].split()) == (
+        "inputs.mode == 'prepare' || "
+        "((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && "
+        "inputs.preparation_key != '')"
+    )
+
+
+def test_preparation_never_uses_public_actions_artifact_transport() -> None:
     workflow = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
     preparation_steps = workflow[
         workflow.index("- name: Export cold runtime images") :
         workflow.index("- name: Start isolated backend")
     ]
-    assert "private preparation" not in preparation_steps.lower()
-    assert "Actions preparation bytes" in preparation_steps
-    assert "Actions preparation artifact" in preparation_steps
-    assert "repository-readable" in preparation_steps
+    assert "private preparation bundle" in preparation_steps.lower()
+    assert "actions/upload-artifact" not in preparation_steps
+    assert "actions/download-artifact" not in workflow
+    assert "ci-preparation-${{ inputs.preparation_key }}" not in workflow
+
+
+def test_result_artifact_upload_excludes_private_transport_and_build_data() -> None:
+    workflow = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+    results = workflow[
+        workflow.index("- uses: actions/upload-artifact@v4\n        if: always()") :
+        workflow.index("- name: Retain original documentation screenshot output")
+    ]
+    for forbidden in (
+        "ci-preparation",
+        "ci-preparation-download",
+        "ci-private",
+        "preparation_transport",
+        "GITHUB_EVENT_PATH",
+        "frontend/apps/web_app/build",
+        "frontend/packages/openmates-cli/dist",
+    ):
+        assert forbidden not in results
+
+
+def test_candidate_docker_builds_never_export_records_or_shared_cache() -> None:
+    workflow = yaml.safe_load(
+        (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+    )
+    job = workflow["jobs"]["test"]
+    assert job["env"]["DOCKER_BUILD_RECORD_UPLOAD"] == "false"
+    builds = [
+        step
+        for step in job["steps"]
+        if step.get("uses") == "docker/build-push-action@v6"
+    ]
+    assert len(builds) == 5
+    for step in builds:
+        assert step["with"]["cache-from"].startswith("type=gha,scope=")
+        cache_to = step["with"]["cache-to"]
+        assert "inputs.candidate_patch_sha256 == ''" in cache_to
+        assert "type=gha,scope=" in cache_to
+        assert "|| ''" in cache_to
 
 
 def test_cli_build_is_capability_gated_and_broad_publisher_does_not_compete() -> None:

@@ -232,9 +232,49 @@ def test_json_receipts_redact_presigned_candidate_url(capsys):
     assert value["source"] == "a" * 40
 
 
-def test_unpublished_candidate_uses_cold_path_not_public_preparation(tmp_path):
-    import pytest
+def test_preparation_dispatch_uses_private_capability_ticket(tmp_path, monkeypatch):
+    import sys
+    import types
 
+    queue = Queue(tmp_path / "queue.db")
+    job = queue.enqueue("owner", "a" * 40, [], "prepare", preparation={"key": "f" * 64})
+    signed = []
+    ticket = '{"private":"capability-not-for-status"}'
+    def dispatch_ticket(root, request):
+        signed.append((root, request["id"]))
+        return ticket
+    monkeypatch.setitem(sys.modules, "scripts.ci_preparation_transport", types.SimpleNamespace(dispatch_ticket=dispatch_ticket))
+    github = GitHub.__new__(GitHub)
+    github.root = tmp_path
+    github.repo = "example/repo"
+    requests = []
+    github.request = lambda endpoint, payload=None: requests.append(payload)
+    github.dispatch(job)
+    assert signed == [(tmp_path, job["id"])]
+    assert requests[0]["inputs"]["preparation_transport"] == ticket
+    assert all("preparation_transport" not in row for row in queue.status())
+
+
+def test_private_transport_failure_is_before_intent_and_does_not_stop_queue(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    queue = Queue(tmp_path / "queue.db")
+    producer = queue.enqueue("owner", "a" * 40, [], "prepare", preparation={"key": "f" * 64})
+    light = queue.enqueue("other", "b" * 40, ["components/x.spec.ts"], "component")
+    remote = Remote()
+    def prepare_dispatch(job):
+        if job["mode"] == "prepare":
+            raise RuntimeError("do-not-log-private-capability")
+        return job
+    remote.prepare_dispatch = prepare_dispatch
+    queue.tick(remote, 100)
+    failed = queue.status(producer["id"])[0]
+    assert failed["state"] == "failure"
+    assert failed["sent"] is None
+    assert "do-not-log" not in failed["error"]
+    assert [job["id"] for job in remote.sent] == [light["id"]]
+
+
+def test_unpublished_candidate_shares_private_preparation(tmp_path, monkeypatch):
     queue = Queue(tmp_path / "queue.db")
     candidate = {
         "source": "c" * 40, "base": "b" * 40, "tree": "d" * 40, "session": "owner",
@@ -242,15 +282,17 @@ def test_unpublished_candidate_uses_cold_path_not_public_preparation(tmp_path):
         "patch_url": "https://nbg1.your-objectstorage.com/private.patch?signature=test",
         "artifact_expires_at": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)).isoformat(),
     }
+    monkeypatch.setattr("scripts.ci_coordinator.subprocess.check_output", lambda *a, **kw: '{"groups":{"uploads":{"specs":[]}}}')
     jobs = enqueue_submission(
         queue, "owner", "c" * 40, ["first.spec.ts", "second.spec.ts"], "e2e",
         candidate=candidate, source_root=tmp_path,
     )
-    assert len(jobs) == len(queue.status()) == 2
-    assert all(not job["preparation_id"] for job in jobs)
+    assert len(jobs) == 2
+    assert len(queue.status()) == 3
+    assert jobs[0]["preparation_id"] == jobs[1]["preparation_id"]
+    producer = queue.status(jobs[0]["preparation_id"])[0]
+    assert producer["mode"] == "prepare"
     assert all(job["candidate_patch_sha256"] == "e" * 64 for job in jobs)
-    with pytest.raises(ValueError, match="private preparation transport"):
-        queue.enqueue("owner", "c" * 40, [], "prepare", candidate=candidate)
 
 
 def test_default_capacity_reserves_fast_feedback_and_shares_owners(tmp_path, monkeypatch):

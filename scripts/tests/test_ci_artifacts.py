@@ -10,6 +10,7 @@ from scripts import ci_runtime_images as runtime_images
 SOURCE = "a" * 40
 TREE = "b" * 40
 HARNESS = "c" * 40
+PRODUCER_RUN = "12345"
 
 
 def prepared_root(root: Path) -> None:
@@ -200,11 +201,11 @@ def test_harness_mismatch_is_an_explicit_cold_fallback(tmp_path):
 
 
 def test_create_command_receipt_has_source_bound_result_identity(tmp_path, monkeypatch):
+    monkeypatch.setenv("GITHUB_RUN_ID", PRODUCER_RUN)
     root = tmp_path / "producer"
     bundle = tmp_path / "bundle"
     make_bundle(root, bundle)
     manifest = json.loads((bundle / artifacts.MANIFEST_NAME).read_text())
-    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
     artifacts.write_producer_results(root, manifest, bundle / artifacts.MANIFEST_NAME)
     report = json.loads((root / "test-results/ci-results.json").read_text())
     assert report["success"] is True
@@ -212,6 +213,19 @@ def test_create_command_receipt_has_source_bound_result_identity(tmp_path, monke
     assert report["harness_commit"] == HARNESS
     assert report["run_id"] == "12345"
     assert report["results"][0]["preparation_key"] == manifest["preparation_key"]
+    assert report["results"][0]["producer_run_id"] == PRODUCER_RUN
+
+
+def test_bundle_manifest_binds_github_producer_run(tmp_path, monkeypatch):
+    monkeypatch.setenv("GITHUB_RUN_ID", "67890")
+    root = tmp_path / "producer"
+    bundle = tmp_path / "bundle"
+    manifest = make_bundle(root, bundle)
+
+    assert manifest["producer_run_id"] == "67890"
+    assert json.loads((bundle / artifacts.MANIFEST_NAME).read_text())[
+        "producer_run_id"
+    ] == "67890"
 
 
 def test_cold_image_export_rejects_wrong_compatibility_label_before_save(

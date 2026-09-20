@@ -61,6 +61,14 @@ def test_fresh_credentials_and_runner_only(monkeypatch):
         require_runner()
     assert a["services"]["cms-database"]["image"] == POSTGRES_IMAGE
     assert "@sha256:" in POSTGRES_IMAGE
+    assert a["services"]["cms-database"]["healthcheck"]["test"] == [
+        "CMD",
+        "pg_isready",
+        "-h",
+        "127.0.0.1",
+        "-U",
+        "openmates",
+    ]
 
 
 def test_stack_start_retries_only_transient_registry_failures():

@@ -153,18 +153,25 @@ def compose(
 
 
 def normalized_dump(dump: bytes) -> bytes:
-    """Remove pg_dump presentation noise without changing SQL/data ordering."""
+    """Canonicalize random guards and unordered COPY rows without losing bytes."""
     lines = []
-    in_copy = False
-    for raw_line in dump.replace(b"\r\n", b"\n").splitlines():
-        line = raw_line.rstrip()
-        if in_copy:
-            lines.append(line)
+    copy_rows: list[bytes] | None = None
+    # Split only on pg_dump's record delimiter. bytes.splitlines() would also
+    # split CR/VT/FF bytes that can be meaningful inside multiline SQL bodies.
+    for raw_line in dump.split(b"\n"):
+        if copy_rows is not None:
+            line = raw_line
             if line == b"\\.":
-                in_copy = False
+                # COPY TO has no ORDER BY for ordinary tables. Row order can
+                # change with physical layout and is not database semantics;
+                # sort exact encoded rows while retaining duplicates.
+                lines.extend(sorted(copy_rows))
+                lines.append(line)
+                copy_rows = None
+            else:
+                copy_rows.append(line)
             continue
-        if not line or line.startswith(b"--"):
-            continue
+        line = raw_line
         guard = PG_DUMP_RESTRICT_GUARD.fullmatch(line)
         if guard:
             # Patched pg_dump versions generate a fresh random guard key for
@@ -173,12 +180,83 @@ def normalized_dump(dump: bytes) -> bytes:
             line = guard.group(1) + b" <generated-key>"
         lines.append(line)
         if line.startswith(b"COPY ") and line.endswith(b" FROM stdin;"):
-            in_copy = True
-    return b"\n".join(lines) + b"\n"
+            copy_rows = []
+    if copy_rows is not None:
+        raise RuntimeError("Schema dump contains an unterminated COPY block")
+    return b"\n".join(lines)
 
 
 def normalized_dump_sha256(dump: bytes) -> str:
     return hashlib.sha256(normalized_dump(dump)).hexdigest()
+
+
+def dump_units(dump: bytes) -> list[dict[str, str | int]]:
+    """Return privacy-safe canonical units for structural diagnostics."""
+    lines = normalized_dump(dump).split(b"\n")
+    units: list[dict[str, str | int]] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if line.startswith(b"COPY ") and line.endswith(b" FROM stdin;"):
+            rows = []
+            index += 1
+            while index < len(lines) and lines[index] != b"\\.":
+                rows.append(lines[index])
+                index += 1
+            if index >= len(lines):  # normalized_dump already guards this.
+                raise RuntimeError("Schema dump contains an unterminated COPY block")
+            units.append(
+                {
+                    "kind": "copy",
+                    "header_sha256": hashlib.sha256(line).hexdigest(),
+                    "row_count": len(rows),
+                    "rows_sha256": hashlib.sha256(b"\n".join(rows)).hexdigest(),
+                }
+            )
+        else:
+            first = line.split(maxsplit=1)[0].upper() if line else b""
+            if first.startswith(b"\\"):
+                category = "psql-meta"
+            elif first in {
+                b"ALTER",
+                b"CREATE",
+                b"DROP",
+                b"GRANT",
+                b"REVOKE",
+                b"SELECT",
+                b"SET",
+            }:
+                category = first.decode().lower()
+            else:
+                category = "sql"
+            units.append(
+                {
+                    "kind": "sql",
+                    "category": category,
+                    "line_sha256": hashlib.sha256(line).hexdigest(),
+                }
+            )
+        index += 1
+    return units
+
+
+def first_dump_difference(reference: bytes, actual: bytes) -> dict:
+    expected_units = dump_units(reference)
+    actual_units = dump_units(actual)
+    for index, (expected, observed) in enumerate(
+        zip(expected_units, actual_units, strict=False)
+    ):
+        if expected != observed:
+            return {
+                "unit_index": index,
+                "expected": expected,
+                "actual": observed,
+            }
+    return {
+        "unit_index": min(len(expected_units), len(actual_units)),
+        "expected_unit_count": len(expected_units),
+        "actual_unit_count": len(actual_units),
+    }
 
 
 def schema_manifest(source: str, dump: bytes, compressed: bytes) -> dict:
@@ -205,6 +283,20 @@ def wait_for_restored_schema() -> None:
     """Wait past the entrypoint's temporary server until the schema is queryable."""
     for _ in range(90):
         try:
+            # The official entrypoint's temporary initialization server listens
+            # only on its Unix socket. TCP readiness proves init scripts have
+            # finished and the final server has started; pg_isready needs no
+            # database password and therefore keeps credentials out of argv.
+            compose(
+                "exec",
+                "-T",
+                "cms-database",
+                "pg_isready",
+                "-h",
+                "127.0.0.1",
+                "-U",
+                "openmates",
+            )
             result = compose(
                 "exec",
                 "-T",
@@ -377,25 +469,30 @@ def read_carrier_file(image: str, path: str, name: str, max_bytes: int) -> bytes
     return bytes(output)
 
 
-def verify_gzip_payload(compressed: bytes) -> None:
-    total = 0
+def decompress_gzip_payload(compressed: bytes) -> bytes:
+    output = bytearray()
     try:
         with gzip.GzipFile(fileobj=io.BytesIO(compressed)) as archive:
             while chunk := archive.read(1024 * 1024):
-                total += len(chunk)
-                if total > MAX_UNCOMPRESSED_SCHEMA_BYTES:
+                output.extend(chunk)
+                if len(output) > MAX_UNCOMPRESSED_SCHEMA_BYTES:
                     raise RuntimeError(
                         "Schema carrier dump exceeds its uncompressed verification limit"
                     )
     except (EOFError, gzip.BadGzipFile, OSError) as exc:
         raise RuntimeError("Schema carrier dump is not a valid gzip stream") from exc
+    return bytes(output)
 
 
-def carrier_manifest(image: str) -> dict:
+def verify_gzip_payload(compressed: bytes) -> None:
+    decompress_gzip_payload(compressed)
+
+
+def carrier_payload(image: str) -> tuple[dict, bytes]:
     compressed = read_carrier_file(
         image, SCHEMA_DUMP_PATH, "schema dump", MAX_CARRIER_DUMP_BYTES
     )
-    verify_gzip_payload(compressed)
+    dump = decompress_gzip_payload(compressed)
     manifest_json = read_carrier_file(
         image,
         SCHEMA_MANIFEST_PATH,
@@ -409,6 +506,11 @@ def carrier_manifest(image: str) -> dict:
     compressed_sha256 = hashlib.sha256(compressed).hexdigest()
     if manifest.get("compressed_dump_sha256") != compressed_sha256:
         raise RuntimeError("Schema carrier compressed dump checksum mismatch")
+    return manifest, dump
+
+
+def carrier_manifest(image: str) -> dict:
+    manifest, _ = carrier_payload(image)
     return manifest
 
 
@@ -432,8 +534,10 @@ def verify_image(image: str) -> dict:
     """Restore-test a carrier twice without sharing volumes or credentials."""
     require_runner()
     source = run("git", "rev-parse", "HEAD").stdout.decode().strip()
-    manifest = carrier_manifest(image)
+    manifest, reference_dump = carrier_payload(image)
     verify_manifest(manifest)
+    if normalized_dump_sha256(reference_dump) != manifest["normalized_dump_sha256"]:
+        raise RuntimeError("Schema carrier manifest normalized fingerprint mismatch")
     if manifest.get("source_commit") != source:
         raise RuntimeError("Schema carrier was not built from the current producer source")
     run_id = os.environ.get("GITHUB_RUN_ID", "local")
@@ -458,10 +562,14 @@ def verify_image(image: str) -> dict:
                 "cms-database",
             )
             wait_for_restored_schema()
-            actual = normalized_dump_sha256(database_dump())
+            actual_dump = database_dump()
+            actual = normalized_dump_sha256(actual_dump)
             if actual != manifest["normalized_dump_sha256"]:
+                difference = first_dump_difference(reference_dump, actual_dump)
                 raise RuntimeError(
-                    "Prepared schema restore differs from the normalized cold initializer"
+                    "Prepared schema restore differs from the normalized cold initializer; "
+                    "first_structural_difference="
+                    + json.dumps(difference, sort_keys=True, separators=(",", ":"))
                 )
             compose(
                 "up",

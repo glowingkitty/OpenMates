@@ -64,14 +64,25 @@ backend/SDK test expansion:
 The first producer, run `35519073495`, failed the carrier-readability probe after
 351s of successful schema generation and a 10s carrier build. The probe did not
 name its failing subcommand. Both dependent E2E jobs correctly failed without
-dispatch; no test coverage is credited. Carrier permissions and diagnostics are
-being corrected before retry. Warm artifact restore/startup is not yet proven.
+dispatch; no test coverage is credited. Carrier permissions and diagnostics were
+corrected in `b591c757`, and publication run `35520033189` passed those checks.
+It then failed the first restore comparison. Follow-up corrections require the
+final TCP listener (not the entrypoint's temporary socket-only server) before
+dumping or starting dependent services, and normalize only COPY row order while
+preserving exact rows, duplicates and SQL bytes. Warm restore/startup remains
+unproven until the next source-bound trial passes.
 
 Review also corrected a confidentiality assumption: public-repository Actions
 artifacts are not private. The canary source was already public, so it did not
-disclose unpublished source. Preparation is now restricted to already-public
-source; unpublished candidates retain the cold path. Extending the existing
-private bucket with runner uploads requires the user's separate decision.
+disclose unpublished source. An immediate public-source-only guard was deployed
+as `b591c75776b99cecca3da1626b8f56fa5f1aeb73`. The user then explicitly approved
+using existing private storage for reusable builds. Private upload/download and
+source/run-bound manifests are implemented with producer-scoped, expiring object
+capabilities and read-only consumer access. Actual presigning against the existing
+bucket passed; ticket file mode was 0600. Candidate Docker build-record uploads
+and candidate layer exports to GitHub cache are disabled. Live transfer and
+two-consumer verification are still pending; public CI logs are not a fully
+private execution environment.
 
 ## Debugging workflow trial
 

@@ -209,6 +209,7 @@ def create_bundle(
         "source_commit": source,
         "candidate_tree": candidate_tree,
         "harness_commit": harness_commit,
+        "producer_run_id": os.environ.get("GITHUB_RUN_ID", ""),
         "capabilities": {
             "cli": include_cli,
             "upload_runtime": include_upload,
@@ -264,6 +265,7 @@ def write_producer_results(
         "source_commit": manifest["source_commit"],
         "candidate_tree": manifest["candidate_tree"],
         "preparation_key": manifest["preparation_key"],
+        "producer_run_id": manifest["producer_run_id"],
         "manifest_path": str(manifest_path.resolve()),
         "capabilities": manifest["capabilities"],
         "cold_fallback": False,
@@ -283,6 +285,7 @@ def write_producer_results(
                 "suite": "preparation",
                 "exit_code": 0,
                 "preparation_key": manifest["preparation_key"],
+                "producer_run_id": manifest["producer_run_id"],
                 "capabilities": manifest["capabilities"],
             }
         ],

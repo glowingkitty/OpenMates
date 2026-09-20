@@ -4,6 +4,7 @@ import gzip
 import hashlib
 import json
 import sys
+import subprocess
 
 import pytest
 
@@ -55,15 +56,15 @@ def test_schema_carrier_is_readable_by_postgres_entrypoint():
 
 def test_normalized_dump_ignores_only_pg_presentation_noise():
     first = (
-        b"-- generated header\r\n\\restrict FirstRandom123\r\n\r\n"
-        b"CREATE TABLE example ();  \r\n\\unrestrict FirstRandom123\r\n"
+        b"\\restrict FirstRandom123\n\n"
+        b"CREATE TABLE example ();\n\\unrestrict FirstRandom123\n"
     )
     second = (
-        b"-- other pg version\n\\restrict DifferentRandom456\n"
+        b"\\restrict DifferentRandom456\n\n"
         b"CREATE TABLE example ();\n\\unrestrict DifferentRandom456\n"
     )
     assert bundle.normalized_dump(first) == (
-        b"\\restrict <generated-key>\nCREATE TABLE example ();\n"
+        b"\\restrict <generated-key>\n\nCREATE TABLE example ();\n"
         b"\\unrestrict <generated-key>\n"
     )
     assert bundle.normalized_dump_sha256(first) == bundle.normalized_dump_sha256(second)
@@ -73,6 +74,60 @@ def test_normalized_dump_ignores_only_pg_presentation_noise():
     )
     assert b"--not-a-comment" in bundle.normalized_dump(copy_data)
     assert b"\\restrict PayloadValue123" in bundle.normalized_dump(copy_data)
+
+
+def test_normalized_dump_sorts_only_copy_rows_and_preserves_exact_payload_bytes():
+    prefix = b"SET statement_timeout = 0;\nCOPY public.items (value) FROM stdin;\n"
+    first = prefix + b"second\t \nfirst\t\t\nfirst\t\n\\.\nSELECT 1;\n"
+    reordered = prefix + b"first\t\nsecond\t \nfirst\t\t\n\\.\nSELECT 1;\n"
+    assert bundle.normalized_dump(first) == bundle.normalized_dump(reordered)
+    normalized = bundle.normalized_dump(first)
+    assert b"first\t\n" in normalized
+    assert b"first\t\t\n" in normalized
+    assert b"second\t \n" in normalized
+
+    missing_duplicate = prefix + b"first\t\nsecond\t \n\\.\nSELECT 1;\n"
+    assert bundle.normalized_dump_sha256(first) != bundle.normalized_dump_sha256(
+        missing_duplicate
+    )
+    reordered_sql = b"SELECT 1;\nSET statement_timeout = 0;\n"
+    assert bundle.normalized_dump(b"SET statement_timeout = 0;\nSELECT 1;\n") != (
+        bundle.normalized_dump(reordered_sql)
+    )
+    assert bundle.normalized_dump(b"SELECT 'value ';\n") != bundle.normalized_dump(
+        b"SELECT 'value '; \n"
+    )
+    assert b"-- function-body comment" in bundle.normalized_dump(
+        b"CREATE FUNCTION example() RETURNS void AS $$\n"
+        b"-- function-body comment\nBEGIN NULL; END;\n$$ LANGUAGE plpgsql;\n"
+    )
+
+
+def test_normalized_dump_preserves_multiline_blank_and_control_whitespace():
+    dump = (
+        b"CREATE FUNCTION example() RETURNS text AS $$\n"
+        b"first line\n\n \t\nsecond\vline\fform\rcarriage\n"
+        b"$$ LANGUAGE sql;\n"
+    )
+    assert bundle.normalized_dump(dump) == dump
+
+
+def test_dump_difference_reports_hashes_and_counts_without_payload_values():
+    reference = (
+        b"COPY public.directus_users (password) FROM stdin;\n"
+        b"private-admin-hash-one\n\\.\n"
+    )
+    actual = (
+        b"COPY public.directus_users (password) FROM stdin;\n"
+        b"private-admin-hash-two\n\\.\n"
+    )
+    difference = bundle.first_dump_difference(reference, actual)
+    serialized = json.dumps(difference)
+    assert difference["expected"]["kind"] == "copy"
+    assert difference["expected"]["row_count"] == 1
+    assert "rows_sha256" in difference["actual"]
+    assert "private-admin" not in serialized
+    assert "directus_users" not in serialized
 
 
 def test_schema_manifest_binds_dump_format_and_restore_semantics():
@@ -159,6 +214,44 @@ def test_consumer_profiles_use_independent_projects_volumes_and_credentials():
         assert profile["services"]["cms-setup"]["environment"]["CI_PREPARED_SCHEMA"] == "1"
 
 
+def test_restore_readiness_rejects_temporary_socket_only_server(monkeypatch):
+    calls = []
+    tcp_attempts = 0
+
+    class Result:
+        stdout = b"t\n"
+
+    def compose(*args, **kwargs):
+        nonlocal tcp_attempts
+        calls.append(args)
+        if "pg_isready" in args:
+            tcp_attempts += 1
+            if tcp_attempts == 1:
+                raise subprocess.CalledProcessError(2, args)
+            return Result()
+        assert "psql" in args
+        return Result()
+
+    delays = []
+    monkeypatch.setattr(bundle, "compose", compose)
+    monkeypatch.setattr(bundle.time, "sleep", delays.append)
+
+    bundle.wait_for_restored_schema()
+
+    assert calls[0][3:] == (
+        "pg_isready",
+        "-h",
+        "127.0.0.1",
+        "-U",
+        "openmates",
+    )
+    assert "psql" not in calls[0]
+    assert "pg_isready" in calls[1]
+    assert "psql" in calls[2]
+    assert delays == [1]
+    assert all("PGPASSWORD" not in argument for call in calls for argument in call)
+
+
 def test_verify_image_uses_two_fresh_consumers_and_cleans_each(tmp_path, monkeypatch):
     source = "a" * 40
     dump = b"CREATE TABLE example ();\n"
@@ -172,7 +265,9 @@ def test_verify_image_uses_two_fresh_consumers_and_cleans_each(tmp_path, monkeyp
     monkeypatch.setattr(bundle, "PRIVATE", tmp_path)
     monkeypatch.setattr(bundle, "require_runner", lambda: None)
     monkeypatch.setattr(bundle, "run", lambda *args, **kwargs: Result())
-    monkeypatch.setattr(bundle, "carrier_manifest", lambda image: manifest)
+    monkeypatch.setattr(
+        bundle, "carrier_payload", lambda image: (manifest, dump)
+    )
     monkeypatch.setattr(bundle, "write_profile", profiles.append)
     monkeypatch.setattr(bundle, "wait_for_restored_schema", lambda: None)
     monkeypatch.setattr(bundle, "database_dump", lambda: dump)
@@ -197,3 +292,19 @@ def test_verify_image_uses_two_fresh_consumers_and_cleans_each(tmp_path, monkeyp
     assert bundle.PREPARED_SCHEMA_ADMIN_PASSWORD not in passwords
     assert sum(call[:2] == ("down", "--volumes") for call in compose_calls) == 2
     assert len(evidence["consumers"]) == 2
+
+
+def test_verify_image_rejects_manifest_normalized_fingerprint_mismatch(monkeypatch):
+    source = "a" * 40
+    dump = b"SELECT 1;\n"
+    manifest = bundle.schema_manifest(source, dump, gzip.compress(dump, mtime=0))
+    manifest["normalized_dump_sha256"] = "0" * 64
+
+    class Result:
+        stdout = source.encode()
+
+    monkeypatch.setattr(bundle, "require_runner", lambda: None)
+    monkeypatch.setattr(bundle, "run", lambda *args, **kwargs: Result())
+    monkeypatch.setattr(bundle, "carrier_payload", lambda image: (manifest, dump))
+    with pytest.raises(RuntimeError, match="manifest normalized fingerprint mismatch"):
+        bundle.verify_image("schema:test")
