@@ -8,7 +8,13 @@ See docs/plans/isolated-github-tests/plan.yml.
 """
 
 import pytest
-from scripts.ci_environment import compose_profile, require_runner, start_stack
+from scripts.ci_environment import (
+    PREPARED_SCHEMA_ADMIN_PASSWORD,
+    apply_prepared_schema,
+    compose_profile,
+    require_runner,
+    start_stack,
+)
 
 
 def test_profile_is_private_and_source_bound():
@@ -321,3 +327,28 @@ def test_schema_setup_mounts_exact_candidate_and_enables_ci_fast_settle():
         "/setup/setup_schemas.py:/usr/src/app/setup_schemas.py:ro" in str(mount)
         for mount in setup["volumes"]
     )
+
+
+def test_compatible_prepared_schema_keeps_fresh_state_but_skips_full_initializer():
+    profile = compose_profile("a" * 40)
+    original_password = profile["services"]["cms-database"]["environment"][
+        "POSTGRES_PASSWORD"
+    ]
+    assert apply_prepared_schema(
+        profile, {"images": [{"kind": "schema", "reused": True}]}
+    )
+    database = profile["services"]["cms-database"]
+    setup = profile["services"]["cms-setup"]["environment"]
+    assert database["image"] == "openmates-ci-database:local"
+    assert database["environment"]["POSTGRES_PASSWORD"] == original_password
+    assert setup["CI_PREPARED_SCHEMA"] == "1"
+    assert setup["CI_PREPARED_SCHEMA_ADMIN_PASSWORD"] == PREPARED_SCHEMA_ADMIN_PASSWORD
+
+
+def test_missing_or_incompatible_schema_uses_cold_initializer():
+    profile = compose_profile("a" * 40)
+    assert not apply_prepared_schema(
+        profile, {"images": [{"kind": "schema", "reused": False}]}
+    )
+    assert profile["services"]["cms-database"]["image"] == "postgres:13-alpine"
+    assert "CI_PREPARED_SCHEMA" not in profile["services"]["cms-setup"]["environment"]

@@ -17,6 +17,8 @@ ADMIN_PASSWORD = os.getenv('DATABASE_ADMIN_PASSWORD')
 DIRECTUS_TOKEN = os.getenv('DIRECTUS_TOKEN')
 INTERNAL_API_SHARED_TOKEN = os.getenv('INTERNAL_API_SHARED_TOKEN')
 CI_FAST_SCHEMA_SETUP = os.getenv('CI_FAST_SCHEMA_SETUP') == '1'
+CI_PREPARED_SCHEMA = os.getenv('CI_PREPARED_SCHEMA') == '1'
+CI_PREPARED_SCHEMA_ADMIN_PASSWORD = os.getenv('CI_PREPARED_SCHEMA_ADMIN_PASSWORD')
 
 
 def settle(delay):
@@ -264,18 +266,43 @@ def wait_for_directus():
     
     print("Directus did not become ready in the allowed time, but we'll try to continue anyway...")
 
-def login():
+def login(password=None):
     """Login to Directus and get access token."""
     try:
         response = requests.post(f"{CMS_URL}/auth/login", json={
             "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "password": password or ADMIN_PASSWORD
         })
         response.raise_for_status()
         return response.json()['data']['access_token']
     except Exception as e:
         print(f'Login failed: {str(e)}')
         raise
+
+
+def activate_prepared_schema():
+    """Rotate the synthetic bundle credential and verify the restored contract."""
+    if not CI_PREPARED_SCHEMA_ADMIN_PASSWORD:
+        raise RuntimeError('Prepared schema activation requires its bootstrap password')
+    wait_for_directus()
+    bootstrap_token = login(CI_PREPARED_SCHEMA_ADMIN_PASSWORD)
+    response = requests.patch(
+        f"{CMS_URL}/users/me",
+        headers={"Authorization": f"Bearer {bootstrap_token}"},
+        json={"password": ADMIN_PASSWORD},
+        timeout=15,
+    )
+    response.raise_for_status()
+    token = login()
+    for collection_name in ('invite_codes', 'chats', 'users'):
+        if not collection_exists(token, collection_name):
+            raise RuntimeError(
+                f'Prepared schema is missing required collection {collection_name}'
+            )
+    verify_chat_recovery_endpoint()
+    verify_sub_chat_orchestration_endpoint()
+    verify_anonymous_usage_endpoint()
+    print('Prepared schema activated with fresh runtime credentials')
 
 def collection_exists(token, collection_name):
     """Check if a collection exists in Directus."""
@@ -1671,4 +1698,7 @@ def setup_schemas():
         exit(1)
 
 if __name__ == "__main__":
-    setup_schemas()
+    if CI_PREPARED_SCHEMA:
+        activate_prepared_schema()
+    else:
+        setup_schemas()

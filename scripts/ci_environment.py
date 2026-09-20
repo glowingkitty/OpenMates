@@ -31,6 +31,7 @@ TRANSIENT_REGISTRY_FAILURE = re.compile(
     r"too many requests",
     re.IGNORECASE,
 )
+PREPARED_SCHEMA_ADMIN_PASSWORD = "openmates-ci-prepared-schema-admin-v1"
 VAULT_INITIALIZE = """import asyncio, os, pathlib, requests
 from backend.core.vault.setup.vault_setup.policies import PolicyManager
 from backend.core.api.app.utils.vault_token_check import validate_token_file
@@ -97,7 +98,18 @@ app.start(['beat','--loglevel=warning','--schedule=/tmp/ci-workflows-schedule','
 """
 
 
-def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_storage: bool = False, uploads: bool = False, public_provider: bool = False, workflows: bool = False, account_emails: list[str] | None = None, offline_preview: bool = False) -> dict:
+def compose_profile(
+    source_hash: str,
+    *,
+    ai_fixtures: bool = False,
+    object_storage: bool = False,
+    uploads: bool = False,
+    public_provider: bool = False,
+    workflows: bool = False,
+    account_emails: list[str] | None = None,
+    offline_preview: bool = False,
+    credential_overrides: dict[str, str] | None = None,
+) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
     ai_fixtures = ai_fixtures or public_provider
     object_storage = object_storage or uploads
@@ -118,6 +130,7 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
             "storage_secret",
         )
     }
+    credentials.update(credential_overrides or {})
     fresh_emails = account_emails or []
     if len(set(fresh_emails)) != len(fresh_emails) or any(not email.endswith("@example.com") or not email.startswith("ci-") for email in fresh_emails):
         raise ValueError("CI account allowlist requires unique generated example.com identities")
@@ -527,6 +540,36 @@ def start_stack(*, compose_runner=None, sleep=time.sleep):
     raise AssertionError("unreachable")
 
 
+def apply_prepared_schema(profile: dict, runtime_evidence: dict) -> bool:
+    """Select the compatible schema image without sharing a database or volume."""
+    reused = any(
+        image.get("kind") == "schema" and image.get("reused") is True
+        for image in runtime_evidence.get("images", [])
+    )
+    if not reused:
+        return False
+    services = profile["services"]
+    services["cms-database"]["image"] = "openmates-ci-database:local"
+    services["cms-setup"]["environment"].update(
+        CI_PREPARED_SCHEMA="1",
+        CI_PREPARED_SCHEMA_ADMIN_PASSWORD=PREPARED_SCHEMA_ADMIN_PASSWORD,
+    )
+    return True
+
+
+def select_runtime_profile() -> bool:
+    evidence_path = Path(SOURCE) / "test-results/ci-runtime-images.json"
+    if not evidence_path.is_file() or not COMPOSE_PATH.is_file():
+        return False
+    profile = json.loads(COMPOSE_PATH.read_text())
+    evidence = json.loads(evidence_path.read_text())
+    if not apply_prepared_schema(profile, evidence):
+        return False
+    COMPOSE_PATH.write_text(json.dumps(profile))
+    COMPOSE_PATH.chmod(0o600)
+    return True
+
+
 def main():
     require_runner()
     action = sys.argv[1]
@@ -580,6 +623,7 @@ def main():
         )
     elif action == "start":
         # Compose's wait limit may not bound one-shot dependency startup.
+        select_runtime_profile()
         start_stack()
     elif action == "verify":
         import socket

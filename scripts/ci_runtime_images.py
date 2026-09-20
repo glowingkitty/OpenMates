@@ -30,6 +30,13 @@ RUNTIME_INPUTS = {
     "setup": (
         "backend/core/directus/Dockerfile.setup.selfhost",
     ),
+    "schema": (
+        "scripts/ci_schema_image.Dockerfile",
+        "backend/core/directus/Dockerfile",
+        "backend/core/directus/extensions/**/*",
+        "backend/core/directus/schemas/**/*",
+        "backend/core/directus/setup/**/*",
+    ),
     "upload": (
         "backend/upload/Dockerfile",
         "backend/upload/requirements.txt",
@@ -39,6 +46,7 @@ IMAGES = {
     "api": ("openmates-api", "openmates-ci-api:local"),
     "cms": ("openmates-directus", "openmates-ci-cms:local"),
     "setup": ("openmates-cms-setup", "openmates-ci-setup:local"),
+    "schema": ("openmates-ci-schema", "openmates-ci-database:local"),
     "upload": ("openmates-uploads", "openmates-ci-upload:local"),
 }
 
@@ -133,7 +141,7 @@ def main() -> int:
     if args.command == "key":
         print(runtime_key(root, args.kind))
         return 0
-    kinds = ["api", "cms", "setup"] + (["upload"] if args.include_upload else [])
+    kinds = ["api", "cms", "setup", "schema"] + (["upload"] if args.include_upload else [])
     results = [restore(root, kind, args.registry) for kind in kinds]
     write_outputs(results)
     evidence = root / "test-results/ci-runtime-images.json"
