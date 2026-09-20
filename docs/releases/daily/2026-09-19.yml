@@ -1,0 +1,2411 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-19'
+generated_at: '2026-09-20T00:20:20+00:00'
+range:
+  since: '2026-09-19T00:00:00+00:00'
+  until: '2026-09-20T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 20
+  section_counts:
+    features: 1
+    bug_fixes: 11
+    improvements: 4
+    docs: 2
+    tests: 1
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 13
+  dev_only_items: 20
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: stream voice message transcripts'
+    section: features
+    commits:
+    - 22f4391c5
+    authored_at: '2026-09-19T20:39:51+00:00'
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/main.py
+    - backend/providers/mistral.yml
+    - backend/shared/providers/gemini_transcript_correction.py
+    - backend/tests/test_audio_realtime_transcription.py
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - docs/plans/realtime-audio-recording-transcription/plan.yml
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - frontend/apps/web_app/tests/components/audio-recording-realtime.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/bridge/composerDocument.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/tasks/TaskActivity.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/audio.yml
+    - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:recording, embed:audio:transcribe, platform:tasks, skill:audio:transcribe'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: separate batch and realtime audio pricing'
+    section: bug_fixes
+    commits:
+    - 6f90bfc11
+    authored_at: '2026-09-19T21:07:05+00:00'
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/pricing.py
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/providers/mistral.yml
+    - backend/tests/test_audio_realtime_transcription.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:transcribe, skill:audio:transcribe'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove CLI chat account-export delay'
+    section: bug_fixes
+    commits:
+    - b0b6894bd
+    authored_at: '2026-09-19T19:08:46+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: declare weather pricing and preserve actual provider attribution'
+    section: bug_fixes
+    commits:
+    - d22d43569
+    authored_at: '2026-09-19T18:11:30+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/shared/python_utils/skill_provider_attribution.py
+    - backend/tests/test_anonymous_operation_metering.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_weather_forecast_skill.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:weather, embed:weather:forecast, platform:workflows, skill:weather:forecast'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve streamed tool arguments and punctuated source quotes'
+    section: bug_fixes
+    commits:
+    - 02a1c8bc4
+    authored_at: '2026-09-19T17:23:19+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/fixtures/false_source_quote_stripped.json
+    - backend/apps/ai/tests/test_anthropic_direct_api.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_quote_verification.py
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore reliable tool fallback and remove CLI completion delay'
+    section: bug_fixes
+    commits:
+    - 354ae8076
+    authored_at: '2026-09-19T17:01:31+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/llm_providers/anthropic_shared.py
+    - backend/apps/ai/llm_providers/mistral_client.py
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/model_usage_tracker.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/utility_model_fallbacks.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/tests/test_ai_fallback_billing.py
+    - backend/tests/test_anthropic_tool_history.py
+    - backend/tests/test_celery_config.py
+    - backend/tests/test_mistral_tool_choice.py
+    - backend/tests/test_model_usage_tracker.py
+    - backend/tests/test_postprocessor.py
+    - backend/tests/test_provider_tool_schema.py
+    - backend/tests/test_utility_model_fallbacks.py
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/evaluate_utility_latency.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve automatic version advancement'
+    section: bug_fixes
+    commits:
+    - 28dc933c2
+    authored_at: '2026-09-19T16:02:56+00:00'
+    changed_paths:
+    - .github/workflows/advance-dev-version.yml
+    - docs/plans/two-branch-repository-invariant/plan.yml
+    - scripts/branch_invariant.py
+    - scripts/tests/test_advance_dev_version_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make preprocessing cold starts reliable'
+    section: bug_fixes
+    commits:
+    - f851dca50
+    authored_at: '2026-09-19T15:46:41+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/tests/test_llm_utils_preprocessing_retries.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden branchless candidate transport'
+    section: bug_fixes
+    commits:
+    - fe580b642
+    authored_at: '2026-09-19T15:41:56+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/branch_invariant.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_source.py
+    - scripts/reviewed_deploy.py
+    - scripts/tests/test_branch_invariant.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_workflow_scope.py
+    - scripts/tests/test_reviewed_deploy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make chat request safety allow-biased'
+    section: bug_fixes
+    commits:
+    - e3a39ee46
+    authored_at: '2026-09-19T15:39:19+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/chat_request_safety.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/testing/chat_request_safety_cases.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/scripts/test_chat_request_safety.py
+    - backend/tests/test_chat_request_safety.py
+    - backend/tests/test_llm_utils_preprocessing_retries.py
+    - docs/plans/chat-request-safety/plan.yml
+    - specifications/features/chat-request-safety/examples.yml
+    - specifications/features/chat-request-safety/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce dev main branch invariant'
+    section: bug_fixes
+    commits:
+    - 724521d4b
+    authored_at: '2026-09-19T15:31:30+00:00'
+    changed_paths:
+    - .github/dependabot.yml
+    - .github/workflows/advance-dev-version.yml
+    - .github/workflows/isolated-tests.yml
+    - AGENTS.md
+    - docs/architecture/isolated-github-tests.md
+    - docs/architecture/test-orchestration.md
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - docs/plans/two-branch-repository-invariant/plan.yml
+    - scripts/branch_invariant.py
+    - scripts/ci_candidate.py
+    - scripts/ci_candidate_artifact.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_dispatch.py
+    - scripts/ci_source.py
+    - scripts/reviewed_deploy.py
+    - scripts/safe_bash_guard.py
+    - scripts/sessions.py
+    - scripts/tests/test_advance_dev_version_workflow.py
+    - scripts/tests/test_branch_invariant.py
+    - scripts/tests/test_ci_candidate_artifact.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_source.py
+    - scripts/tests/test_ci_workflow_scope.py
+    - scripts/tests/test_dependency_update_policy.py
+    - scripts/tests/test_reviewed_deploy.py
+    - scripts/tests/test_safe_bash_guard.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: balance preprocessing speed and recovery'
+    section: bug_fixes
+    commits:
+    - f22ca0958
+    authored_at: '2026-09-19T15:18:14+00:00'
+    changed_paths:
+    - backend/apps/ai/tests/test_timeout_utils.py
+    - backend/apps/ai/utils/timeout_utils.py
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: keep post-answer metadata off slow paths'
+    section: improvements
+    commits:
+    - 6058b1260
+    authored_at: '2026-09-19T15:49:57+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/postprocessor.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: remove chat metadata cold-path delays'
+    section: improvements
+    commits:
+    - 348e22761
+    authored_at: '2026-09-19T15:40:43+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_postprocessor.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: make chat routing fast and measurable'
+    section: improvements
+    commits:
+    - 28b243d34
+    authored_at: '2026-09-19T15:33:21+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_preprocessing_prompt_budget.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: speed up chat preprocessing'
+    section: improvements
+    commits:
+    - ad5b0db5e
+    authored_at: '2026-09-19T14:50:10+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/routing_ledger.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_timeout_utils.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/timeout_utils.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_message_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/shared/python_utils/chat_failure_notifications.py
+    - backend/shared/python_utils/tracing/ai_observability.py
+    - backend/tests/test_ai_request_observability.py
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_chat_failure_notifications.py
+    - backend/tests/test_postprocessor.py
+    - backend/tests/test_preprocessing_prompt_budget.py
+    - backend/tests/test_routing_ledger.py
+    - backend/tests/test_teams_chat_ai.py
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: verify two branch repository invariant'
+    section: docs
+    commits:
+    - ecc79ceb9
+    authored_at: '2026-09-19T16:07:08+00:00'
+    changed_paths:
+    - docs/plans/two-branch-repository-invariant/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record chat preprocessing verification'
+    section: docs
+    commits:
+    - d7c010521
+    authored_at: '2026-09-19T16:01:41+00:00'
+    changed_paths:
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'chore: finish ignored clutter cleanup'
+    section: tests
+    commits:
+    - b4ec8cd0d
+    authored_at: '2026-09-19T18:21:22+00:00'
+    changed_paths:
+    - scripts/tests/test_repository_hygiene.py
+    - test-results/daily-run-validation.json
+    - test-results/triage-07-01.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: remove retired OpenCode and repository clutter'
+    section: infrastructure
+    commits:
+    - 2d521d8ed
+    authored_at: '2026-09-19T18:09:16+00:00'
+    changed_paths:
+    - .env.example
+    - .gitignore
+    - .opencode/deploy-protocol-version
+    - .planning/PROJECT.md
+    - .planning/REQUIREMENTS.md
+    - .planning/ROADMAP.md
+    - .planning/STATE.md
+    - .planning/phases/01-foundation/01-01-PLAN.md
+    - .planning/phases/01-foundation/01-01-SUMMARY.md
+    - .planning/phases/01-foundation/01-02-PLAN.md
+    - .planning/phases/01-foundation/01-02-SUMMARY.md
+    - .vscode/launch.json
+    - .vscode/settings.json
+    - DESIGN.md
+    - apple/AGENTS.md
+    - apple/OpenMatesWatch/Assets.xcassets/WatchAppIcon.appiconset/Contents.json
+    - backend/admin_sidecar/main.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/openai_compat.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/s3/config.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/api/app/services/user_work_control_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/cron_session_email_task.py
+    - backend/core/api/app/tasks/email_tasks/daily_issue_digest_task.py
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - backend/core/api/templates/email/daily_issue_digest.mjml
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_task_indexes.sql
+    - backend/scripts/daily_issue_digest.py
+    - backend/scripts/test_app_skill_safety_benchmark.py
+    - backend/tests/test_auto_fix_failed_tests_controller.py
+    - backend/tests/test_cors.py
+    - backend/tests/test_deterministic_quality_audits.py
+    - backend/tests/test_openai_compatible_api_contract.py
+    - backend/tests/test_opencode_response_media_bucket.py
+    - backend/tests/test_review_media_bucket.py
+    - backend/tests/test_sessions_py_identity.py
+    - backend/tests/test_technical_debt_scan.py
+    - backend/tests/test_user_task_admission.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_work_control.py
+    - backend/tests/test_workspace_change_history.py
+    - docs/architecture/ai/subscription-backed-inference.md
+    - docs/architecture/apple/chat-rendering-parity.md
+    - docs/architecture/apps/tasks.md
+    - docs/architecture/compliance/gdpr-audit.md
+    - docs/architecture/core/security.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/architecture/infrastructure/linear-auto-processing.md
+    - docs/architecture/infrastructure/security-reporting.md
+    - docs/architecture/platforms/cli-package.md
+    - docs/architecture/platforms/tasks-v1.md
+    - docs/architecture/semantic/README.md
+    - docs/contributing/docs-structure.md
+    - docs/contributing/guides/agent-tooling-migration.md
+    - docs/findings/issues/README.md
+    - docs/findings/issues/prod/2026/6e0933d1-c968-499f-8e21-cc602c164525-keinen-code-bekommen.md
+    - docs/plans/README.md
+    - docs/plans/opencode-chat-improvement-review/plan.yml
+    - docs/plans/opencode-external-task-bridge/plan.yml
+    - docs/plans/opencode-native-worktree-binding/plan.yml
+    - docs/plans/opencode-orchestration-remediation/plan.yml
+    - docs/plans/opencode-recovery/plan.yml
+    - docs/plans/opencode-session-coordination/plan.yml
+    - docs/plans/opencode-session-integrity/plan.yml
+    - docs/user-guide/cli/tasks.md
+    - frontend/apps/web_app/tests/task-activity.spec.ts
+    - frontend/apps/web_app/tests/task-blocked-reason.spec.ts
+    - frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/codexConnection.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/src/workRecovery.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/codexConnection.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/ui/src/components/embeds/tasks/taskEmbedData.ts
+    - frontend/packages/ui/src/components/tasks/TaskActivity.preview.ts
+    - frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte
+    - frontend/packages/ui/src/components/tasks/TaskDetailFullscreen.preview.ts
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - marketing/ideas.md
+    - marketing/meetups/AI Learners/README.md
+    - marketing/meetups/AI Learners/work_life_balance_in_age_of_ai.md
+    - marketing/meetups/README.md
+    - marketing/merch_ideas.md
+    - marketing/selling_points.md
+    - marketing/slides/openmates_overview_slides.pdf
+    - marketing/slides/openmates_pitch_slides/apps.jpg
+    - marketing/slides/openmates_pitch_slides/completed.jpg
+    - marketing/slides/openmates_pitch_slides/contribute.jpg
+    - marketing/slides/openmates_pitch_slides/goal.jpg
+    - marketing/slides/openmates_pitch_slides/how_apps_work.jpg
+    - marketing/slides/openmates_pitch_slides/intro.jpg
+    - marketing/slides/openmates_pitch_slides/whats_next.jpg
+    - marketing/videos/README.md
+    - marketing/videos/script_openmates-into.md
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/openmates/work_control.py
+    - packages/openmates-python/tests/test_tasks.py
+    - scripts/_daily_meeting_helper.py
+    - scripts/dependabot-processed.json
+    - scripts/response_media.py
+    - scripts/session-cleanup.py
+    - scripts/sessions.py
+    - scripts/tests/conftest.py
+    - scripts/tests/test_agent_tooling_parity_audit.py
+    - scripts/tests/test_apple_no_delete_guard.py
+    - scripts/tests/test_apple_remote_simulator_lock.py
+    - scripts/tests/test_cli_auto_login_plugin.mjs
+    - scripts/tests/test_cli_video_capture.py
+    - scripts/tests/test_codex_task_lifecycle.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_orchestration_monitor.py
+    - scripts/tests/test_product_runtime_state_exclusions.py
+    - scripts/tests/test_release_intelligence.py
+    - scripts/tests/test_repository_hygiene.py
+    - scripts/tests/test_response_media.py
+    - scripts/tests/test_security_scan_reporting.py
+    - scripts/tests/test_sessions_codex_binding.py
+    - scripts/tests/test_sessions_deploy_manifest.py
+    - scripts/tests/test_sessions_edit_leases.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    - scripts/tests/test_skill_embed_registry_worktree_paths.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_specification_approval_pdf.py
+    - scripts/tests/test_specification_readable_pdf.py
+    - scripts/tests/test_stale_code_daily.py
+    - scripts/tests/test_sync_agent_parity.py
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_verify_component_preview_skill.py
+    - scripts/tests/test_workflow_decisions.py
+    - scripts/tests/test_workflow_guard_audits.py
+    - scripts/tests/test_workspace_transition_owner.py
+    - scripts/verify_user_work_control_cli.py
+    - scripts/verify_user_work_control_sdks.py
+    - specifications/architecture/storage-lifecycle/specification.yml
+    - specifications/features/tasks/examples.yml
+    - specifications/features/tasks/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    - tests/README.md
+    - tooling/proof-video-remotion/src/TerminalTutorial.tsx
+    - vscode_extension/processing.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - 'matches feature availability gates: platform:apple-watch, platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: separate batch and realtime audio pricing'
+    commits:
+    - 6f90bfc11
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'feat: stream voice message transcripts'
+    commits:
+    - 22f4391c5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: remove CLI chat account-export delay'
+    commits:
+    - b0b6894bd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'chore: finish ignored clutter cleanup'
+    commits:
+    - b4ec8cd0d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: declare weather pricing and preserve actual provider attribution'
+    commits:
+    - d22d43569
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+  - title: 'chore: remove retired OpenCode and repository clutter'
+    commits:
+    - 2d521d8ed
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve streamed tool arguments and punctuated source quotes'
+    commits:
+    - 02a1c8bc4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: restore reliable tool fallback and remove CLI completion delay'
+    commits:
+    - 354ae8076
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: verify two branch repository invariant'
+    commits:
+    - ecc79ceb9
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve automatic version advancement'
+    commits:
+    - 28dc933c2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record chat preprocessing verification'
+    commits:
+    - d7c010521
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: keep post-answer metadata off slow paths'
+    commits:
+    - 6058b1260
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: make preprocessing cold starts reliable'
+    commits:
+    - f851dca50
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: harden branchless candidate transport'
+    commits:
+    - fe580b642
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: remove chat metadata cold-path delays'
+    commits:
+    - 348e22761
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: make chat request safety allow-biased'
+    commits:
+    - e3a39ee46
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'perf: make chat routing fast and measurable'
+    commits:
+    - 28b243d34
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: enforce dev main branch invariant'
+    commits:
+    - 724521d4b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: balance preprocessing speed and recovery'
+    commits:
+    - f22ca0958
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'perf: speed up chat preprocessing'
+    commits:
+    - ad5b0db5e
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: separate batch and realtime audio pricing'
+    commits:
+    - 6f90bfc11
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: declare weather pricing and preserve actual provider attribution'
+    commits:
+    - d22d43569
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+  - title: 'fix: restore reliable tool fallback and remove CLI completion delay'
+    commits:
+    - 354ae8076
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: make chat request safety allow-biased'
+    commits:
+    - e3a39ee46
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'perf: make chat routing fast and measurable'
+    commits:
+    - 28b243d34
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: separate batch and realtime audio pricing'
+    commits:
+    - 6f90bfc11
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'feat: stream voice message transcripts'
+    commits:
+    - 22f4391c5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: remove CLI chat account-export delay'
+    commits:
+    - b0b6894bd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: declare weather pricing and preserve actual provider attribution'
+    commits:
+    - d22d43569
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: embed:weather:forecast
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:weather:forecast
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:weather
+      source: backend/apps/weather/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve streamed tool arguments and punctuated source quotes'
+    commits:
+    - 02a1c8bc4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore reliable tool fallback and remove CLI completion delay'
+    commits:
+    - 354ae8076
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'perf: keep post-answer metadata off slow paths'
+    commits:
+    - 6058b1260
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: make preprocessing cold starts reliable'
+    commits:
+    - f851dca50
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'perf: remove chat metadata cold-path delays'
+    commits:
+    - 348e22761
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: make chat request safety allow-biased'
+    commits:
+    - e3a39ee46
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'perf: make chat routing fast and measurable'
+    commits:
+    - 28b243d34
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: balance preprocessing speed and recovery'
+    commits:
+    - f22ca0958
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'perf: speed up chat preprocessing'
+    commits:
+    - ad5b0db5e
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 6f90bfc112757ce2ef98c1eddef71320ea6b539c
+    short_sha: 6f90bfc11
+    authored_at: '2026-09-19T21:07:05+00:00'
+    subject: 'fix: separate batch and realtime audio pricing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/pricing.py
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/providers/mistral.yml
+    - backend/tests/test_audio_realtime_transcription.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:audio
+    - embed:audio:transcribe
+    - skill:audio:transcribe
+  - sha: 22f4391c5c1470a94bc1fab7466e945cf5b4bfee
+    short_sha: 22f4391c5
+    authored_at: '2026-09-19T20:39:51+00:00'
+    subject: 'feat: stream voice message transcripts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/main.py
+    - backend/providers/mistral.yml
+    - backend/shared/providers/gemini_transcript_correction.py
+    - backend/tests/test_audio_realtime_transcription.py
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - docs/plans/realtime-audio-recording-transcription/plan.yml
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - frontend/apps/web_app/tests/components/audio-recording-realtime.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/bridge/composerDocument.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/tasks/TaskActivity.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/audio.yml
+    - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:audio
+    - embed:audio:recording
+    - embed:audio:transcribe
+    - platform:tasks
+    - skill:audio:transcribe
+  - sha: b0b6894bd123d1f62be6f568c90b0e98c210c263
+    short_sha: b0b6894bd
+    authored_at: '2026-09-19T19:08:46+00:00'
+    subject: 'fix: remove CLI chat account-export delay'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: b4ec8cd0da670e9fcc7370ec52b9371e8790c23a
+    short_sha: b4ec8cd0d
+    authored_at: '2026-09-19T18:21:22+00:00'
+    subject: 'chore: finish ignored clutter cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests/test_repository_hygiene.py
+    - test-results/daily-run-validation.json
+    - test-results/triage-07-01.json
+    related_feature_ids: []
+  - sha: d22d435694c5990a4cb6339d392d993d6787d74d
+    short_sha: d22d43569
+    authored_at: '2026-09-19T18:11:30+00:00'
+    subject: 'fix: declare weather pricing and preserve actual provider attribution'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/shared/python_utils/skill_provider_attribution.py
+    - backend/tests/test_anonymous_operation_metering.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_weather_forecast_skill.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:weather
+    - embed:weather:forecast
+    - platform:workflows
+    - skill:weather:forecast
+  - sha: 2d521d8edfea3ddad203870865e35afdb1f0e3a8
+    short_sha: 2d521d8ed
+    authored_at: '2026-09-19T18:09:16+00:00'
+    subject: 'chore: remove retired OpenCode and repository clutter'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - .gitignore
+    - .opencode/deploy-protocol-version
+    - .planning/PROJECT.md
+    - .planning/REQUIREMENTS.md
+    - .planning/ROADMAP.md
+    - .planning/STATE.md
+    - .planning/phases/01-foundation/01-01-PLAN.md
+    - .planning/phases/01-foundation/01-01-SUMMARY.md
+    - .planning/phases/01-foundation/01-02-PLAN.md
+    - .planning/phases/01-foundation/01-02-SUMMARY.md
+    - .vscode/launch.json
+    - .vscode/settings.json
+    - DESIGN.md
+    - apple/AGENTS.md
+    - apple/OpenMatesWatch/Assets.xcassets/WatchAppIcon.appiconset/Contents.json
+    - backend/admin_sidecar/main.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/openai_compat.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/s3/config.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/api/app/services/user_work_control_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/cron_session_email_task.py
+    - backend/core/api/app/tasks/email_tasks/daily_issue_digest_task.py
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - backend/core/api/templates/email/daily_issue_digest.mjml
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_task_indexes.sql
+    - backend/scripts/daily_issue_digest.py
+    - backend/scripts/test_app_skill_safety_benchmark.py
+    - backend/tests/test_auto_fix_failed_tests_controller.py
+    - backend/tests/test_cors.py
+    - backend/tests/test_deterministic_quality_audits.py
+    - backend/tests/test_openai_compatible_api_contract.py
+    - backend/tests/test_opencode_response_media_bucket.py
+    - backend/tests/test_review_media_bucket.py
+    - backend/tests/test_sessions_py_identity.py
+    - backend/tests/test_technical_debt_scan.py
+    - backend/tests/test_user_task_admission.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_work_control.py
+    - backend/tests/test_workspace_change_history.py
+    - docs/architecture/ai/subscription-backed-inference.md
+    - docs/architecture/apple/chat-rendering-parity.md
+    - docs/architecture/apps/tasks.md
+    - docs/architecture/compliance/gdpr-audit.md
+    - docs/architecture/core/security.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/architecture/infrastructure/linear-auto-processing.md
+    - docs/architecture/infrastructure/security-reporting.md
+    - docs/architecture/platforms/cli-package.md
+    - docs/architecture/platforms/tasks-v1.md
+    - docs/architecture/semantic/README.md
+    - docs/contributing/docs-structure.md
+    - docs/contributing/guides/agent-tooling-migration.md
+    - docs/findings/issues/README.md
+    - docs/findings/issues/prod/2026/6e0933d1-c968-499f-8e21-cc602c164525-keinen-code-bekommen.md
+    - docs/plans/README.md
+    - docs/plans/opencode-chat-improvement-review/plan.yml
+    - docs/plans/opencode-external-task-bridge/plan.yml
+    - docs/plans/opencode-native-worktree-binding/plan.yml
+    - docs/plans/opencode-orchestration-remediation/plan.yml
+    - docs/plans/opencode-recovery/plan.yml
+    - docs/plans/opencode-session-coordination/plan.yml
+    - docs/plans/opencode-session-integrity/plan.yml
+    - docs/user-guide/cli/tasks.md
+    - frontend/apps/web_app/tests/task-activity.spec.ts
+    - frontend/apps/web_app/tests/task-blocked-reason.spec.ts
+    - frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/codexConnection.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/src/workRecovery.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/codexConnection.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/ui/src/components/embeds/tasks/taskEmbedData.ts
+    - frontend/packages/ui/src/components/tasks/TaskActivity.preview.ts
+    - frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte
+    - frontend/packages/ui/src/components/tasks/TaskDetailFullscreen.preview.ts
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - marketing/ideas.md
+    - marketing/meetups/AI Learners/README.md
+    - marketing/meetups/AI Learners/work_life_balance_in_age_of_ai.md
+    - marketing/meetups/README.md
+    - marketing/merch_ideas.md
+    - marketing/selling_points.md
+    - marketing/slides/openmates_overview_slides.pdf
+    - marketing/slides/openmates_pitch_slides/apps.jpg
+    - marketing/slides/openmates_pitch_slides/completed.jpg
+    - marketing/slides/openmates_pitch_slides/contribute.jpg
+    - marketing/slides/openmates_pitch_slides/goal.jpg
+    - marketing/slides/openmates_pitch_slides/how_apps_work.jpg
+    - marketing/slides/openmates_pitch_slides/intro.jpg
+    - marketing/slides/openmates_pitch_slides/whats_next.jpg
+    - marketing/videos/README.md
+    - marketing/videos/script_openmates-into.md
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/openmates/work_control.py
+    - packages/openmates-python/tests/test_tasks.py
+    - scripts/_daily_meeting_helper.py
+    - scripts/dependabot-processed.json
+    - scripts/response_media.py
+    - scripts/session-cleanup.py
+    - scripts/sessions.py
+    - scripts/tests/conftest.py
+    - scripts/tests/test_agent_tooling_parity_audit.py
+    - scripts/tests/test_apple_no_delete_guard.py
+    - scripts/tests/test_apple_remote_simulator_lock.py
+    - scripts/tests/test_cli_auto_login_plugin.mjs
+    - scripts/tests/test_cli_video_capture.py
+    - scripts/tests/test_codex_task_lifecycle.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_orchestration_monitor.py
+    - scripts/tests/test_product_runtime_state_exclusions.py
+    - scripts/tests/test_release_intelligence.py
+    - scripts/tests/test_repository_hygiene.py
+    - scripts/tests/test_response_media.py
+    - scripts/tests/test_security_scan_reporting.py
+    - scripts/tests/test_sessions_codex_binding.py
+    - scripts/tests/test_sessions_deploy_manifest.py
+    - scripts/tests/test_sessions_edit_leases.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    - scripts/tests/test_skill_embed_registry_worktree_paths.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_specification_approval_pdf.py
+    - scripts/tests/test_specification_readable_pdf.py
+    - scripts/tests/test_stale_code_daily.py
+    - scripts/tests/test_sync_agent_parity.py
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_verify_component_preview_skill.py
+    - scripts/tests/test_workflow_decisions.py
+    - scripts/tests/test_workflow_guard_audits.py
+    - scripts/tests/test_workspace_transition_owner.py
+    - scripts/verify_user_work_control_cli.py
+    - scripts/verify_user_work_control_sdks.py
+    - specifications/architecture/storage-lifecycle/specification.yml
+    - specifications/features/tasks/examples.yml
+    - specifications/features/tasks/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    - tests/README.md
+    - tooling/proof-video-remotion/src/TerminalTutorial.tsx
+    - vscode_extension/processing.md
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:tasks
+  - sha: 02a1c8bc437a727373d5b0ae67a20d47441344d2
+    short_sha: 02a1c8bc4
+    authored_at: '2026-09-19T17:23:19+00:00'
+    subject: 'fix: preserve streamed tool arguments and punctuated source quotes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/fixtures/false_source_quote_stripped.json
+    - backend/apps/ai/tests/test_anthropic_direct_api.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_quote_verification.py
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 354ae80761ed2b9dbe5abe3b0febcf9b509ee0a6
+    short_sha: 354ae8076
+    authored_at: '2026-09-19T17:01:31+00:00'
+    subject: 'fix: restore reliable tool fallback and remove CLI completion delay'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/llm_providers/anthropic_shared.py
+    - backend/apps/ai/llm_providers/mistral_client.py
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/model_usage_tracker.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/utility_model_fallbacks.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/tests/test_ai_fallback_billing.py
+    - backend/tests/test_anthropic_tool_history.py
+    - backend/tests/test_celery_config.py
+    - backend/tests/test_mistral_tool_choice.py
+    - backend/tests/test_model_usage_tracker.py
+    - backend/tests/test_postprocessor.py
+    - backend/tests/test_provider_tool_schema.py
+    - backend/tests/test_utility_model_fallbacks.py
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/evaluate_utility_latency.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: ecc79ceb914d408c23cc8d758d1734a77ebdad9a
+    short_sha: ecc79ceb9
+    authored_at: '2026-09-19T16:07:08+00:00'
+    subject: 'docs: verify two branch repository invariant'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/two-branch-repository-invariant/plan.yml
+    related_feature_ids: []
+  - sha: 28dc933c2a34ef8c78bd1fb788d7638bf475b5a6
+    short_sha: 28dc933c2
+    authored_at: '2026-09-19T16:02:56+00:00'
+    subject: 'fix: preserve automatic version advancement'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/advance-dev-version.yml
+    - docs/plans/two-branch-repository-invariant/plan.yml
+    - scripts/branch_invariant.py
+    - scripts/tests/test_advance_dev_version_workflow.py
+    related_feature_ids: []
+  - sha: d7c01052108b3d228b370a0a47c815cb91f3c2d3
+    short_sha: d7c010521
+    authored_at: '2026-09-19T16:01:41+00:00'
+    subject: 'docs: record chat preprocessing verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    related_feature_ids: []
+  - sha: 6058b1260a3bdf9df4c0ab78ffb271e18ad86981
+    short_sha: 6058b1260
+    authored_at: '2026-09-19T15:49:57+00:00'
+    subject: 'perf: keep post-answer metadata off slow paths'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/postprocessor.py
+    related_feature_ids:
+    - app:ai
+  - sha: f851dca5052766fcb540e19ac3bcc9fe964fae0a
+    short_sha: f851dca50
+    authored_at: '2026-09-19T15:46:41+00:00'
+    subject: 'fix: make preprocessing cold starts reliable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/tests/test_llm_utils_preprocessing_retries.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: fe580b64261c08a187fbced705a1f0de9eb3176e
+    short_sha: fe580b642
+    authored_at: '2026-09-19T15:41:56+00:00'
+    subject: 'fix: harden branchless candidate transport'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/branch_invariant.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_source.py
+    - scripts/reviewed_deploy.py
+    - scripts/tests/test_branch_invariant.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_workflow_scope.py
+    - scripts/tests/test_reviewed_deploy.py
+    related_feature_ids: []
+  - sha: 348e227616f94aadd31c16add6846611ac5bef35
+    short_sha: 348e22761
+    authored_at: '2026-09-19T15:40:43+00:00'
+    subject: 'perf: remove chat metadata cold-path delays'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_postprocessor.py
+    related_feature_ids:
+    - app:ai
+  - sha: e3a39ee46b483ef6eb32f4de5c5ee0b151f682d5
+    short_sha: e3a39ee46
+    authored_at: '2026-09-19T15:39:19+00:00'
+    subject: 'fix: make chat request safety allow-biased'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/chat_request_safety.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/testing/chat_request_safety_cases.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/scripts/test_chat_request_safety.py
+    - backend/tests/test_chat_request_safety.py
+    - backend/tests/test_llm_utils_preprocessing_retries.py
+    - docs/plans/chat-request-safety/plan.yml
+    - specifications/features/chat-request-safety/examples.yml
+    - specifications/features/chat-request-safety/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - skill:ai:ask
+  - sha: 28b243d34c2074444cf5fcdf77de4aa30ed7f35c
+    short_sha: 28b243d34
+    authored_at: '2026-09-19T15:33:21+00:00'
+    subject: 'perf: make chat routing fast and measurable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_preprocessing_prompt_budget.py
+    related_feature_ids:
+    - app:ai
+  - sha: 724521d4bfad442ab4c96790bb65b5b47e0f50a9
+    short_sha: 724521d4b
+    authored_at: '2026-09-19T15:31:30+00:00'
+    subject: 'fix: enforce dev main branch invariant'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/dependabot.yml
+    - .github/workflows/advance-dev-version.yml
+    - .github/workflows/isolated-tests.yml
+    - AGENTS.md
+    - docs/architecture/isolated-github-tests.md
+    - docs/architecture/test-orchestration.md
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - docs/plans/two-branch-repository-invariant/plan.yml
+    - scripts/branch_invariant.py
+    - scripts/ci_candidate.py
+    - scripts/ci_candidate_artifact.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_dispatch.py
+    - scripts/ci_source.py
+    - scripts/reviewed_deploy.py
+    - scripts/safe_bash_guard.py
+    - scripts/sessions.py
+    - scripts/tests/test_advance_dev_version_workflow.py
+    - scripts/tests/test_branch_invariant.py
+    - scripts/tests/test_ci_candidate_artifact.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_source.py
+    - scripts/tests/test_ci_workflow_scope.py
+    - scripts/tests/test_dependency_update_policy.py
+    - scripts/tests/test_reviewed_deploy.py
+    - scripts/tests/test_safe_bash_guard.py
+    related_feature_ids: []
+  - sha: f22ca095898db352406987275b2ebddfa54dc5fd
+    short_sha: f22ca0958
+    authored_at: '2026-09-19T15:18:14+00:00'
+    subject: 'fix: balance preprocessing speed and recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tests/test_timeout_utils.py
+    - backend/apps/ai/utils/timeout_utils.py
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    related_feature_ids:
+    - app:ai
+  - sha: ad5b0db5eb8e70867962591fdcf8912a1b23ce61
+    short_sha: ad5b0db5e
+    authored_at: '2026-09-19T14:50:10+00:00'
+    subject: 'perf: speed up chat preprocessing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/routing_ledger.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_timeout_utils.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/timeout_utils.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_message_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/shared/python_utils/chat_failure_notifications.py
+    - backend/shared/python_utils/tracing/ai_observability.py
+    - backend/tests/test_ai_request_observability.py
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_chat_failure_notifications.py
+    - backend/tests/test_postprocessor.py
+    - backend/tests/test_preprocessing_prompt_budget.py
+    - backend/tests/test_routing_ledger.py
+    - backend/tests/test_teams_chat_ai.py
+    - docs/plans/chat-preprocessing-speed-reliability/plan.yml
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - skill:ai:ask
+llm_summary:
+  overview: OpenMates focused on foundational improvements to the audio experience and AI processing efficiency, notably introducing
+    streaming capabilities for voice transcripts and a suite of latency optimizations for chat routing.
+  released_changes: []
+  bug_fixes:
+  - text: Improved AI reliability by hardening tool fallback mechanisms, resolving preprocessing cold start issues, and ensuring
+      streamed tool arguments are preserved.
+    evidence:
+      commits:
+      - 354ae8076
+      - f851dca50
+      - 02a1c8bc4
+      - f22ca0958
+    release_status: dev_only
+  - text: Refined pricing logic to separate batch and real-time audio processing and corrected provider attribution for weather
+      forecasts.
+    evidence:
+      commits:
+      - 6f90bfc11
+      - d22d43569
+    release_status: dev_only
+  - text: Optimized the CLI by removing artificial delays during account exports and command completions.
+    evidence:
+      commits:
+      - b0b6894bd
+      - 354ae8076
+    release_status: dev_only
+  - text: Adjusted chat request safety filters to use an allow-biased approach.
+    evidence:
+      commits:
+      - e3a39ee46
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added the ability to stream transcripts for voice messages in real-time.
+    evidence:
+      commits:
+      - 22f4391c5
+    release_status: dev_only
+  - text: The project implemented several performance optimizations to speed up AI chat routing and metadata processing.
+    evidence:
+      commits:
+      - ad5b0db5e
+      - 28b243d34
+      - 348e22761
+      - 6058b1260
+    release_status: dev_only
+  - text: Documentation was updated to reflect new repository invariants and chat verification plans.
+    evidence:
+      commits:
+      - ecc79ceb9
+      - d7c010521
+    release_status: dev_only
+  internal_progress:
+  - text: Cleaned up repository clutter, including the removal of retired OpenCode components and legacy planning documentation.
+    evidence:
+      commits:
+      - 2d521d8ed
+      - b4ec8cd0d
+    release_status: dev_only
+  - text: Hardened CI workflows by enforcing branch invariants and fixing automatic version advancement.
+    evidence:
+      commits:
+      - 724521d4b
+      - fe580b642
+      - 28dc933c2
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Streaming voice message transcripts.
+      evidence:
+        commits:
+        - 22f4391c5
+      reason: Feature is currently in development and not yet merged to the main branch.
+    - text: AI chat preprocessing and routing performance enhancements.
+      evidence:
+        commits:
+        - ad5b0db5e
+        - 28b243d34
+        - 348e22761
+        - 6058b1260
+      reason: Performance optimizations are internal improvements currently in the dev branch.
+    rationale: No user-facing changes were merged to the main branch or marked as ready for public communication during this
+      period. All significant updates are currently restricted to the development environment.
+  social_video_recommendations:
+  - idea: A demonstration of real-time voice message transcription streaming as the user speaks.
+    priority: medium
+    reason: Streaming transcripts provide immediate visual feedback and represent a significant UX improvement for audio interactions.
+    evidence:
+      commits:
+      - 22f4391c5
+  quality_notes:
+  - Significant focus on reducing 'cold start' latency in AI preprocessing.
+  - Efforts made to ensure tool-call reliability when using streamed arguments.
+  - Repository hygiene improved by removing substantial legacy code and documentation.
+  validation_warnings: []
