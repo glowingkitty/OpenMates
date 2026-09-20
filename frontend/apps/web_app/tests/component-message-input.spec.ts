@@ -120,7 +120,7 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 });
 
 test.describe('MessageInput component preview', () => {
-	// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.layout.responsive-parity,message-input.drafts.preview-persistence,assistant-speech.preference.chat-scoped-default-off,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions
+	// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.layout.responsive-parity,assistant-speech.preference.chat-scoped-default-off,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions
 	test('moves from minimized to expanded interactive states', async ({ page }, testInfo) => {
 		const proof = createVideoProofRuntime(MESSAGE_INPUT_PROOF, {
 			device: PROOF_DEVICE,
@@ -173,15 +173,6 @@ test.describe('MessageInput component preview', () => {
 			expect(bounds.right, 'Complete microphone guidance must fit within the right viewport edge').toBeLessThanOrEqual(bounds.viewport + VIEWPORT_EDGE_TOLERANCE_PX);
 		});
 		await proof.checkpoint('expanded');
-
-		const editable = page.getByTestId('message-editor').locator('[contenteditable="true"]');
-		await editable.fill('Draft ending.');
-		await editable.press('Control+ArrowLeft');
-		const typingStartedAt = Date.now();
-		await editable.pressSequentially('quick ');
-		const typingDurationMs = Date.now() - typingStartedAt;
-		await expect(editable).toContainText('Draft quick ending.');
-		expect(typingDurationMs, 'Mid-draft typing before a trailing delimiter must stay responsive').toBeLessThan(2_000);
 
 		const speechToggle = page.getByTestId('assistant-speech-toggle');
 		const mutedGlyph = speechToggle.getByTestId('assistant-speech-muted-icon');

@@ -27900,9 +27900,9 @@ assertions:
     fingerprint: 82f601769583d788ae63db0da4ea58d70a0b82f1ff5600918f8c2baf5453caed
     direct_tests:
     - &id3288
-      path: frontend/apps/web_app/tests/component-message-input.spec.ts
-      line: 124
-      name: moves from minimized to expanded interactive states
+      path: frontend/apps/web_app/tests/component-message-input-performance.spec.ts
+      line: 12
+      name: keeps mid-draft typing responsive before a trailing delimiter
       surface: gui.web
     - &id3289
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts

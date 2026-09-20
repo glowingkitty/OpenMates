@@ -82,9 +82,9 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-E2E-COMPOSER
     type: playwright
-    file: frontend/apps/web_app/tests/component-message-input.spec.ts
+    file: frontend/apps/web_app/tests/component-message-input-performance.spec.ts
     command: isolated GitHub CI
-    target: frontend/apps/web_app/tests/component-message-input.spec.ts
+    target: frontend/apps/web_app/tests/component-message-input-performance.spec.ts
     execution_environment: isolated_github_ci
     covers: [AC-2]
     assertions: [The bare component preview remains interactive and responsive.]
