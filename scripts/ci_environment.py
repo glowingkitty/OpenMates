@@ -153,7 +153,10 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
     source_mounts = [
         f"{SOURCE}/backend:/app/backend:ro",
         f"{SOURCE}/shared:/shared:ro",
+        f"{SOURCE}/scripts:/app/scripts:ro",
+        f"{SOURCE}/config:/app/config:ro",
         f"{SOURCE}/backend/config:/config:ro",
+        f"{SOURCE}/frontend/apps/web_app/static:/app/frontend/apps/web_app/static:ro",
         f"{SOURCE}/frontend/packages/ui/src/i18n/locales:/translations:ro",
         f"{SOURCE}/frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n:ro",
         "api-logs:/app/logs",
@@ -278,10 +281,12 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
                 "DB_DATABASE": "openmates",
                 "DB_USER": "openmates",
                 "DB_PASSWORD": credentials["database"],
+                "CI_FAST_SCHEMA_SETUP": "1",
             },
             "volumes": [
                 f"{SOURCE}/backend/core/directus/schemas:/usr/src/app/schemas:ro",
                 f"{SOURCE}/backend/core/directus/setup:/usr/src/app/migrations:ro",
+                f"{SOURCE}/backend/core/directus/setup/setup_schemas.py:/usr/src/app/setup_schemas.py:ro",
             ],
             "depends_on": {"cms": {"condition": "service_started"}},
         },
@@ -346,7 +351,16 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
             "image": "openmates-ci-upload:local",
             "build": {"context": SOURCE, "dockerfile": "backend/upload/Dockerfile"},
             "environment": {**common, "CLAMAV_HOST": "clamav", "CLAMAV_PORT": "3310", "UPLOADS_APP_INTERNAL_PORT": "8000", "DEV_CORE_API_URL": "http://api:8000", "PROD_CORE_API_URL": "http://api:8000", "DEV_INTERNAL_API_SHARED_TOKEN": credentials["internal"], "PROD_INTERNAL_API_SHARED_TOKEN": credentials["internal"]},
-            "volumes": [f"{SOURCE}/backend:/app/backend:ro", {"type": "volume", "source": "vault-tokens", "target": "/vault-data", "read_only": True, "volume": {"nocopy": True}}],
+            "volumes": [
+                f"{SOURCE}/backend:/app/backend:ro",
+                f"{SOURCE}/backend/apps/base_app.py:/app/apps/base_app.py:ro",
+                f"{SOURCE}/backend/apps/base_skill.py:/app/apps/base_skill.py:ro",
+                f"{SOURCE}/backend/shared/python_schemas:/app/backend_shared/python_schemas:ro",
+                f"{SOURCE}/backend/shared/python_utils:/app/backend_shared/python_utils:ro",
+                f"{SOURCE}/config/media_encryption_rollout.yml:/app/config/media_encryption_rollout.yml:ro",
+                f"{SOURCE}/backend/upload/vault/wait-for-vault.sh:/app/wait-for-vault.sh:ro",
+                {"type": "volume", "source": "vault-tokens", "target": "/vault-data", "read_only": True, "volume": {"nocopy": True}},
+            ],
             "ports": ["127.0.0.1:8001:8000"], "mem_limit": 1024 * MIB,
             "depends_on": {"clamav": {"condition": "service_healthy"}, "object-storage": {"condition": "service_healthy"}, "vault-init": {"condition": "service_completed_successfully"}, "api": {"condition": "service_healthy"}},
             "healthcheck": {"test": ["CMD", "curl", "-f", "http://localhost:8000/health"], "interval": "5s", "timeout": "5s", "retries": 30},
@@ -573,6 +587,11 @@ def main():
 
         evidence_path = Path(SOURCE) / "test-results/ci-environment.json"
         evidence = json.loads(evidence_path.read_text())
+        runtime_images = Path(SOURCE) / "test-results/ci-runtime-images.json"
+        if runtime_images.is_file():
+            evidence["runtime_images"] = json.loads(runtime_images.read_text())[
+                "images"
+            ]
         for host in ("api.dev.openmates.org", "app.dev.openmates.org"):
             addresses = {
                 item[4][0]

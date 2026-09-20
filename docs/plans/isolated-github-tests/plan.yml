@@ -374,6 +374,37 @@ decisions:
   decision: Keep the web app as a runner-private localhost process; isolate every E2E spec in its own GitHub job and remove dev deployment from E2E setup.
   reason: User approved the reviewed W1-W4 batch and explicitly declined an unnecessary localhost web container.
   decided_at: '2026-09-20'
+- id: D-3
+  status: active
+  decision: Keep component browser tests on isolated GitHub CI; use a Vite-only component profile instead of a host-local lane.
+  reason: User explicitly chose the GitHub CI path for component testing on 2026-09-20.
+  decided_at: '2026-09-20'
+planning_amendments:
+- id: LATENCY-1
+  revision: 2
+  requested_at: '2026-09-20'
+  goal: >-
+    The whole idea was to use prebuilt docker images to save time… and only add the worktree changes
+    that are needed to test what’s new / changed, right? And as long as we ensure we have only one
+    localhost web app running then localhost testing for component Ui tests makes indeed the most
+    sense I assume, right? Go ahead and plan out the list of concrete changes you recommended
+  document: docs/plans/isolated-github-tests/latency-improvements.md
+  authority: >-
+    User approved implementation and then explicitly retained GitHub CI for component tests. The approved
+    amendment is a lightweight GitHub component profile plus compatible prebuilt runtime reuse and startup
+    reductions; all application E2E remains isolated on GitHub.
+  execution_authority: OpenMates Tasks owns execution status and dependencies; package IDs in the document are design references only.
+  task_link: null
+  task_delivery: >-
+    The global CLI rejected creation with Not logged in on 2026-09-20; no Task was created or queued.
+    Preserve this Plan and create/link the described packages when the existing engineering login is restored.
+  constraints:
+  - Component and application browser tests remain on GitHub CI, one spec per job.
+  - No web Docker container, host-local application backend, shared-dev test traffic, or reused browser/account state.
+  - Prebuilt images must be compatible with candidate dependencies and pinned by digest; reconstruct the complete candidate tree before mounting source.
+  - Reusable schema artifacts contain no user data or reusable credentials; each E2E spec keeps its own databases, volumes and accounts.
+  - Reuse builds and schema artifacts, never running containers or mutable test state between CI jobs.
+  - Preserve held full-journey/provider coverage; component passes cannot satisfy those missing integration checks.
 attempts:
 - id: A-1
   task_id: TASK-1

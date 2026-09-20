@@ -66,6 +66,23 @@ def test_e2e_submission_splits_specs_into_independent_jobs(tmp_path):
         enqueue_submission(queue, "owner", "a" * 40, [], "e2e")
 
 
+def test_component_submission_is_one_spec_per_github_job(tmp_path):
+    import json
+
+    queue = Queue(tmp_path / "queue.db")
+    jobs = enqueue_submission(
+        queue,
+        "owner",
+        "a" * 40,
+        ["components/a.spec.ts", "components/b.spec.ts"],
+        "component",
+    )
+    assert [json.loads(job["specs"]) for job in jobs] == [
+        ["components/a.spec.ts"],
+        ["components/b.spec.ts"],
+    ]
+
+
 def test_four_slots_and_completion_release(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
     q = Queue(tmp_path / "queue.db")

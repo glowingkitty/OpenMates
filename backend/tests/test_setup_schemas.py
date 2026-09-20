@@ -54,6 +54,18 @@ def load_setup_schemas_module():
     return importlib.import_module("backend.core.directus.setup.setup_schemas")
 
 
+def test_ci_fast_schema_setup_reduces_only_defensive_settle(monkeypatch) -> None:
+    setup_schemas = load_setup_schemas_module()
+    delays = []
+    monkeypatch.setattr(setup_schemas.time, "sleep", delays.append)
+    monkeypatch.setattr(setup_schemas, "CI_FAST_SCHEMA_SETUP", True)
+    setup_schemas.settle(2)
+    assert delays == [0.01]
+    monkeypatch.setattr(setup_schemas, "CI_FAST_SCHEMA_SETUP", False)
+    setup_schemas.settle(2)
+    assert delays[-1] == 2
+
+
 def test_create_collection_preserves_string_primary_key(monkeypatch, tmp_path: Path) -> None:
     setup_schemas = load_setup_schemas_module()
     schema_file = tmp_path / "free_testing_credits_budget.yml"

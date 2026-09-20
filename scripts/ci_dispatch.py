@@ -31,6 +31,14 @@ except ModuleNotFoundError:
 NON_E2E_BATCH_SIZE = 4
 
 
+def spec_source(root: Path, source: str, spec: str) -> str:
+    return subprocess.check_output(
+        ["git", "show", f"{source}:frontend/apps/web_app/tests/{spec}"],
+        cwd=root,
+        text=True,
+    )
+
+
 def ensure_coordinator(root: Path):
     unit = "openmates-ci-coordinator.service"
     state = subprocess.run(["systemctl", "--user", "is-active", "--quiet", unit])
@@ -251,11 +259,15 @@ def run(argv: list[str]) -> int:
             specs, held_reasons = partition(specs)
             held_specs = list(held_reasons)
         from scripts.ci_coverage import execution_mode, runtime_batches
-        for mode in ("e2e", "artifact", "selfhost"):
-            selected = [spec for spec in specs if execution_mode(spec) == mode]
+        modes = {
+            spec: execution_mode(spec, spec_source(root, source, spec))
+            for spec in specs
+        }
+        for mode in ("component", "e2e", "artifact", "selfhost"):
+            selected = [spec for spec in specs if modes[spec] == mode]
             batches = (
                 [[spec] for spec in selected]
-                if mode == "e2e"
+                if mode in ("component", "e2e")
                 else runtime_batches(selected, NON_E2E_BATCH_SIZE)
             )
             for batch in batches:

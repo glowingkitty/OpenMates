@@ -34,7 +34,9 @@ spec. If Figma is involved, run `figma-reference` first.
 7. Publish the immutable candidate with `sessions.py ci-source`, submit the
    focused spec through `ci_coordinator.py`, review its component-only artifact,
    and fix objective defects before creating, extending, or running the broader
-   use-case spec. Do not deploy or wait for Vercel to obtain this proof.
+   use-case spec. The account-free marker routes it to the GitHub Vite-only
+   profile; it must not start Docker/backend, build the CLI, or build the
+   production web app. Do not deploy or wait for Vercel to obtain this proof.
 
 ## Component Spec Contract
 

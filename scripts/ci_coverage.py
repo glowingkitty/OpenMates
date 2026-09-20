@@ -41,11 +41,14 @@ CORE_SPECS = frozenset({
     "task-activity.spec.ts",
 })
 ARTIFACT_SPECS = frozenset({"security-reporting-email-proof.spec.ts"})
+COMPONENT_MARKER = "// playwright-account: not_required reason=isolated_component_preview"
 
 
-def execution_mode(spec: str) -> str:
+def execution_mode(spec: str, source_text: str = "") -> str:
     if spec == "selfhost-smoke.spec.ts":
         return "selfhost"
+    if COMPONENT_MARKER in source_text:
+        return "component"
     return "artifact" if spec in ARTIFACT_SPECS else "e2e"
 
 

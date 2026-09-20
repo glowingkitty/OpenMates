@@ -204,13 +204,16 @@ def fetch(github, job: dict, root: Path) -> dict:
             raise RuntimeError(
                 "CI harness or requested proof profile identity mismatch"
             )
-        if job["state"] == "success" and job.get("mode") in ("e2e", "visual-smoke"):
+        if job["state"] == "success" and job.get("mode") in ("component", "e2e", "visual-smoke"):
             if (
                 environment_data.get("source_commit") != job["source"]
                 or environment_data.get("frontend", {}).get("source_commit")
                 != job["source"]
                 or environment_data.get("shared_dev_https") != "rejected"
-                or not environment_data.get("services")
+                or (
+                    job.get("mode") != "component"
+                    and not environment_data.get("services")
+                )
             ):
                 raise RuntimeError(
                     "Green E2E lacks runner-local source and egress evidence"
@@ -222,6 +225,14 @@ def fetch(github, job: dict, root: Path) -> dict:
             ):
                 raise RuntimeError(
                     "Result does not cover the exact requested spec inventory"
+                )
+            if job.get("mode") == "component" and (
+                report.get("runtime_profile") != "component"
+                or environment_data.get("frontend", {}).get("renderer")
+                != "vite-dev"
+            ):
+                raise RuntimeError(
+                    "Component proof lacks the GitHub-hosted Vite runtime evidence"
                 )
         if job["state"] == "success" and job.get("mode") == "artifact":
             if (report.get("runtime_profile") != "artifact"

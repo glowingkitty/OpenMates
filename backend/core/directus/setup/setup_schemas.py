@@ -16,6 +16,17 @@ ADMIN_EMAIL = os.getenv('DATABASE_ADMIN_EMAIL')
 ADMIN_PASSWORD = os.getenv('DATABASE_ADMIN_PASSWORD')
 DIRECTUS_TOKEN = os.getenv('DIRECTUS_TOKEN')
 INTERNAL_API_SHARED_TOKEN = os.getenv('INTERNAL_API_SHARED_TOKEN')
+CI_FAST_SCHEMA_SETUP = os.getenv('CI_FAST_SCHEMA_SETUP') == '1'
+
+
+def settle(delay):
+    """Retain production settling delays while avoiding redundant CI sleeps.
+
+    Directus mutation responses are synchronous. Isolated CI uses a tiny yield
+    instead of accumulating several minutes of defensive production delays.
+    Readiness retries remain unchanged.
+    """
+    time.sleep(min(delay, 0.01) if CI_FAST_SCHEMA_SETUP else delay)
 
 # Print environment variables for debugging
 print("Environment variables loaded.")
@@ -846,7 +857,7 @@ def create_collection_from_config(token, collection_name, collection):
                 )
                 response.raise_for_status()
                 print(f"Successfully created collection {collection_name}")
-                time.sleep(1) # Wait briefly after collection creation
+                settle(1) # Wait briefly after collection creation
             except Exception as e:
                  print(f"Failed to create collection {collection_name}: {str(e)}")
                  if hasattr(e, 'response') and e.response is not None:
@@ -896,13 +907,13 @@ def create_collection_from_config(token, collection_name, collection):
             # Wait before creating relations
             if relations_to_create:
                 print(f"Waiting before creating {len(relations_to_create)} relations for {collection_name}...")
-                time.sleep(2) # Increased wait time before relations
+                settle(2) # Increased wait time before relations
                 
                 # Create relations
                 print(f"Creating relations for {collection_name}...")
                 for field_name, relation_config in relations_to_create:
                     create_relation(token, collection_name, field_name, relation_config)
-                    time.sleep(0.2) # Small delay between relation creations
+                    settle(0.2) # Small delay between relation creations
         
         # If we reached here, the process for this collection was successful
         print(f"Collection {collection_name} processed successfully (Newly created: {create_new})")

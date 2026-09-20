@@ -58,6 +58,13 @@ def test_synthetic_artifacts_use_distinct_account_free_runtime():
     assert execution_mode("tasks-flow.spec.ts") == "e2e"
 
 
+def test_component_marker_selects_lightweight_github_runtime():
+    from scripts.ci_coverage import COMPONENT_MARKER, execution_mode
+
+    assert execution_mode("components/example.spec.ts", COMPONENT_MARKER) == "component"
+    assert execution_mode("components/example.spec.ts", "// no marker") == "e2e"
+
+
 def test_all_existing_holds_have_concrete_dependency_and_next_action():
     import json
     from pathlib import Path

@@ -369,10 +369,43 @@ def wait_web(child):
     raise RuntimeError("Local web app did not become ready")
 
 
-def verify_artifact_profile(specs: list[str]):
-    from ci_coverage import ARTIFACT_SPECS
-    if not specs or not set(specs).issubset(ARTIFACT_SPECS):
-        raise ValueError("Artifact-only mode cannot run application specs")
+def wait_component_web(child):
+    """Record exact-source evidence for the runner-local Vite component host."""
+    verify_shared_dev_rejected()
+    for _ in range(90):
+        if child.poll() is not None:
+            raise RuntimeError("Component Vite server exited before readiness")
+        try:
+            with urllib.request.urlopen(APP, timeout=2) as response:
+                if response.status == 200:
+                    source_commit = subprocess.check_output(
+                        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+                    ).strip()
+                    evidence = {
+                        "source_commit": source_commit,
+                        "run_id": os.environ["GITHUB_RUN_ID"],
+                        "environment": "github-isolated",
+                        "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
+                        "runner_environment": os.environ["RUNNER_ENVIRONMENT"],
+                        "shared_dev_https": "rejected",
+                        "services": {},
+                        "frontend": {
+                            "url": APP,
+                            "source_commit": source_commit,
+                            "renderer": "vite-dev",
+                        },
+                    }
+                    (RESULTS / "ci-environment.json").write_text(
+                        json.dumps(evidence, indent=2)
+                    )
+                    return
+        except OSError:
+            pass
+        time.sleep(1)
+    raise RuntimeError("Component Vite server did not become ready")
+
+
+def verify_shared_dev_rejected():
     for host in ("api.dev.openmates.org", "app.dev.openmates.org"):
         if set(socket.gethostbyname_ex(host)[2]) != {"127.0.0.2"}:
             raise RuntimeError("Shared-dev DNS was not rejected for artifact proof")
@@ -384,7 +417,21 @@ def verify_artifact_profile(specs: list[str]):
         raise RuntimeError("Shared-dev HTTPS reachable during artifact proof")
 
 
-def run_e2e(specs: list[str], *, artifact=False, visual_smoke=False, results=None):
+def verify_artifact_profile(specs: list[str]):
+    from ci_coverage import ARTIFACT_SPECS
+    if not specs or not set(specs).issubset(ARTIFACT_SPECS):
+        raise ValueError("Artifact-only mode cannot run application specs")
+    verify_shared_dev_rejected()
+
+
+def run_e2e(
+    specs: list[str],
+    *,
+    artifact=False,
+    component=False,
+    visual_smoke=False,
+    results=None,
+):
     if not specs:
         raise ValueError("An explicit nonempty spec batch is required")
     if visual_smoke:
@@ -400,27 +447,52 @@ def run_e2e(specs: list[str], *, artifact=False, visual_smoke=False, results=Non
             raise ValueError("Invalid spec selection")
     if artifact:
         verify_artifact_profile(specs)
+    if component:
+        from ci_coverage import COMPONENT_MARKER
+
+        for name in specs:
+            if COMPONENT_MARKER not in (WEB / "tests" / name).read_text():
+                raise ValueError("Component mode requires the isolated component marker")
     if results is None:
         results = []
     with (RESULTS / "ci-web.log").open("w") as log:
-        app_server = None if artifact else subprocess.Popen(
-            ["pnpm", "exec", "vite", "preview", "--host", "127.0.0.1", "--port", "5174", "--strictPort"],
-            cwd=WEB, stdout=log, stderr=log,
-        )
-        child = None if artifact else subprocess.Popen(
-            [
-                sys.executable,
-                str(Path(__file__).with_name("ci_static_web.py")),
-                str(WEB / "build"),
-                "--sveltekit",
-            ],
-            cwd=WEB,
-            stdout=log,
-            stderr=log,
-        )
+        app_server = None
+        if component:
+            child = subprocess.Popen(
+                [
+                    "pnpm",
+                    "exec",
+                    "vite",
+                    "dev",
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    "5173",
+                    "--strictPort",
+                ],
+                cwd=WEB,
+                stdout=log,
+                stderr=log,
+            )
+        else:
+            app_server = None if artifact else subprocess.Popen(
+                ["pnpm", "exec", "vite", "preview", "--host", "127.0.0.1", "--port", "5174", "--strictPort"],
+                cwd=WEB, stdout=log, stderr=log,
+            )
+            child = None if artifact else subprocess.Popen(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("ci_static_web.py")),
+                    str(WEB / "build"),
+                    "--sveltekit",
+                ],
+                cwd=WEB,
+                stdout=log,
+                stderr=log,
+            )
         try:
             if child is not None:
-                wait_web(child)
+                (wait_component_web if component else wait_web)(child)
             if visual_smoke:
                 from ci_visual_smoke import capture
                 results.extend(capture(specs, WEB, RESULTS))
@@ -428,7 +500,7 @@ def run_e2e(specs: list[str], *, artifact=False, visual_smoke=False, results=Non
             for index, name in enumerate(specs):
                 source = (WEB / "tests" / name).read_text()
                 env = {**os.environ, "PLAYWRIGHT_TEST_API_URL": API}
-                account_free = artifact or (
+                account_free = component or artifact or (
                     "// playwright-account: not_required reason=isolated_component_preview"
                     in source
                 )
@@ -509,7 +581,7 @@ def run_e2e(specs: list[str], *, artifact=False, visual_smoke=False, results=Non
                                   else None if executed else "No tests executed; skipped coverage is not a pass"),
                     }
                 )
-                if results[-1]["exit_code"] and not artifact:
+                if results[-1]["exit_code"] and not (artifact or component):
                     try:
                         capture_failed_spec_diagnostics(index)
                     except (RuntimeError, subprocess.TimeoutExpired) as exc:
@@ -546,13 +618,18 @@ def main():
     proof_dimensions = None
     try:
         proof_dimensions = configure_proof_dimensions()
-        if mode in ("e2e", "artifact", "visual-smoke"):
+        if mode in ("component", "e2e", "artifact", "visual-smoke"):
             reject_inherited_accounts()
             selection = json.loads(os.environ["CI_SPECS_JSON"])
             if mode == "visual-smoke":
                 results = run_e2e(selection, visual_smoke=True, results=results)
             else:
-                results = run_e2e(selection, artifact=mode == "artifact", results=results)
+                results = run_e2e(
+                    selection,
+                    artifact=mode == "artifact",
+                    component=mode == "component",
+                    results=results,
+                )
         elif mode == "selfhost":
             reject_inherited_accounts()
             from ci_selfhost import run

@@ -27,6 +27,9 @@ def test_profile_is_private_and_source_bound():
         profile["services"]["api"]["image"]
         == profile["services"]["core-worker"]["image"]
     )
+    api_mounts = profile["services"]["api"]["volumes"]
+    for target in ("/app/backend", "/shared", "/app/scripts", "/app/config"):
+        assert any(target in str(mount) for mount in api_mounts), target
 
 
 def test_fresh_credentials_and_runner_only(monkeypatch):
@@ -246,7 +249,18 @@ def test_upload_profile_requires_real_scanner_and_isolated_api_targets():
     assert upload["environment"]["DEV_CORE_API_URL"] == upload["environment"]["PROD_CORE_API_URL"] == "http://api:8000"
     assert upload["environment"]["S3_ENDPOINT_URL"] == "http://storage.ci.test:9000"
     assert upload["ports"] == ["127.0.0.1:8001:8000"]
-    assert upload["volumes"][1]["read_only"] is True
+    token_mount = next(
+        mount for mount in upload["volumes"]
+        if isinstance(mount, dict) and mount["target"] == "/vault-data"
+    )
+    assert token_mount["read_only"] is True
+    for target in (
+        "/app/backend",
+        "/app/backend_shared/python_schemas",
+        "/app/backend_shared/python_utils",
+        "/app/config/media_encryption_rollout.yml",
+    ):
+        assert any(target in str(mount) for mount in upload["volumes"]), target
     assert "object-storage" in services
     assert profile["networks"]["default"]["internal"] is True
     assert services["runner-gateway"]["ports"] == ["127.0.0.1:8000:8000", "127.0.0.1:8055:8055"]
@@ -298,3 +312,12 @@ def test_only_isolated_ai_profile_advertises_fixture_model_readiness():
     assert replay['networks']['default']['internal'] is True
     assert 'ai-worker' in replay['services']
     assert not any(key.startswith('SECRET__') for key in environment)
+
+
+def test_schema_setup_mounts_exact_candidate_and_enables_ci_fast_settle():
+    setup = compose_profile("a" * 40)["services"]["cms-setup"]
+    assert setup["environment"]["CI_FAST_SCHEMA_SETUP"] == "1"
+    assert any(
+        "/setup/setup_schemas.py:/usr/src/app/setup_schemas.py:ro" in str(mount)
+        for mount in setup["volumes"]
+    )

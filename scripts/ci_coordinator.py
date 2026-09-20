@@ -165,10 +165,10 @@ class Queue:
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
-        if mode not in ("e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"):
+        if mode not in ("component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
-            proof_profile and mode not in ("e2e", "artifact")
+            proof_profile and mode not in ("component", "e2e", "artifact")
         ):
             raise ValueError("Invalid proof video profile")
         candidate = candidate or {}
@@ -210,8 +210,8 @@ class Queue:
                 "candidate_expires": expires,
             }
         specs = sorted(set(specs))
-        if mode == "e2e" and len(specs) > 1:
-            raise ValueError("Each E2E job must contain exactly one spec")
+        if mode in ("component", "e2e") and len(specs) > 1:
+            raise ValueError("Each browser job must contain exactly one spec")
         if mode == "visual-smoke":
             try:
                 from scripts.ci_visual_smoke import validate_targets
@@ -225,8 +225,8 @@ class Queue:
                 or spec.startswith("/")
             ):
                 raise ValueError("Invalid spec path")
-        if mode in ("e2e", "artifact") and not specs:
-            raise ValueError("E2E requests require explicit specs")
+        if mode in ("component", "e2e", "artifact") and not specs:
+            raise ValueError("Browser requests require explicit specs")
         if mode == "selfhost" and specs != ["selfhost-smoke.spec.ts"]:
             raise ValueError("Installer runtime requires exactly its original smoke spec")
         if mode == "e2e":
@@ -484,9 +484,13 @@ def enqueue_submission(
 ) -> list[dict]:
     """Split browser E2E selections into runner-private one-spec jobs."""
     selections = sorted(set(specs))
-    if mode == "e2e" and not selections:
-        raise ValueError("E2E requests require explicit specs")
-    batches = [[spec] for spec in selections] if mode == "e2e" else [selections]
+    if mode in ("component", "e2e") and not selections:
+        raise ValueError("Browser requests require explicit specs")
+    batches = (
+        [[spec] for spec in selections]
+        if mode in ("component", "e2e")
+        else [selections]
+    )
     return [
         queue.enqueue(
             owner,
@@ -558,7 +562,7 @@ def main():
     submit.add_argument("--source", required=True)
     submit.add_argument("--spec", action="append", default=[])
     submit.add_argument("--preview-url", action="append", default=[])
-    submit.add_argument("--mode", choices=["e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
+    submit.add_argument("--mode", choices=["component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
     submit.add_argument("--attempt", default="")
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
@@ -594,13 +598,24 @@ def main():
             args.spec = args.preview_url
         elif args.preview_url:
             parser.error("--preview-url requires visual-smoke")
-        if args.mode in ("e2e", "artifact", "selfhost"):
+        if args.mode in ("component", "e2e", "artifact", "selfhost"):
             try:
                 from scripts.ci_coverage import partition, execution_mode
             except ModuleNotFoundError:
                 from ci_coverage import partition, execution_mode
             _, held = partition(args.spec)
-            if any(execution_mode(spec) != args.mode for spec in args.spec):
+            modes = [
+                execution_mode(
+                    spec,
+                    subprocess.check_output(
+                        ["git", "show", f"{args.source}:frontend/apps/web_app/tests/{spec}"],
+                        cwd=root,
+                        text=True,
+                    ),
+                )
+                for spec in args.spec
+            ]
+            if any(mode != args.mode for mode in modes):
                 raise RuntimeError("Selected specs require a different isolated runtime mode")
             if held:
                 raise RuntimeError("Unsupported isolated coverage: " + json.dumps(held))

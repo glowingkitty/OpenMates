@@ -12,11 +12,10 @@ const config = {
 			pages: 'build',
 			assets: 'build',
 			fallback: 'index.html', // SPA fallback for client-side routing
-			precompress: true,
+			precompress: process.env.OPENMATES_CI_PRECOMPRESS !== '0',
 			strict: true
 		})
 	}
 };
 
 export default config;
-

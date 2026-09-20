@@ -125,6 +125,61 @@ def test_artifact_browser_never_starts_stack_web_or_accounts(tmp_path, monkeypat
     assert "incomplete" in incomplete["error"]
 
 
+def test_component_browser_uses_vite_dev_without_backend_or_accounts(tmp_path, monkeypatch):
+    import pytest
+    from pathlib import Path
+    from scripts import ci_coverage
+
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    monkeypatch.setitem(sys.modules, "ci_coverage", ci_coverage)
+    from scripts import ci_run_tests as runner
+
+    web = tmp_path / "web"
+    (web / "tests/components").mkdir(parents=True)
+    spec = "components/example.spec.ts"
+    (web / "tests" / spec).write_text(ci_coverage.COMPONENT_MARKER)
+    results = tmp_path / "results"
+    results.mkdir()
+    monkeypatch.setattr(runner, "WEB", web)
+    monkeypatch.setattr(runner, "RESULTS", results)
+    monkeypatch.setattr(
+        runner,
+        "provision_account",
+        lambda *args, **kwargs: pytest.fail("Component mode must not provision accounts"),
+    )
+    launched = []
+
+    class Process:
+        def poll(self):
+            return None
+
+        def terminate(self):
+            return None
+
+        def wait(self, timeout=None):
+            return 0
+
+    def popen(command, **kwargs):
+        launched.append(command)
+        return Process()
+
+    monkeypatch.setattr(runner.subprocess, "Popen", popen)
+    monkeypatch.setattr(runner, "wait_component_web", lambda child: None)
+
+    def browser(command, **kwargs):
+        assert command[:4] == ["pnpm", "exec", "playwright", "test"]
+        Path(kwargs["env"]["PLAYWRIGHT_JSON_OUTPUT_NAME"]).write_text(
+            json.dumps({"stats": {"expected": 1}})
+        )
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(runner.subprocess, "run", browser)
+    result = runner.run_e2e([spec], component=True)
+    assert result[0]["exit_code"] == 0
+    assert len(launched) == 1
+    assert launched[0][:4] == ["pnpm", "exec", "vite", "dev"]
+
+
 def test_reserved_account_policy_is_read_from_candidate_without_import(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
@@ -197,7 +252,7 @@ def test_later_harness_failure_preserves_completed_results(tmp_path, monkeypatch
     monkeypatch.setenv("GITHUB_RUN_ID", "unit-fixture")
     monkeypatch.setenv("CI_SPECS_JSON", '["first.spec.ts","second.spec.ts"]')
     monkeypatch.setattr(runner.subprocess, "check_output", lambda *a, **k: "a" * 40)
-    def fail(specs, *, artifact, results):
+    def fail(specs, *, artifact, component, results):
         results.append({"spec": specs[0], "exit_code": 0})
         raise RuntimeError("second account fixture failed")
     monkeypatch.setattr(runner, "run_e2e", fail)

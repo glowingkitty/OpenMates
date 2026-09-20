@@ -109,6 +109,7 @@ def test_partial_cutover_queues_core_and_reports_cloud_hold(tmp_path, monkeypatc
         "tasks-flow.spec.ts", "anonymous-production-repair.spec.ts"
     ])
     monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    monkeypatch.setattr(ci_dispatch, "spec_source", lambda *_: "")
     result = ci_dispatch.run([
         "--worktree", str(root), "--expected-commit", source,
         "--spec", "tasks-flow.spec.ts", "--detach"
@@ -138,6 +139,7 @@ def test_e2e_selection_queues_one_runner_job_per_spec(tmp_path, monkeypatch):
         lambda *_: ["account-interests-settings.spec.ts", "import-account-v1.spec.ts"],
     )
     monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    monkeypatch.setattr(ci_dispatch, "spec_source", lambda *_: "")
     assert (
         ci_dispatch.run(
             [
@@ -158,6 +160,33 @@ def test_e2e_selection_queues_one_runner_job_per_spec(tmp_path, monkeypatch):
         ("account-interests-settings.spec.ts",),
         ("import-account-v1.spec.ts",),
     }
+
+
+def test_component_selection_uses_one_github_job_without_backend(tmp_path, monkeypatch):
+    import json
+    from scripts import ci_dispatch
+    from scripts.ci_coordinator import Queue
+    from scripts.ci_coverage import COMPONENT_MARKER
+
+    root = repository(tmp_path)
+    source = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=root, text=True
+    ).strip()
+    cutover = root / "logs/ci-coordinator/cutover.json"
+    cutover.parent.mkdir(parents=True)
+    cutover.write_text(json.dumps({"ready": True}))
+    monkeypatch.setattr(
+        ci_dispatch, "select_specs", lambda *_: ["component-message-input.spec.ts"]
+    )
+    monkeypatch.setattr(ci_dispatch, "spec_source", lambda *_: COMPONENT_MARKER)
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    assert ci_dispatch.run([
+        "--worktree", str(root), "--expected-commit", source,
+        "--spec", "component-message-input.spec.ts", "--detach",
+    ]) == 0
+    jobs = Queue(root / "logs/ci-coordinator/queue.sqlite3").status()
+    assert len(jobs) == 1
+    assert jobs[0]["mode"] == "component"
 
 
 def test_daily_discovery_includes_nested_component_specs(tmp_path, monkeypatch):
