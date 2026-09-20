@@ -1,7 +1,7 @@
 schema_version: 2
 id: web-composer-search-performance
 title: Responsive web composer and live search
-status: implementing
+status: verified
 goal: >-
   Keep message-input typing responsive and reliable while preserving live search
   across chats, messages, embeds, and uploaded files.
@@ -40,7 +40,7 @@ acceptance_criteria:
     scenario: S-1
     text: Rapid query changes abort obsolete chat and file search work, never publish stale results, and warm file searches reuse indexed metadata without rereading or decrypting unchanged entries.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_frontend
     verification_ids: [T-SEARCH, T-E2E-SEARCH]
@@ -48,7 +48,7 @@ acceptance_criteria:
     scenario: S-2
     text: Editing before a trailing delimiter does not force synchronous parsing, draft preview calculation is not repeated by the normal input event, and table scanning remains linear.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_frontend
     verification_ids: [T-COMPOSER, T-E2E-COMPOSER]
@@ -61,7 +61,7 @@ tests:
     covers: [AC-1]
     assertions: [Cancellation stops obsolete work and unchanged uploaded-file metadata is reused.]
     red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Source inspection and retained local probes already establish repeated work.}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, result: 2 focused tests passed on 2026-09-20.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, result: 4 focused search and uploaded-file index tests passed., command: node vitest.mjs run --config frontend/packages/ui/vitest.config.ts searchService.test.ts uploadedFileSearchPerformance.test.ts, run_id: local-vitest-search-20260920, subject_commit: ac0cbfe7826e802407fa1ba19fafbb530bd6de24, timestamp: '2026-09-20T10:38:14Z'}}
   - id: T-COMPOSER
     type: vitest
     file: frontend/packages/ui/src/message_parsing/__tests__/streamingSemantics.performance.test.ts
@@ -69,7 +69,7 @@ tests:
     covers: [AC-2]
     assertions: [One table block is emitted and transaction-aware parsing does not use the document suffix.]
     red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: The quadratic table benchmark and delimiter probe are retained investigation evidence.}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, result: 4 focused tests passed on 2026-09-20.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, result: 4 focused transaction-scheduling and linear-table tests passed., command: node vitest.mjs run --config frontend/packages/ui/vitest.config.ts composerParsingSchedule.test.ts streamingSemantics.performance.test.ts, run_id: local-vitest-composer-20260920, subject_commit: ac0cbfe7826e802407fa1ba19fafbb530bd6de24, timestamp: '2026-09-20T10:38:14Z'}}
   - id: T-E2E-SEARCH
     type: playwright
     file: frontend/apps/web_app/tests/chat-search-flow.spec.ts
@@ -77,9 +77,20 @@ tests:
     target: frontend/apps/web_app/tests/chat-search-flow.spec.ts
     execution_environment: isolated_github_ci
     covers: [AC-1]
-    assertions: [Live composer search returns only the latest query results.]
+    assertions: [Authenticated chat and message search still returns results and opens the selected chat.]
     red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Existing source evidence established obsolete search work.}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: '35510426652'
+        subject_commit: ac0cbfe7826e802407fa1ba19fafbb530bd6de24
+        target: github-isolated://localhost:5173/
+        deployment_reference: github-actions:35510426652
+        timestamp: '2026-09-20T12:39:13Z'
+        command: python3 scripts/tests.py run --suite playwright --spec chat-search-flow.spec.ts --session b4e4 --expected-commit ac0cbfe7826e802407fa1ba19fafbb530bd6de24 --require-exact-commit
+        result: 4 passed, 0 skipped, 0 unexpected, 0 flaky; cleanup verified.
   - id: T-E2E-COMPOSER
     type: playwright
     file: frontend/apps/web_app/tests/component-message-input-performance.spec.ts
@@ -89,10 +100,42 @@ tests:
     covers: [AC-2]
     assertions: [The bare component preview remains interactive and responsive.]
     red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Retained local delimiter probe established the defect.}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: '35508948866'
+        subject_commit: ac0cbfe7826e802407fa1ba19fafbb530bd6de24
+        target: github-isolated://localhost:5173/dev/preview/enter_message/MessageInput?theme=light&background=%23dbeafe&width=680&chrome=0
+        deployment_reference: github-actions:35508948866
+        timestamp: '2026-09-20T12:06:08Z'
+        command: python3 scripts/tests.py run --suite playwright --spec component-message-input-performance.spec.ts --session b4e4 --expected-commit ac0cbfe7826e802407fa1ba19fafbb530bd6de24 --require-exact-commit
+        result: 1 passed, 0 skipped, 0 unexpected, 0 flaky; cleanup verified.
 
 implementation_state:
-  subject_commit: working-tree
+  subject_commit: ac0cbfe7826e802407fa1ba19fafbb530bd6de24
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: The user requested implementation and tests, not a proof video; the focused component preview and authenticated search-flow receipts provide direct UI evidence.
+    classified_at: '2026-09-20T12:41:00Z'
+    verification_ids: [T-E2E-SEARCH, T-E2E-COMPOSER]
+    blockers: []
+  narration_outline: []
+  evidence:
+    status: not_applicable
+    privacy_status: not_applicable
+    audio_status: not_applicable
+    review_status: not_applicable
+    publication_status: not_applicable
+    review_attempts: 0
+    subject_commit: ''
+    manifest_path: ''
+    manifest_hash: ''
+    review_run_id: ''
+    timestamp: ''
 approvals:
   specification: {status: not_required, reason: Performance repair preserves existing product behavior., source: Existing message-input assertions cover drafts and contextual suggestions.}
   plan: {status: approved, approved_at: '2026-09-20', source: User requested implementation, testing, and deployment.}
@@ -105,24 +148,24 @@ decisions:
 tasks:
   - id: TASK-1
     title: Implement, verify, and deploy responsive composer search.
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2]}
     expected_files: [frontend/packages/ui/src/components/enter_message/MessageInput.svelte, frontend/packages/ui/src/services/embedStore.ts, frontend/packages/ui/src/components/ChatSearchSuggestions.svelte, frontend/packages/ui/src/components/NewChatSuggestions.svelte, frontend/packages/ui/src/message_parsing/streamingSemantics.ts]
     verification_ids: [T-SEARCH, T-COMPOSER, T-E2E-SEARCH, T-E2E-COMPOSER]
     dependencies: []
-    blockers: [Global OpenMates CLI is logged out, so no linked Task was acknowledged.]
+    blockers: []
     follow_up_tasks: []
     ownership: {owner: b4e4, files: [frontend/packages/ui/src/components/enter_message/MessageInput.svelte, frontend/packages/ui/src/services/embedStore.ts, frontend/packages/ui/src/components/ChatSearchSuggestions.svelte, frontend/packages/ui/src/components/NewChatSuggestions.svelte, frontend/packages/ui/src/message_parsing/streamingSemantics.ts], shared_files: []}
 attempts:
   - id: A-1
     task_id: TASK-1
-    outcome: planned
+    outcome: succeeded
     approach: Cancellable searches, bounded metadata reuse, transaction-aware parsing, and linear table scanning.
     recorded_at: '2026-09-20'
 handoff:
   current_task_id: TASK-1
-  next_action: Deploy the linted implementation and run isolated browser checks against dev.
-  command: python3 scripts/sessions.py deploy --session b4e4
-  expected_outcome: Dev serves the exact commit and both focused Playwright specs pass.
-  last_verified_commit: working-tree
+  next_action: None; implementation, dev deployment, and exact-source verification are complete.
+  command: python3 scripts/plan_verify.py docs/plans/web-composer-search-performance/plan.yml --phase complete
+  expected_outcome: Preserve the passing receipts and monitor normal user feedback.
+  last_verified_commit: ac0cbfe7826e802407fa1ba19fafbb530bd6de24
