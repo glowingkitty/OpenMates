@@ -17,7 +17,6 @@
         "apple-settings-ui-contracts.spec.ts",
         "backup-code-login-flow.spec.ts",
         "backup-codes-settings.spec.ts",
-        "audio-recording-live-provider.spec.ts",
         "audio-recording-deferred-send.spec.ts",
         "components/audio-recording-realtime.spec.ts",
         "calendar-connected-accounts.spec.ts",
@@ -117,6 +116,7 @@
       "enabling_work": "AI/app workers and original app/provider fixtures. Preserve live-vs-recorded mode; dedicated credentials/spend caps before real inference. Pure browser fixtures can move independently after checking interception scope.",
       "specs": [
         "apple-cross-client-chat.spec.ts",
+        "audio-recording-live-provider.spec.ts",
         "background-chat-notification.spec.ts",
         "cli-embed-diff-versions.spec.ts",
         "cli-file-upload.spec.ts",
@@ -453,6 +453,12 @@
       "source_environment_names": [
         "PLAYWRIGHT_TEST_API_URL"
       ]
+    },
+    "audio-recording-live-provider.spec.ts": {
+      "dependency": "dedicated_realtime_audio_provider_credentials",
+      "next_action": "Provision isolated CI with dedicated Mistral realtime and Gemini correction credentials plus an explicit per-run spend cap. The spec already preserves real microphone capture, authenticated WebSocket streaming, live transcript deltas, immediate send, and in-place correction; normal isolated CI intentionally has no paid provider secrets.",
+      "user_input_required": true,
+      "source_environment_names": []
     },
     "audio-recording-and-speech.spec.ts": {
       "dependency": "missing_original_recorded_cache",
