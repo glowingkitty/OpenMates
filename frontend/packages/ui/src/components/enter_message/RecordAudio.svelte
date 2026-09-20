@@ -55,11 +55,13 @@
         initialPosition: { x: number; y: number };
         externalStream?: MediaStream | null;
         enableRealtime?: boolean;
+        previewTranscript?: string | null;
     }
     let {
         initialPosition,
         externalStream = null,
         enableRealtime = false,
+        previewTranscript = null,
     }: Props = $props();
 
     // --- Internal State ---
@@ -100,9 +102,10 @@
     let lastWaveformSampleAt = 0;
     let recordOverlayElement: HTMLDivElement | null = null;
     let liveTranscript = $state('');
-    let liveTranscriptTail = $derived(
-        liveTranscript.length > 240 ? `…${liveTranscript.slice(-239)}` : liveTranscript,
-    );
+    let liveTranscriptTail = $derived.by(() => {
+        const latestLine = liveTranscript.trim().split(/\r?\n/).filter(Boolean).at(-1) ?? '';
+        return latestLine.length > 96 ? `…${latestLine.slice(-95)}` : latestLine;
+    });
     let realtimeStatus = $state<'connecting' | 'listening' | 'correcting' | 'failed'>('connecting');
     let realtimeHandle: AudioRealtimeTranscriptionHandle | null = null;
     let realtimeHandedOff = false;
@@ -126,7 +129,12 @@
             recordOverlayElement?.focus({ preventScroll: true });
         });
 
-        initializeAndStartRecording();
+        if (previewTranscript !== null) {
+            liveTranscript = previewTranscript;
+            isRecording = true;
+        } else {
+            initializeAndStartRecording();
+        }
         dispatch('recordingStateChange', { active: true });
     });
 
@@ -487,7 +495,13 @@
         <!-- Top: explicit completion/cancellation shortcuts. -->
         <div class="record-header">
             <span class="release-text" data-testid="release-text">
-                {$text('enter_message.record_audio.recording')}
+                {#if liveTranscriptTail}
+                    <span data-testid="recording-live-transcript" aria-live="polite">
+                        {liveTranscriptTail}
+                    </span>
+                {:else}
+                    {$text('enter_message.record_audio.recording')}
+                {/if}
             </span>
             <span class="record-shortcuts" data-testid="record-shortcuts">
                 {$text('enter_message.record_audio.enter_to_finish_escape_to_cancel')}
@@ -505,11 +519,7 @@
                 ></span>
             {/each}
         </div>
-        {#if liveTranscript}
-            <p class="live-transcript" data-testid="recording-live-transcript" aria-live="polite">
-                {liveTranscriptTail}
-            </p>
-        {:else if enableRealtime && realtimeStatus === 'connecting'}
+        {#if !liveTranscript && enableRealtime && realtimeStatus === 'connecting'}
             <span class="live-transcript-placeholder" aria-hidden="true">•••</span>
         {/if}
     </div>
@@ -583,10 +593,17 @@
     }
 
     .release-text {
+        width: min(100%, 560px);
         font-size: var(--font-size-p);
         font-weight: 700;
         color: white;
         letter-spacing: 0.01em;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 
     .record-shortcuts {
@@ -617,21 +634,6 @@
         flex: 0 1 3px;
         background-color: currentColor;
         border-radius: var(--radius-full);
-    }
-
-    .live-transcript {
-        width: min(100%, 560px);
-        margin: 0;
-        color: white;
-        font-size: var(--font-size-small);
-        font-weight: 600;
-        line-height: 1.4;
-        text-align: center;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
     }
 
     .live-transcript-placeholder {

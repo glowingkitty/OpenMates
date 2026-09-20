@@ -1,8 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const authMocks = vi.hoisted(() => ({
+  token: 'test-ws-token',
+  checkAuth: vi.fn(async () => true),
+}));
+
 vi.mock('../../config/api', () => ({ getApiUrl: () => 'https://api.dev.openmates.org' }));
-vi.mock('../../utils/cookies', () => ({ getWebSocketToken: () => 'test-ws-token' }));
+vi.mock('../../utils/cookies', () => ({ getWebSocketToken: () => authMocks.token }));
 vi.mock('../../utils/sessionId', () => ({ getSessionId: () => 'test-session' }));
+vi.mock('../../stores/authSessionActions', () => ({ checkAuth: authMocks.checkAuth }));
 
 import {
   downsampleAudio,
@@ -56,6 +62,8 @@ describe('audio realtime transcription', () => {
   let context: FakeAudioContext;
 
   beforeEach(() => {
+    authMocks.token = 'test-ws-token';
+    authMocks.checkAuth.mockClear();
     context = new FakeAudioContext();
     vi.stubGlobal('WebSocket', FakeWebSocket);
     vi.stubGlobal('AudioContext', class { constructor() { return context; } });
@@ -142,6 +150,21 @@ describe('audio realtime transcription', () => {
       'input_audio.append',
       'input_audio.end',
     ]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle
+  it('refreshes an expired iOS WebSocket token before opening the audio stream', async () => {
+    authMocks.token = `hash:${Math.floor(Date.now() / 1000) - 1}:expired-signature`;
+    authMocks.checkAuth.mockImplementationOnce(async () => {
+      authMocks.token = `hash:${Math.floor(Date.now() / 1000) + 300}:fresh-signature`;
+      return true;
+    });
+
+    startAudioRealtimeTranscription({} as MediaStream);
+
+    await vi.waitFor(() => expect(authMocks.checkAuth).toHaveBeenCalledWith(undefined, true));
+    await vi.waitFor(() => expect(FakeWebSocket.last.url).toContain('fresh-signature'));
+    expect(FakeWebSocket.last.url).not.toContain('expired-signature');
   });
 
   // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle

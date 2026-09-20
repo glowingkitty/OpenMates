@@ -5,6 +5,7 @@ import { getSessionId } from '../utils/sessionId';
 export const REALTIME_TRANSCRIPTION_MODEL = 'voxtral-mini-transcribe-realtime-2602';
 const TARGET_SAMPLE_RATE = 16_000;
 const MAX_QUEUED_CHUNKS = 96;
+const WS_TOKEN_REFRESH_LEEWAY_SECONDS = 30;
 
 export interface RealtimeTranscriptionResult {
   transcript: string;
@@ -33,14 +34,40 @@ interface StartOptions {
   onStatus?: (status: 'connecting' | 'listening' | 'correcting' | 'failed') => void;
 }
 
-function websocketUrl(): string {
+function websocketUrl(token: string | null): string {
   const url = new URL(
     getApiUrl().replace(/^http/, 'ws') + '/v1/apps/audio/realtime-transcription',
   );
   url.searchParams.set('sessionId', getSessionId());
-  const token = getWebSocketToken();
   if (token) url.searchParams.set('token', token);
   return url.toString();
+}
+
+export function websocketTokenNeedsRefresh(
+  token: string | null,
+  nowSeconds = Date.now() / 1000,
+): boolean {
+  if (!token) return true;
+  const parts = token.split(':', 3);
+  // Preserve compatibility with non-HMAC development tokens. Production HMAC
+  // tokens always use <hash>:<expiry>:<signature>.
+  if (parts.length !== 3) return false;
+  const expiry = Number(parts[1]);
+  return !Number.isFinite(expiry) || expiry <= nowSeconds + WS_TOKEN_REFRESH_LEEWAY_SECONDS;
+}
+
+async function freshWebSocketToken(): Promise<string> {
+  let token = getWebSocketToken();
+  if (websocketTokenNeedsRefresh(token)) {
+    const { checkAuth } = await import('../stores/authSessionActions');
+    const authenticated = await checkAuth(undefined, true);
+    if (!authenticated) throw new Error('Audio transcription session expired');
+    token = getWebSocketToken();
+  }
+  if (!token || websocketTokenNeedsRefresh(token)) {
+    throw new Error('Audio transcription authentication unavailable');
+  }
+  return token;
 }
 
 function pcm16Base64(samples: Float32Array): string {
@@ -136,50 +163,21 @@ export function startAudioRealtimeTranscription(
     if (socket?.readyState === WebSocket.OPEN) socket.close(1011, 'realtime failed');
   };
 
-  try {
-    options.onStatus?.('connecting');
-    socket = new WebSocket(websocketUrl());
-    const audioWindow = window as typeof window & { webkitAudioContext?: typeof AudioContext };
-    const AudioContextConstructor = window.AudioContext ?? audioWindow.webkitAudioContext;
-    if (!AudioContextConstructor) throw new Error('Web Audio API is unavailable');
-    context = new AudioContextConstructor();
-    source = context.createMediaStreamSource(stream);
-    processor = context.createScriptProcessor(4096, 1, 1);
-    silentGain = context.createGain();
-    silentGain.gain.value = 0;
-    source.connect(processor);
-    processor.connect(silentGain);
-    silentGain.connect(context.destination);
-    processor.onaudioprocess = (event) => {
-      if (finished || cancelled) return;
-      const samples = downsampleAudio(event.inputBuffer.getChannelData(0), event.inputBuffer.sampleRate);
-      const audio = pcm16Base64(samples);
-      if (ready && socket?.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'input_audio.append', audio }));
-      } else if (queuedChunks.length < MAX_QUEUED_CHUNKS) {
-        queuedChunks.push(audio);
-      } else {
-        cancelled = true;
-        fail('Realtime transcription did not become ready in time');
-        socket?.close(1011, 'audio queue full');
-      }
-    };
-    if (context.state === 'suspended') void context.resume();
-
-    socket.onmessage = (event) => {
+  const attachSocketHandlers = (activeSocket: WebSocket) => {
+    activeSocket.onmessage = (event) => {
       const message = JSON.parse(String(event.data));
       switch (message.type) {
         case 'session.ready':
           ready = true;
           options.onStatus?.('listening');
-          while (queuedChunks.length && socket?.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: 'input_audio.append', audio: queuedChunks.shift() }));
+          while (queuedChunks.length && activeSocket.readyState === WebSocket.OPEN) {
+            activeSocket.send(JSON.stringify({ type: 'input_audio.append', audio: queuedChunks.shift() }));
           }
-          if (pendingChatId && socket?.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: 'session.metadata', chat_id: pendingChatId }));
+          if (pendingChatId && activeSocket.readyState === WebSocket.OPEN) {
+            activeSocket.send(JSON.stringify({ type: 'session.metadata', chat_id: pendingChatId }));
           }
-          if (finished && socket?.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: 'input_audio.end' }));
+          if (finished && activeSocket.readyState === WebSocket.OPEN) {
+            activeSocket.send(JSON.stringify({ type: 'input_audio.end' }));
           }
           break;
         case 'transcription.text.delta':
@@ -217,7 +215,7 @@ export function startAudioRealtimeTranscription(
               correctionModel: message.correction_model || undefined,
             });
           }
-          socket?.close(1000, 'complete');
+          activeSocket.close(1000, 'complete');
           break;
         case 'correction.failed':
           if (rawResult && !settledCorrection) {
@@ -228,18 +226,64 @@ export function startAudioRealtimeTranscription(
               useCorrected: false,
             });
           }
-          socket?.close(1000, 'complete');
+          activeSocket.close(1000, 'complete');
           break;
         case 'session.error':
           fail(String(message.message || 'Realtime transcription failed'));
           break;
       }
     };
-    socket.onerror = () => fail('Realtime transcription connection failed');
-    socket.onclose = () => {
+    activeSocket.onerror = () => fail('Realtime transcription connection failed');
+    activeSocket.onclose = () => {
       stopAudioGraph();
       if (!cancelled && !settledCorrection) fail('Realtime transcription ended early');
     };
+  };
+
+  const openSocket = (token: string) => {
+    if (cancelled) return;
+    const activeSocket = new WebSocket(websocketUrl(token));
+    socket = activeSocket;
+    attachSocketHandlers(activeSocket);
+  };
+
+  try {
+    options.onStatus?.('connecting');
+    const currentToken = getWebSocketToken();
+    if (websocketTokenNeedsRefresh(currentToken)) {
+      void freshWebSocketToken().then(openSocket).catch((error) => {
+        fail(error instanceof Error ? error.message : 'Realtime transcription authentication failed');
+      });
+    } else {
+      openSocket(currentToken!);
+    }
+    const audioWindow = window as typeof window & { webkitAudioContext?: typeof AudioContext };
+    const AudioContextConstructor = window.AudioContext ?? audioWindow.webkitAudioContext;
+    if (!AudioContextConstructor) throw new Error('Web Audio API is unavailable');
+    context = new AudioContextConstructor();
+    source = context.createMediaStreamSource(stream);
+    processor = context.createScriptProcessor(4096, 1, 1);
+    silentGain = context.createGain();
+    silentGain.gain.value = 0;
+    source.connect(processor);
+    processor.connect(silentGain);
+    silentGain.connect(context.destination);
+    processor.onaudioprocess = (event) => {
+      if (finished || cancelled) return;
+      const samples = downsampleAudio(event.inputBuffer.getChannelData(0), event.inputBuffer.sampleRate);
+      const audio = pcm16Base64(samples);
+      if (ready && socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'input_audio.append', audio }));
+      } else if (queuedChunks.length < MAX_QUEUED_CHUNKS) {
+        queuedChunks.push(audio);
+      } else {
+        cancelled = true;
+        fail('Realtime transcription did not become ready in time');
+        socket?.close(1011, 'audio queue full');
+      }
+    };
+    if (context.state === 'suspended') void context.resume();
+
   } catch (error) {
     fail(error instanceof Error ? error.message : 'Realtime transcription failed');
   }
