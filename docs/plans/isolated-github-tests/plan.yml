@@ -108,6 +108,19 @@ evidence:
   result: Actual 03:00 cron now calls canonical run-tests-daily.sh --detach without sourcing .env or entering
     shared runtime. Four legacy hourly/production schedules explicitly held pending isolated coverage
     disposition.
+- kind: tooling
+  command: python3 -m pytest scripts/tests/test_ci_coordinator.py scripts/tests/test_ci_dispatch.py scripts/tests/test_ci_environment.py scripts/tests/test_ci_coverage.py scripts/tests/test_ci_run_tests.py scripts/tests/test_ci_results.py scripts/tests/test_ci_workflow_scope.py scripts/tests/test_ci_source.py -q
+  result: 92 passed; multi-spec E2E selections split into singleton jobs and transient registry retry remains bounded to recognized network failures.
+- kind: deployment
+  commit: 0ad6de7ffe7c6d3519e2dfadb9221a868bc258eb
+  result: Canonical skills, coordinator, dispatcher, retry logic, docs and generated mirrors deployed to dev with lint and test gates passing.
+- kind: github_parallel_spec_isolation
+  run_ids:
+  - 35505920209
+  - 35505922128
+  subject: 0ad6de7ffe7c6d3519e2dfadb9221a868bc258eb
+  harness: 0ad6de7ffe7c6d3519e2dfadb9221a868bc258eb
+  result: One two-spec submission produced two concurrent GitHub-hosted jobs. Both component specs passed with exact runner-local frontend/backend identities, shared-dev DNS and HTTPS rejected, and zero containers or volumes after cleanup.
 handoff:
   session: ecad
   next: Migrate remaining runtime profiles and actual pending candidate specs; core runtime verified.
@@ -341,7 +354,7 @@ tasks:
     files: *id004
     shared_files: []
 implementation_state:
-  subject_commit: d3f5cb4780a18dc01862a72f2018a3a17ad95112
+  subject_commit: 0ad6de7ffe7c6d3519e2dfadb9221a868bc258eb
 approvals:
   specification:
     status: not_required
