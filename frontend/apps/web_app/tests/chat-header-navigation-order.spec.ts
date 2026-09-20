@@ -75,7 +75,7 @@ async function swipeHeader(page: any, startX: number, endX: number): Promise<voi
 }
 
 test.describe('ChatHeader follows Chats.svelte order', () => {
-	// contract-test: direct surface=gui.web assertions=chat-navigation.draft-only.addressable,chat-navigation.order.sidebar-header-match,chat-navigation.empty-new-chat.excluded,drafts.draft-only.lifecycle,drafts.navigation.includes-draft-only,drafts.established-chat.presentation-unchanged,notifications.web.timed-dismissal
+	// contract-test: direct surface=gui.web assertions=chat-navigation.draft-only.addressable,chat-navigation.order.sidebar-header-match,chat-navigation.empty-new-chat.excluded,drafts.draft-only.lifecycle,drafts.navigation.includes-draft-only,drafts.established-chat.presentation-unchanged,message-input.drafts.preview-persistence,notifications.web.timed-dismissal
 	test('navigates from a regular chat to the newest draft-only chat with the sidebar closed', async ({
 		page
 	}: {
@@ -90,10 +90,48 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		await startNewChat(page);
 		await dismissSecurityReminder(page);
 
-		const draftText = `Header navigation draft ${Date.now().toString(36).replace(/[0-9]/g, 'a')}`;
+		const draftPrefix = `Header navigation draft ${Date.now().toString(36).replace(/[0-9]/g, 'a')}`;
+		const typedWhileActivationPaused = ' stays responsive';
+		const typedDuringHeaderRender = ' while rendering';
+		const draftText = `${draftPrefix}${typedWhileActivationPaused}${typedDuringHeaderRender}`;
 		const messageEditor = page.getByTestId('message-editor');
-		await fillMessageEditor(page, messageEditor, draftText);
+		await page.evaluate(() => {
+			const pauseNextDraftSelection = (window as typeof window & {
+				__openmatesE2EPauseNextDraftSelection?: () => void;
+			}).__openmatesE2EPauseNextDraftSelection;
+			if (!pauseNextDraftSelection) throw new Error('Draft selection pause hook is unavailable');
+			pauseNextDraftSelection();
+		});
+		await fillMessageEditor(page, messageEditor, draftPrefix);
+		await expect.poll(
+			() => page.evaluate(() => Boolean((window as typeof window & {
+				__openmatesE2EDraftSelectionTrace?: Array<{ result: string }>;
+			}).__openmatesE2EDraftSelectionTrace?.some((entry) => entry.result === 'paused'))),
+			{ timeout: 15000 }
+		).toBe(true);
+		await page.keyboard.insertText(typedWhileActivationPaused);
+		await expect(messageEditor).toContainText(`${draftPrefix}${typedWhileActivationPaused}`);
+
+		const typingStartedAt = Date.now();
+		await Promise.all([
+			page.evaluate(() => {
+				const releaseDraftSelection = (window as typeof window & {
+					__openmatesE2EReleaseDraftSelection?: () => void;
+				}).__openmatesE2EReleaseDraftSelection;
+				if (!releaseDraftSelection) throw new Error('Draft selection release hook is unavailable');
+				releaseDraftSelection();
+			}),
+			page.keyboard.type(typedDuringHeaderRender, { delay: 20 })
+		]);
+		expect(Date.now() - typingStartedAt, 'Typing must remain responsive while the draft header renders').toBeLessThan(2000);
 		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		await expect(messageEditor).toContainText(draftText);
+		await expect.poll(
+			() => messageEditor.evaluate((element: HTMLElement) => {
+				const activeElement = document.activeElement;
+				return activeElement instanceof HTMLElement && activeElement.isContentEditable && element.contains(activeElement);
+			})
+		).toBe(true);
 		await expect(page.getByTestId('daily-inspiration-area')).toHaveCount(0);
 		const draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();

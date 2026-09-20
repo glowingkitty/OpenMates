@@ -6055,7 +6055,11 @@
                 }
                 recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'applied' });
                 activeChatStore.setActiveChat(persistedChatId);
-                await loadChat(newChat);
+                // The editor already owns the newest draft document. Loading the
+                // just-persisted shell back into it would replace the live TipTap
+                // state, interrupt the caret, and can discard typing that happened
+                // after the autosave snapshot was captured.
+                await loadChat(newChat, { preserveActiveComposer: true });
                 temporaryChatId = null;
                 console.debug("[ActiveChat] Activated persisted draft-only chat:", persistedChatId);
             }
@@ -9296,7 +9300,7 @@
     }
 
      // Update the loadChat function
-     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null }) {
+     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean }) {
          // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
          // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
          // chatUpdated events can see the new currentChat but operate on the old currentMessages.
@@ -10664,7 +10668,11 @@
                 }
             }
         };
-        await restoreDraftWithRetry();
+        if (options?.preserveActiveComposer) {
+            console.debug('[ActiveChat] Preserving live composer while activating persisted draft shell:', chat.chat_id);
+        } else {
+            await restoreDraftWithRetry();
+        }
         
         // Notify backend about the active chat, but only if WebSocket is connected
         // CRITICAL: Don't send set_active_chat if user is in signup flow - this would overwrite last_opened

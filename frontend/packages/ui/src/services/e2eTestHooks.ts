@@ -69,6 +69,7 @@ export async function installE2ETestHooks() {
       cachePrimed: boolean;
     }>;
     __openmatesE2EReplayDraftSelection?: (chatId: string, pauseBeforeCommit?: boolean) => void;
+    __openmatesE2EPauseNextDraftSelection?: () => void;
     __openmatesE2EReleaseDraftSelection?: () => void;
     __openmatesE2EDraftSelectionGate?: E2EDraftSelectionGate;
     __openmatesE2EDraftSelectionTrace?: E2EDraftSelectionDecision[];
@@ -115,6 +116,15 @@ export async function installE2ETestHooks() {
       ...state,
       newlyCreatedChatIdToSelect: chatId,
     }));
+  };
+
+  testWindow.__openmatesE2EPauseNextDraftSelection = () => {
+    testWindow.__openmatesE2EDraftSelectionTrace = [];
+    let release = () => undefined;
+    const promise = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    testWindow.__openmatesE2EDraftSelectionGate = { promise, release };
   };
 
   testWindow.__openmatesE2EReleaseDraftSelection = () => {
