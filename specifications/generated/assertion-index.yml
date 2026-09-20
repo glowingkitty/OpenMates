@@ -28204,7 +28204,7 @@ assertions:
       surface: gui.web
     - &id3332
       path: frontend/apps/web_app/tests/components/record-audio-live-transcript.spec.ts
-      line: 5
+      line: 6
       name: recording overlay keeps only its latest wrapped transcript line visible
         on mobile
       surface: gui.web
