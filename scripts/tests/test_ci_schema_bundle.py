@@ -19,3 +19,8 @@ def test_schema_bundle_sanitizes_application_and_transient_rows():
     assert "TRUNCATE TABLE directus_sessions" in sql
     assert "DELETE FROM directus_users" in sql
     assert "runtime@example.com" in sql
+
+
+def test_schema_carrier_is_readable_by_postgres_entrypoint():
+    dockerfile = (bundle.ROOT / "scripts/ci_schema_image.Dockerfile").read_text()
+    assert "COPY --chmod=0444 openmates-ci-schema.sql.gz" in dockerfile
