@@ -263,6 +263,16 @@
     let messageInputWrapper: HTMLElement;
     let recordAudioComponent = $state<RecordAudio>();
     let keyboardRecordingStartCheckTimer: ReturnType<typeof setTimeout> | null = null;
+    const RECORDING_DOUBLE_ENTER_WINDOW_MS = 500;
+    const RECORDING_ENTER_HOLD_SEND_MS = 1000;
+    let recordingFinishEnterAt: number | null = null;
+    let recordingDoubleEnterTimer: ReturnType<typeof setTimeout> | null = null;
+    let recordingEnterHoldTimer: ReturnType<typeof setTimeout> | null = null;
+    let recordingEnterKeyHeld = false;
+    let suppressRecordingEnterUntilKeyUp = false;
+    let sendRecordingAfterInsert = false;
+    let recordingEmbedReadyToSend = false;
+    let recordingShortcutSendInFlight = false;
 
     // --- Local UI State ---
     let showCamera = $state(false);
@@ -3313,6 +3323,8 @@
         editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.addEventListener('custom-sign-up-click', handleSignUpClick as EventListener); // Handle Enter key for unauthenticated users
         editorElement?.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('keydown', handleRecordingSendKeyDown, true);
+        document.addEventListener('keyup', handleRecordingSendKeyUp, true);
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         editorElement?.addEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.addEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
@@ -3575,6 +3587,8 @@
         editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.removeEventListener('custom-sign-up-click', handleSignUpClick as EventListener);
         editorElement?.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener('keydown', handleRecordingSendKeyDown, true);
+        document.removeEventListener('keyup', handleRecordingSendKeyUp, true);
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         editorElement?.removeEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.removeEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
@@ -3602,6 +3616,7 @@
         }
         cleanupDraftService(editor ?? undefined);
         if (editor && !editor.isDestroyed) editor.destroy();
+        clearRecordingSendShortcutTimers();
         handleStopRecordingCleanup();
     }
 
@@ -4557,6 +4572,7 @@
         realtime?: AudioRealtimeTranscriptionHandle,
         liveTranscript?: string,
     }>) {
+        recordingEmbedReadyToSend = false;
         const { blob, duration, mimeType, waveform, realtime, liveTranscript } = event.detail;
         const formattedDuration = formatDuration(duration);
         if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
@@ -4609,6 +4625,7 @@
             realtime,
             liveTranscript,
         );
+        recordingEmbedReadyToSend = true;
         hasContent = editorHasSendableText(editor);
         refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
@@ -4618,6 +4635,10 @@
         }
         handleStopRecordingCleanup(); // Called here after recording is inserted
         await tick();
+        if (sendRecordingAfterInsert) {
+            await sendCompletedRecordingFromShortcut();
+            return;
+        }
         focus();
     }
     function handleLocationClick() { showMaps = true; }
@@ -5404,8 +5425,102 @@
     }
 
     function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
+        if (event.detail.active) resetRecordingSendShortcut();
         updateRecordingState({ isRecordingActive: event.detail.active });
         tick().then(updateHeight);
+    }
+
+    function clearRecordingSendShortcutTimers() {
+        if (recordingDoubleEnterTimer) clearTimeout(recordingDoubleEnterTimer);
+        if (recordingEnterHoldTimer) clearTimeout(recordingEnterHoldTimer);
+        recordingDoubleEnterTimer = null;
+        recordingEnterHoldTimer = null;
+    }
+
+    function resetRecordingSendShortcut() {
+        clearRecordingSendShortcutTimers();
+        recordingFinishEnterAt = null;
+        recordingEnterKeyHeld = false;
+        suppressRecordingEnterUntilKeyUp = false;
+        sendRecordingAfterInsert = false;
+        recordingEmbedReadyToSend = false;
+        recordingShortcutSendInFlight = false;
+    }
+
+    function requestCompletedRecordingSend() {
+        sendRecordingAfterInsert = true;
+        void sendCompletedRecordingFromShortcut();
+    }
+
+    async function sendCompletedRecordingFromShortcut() {
+        if (
+            !sendRecordingAfterInsert ||
+            !recordingEmbedReadyToSend ||
+            recordingShortcutSendInFlight
+        ) return;
+
+        recordingShortcutSendInFlight = true;
+        sendRecordingAfterInsert = false;
+        try {
+            await tick();
+            await handleSendMessage();
+        } finally {
+            recordingShortcutSendInFlight = false;
+            recordingEmbedReadyToSend = false;
+        }
+    }
+
+    function handleRecordingSendKeyDown(event: KeyboardEvent) {
+        if (event.key !== 'Enter') return;
+
+        if (event.repeat && suppressRecordingEnterUntilKeyUp) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
+        const now = performance.now();
+        if (
+            !event.repeat &&
+            recordingFinishEnterAt !== null &&
+            now - recordingFinishEnterAt <= RECORDING_DOUBLE_ENTER_WINDOW_MS
+        ) {
+            event.preventDefault();
+            event.stopPropagation();
+            suppressRecordingEnterUntilKeyUp = true;
+            recordingFinishEnterAt = null;
+            if (recordingDoubleEnterTimer) clearTimeout(recordingDoubleEnterTimer);
+            recordingDoubleEnterTimer = null;
+            requestCompletedRecordingSend();
+            return;
+        }
+
+        const ownsRecordingOverlay = Boolean(
+            messageInputWrapper?.querySelector('[data-testid="record-overlay"]'),
+        );
+        if (event.repeat || !ownsRecordingOverlay) return;
+
+        recordingFinishEnterAt = now;
+        recordingEnterKeyHeld = true;
+        suppressRecordingEnterUntilKeyUp = true;
+        if (recordingDoubleEnterTimer) clearTimeout(recordingDoubleEnterTimer);
+        recordingDoubleEnterTimer = setTimeout(() => {
+            recordingFinishEnterAt = null;
+            recordingDoubleEnterTimer = null;
+        }, RECORDING_DOUBLE_ENTER_WINDOW_MS);
+        if (recordingEnterHoldTimer) clearTimeout(recordingEnterHoldTimer);
+        recordingEnterHoldTimer = setTimeout(() => {
+            recordingEnterHoldTimer = null;
+            if (recordingEnterKeyHeld) requestCompletedRecordingSend();
+        }, RECORDING_ENTER_HOLD_SEND_MS);
+    }
+
+    function handleRecordingSendKeyUp(event: KeyboardEvent) {
+        if (event.key !== 'Enter' || !suppressRecordingEnterUntilKeyUp) return;
+        event.preventDefault();
+        event.stopPropagation();
+        recordingEnterKeyHeld = false;
+        suppressRecordingEnterUntilKeyUp = false;
     }
 
     function handleStopRecordingCleanup() {
