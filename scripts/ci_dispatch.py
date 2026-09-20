@@ -28,7 +28,7 @@ except ModuleNotFoundError:
     from ci_coordinator import Queue, canonical_root, TERMINAL
     from ci_candidate import load as load_candidate
 
-BATCH_SIZE = 4
+NON_E2E_BATCH_SIZE = 4
 
 
 def ensure_coordinator(root: Path):
@@ -253,7 +253,12 @@ def run(argv: list[str]) -> int:
         from scripts.ci_coverage import execution_mode, runtime_batches
         for mode in ("e2e", "artifact", "selfhost"):
             selected = [spec for spec in specs if execution_mode(spec) == mode]
-            for batch in runtime_batches(selected, BATCH_SIZE):
+            batches = (
+                [[spec] for spec in selected]
+                if mode == "e2e"
+                else runtime_batches(selected, NON_E2E_BATCH_SIZE)
+            )
+            for batch in batches:
                 jobs.append(queue.enqueue(
                     owner, source, batch, mode,
                     attempt, args.proof_video_profile, candidate,

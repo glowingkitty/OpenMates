@@ -210,6 +210,8 @@ class Queue:
                 "candidate_expires": expires,
             }
         specs = sorted(set(specs))
+        if mode == "e2e" and len(specs) > 1:
+            raise ValueError("Each E2E job must contain exactly one spec")
         if mode == "visual-smoke":
             try:
                 from scripts.ci_visual_smoke import validate_targets
@@ -470,6 +472,35 @@ class Queue:
                     )
 
 
+def enqueue_submission(
+    queue: Queue,
+    owner: str,
+    source: str,
+    specs: list[str],
+    mode: str,
+    nonce: str = "",
+    proof_profile: str = "",
+    candidate: dict | None = None,
+) -> list[dict]:
+    """Split browser E2E selections into runner-private one-spec jobs."""
+    selections = sorted(set(specs))
+    if mode == "e2e" and not selections:
+        raise ValueError("E2E requests require explicit specs")
+    batches = [[spec] for spec in selections] if mode == "e2e" else [selections]
+    return [
+        queue.enqueue(
+            owner,
+            source,
+            batch,
+            mode,
+            nonce,
+            proof_profile,
+            candidate,
+        )
+        for batch in batches
+    ]
+
+
 def print_receipt(value, *, as_json=False):
     """Keep machine receipts available without flooding ordinary agent calls."""
     if as_json:
@@ -578,8 +609,17 @@ def main():
         except ModuleNotFoundError:
             from ci_candidate import load as load_candidate
         candidate = load_candidate(root, args.source, require_fresh=True)
-        print_receipt(queue.enqueue(args.session, args.source, args.spec, args.mode,
-                                    args.attempt, args.proof_video_profile, candidate), as_json=args.json)
+        receipts = enqueue_submission(
+            queue,
+            args.session,
+            args.source,
+            args.spec,
+            args.mode,
+            args.attempt,
+            args.proof_video_profile,
+            candidate,
+        )
+        print_receipt(receipts[0] if len(receipts) == 1 else receipts, as_json=args.json)
     elif args.action == "prioritize":
         print_receipt(queue.prioritize(args.id, args.session, args.reason), as_json=args.json)
     elif args.action == "status":

@@ -15,8 +15,8 @@ flowchart LR
   G --> B[Detached base checkout]
   B --> S[Verify patch digest and reconstruct exact candidate]
   S --> I[Cached dependency image builds]
-  I --> A[Local API and workers]
-  I --> F[Local web app and browser]
+  I --> A[Disposable Docker API and workers]
+  I --> F[Runner-local web process and browser]
   A --> DB[Disposable PostgreSQL / CMS / cache / Vault]
   F --> A
   A --> T[Fresh real CLI signup and encrypted account state]
@@ -28,6 +28,14 @@ flowchart LR
 ```
 
 The Hetzner host retains source worktrees, focused unit execution, the queue and bounded result artifacts. It does not start candidate Docker stacks. `ci_environment.py` rejects execution outside a GitHub-hosted job before Docker is invoked. Shared dev domains resolve to a rejected loopback endpoint in both the runner and application containers; verification checks the runner's failed HTTPS connection.
+
+Every ordinary E2E job contains exactly one Playwright spec. A submission naming
+multiple specs is split into separate GitHub jobs, so each spec receives its own
+VM, Compose project, database, volumes, credentials and web process. The backend
+is containerized; the exact SvelteKit build is served by a runner-host process on
+`localhost:5173`. Because the GitHub VM is already the isolation boundary, the
+web process does not need a second container. Tests inside one spec intentionally
+share that spec's disposable stack.
 
 The workflow checks out its trusted harness separately from the immutable subject. For a worktree candidate it checks out the reachable base in detached state, downloads a private 48-hour patch, verifies its SHA-256, reconstructs the deterministic tree and commit, and rejects any identity mismatch. No candidate branch or other Git ref is created. Old worktrees and reviewed resolved patches may predate CI tooling. The tested subject and harness commits are recorded separately. Image builds and frontend compilation use the subject checkout. Existing build caches accelerate dependencies without substituting stale application source.
 
@@ -57,6 +65,10 @@ python3 scripts/ci_coordinator.py result REQUEST_ID
 python3 scripts/ci_coordinator.py health
 ```
 
+Passing several `--spec` arguments returns several request records, one per
+isolated job. Ordinary E2E rejects `--preview-url`; deployment and Vercel are not
+prerequisites for candidate verification.
+
 `status` reads local state only. `result` fetches and validates artifacts once, then returns the cached receipt and GitHub artifact link. Phone and laptop proofs use separate `--proof-video-profile web-phone` / `web-laptop` requests. Review and delivery requirements remain in force; an artifact link alone does not certify a video review.
 
 For a reviewed stale-base patch:
@@ -70,6 +82,10 @@ This publishes a candidate through a temporary index. It does not integrate or d
 ## Queue, cost and retained space
 
 One flocked reconciler dispatches at most four active jobs. Intent is durable before the request; ambiguous dispatches retain their slot and are reconciled rather than resent. Routine status polling is shared at 30 seconds. GitHub request reserve and backoff also apply to artifact retrieval. The coordinator exposes attention states instead of silently rerunning uncertain jobs.
+
+Stack startup retries only recognized transient registry/network failures with
+bounded backoff. Source errors, unhealthy application services and failed
+initializers are not retried and remain visible failures.
 
 Candidate publication and artifact retrieval preserve at least 30 GiB free on the host. Candidate patches are bounded to 100 MiB, stored in a private bucket, addressed by digest, and expire after two days. Result artifact downloads are bounded to 256 MiB, extracted data to 512 MiB and 10,000 files, with a one-minute download deadline. Unsafe paths, symlinks and private account state are rejected. GitHub result-artifact retention is seven days. Local manifests retain the exact reviewed bytes needed by reviewed deployment.
 

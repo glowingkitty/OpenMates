@@ -10,7 +10,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 from concurrent.futures import ThreadPoolExecutor
 import datetime as dt
 
-from scripts.ci_coordinator import Queue, GitHub, GitHubError
+from scripts.ci_coordinator import Queue, GitHub, GitHubError, enqueue_submission
 
 
 class Remote:
@@ -40,6 +40,30 @@ def test_concurrent_enqueue_is_idempotent(tmp_path):
         )
     assert len(set(ids)) == 1
     assert len(q.status()) == 1
+
+
+def test_e2e_submission_splits_specs_into_independent_jobs(tmp_path):
+    import json
+    import pytest
+
+    queue = Queue(tmp_path / "queue.db")
+    jobs = enqueue_submission(
+        queue,
+        "owner",
+        "a" * 40,
+        ["second.spec.ts", "first.spec.ts", "first.spec.ts"],
+        "e2e",
+    )
+    assert [json.loads(job["specs"]) for job in jobs] == [
+        ["first.spec.ts"],
+        ["second.spec.ts"],
+    ]
+    with pytest.raises(ValueError, match="exactly one spec"):
+        queue.enqueue(
+            "owner", "a" * 40, ["first.spec.ts", "second.spec.ts"], "e2e"
+        )
+    with pytest.raises(ValueError, match="explicit specs"):
+        enqueue_submission(queue, "owner", "a" * 40, [], "e2e")
 
 
 def test_four_slots_and_completion_release(tmp_path, monkeypatch):

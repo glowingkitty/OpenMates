@@ -21,9 +21,10 @@ contract-test metadata and stable assertion IDs for product tests; classify
 engineering/tooling tests as such. Never weaken assertions to force a pass.
 
 Focused unit, lint and build checks run in the isolated checkout. Product
-REST/WebSocket, CLI/SDK and browser E2E run with the full Docker/web application
-stack in the existing isolated GitHub CI infrastructure, with disposable test
-accounts. Do not launch a second CI scheduler or use the shared dev stack for
+REST/WebSocket, CLI/SDK and browser E2E run with a disposable Docker backend and
+runner-private localhost web process in the existing isolated GitHub CI
+infrastructure, with one browser spec and fresh test accounts per job. Do not
+launch a second CI scheduler, deploy before E2E, or use the shared dev stack for
 these tests. Publish immutable source with `sessions.py ci-source`, submit with
 `ci_coordinator.py submit`, then use `ci_coordinator.py wait <id>` or existing
 result events. Inspect the scoped receipt on completion. Source and harness

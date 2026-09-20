@@ -120,6 +120,46 @@ def test_partial_cutover_queues_core_and_reports_cloud_hold(tmp_path, monkeypatc
     assert json.loads(jobs[0]["specs"]) == ["tasks-flow.spec.ts"]
 
 
+def test_e2e_selection_queues_one_runner_job_per_spec(tmp_path, monkeypatch):
+    import json
+    from scripts import ci_dispatch
+    from scripts.ci_coordinator import Queue
+
+    root = repository(tmp_path)
+    source = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=root, text=True
+    ).strip()
+    cutover = root / "logs/ci-coordinator/cutover.json"
+    cutover.parent.mkdir(parents=True)
+    cutover.write_text(json.dumps({"ready": True}))
+    monkeypatch.setattr(
+        ci_dispatch,
+        "select_specs",
+        lambda *_: ["account-interests-settings.spec.ts", "import-account-v1.spec.ts"],
+    )
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    assert (
+        ci_dispatch.run(
+            [
+                "--worktree",
+                str(root),
+                "--expected-commit",
+                source,
+                "--spec",
+                "account-interests-settings.spec.ts",
+                "--detach",
+            ]
+        )
+        == 0
+    )
+    jobs = Queue(root / "logs/ci-coordinator/queue.sqlite3").status()
+    assert len(jobs) == 2
+    assert {tuple(json.loads(job["specs"])) for job in jobs} == {
+        ("account-interests-settings.spec.ts",),
+        ("import-account-v1.spec.ts",),
+    }
+
+
 def test_daily_discovery_includes_nested_component_specs(tmp_path, monkeypatch):
     from scripts import ci_dispatch, daily_ai_test_policy
     folder = tmp_path / "frontend/apps/web_app/tests/components"

@@ -1,6 +1,6 @@
 ---
 name: verify-component-preview
-description: Use whenever adding or modifying a web UI element, Svelte component, screen, icon, hover state, focus state, or responsive layout. Enforces bare URL-configured component proof before broader use-case specs.
+description: Use whenever adding or modifying a web UI element, Svelte component, screen, icon, hover state, focus state, or responsive layout. Enforces runner-local bare component proof before broader use-case specs.
 ---
 
 # Verify Component Preview
@@ -15,9 +15,11 @@ spec. If Figma is involved, run `figma-reference` first.
 2. Ensure each component has a colocated `ComponentName.preview.ts` fixture
    with one semantically valid default state and named variants where static
    state differs.
-3. Open the deployed component in bare capture mode for every inspection, test,
-   screenshot, and recording. The canonical URL is:
-   `https://app.dev.openmates.org/dev/preview/{component-path}?theme=light&background=%23dbeafe&width={width}&chrome=0`.
+3. Open the component in runner-local bare capture mode for every automated
+   inspection, test, screenshot, and recording. The focused spec navigates to:
+   `/dev/preview/{component-path}?theme=light&background=%23dbeafe&width={width}&chrome=0`.
+   Isolated GitHub CI supplies the `http://localhost:5173` base URL and exact
+   candidate build; do not hardcode or pass `app.dev.openmates.org`.
 4. Confirm the page shows only the component on the requested background. The
    preview toolbar, component catalogue, breadcrumb, props editor, variant bar,
    viewport guides, and status bar must not be visible.
@@ -29,9 +31,10 @@ spec. If Figma is involved, run `figma-reference` first.
    apply to the component. Assert layout geometry, control visibility, icon
    presence, readable labels, clipping/overflow, and interaction results before
    each named proof checkpoint.
-7. Deploy, run the focused component spec, review its component-only proof, and
-   fix objective defects before creating, extending, or running the broader
-   use-case spec.
+7. Publish the immutable candidate with `sessions.py ci-source`, submit the
+   focused spec through `ci_coordinator.py`, review its component-only artifact,
+   and fix objective defects before creating, extending, or running the broader
+   use-case spec. Do not deploy or wait for Vercel to obtain this proof.
 
 ## Component Spec Contract
 
@@ -50,7 +53,8 @@ spec. If Figma is involved, run `figma-reference` first.
 - The preview route's internal readiness marker may be used only to wait for
   mounting. It is not a product assertion or proof checkpoint.
 - Use phone and laptop profiles only when responsive behavior differs.
-- Publish the focused component video before moving to full-flow verification.
+- Retain the focused component artifact before moving to full-flow verification.
+  Publish a proof video only when the accepted scope explicitly requires one.
 
 ## Stop Conditions
 

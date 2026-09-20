@@ -52,7 +52,9 @@ Pass only when:
 
 Failed required checks keep the Plan active until traceable follow-up work is
 complete or the user accepts a waiver or blocker. Playwright green evidence is
-only valid after deployment to dev and execution against `app.dev.openmates.org`.
+valid when its receipt binds the exact source and harness to a successful
+isolated GitHub run with complete cleanup. Dev deployment and visual-smoke
+evidence are separate gates only when the Plan requires them.
 
 ### Step 4: Output Report
 

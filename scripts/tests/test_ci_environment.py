@@ -8,7 +8,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 """
 
 import pytest
-from scripts.ci_environment import compose_profile, require_runner
+from scripts.ci_environment import compose_profile, require_runner, start_stack
 
 
 def test_profile_is_private_and_source_bound():
@@ -39,6 +39,42 @@ def test_fresh_credentials_and_runner_only(monkeypatch):
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     with pytest.raises(RuntimeError, match="GitHub-hosted"):
         require_runner()
+
+
+def test_stack_start_retries_only_transient_registry_failures():
+    import subprocess
+
+    calls = []
+    delays = []
+
+    def transient_then_success(*args, **kwargs):
+        calls.append((args, kwargs))
+        if len(calls) == 1:
+            raise subprocess.CalledProcessError(
+                1,
+                ["docker", "compose", "up"],
+                stderr="registry request failed: connection reset by peer",
+            )
+        return subprocess.CompletedProcess(args, 0, stdout="started\n", stderr="")
+
+    start_stack(compose_runner=transient_then_success, sleep=delays.append)
+    assert len(calls) == 2
+    assert delays == [5]
+    assert calls[0][1]["capture"] is True
+
+    permanent_calls = []
+
+    def permanent_failure(*args, **kwargs):
+        permanent_calls.append((args, kwargs))
+        raise subprocess.CalledProcessError(
+            1,
+            ["docker", "compose", "up"],
+            stderr="api container is unhealthy",
+        )
+
+    with pytest.raises(subprocess.CalledProcessError):
+        start_stack(compose_runner=permanent_failure, sleep=delays.append)
+    assert len(permanent_calls) == 1
 
 
 def test_named_volumes_have_one_explicit_fixture_writer():

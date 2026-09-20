@@ -12,6 +12,7 @@ authorization:
 scope:
   in:
   - One shared CI implementation for focused candidate runs and daily suites.
+  - One browser spec per GitHub job, with multi-spec selections split before dispatch.
   - Exact source identity, isolated web/API/worker/CMS/database/cache and fresh accounts.
   - Durable deduplicated dispatch, bounded concurrency, shared polling and rate backoff.
   - Preserve reports, traces and proof artifacts tied to source and run identity.
@@ -19,7 +20,7 @@ scope:
   out:
   - Hetzner resizing, production changes, resuming other tasks or changing their code.
 architecture:
-  execution: GitHub-hosted Linux runner is the isolation boundary; no nested Docker daemon.
+  execution: GitHub-hosted Linux runner is the isolation boundary; each E2E spec gets a disposable Docker backend and runner-local web process, without a web container.
   source: Immutable Git commit; uncommitted candidates require a reviewed source snapshot transport.
   dependencies: Reuse cached dependency layers; invalidate on build/dependency changes.
   accounts: Disposable accounts initialized through real client crypto/auth flows in a fresh database.
@@ -36,6 +37,8 @@ acceptance:
 - Runtime identities and artifacts identify exact source; failures never become successful empty reports.
 - Fresh accounts cannot collide across jobs; auth/encryption flows remain real.
 - No test traffic reaches shared dev; failures save diagnostics before cleanup.
+- Browser E2E never waits for deployment or Vercel and cannot share a job with another spec.
+- Transient registry pull failures retry with bounded backoff without masking application-health failures.
 - Superseded local runtime code removed, existing worktree binding preserved.
 implementation_slices:
 - id: CI-1
@@ -353,6 +356,11 @@ decisions:
   decision: Replace local task runtimes with isolated GitHub test execution.
   reason: Explicit user approval on 2026-09-07
   decided_at: '2026-09-07'
+- id: D-2
+  status: active
+  decision: Keep the web app as a runner-private localhost process; isolate every E2E spec in its own GitHub job and remove dev deployment from E2E setup.
+  reason: User approved the reviewed W1-W4 batch and explicitly declined an unnecessary localhost web container.
+  decided_at: '2026-09-20'
 attempts:
 - id: A-1
   task_id: TASK-1

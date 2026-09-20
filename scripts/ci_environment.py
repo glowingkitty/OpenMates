@@ -17,12 +17,20 @@ import re
 from pathlib import Path
 import subprocess
 import sys
+import time
 
 MIB = 1024**2
 SOURCE = os.environ.get(
     "OPENMATES_CI_SOURCE_ROOT", str(Path(__file__).resolve().parent.parent)
 )
 QUEUES = "persistence,health_check,server_stats,user_init,user_tasks,email,push"
+STACK_START_RETRY_DELAYS = (5, 15)
+TRANSIENT_REGISTRY_FAILURE = re.compile(
+    r"connection reset by peer|tls handshake timeout|i/o timeout|"
+    r"timeout awaiting response headers|unexpected eof|temporary failure|"
+    r"too many requests",
+    re.IGNORECASE,
+)
 VAULT_INITIALIZE = """import asyncio, os, pathlib, requests
 from backend.core.vault.setup.vault_setup.policies import PolicyManager
 from backend.core.api.app.utils.vault_token_check import validate_token_file
@@ -463,6 +471,48 @@ def compose(*args, capture=False, timeout=90):
     )
 
 
+def start_stack(*, compose_runner=None, sleep=time.sleep):
+    """Start once, retrying only bounded registry/network pull failures."""
+    compose_runner = compose if compose_runner is None else compose_runner
+    attempts = len(STACK_START_RETRY_DELAYS) + 1
+    for attempt in range(attempts):
+        try:
+            result = compose_runner(
+                "up",
+                "-d",
+                "--no-build",
+                "--wait",
+                "--wait-timeout",
+                "600",
+                capture=True,
+                timeout=720,
+            )
+        except subprocess.CalledProcessError as exc:
+            stdout = exc.stdout or exc.output or ""
+            stderr = exc.stderr or ""
+            if stdout:
+                sys.stdout.write(stdout)
+            if stderr:
+                sys.stderr.write(stderr)
+            combined = stdout + "\n" + stderr
+            if attempt >= len(STACK_START_RETRY_DELAYS) or not TRANSIENT_REGISTRY_FAILURE.search(combined):
+                raise
+            delay = STACK_START_RETRY_DELAYS[attempt]
+            print(
+                f"Transient container registry failure; retrying isolated stack start "
+                f"in {delay}s ({attempt + 2}/{attempts}).",
+                file=sys.stderr,
+            )
+            sleep(delay)
+            continue
+        if result.stdout:
+            sys.stdout.write(result.stdout)
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        return result
+    raise AssertionError("unreachable")
+
+
 def main():
     require_runner()
     action = sys.argv[1]
@@ -516,9 +566,7 @@ def main():
         )
     elif action == "start":
         # Compose's wait limit may not bound one-shot dependency startup.
-        compose(
-            "up", "-d", "--no-build", "--wait", "--wait-timeout", "600", timeout=720
-        )
+        start_stack()
     elif action == "verify":
         import socket
         import urllib.request
