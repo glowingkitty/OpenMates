@@ -206,6 +206,7 @@
         "components/specification-fullscreen.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
+        "components/newsroom-surface.spec.ts",
         "components/embed-workspace.spec.ts",
         "components/panel-responsiveness.spec.ts",
         "composer-model-routing.spec.ts",
