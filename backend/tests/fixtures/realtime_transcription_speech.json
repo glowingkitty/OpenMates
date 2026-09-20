@@ -1,0 +1,10 @@
+{
+  "file": "realtime_transcription_speech.wav",
+  "transcript": "Realtime transcription is working correctly in OpenMates.",
+  "source": "Generated once through OpenMates CLI audio.speak",
+  "provider": "ElevenLabs",
+  "model": "eleven_flash_v2_5",
+  "voice": "warm_neutral",
+  "generated_at": "2026-09-20",
+  "scheduled_generation": false
+}

@@ -17,6 +17,7 @@
         "apple-settings-ui-contracts.spec.ts",
         "backup-code-login-flow.spec.ts",
         "backup-codes-settings.spec.ts",
+        "audio-recording-live-provider.spec.ts",
         "audio-recording-deferred-send.spec.ts",
         "components/audio-recording-realtime.spec.ts",
         "calendar-connected-accounts.spec.ts",
