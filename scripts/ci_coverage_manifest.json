@@ -200,6 +200,7 @@
         "chat-response-processing-ui.spec.ts",
         "chat-streaming-render-performance.spec.ts",
         "cli-tui-workflows.spec.ts",
+        "component-message-input-performance.spec.ts",
         "component-message-input.spec.ts",
         "components/chat-processing-indicator.spec.ts",
         "components/specification-fullscreen.spec.ts",
