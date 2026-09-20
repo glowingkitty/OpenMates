@@ -17,6 +17,7 @@ from backend.core.api.app.routes.admin_debug import (
 )
 
 
+# contract-test: supporting surface=rest_api assertions=issue-reporting.logs.authenticated-capture
 def test_log_query_allows_client_issue_report_stream_defaults() -> None:
     req = LogQueryRequest(
         stream="client_issue_report",
@@ -31,6 +32,7 @@ def test_log_query_allows_client_issue_report_stream_defaults() -> None:
     assert 'SELECT "_timestamp", "message", "issue_id", "source"' in sql
 
 
+# contract-test: supporting surface=rest_api assertions=issue-reporting.logs.authenticated-capture
 def test_log_query_allows_counting_issue_reports_by_source() -> None:
     req = LogQueryRequest(
         stream="client_issue_report",
@@ -46,6 +48,7 @@ def test_log_query_allows_counting_issue_reports_by_source() -> None:
     assert '"message" LIKE \'%native_sync_perf%\'' in sql
 
 
+# contract-test: supporting surface=rest_api assertions=issue-reporting.logs.authenticated-capture
 def test_log_query_rejects_non_issue_report_fields_on_issue_stream() -> None:
     req = LogQueryRequest(
         stream="client_issue_report",
@@ -59,11 +62,13 @@ def test_log_query_rejects_non_issue_report_fields_on_issue_stream() -> None:
     assert "not queryable" in str(exc_info.value.detail)
 
 
+# contract-test: supporting surface=rest_api assertions=issue-reporting.logs.authenticated-capture
 def test_log_query_rejects_unapproved_stream_names() -> None:
     with pytest.raises(ValidationError):
         LogQueryRequest(stream="audit_logs", filters=[])
 
 
+# contract-test: supporting surface=rest_api assertions=issue-reporting.logs.authenticated-capture
 def test_issue_timeline_queries_use_native_issue_report_stream_and_message_field() -> None:
     queries = _build_issue_timeline_sql_queries("issue-123", "user-456")
     sql_by_stream = {stream: sql for sql, _, stream in queries}
@@ -76,8 +81,10 @@ def test_issue_timeline_queries_use_native_issue_report_stream_and_message_field
     assert "log LIKE" not in combined_sql
     assert "message LIKE '%issue-123%'" in combined_sql
     assert "message LIKE '%user-456%'" in combined_sql
+    assert "user_id = 'user-456'" in combined_sql
 
 
+# contract-test: supporting surface=rest_api assertions=issue-reporting.logs.authenticated-capture
 def test_issue_timeline_container_query_does_not_require_empty_job_label() -> None:
     queries = _build_issue_timeline_sql_queries("issue-123")
     raw_container_sql = queries[2][0]
@@ -87,6 +94,7 @@ def test_issue_timeline_container_query_does_not_require_empty_job_label() -> No
     assert "job IS NULL" not in raw_container_sql
 
 
+# contract-test: supporting surface=rest_api assertions=issue-reporting.logs.authenticated-capture
 def test_openobserve_missing_stream_response_is_quietly_ignored() -> None:
     assert _is_openobserve_missing_stream_response(400, "Search stream not found: client_issue_report")
     assert _is_openobserve_missing_stream_response(404, "stream not found")

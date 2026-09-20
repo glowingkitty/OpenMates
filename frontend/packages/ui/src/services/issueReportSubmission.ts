@@ -157,6 +157,7 @@ export async function submitIssueReport(options: SubmitIssueReportOptions): Prom
   if (issueId && get(authStore).isAuthenticated) {
     void fetch(getApiEndpoint(apiEndpoints.settings.issueLogs), {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         issue_id: issueId,

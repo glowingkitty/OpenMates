@@ -228,3 +228,29 @@ def test_audio_speak_allows_safe_assistant_sample():
     )
 
     assert decision.allowed
+
+
+def test_trusted_assistant_narration_allows_reporting_about_named_people():
+    regular = validate_media_generation_request(
+        media_type="speech",
+        prompt="Sam Altman discussed the speech during an interview.",
+    )
+    narration = validate_media_generation_request(
+        media_type="speech",
+        prompt="Sam Altman discussed the speech during an interview.",
+        trusted_narration=True,
+    )
+
+    assert not regular.allowed
+    assert narration.allowed
+
+
+def test_trusted_assistant_narration_still_blocks_explicit_voice_imitation():
+    decision = validate_media_generation_request(
+        media_type="speech",
+        prompt="Imitate Sam Altman's voice for this announcement.",
+        trusted_narration=True,
+    )
+
+    assert not decision.allowed
+    assert decision.category == "G3_public_figure_voice_or_persona"

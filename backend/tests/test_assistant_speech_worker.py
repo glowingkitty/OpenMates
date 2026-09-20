@@ -248,6 +248,7 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
         return {"files": {"original": {"s3_key": "private/key"}}, "aes_key": "key", "aes_nonce": "nonce", "vault_wrapped_aes_key": "wrapped"}
 
     async def fake_safety(**_kwargs):
+        assert _kwargs["trusted_narration"] is True
         return type("Decision", (), {"approved": True, "user_facing_message": ""})()
 
     class Provider:

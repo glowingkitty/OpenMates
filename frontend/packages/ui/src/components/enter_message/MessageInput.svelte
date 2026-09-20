@@ -88,6 +88,7 @@
     import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
     import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
     import { transactionInsertedTriggerCharacter } from './services/composerParsingSchedule';
+    import { assistantSpeechController } from '../../services/assistantSpeechController';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -6539,6 +6540,7 @@
                 on:close={handleStopRecordingCleanup}
                 on:cancel={handleStopRecordingCleanup}
                 on:recordingStateChange={handleRecordingLayoutChange}
+                on:prepareassistantplayback={() => assistantSpeechController.primeForAutoplay()}
             />
         {/if}
 

@@ -13,7 +13,9 @@ from typing import Mapping
 
 from backend.apps.audio.pricing import ASSISTANT_RESPONSE_SPEECH_MODEL
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_128"
-DEFAULT_VOICE_SETTINGS = MappingProxyType({"speed": 1.0})
+# Assistant-response narration should feel conversational. This remains scoped
+# to assistant speech; audio.speak keeps its existing request defaults.
+DEFAULT_VOICE_SETTINGS = MappingProxyType({"speed": 1.1})
 ASSISTANT_VOICE_PROVIDER_IDS = MappingProxyType(
     {
         "ace": "aMSt68OGf4xUZAnLpTU8",

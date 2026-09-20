@@ -138,6 +138,30 @@ def test_tracker_dispatches_passive_app_use_before_offset_response_paragraphs() 
     ]
 
 
+# contract-test: direct surface=rest_api assertions=assistant-speech.projection.deterministic-semantic
+def test_tracker_collapses_duplicate_semantic_search_announcements() -> None:
+    dispatched: list[dict[str, object]] = []
+    fence = '```json\n{"type":"app_skill_use","app_id":"web","skill_id":"search","embed_id":"search-1"}\n```'
+
+    async def dispatch(segment: dict[str, object]) -> None:
+        dispatched.append(segment)
+
+    async def exercise() -> None:
+        tracker = ImmutableSpeechBoundaryTracker(
+            metadata={"chat_id": "chat-1", "assistant_message_id": "assistant-1", "source_version": 1},
+            dispatch_speech=dispatch,
+        )
+        tracker.observe(f"{fence}\n\n{fence}\n\nAnswer prose.", is_final=True)
+        await asyncio.sleep(0)
+
+    asyncio.run(exercise())
+
+    assert [(segment["sequence"], segment["kind"], segment["speakable_text"]) for segment in dispatched] == [
+        (0, "embed_summary", "Search results are available."),
+        (1, "prose_paragraph", "Answer prose."),
+    ]
+
+
 # contract-test: direct surface=rest_api assertions=assistant-speech.execution.text-stream-independent
 def test_stream_consumer_publishes_visible_text_before_speech_observation() -> None:
     source = inspect.getsource(stream_consumer._consume_main_processing_stream)

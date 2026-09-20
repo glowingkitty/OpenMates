@@ -48,6 +48,7 @@
         close: void;
         cancel: void;
         recordingStateChange: { active: boolean };
+        prepareassistantplayback: void;
     }>();
 
     // --- Props ---
@@ -487,6 +488,7 @@
                 return;
             }
             logger.debug('Enter pressed — finishing recording.');
+            dispatch('prepareassistantplayback');
             stopInternal(false);
         }
         if (event.key === 'Escape') {
@@ -505,6 +507,7 @@
 
     /** Complete the recording (produces audiorecorded event). */
     export function stop() {
+        dispatch('prepareassistantplayback');
         if (!readyForRelease) {
             logger.debug('stop() called by parent — deferred (not ready for release yet).');
             pendingReleaseCancel = false;

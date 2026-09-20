@@ -134,6 +134,7 @@ async def classify_audio_speech_safety(
     accent: str,
     style: str,
     secrets_manager=None,
+    trusted_narration: bool = False,
 ) -> AudioSpeechSafetyDecision:
     """Run deterministic and GPT OSS safety checks before TTS provider use."""
 
@@ -142,6 +143,7 @@ async def classify_audio_speech_safety(
         prompt=text,
         request_count=1,
         style=style,
+        trusted_narration=trusted_narration,
     )
     if not deterministic.allowed:
         return AudioSpeechSafetyDecision(
@@ -158,6 +160,7 @@ async def classify_audio_speech_safety(
         voice=voice,
         accent=accent,
         style=style,
+        trusted_narration=trusted_narration,
     )
     return AudioSpeechSafetyDecision(
         approved=result.approved,

@@ -23,6 +23,7 @@ export function projectAssistantSpeech(content: string): ProjectedAssistantSpeec
     FENCED_BLOCK.test(block.trim()) ? [block] : block.split(/\n\n+/),
   );
   const segments: ProjectedAssistantSpeechSegment[] = [];
+  const semanticSummaries = new Set<string>();
   for (const paragraph of paragraphs.map((block) => block.trim()).filter(Boolean)) {
     if (!FENCED_BLOCK.test(paragraph)) {
       const heading = paragraph.split("\n").map((line) => line.match(/^#{1,6}\s+(.+?)\s*#*$/)?.[1]?.trim()).find(Boolean);
@@ -30,6 +31,11 @@ export function projectAssistantSpeech(content: string): ProjectedAssistantSpeec
     }
     const projected = projectParagraph(paragraph);
     for (const speakableText of splitLongParagraph(projected.speakableText)) {
+      const semanticIdentity = `${projected.kind}:${speakableText}`;
+      if (projected.kind === "embed_summary" && speakableText === "Search results are available.") {
+        if (semanticSummaries.has(semanticIdentity)) continue;
+        semanticSummaries.add(semanticIdentity);
+      }
       if (segments.length === MAX_SPEECH_SEGMENTS) return segments;
       const sequence = segments.length;
       segments.push({

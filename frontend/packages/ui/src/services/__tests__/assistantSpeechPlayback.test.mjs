@@ -68,6 +68,13 @@ test('multiline and long embed metadata never leaks into narrated chunks', () =>
   assert.deepEqual(output.map(({ speakableText }) => speakableText), ['Intro.', 'Search results are available.', 'Summary.']);
 });
 
+// contract-test: supporting surface=gui.web assertions=assistant-speech.projection.deterministic-semantic
+test('duplicate semantic search announcements are narrated once', () => {
+  const fence = '```json\n{"type":"app_skill_use","app_id":"web","skill_id":"search"}\n```';
+  const output = projectAssistantSpeech(`${fence}\n\n${fence}\n\nSummary.`);
+  assert.deepEqual(output.map(({ speakableText }) => speakableText), ['Search results are available.', 'Summary.']);
+});
+
 // contract-test: supporting surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.single-queue-segment-control
 test('a known complete response finishes instead of loading forever', async () => {
   const { queue, emit } = harness();
@@ -125,5 +132,36 @@ test('paused navigation and delayed failure recovery preserve pause intent', asy
   queue.upsertSegment(segment(2));
   await Promise.resolve();
   assert.equal(queue.state.status, 'paused');
+  queue.stop();
+});
+
+// contract-test: direct surface=gui.web assertions=assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds,assistant-speech.playback.autoplay-recovery-visible
+test('recording completion primes and reuses one audio element for delayed playback', async () => {
+  let playCount = 0;
+  let loadCount = 0;
+  let factoryCount = 0;
+  const audio = {
+    src: '',
+    addEventListener() {},
+    pause() {},
+    load() { loadCount += 1; },
+    async play() { playCount += 1; },
+  };
+  const queue = new AssistantSpeechQueue({
+    audioFactory(url) {
+      factoryCount += 1;
+      audio.src = url;
+      return audio;
+    },
+  });
+
+  queue.primeForAutoplay();
+  queue.start('response', [segment(0)]);
+  await Promise.resolve();
+
+  assert.equal(factoryCount, 1);
+  assert.equal(audio.src, 'blob:audio-0');
+  assert.equal(loadCount, 1);
+  assert.equal(playCount, 2);
   queue.stop();
 });

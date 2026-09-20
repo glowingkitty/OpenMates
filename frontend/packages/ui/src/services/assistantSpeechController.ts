@@ -181,6 +181,7 @@ class AssistantSpeechController {
   }
 
   pause(): void { this.queue.pause(); }
+  primeForAutoplay(): void { this.queue.primeForAutoplay(); }
   async play(): Promise<void> {
     if (this.queue.state.status === "failed") {
       const activeId = this.queue.state.activeSegmentId;
@@ -394,7 +395,6 @@ class AssistantSpeechController {
     if (sequence === undefined) return;
     const presentation = this.presentationBySegmentId.get(status.segment_id) ?? defaultPresentation(sequence, status.kind);
     if (status.status !== "ready" || !status.generated_asset_id) {
-      if (status.status === "error") this.error = "Speech is temporarily unavailable.";
       this.queue.upsertSegment({
         id: status.segment_id,
         sequence,
@@ -403,6 +403,9 @@ class AssistantSpeechController {
         waveform: [],
         ...presentation,
       });
+      if (status.status === "error") {
+        this.error = this.queue.state.status === "failed" ? "Speech is temporarily unavailable." : null;
+      }
       this.publish();
       return;
     }

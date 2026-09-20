@@ -753,6 +753,7 @@
                     const logsText = logCollector.getLogsAsText(150);
                     void fetch(getApiEndpoint(apiEndpoints.settings.issueLogs), {
                         method: 'POST',
+                        credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             issue_id: issueId,

@@ -52,14 +52,10 @@ class ImmutableSpeechBoundaryTracker:
 
     def has_new_boundary(self, content: str) -> bool:
         """Return whether observing this snapshot will dispatch immutable speech."""
-        paragraphs = [
-            chunk
-            for paragraph in _complete_paragraphs(content)
-            for chunk in _split_automatic_paragraph(paragraph)
-        ]
-        for index, paragraph in enumerate(paragraphs):
+        paragraphs = _project_bounded_paragraphs(_complete_paragraphs(content))
+        for index, (kind, paragraph) in enumerate(paragraphs):
             sequence = index + self._sequence_offset
-            segment = self._segment(sequence, paragraph)
+            segment = self._segment(sequence, paragraph, kind=kind)
             previous = self._dispatched.get(sequence)
             if segment and (not previous or previous["source_hash"] != segment["source_hash"]):
                 return True
@@ -75,14 +71,10 @@ class ImmutableSpeechBoundaryTracker:
             if remainder:
                 paragraphs.append(remainder)
 
-        bounded_paragraphs = [
-            chunk
-            for paragraph in paragraphs
-            for chunk in _split_automatic_paragraph(paragraph)
-        ]
-        for index, paragraph in enumerate(bounded_paragraphs):
+        bounded_paragraphs = _project_bounded_paragraphs(paragraphs)
+        for index, (kind, paragraph) in enumerate(bounded_paragraphs):
             sequence = index + self._sequence_offset
-            segment = self._segment(sequence, paragraph)
+            segment = self._segment(sequence, paragraph, kind=kind)
             if not segment:
                 continue
             previous = self._dispatched.get(sequence)
@@ -261,6 +253,25 @@ def _split_automatic_paragraph(paragraph: str) -> list[str]:
     if remainder:
         chunks.append(remainder)
     return chunks
+
+
+def _project_bounded_paragraphs(paragraphs: list[str]) -> list[tuple[str, str]]:
+    """Project paragraphs and collapse repeated non-prose announcements."""
+    projected_segments: list[tuple[str, str]] = []
+    semantic_summaries: set[tuple[str, str]] = set()
+    for paragraph in paragraphs:
+        for chunk in _split_automatic_paragraph(paragraph):
+            projected = project_streaming_speech_segment(chunk)
+            if projected is None:
+                continue
+            kind, speakable_text = projected
+            identity = (kind, speakable_text)
+            if kind == "embed_summary" and speakable_text == "Search results are available.":
+                if identity in semantic_summaries:
+                    continue
+                semantic_summaries.add(identity)
+            projected_segments.append(identity)
+    return projected_segments
 
 
 def _segment(sequence: int, text: str) -> dict[str, object]:

@@ -376,6 +376,14 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.issue-reporting:
+    version: 1
+    status: draft
+    path: features/issue-reporting
+    fingerprint: 6f7ab808c4b0b3d1466b340ff3084352d2c8492ba030149b52384fe57568b867
+    required_applies_to:
+    - rest_api
+    - gui.web
   feature.landing-onboarding:
     version: 4
     status: draft
@@ -4250,6 +4258,38 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  issue-reporting.form.role-aware-controls:
+    specification: feature.issue-reporting@1
+    specification_id: feature.issue-reporting
+    type: behavior
+    fingerprint: 735b46cb18f6a1b0fd241d210c3d2a59b3308f29a4305e4682000c2b6865789e
+    required_applies_to:
+    - rest_api
+    - gui.web
+  issue-reporting.input.long-title-preserved:
+    specification: feature.issue-reporting@1
+    specification_id: feature.issue-reporting
+    type: behavior
+    fingerprint: c0211261e534e795d0939afaca6a4335528a02b1a452e41a0d410dabee789f07
+    required_applies_to:
+    - rest_api
+    - gui.web
+  issue-reporting.submission.confirmed-and-durable:
+    specification: feature.issue-reporting@1
+    specification_id: feature.issue-reporting
+    type: behavior
+    fingerprint: f79295f82731f664b9f3b9a4e8f0d1b6ced896d060f71096da2861966d1eaf7d
+    required_applies_to:
+    - rest_api
+    - gui.web
+  issue-reporting.logs.authenticated-capture:
+    specification: feature.issue-reporting@1
+    specification_id: feature.issue-reporting
+    type: behavior
+    fingerprint: 37b8c2151351629ed4d64b3fc8ad271cb41280db5f9d0f6be4a74ec8e6b60f1b
+    required_applies_to:
+    - rest_api
+    - gui.web
   landing-onboarding.uses-real-chat-shell:
     specification: feature.landing-onboarding@4
     specification_id: feature.landing-onboarding

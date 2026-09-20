@@ -107,6 +107,7 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
                 accent="en_us",
                 style="natural",
                 secrets_manager=task._secrets_manager,
+                trusted_narration=True,
             )
             return {"approved": decision.approved, "safe_error": decision.user_facing_message}
 

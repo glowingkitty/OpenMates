@@ -318,6 +318,9 @@ def _build_issue_timeline_sql_queries(issue_id: str, user_id: str = "") -> List[
     like_clauses = " OR ".join(
         f"message LIKE '%{term}%'" for term in search_terms
     )
+    structured_user_clause = ""
+    if user_id:
+        structured_user_clause = f" OR user_id = '{_escape_openobserve_sql_literal(user_id)}'"
 
     issue_report_sql = (
         f"SELECT _timestamp, message, level "
@@ -328,19 +331,19 @@ def _build_issue_timeline_sql_queries(issue_id: str, user_id: str = "") -> List[
     browser_console_sql = (
         f"SELECT _timestamp, message, level "
         f'FROM "client_console" '
-        f"WHERE {like_clauses} "
+        f"WHERE ({like_clauses}{structured_user_clause}) "
         f"ORDER BY _timestamp ASC"
     )
     raw_container_sql = (
         f"SELECT _timestamp, container, service, message, level "
         f'FROM "default" '
-        f"WHERE ({like_clauses}) "
+        f"WHERE ({like_clauses}{structured_user_clause}) "
         f"ORDER BY _timestamp ASC"
     )
     api_sql = (
         f"SELECT _timestamp, container, service, message, level "
         f'FROM "default" '
-        f"WHERE job = 'api-logs' AND ({like_clauses}) "
+        f"WHERE job = 'api-logs' AND ({like_clauses}{structured_user_clause}) "
         f"ORDER BY _timestamp ASC"
     )
 

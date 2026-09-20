@@ -151,6 +151,7 @@ def validate_media_generation_request(
     style: Optional[str] = None,
     lyrics: Optional[str] = None,
     negative_prompt: Optional[str] = None,
+    trusted_narration: bool = False,
 ) -> MediaGenerationDecision:
     """Return a deterministic allow/block decision for generated-media prompts."""
     normalized_media_type = media_type.lower().strip()
@@ -221,11 +222,17 @@ def validate_media_generation_request(
     has_imitation_context = bool(_FAMOUS_PERSON_CONTEXT_RE.search(text))
     has_named_person_media_use = bool(_NAMED_PERSON_MEDIA_USE_RE.search(text))
     has_mononym_voice_or_persona = bool(_MONONYM_VOICE_OR_PERSONA_RE.search(text))
-    if (
+    broad_identity_match = (
         has_named_person_media_use
         or has_mononym_voice_or_persona
         or (has_named_person and has_voice_or_persona)
         or (normalized_media_type == "image" and has_named_person and has_public_role)
+    )
+    # Assistant-response narration uses a fixed OpenMates voice to read already
+    # generated prose. Reporting about a person is not a request to imitate them.
+    # User-authored audio.speak requests retain the broader identity heuristic.
+    if broad_identity_match and not (
+        trusted_narration and normalized_media_type == "speech"
     ):
         return MediaGenerationDecision(
             allowed=False,

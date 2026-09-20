@@ -56,6 +56,8 @@ interface SpeechAudio {
   addEventListener(event: "ended" | "error" | "waiting" | "playing", listener: () => void): void;
   pause(): void;
   play(): Promise<void>;
+  src?: string;
+  load?(): void;
 }
 
 interface MediaSessionControls {
@@ -82,6 +84,8 @@ const DEFAULT_STATE: AssistantSpeechQueueState = {
   activeSegmentId: null,
 };
 
+const SILENT_AUDIO_DATA_URL = "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+
 /** Coordinates ordered, local audio playback for a single response. */
 export class AssistantSpeechQueue {
   private static activeQueue: AssistantSpeechQueue | null = null;
@@ -95,6 +99,7 @@ export class AssistantSpeechQueue {
   private autoplayPending = true;
   private playGeneration = 0;
   private complete = false;
+  private primedAudio: SpeechAudio | null = null;
   private readonly onStateChange?: (state: AssistantSpeechQueueState) => void;
 
   state: AssistantSpeechQueueState = { ...DEFAULT_STATE };
@@ -227,6 +232,16 @@ export class AssistantSpeechQueue {
 
   async play(): Promise<void> {
     await this.resume();
+  }
+
+  /** Preserve iOS Safari's user-activation grant while generated audio is pending. */
+  primeForAutoplay(): void {
+    if (this.primedAudio) return;
+    const audio = this.audioFactory(SILENT_AUDIO_DATA_URL);
+    this.primedAudio = audio;
+    void audio.play().catch(() => {
+      if (this.primedAudio === audio) this.primedAudio = null;
+    });
   }
 
   pause(): void {
@@ -397,7 +412,15 @@ export class AssistantSpeechQueue {
     if (cached && cached.url === segment.audioUrl) {
       return cached.audio;
     }
-    const audio = this.audioFactory(segment.audioUrl!);
+    const reusable = this.primedAudio;
+    const audio = reusable && typeof reusable.src === "string"
+      ? reusable
+      : this.audioFactory(segment.audioUrl!);
+    if (audio === reusable) {
+      this.primedAudio = null;
+      audio.src = segment.audioUrl!;
+      audio.load?.();
+    }
     audio.addEventListener("ended", () => this.handleSegmentEnded(segment.id, audio));
     audio.addEventListener("error", () => {
       if (!this.isCurrentAudio(segment.id, audio)) return;

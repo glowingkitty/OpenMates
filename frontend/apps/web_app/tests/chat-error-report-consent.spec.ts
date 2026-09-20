@@ -29,6 +29,7 @@ test.describe('Chat Error Report Consent', () => {
 	test.describe.configure({ timeout: 120000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	// contract-test: direct surface=gui.web assertions=issue-reporting.logs.authenticated-capture,notifications.content.privacy-boundary
 	test('shows notification and submits details only after user confirmation', async ({ page }) => {
 		const logCheckpoint = createSignupLogger('CHAT_ERROR_REPORT');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -37,9 +38,25 @@ test.describe('Chat Error Report Consent', () => {
 		await archiveExistingScreenshots(logCheckpoint);
 		attachConsoleListeners(page, logCheckpoint);
 		attachNetworkListeners(page, logCheckpoint);
+		await page.route('**/v1/anonymous/free-usage/status**', async (route: any) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					active: true,
+					can_send_text: true,
+					reason: null,
+					reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+					cta: 'Create an account to keep using OpenMates.',
+				}),
+			});
+		});
 
 		let submittedIssuePayload: Record<string, any> | null = null;
 		let issuePostCount = 0;
+		let issueLogsPostCount = 0;
+		let issueLogsCookie = '';
+		let issueLogsPayload: Record<string, any> | null = null;
 		await page.route('**/v1/settings/issues', async (route: any) => {
 			issuePostCount += 1;
 			submittedIssuePayload = route.request().postDataJSON();
@@ -54,6 +71,9 @@ test.describe('Chat Error Report Consent', () => {
 			});
 		});
 		await page.route('**/v1/settings/issue-logs', async (route: any) => {
+			issueLogsPostCount += 1;
+			issueLogsCookie = route.request().headers().cookie ?? '';
+			issueLogsPayload = route.request().postDataJSON();
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -111,6 +131,15 @@ test.describe('Chat Error Report Consent', () => {
 		expect(submittedIssuePayload?.chat_or_embed_url, 'current chat context should be included after consent').toBeTruthy();
 		expect(submittedIssuePayload?.runtime_debug_state).toBeTruthy();
 		expect(submittedIssuePayload?.add_to_linear).toBe(true);
+		await expect.poll(() => issueLogsPostCount, {
+			message: 'compact issue logs should be forwarded after the user confirms the report',
+		}).toBe(1);
+		expect(
+			issueLogsCookie,
+			'cross-origin compact issue logs must include the authenticated browser session',
+		).not.toBe('');
+		expect(issueLogsPayload?.issue_id).toBe('OPE-E2E-CHAT-ERROR');
+		expect(typeof issueLogsPayload?.logs_text).toBe('string');
 		await takeStepScreenshot(page, '03-report-submitted');
 	});
 });
