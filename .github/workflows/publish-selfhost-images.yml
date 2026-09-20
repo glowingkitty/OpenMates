@@ -342,7 +342,7 @@ jobs:
       - name: Publish CI schema image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: test-results/ci-private
           file: scripts/ci_schema_image.Dockerfile
           platforms: linux/amd64
           push: true
