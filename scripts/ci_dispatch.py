@@ -22,11 +22,13 @@ import tempfile
 import time
 
 try:
-    from scripts.ci_coordinator import Queue, canonical_root, TERMINAL
+    from scripts.ci_coordinator import Queue, canonical_root, enqueue_submission, TERMINAL
     from scripts.ci_candidate import load as load_candidate
+    from scripts.ci_pytest_targets import validate_pytest_targets
 except ModuleNotFoundError:
-    from ci_coordinator import Queue, canonical_root, TERMINAL
+    from ci_coordinator import Queue, canonical_root, enqueue_submission, TERMINAL
     from ci_candidate import load as load_candidate
+    from ci_pytest_targets import validate_pytest_targets
 
 NON_E2E_BATCH_SIZE = 4
 
@@ -130,6 +132,12 @@ def run(argv: list[str]) -> int:
     parser.add_argument("--worktree", type=Path)
     parser.add_argument("--spec", action="append", default=[])
     parser.add_argument(
+        "--test-target",
+        action="append",
+        default=[],
+        help="Exact repository-relative pytest file or node ID; repeatable",
+    )
+    parser.add_argument(
         "--suite",
         choices=["all", "pytest", "vitest", "playwright", "cli"],
         default="all",
@@ -153,6 +161,9 @@ def run(argv: list[str]) -> int:
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
     )
     args = parser.parse_args(argv)
+    if args.test_target and args.suite != "pytest":
+        raise ValueError("--test-target requires --suite pytest")
+    pytest_targets = validate_pytest_targets(args.test_target)
     root = (
         args.worktree.resolve()
         if args.worktree
@@ -166,7 +177,12 @@ def run(argv: list[str]) -> int:
         args.session = root.name.removeprefix("agent-")
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     canonical = canonical_root(root)
-    if args.suite in ("all", "pytest", "vitest") and not args.daily and not args.spec:
+    if (
+        args.suite in ("all", "pytest", "vitest")
+        and not args.daily
+        and not args.spec
+        and not pytest_targets
+    ):
         from scripts import run_tests as local_tests
 
         local_tests.PROJECT_ROOT = root
@@ -243,6 +259,14 @@ def run(argv: list[str]) -> int:
     jobs = []
     held_specs = []
     held_reasons = {}
+    if pytest_targets:
+        # The runner validates existence against the immutable candidate before
+        # invoking pytest; the queue retains these exact node IDs unchanged.
+        jobs.append(
+            queue.enqueue(
+                owner, source, pytest_targets, "pytest", attempt, candidate=candidate
+            )
+        )
     if args.daily and args.suite in ("all", "pytest", "vitest"):
         for mode in ("pytest", "vitest") if args.suite == "all" else (args.suite,):
             jobs.append(queue.enqueue(owner, source, [], mode, attempt, candidate=candidate))
@@ -271,10 +295,25 @@ def run(argv: list[str]) -> int:
                 else runtime_batches(selected, NON_E2E_BATCH_SIZE)
             )
             for batch in batches:
-                jobs.append(queue.enqueue(
-                    owner, source, batch, mode,
-                    attempt, args.proof_video_profile, candidate,
-                ))
+                if mode == "e2e":
+                    jobs.extend(
+                        enqueue_submission(
+                            queue,
+                            owner,
+                            source,
+                            batch,
+                            mode,
+                            attempt,
+                            args.proof_video_profile,
+                            candidate,
+                            source_root=canonical,
+                        )
+                    )
+                else:
+                    jobs.append(queue.enqueue(
+                        owner, source, batch, mode,
+                        attempt, args.proof_video_profile, candidate,
+                    ))
     if args.daily:
         # Persist the selected/held inventory before detaching, including zero-job
         # runs. The meeting must not infer coverage from job batch counts.

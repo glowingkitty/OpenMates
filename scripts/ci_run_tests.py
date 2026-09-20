@@ -22,6 +22,10 @@ import time
 import urllib.request
 
 from ci_environment import COMPOSE_PATH, SOURCE, compose, require_runner
+try:
+    from scripts.ci_pytest_targets import validate_pytest_targets
+except ModuleNotFoundError:
+    from ci_pytest_targets import validate_pytest_targets
 
 ROOT = Path(SOURCE)
 WEB = ROOT / "frontend/apps/web_app"
@@ -609,6 +613,19 @@ def capture_failed_spec_diagnostics(index):
         raise RuntimeError("Failed to retain bounded per-spec stack diagnostics")
 
 
+def pytest_failures(report_path: Path) -> list[str]:
+    """Return exact failed test/collector node IDs from pytest-json-report."""
+    if not report_path.is_file():
+        return []
+    report = json.loads(report_path.read_text())
+    failed = []
+    for section in ("tests", "collectors"):
+        for item in report.get(section, []):
+            if item.get("outcome") == "failed" and item.get("nodeid"):
+                failed.append(item["nodeid"])
+    return list(dict.fromkeys(failed))
+
+
 def main():
     require_runner()
     RESULTS.mkdir(exist_ok=True)
@@ -641,6 +658,9 @@ def main():
                 raise RuntimeError("Codex metadata fixture lacks no-inference evidence")
             results.append({"suite": "codex-metadata", "exit_code": result.returncode, "thread_id": receipt["thread_id"], "inference_requested": False})
         elif mode == "pytest":
+            selection = validate_pytest_targets(
+                json.loads(os.environ.get("CI_SPECS_JSON", "[]")), root=ROOT
+            )
             subprocess.run(
                 [
                     sys.executable,
@@ -657,42 +677,59 @@ def main():
                 cwd=ROOT,
                 check=True,
             )
+            pytest_selection = selection or ["backend/tests"]
+            pytest_policy = [] if selection else [
+                "-m",
+                "not integration and not slow and not vault and not benchmark and not provider_contract",
+                "--ignore=backend/tests/fixtures",
+                "--ignore=backend/tests/provider_contracts",
+                "--ignore=backend/tests/test_encryption_service.py",
+                "--ignore=backend/tests/test_integration_encryption.py",
+                "--ignore=backend/tests/test_status_service_v2.py",
+                "--continue-on-collection-errors",
+            ]
             result = subprocess.run(
                 [
                     sys.executable,
                     "-m",
                     "pytest",
-                    "backend/tests",
-                    "-m",
-                    "not integration and not slow and not vault and not benchmark and not provider_contract",
+                    *pytest_selection,
                     "--json-report",
                     "--json-report-file=test-results/ci-pytest.json",
-                    "--ignore=backend/tests/fixtures",
-                    "--ignore=backend/tests/provider_contracts",
-                    "--ignore=backend/tests/test_encryption_service.py",
-                    "--ignore=backend/tests/test_integration_encryption.py",
-                    "--ignore=backend/tests/test_status_service_v2.py",
-                    "--continue-on-collection-errors",
+                    *pytest_policy,
                 ],
                 cwd=ROOT,
             )
-            results = [{"suite": mode, "exit_code": result.returncode}]
+            failed_tests = pytest_failures(RESULTS / "ci-pytest.json")
+            results = [{
+                "suite": mode,
+                "exit_code": result.returncode,
+                "selected_tests": selection,
+                "selection_mode": "focused" if selection else "broad",
+                "failed_tests": failed_tests,
+                "failure": (
+                    None
+                    if result.returncode == 0
+                    else "pytest failed; inspect ci-pytest.json"
+                ),
+            }]
             # Preserve the SDK account coverage in the existing daily unit workflow.
-            sdk = subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "pytest",
-                    "packages/openmates-python/tests/test_account_import.py",
-                    "packages/openmates-python/tests/test_account_export.py",
-                    "--json-report",
-                    "--json-report-file=test-results/ci-unit-sdk.json",
-                ],
-                cwd=ROOT,
-            )
-            results.append(
-                {"suite": "python-sdk-accounts", "exit_code": sdk.returncode}
-            )
+            if not selection:
+                sdk = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "pytest",
+                        "packages/openmates-python/tests/test_account_import.py",
+                        "packages/openmates-python/tests/test_account_export.py",
+                        "--json-report",
+                        "--json-report-file=test-results/ci-unit-sdk.json",
+                    ],
+                    cwd=ROOT,
+                )
+                results.append(
+                    {"suite": "python-sdk-accounts", "exit_code": sdk.returncode}
+                )
         elif mode == "vitest":
             subprocess.run(["pnpm", "exec", "svelte-kit", "sync"], cwd=WEB, check=True)
             for directory in [ROOT / "frontend/packages/ui", WEB]:

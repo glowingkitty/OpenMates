@@ -8,11 +8,15 @@ See docs/plans/isolated-github-tests/plan.yml.
 
 import subprocess
 import pytest
-from scripts.ci_source import reviewed_paths, fingerprint
+from scripts.ci_source import candidate_preflight, reviewed_paths, fingerprint
 
 
 def repository(tmp_path):
     subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+    manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text('{"groups":{"uploads":{"specs":[]}}}\n')
+    subprocess.run(["git", "-C", str(tmp_path), "add", str(manifest)], check=True)
     subprocess.run(
         [
             "git",
@@ -23,7 +27,6 @@ def repository(tmp_path):
             "-c",
             "user.email=ci@example.com",
             "commit",
-            "--allow-empty",
             "-m",
             "fixture",
         ],
@@ -55,6 +58,32 @@ def test_only_explicit_untracked_source_and_content_changes(tmp_path):
     (root / "selected.py").write_text("three")
     assert fingerprint(root, paths) != before
     assert (root / ".git/index").read_bytes() == index_before
+
+
+def test_candidate_preflight_compiles_only_touched_python(tmp_path):
+    root = repository(tmp_path)
+    (root / "valid.py").write_text("value = 1\n")
+    receipt = candidate_preflight(root, ["valid.py"], session_id="fixture")
+    assert receipt["checks"] == [{"check": "python-compile", "paths": ["valid.py"]}]
+    assert receipt["future_deploy_requirements"] == []
+    (root / "invalid.py").write_text("value =\n")
+    with pytest.raises(ValueError, match="Python syntax"):
+        candidate_preflight(root, ["invalid.py"], session_id="fixture")
+
+
+def test_resolved_patch_preflight_surfaces_deferred_requirements(tmp_path):
+    root = repository(tmp_path)
+    receipt = candidate_preflight(
+        root,
+        ["backend/tests/test_changed.py"],
+        session_id="fixture",
+        materialized=False,
+    )
+    assert receipt["status"] == "deferred"
+    assert receipt["checks"] == []
+    assert "Specifications: trailer" in receipt["future_deploy_requirements"]
+    assert "syntax" in receipt["deferred_checks"][0]
+    assert "were not checked" in receipt["deferred_checks"][0]
 
 
 def test_unchanged_source_uses_reachable_base_without_artifact(tmp_path, monkeypatch):

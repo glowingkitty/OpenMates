@@ -27,6 +27,125 @@ DISK_RESERVE = 30 * 1024**3
 MAX_CHANGED_BYTES = 100 * 1024**2
 
 
+def _specifications_module():
+    try:
+        from scripts import specifications
+    except ModuleNotFoundError:
+        import specifications
+    return specifications
+
+
+def _specification_governed(paths: list[str]) -> bool:
+    specifications = _specifications_module()
+
+    return any(
+        specifications._is_test_file(path)
+        or path.startswith("specifications/")
+        or (path.startswith("docs/plans/") and Path(path).name == "plan.yml")
+        for path in paths
+    )
+
+
+def candidate_preflight(
+    root: Path,
+    paths: list[str],
+    *,
+    session_id: str,
+    materialized: bool = True,
+) -> dict:
+    """Run only cheap checks whose inputs are present in the candidate worktree."""
+    checks: list[dict[str, object]] = []
+    deferred: list[str] = []
+    governed = _specification_governed(paths)
+    if not materialized:
+        deferred.append(
+            "Resolved patch candidate syntax and Specification metadata were not "
+            "checked because the patch is not materialized in this worktree; "
+            "existing deployment validation must validate the materialized source"
+        )
+    else:
+        if governed:
+            specifications = _specifications_module()
+
+            approvals = (
+                specifications._control_plane_root(root)
+                / "scripts/.specifications-approvals-state.json"
+            )
+            errors = specifications.check_changed_files(
+                root,
+                paths,
+                session_id=session_id,
+                approvals_path=approvals,
+            )
+            if errors:
+                raise ValueError("Candidate Specification preflight failed:\n" + "\n".join(errors))
+            checks.append({"check": "specifications-check-changed", "paths": paths})
+
+        python_paths = [
+            path for path in paths if path.endswith(".py") and (root / path).is_file()
+        ]
+        for path in python_paths:
+            source = (root / path).read_bytes()
+            try:
+                compile(source, path, "exec")
+            except SyntaxError as exc:
+                raise ValueError(f"Candidate Python syntax preflight failed: {exc}") from exc
+        if python_paths:
+            checks.append({"check": "python-compile", "paths": python_paths})
+
+        svelte_paths = [
+            path for path in paths if path.endswith(".svelte") and (root / path).is_file()
+        ]
+        if svelte_paths:
+            web = root / "frontend/apps/web_app"
+            if (web / "node_modules/svelte").exists():
+                program = (
+                    "import fs from 'node:fs'; import {compile} from 'svelte/compiler';"
+                    "for (const path of process.argv.slice(1)) compile(fs.readFileSync(path, 'utf8'),"
+                    "{filename:path, generate:false});"
+                )
+                result = subprocess.run(
+                    [
+                        "node",
+                        "--input-type=module",
+                        "-e",
+                        program,
+                        *(str(root / path) for path in svelte_paths),
+                    ],
+                    cwd=web,
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode:
+                    detail = (result.stderr or result.stdout).strip()
+                    raise ValueError("Candidate Svelte syntax preflight failed: " + detail)
+                checks.append({"check": "svelte-compile", "paths": svelte_paths})
+            else:
+                deferred.append(
+                    "Touched Svelte files require compiler validation in isolated CI "
+                    "because frontend/apps/web_app/node_modules/svelte is unavailable"
+                )
+
+    deploy_requirements = []
+    if governed:
+        deploy_requirements = [
+            "Specifications: trailer",
+            "Assertions: trailer",
+            "Plan: trailer",
+            "Specification-Impact: trailer",
+        ]
+    return {
+        "status": (
+            "deferred"
+            if not materialized
+            else "passed" if not deferred else "passed_with_deferred_checks"
+        ),
+        "checks": checks,
+        "deferred_checks": deferred,
+        "future_deploy_requirements": deploy_requirements,
+    }
+
+
 def git(root, *args, env=None, input=None):
     return subprocess.check_output(
         ["git", *args], cwd=root, env=env, input=input, text=True
@@ -128,6 +247,9 @@ def publish(
             raise ValueError("Base and patch hash require --resolved-patch")
         paths = reviewed_paths(root, session_files)
         parent = git(root, "rev-parse", "HEAD")
+    preflight = candidate_preflight(
+        root, paths, session_id=session_id, materialized=patch is None
+    )
     before = fingerprint(root, paths) if patch is None else patch_sha256
     with tempfile.TemporaryDirectory(prefix="openmates-ci-index-") as directory:
         env = {**os.environ, "GIT_INDEX_FILE": str(Path(directory) / "index")}
@@ -155,6 +277,7 @@ def publish(
                 "changed_paths": [],
                 "base": parent,
                 "unchanged": True,
+                "preflight": preflight,
             }
         timestamp = git(root, "show", "-s", "--format=%cI", parent)
         env.update(
@@ -205,6 +328,7 @@ def publish(
         "artifact_key": artifact["key"],
         "artifact_expires_at": artifact["expires_at"],
         "local_patch": str(local_patch),
+        "preflight": preflight,
     }
     manifest = candidate_dir / "manifest.json"
     temporary_manifest = candidate_dir / ".manifest.json.tmp"

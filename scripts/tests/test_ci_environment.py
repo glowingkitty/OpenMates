@@ -10,6 +10,9 @@ See docs/plans/isolated-github-tests/plan.yml.
 import pytest
 from scripts.ci_environment import (
     PREPARED_SCHEMA_ADMIN_PASSWORD,
+    POSTGRES_IMAGE,
+    SCHEMA_BUNDLE_FORMAT,
+    SCHEMA_RESTORE_SEMANTICS,
     apply_prepared_schema,
     compose_profile,
     require_runner,
@@ -34,7 +37,15 @@ def test_profile_is_private_and_source_bound():
         == profile["services"]["core-worker"]["image"]
     )
     api_mounts = profile["services"]["api"]["volumes"]
-    for target in ("/app/backend", "/shared", "/app/scripts", "/app/config"):
+    for target in (
+        "/app/backend",
+        "/shared",
+        "/app/scripts",
+        "/app/config",
+        "/app/frontend/apps/web_app/static",
+        "/translations",
+        "/app/frontend/packages/ui/src/i18n",
+    ):
         assert any(target in str(mount) for mount in api_mounts), target
 
 
@@ -48,6 +59,8 @@ def test_fresh_credentials_and_runner_only(monkeypatch):
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     with pytest.raises(RuntimeError, match="GitHub-hosted"):
         require_runner()
+    assert a["services"]["cms-database"]["image"] == POSTGRES_IMAGE
+    assert "@sha256:" in POSTGRES_IMAGE
 
 
 def test_stack_start_retries_only_transient_registry_failures():
@@ -335,7 +348,17 @@ def test_compatible_prepared_schema_keeps_fresh_state_but_skips_full_initializer
         "POSTGRES_PASSWORD"
     ]
     assert apply_prepared_schema(
-        profile, {"images": [{"kind": "schema", "reused": True}]}
+        profile,
+        {
+            "images": [
+                {
+                    "kind": "schema",
+                    "reused": True,
+                    "bundle_format": SCHEMA_BUNDLE_FORMAT,
+                    "restore_semantics": SCHEMA_RESTORE_SEMANTICS,
+                }
+            ]
+        },
     )
     database = profile["services"]["cms-database"]
     setup = profile["services"]["cms-setup"]["environment"]
@@ -350,5 +373,20 @@ def test_missing_or_incompatible_schema_uses_cold_initializer():
     assert not apply_prepared_schema(
         profile, {"images": [{"kind": "schema", "reused": False}]}
     )
-    assert profile["services"]["cms-database"]["image"] == "postgres:13-alpine"
+    assert profile["services"]["cms-database"]["image"] == POSTGRES_IMAGE
     assert "CI_PREPARED_SCHEMA" not in profile["services"]["cms-setup"]["environment"]
+
+    stale = compose_profile("a" * 40)
+    assert not apply_prepared_schema(
+        stale,
+        {
+            "images": [
+                {
+                    "kind": "schema",
+                    "reused": True,
+                    "bundle_format": "old-format",
+                    "restore_semantics": SCHEMA_RESTORE_SEMANTICS,
+                }
+            ]
+        },
+    )

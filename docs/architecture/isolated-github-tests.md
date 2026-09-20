@@ -1,6 +1,6 @@
 # Isolated GitHub application tests
 
-Implementation status: migration HOLD. The coordinator must not release dependent work until a successful source-bound runner-local pilot and an explicit coverage disposition are recorded. See `docs/plans/isolated-github-tests/plan.yml`.
+Implementation status: core profiles are admitted; unsupported profiles remain held. Shared preparation and fair admission are implemented, with live cutover evidence tracked in `docs/plans/isolated-github-tests/plan.yml`. A component pass does not certify a full application journey.
 
 ## Execution and ownership
 
@@ -81,7 +81,51 @@ This publishes a candidate through a temporary index. It does not integrate or d
 
 ## Queue, cost and retained space
 
-One flocked reconciler dispatches at most four active jobs. Intent is durable before the request; ambiguous dispatches retain their slot and are reconciled rather than resent. Routine status polling is shared at 30 seconds. GitHub request reserve and backoff also apply to artifact retrieval. The coordinator exposes attention states instead of silently rerunning uncertain jobs.
+One flocked reconciler dispatches at most four active jobs by default, reserving one slot for lightweight component/unit jobs. Within explicit priority, admission balances active jobs across owners before FIFO. `OPENMATES_CI_MAX_ACTIVE` and `OPENMATES_CI_LIGHTWEIGHT_RESERVE` configure these bounds. Intent is durable before the request; ambiguous dispatches retain their slot and are reconciled rather than resent. Routine status polling is shared at 30 seconds. GitHub request reserve and backoff also apply to artifact retrieval. The coordinator exposes attention states instead of silently rerunning uncertain jobs.
+
+### Prepare once, run independently
+
+```mermaid
+flowchart LR
+  S[Exact candidate source] --> C[Component: Vite and browser only]
+  S --> P[One keyed preparation job]
+  P --> I[Verified immutable web, CLI, locale and backend artifacts]
+  I --> A[Spec A: fresh VM, Docker backend, DB, account and web]
+  I --> B[Spec B: fresh VM, Docker backend, DB, account and web]
+  A --> R[Source-bound results and phase timings]
+  B --> R
+  C --> R
+```
+
+Ordinary E2E submissions attach to one preparation for the exact source and
+capabilities. Consumers download only that successful producer run's artifact;
+they verify the manifest, source/tree, harness, build contract and content hashes.
+Published compatible images use immutable digests. Cache misses build once and
+travel as checksummed private Actions Docker archives, not public candidate
+images. Schema carriers must pass two independent fresh-database restores before
+publication. Each consumer still receives new databases, volumes, credentials,
+accounts and containers. Only immutable build output is shared.
+
+Preparation failure blocks dependent tests without crediting coverage. Missing
+or incompatible consumer artifacts report an explicit cold fallback. Component
+tests bypass preparation, application builds, CLI and backend startup entirely.
+Queued superseded generations of the same owner's exact test selection are
+retired; running jobs and other owners are untouched. Producers may finish even
+if a consumer is superseded, avoiding races with another attaching consumer.
+
+Status distinguishes preparation wait, admission queue, GitHub queue and the
+active runner step. Result receipts retain actual step durations and total
+request latency; absent timestamps are not reported as zero. After deploying
+coordinator changes, restart the exact `openmates-ci-coordinator.service` under
+the coordinator queue lock so the running daemon uses the new code. Preserve
+its queue database and already-dispatched GitHub jobs.
+
+Focused backend runs accept repeatable `--test-target` with `--suite pytest`
+(or `--mode pytest` on the coordinator), including `::test_node` selectors.
+Only those targets execute; an empty selection retains the broad daily suite.
+Local source preflight checks touched syntax and existing contract metadata.
+For a resolved patch that is not materialized, syntax/metadata preflight is
+explicitly deferred rather than recorded as passed.
 
 Stack startup retries only recognized transient registry/network failures with
 bounded backoff. Source errors, unhealthy application services and failed

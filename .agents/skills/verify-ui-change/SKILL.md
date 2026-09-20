@@ -1,14 +1,16 @@
 ---
 name: verify-ui-change
-description: Verify UI and Playwright changes against their exact source in isolated GitHub CI, then deploy and visually smoke the resulting dev revision when needed.
+description: Verify changed UI appearance or interaction behavior against exact source in isolated GitHub CI, with deploy or visual smoke only when the accepted scope requires it. Do not trigger for mechanical UI-file edits with unchanged behavior.
 user-invocable: true
 argument-hint: "<spec-name>.spec.ts [--account N]"
 ---
 
 # Verify UI Change
 
-Use this skill when a web UI, Playwright, embed, settings, chat, or Apple/web
-parity change needs browser verification. It composes existing OpenMates
+Use this skill when accepted work changes web UI appearance, interaction,
+responsive behavior, Playwright behavior, or Apple/web visual parity and needs
+browser verification. Do not invoke it solely because a mechanical refactor,
+rename, generated-file update, or non-visual change touches a UI file. It composes existing OpenMates
 guardrails; it does not replace `sessions.py deploy`, `scripts/tests.py`, or
 `scripts/verify_parity.py`.
 
@@ -35,18 +37,11 @@ integration point only.
    ```bash
    python3 scripts/tests.py run --spec <name>.spec.ts --dry-run
    ```
-   For UI elements, components, and screens, identify or create the focused
-   component spec first. It should navigate to
-   `/dev/preview/{component-path}?chrome=0`. Isolated CI supplies the runner-local
-   base URL. Every
-   inspection, test, screenshot, and recording must include `chrome=0` and show
-   only the component, never the configuration UI. Use the `.preview.ts` default
-   fixture for the standard state and encode every non-default input or
-   configuration in URL query parameters such as `variant`, `props`, `theme`,
-   `background`, and `width`. Then
-   assert meaningful hover, focus, click, expanded/collapsed, and on/off states
-   before named proof checkpoints. Broader route or flow specs come after this
-   focused component spec.
+   When a component's visible or interactive behavior changed, use
+   `verify-component-preview` as the single source for focused preview setup and
+   proof. Reuse an existing fixture/spec where it covers the change; do not create
+   a new preview merely because a component file was edited. Broader route or flow
+   specs come after any required focused component proof.
 
 2. Ensure there is an active session and inspect blockers.
    ```bash
@@ -82,7 +77,8 @@ integration point only.
    Wait for the exact Vercel commit only when the task also needs post-deploy
    readiness, manual confirmation or visual smoke. Deployment is not E2E setup.
 
-6. For larger user-visible web/UI changes, run a deployed Playwright visual smoke
+6. When the accepted task or Plan requires post-deploy review for a material
+   user-visible change, run a deployed Playwright visual smoke
    against the affected `app.dev.openmates.org` route(s) after Playwright and
    before user confirmation or session completion. The helper captures laptop and
    mobile screenshots and hard-fails console/page/network/layout problems; it
@@ -113,7 +109,7 @@ integration point only.
    blocked; keep calls minimal and record why. Skip only for Tier 0/non-visual
    work with `--skip-visual-smoke "reason"`.
 
-7. For cross-client work, prefer the parity wrapper after deploy.
+7. When cross-client parity is in the accepted verification scope, use the parity wrapper after deploy.
    ```bash
    python3 scripts/verify_parity.py --run --web-spec <name>.spec.ts --apple build
    ```

@@ -380,6 +380,22 @@ decisions:
   reason: User explicitly chose the GitHub CI path for component testing on 2026-09-20.
   decided_at: '2026-09-20'
 planning_amendments:
+- id: EFFICIENCY-2
+  revision: 1
+  requested_at: '2026-09-20'
+  goal: >-
+    Need a proper understanding of the slowdown causes and then a reliable plan to fix this
+    architecture once and for all, ensuring efficient fast testing.
+  document: docs/plans/isolated-github-tests/architecture-review-2026-09-20.md
+  authority: >-
+    User approved R1, R2 and R3 implementation on 2026-09-20 and authorized restoring the
+    existing personal dev-test CLI login. Larger architectural changes still require
+    confirmation. LATENCY-1 approval remains in force.
+  execution_authority: OpenMates Tasks remains the status authority; recommendation IDs describe outcomes, not a second task ledger.
+  tasks:
+    R1: ed78f2b4-e70e-42c8-b1b7-c9f2929e24a2
+    R2: ce87c5ff-ecf3-4d15-93f9-8782fb6a5967
+    R3: 97c5e63b-7970-4952-a2a4-d62a4f4bffe3
 - id: LATENCY-1
   revision: 2
   requested_at: '2026-09-20'
@@ -396,8 +412,8 @@ planning_amendments:
   execution_authority: OpenMates Tasks owns execution status and dependencies; package IDs in the document are design references only.
   task_link: null
   task_delivery: >-
-    The global CLI rejected creation with Not logged in on 2026-09-20; no Task was created or queued.
-    Preserve this Plan and create/link the described packages when the existing engineering login is restored.
+    The initial CLI login outage was resolved on 2026-09-20 using the existing personal dev account.
+    R1/R2/R3 Tasks linked under EFFICIENCY-2 are acknowledged and own the approved implementation.
   constraints:
   - Component and application browser tests remain on GitHub CI, one spec per job.
   - No web Docker container, host-local application backend, shared-dev test traffic, or reused browser/account state.

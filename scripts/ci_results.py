@@ -9,6 +9,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 import json
+from datetime import datetime
 import os
 from pathlib import Path
 import selectors
@@ -23,6 +24,43 @@ RESERVE = 30 * 1024**3
 MAX_ARCHIVE = 256 * 1024**2
 MAX_EXPANDED = 512 * 1024**2
 DOWNLOAD_SECONDS = 60
+
+
+def timings(job: dict, runner_jobs: list[dict]) -> dict:
+    """Record measured phases; missing timestamps stay unknown, never zero."""
+    def timestamp(value):
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+        except (TypeError, ValueError):
+            return None
+
+    phases = []
+    starts, ends = [], []
+    for runner in runner_jobs:
+        start, end = timestamp(runner.get("started_at")), timestamp(runner.get("completed_at"))
+        if start is not None:
+            starts.append(start)
+        if end is not None:
+            ends.append(end)
+        for step in runner.get("steps", []):
+            start, end = timestamp(step.get("started_at")), timestamp(step.get("completed_at"))
+            if start is not None and end is not None:
+                phases.append({"job_id": runner["id"], "name": step["name"], "conclusion": step.get("conclusion"), "seconds": round(max(0, end - start), 3)})
+    result = {"steps": phases}
+    if starts and ends:
+        result["github_job_wall_seconds"] = round(max(ends) - min(starts), 3)
+    created, sent = job.get("created"), job.get("sent")
+    if created is not None and sent is not None:
+        ready = job.get("ready_at") or created
+        result["coordinator_admission_seconds"] = round(max(0, sent - ready), 3)
+        result["preparation_wait_seconds"] = round(max(0, ready - created), 3)
+        if starts:
+            result["dispatch_to_job_start_seconds"] = round(max(0, min(starts) - sent), 3)
+        if ends:
+            result["request_to_github_completion_seconds"] = round(max(0, max(ends) - created), 3)
+    return result
 
 
 def download(command, root, output):
@@ -256,6 +294,8 @@ def fetch(github, job: dict, root: Path) -> dict:
                 for entry in runner_jobs
             ],
             "report": report,
+            "timings": timings(job, runner_jobs),
+            "preparation": {"request_id": job.get("preparation_id"), "run_id": job.get("prepared_run_id"), "key": job.get("preparation_key")},
             "environment": environment_data,
             "artifact_id": artifact["id"],
             "artifact_url": f"{job['url']}/artifacts/{artifact['id']}",

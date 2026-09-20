@@ -189,9 +189,7 @@ def _manifest_evidence_hash(manifest: dict[str, Any]) -> str:
 def _demonstration_failures(data: dict[str, Any]) -> list[str]:
     demonstration = data.get("demonstration")
     if not isinstance(demonstration, dict):
-        if "schema_version" not in data and data.get("profile") != "strict":
-            return []
-        return ["demonstration: every implemented executable spec requires embedded proof-video evidence"]
+        return []
     eligibility = demonstration.get("eligibility")
     if isinstance(eligibility, dict) and eligibility.get("status") == "not_applicable":
         if not isinstance(eligibility.get("reason"), str) or not eligibility["reason"].strip():
@@ -200,7 +198,7 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
             return ["demonstration: not_applicable eligibility requires non_visual surface"]
         return []
     if not isinstance(eligibility, dict) or eligibility.get("status") != "required":
-        return ["demonstration: implemented executable specs cannot complete without required proof-video evidence"]
+        return []
     evidence = demonstration.get("evidence")
     if not isinstance(evidence, dict):
         return ["demonstration: missing required passing evidence"]

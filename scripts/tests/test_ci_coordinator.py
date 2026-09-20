@@ -85,7 +85,7 @@ def test_component_submission_is_one_spec_per_github_job(tmp_path):
 
 def test_four_slots_and_completion_release(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
-    q = Queue(tmp_path / "queue.db")
+    q = Queue(tmp_path / "queue.db", lightweight_reserve=0)
     remote = Remote()
     for n in range(6):
         q.enqueue(str(n), "a" * 40, ["x.spec.ts"])
@@ -101,7 +101,7 @@ def test_four_slots_and_completion_release(tmp_path, monkeypatch):
             html_url="https://example.test/7",
         )
     ]
-    Queue(q.path).tick(remote, 140)
+    Queue(q.path, lightweight_reserve=0).tick(remote, 140)
     assert len(remote.sent) == 5
     assert q.status(job["id"])[0]["state"] == "success"
 
@@ -185,7 +185,7 @@ def test_proof_profiles_have_distinct_idempotent_requests(tmp_path):
 
 def test_owned_prerequisite_runs_first_without_exceeding_four_slots(tmp_path):
     import pytest
-    queue = Queue(tmp_path / "queue.db")
+    queue = Queue(tmp_path / "queue.db", lightweight_reserve=0)
     jobs = [queue.enqueue("owner", "a" * 40, [f"{n}.spec.ts"]) for n in range(6)]
     with pytest.raises(ValueError, match="owned queued"):
         queue.prioritize(jobs[-1]["id"], "other", "repair")
@@ -230,3 +230,116 @@ def test_json_receipts_redact_presigned_candidate_url(capsys):
     value = __import__("json").loads(capsys.readouterr().out)
     assert value["candidate_patch_url"] == "<redacted>"
     assert value["source"] == "a" * 40
+
+
+def test_default_capacity_reserves_fast_feedback_and_shares_owners(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    queue = Queue(tmp_path / "queue.db")
+    for n in range(6):
+        queue.enqueue("bulk", "a" * 40, [f"{n}.spec.ts"])
+    other = queue.enqueue("other", "a" * 40, ["other.spec.ts"])
+    remote = Remote()
+    queue.tick(remote, 100)
+    assert len(remote.sent) == 3
+    assert other["id"] in {job["id"] for job in remote.sent}
+    fast = queue.enqueue("quick", "b" * 40, ["components/x.spec.ts"], "component")
+    queue.tick(remote, 140)
+    assert len(remote.sent) == 4
+    assert remote.sent[-1]["id"] == fast["id"]
+
+
+def test_supersession_preserves_other_owners_scopes_and_running_jobs(tmp_path):
+    queue = Queue(tmp_path / "queue.db")
+    old = queue.enqueue("owner", "a" * 40, ["x.spec.ts"])
+    other = queue.enqueue("other", "a" * 40, ["x.spec.ts"])
+    different = queue.enqueue("owner", "a" * 40, ["y.spec.ts"])
+    running = queue.enqueue("owner", "b" * 40, ["x.spec.ts"])
+    with queue.connect() as db:
+        db.execute("UPDATE jobs SET state='running',sent=1 WHERE id=?", (running["id"],))
+    new = enqueue_submission(queue, "owner", "c" * 40, ["x.spec.ts"], "e2e")[0]
+    assert queue.status(old["id"])[0]["state"] == "cancelled"
+    assert queue.status(running["id"])[0]["state"] == "running"
+    assert all(queue.status(job["id"])[0]["state"] == "queued" for job in (other, different, new))
+
+
+def test_preparation_gates_consumers_and_records_exact_run(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    queue = Queue(tmp_path / "queue.db")
+    preparation = {"key": "f" * 64, "cli": True, "upload": False}
+    producer = queue.enqueue("owner", "a" * 40, [], "prepare", preparation=preparation)
+    first = queue.enqueue("owner", "a" * 40, ["first.spec.ts"], preparation={**preparation, "id": producer["id"]})
+    second = queue.enqueue("owner", "a" * 40, ["second.spec.ts"], preparation={**preparation, "id": producer["id"]})
+    remote = Remote()
+    queue.tick(remote, 100)
+    assert [job["id"] for job in remote.sent] == [producer["id"]]
+    assert queue.status(first["id"])[0]["phase"] == "waiting for preparation"
+    remote.visible = [dict(display_title=producer["token"], status="completed", conclusion="success", id=42, html_url="https://example.test/42")]
+    queue.tick(remote, 140)
+    assert {job["id"] for job in remote.sent[1:]} == {first["id"], second["id"]}
+    assert all(job["prepared_run_id"] == 42 for job in remote.sent[1:])
+
+
+def test_failed_preparation_does_not_dispatch_or_credit_tests(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    queue = Queue(tmp_path / "queue.db")
+    preparation = {"key": "f" * 64}
+    producer = queue.enqueue("owner", "a" * 40, [], "prepare", preparation=preparation)
+    child = queue.enqueue("owner", "a" * 40, ["x.spec.ts"], preparation={**preparation, "id": producer["id"]})
+    remote = Remote()
+    queue.tick(remote, 100)
+    remote.visible = [dict(display_title=producer["token"], status="completed", conclusion="failure", id=42, html_url="https://example.test/42")]
+    queue.tick(remote, 140)
+    assert len(remote.sent) == 1
+    assert queue.status(child["id"])[0]["state"] == "failure"
+
+
+def test_pytest_exact_nodes_are_not_browser_paths(tmp_path):
+    import pytest
+    queue = Queue(tmp_path / "queue.db")
+    node = "backend/tests/test_example.py::test_regression"
+    assert __import__("json").loads(queue.enqueue("owner", "a" * 40, [node], "pytest")["specs"]) == [node]
+    with pytest.raises(ValueError):
+        queue.enqueue("owner", "a" * 40, ["../test_example.py"], "pytest")
+
+
+def test_interleaved_submission_cannot_cancel_unattached_producer(tmp_path):
+    queue = Queue(tmp_path / "queue.db")
+    preparation = {"key": "f" * 64}
+    producer = queue.enqueue("owner", "a" * 40, [], "prepare", preparation=preparation)
+    enqueue_submission(queue, "owner", "b" * 40, ["other.spec.ts"], "e2e")
+    child = queue.enqueue("owner", "a" * 40, ["x.spec.ts"], preparation={**preparation, "id": producer["id"]})
+    assert queue.status(producer["id"])[0]["state"] == "queued"
+    assert child["preparation_id"] == producer["id"]
+
+
+def test_refreshing_candidate_url_retains_logical_request(tmp_path):
+    queue = Queue(tmp_path / "queue.db")
+    candidate = {
+        "source": "c" * 40, "base": "b" * 40, "tree": "d" * 40, "session": "owner",
+        "patch_sha256": "e" * 64,
+        "patch_url": "https://nbg1.your-objectstorage.com/private.patch?signature=first",
+        "artifact_expires_at": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)).isoformat(),
+    }
+    first = queue.enqueue("owner", "c" * 40, ["x.spec.ts"], candidate=candidate)
+    candidate["patch_url"] = "https://nbg1.your-objectstorage.com/private.patch?signature=refreshed"
+    candidate["artifact_expires_at"] = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2)).isoformat()
+    second = queue.enqueue("owner", "c" * 40, ["x.spec.ts"], candidate=candidate)
+    assert first["id"] == second["id"]
+    assert second["candidate_patch_url"] == candidate["patch_url"]
+    assert second["candidate_expires"] > first["candidate_expires"]
+
+
+def test_uncertain_remote_reserves_capacity_but_not_lightweight_slot(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    queue = Queue(tmp_path / "queue.db")
+    remote = Remote()
+    uncertain = queue.enqueue("owner", "a" * 40, ["x.spec.ts"])
+    with queue.connect() as db:
+        db.execute("UPDATE jobs SET state='attention',sent=1 WHERE id=?", (uncertain["id"],))
+    for n in range(4):
+        queue.enqueue("bulk", "a" * 40, [f"bulk-{n}.spec.ts"])
+    fast = queue.enqueue("quick", "b" * 40, ["components/x.spec.ts"], "component")
+    queue.tick(remote, 100)
+    assert len(remote.sent) == 3
+    assert fast["id"] in {job["id"] for job in remote.sent}
+    assert uncertain["id"] not in {job["id"] for job in remote.sent}

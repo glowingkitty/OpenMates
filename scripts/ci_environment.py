@@ -32,6 +32,15 @@ TRANSIENT_REGISTRY_FAILURE = re.compile(
     re.IGNORECASE,
 )
 PREPARED_SCHEMA_ADMIN_PASSWORD = "openmates-ci-prepared-schema-admin-v1"
+# These values are part of the prepared-schema compatibility contract. Bump the
+# bundle format when the carrier contents change, and the restore semantics when
+# a consumer interprets or activates those contents differently.
+SCHEMA_BUNDLE_FORMAT = "openmates-postgres-plain-gzip-v2"
+SCHEMA_RESTORE_SEMANTICS = "fresh-volume-directus-credential-rotation-v2"
+POSTGRES_IMAGE = (
+    "postgres:13-alpine@sha256:"
+    "fb9065b6e3e213bdc07edd372a5b2a26245840b7fb65d1fd8b6700106d51805c"
+)
 VAULT_INITIALIZE = """import asyncio, os, pathlib, requests
 from backend.core.vault.setup.vault_setup.policies import PolicyManager
 from backend.core.api.app.utils.vault_token_check import validate_token_file
@@ -219,7 +228,7 @@ def compose_profile(
         "api": api,
         "core-worker": worker,
         "cms-database": {
-            "image": "postgres:13-alpine",
+            "image": POSTGRES_IMAGE,
             "mem_limit": 512 * MIB,
             "environment": {
                 "POSTGRES_DB": "openmates",
@@ -542,11 +551,20 @@ def start_stack(*, compose_runner=None, sleep=time.sleep):
 
 def apply_prepared_schema(profile: dict, runtime_evidence: dict) -> bool:
     """Select the compatible schema image without sharing a database or volume."""
-    reused = any(
-        image.get("kind") == "schema" and image.get("reused") is True
-        for image in runtime_evidence.get("images", [])
+    schema_image = next(
+        (
+            image
+            for image in runtime_evidence.get("images", [])
+            if image.get("kind") == "schema" and image.get("reused") is True
+        ),
+        None,
     )
-    if not reused:
+    if not schema_image:
+        return False
+    if (
+        schema_image.get("bundle_format") != SCHEMA_BUNDLE_FORMAT
+        or schema_image.get("restore_semantics") != SCHEMA_RESTORE_SEMANTICS
+    ):
         return False
     services = profile["services"]
     services["cms-database"]["image"] = "openmates-ci-database:local"

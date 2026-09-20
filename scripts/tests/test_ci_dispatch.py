@@ -19,7 +19,7 @@ def test_selection_reads_immutable_source(tmp_path):
     tests = root / "frontend/apps/web_app/tests"
     tests.mkdir(parents=True)
     (tests / "present.spec.ts").write_text("// original")
-    (root / "scripts").mkdir()
+    (root / "scripts").mkdir(exist_ok=True)
     (root / "scripts/daily_ai_test_manifest.json").write_text("{}")
     subprocess.run(["git", "add", "."], cwd=root, check=True)
     subprocess.run(
@@ -95,6 +95,38 @@ def test_daily_units_queue_while_e2e_hold_is_reported(tmp_path, monkeypatch, cap
     assert sorted(job["mode"] for job in jobs) == ["pytest", "vitest"]
 
 
+def test_focused_pytest_target_is_queued_without_e2e_coercion(tmp_path, monkeypatch):
+    import json
+    from scripts import ci_dispatch
+
+    root = repository(tmp_path)
+    source = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=root, text=True
+    ).strip()
+    cutover = root / "logs/ci-coordinator/cutover.json"
+    cutover.parent.mkdir(parents=True)
+    cutover.write_text(json.dumps({"ready": True}))
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    queued = []
+
+    class RecordingQueue:
+        def __init__(self, path):
+            pass
+
+        def enqueue(self, owner, source, specs, mode, *args, **kwargs):
+            queued.append((mode, specs))
+            return {"id": "focused-pytest"}
+
+    monkeypatch.setattr(ci_dispatch, "Queue", RecordingQueue)
+    target = "backend/tests/test_chat.py::test_ordering"
+
+    assert ci_dispatch.run([
+        "--worktree", str(root), "--expected-commit", source,
+        "--suite", "pytest", "--test-target", target, "--detach",
+    ]) == 0
+    assert queued == [("pytest", [target])]
+
+
 def test_partial_cutover_queues_core_and_reports_cloud_hold(tmp_path, monkeypatch, capsys):
     import json
     from scripts import ci_dispatch
@@ -117,8 +149,9 @@ def test_partial_cutover_queues_core_and_reports_cloud_hold(tmp_path, monkeypatc
     assert result == 2
     assert "official-cloud" in capsys.readouterr().out
     jobs = Queue(root / "logs/ci-coordinator/queue.sqlite3").status()
-    assert len(jobs) == 1
-    assert json.loads(jobs[0]["specs"]) == ["tasks-flow.spec.ts"]
+    assert sorted(job["mode"] for job in jobs) == ["e2e", "prepare"]
+    e2e = next(job for job in jobs if job["mode"] == "e2e")
+    assert json.loads(e2e["specs"]) == ["tasks-flow.spec.ts"]
 
 
 def test_e2e_selection_queues_one_runner_job_per_spec(tmp_path, monkeypatch):
@@ -155,8 +188,10 @@ def test_e2e_selection_queues_one_runner_job_per_spec(tmp_path, monkeypatch):
         == 0
     )
     jobs = Queue(root / "logs/ci-coordinator/queue.sqlite3").status()
-    assert len(jobs) == 2
-    assert {tuple(json.loads(job["specs"])) for job in jobs} == {
+    assert sorted(job["mode"] for job in jobs) == ["e2e", "e2e", "prepare"]
+    assert {
+        tuple(json.loads(job["specs"])) for job in jobs if job["mode"] == "e2e"
+    } == {
         ("account-interests-settings.spec.ts",),
         ("import-account-v1.spec.ts",),
     }

@@ -33,8 +33,24 @@ on:
         default: '[]'
       mode:
         type: choice
-        options: [component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke]
+        options: [prepare, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke]
         default: e2e
+      preparation_key:
+        description: Exact immutable preparation identity supplied by the coordinator
+        type: string
+        default: ''
+      prepared_run_id:
+        description: Exact successful producer run; consumers never search by artifact name
+        type: string
+        default: ''
+      prepare_cli:
+        description: Whether this preparation/consumer requires CLI output
+        type: string
+        default: 'true'
+      prepare_upload:
+        description: Whether this preparation/consumer requires the upload runtime
+        type: string
+        default: 'false'
       dispatch_token:
         required: true
         type: string
@@ -42,6 +58,7 @@ on:
         type: string
         default: ''
 permissions:
+  actions: read
   contents: read
   packages: read
 jobs:
@@ -137,6 +154,9 @@ jobs:
               actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
               assert actual == expected, 'Checked-out source mismatch'
           assert subprocess.run(['git', 'symbolic-ref', '-q', 'HEAD']).returncode == 1, 'Source must remain detached'
+          actual_tree = subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip()
+          with open(os.environ['GITHUB_ENV'], 'a') as handle:
+              handle.write(f'CI_CANDIDATE_TREE={actual_tree}\n')
           PY
           echo "BUILD_COMMIT_SHA=$EXPECTED_SOURCE" >> "$GITHUB_ENV"
           echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
@@ -162,35 +182,94 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Prepare isolated stack
         id: profile
-        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
         run: |
-          node frontend/packages/ui/scripts/build-translations.js
           python3 ../tooling/scripts/ci_environment.py prepare
+      - name: Verify declared upload capability
+        if: >-
+          (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
+          inputs.preparation_key != ''
+        run: test "${{ steps.profile.outputs.uploads }}" = "${{ inputs.prepare_upload }}"
       - name: Log in to GHCR for compatible runtime images
-        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Reuse compatible published runtime images
-        id: images
-        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
-        run: |
-          upload_args=()
-          if [ "${{ steps.profile.outputs.uploads }}" = 'true' ]; then
-            upload_args+=(--include-upload)
-          fi
-          python3 ../tooling/scripts/ci_runtime_images.py restore "${upload_args[@]}"
-      - uses: docker/setup-buildx-action@v3
+      - name: Download exact prepared artifact bytes
+        id: preparation-download
         if: >-
           (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
+          inputs.prepared_run_id != '' && inputs.preparation_key != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-preparation-${{ inputs.preparation_key }}
+          path: subject/test-results/ci-preparation-download
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.prepared_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify and restore prepared web and CLI bytes
+        id: artifacts
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        run: |
+          python3 ../tooling/scripts/ci_artifacts.py restore \
+            --source "$BUILD_COMMIT_SHA" \
+            --candidate-tree "$CI_CANDIDATE_TREE" \
+            --include-cli "${{ inputs.prepare_cli }}" \
+            --include-upload "${{ inputs.prepare_upload }}" \
+            --expected-key "${{ inputs.preparation_key }}" \
+            --harness-commit "$CI_HARNESS_COMMIT" \
+            --input-dir test-results/ci-preparation-download
+      - name: Reuse compatible published runtime images
+        id: images
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        run: |
+          upload_args=()
+          needs_upload="${{ inputs.prepare_upload }}"
+          if [ -z "${{ inputs.preparation_key }}" ]; then
+            needs_upload="${{ steps.profile.outputs.uploads }}"
+          fi
+          if [ "$needs_upload" = 'true' ]; then
+            upload_args+=(--include-upload)
+          fi
+          if [ "${{ steps.artifacts.outputs.prepared }}" = 'true' ]; then
+            if ! python3 ../tooling/scripts/ci_runtime_images.py restore \
+              "${upload_args[@]}" \
+              --manifest "${{ steps.artifacts.outputs.manifest }}"; then
+              python3 ../tooling/scripts/ci_artifacts.py runtime-fallback \
+                --reason runtime_manifest_rejected
+              python3 ../tooling/scripts/ci_runtime_images.py restore "${upload_args[@]}"
+            fi
+          else
+            python3 ../tooling/scripts/ci_runtime_images.py restore "${upload_args[@]}"
+          fi
+      - name: Calculate runtime compatibility keys
+        id: runtime_keys
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        run: |
+          for kind in api cms setup schema upload; do
+            echo "$kind=$(python3 ../tooling/scripts/ci_runtime_images.py key --kind "$kind")" >> "$GITHUB_OUTPUT"
+          done
+      - uses: docker/setup-buildx-action@v3
+        if: >-
+          (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
           (steps.images.outputs.api != 'true' ||
            steps.images.outputs.cms != 'true' ||
            steps.images.outputs.setup != 'true' ||
-           (steps.profile.outputs.uploads == 'true' && steps.images.outputs.upload != 'true'))
+           (inputs.mode == 'prepare' && steps.images.outputs.schema != 'true') ||
+           (((inputs.preparation_key != '' && inputs.prepare_upload == 'true') ||
+             (inputs.preparation_key == '' && steps.profile.outputs.uploads == 'true')) &&
+            steps.images.outputs.upload != 'true'))
+      - name: Generate UI build inputs once
+        if: >-
+          inputs.mode == 'prepare' ||
+          ((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
+           (steps.artifacts.outputs.web != 'true' || steps.images.outputs.api != 'true'))
+        run: pnpm --filter @repo/ui build
       - name: Build cached API dependencies and current source
-        if: (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.api != 'true'
+        if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.api != 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./subject
@@ -199,8 +278,13 @@ jobs:
           tags: openmates-ci-api:local
           cache-from: type=gha,scope=ci-api
           cache-to: type=gha,scope=ci-api,mode=max
+          labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.api }}
       - name: Build cached upload dependencies and current source
-        if: inputs.mode == 'e2e' && steps.profile.outputs.uploads == 'true' && steps.images.outputs.upload != 'true'
+        if: >-
+          (inputs.mode == 'prepare' || inputs.mode == 'e2e') &&
+          ((inputs.preparation_key != '' && inputs.prepare_upload == 'true') ||
+           (inputs.preparation_key == '' && steps.profile.outputs.uploads == 'true')) &&
+          steps.images.outputs.upload != 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./subject
@@ -209,8 +293,9 @@ jobs:
           tags: openmates-ci-upload:local
           cache-from: type=gha,scope=ci-upload
           cache-to: type=gha,scope=ci-upload,mode=max
+          labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.upload }}
       - name: Build current Directus extensions
-        if: (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.cms != 'true'
+        if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.cms != 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./subject/backend/core/directus
@@ -218,8 +303,9 @@ jobs:
           tags: openmates-ci-cms:local
           cache-from: type=gha,scope=ci-cms
           cache-to: type=gha,scope=ci-cms,mode=max
+          labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.cms }}
       - name: Build current schema initializer
-        if: (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.setup != 'true'
+        if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.setup != 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./subject/backend/core/directus
@@ -228,14 +314,75 @@ jobs:
           tags: openmates-ci-setup:local
           cache-from: type=gha,scope=ci-setup
           cache-to: type=gha,scope=ci-setup,mode=max
-      - name: Build local web app and CLI
-        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+          labels: org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.setup }}
+      - name: Prepare missing sanitized schema bundle
+        if: inputs.mode == 'prepare' && steps.images.outputs.schema != 'true'
+        run: python3 ../tooling/scripts/ci_schema_bundle.py
+      - name: Build missing prepared schema carrier
+        if: inputs.mode == 'prepare' && steps.images.outputs.schema != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./subject/test-results/ci-private
+          file: ./subject/scripts/ci_schema_image.Dockerfile
+          load: true
+          tags: openmates-ci-database:local
+          cache-from: type=gha,scope=ci-schema-carrier
+          cache-to: type=gha,scope=ci-schema-carrier,mode=max
+          labels: |
+            org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.schema }}
+            org.openmates.ci.schema-bundle-format=openmates-postgres-plain-gzip-v2
+            org.openmates.ci.schema-restore-semantics=fresh-volume-directus-credential-rotation-v2
+      - name: Verify cold prepared schema in two fresh consumers
+        if: inputs.mode == 'prepare' && steps.images.outputs.schema != 'true'
+        run: python3 ../tooling/scripts/ci_schema_bundle.py verify-image openmates-ci-database:local
+      - name: Build local web app
+        if: >-
+          inputs.mode == 'prepare' ||
+          ((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.artifacts.outputs.web != 'true')
         env:
           OPENMATES_CI_PRECOMPRESS: '0'
         run: |
-          pnpm --filter openmates build
           cp frontend/apps/web_app/svelte.config.docker.js frontend/apps/web_app/svelte.config.js
-          pnpm --filter web_app build
+          node frontend/apps/web_app/scripts/process-docs.js
+          pnpm --dir frontend/apps/web_app exec vite build
+          node frontend/apps/web_app/scripts/audit-example-seo.js
+      - name: Build local CLI only when consumed
+        if: >-
+          inputs.prepare_cli == 'true' &&
+          (inputs.mode == 'prepare' ||
+           (inputs.mode == 'e2e' && steps.artifacts.outputs.cli != 'true'))
+        run: pnpm --filter openmates build
+      - name: Export cold runtime images into private preparation bytes
+        if: inputs.mode == 'prepare'
+        run: |
+          python3 ../tooling/scripts/ci_artifacts.py export-images \
+            --receipt test-results/ci-runtime-images.json \
+            --output-dir test-results/ci-preparation
+      - name: Create atomic preparation manifest and receipt
+        if: inputs.mode == 'prepare'
+        run: |
+          actual_key="$(python3 ../tooling/scripts/ci_artifacts.py key \
+            --source "$BUILD_COMMIT_SHA" \
+            --include-cli "${{ inputs.prepare_cli }}" \
+            --include-upload "${{ inputs.prepare_upload }}")"
+          test "$actual_key" = "${{ inputs.preparation_key }}"
+          python3 ../tooling/scripts/ci_artifacts.py create \
+            --source "$BUILD_COMMIT_SHA" \
+            --candidate-tree "$CI_CANDIDATE_TREE" \
+            --harness-commit "$CI_HARNESS_COMMIT" \
+            --include-cli "${{ inputs.prepare_cli }}" \
+            --include-upload "${{ inputs.prepare_upload }}" \
+            --runtime-receipt test-results/ci-runtime-images.json \
+            --output-dir test-results/ci-preparation
+      - name: Upload immutable private preparation bytes
+        if: inputs.mode == 'prepare'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-preparation-${{ inputs.preparation_key }}
+          retention-days: 2
+          compression-level: 0
+          path: subject/test-results/ci-preparation/
+          if-no-files-found: error
       - name: Start isolated backend
         if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
         run: |
@@ -257,6 +404,7 @@ jobs:
         if: inputs.mode == 'selfhost'
         run: python3 -m pip install pyyaml==6.0.2
       - name: Run selected checks
+        if: inputs.mode != 'prepare'
         env:
           CI_TEST_MODE: ${{ inputs.mode }}
           CI_SPECS_JSON: ${{ inputs.specs_json }}
@@ -277,10 +425,11 @@ jobs:
           retention-days: 7
           path: |
             subject/test-results/ci-environment.json
+            subject/test-results/ci-artifacts.json
             subject/test-results/ci-runtime-images.json
+            subject/test-results/ci-results.json
             subject/test-results/ci-stack.log
             subject/test-results/ci-stack-spec-*.log
-            subject/test-results/ci-results.json
             subject/test-results/ci-codex.json
             subject/test-results/ci-cleanup.json
             subject/test-results/ci-selfhost-steps.json

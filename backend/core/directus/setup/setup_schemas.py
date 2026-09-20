@@ -280,6 +280,19 @@ def login(password=None):
         raise
 
 
+def verify_login_rejected(password):
+    """Fail unless a superseded prepared-schema credential is unusable."""
+    response = requests.post(
+        f"{CMS_URL}/auth/login",
+        json={"email": ADMIN_EMAIL, "password": password},
+        timeout=15,
+    )
+    if response.status_code not in (400, 401):
+        raise RuntimeError(
+            "Prepared schema bootstrap credential remained usable after rotation"
+        )
+
+
 def activate_prepared_schema():
     """Rotate the synthetic bundle credential and verify the restored contract."""
     if not CI_PREPARED_SCHEMA_ADMIN_PASSWORD:
@@ -294,6 +307,7 @@ def activate_prepared_schema():
     )
     response.raise_for_status()
     token = login()
+    verify_login_rejected(CI_PREPARED_SCHEMA_ADMIN_PASSWORD)
     for collection_name in ('invite_codes', 'chats', 'users'):
         if not collection_exists(token, collection_name):
             raise RuntimeError(

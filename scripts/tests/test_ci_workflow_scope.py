@@ -64,3 +64,38 @@ def test_isolated_workflow_reconstructs_verified_candidate_without_git_refs() ->
     assert "git push" not in workflow
     assert "CANDIDATE_PATCH_URL: ${{ inputs.candidate_patch_url }}" not in workflow
     assert "event.get('inputs', {}).get('candidate_patch_url', '')" in workflow
+
+
+def test_preparation_uses_exact_run_artifacts_and_preserves_component_bypass() -> None:
+    workflow = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+    assert "options: [prepare, component, e2e" in workflow
+    assert "run-id: ${{ inputs.prepared_run_id }}" in workflow
+    assert "name: ci-preparation-${{ inputs.preparation_key }}" in workflow
+    assert "python3 ../tooling/scripts/ci_artifacts.py restore" in workflow
+    assert '--manifest "${{ steps.artifacts.outputs.manifest }}"' in workflow
+    assert "if: inputs.mode != 'prepare'" in workflow
+    assert "inputs.mode == 'component' || inputs.mode == 'e2e'" in workflow
+
+
+def test_cli_build_is_capability_gated_and_broad_publisher_does_not_compete() -> None:
+    isolated = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+    publisher = (ROOT / ".github/workflows/publish-selfhost-images.yml").read_text()
+    cli_step = isolated.split("- name: Build local CLI only when consumed", 1)[1].split(
+        "- name: Export cold runtime images", 1
+    )[0]
+    assert "inputs.prepare_cli == 'true'" in cli_step
+    assert "inputs.mode == 'e2e'" in cli_step
+    assert "visual-smoke" not in cli_step
+    assert "ci-preparation-" not in publisher
+
+
+def test_schema_publisher_verifies_the_exact_local_carrier_before_push() -> None:
+    workflow = (ROOT / ".github/workflows/publish-selfhost-images.yml").read_text()
+    build = workflow.index("- name: Build candidate CI schema image locally")
+    verify = workflow.index("- name: Verify candidate schema in two fresh consumers")
+    publish = workflow.index("- name: Publish the exact verified CI schema image")
+    assert build < verify < publish
+    schema_section = workflow[build:publish]
+    assert "load: true" in schema_section
+    assert "tags: openmates-ci-database:local" in schema_section
+    assert "ci_schema_bundle.py verify-image openmates-ci-database:local" in schema_section

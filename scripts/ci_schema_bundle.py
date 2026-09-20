@@ -12,25 +12,57 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
+import time
 
 try:
     from scripts.ci_environment import (
         PREPARED_SCHEMA_ADMIN_PASSWORD,
+        SCHEMA_BUNDLE_FORMAT,
+        SCHEMA_RESTORE_SEMANTICS,
         compose_profile,
     )
 except ModuleNotFoundError:  # Direct script execution puts scripts/ on sys.path.
-    from ci_environment import PREPARED_SCHEMA_ADMIN_PASSWORD, compose_profile
+    from ci_environment import (
+        PREPARED_SCHEMA_ADMIN_PASSWORD,
+        SCHEMA_BUNDLE_FORMAT,
+        SCHEMA_RESTORE_SEMANTICS,
+        compose_profile,
+    )
 
 
-ROOT = Path(__file__).resolve().parent.parent
+def source_root() -> Path:
+    return Path(
+        os.environ.get(
+            "OPENMATES_CI_SOURCE_ROOT", Path(__file__).resolve().parent.parent
+        )
+    ).resolve()
+
+
+ROOT = source_root()
 PRIVATE = ROOT / "test-results/ci-private"
 COMPOSE_PATH = PRIVATE / "schema-compose.json"
 OUTPUT = PRIVATE / "openmates-ci-schema.sql.gz"
+MANIFEST = PRIVATE / "openmates-ci-schema-manifest.json"
 SCHEMA_SERVICES = ("cms-database", "cms", "cms-setup")
+SCHEMA_MANIFEST_PATH = "/usr/local/share/openmates/schema-manifest.json"
+SCHEMA_DUMP_PATH = "/docker-entrypoint-initdb.d/20-openmates-schema.sql.gz"
+PG_DUMP_ARGS = (
+    "pg_dump",
+    "--no-owner",
+    "--no-privileges",
+    "--no-comments",
+    "-U",
+    "openmates",
+    "-d",
+    "openmates",
+)
+PG_DUMP_RESTRICT_GUARD = re.compile(br"^(\\(?:un)?restrict) [A-Za-z0-9]+$")
 
 
 SANITIZE_SQL = r"""
@@ -55,18 +87,37 @@ WHERE email = 'runtime@example.com';
 
 
 def require_runner() -> None:
-    if os.environ.get("GITHUB_ACTIONS") != "true":
-        raise RuntimeError("Schema bundles may only be produced on GitHub Actions")
+    if (
+        os.environ.get("GITHUB_ACTIONS") != "true"
+        or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
+    ):
+        raise RuntimeError(
+            "Schema bundles may only be produced on GitHub-hosted Actions runners"
+        )
 
 
-def producer_profile(source: str) -> dict:
-    profile = compose_profile(
-        source,
-        credential_overrides={"admin": PREPARED_SCHEMA_ADMIN_PASSWORD},
-    )
+def schema_profile(source: str, *, prepared_admin: bool) -> dict:
+    overrides = {"admin": PREPARED_SCHEMA_ADMIN_PASSWORD} if prepared_admin else None
+    profile = compose_profile(source, credential_overrides=overrides)
     profile["services"] = {name: profile["services"][name] for name in SCHEMA_SERVICES}
     for service in profile["services"].values():
         service.pop("ports", None)
+    return profile
+
+
+def producer_profile(source: str) -> dict:
+    return schema_profile(source, prepared_admin=True)
+
+
+def consumer_profile(source: str, image: str, project_name: str) -> dict:
+    """Return a fresh restore profile with a unique project and credentials."""
+    profile = schema_profile(source, prepared_admin=False)
+    profile["name"] = project_name
+    profile["services"]["cms-database"]["image"] = image
+    profile["services"]["cms-setup"]["environment"].update(
+        CI_PREPARED_SCHEMA="1",
+        CI_PREPARED_SCHEMA_ADMIN_PASSWORD=PREPARED_SCHEMA_ADMIN_PASSWORD,
+    )
     return profile
 
 
@@ -94,12 +145,85 @@ def compose(
     )
 
 
+def normalized_dump(dump: bytes) -> bytes:
+    """Remove pg_dump presentation noise without changing SQL/data ordering."""
+    lines = []
+    in_copy = False
+    for raw_line in dump.replace(b"\r\n", b"\n").splitlines():
+        line = raw_line.rstrip()
+        if in_copy:
+            lines.append(line)
+            if line == b"\\.":
+                in_copy = False
+            continue
+        if not line or line.startswith(b"--"):
+            continue
+        guard = PG_DUMP_RESTRICT_GUARD.fullmatch(line)
+        if guard:
+            # Patched pg_dump versions generate a fresh random guard key for
+            # each plain-text dump. Preserve the meta-command while removing
+            # only that presentation-only randomness from equivalence hashes.
+            line = guard.group(1) + b" <generated-key>"
+        lines.append(line)
+        if line.startswith(b"COPY ") and line.endswith(b" FROM stdin;"):
+            in_copy = True
+    return b"\n".join(lines) + b"\n"
+
+
+def normalized_dump_sha256(dump: bytes) -> str:
+    return hashlib.sha256(normalized_dump(dump)).hexdigest()
+
+
+def schema_manifest(source: str, dump: bytes, compressed: bytes) -> dict:
+    return {
+        "bundle_format": SCHEMA_BUNDLE_FORMAT,
+        "restore_semantics": SCHEMA_RESTORE_SEMANTICS,
+        "normalized_dump_sha256": normalized_dump_sha256(dump),
+        "compressed_dump_sha256": hashlib.sha256(compressed).hexdigest(),
+        "source_commit": source,
+    }
+
+
+def write_profile(profile: dict) -> None:
+    PRIVATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    COMPOSE_PATH.write_text(json.dumps(profile))
+    COMPOSE_PATH.chmod(0o600)
+
+
+def database_dump() -> bytes:
+    return compose("exec", "-T", "cms-database", *PG_DUMP_ARGS).stdout
+
+
+def wait_for_restored_schema() -> None:
+    """Wait past the entrypoint's temporary server until the schema is queryable."""
+    for _ in range(90):
+        try:
+            result = compose(
+                "exec",
+                "-T",
+                "cms-database",
+                "psql",
+                "-At",
+                "-U",
+                "openmates",
+                "-d",
+                "openmates",
+                "-c",
+                "SELECT to_regclass('public.directus_users') IS NOT NULL",
+            )
+        except subprocess.CalledProcessError:
+            time.sleep(1)
+            continue
+        if result.stdout.decode().strip() == "t":
+            return
+        time.sleep(1)
+    raise RuntimeError("Prepared schema did not become queryable")
+
+
 def generate(output: Path = OUTPUT) -> Path:
     require_runner()
     source = run("git", "rev-parse", "HEAD").stdout.decode().strip()
-    PRIVATE.mkdir(parents=True, exist_ok=True, mode=0o700)
-    COMPOSE_PATH.write_text(json.dumps(producer_profile(source)))
-    COMPOSE_PATH.chmod(0o600)
+    write_profile(producer_profile(source))
     try:
         compose(
             "up",
@@ -142,35 +266,142 @@ def generate(output: Path = OUTPUT) -> Path:
         )
         if users != ["runtime@example.com"]:
             raise RuntimeError("Prepared schema contains unexpected Directus users")
-        dump = compose(
-            "exec",
-            "-T",
-            "cms-database",
-            "pg_dump",
-            "--no-owner",
-            "--no-privileges",
-            "--no-comments",
-            "-U",
-            "openmates",
-            "-d",
-            "openmates",
-        ).stdout
+        dump = database_dump()
         if b"ci-" in dump or b"@example.com" in dump.replace(
             b"runtime@example.com", b""
         ):
             raise RuntimeError("Prepared schema contains non-bootstrap account data")
         output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        output.write_bytes(gzip.compress(dump, compresslevel=9, mtime=0))
+        compressed = gzip.compress(dump, compresslevel=9, mtime=0)
+        output.write_bytes(compressed)
         output.chmod(0o600)
+        MANIFEST.write_text(
+            json.dumps(schema_manifest(source, dump, compressed), sort_keys=True)
+        )
+        MANIFEST.chmod(0o600)
         return output
     finally:
         compose("down", "--volumes", "--remove-orphans")
 
 
+def carrier_manifest(image: str) -> dict:
+    result = run(
+        "docker",
+        "run",
+        "--rm",
+        "--user",
+        "postgres",
+        "--entrypoint",
+        "sh",
+        image,
+        "-ec",
+        f"test -r {SCHEMA_DUMP_PATH}; gzip -t {SCHEMA_DUMP_PATH}; "
+        f"test -r {SCHEMA_MANIFEST_PATH}; sha256sum {SCHEMA_DUMP_PATH}; "
+        f"cat {SCHEMA_MANIFEST_PATH}",
+    )
+    digest_line, manifest_json = result.stdout.split(b"\n", 1)
+    compressed_sha256 = digest_line.decode().split()[0]
+    manifest = json.loads(manifest_json)
+    if manifest.get("compressed_dump_sha256") != compressed_sha256:
+        raise RuntimeError("Schema carrier compressed dump checksum mismatch")
+    return manifest
+
+
+def verify_manifest(manifest: dict) -> None:
+    expected = {
+        "bundle_format": SCHEMA_BUNDLE_FORMAT,
+        "restore_semantics": SCHEMA_RESTORE_SEMANTICS,
+    }
+    for field, value in expected.items():
+        if manifest.get(field) != value:
+            raise RuntimeError(
+                f"Schema carrier {field} mismatch: {manifest.get(field)!r} != {value!r}"
+            )
+    for field in ("normalized_dump_sha256", "compressed_dump_sha256"):
+        value = manifest.get(field, "")
+        if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+            raise RuntimeError(f"Schema carrier has invalid {field}")
+
+
+def verify_image(image: str) -> dict:
+    """Restore-test a carrier twice without sharing volumes or credentials."""
+    require_runner()
+    source = run("git", "rev-parse", "HEAD").stdout.decode().strip()
+    manifest = carrier_manifest(image)
+    verify_manifest(manifest)
+    if manifest.get("source_commit") != source:
+        raise RuntimeError("Schema carrier was not built from the current producer source")
+    run_id = os.environ.get("GITHUB_RUN_ID", "local")
+    credentials: set[str] = set()
+    consumers = []
+    for index in range(2):
+        project = f"openmates-schema-verify-{run_id}-{index + 1}".lower()
+        profile = consumer_profile(source, image, project)
+        fresh_password = profile["services"]["cms"]["environment"]["ADMIN_PASSWORD"]
+        if fresh_password == PREPARED_SCHEMA_ADMIN_PASSWORD or fresh_password in credentials:
+            raise RuntimeError("Prepared schema consumer credentials are not fresh")
+        credentials.add(fresh_password)
+        write_profile(profile)
+        try:
+            compose(
+                "up",
+                "-d",
+                "--no-build",
+                "--wait",
+                "--wait-timeout",
+                "300",
+                "cms-database",
+            )
+            wait_for_restored_schema()
+            actual = normalized_dump_sha256(database_dump())
+            if actual != manifest["normalized_dump_sha256"]:
+                raise RuntimeError(
+                    "Prepared schema restore differs from the normalized cold initializer"
+                )
+            compose(
+                "up",
+                "-d",
+                "--no-build",
+                "--wait",
+                "--wait-timeout",
+                "600",
+                "cms-setup",
+            )
+            consumers.append(
+                {
+                    "consumer": index + 1,
+                    "fresh_volume": True,
+                    "normalized_equivalent": True,
+                    "fresh_auth_ready": True,
+                }
+            )
+        finally:
+            compose("down", "--volumes", "--remove-orphans")
+    evidence = {
+        "image": image,
+        "bundle_format": SCHEMA_BUNDLE_FORMAT,
+        "restore_semantics": SCHEMA_RESTORE_SEMANTICS,
+        "consumers": consumers,
+    }
+    evidence_path = PRIVATE / "schema-image-verification.json"
+    evidence_path.write_text(json.dumps(evidence, indent=2))
+    evidence_path.chmod(0o600)
+    return evidence
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command")
+    generate_parser = subparsers.add_parser("generate")
+    generate_parser.add_argument("--output", type=Path, default=OUTPUT)
+    verify_parser = subparsers.add_parser("verify-image")
+    verify_parser.add_argument("image")
+    # Preserve the original no-subcommand producer invocation during workflow cutover.
     parser.add_argument("--output", type=Path, default=OUTPUT)
     args = parser.parse_args()
+    if args.command == "verify-image":
+        print(json.dumps(verify_image(args.image)))
+        return 0
     print(generate(args.output))
     return 0
 

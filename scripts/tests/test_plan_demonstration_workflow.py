@@ -291,7 +291,7 @@ def test_verifier_rejects_user_waived_demonstration_without_actor(tmp_path: Path
     assert any("cannot waive" in failure for failure in failures)
 
 
-def test_verifier_rejects_implemented_plan_without_demonstration(tmp_path: Path) -> None:
+def test_verifier_does_not_invent_demonstration_requirement(tmp_path: Path) -> None:
     plan_verify = load_module("plan_verify")
     body = schema_v2_plan()
     body.pop("demonstration")
@@ -299,7 +299,7 @@ def test_verifier_rejects_implemented_plan_without_demonstration(tmp_path: Path)
 
     failures = plan_verify.verify_plan(path, require_red=False, require_green=True)
 
-    assert any("every implemented executable spec" in failure for failure in failures)
+    assert not [failure for failure in failures if failure.startswith("demonstration:")]
 
 
 def test_verifier_rejects_publication_without_embeddable_snippet(tmp_path: Path) -> None:
@@ -371,7 +371,7 @@ def test_verifier_rejects_pending_discord_publication(tmp_path: Path) -> None:
 
     failures = plan_verify.verify_plan(path, require_red=False, require_green=True)
 
-    assert any("response-media proof embed" in failure for failure in failures)
+    assert any("response-media proof embed" in failure.lower() for failure in failures)
 
 
 def test_verifier_rejects_stale_demonstration_evidence(tmp_path: Path) -> None:

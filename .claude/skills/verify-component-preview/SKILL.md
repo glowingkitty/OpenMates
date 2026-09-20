@@ -1,18 +1,22 @@
 ---
 name: verify-component-preview
-description: Use whenever adding or modifying a web UI element, Svelte component, screen, icon, hover state, focus state, or responsive layout. Enforces runner-local bare component proof before broader use-case specs.
+description: Verify material changes to a web component's visible, interactive, or responsive behavior in runner-local bare preview before broader use-case specs. Do not use for mechanical edits with unchanged behavior.
 ---
 
 # Verify Component Preview
 
-Use this workflow after the API/CLI/SDK gates that apply to shared behavior and
-before implementing or running a broader route-level or use-case Playwright
-spec. If Figma is involved, run `figma-reference` first.
+Use this workflow before a broader route-level or use-case Playwright spec when
+accepted work materially changes a component's visible, interactive, or
+responsive behavior. Reuse existing preview fixtures and focused specs whenever
+they cover the changed behavior. A mechanical edit with unchanged behavior does
+not require a new preview fixture or spec. If Figma is involved, run
+`figma-reference` first.
 
 ## Required Order
 
 1. Identify every component materially changed by the task.
-2. Ensure each component has a colocated `ComponentName.preview.ts` fixture
+2. Ensure each component that needs focused proof has a colocated
+   `ComponentName.preview.ts` fixture
    with one semantically valid default state and named variants where static
    state differs.
 3. Open the component in runner-local bare capture mode for every automated
