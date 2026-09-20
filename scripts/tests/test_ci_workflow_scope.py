@@ -145,6 +145,25 @@ def test_result_artifact_upload_excludes_private_transport_and_build_data() -> N
         assert forbidden not in results
 
 
+def test_schema_failure_report_is_private_and_does_not_override_failure() -> None:
+    workflow = yaml.safe_load((ROOT / ".github/workflows/isolated-tests.yml").read_text())
+    job = workflow["jobs"]["test"]
+    assert job["env"]["CI_PREPARATION_KEY"] == "${{ inputs.preparation_key }}"
+    verify = next(step for step in job["steps"] if step.get("id") == "schema-verify")
+    assert not verify.get("continue-on-error", False)
+    diagnostic = next(
+        step for step in job["steps"]
+        if step.get("name") == "Retain bounded schema failure report privately"
+    )
+    assert diagnostic["if"] == (
+        "failure() && inputs.mode == 'prepare' && steps.schema-verify.outcome == 'failure'"
+    )
+    assert diagnostic["timeout-minutes"] == 3
+    assert "ci_preparation_transport.py upload-schema-diagnostic" in diagnostic["run"]
+    assert "--path test-results/ci-private/schema-restore-diagnostic.json" in diagnostic["run"]
+    assert "actions/upload-artifact" not in str(diagnostic)
+
+
 def test_candidate_docker_builds_never_export_records_or_shared_cache() -> None:
     workflow = yaml.safe_load(
         (ROOT / ".github/workflows/isolated-tests.yml").read_text()

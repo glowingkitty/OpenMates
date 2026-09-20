@@ -70,7 +70,13 @@ It then failed the first restore comparison. Follow-up corrections require the
 final TCP listener (not the entrypoint's temporary socket-only server) before
 dumping or starting dependent services, and normalize only COPY row order while
 preserving exact rows, duplicates and SQL bytes. Warm restore/startup remains
-unproven until the next source-bound trial passes.
+unproven. Trial `35521225756`, candidate `9bee8e8b8fddfc464353573ca5ada25c725e3e64`
+on harness `bbadc206165d66fb166f0675aa8a76811c6322b2`, passed ticket validation,
+private source reconstruction and carrier readability, but failed the first
+fresh restore at structural unit 8168: both differing lines were classified
+`CREATE`. This is not explained by COPY row ordering alone. Neither consumer
+was dispatched; no E2E coverage or reusable-build speedup is credited. Further
+full preparation retries are paused pending a concrete structural diagnosis.
 
 Review also corrected a confidentiality assumption: public-repository Actions
 artifacts are not private. The canary source was already public, so it did not
@@ -82,11 +88,29 @@ capabilities and read-only consumer access. Actual presigning against the existi
 bucket passed; ticket file mode was 0600. Candidate Docker build-record uploads
 and candidate layer exports to GitHub cache are disabled. Live transfer and
 two-consumer verification are still pending; public CI logs are not a fully
-private execution environment.
+private execution environment. The integrated private transport and restore
+corrections were deployed as `bbadc206165d66fb166f0675aa8a76811c6322b2`;
+this evidence update is the unpublished candidate used for the private canary.
+That canary failed before reusable-build upload, so actual private build transfer
+and two-consumer reuse are still unverified. Its only public result artifact
+contained `ci-environment.json` and `ci-runtime-images.json`, with no preparation
+bundle or Docker build record.
+
+At closeout, shared preparation is an explicit `ci_coordinator.py submit
+--prepared-builds` canary, not the default. Ordinary E2E and visual-smoke requests
+use the existing independent cold-setup path, so this unverified optimization
+does not block other debugging work. This is a safety rollback, not a completed
+E2E speedup. Private failure diagnostics are implemented and unit-tested, but no
+additional full rebuild was launched after the user requested a prompt finish.
+The next R2 step is one opted-in diagnostic run, inspect the private SQL report,
+then a targeted fix and two-consumer proof before enabling shared preparation.
 
 ## Debugging workflow trial
 
-After the remaining E2E proof, use a fresh repository chat for issue `UZYYE`.
+The simplified workflow and verified component lane are ready for a fresh
+repository chat for issue `UZYYE`; do not investigate it in this infrastructure
+chat. Full E2E verification still uses slower independent cold setup until R2's
+prepared-build proof passes. This is not a claim that the complete speedup is done.
 The trial should reuse available issue evidence, keep one focused Task/workspace,
 run relevant local unit checks and exact isolated CI selection, then deploy the
 scoped fix. New videos, broad platform verification and durable planning are not

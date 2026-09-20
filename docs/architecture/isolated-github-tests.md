@@ -1,6 +1,6 @@
 # Isolated GitHub application tests
 
-Implementation status: core profiles are admitted; unsupported profiles remain held. Shared preparation and fair admission are implemented, with live cutover evidence tracked in `docs/plans/isolated-github-tests/plan.yml`. A component pass does not certify a full application journey.
+Implementation status: core profiles are admitted; unsupported profiles remain held. Fair admission is active. Shared preparation is implemented but opt-in only (`submit --prepared-builds`) pending successful schema-restore and two-consumer proof; ordinary E2Es retain independent cold setup. Live evidence is tracked in `docs/plans/isolated-github-tests/efficiency-verification-2026-09-20.md`. A component pass does not certify a full application journey.
 
 ## Execution and ownership
 
@@ -97,7 +97,10 @@ flowchart LR
   C --> R
 ```
 
-E2E submissions attach to one preparation for the exact source and capabilities.
+Opted-in E2E canaries (`submit --prepared-builds`) attach to one preparation for
+the exact source and capabilities. This is not yet the default: the schema
+restore equivalence check has failed, and ordinary submissions must not depend
+on that unverified optimization.
 Consumers download only that successful producer run's artifact;
 they verify the manifest, source/tree, harness, build contract and content hashes.
 Published compatible images use immutable digests. Cache misses build once and

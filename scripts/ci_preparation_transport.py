@@ -40,10 +40,11 @@ except ModuleNotFoundError:  # Direct execution puts scripts/ on sys.path.
     )
 
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 TICKET_DIR = Path("logs/ci-coordinator/preparations")
-OBJECT_PREFIX = "candidates/preparations"
+OBJECT_PREFIX = "candidates/preparations/v2"
 MANIFEST_PATH = "manifest.json"
+SCHEMA_DIAGNOSTIC_PATH = "diagnostics/schema-restore.json"
 ALLOWED_PATHS = (
     MANIFEST_PATH,
     "web.tar.gz",
@@ -55,7 +56,9 @@ ALLOWED_PATHS = (
     "images/schema.tar",
     "images/upload.tar",
 )
+TICKET_PATHS = (*ALLOWED_PATHS, SCHEMA_DIAGNOSTIC_PATH)
 MAX_MANIFEST_BYTES = 1024**2
+MAX_SCHEMA_DIAGNOSTIC_BYTES = 128 * 1024
 MAX_OBJECT_BYTES = 4 * 1024**3
 MAX_TOTAL_BYTES = 9 * 1024**3
 CHUNK_BYTES = 1024**2
@@ -233,7 +236,7 @@ def _validate_ticket(
     ):
         raise PreparationTransportError("Preparation transport ticket is unavailable")
     objects = ticket.get("objects")
-    if not isinstance(objects, dict) or set(objects) != set(ALLOWED_PATHS):
+    if not isinstance(objects, dict) or set(objects) != set(TICKET_PATHS):
         raise PreparationTransportError("Preparation transport ticket is invalid")
     for relative, record in objects.items():
         if not isinstance(record, dict):
@@ -384,7 +387,7 @@ def get_or_create_ticket(
                     now=expiry - dt.timedelta(microseconds=1),
                 )
         prefix = f"{OBJECT_PREFIX}/{source}/{preparation_key}/{producer_id}"
-        object_keys = {path: f"{prefix}/{path}" for path in ALLOWED_PATHS}
+        object_keys = {path: f"{prefix}/{path}" for path in TICKET_PATHS}
         signer = presign or _presign_objects
         try:
             signed = signer(object_keys, EXPIRES_SECONDS)
@@ -394,7 +397,7 @@ def get_or_create_ticket(
             raise PreparationTransportError(
                 "Failed to create preparation transport ticket"
             ) from None
-        if not isinstance(signed, Mapping) or set(signed) != set(ALLOWED_PATHS):
+        if not isinstance(signed, Mapping) or set(signed) != set(TICKET_PATHS):
             raise PreparationTransportError("Failed to create preparation transport ticket")
         created = instant
         expiry = created + dt.timedelta(seconds=EXPIRES_SECONDS)
@@ -434,6 +437,10 @@ def _dispatch_view(ticket: Mapping[str, Any], *, producer: bool) -> dict[str, An
         objects[relative] = {"get_url": record["get_url"]}
         if producer:
             objects[relative]["put_url"] = record["put_url"]
+    if producer:
+        objects[SCHEMA_DIAGNOSTIC_PATH] = {
+            "put_url": ticket["objects"][SCHEMA_DIAGNOSTIC_PATH]["put_url"]
+        }
     return {
         "format_version": FORMAT_VERSION,
         "producer_id": ticket["producer_id"],
@@ -493,7 +500,8 @@ def _mask_and_validate_urls(
     if ticket.get("format_version") != FORMAT_VERSION:
         raise PreparationTransportError("Preparation transport input is invalid")
     objects = ticket.get("objects")
-    if not isinstance(objects, dict) or set(objects) != set(ALLOWED_PATHS):
+    object_paths = set(objects) if isinstance(objects, dict) else set()
+    if object_paths not in (set(ALLOWED_PATHS), set(TICKET_PATHS)):
         raise PreparationTransportError("Preparation transport input is invalid")
     source = ticket.get("source")
     preparation_key = ticket.get("preparation_key")
@@ -563,7 +571,7 @@ def validate_event_role(
     producer = mode == "prepare"
     if not producer and mode not in {"e2e", "visual-smoke"}:
         raise PreparationTransportError("Preparation transport role is invalid")
-    if command == "upload" and not producer:
+    if command in {"upload", "upload-schema-diagnostic"} and not producer:
         raise PreparationTransportError("Preparation transport role is invalid")
     if command == "download" and producer:
         raise PreparationTransportError("Preparation transport role is invalid")
@@ -574,18 +582,18 @@ def validate_event_role(
     objects = ticket.get("objects")
     if not isinstance(objects, dict):
         raise PreparationTransportError("Preparation transport role is invalid")
-    records = [record for record in objects.values() if isinstance(record, dict)]
-    has_put = ["put_url" in record for record in records]
-    has_get = ["get_url" in record for record in records]
-    correct_capabilities = all(has_put) if producer else not any(has_put)
-    expected_fields = {"get_url", "put_url"} if producer else {"get_url"}
-    if (
-        len(records) != len(ALLOWED_PATHS)
-        or any(set(record) != expected_fields for record in records)
-        or not all(has_get)
-        or not correct_capabilities
-    ):
+    expected_paths = set(TICKET_PATHS if producer else ALLOWED_PATHS)
+    if set(objects) != expected_paths:
         raise PreparationTransportError("Preparation transport role is invalid")
+    build_fields = {"get_url", "put_url"} if producer else {"get_url"}
+    for relative in ALLOWED_PATHS:
+        record = objects.get(relative)
+        if not isinstance(record, dict) or set(record) != build_fields:
+            raise PreparationTransportError("Preparation transport role is invalid")
+    if producer:
+        diagnostic = objects.get(SCHEMA_DIAGNOSTIC_PATH)
+        if not isinstance(diagnostic, dict) or set(diagnostic) != {"put_url"}:
+            raise PreparationTransportError("Preparation transport role is invalid")
     return "producer" if producer else "consumer"
 
 
@@ -800,6 +808,97 @@ def _ticket_url(ticket: Mapping[str, Any], relative: str, method: str) -> str:
         raise PreparationTransportError("Preparation transport input is incomplete") from None
 
 
+def _load_schema_diagnostic(
+    path: Path,
+    *,
+    source: str,
+    preparation_key: str,
+    producer_run_id: str,
+) -> dict[str, Any]:
+    if (
+        not path.is_file()
+        or path.is_symlink()
+        or path.stat().st_size < 1
+        or path.stat().st_size > MAX_SCHEMA_DIAGNOSTIC_BYTES
+    ):
+        raise PreparationTransportError("Schema diagnostic report is unavailable")
+    try:
+        report = json.loads(path.read_text())
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        raise PreparationTransportError("Schema diagnostic report is invalid") from None
+    if (
+        not isinstance(report, dict)
+        or type(report.get("format_version")) is not int
+        or report.get("format_version") != 1
+        or report.get("source_commit") != source
+        or report.get("preparation_key") != preparation_key
+        or str(report.get("producer_run_id", "")) != str(producer_run_id)
+    ):
+        raise PreparationTransportError("Schema diagnostic report identity mismatch")
+    return report
+
+
+def upload_schema_diagnostic(
+    path: Path,
+    ticket: Mapping[str, Any],
+    *,
+    source: str,
+    preparation_key: str,
+    producer_run_id: str,
+    put: Callable[[str, Path, int], None] = put_file,
+) -> dict[str, Any]:
+    _load_schema_diagnostic(
+        path,
+        source=source,
+        preparation_key=preparation_key,
+        producer_run_id=producer_run_id,
+    )
+    put(
+        _ticket_url(ticket, SCHEMA_DIAGNOSTIC_PATH, "put_url"),
+        path,
+        path.stat().st_size,
+    )
+    return {"diagnostic": "schema-restore", "uploaded": 1}
+
+
+def read_schema_diagnostic(
+    root: Path,
+    producer_id: str,
+    source: str,
+    preparation_key: str,
+    producer_run_id: str,
+    *,
+    now: dt.datetime | None = None,
+    get: Callable[[str, Path, int], int] = get_file,
+) -> dict[str, Any]:
+    """Fetch an owner-only schema report without exposing its capability URL."""
+
+    _validate_identity(producer_id, source, preparation_key)
+    instant = _utc_now(now)
+    ticket_path, lock_path = _ticket_paths(root, producer_id)
+    with _TicketLock(lock_path):
+        ticket = _validate_ticket(
+            _read_ticket(ticket_path),
+            producer_id=producer_id,
+            source=source,
+            preparation_key=preparation_key,
+            now=instant,
+        )
+    with tempfile.TemporaryDirectory(prefix="ci-schema-diagnostic-") as temporary:
+        path = Path(temporary) / "schema-restore.json"
+        get(
+            _ticket_url(ticket, SCHEMA_DIAGNOSTIC_PATH, "get_url"),
+            path,
+            MAX_SCHEMA_DIAGNOSTIC_BYTES,
+        )
+        return _load_schema_diagnostic(
+            path,
+            source=source,
+            preparation_key=preparation_key,
+            producer_run_id=producer_run_id,
+        )
+
+
 def upload_directory(
     directory: Path,
     ticket: Mapping[str, Any],
@@ -920,6 +1019,8 @@ def main() -> int:
     for name in ("upload", "download"):
         command = subparsers.add_parser(name)
         command.add_argument("--directory", type=Path, required=True)
+    diagnostic = subparsers.add_parser("upload-schema-diagnostic")
+    diagnostic.add_argument("--path", type=Path, required=True)
     args = parser.parse_args()
     if os.environ.get("GITHUB_ACTIONS") != "true":
         raise PreparationTransportError(
@@ -931,16 +1032,25 @@ def main() -> int:
     role = validate_event_role(ticket, inputs, command=args.command)
     if args.command == "validate":
         result = {"role": role, "validated": True}
-    elif args.command == "upload":
+    elif args.command in {"upload", "upload-schema-diagnostic"}:
         if inputs.get("mode") != "prepare" or not os.environ.get("GITHUB_RUN_ID"):
             raise PreparationTransportError("Preparation producer identity is missing")
-        result = upload_directory(
-            args.directory.resolve(),
-            ticket,
-            source=source,
-            preparation_key=preparation_key,
-            producer_run_id=os.environ["GITHUB_RUN_ID"],
-        )
+        if args.command == "upload":
+            result = upload_directory(
+                args.directory.resolve(),
+                ticket,
+                source=source,
+                preparation_key=preparation_key,
+                producer_run_id=os.environ["GITHUB_RUN_ID"],
+            )
+        else:
+            result = upload_schema_diagnostic(
+                args.path,
+                ticket,
+                source=source,
+                preparation_key=preparation_key,
+                producer_run_id=os.environ["GITHUB_RUN_ID"],
+            )
     else:
         prepared_run_id = str(inputs.get("prepared_run_id", ""))
         if not prepared_run_id:

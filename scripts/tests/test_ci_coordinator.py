@@ -285,7 +285,7 @@ def test_unpublished_candidate_shares_private_preparation(tmp_path, monkeypatch)
     monkeypatch.setattr("scripts.ci_coordinator.subprocess.check_output", lambda *a, **kw: '{"groups":{"uploads":{"specs":[]}}}')
     jobs = enqueue_submission(
         queue, "owner", "c" * 40, ["first.spec.ts", "second.spec.ts"], "e2e",
-        candidate=candidate, source_root=tmp_path,
+        candidate=candidate, source_root=tmp_path, prepared_builds=True,
     )
     assert len(jobs) == 2
     assert len(queue.status()) == 3
@@ -293,6 +293,27 @@ def test_unpublished_candidate_shares_private_preparation(tmp_path, monkeypatch)
     producer = queue.status(jobs[0]["preparation_id"])[0]
     assert producer["mode"] == "prepare"
     assert all(job["candidate_patch_sha256"] == "e" * 64 for job in jobs)
+
+
+def test_ordinary_e2es_do_not_depend_on_unverified_preparation(tmp_path):
+    queue = Queue(tmp_path / "queue.db")
+    jobs = enqueue_submission(
+        queue, "owner", "a" * 40, ["first.spec.ts", "second.spec.ts"], "e2e",
+        source_root=tmp_path,
+    )
+    assert len(jobs) == len(queue.status()) == 2
+    assert all(not job["preparation_id"] and not job["preparation_key"] for job in jobs)
+
+
+def test_prepared_canary_rejects_component_mode(tmp_path):
+    import pytest
+
+    queue = Queue(tmp_path / "queue.db")
+    with pytest.raises(ValueError, match="Prepared-build canaries"):
+        enqueue_submission(
+            queue, "owner", "a" * 40, ["components/one.spec.ts"], "component",
+            source_root=tmp_path, prepared_builds=True,
+        )
 
 
 def test_default_capacity_reserves_fast_feedback_and_shares_owners(tmp_path, monkeypatch):

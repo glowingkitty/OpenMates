@@ -79,6 +79,7 @@ jobs:
       OPENMATES_CI_ISOLATED: '1'
       OPENMATES_CI_SOURCE_ROOT: ${{ github.workspace }}/subject
       CI_HARNESS_COMMIT: ${{ github.sha }}
+      CI_PREPARATION_KEY: ${{ inputs.preparation_key }}
       CI_SPECS_JSON: ${{ inputs.specs_json }}
       PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile }}
       PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
@@ -340,8 +341,17 @@ jobs:
             org.openmates.ci.schema-bundle-format=openmates-postgres-plain-gzip-v2
             org.openmates.ci.schema-restore-semantics=fresh-volume-directus-credential-rotation-v2
       - name: Verify cold prepared schema in two fresh consumers
+        id: schema-verify
         if: inputs.mode == 'prepare' && steps.images.outputs.schema != 'true'
         run: python3 ../tooling/scripts/ci_schema_bundle.py verify-image openmates-ci-database:local
+      - name: Retain bounded schema failure report privately
+        if: failure() && inputs.mode == 'prepare' && steps.schema-verify.outcome == 'failure'
+        timeout-minutes: 3
+        run: |
+          if [ -f test-results/ci-private/schema-restore-diagnostic.json ]; then
+            python3 ../tooling/scripts/ci_preparation_transport.py upload-schema-diagnostic \
+              --path test-results/ci-private/schema-restore-diagnostic.json
+          fi
       - name: Build local web app
         if: >-
           inputs.mode == 'prepare' ||

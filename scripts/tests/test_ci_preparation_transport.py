@@ -107,6 +107,19 @@ def write_bundle(directory: Path, run_id: str = "123") -> tuple[dict, dict[str, 
     return manifest, content
 
 
+def write_schema_diagnostic(path: Path, run_id: str = "123") -> dict:
+    report = {
+        "format_version": 1,
+        "source_commit": SOURCE,
+        "preparation_key": KEY,
+        "producer_run_id": run_id,
+        "failure": {"phase": "fresh-restore", "detail": "sanitized"},
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(report))
+    return report
+
+
 def dispatch_view(value: dict, producer: bool) -> dict:
     return json.loads(
         json.dumps(transport._dispatch_view(value, producer=producer))
@@ -133,7 +146,7 @@ def test_ticket_is_durable_owner_only_fixed_and_idempotent(tmp_path):
     )
     assert first == second
     assert len(calls) == 1
-    assert set(first["objects"]) == set(transport.ALLOWED_PATHS)
+    assert set(first["objects"]) == set(transport.TICKET_PATHS)
     prefix = f"{transport.OBJECT_PREFIX}/{SOURCE}/{KEY}/{PRODUCER}/"
     assert all(item["object_key"].startswith(prefix) for item in first["objects"].values())
     directory = tmp_path / transport.TICKET_DIR
@@ -156,6 +169,9 @@ def test_dispatch_producer_gets_put_consumer_get_only_and_missing_fails(tmp_path
     assert all("put_url" in item for item in producer["objects"].values())
     assert all("put_url" not in item for item in consumer["objects"].values())
     assert all("get_url" in item for item in consumer["objects"].values())
+    assert set(consumer["objects"]) == set(transport.ALLOWED_PATHS)
+    assert set(producer["objects"]) == set(transport.TICKET_PATHS)
+    assert set(producer["objects"][transport.SCHEMA_DIAGNOSTIC_PATH]) == {"put_url"}
     with pytest.raises(
         transport.PreparationTransportError, match="ticket is unavailable"
     ):
@@ -192,6 +208,25 @@ def test_expired_but_corrupted_ticket_is_not_silently_replaced(tmp_path):
             now=NOW + dt.timedelta(hours=49),
             presign=signer,
         )
+
+
+def test_legacy_ticket_format_fails_closed_without_resigning(tmp_path):
+    ticket(tmp_path)
+    ticket_path = tmp_path / transport.TICKET_DIR / f"{PRODUCER}.json"
+    stored = json.loads(ticket_path.read_text())
+    stored["format_version"] = 1
+    ticket_path.write_text(json.dumps(stored))
+    calls = []
+    with pytest.raises(transport.PreparationTransportError, match="unavailable"):
+        transport.get_or_create_ticket(
+            tmp_path,
+            PRODUCER,
+            SOURCE,
+            KEY,
+            now=NOW,
+            presign=lambda *args: calls.append(args),
+        )
+    assert calls == []
 
 
 def test_consumer_rejects_ticket_with_non_owner_permissions(tmp_path):
@@ -442,6 +477,7 @@ def test_validate_cli_masks_and_checks_role_before_build_without_run_ids(
     assert json.loads(output[-1]) == {"role": expected_role, "validated": True}
     assert sum(line.startswith("::add-mask::") for line in output) == (
         len(transport.ALLOWED_PATHS) * (2 if producer else 1)
+        + (1 if producer else 0)
     )
 
 
@@ -451,6 +487,143 @@ def test_validate_rejects_wrong_role_capabilities(tmp_path):
         transport.validate_event_role(
             producer_view, {"mode": "e2e"}, command="validate"
         )
+
+
+def test_consumer_role_cannot_upload_schema_diagnostic(tmp_path):
+    consumer_view = dispatch_view(ticket(tmp_path), producer=False)
+    assert transport.SCHEMA_DIAGNOSTIC_PATH not in consumer_view["objects"]
+    with pytest.raises(transport.PreparationTransportError, match="role is invalid"):
+        transport.validate_event_role(
+            consumer_view,
+            {"mode": "e2e"},
+            command="upload-schema-diagnostic",
+        )
+
+
+def test_schema_diagnostic_upload_is_bound_and_has_safe_receipt(tmp_path):
+    report_path = tmp_path / "schema-restore.json"
+    write_schema_diagnostic(report_path)
+    producer_view = dispatch_view(ticket(tmp_path), producer=True)
+    uploads = []
+
+    def put(url, path, size):
+        uploads.append((url, path, size))
+
+    result = transport.upload_schema_diagnostic(
+        report_path,
+        producer_view,
+        source=SOURCE,
+        preparation_key=KEY,
+        producer_run_id="123",
+        put=put,
+    )
+    assert result == {"diagnostic": "schema-restore", "uploaded": 1}
+    assert len(uploads) == 1
+    assert uploads[0][1:] == (report_path, report_path.stat().st_size)
+    assert f"/{transport.SCHEMA_DIAGNOSTIC_PATH}?" in uploads[0][0]
+    assert "failure" not in json.dumps(result)
+    assert "url" not in json.dumps(result).lower()
+
+    producer_view["objects"][transport.SCHEMA_DIAGNOSTIC_PATH]["put_url"] = (
+        producer_view["objects"]["web.tar.gz"]["put_url"]
+    )
+    with pytest.raises(transport.PreparationTransportError, match="URL is invalid"):
+        transport.upload_schema_diagnostic(
+            report_path,
+            producer_view,
+            source=SOURCE,
+            preparation_key=KEY,
+            producer_run_id="123",
+            put=lambda *args: pytest.fail("misbound diagnostic must not upload"),
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("source_commit", "d" * 40),
+        ("preparation_key", "e" * 64),
+        ("producer_run_id", "999"),
+        ("format_version", 2),
+    ],
+)
+def test_schema_diagnostic_rejects_wrong_identity(tmp_path, field, value):
+    report_path = tmp_path / "schema-restore.json"
+    report = write_schema_diagnostic(report_path)
+    report[field] = value
+    report_path.write_text(json.dumps(report))
+    with pytest.raises(transport.PreparationTransportError, match="identity mismatch"):
+        transport.upload_schema_diagnostic(
+            report_path,
+            dispatch_view(ticket(tmp_path), producer=True),
+            source=SOURCE,
+            preparation_key=KEY,
+            producer_run_id="123",
+            put=lambda *args: pytest.fail("invalid diagnostic must not upload"),
+        )
+
+
+def test_schema_diagnostic_rejects_oversize_and_manifest_reference(tmp_path):
+    report_path = tmp_path / "schema-restore.json"
+    report_path.write_bytes(b"x" * (transport.MAX_SCHEMA_DIAGNOSTIC_BYTES + 1))
+    with pytest.raises(transport.PreparationTransportError, match="unavailable"):
+        transport.upload_schema_diagnostic(
+            report_path,
+            dispatch_view(ticket(tmp_path), producer=True),
+            source=SOURCE,
+            preparation_key=KEY,
+            producer_run_id="123",
+            put=lambda *args: pytest.fail("oversize diagnostic must not upload"),
+        )
+
+    manifest = {
+        "artifacts": {
+            "web": {
+                "path": "web.tar.gz",
+                "size": 1,
+                "sha256": "0" * 64,
+            },
+            "translations": {
+                "path": "translations.tar.gz",
+                "size": 1,
+                "sha256": "0" * 64,
+            },
+            "diagnostic": {
+                "path": transport.SCHEMA_DIAGNOSTIC_PATH,
+                "size": 1,
+                "sha256": "0" * 64,
+            },
+        },
+        "runtime_images": {"format_version": 2, "images": []},
+    }
+    with pytest.raises(transport.PreparationTransportError, match="path is invalid"):
+        transport._manifest_references(manifest)
+
+
+def test_owner_can_read_bound_schema_diagnostic_without_capability_receipt(tmp_path):
+    expected = write_schema_diagnostic(tmp_path / "source.json")
+    ticket(tmp_path)
+    requested = []
+
+    def get(url, path, max_bytes):
+        requested.append(url)
+        payload = json.dumps(expected).encode()
+        assert len(payload) <= max_bytes
+        path.write_bytes(payload)
+        return len(payload)
+
+    report = transport.read_schema_diagnostic(
+        tmp_path,
+        PRODUCER,
+        SOURCE,
+        KEY,
+        "123",
+        now=NOW,
+        get=get,
+    )
+    assert report == expected
+    assert len(requested) == 1
+    assert f"/{transport.SCHEMA_DIAGNOSTIC_PATH}?" in requested[0]
 
 
 def test_upload_checks_every_hash_rejects_extras_and_publishes_manifest_last(tmp_path):

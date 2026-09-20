@@ -11,6 +11,7 @@ the retained synthetic administrator password before API/worker startup.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import gzip
 import hashlib
 import io
@@ -58,6 +59,10 @@ SCHEMA_DUMP_PATH = "/docker-entrypoint-initdb.d/20-openmates-schema.sql.gz"
 MAX_CARRIER_DUMP_BYTES = 128 * 1024 * 1024
 MAX_CARRIER_MANIFEST_BYTES = 64 * 1024
 MAX_UNCOMPRESSED_SCHEMA_BYTES = 512 * 1024 * 1024
+MAX_RESTORE_DIAGNOSTIC_BYTES = 128 * 1024
+MAX_DIAGNOSTIC_SQL_LINE_BYTES = 4 * 1024
+MAX_DIAGNOSTIC_MISMATCH_PAIRS = 8
+MAX_DIAGNOSTIC_CROSS_LOCATIONS = 16
 CARRIER_READ_TIMEOUT_SECONDS = 120
 PG_DUMP_ARGS = (
     "pg_dump",
@@ -257,6 +262,179 @@ def first_dump_difference(reference: bytes, actual: bytes) -> dict:
         "expected_unit_count": len(expected_units),
         "actual_unit_count": len(actual_units),
     }
+
+
+def _diagnostic_line(line: bytes, limit: int) -> dict[str, str | int | bool]:
+    visible = line[:limit]
+    return {
+        "text": visible.decode("utf-8", errors="replace"),
+        "sha256": hashlib.sha256(line).hexdigest(),
+        "byte_length": len(line),
+        "truncated": len(visible) != len(line),
+    }
+
+
+def _diagnostic_units(dump: bytes, line_limit: int) -> list[dict[str, object]]:
+    """Pair safe unit summaries with raw SQL lines, never COPY row payloads."""
+    lines = normalized_dump(dump).split(b"\n")
+    summaries = dump_units(dump)
+    units: list[dict[str, object]] = []
+    line_index = 0
+    summary_index = 0
+    while line_index < len(lines):
+        line = lines[line_index]
+        summary = summaries[summary_index]
+        if line.startswith(b"COPY ") and line.endswith(b" FROM stdin;"):
+            # The summary contains only hashes/counts. Do not retain the COPY
+            # header or inspect/serialize any payload row in the diagnostic.
+            units.append({"summary": summary})
+            line_index += 1
+            while line_index < len(lines) and lines[line_index] != b"\\.":
+                line_index += 1
+        else:
+            units.append(
+                {"summary": summary, "sql": _diagnostic_line(line, line_limit)}
+            )
+        line_index += 1
+        summary_index += 1
+    return units
+
+
+def _context_lines(
+    units: list[dict[str, object]], center: int
+) -> list[dict[str, object]]:
+    sql_indexes = [index for index, unit in enumerate(units) if "sql" in unit]
+    before = [index for index in sql_indexes if index < center][-2:]
+    at = [center] if center < len(units) and "sql" in units[center] else []
+    after = [index for index in sql_indexes if index > center][:2]
+    return [
+        {"unit_index": index, "line": units[index]["sql"]}
+        for index in before + at + after
+    ]
+
+
+def _cross_locations(
+    needle: dict[str, str | int] | None,
+    units: list[dict[str, object]],
+) -> dict[str, object]:
+    if needle is None:
+        return {"indexes": [], "truncated": False}
+    matches = [
+        index for index, unit in enumerate(units) if unit["summary"] == needle
+    ]
+    return {
+        "indexes": matches[:MAX_DIAGNOSTIC_CROSS_LOCATIONS],
+        "truncated": len(matches) > MAX_DIAGNOSTIC_CROSS_LOCATIONS,
+    }
+
+
+def restore_diagnostic(
+    reference: bytes,
+    actual: bytes,
+    *,
+    source_commit: str,
+    consumer: int,
+    line_limit: int = MAX_DIAGNOSTIC_SQL_LINE_BYTES,
+) -> dict:
+    """Build a private structural report with bounded non-COPY SQL context."""
+    expected_units = _diagnostic_units(reference, line_limit)
+    actual_units = _diagnostic_units(actual, line_limit)
+    expected_summaries = [unit["summary"] for unit in expected_units]
+    actual_summaries = [unit["summary"] for unit in actual_units]
+    difference = first_dump_difference(reference, actual)
+    first_index = int(difference["unit_index"])
+    expected_first = (
+        expected_summaries[first_index]
+        if first_index < len(expected_summaries)
+        else None
+    )
+    actual_first = (
+        actual_summaries[first_index] if first_index < len(actual_summaries) else None
+    )
+
+    mismatched_sql_lines = []
+    mismatch_sql_pair_count = 0
+    for index in range(max(len(expected_units), len(actual_units))):
+        expected = expected_units[index] if index < len(expected_units) else None
+        observed = actual_units[index] if index < len(actual_units) else None
+        if (expected or {}).get("summary") == (observed or {}).get("summary"):
+            continue
+        expected_sql = expected.get("sql") if expected else None
+        actual_sql = observed.get("sql") if observed else None
+        if expected_sql is None and actual_sql is None:
+            continue
+        mismatch_sql_pair_count += 1
+        if len(mismatched_sql_lines) < MAX_DIAGNOSTIC_MISMATCH_PAIRS:
+            mismatched_sql_lines.append(
+                {
+                    "unit_index": index,
+                    "expected": expected_sql,
+                    "actual": actual_sql,
+                }
+            )
+
+    def multiset(units: list[dict[str, str | int]]) -> Counter[str]:
+        return Counter(
+            json.dumps(unit, sort_keys=True, separators=(",", ":")) for unit in units
+        )
+
+    return {
+        "format_version": 1,
+        "source_commit": source_commit,
+        "preparation_key": os.environ.get("CI_PREPARATION_KEY", ""),
+        "producer_run_id": os.environ.get("GITHUB_RUN_ID", ""),
+        "consumer": consumer,
+        "first_difference": difference,
+        "unordered_unit_multiset_equal": multiset(expected_summaries)
+        == multiset(actual_summaries),
+        "first_unit_cross_locations": {
+            "expected_in_actual": _cross_locations(expected_first, actual_units),
+            "actual_in_expected": _cross_locations(actual_first, expected_units),
+        },
+        "sql_context": {
+            "expected": _context_lines(expected_units, first_index),
+            "actual": _context_lines(actual_units, first_index),
+        },
+        # Eight pairs are at most sixteen raw SQL lines. COPY units never have
+        # an `sql` member and therefore cannot enter this list.
+        "mismatched_sql_lines": mismatched_sql_lines,
+        "mismatched_sql_lines_truncated": mismatch_sql_pair_count
+        > MAX_DIAGNOSTIC_MISMATCH_PAIRS,
+        "sql_line_byte_limit": line_limit,
+        "size_truncated": line_limit < MAX_DIAGNOSTIC_SQL_LINE_BYTES,
+    }
+
+
+def write_restore_diagnostic(
+    reference: bytes, actual: bytes, *, source_commit: str, consumer: int
+) -> Path:
+    """Write a mode-0600 diagnostic, reducing SQL excerpts to stay under 128 KiB."""
+    line_limit = MAX_DIAGNOSTIC_SQL_LINE_BYTES
+    while True:
+        diagnostic = restore_diagnostic(
+            reference,
+            actual,
+            source_commit=source_commit,
+            consumer=consumer,
+            line_limit=line_limit,
+        )
+        payload = json.dumps(
+            diagnostic, indent=2, sort_keys=True, ensure_ascii=False
+        ).encode("utf-8")
+        if len(payload) <= MAX_RESTORE_DIAGNOSTIC_BYTES:
+            break
+        if line_limit <= 64:
+            raise RuntimeError("Schema restore diagnostic metadata exceeds size limit")
+        line_limit = max(64, line_limit // 2)
+
+    PRIVATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    PRIVATE.chmod(0o700)
+    path = PRIVATE / "schema-restore-diagnostic.json"
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(descriptor, 0o600)
+    with os.fdopen(descriptor, "wb") as handle:
+        handle.write(payload)
+    return path
 
 
 def schema_manifest(source: str, dump: bytes, compressed: bytes) -> dict:
@@ -566,6 +744,12 @@ def verify_image(image: str) -> dict:
             actual = normalized_dump_sha256(actual_dump)
             if actual != manifest["normalized_dump_sha256"]:
                 difference = first_dump_difference(reference_dump, actual_dump)
+                write_restore_diagnostic(
+                    reference_dump,
+                    actual_dump,
+                    source_commit=source,
+                    consumer=index + 1,
+                )
                 raise RuntimeError(
                     "Prepared schema restore differs from the normalized cold initializer; "
                     "first_structural_difference="

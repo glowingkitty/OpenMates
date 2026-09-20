@@ -623,8 +623,11 @@ def enqueue_submission(
     *,
     source_root: Path | None = None,
     supersede: bool = True,
+    prepared_builds: bool = False,
 ) -> list[dict]:
-    """Split browser E2Es and share immutable builds through private storage."""
+    """Split E2Es; enable private shared preparation only for explicit canaries."""
+    if prepared_builds and (source_root is None or mode not in ("e2e", "visual-smoke")):
+        raise ValueError("Prepared-build canaries require an E2E/visual source root")
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
     if mode in ("component", "e2e") and not selections:
         raise ValueError("Browser requests require explicit specs")
@@ -636,7 +639,11 @@ def enqueue_submission(
     preparation = None
     # Public Actions artifacts must never carry unpublished build output.
     # GitHub.dispatch issues private-bucket capabilities before any preparation.
-    if source_root is not None and mode in ("e2e", "visual-smoke"):
+    # Keep ordinary tests on the existing isolated cold path until the schema
+    # restore and two-consumer reuse canary is green. Do not make unfinished
+    # preparation a mandatory dependency of every E2E or silently credit a failed
+    # preparation run as successful coverage.
+    if prepared_builds:
         try:
             from scripts.ci_artifacts import preparation_key
         except ModuleNotFoundError:
@@ -733,6 +740,7 @@ def main():
     submit.add_argument("--preview-url", action="append", default=[])
     submit.add_argument("--mode", choices=["component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
     submit.add_argument("--attempt", default="")
+    submit.add_argument("--prepared-builds", action="store_true", help="Opt into the unverified private prepared-build canary; ordinary E2Es use isolated cold setup")
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
     )
@@ -804,6 +812,7 @@ def main():
             candidate,
             source_root=root,
             supersede=not args.keep_queued_generations,
+            prepared_builds=args.prepared_builds,
         )
         print_receipt(receipts[0] if len(receipts) == 1 else receipts, as_json=args.json)
     elif args.action == "prioritize":

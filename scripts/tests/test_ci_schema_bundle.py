@@ -3,6 +3,7 @@
 import gzip
 import hashlib
 import json
+import stat
 import sys
 import subprocess
 
@@ -128,6 +129,97 @@ def test_dump_difference_reports_hashes_and_counts_without_payload_values():
     assert "rows_sha256" in difference["actual"]
     assert "private-admin" not in serialized
     assert "directus_users" not in serialized
+
+
+def test_restore_diagnostic_distinguishes_order_from_content(monkeypatch):
+    monkeypatch.setenv("CI_PREPARATION_KEY", "prep-key-123")
+    monkeypatch.setenv("GITHUB_RUN_ID", "35521225756")
+    reference = (
+        b"SET statement_timeout = 0;\n"
+        b"CREATE TABLE public.alpha ();\n"
+        b"CREATE TABLE public.beta ();\n"
+    )
+    reordered = (
+        b"SET statement_timeout = 0;\n"
+        b"CREATE TABLE public.beta ();\n"
+        b"CREATE TABLE public.alpha ();\n"
+    )
+
+    diagnostic = bundle.restore_diagnostic(
+        reference,
+        reordered,
+        source_commit="a" * 40,
+        consumer=1,
+    )
+
+    assert diagnostic["format_version"] == 1
+    assert diagnostic["source_commit"] == "a" * 40
+    assert diagnostic["preparation_key"] == "prep-key-123"
+    assert diagnostic["producer_run_id"] == "35521225756"
+    assert diagnostic["consumer"] == 1
+    assert diagnostic["unordered_unit_multiset_equal"] is True
+    assert diagnostic["first_unit_cross_locations"]["expected_in_actual"][
+        "indexes"
+    ] == [2]
+    assert diagnostic["first_unit_cross_locations"]["actual_in_expected"][
+        "indexes"
+    ] == [2]
+    assert diagnostic["sql_context"]["expected"][1]["line"]["text"] == (
+        "CREATE TABLE public.alpha ();"
+    )
+
+    changed = reordered.replace(b"public.alpha", b"public.gamma")
+    assert (
+        bundle.restore_diagnostic(
+            reference,
+            changed,
+            source_commit="a" * 40,
+            consumer=1,
+        )["unordered_unit_multiset_equal"]
+        is False
+    )
+
+
+def test_restore_diagnostic_omits_copy_payload_and_bounds_private_file(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(bundle, "PRIVATE", tmp_path / "private")
+    monkeypatch.setenv("CI_PREPARATION_KEY", "prep-key")
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    reference = (
+        b"SET statement_timeout = 0;\n"
+        b"COPY public.directus_users (password) FROM stdin;\n"
+        b"private-admin-hash-one\n\\.\n"
+        + b"\n".join(b"\x01" * 6000 + str(index).encode() for index in range(10))
+        + b"\n"
+    )
+    actual = (
+        b"SET statement_timeout = 0;\n"
+        b"COPY public.directus_users (password) FROM stdin;\n"
+        b"private-admin-hash-two\n\\.\n"
+        + b"\n".join(b"\x02" * 6000 + str(index).encode() for index in range(10))
+        + b"\n"
+    )
+
+    path = bundle.write_restore_diagnostic(
+        reference,
+        actual,
+        source_commit="b" * 40,
+        consumer=2,
+    )
+    payload = path.read_bytes()
+    diagnostic = json.loads(payload)
+
+    assert len(payload) <= bundle.MAX_RESTORE_DIAGNOSTIC_BYTES
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+    assert b"private-admin-hash" not in payload
+    assert b"directus_users" not in payload
+    assert diagnostic["consumer"] == 2
+    assert diagnostic["size_truncated"] is True
+    assert diagnostic["mismatched_sql_lines"][0]["expected"]["truncated"] is True
+    assert diagnostic["mismatched_sql_lines_truncated"] is True
+    assert diagnostic["first_difference"]["expected"]["kind"] == "copy"
 
 
 def test_schema_manifest_binds_dump_format_and_restore_semantics():
@@ -292,6 +384,49 @@ def test_verify_image_uses_two_fresh_consumers_and_cleans_each(tmp_path, monkeyp
     assert bundle.PREPARED_SCHEMA_ADMIN_PASSWORD not in passwords
     assert sum(call[:2] == ("down", "--volumes") for call in compose_calls) == 2
     assert len(evidence["consumers"]) == 2
+
+
+def test_verify_image_writes_private_diagnostic_before_rejecting_restore(
+    monkeypatch,
+):
+    source = "a" * 40
+    reference = b"CREATE TABLE public.expected ();\n"
+    actual = b"CREATE TABLE public.actual ();\n"
+    manifest = bundle.schema_manifest(
+        source, reference, gzip.compress(reference, mtime=0)
+    )
+    diagnostic_calls = []
+
+    class Result:
+        stdout = source.encode()
+
+    monkeypatch.setattr(bundle, "require_runner", lambda: None)
+    monkeypatch.setattr(bundle, "run", lambda *args, **kwargs: Result())
+    monkeypatch.setattr(
+        bundle, "carrier_payload", lambda image: (manifest, reference)
+    )
+    monkeypatch.setattr(bundle, "write_profile", lambda profile: None)
+    monkeypatch.setattr(bundle, "wait_for_restored_schema", lambda: None)
+    monkeypatch.setattr(bundle, "database_dump", lambda: actual)
+    monkeypatch.setattr(bundle, "compose", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        bundle,
+        "write_restore_diagnostic",
+        lambda expected, observed, **identity: diagnostic_calls.append(
+            (expected, observed, identity)
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="first_structural_difference"):
+        bundle.verify_image("schema:test")
+
+    assert diagnostic_calls == [
+        (
+            reference,
+            actual,
+            {"source_commit": source, "consumer": 1},
+        )
+    ]
 
 
 def test_verify_image_rejects_manifest_normalized_fingerprint_mismatch(monkeypatch):
