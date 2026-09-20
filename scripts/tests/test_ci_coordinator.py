@@ -232,6 +232,27 @@ def test_json_receipts_redact_presigned_candidate_url(capsys):
     assert value["source"] == "a" * 40
 
 
+def test_unpublished_candidate_uses_cold_path_not_public_preparation(tmp_path):
+    import pytest
+
+    queue = Queue(tmp_path / "queue.db")
+    candidate = {
+        "source": "c" * 40, "base": "b" * 40, "tree": "d" * 40, "session": "owner",
+        "patch_sha256": "e" * 64,
+        "patch_url": "https://nbg1.your-objectstorage.com/private.patch?signature=test",
+        "artifact_expires_at": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)).isoformat(),
+    }
+    jobs = enqueue_submission(
+        queue, "owner", "c" * 40, ["first.spec.ts", "second.spec.ts"], "e2e",
+        candidate=candidate, source_root=tmp_path,
+    )
+    assert len(jobs) == len(queue.status()) == 2
+    assert all(not job["preparation_id"] for job in jobs)
+    assert all(job["candidate_patch_sha256"] == "e" * 64 for job in jobs)
+    with pytest.raises(ValueError, match="private preparation transport"):
+        queue.enqueue("owner", "c" * 40, [], "prepare", candidate=candidate)
+
+
 def test_default_capacity_reserves_fast_feedback_and_shares_owners(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
     queue = Queue(tmp_path / "queue.db")

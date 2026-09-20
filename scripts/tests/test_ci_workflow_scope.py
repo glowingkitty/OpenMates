@@ -77,6 +77,34 @@ def test_preparation_uses_exact_run_artifacts_and_preserves_component_bypass() -
     assert "inputs.mode == 'component' || inputs.mode == 'e2e'" in workflow
 
 
+def test_preparation_fails_closed_for_unpublished_candidate_source() -> None:
+    workflow = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+    checkout = workflow.index("ref: ${{ inputs.checkout_ref }}")
+    guard = workflow.index("- name: Reject unpublished preparation source")
+    tooling = workflow.index("sparse-checkout: scripts")
+    reconstruction = workflow.index("- name: Reconstruct and verify exact detached source")
+    assert checkout < guard < tooling < reconstruction
+    guard_section = workflow[guard:tooling]
+    assert "if: inputs.mode == 'prepare'" in guard_section
+    assert "candidate_patch_url" in guard_section
+    assert "assert not any(candidate_metadata)" in guard_section
+    assert "['git', 'rev-parse', 'HEAD']" in guard_section
+    assert "actual == expected" in guard_section
+    assert "source already published" in guard_section
+
+
+def test_preparation_artifact_labels_do_not_claim_private_storage() -> None:
+    workflow = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+    preparation_steps = workflow[
+        workflow.index("- name: Export cold runtime images") :
+        workflow.index("- name: Start isolated backend")
+    ]
+    assert "private preparation" not in preparation_steps.lower()
+    assert "Actions preparation bytes" in preparation_steps
+    assert "Actions preparation artifact" in preparation_steps
+    assert "repository-readable" in preparation_steps
+
+
 def test_cli_build_is_capability_gated_and_broad_publisher_does_not_compete() -> None:
     isolated = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
     publisher = (ROOT / ".github/workflows/publish-selfhost-images.yml").read_text()

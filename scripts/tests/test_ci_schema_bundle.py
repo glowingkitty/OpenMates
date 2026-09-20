@@ -3,6 +3,7 @@
 import gzip
 import hashlib
 import json
+import sys
 
 import pytest
 
@@ -44,6 +45,9 @@ def test_schema_carrier_is_readable_by_postgres_entrypoint():
     dockerfile = (bundle.ROOT / "scripts/ci_schema_image.Dockerfile").read_text()
     assert "COPY --chmod=0444 openmates-ci-schema.sql.gz" in dockerfile
     assert "COPY --chmod=0444 openmates-ci-schema-manifest.json" in dockerfile
+    assert "chmod 0755 /docker-entrypoint-initdb.d" in dockerfile
+    assert "/usr/local/share/openmates" in dockerfile
+    assert "chmod 0444 /docker-entrypoint-initdb.d/20-openmates-schema.sql.gz" in dockerfile
     assert "postgres:13-alpine@sha256:" in dockerfile
     assert bundle.SCHEMA_BUNDLE_FORMAT in dockerfile
     assert bundle.SCHEMA_RESTORE_SEMANTICS in dockerfile
@@ -82,30 +86,63 @@ def test_schema_manifest_binds_dump_format_and_restore_semantics():
 
 
 def test_verify_carrier_reads_dump_as_postgres_user(monkeypatch):
+    compressed = gzip.compress(b"SELECT 1;\n", mtime=0)
     manifest = {
         "bundle_format": bundle.SCHEMA_BUNDLE_FORMAT,
         "restore_semantics": bundle.SCHEMA_RESTORE_SEMANTICS,
         "normalized_dump_sha256": "a" * 64,
-        "compressed_dump_sha256": "b" * 64,
+        "compressed_dump_sha256": hashlib.sha256(compressed).hexdigest(),
     }
     calls = []
+    monkeypatch.setattr(
+        bundle,
+        "read_carrier_file",
+        lambda image, path, name, limit: calls.append((image, path, name, limit))
+        or (
+            compressed
+            if path == bundle.SCHEMA_DUMP_PATH
+            else json.dumps(manifest).encode()
+        ),
+    )
+    assert bundle.carrier_manifest("schema:test") == manifest
+    assert [call[2] for call in calls] == ["schema dump", "schema manifest"]
+    command = bundle.carrier_cat_command("schema:test", bundle.SCHEMA_DUMP_PATH)
+    assert command[command.index("--user") + 1] == "postgres"
+    assert command[command.index("--entrypoint") + 1] == "cat"
+    assert "--network" in command and "--read-only" in command
 
-    class Result:
-        stdout = (
-            manifest["compressed_dump_sha256"].encode()
-            + b"  /docker-entrypoint-initdb.d/20-openmates-schema.sql.gz\n"
-            + json.dumps(manifest).encode()
-        )
+
+def test_carrier_file_read_is_bounded_and_names_failed_probe(monkeypatch):
+    monkeypatch.setattr(
+        bundle,
+        "carrier_cat_command",
+        lambda image, path: [
+            sys.executable,
+            "-c",
+            "import sys; sys.stdout.buffer.write(b'x' * 5)",
+        ],
+    )
+    with pytest.raises(RuntimeError, match="schema dump exceeds its 4-byte limit"):
+        bundle.read_carrier_file("schema:test", "/dump", "schema dump", 4)
 
     monkeypatch.setattr(
         bundle,
-        "run",
-        lambda *args, **kwargs: calls.append(args) or Result(),
+        "carrier_cat_command",
+        lambda image, path: [
+            sys.executable,
+            "-c",
+            "import sys; sys.stderr.write('permission denied token=private-value'); sys.exit(3)",
+        ],
     )
-    assert bundle.carrier_manifest("schema:test") == manifest
-    assert "--user" in calls[0]
-    assert "postgres" in calls[0]
-    assert "gzip -t" in calls[0][-1]
+    with pytest.raises(RuntimeError, match="schema manifest is not readable") as error:
+        bundle.read_carrier_file("schema:test", "/manifest", "schema manifest", 64)
+    assert "permission denied" in str(error.value)
+    assert "private-value" not in str(error.value)
+
+
+def test_carrier_gzip_validation_is_host_side_and_bounded():
+    with pytest.raises(RuntimeError, match="not a valid gzip"):
+        bundle.verify_gzip_payload(b"not-gzip")
 
 
 def test_consumer_profiles_use_independent_projects_volumes_and_credentials():

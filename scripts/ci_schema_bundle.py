@@ -13,11 +13,14 @@ from __future__ import annotations
 import argparse
 import gzip
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
 import re
+import select
 import subprocess
+import tempfile
 import time
 
 try:
@@ -52,6 +55,10 @@ MANIFEST = PRIVATE / "openmates-ci-schema-manifest.json"
 SCHEMA_SERVICES = ("cms-database", "cms", "cms-setup")
 SCHEMA_MANIFEST_PATH = "/usr/local/share/openmates/schema-manifest.json"
 SCHEMA_DUMP_PATH = "/docker-entrypoint-initdb.d/20-openmates-schema.sql.gz"
+MAX_CARRIER_DUMP_BYTES = 128 * 1024 * 1024
+MAX_CARRIER_MANIFEST_BYTES = 64 * 1024
+MAX_UNCOMPRESSED_SCHEMA_BYTES = 512 * 1024 * 1024
+CARRIER_READ_TIMEOUT_SECONDS = 120
 PG_DUMP_ARGS = (
     "pg_dump",
     "--no-owner",
@@ -284,24 +291,122 @@ def generate(output: Path = OUTPUT) -> Path:
         compose("down", "--volumes", "--remove-orphans")
 
 
-def carrier_manifest(image: str) -> dict:
-    result = run(
+def carrier_cat_command(image: str, path: str) -> list[str]:
+    return [
         "docker",
         "run",
         "--rm",
+        "--network",
+        "none",
+        "--read-only",
         "--user",
         "postgres",
         "--entrypoint",
-        "sh",
+        "cat",
         image,
-        "-ec",
-        f"test -r {SCHEMA_DUMP_PATH}; gzip -t {SCHEMA_DUMP_PATH}; "
-        f"test -r {SCHEMA_MANIFEST_PATH}; sha256sum {SCHEMA_DUMP_PATH}; "
-        f"cat {SCHEMA_MANIFEST_PATH}",
+        path,
+    ]
+
+
+def safe_docker_diagnostic(error_output) -> str:
+    error_output.seek(0)
+    raw = error_output.read(513)
+    truncated = len(raw) > 512
+    text = " ".join(raw[:512].decode(errors="replace").split())
+    text = re.sub(
+        r"(?i)\b(password|token|secret)=\S+",
+        r"\1=<redacted>",
+        text,
     )
-    digest_line, manifest_json = result.stdout.split(b"\n", 1)
-    compressed_sha256 = digest_line.decode().split()[0]
-    manifest = json.loads(manifest_json)
+    if not text:
+        return ""
+    return f"; diagnostic={text}{'…' if truncated else ''}"
+
+
+def read_carrier_file(image: str, path: str, name: str, max_bytes: int) -> bytes:
+    """Read one carrier file as postgres with bounded output and diagnostics."""
+    command = carrier_cat_command(image, path)
+    with tempfile.TemporaryFile() as error_output:
+        process = subprocess.Popen(
+            command,
+            cwd=ROOT,
+            stdout=subprocess.PIPE,
+            stderr=error_output,
+        )
+        if process.stdout is None:  # pragma: no cover - guaranteed by PIPE.
+            process.kill()
+            raise RuntimeError(f"Schema carrier {name} probe could not capture output")
+        output = bytearray()
+        deadline = time.monotonic() + CARRIER_READ_TIMEOUT_SECONDS
+        try:
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    process.kill()
+                    process.wait()
+                    raise RuntimeError(f"Schema carrier {name} read timed out")
+                readable, _, _ = select.select(
+                    [process.stdout.fileno()], [], [], remaining
+                )
+                if not readable:
+                    continue
+                chunk = os.read(
+                    process.stdout.fileno(),
+                    min(64 * 1024, max_bytes + 1 - len(output)),
+                )
+                if not chunk:
+                    break
+                output.extend(chunk)
+                if len(output) > max_bytes:
+                    process.kill()
+                    process.wait()
+                    raise RuntimeError(
+                        f"Schema carrier {name} exceeds its {max_bytes}-byte limit"
+                    )
+            returncode = process.wait(timeout=10)
+        finally:
+            process.stdout.close()
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+        if returncode:
+            raise RuntimeError(
+                f"Schema carrier {name} is not readable as postgres "
+                f"(docker exit {returncode}{safe_docker_diagnostic(error_output)})"
+            )
+    return bytes(output)
+
+
+def verify_gzip_payload(compressed: bytes) -> None:
+    total = 0
+    try:
+        with gzip.GzipFile(fileobj=io.BytesIO(compressed)) as archive:
+            while chunk := archive.read(1024 * 1024):
+                total += len(chunk)
+                if total > MAX_UNCOMPRESSED_SCHEMA_BYTES:
+                    raise RuntimeError(
+                        "Schema carrier dump exceeds its uncompressed verification limit"
+                    )
+    except (EOFError, gzip.BadGzipFile, OSError) as exc:
+        raise RuntimeError("Schema carrier dump is not a valid gzip stream") from exc
+
+
+def carrier_manifest(image: str) -> dict:
+    compressed = read_carrier_file(
+        image, SCHEMA_DUMP_PATH, "schema dump", MAX_CARRIER_DUMP_BYTES
+    )
+    verify_gzip_payload(compressed)
+    manifest_json = read_carrier_file(
+        image,
+        SCHEMA_MANIFEST_PATH,
+        "schema manifest",
+        MAX_CARRIER_MANIFEST_BYTES,
+    )
+    try:
+        manifest = json.loads(manifest_json)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Schema carrier manifest is not valid JSON") from exc
+    compressed_sha256 = hashlib.sha256(compressed).hexdigest()
     if manifest.get("compressed_dump_sha256") != compressed_sha256:
         raise RuntimeError("Schema carrier compressed dump checksum mismatch")
     return manifest

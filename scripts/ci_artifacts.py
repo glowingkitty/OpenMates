@@ -200,7 +200,7 @@ def create_bundle(
         path.stat().st_size for path in output_dir.rglob("*") if path.is_file()
     )
     if bundle_bytes > DEFAULT_MAX_BUNDLE_BYTES:
-        raise RuntimeError("Preparation bundle exceeds the private artifact size limit")
+        raise RuntimeError("Preparation bundle exceeds the artifact size limit")
     manifest = {
         "format_version": FORMAT_VERSION,
         "bundle_format": BUNDLE_FORMAT,

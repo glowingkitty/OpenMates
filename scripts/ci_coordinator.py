@@ -205,6 +205,8 @@ class Queue:
         ):
             raise ValueError("Invalid proof video profile")
         candidate = candidate or {}
+        if mode == "prepare" and candidate:
+            raise ValueError("Unpublished candidates require a private preparation transport")
         candidate_values = {
             "candidate_base": "",
             "candidate_tree": "",
@@ -595,7 +597,7 @@ def enqueue_submission(
     source_root: Path | None = None,
     supersede: bool = True,
 ) -> list[dict]:
-    """Split browser E2E selections into runner-private one-spec jobs."""
+    """Split browser E2Es; share public-source builds, never private candidates."""
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
     if mode in ("component", "e2e") and not selections:
         raise ValueError("Browser requests require explicit specs")
@@ -605,7 +607,10 @@ def enqueue_submission(
         else [selections]
     )
     preparation = None
-    if source_root is not None and mode in ("e2e", "visual-smoke"):
+    # This repository is public: Actions artifacts are not a private transport.
+    # Unpublished worktree candidates retain the existing cold execution path
+    # until an approved private preparation transport is available.
+    if source_root is not None and not candidate and mode in ("e2e", "visual-smoke"):
         try:
             from scripts.ci_artifacts import preparation_key
         except ModuleNotFoundError:

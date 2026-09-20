@@ -92,6 +92,34 @@ jobs:
           ref: ${{ inputs.checkout_ref }}
           path: subject
           persist-credentials: false
+      - name: Reject unpublished preparation source
+        if: inputs.mode == 'prepare'
+        env:
+          EXPECTED_SOURCE: ${{ inputs.source_commit }}
+          EXPECTED_TREE: ${{ inputs.candidate_tree }}
+          CANDIDATE_OWNER: ${{ inputs.candidate_owner }}
+          CANDIDATE_PATCH_SHA256: ${{ inputs.candidate_patch_sha256 }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, subprocess
+
+          expected = os.environ['EXPECTED_SOURCE']
+          assert re.fullmatch('[0-9a-f]{40}', expected), 'Full source SHA required'
+          event = json.load(open(os.environ['GITHUB_EVENT_PATH']))
+          candidate_metadata = [
+              os.environ['EXPECTED_TREE'], os.environ['CANDIDATE_OWNER'],
+              os.environ['CANDIDATE_PATCH_SHA256'],
+              event.get('inputs', {}).get('candidate_patch_url', ''),
+          ]
+          assert not any(candidate_metadata), (
+              'Preparation artifacts are limited to source already published '
+              'in the public repository'
+          )
+          actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert actual == expected, (
+              'Preparation source must resolve directly from checkout_ref'
+          )
+          PY
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
@@ -352,7 +380,7 @@ jobs:
           (inputs.mode == 'prepare' ||
            (inputs.mode == 'e2e' && steps.artifacts.outputs.cli != 'true'))
         run: pnpm --filter openmates build
-      - name: Export cold runtime images into private preparation bytes
+      - name: Export cold runtime images into Actions preparation bytes
         if: inputs.mode == 'prepare'
         run: |
           python3 ../tooling/scripts/ci_artifacts.py export-images \
@@ -374,7 +402,9 @@ jobs:
             --include-upload "${{ inputs.prepare_upload }}" \
             --runtime-receipt test-results/ci-runtime-images.json \
             --output-dir test-results/ci-preparation
-      - name: Upload immutable private preparation bytes
+      # This public repository's Actions artifacts are repository-readable, so
+      # the fail-closed guard above restricts preparation to already-public source.
+      - name: Upload immutable Actions preparation artifact
         if: inputs.mode == 'prepare'
         uses: actions/upload-artifact@v4
         with:
