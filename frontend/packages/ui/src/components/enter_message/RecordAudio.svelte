@@ -27,7 +27,7 @@
     cancel() — discard the recording
 -->
 <script lang="ts">
-    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+    import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
     import { buildWaveformFromLevels, type AudioWaveformData } from '../../utils/audioWaveform';
@@ -102,10 +102,15 @@
     let lastWaveformSampleAt = 0;
     let recordOverlayElement: HTMLDivElement | null = null;
     let liveTranscript = $state('');
-    let liveTranscriptTail = $derived.by(() => {
-        const latestLine = liveTranscript.trim().split(/\r?\n/).filter(Boolean).at(-1) ?? '';
-        return latestLine.length > 96 ? `…${latestLine.slice(-95)}` : latestLine;
-    });
+    let liveTranscriptViewportElement = $state<HTMLSpanElement | null>(null);
+    let liveTranscriptFlowElement = $state<HTMLSpanElement | null>(null);
+    let liveTranscriptLineHeight = $state(0);
+    let liveTranscriptLineCount = $state(1);
+    let transcriptMeasurementFrame: number | null = null;
+    let transcriptResizeObserver: ResizeObserver | null = null;
+    let liveTranscriptOffset = $derived(
+        Math.max(0, liveTranscriptLineCount - 1) * liveTranscriptLineHeight,
+    );
     let realtimeStatus = $state<'connecting' | 'listening' | 'correcting' | 'failed'>('connecting');
     let realtimeHandle: AudioRealtimeTranscriptionHandle | null = null;
     let realtimeHandedOff = false;
@@ -130,7 +135,7 @@
         });
 
         if (previewTranscript !== null) {
-            liveTranscript = previewTranscript;
+            setLiveTranscript(previewTranscript);
             isRecording = true;
         } else {
             initializeAndStartRecording();
@@ -141,6 +146,7 @@
     onDestroy(() => {
         logger.debug('Component destroying.');
         stopWaveform();
+        stopTranscriptMeasurement();
         if (!realtimeHandedOff) realtimeHandle?.cancel();
         // Guard: don't double-stop if stop/cancel already ran
         if (!stopAlreadyCalled) {
@@ -187,7 +193,7 @@
 
             if (enableRealtime) {
                 realtimeHandle = startAudioRealtimeTranscription(streamToUse, {
-                    onTranscript: (value) => { liveTranscript = value; },
+                    onTranscript: setLiveTranscript,
                     onStatus: (value) => { realtimeStatus = value; },
                 });
             }
@@ -272,6 +278,47 @@
             }
             dispatch('close');
         }
+    }
+
+    // --- Live transcript line ticker ---
+
+    function setLiveTranscript(value: string) {
+        liveTranscript = value;
+        scheduleTranscriptMeasurement();
+    }
+
+    function scheduleTranscriptMeasurement() {
+        if (transcriptMeasurementFrame !== null) return;
+        transcriptMeasurementFrame = requestAnimationFrame(() => {
+            transcriptMeasurementFrame = null;
+            void measureTranscriptLines();
+        });
+    }
+
+    async function measureTranscriptLines() {
+        await tick();
+        const viewport = liveTranscriptViewportElement;
+        const flow = liveTranscriptFlowElement;
+        if (!viewport || !flow || !liveTranscript) return;
+
+        if (!transcriptResizeObserver && typeof ResizeObserver !== 'undefined') {
+            transcriptResizeObserver = new ResizeObserver(scheduleTranscriptMeasurement);
+            transcriptResizeObserver.observe(viewport);
+        }
+
+        const lineHeight = Number.parseFloat(getComputedStyle(flow).lineHeight);
+        if (!Number.isFinite(lineHeight) || lineHeight <= 0) return;
+        liveTranscriptLineHeight = lineHeight;
+        liveTranscriptLineCount = Math.max(1, Math.round(flow.scrollHeight / lineHeight));
+    }
+
+    function stopTranscriptMeasurement() {
+        if (transcriptMeasurementFrame !== null) {
+            cancelAnimationFrame(transcriptMeasurementFrame);
+            transcriptMeasurementFrame = null;
+        }
+        transcriptResizeObserver?.disconnect();
+        transcriptResizeObserver = null;
     }
 
     /**
@@ -495,9 +542,21 @@
         <!-- Top: explicit completion/cancellation shortcuts. -->
         <div class="record-header">
             <span class="release-text" data-testid="release-text">
-                {#if liveTranscriptTail}
-                    <span data-testid="recording-live-transcript" aria-live="polite">
-                        {liveTranscriptTail}
+                {#if liveTranscript}
+                    <span
+                        bind:this={liveTranscriptViewportElement}
+                        class="live-transcript-viewport"
+                        class:has-previous-line={liveTranscriptLineCount > 1}
+                        data-testid="recording-live-transcript"
+                        data-line-count={liveTranscriptLineCount}
+                        aria-live="polite"
+                    >
+                        <span
+                            bind:this={liveTranscriptFlowElement}
+                            class="live-transcript-flow"
+                            data-testid="recording-live-transcript-flow"
+                            style:transform={`translateY(-${liveTranscriptOffset}px)`}
+                        >{liveTranscript.trim()}</span>
                     </span>
                 {:else}
                     {$text('enter_message.record_audio.recording')}
@@ -599,11 +658,34 @@
         color: white;
         letter-spacing: 0.01em;
         line-height: 1.3;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
+        display: block;
+    }
+
+    .live-transcript-viewport {
+        display: block;
+        width: 100%;
+        height: 1.3em;
         overflow: hidden;
+    }
+
+    .live-transcript-viewport.has-previous-line {
+        -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 4px, #000 100%);
+        mask-image: linear-gradient(to bottom, transparent 0, #000 4px, #000 100%);
+    }
+
+    .live-transcript-flow {
+        display: block;
+        width: 100%;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+        transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .live-transcript-flow {
+            transition-duration: 0ms;
+        }
     }
 
     .record-shortcuts {

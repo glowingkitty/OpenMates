@@ -1977,93 +1977,65 @@ async function _performRecordingUpload(
     // Must happen AFTER the transcription fetch so cancelUpload() can still abort it.
     _uploadControllers.delete(localEmbedId);
 
-    updateEmbedNode({
-      status: "finished",
-      title: titleFromResponse ?? null,
-      transcript: transcriptText ?? null,
-      transcriptOriginal: transcriptOriginal ?? null,
-      transcriptCorrected: transcriptCorrected ?? null,
-      useCorrected: useCorrected ?? null,
-      correctionModel: correctionModel ?? null,
-      model: modelFromResponse ?? null,
-      waveform: waveform ?? responseWaveform ?? null,
-      uploadError: null,
-    });
-
+    // Keep the node in its blocking state until the finished embed is actually
+    // available under contentRef. Publishing `status: finished` before this
+    // await allowed an immediate Send click to bypass deferred-send handling;
+    // sendNewMessage would then reject the dangling audio reference.
+    //
     // Register the recording embed in EmbedStore immediately after transcription completes.
     // Same pattern as _performUpload() does for images. This ensures the embed data is in
     // EmbedStore when the deferred-send path reads it (the user may have already navigated
     // away and the editor is cleared). handleSend() filters by !node.attrs.contentRef so
     // it will skip re-registering nodes that already have contentRef — fully idempotent.
     const uploadEmbedIdForStore = uploadResult.embed_id;
+    const { encode: toonEncodeRec } = await import("@toon-format/toon");
+    const recEmbedContent = {
+      app_id: "audio",
+      skill_id: "transcribe",
+      type: "audio-recording",
+      status: "finished",
+      title: titleFromResponse ?? null,
+      filename: file.name || null,
+      duration: duration || null,
+      waveform: waveform ?? responseWaveform ?? null,
+      mime_type: mimeType || null,
+      transcript: transcriptText ?? null,
+      transcript_original: transcriptOriginal ?? null,
+      transcript_corrected: transcriptCorrected ?? null,
+      use_corrected: useCorrected ?? null,
+      correction_model: correctionModel ?? null,
+      model: modelFromResponse ?? null,
+      s3_base_url: uploadResult.s3_base_url || null,
+      files: uploadResult.files || null,
+      aes_key: uploadResult.aes_key || null,
+      aes_nonce: uploadResult.aes_nonce || null,
+      vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key || null,
+    };
+
+    let toonRecContent: string;
     try {
-      const { encode: toonEncodeRec } = await import("@toon-format/toon");
-      const recEmbedContent = {
-        app_id: "audio",
-        skill_id: "transcribe",
-        type: "audio-recording",
-        status: "finished",
-        title: titleFromResponse ?? null,
-        filename: file.name || null,
-        duration: duration || null,
-        waveform: waveform ?? responseWaveform ?? null,
-        mime_type: mimeType || null,
-        transcript: transcriptText ?? null,
-        transcript_original: transcriptOriginal ?? null,
-        transcript_corrected: transcriptCorrected ?? null,
-        use_corrected: useCorrected ?? null,
-        correction_model: correctionModel ?? null,
-        model: modelFromResponse ?? null,
-        s3_base_url: uploadResult.s3_base_url || null,
-        files: uploadResult.files || null,
-        aes_key: uploadResult.aes_key || null,
-        aes_nonce: uploadResult.aes_nonce || null,
-        vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key || null,
-      };
-
-      let toonRecContent: string;
-      try {
-        toonRecContent = toonEncodeRec(recEmbedContent);
-      } catch {
-        toonRecContent = JSON.stringify(recEmbedContent);
-      }
-
-      const nowRec = Date.now();
-      await embedStore.put(
-        `embed:${uploadEmbedIdForStore}`,
-        {
-          embed_id: uploadEmbedIdForStore,
-          type: "audio-recording",
-          status: "finished",
-          content: toonRecContent,
-          text_preview: titleFromResponse || transcriptText || file.name || "Voice note",
-          createdAt: nowRec,
-          updatedAt: nowRec,
-        },
-        "audio-recording",
-      );
-      console.debug(
-        "[EmbedHandlers] Registered recording embed in EmbedStore for deferred send:",
-        uploadEmbedIdForStore,
-      );
-    } catch (recStoreError) {
-      // Non-fatal: the recording is still usable — the deferred send path may fail to
-      // find the embed in EmbedStore but the normal handleSend() path will still work.
-      console.error(
-        "[EmbedHandlers] Failed to register recording in EmbedStore:",
-        recStoreError,
-      );
+      toonRecContent = toonEncodeRec(recEmbedContent);
+    } catch {
+      toonRecContent = JSON.stringify(recEmbedContent);
     }
 
-    // Also set contentRef on the TipTap node so the serializer can emit a proper embed
-    // reference block. This mirrors what _performUpload does for images.
-    updateEmbedNode({
-      contentRef: `embed:${uploadEmbedIdForStore}`,
-    });
-
+    const nowRec = Date.now();
+    await embedStore.put(
+      `embed:${uploadEmbedIdForStore}`,
+      {
+        embed_id: uploadEmbedIdForStore,
+        type: "audio-recording",
+        status: "finished",
+        content: toonRecContent,
+        text_preview: titleFromResponse || transcriptText || file.name || "Voice note",
+        createdAt: nowRec,
+        updatedAt: nowRec,
+      },
+      "audio-recording",
+    );
     console.debug(
-      `[EmbedHandlers] Recording ${localEmbedId} upload + transcription complete.`,
-      { hasTranscript: !!transcriptText },
+      "[EmbedHandlers] Registered recording embed in EmbedStore for deferred send:",
+      uploadEmbedIdForStore,
     );
 
     // Update the DeferredEmbedSnapshot in pendingUploadStore with the server-assigned
@@ -2092,11 +2064,35 @@ async function _performRecordingUpload(
       /* non-fatal — only needed for deferred sends */
     }
 
+    // Publish readiness as one node update only after both storage and the
+    // detached deferred-send snapshot point at the finished embed.
+    updateEmbedNode({
+      status: "finished",
+      contentRef: `embed:${uploadEmbedIdForStore}`,
+      title: titleFromResponse ?? null,
+      transcript: transcriptText ?? null,
+      transcriptOriginal: transcriptOriginal ?? null,
+      transcriptCorrected: transcriptCorrected ?? null,
+      useCorrected: useCorrected ?? null,
+      correctionModel: correctionModel ?? null,
+      model: modelFromResponse ?? null,
+      waveform: waveform ?? responseWaveform ?? null,
+      uploadError: null,
+    });
+    console.debug(
+      `[EmbedHandlers] Recording ${localEmbedId} upload + transcription complete.`,
+      { hasTranscript: !!transcriptText },
+    );
+
     // Notify pending sends that this recording embed is done
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("embedUploadFinished", {
-          detail: { embedId: localEmbedId, status: "finished" },
+          detail: {
+            embedId: localEmbedId,
+            uploadEmbedId: uploadEmbedIdForStore,
+            status: "finished",
+          },
         }),
       );
     }

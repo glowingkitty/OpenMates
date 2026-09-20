@@ -54,7 +54,7 @@ test.use({
 });
 
 // contract-test: direct surface=gui.web assertions=message-input.embeds.gated-send,chats.local-state.precedence,chats.message.identity-idempotent
-test('sending while transcription is pending finalizes the same audio message', async ({ page }) => {
+test('sending as correction finishes publishes the stored audio embed before the message', async ({ page }) => {
 	test.setTimeout(180000);
 
 	const log = (message: string, metadata?: Record<string, unknown>) => {
@@ -131,18 +131,23 @@ test('sending while transcription is pending finalizes the same audio message', 
 	await expect(composerRecording).toContainText('Please schedule the project review');
 	await expect(composerRecording.getByTestId('recording-auto-correction')).toBeVisible();
 
+	// Reproduce NWWRB: correction finishes immediately before Send. The node must
+	// remain blocking until its EmbedStore entry and contentRef are both ready.
+	releaseCorrection();
+	await expect(composerRecording.getByTestId('recording-auto-correction')).not.toBeVisible({
+		timeout: 20000,
+	});
 	await page.locator('[data-action="send-message"]').click();
 	const pendingMessage = page.locator('[data-message-id]').last();
 	await expect(pendingMessage).toBeVisible({ timeout: 10000 });
 	const pendingMessageId = await pendingMessage.getAttribute('data-message-id');
 	expect(pendingMessageId).toBeTruthy();
 
-	releaseCorrection();
-
 	const finalizedMessage = page.locator(`[data-message-id="${pendingMessageId}"]`);
 	await expect(finalizedMessage.getByTestId('recording-preview')).toBeVisible({ timeout: 60000 });
 	await expect(finalizedMessage.getByTestId('recording-preview-waveform')).toBeVisible();
 	await expect(finalizedMessage.getByText('No transcript available')).not.toBeVisible();
+	await expect(page.getByText(/Something went wrong while processing the embeds/i)).not.toBeVisible();
 });
 
 // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle

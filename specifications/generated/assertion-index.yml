@@ -22177,7 +22177,8 @@ assertions:
     - &id2617
       path: frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
       line: 57
-      name: sending while transcription is pending finalizes the same audio message
+      name: sending as correction finishes publishes the stored audio embed before
+        the message
       surface: gui.web
     - &id2618
       path: frontend/apps/web_app/tests/audio-recording-live-provider.spec.ts
@@ -23134,7 +23135,8 @@ assertions:
     - &id2711
       path: frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
       line: 57
-      name: sending while transcription is pending finalizes the same audio message
+      name: sending as correction finishes publishes the stored audio embed before
+        the message
       surface: gui.web
     - &id2712
       path: frontend/apps/web_app/tests/audio-recording-live-provider.spec.ts
@@ -27942,7 +27944,8 @@ assertions:
     - &id3302
       path: frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
       line: 57
-      name: sending while transcription is pending finalizes the same audio message
+      name: sending as correction finishes publishes the stored audio embed before
+        the message
       surface: gui.web
     - &id3303
       path: frontend/apps/web_app/tests/audio-recording-live-provider.spec.ts
@@ -28155,7 +28158,8 @@ assertions:
     - &id3325
       path: frontend/apps/web_app/tests/components/record-audio-live-transcript.spec.ts
       line: 5
-      name: recording overlay replaces its heading with the latest transcript on mobile
+      name: recording overlay keeps only its latest wrapped transcript line visible
+        on mobile
       surface: gui.web
     supporting_tests:
     - &id3321
@@ -28170,7 +28174,7 @@ assertions:
       surface: gui.web
     - &id3323
       path: frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
-      line: 149
+      line: 154
       name: a realtime failure falls back to one batch transcription
       surface: gui.web
     - &id3326
