@@ -17,6 +17,7 @@ import {
 
 class FakeWebSocket {
   static last: FakeWebSocket;
+  static instances: FakeWebSocket[] = [];
   static readonly OPEN = 1;
   readyState = FakeWebSocket.OPEN;
   sent: string[] = [];
@@ -27,6 +28,7 @@ class FakeWebSocket {
 
   constructor(readonly url: string) {
     FakeWebSocket.last = this;
+    FakeWebSocket.instances.push(this);
   }
 
   send(value: string) { this.sent.push(value); }
@@ -37,6 +39,11 @@ class FakeWebSocket {
   }
   emit(value: Record<string, unknown>) {
     this.onmessage?.({ data: JSON.stringify(value) } as MessageEvent);
+  }
+  rejectHandshake() {
+    this.readyState = 3;
+    this.onerror?.();
+    this.onclose?.();
   }
 }
 
@@ -64,6 +71,7 @@ describe('audio realtime transcription', () => {
   beforeEach(() => {
     authMocks.token = 'test-ws-token';
     authMocks.checkAuth.mockClear();
+    FakeWebSocket.instances = [];
     context = new FakeAudioContext();
     vi.stubGlobal('WebSocket', FakeWebSocket);
     vi.stubGlobal('AudioContext', class { constructor() { return context; } });
@@ -165,6 +173,34 @@ describe('audio realtime transcription', () => {
     await vi.waitFor(() => expect(authMocks.checkAuth).toHaveBeenCalledWith(undefined, true));
     await vi.waitFor(() => expect(FakeWebSocket.last.url).toContain('fresh-signature'));
     expect(FakeWebSocket.last.url).not.toContain('expired-signature');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle
+  it('refreshes and retries once when iOS rejects the first audio WebSocket handshake', async () => {
+    const handle = startAudioRealtimeTranscription({} as MediaStream);
+    const firstSocket = FakeWebSocket.last;
+    context.processor.onaudioprocess?.({
+      inputBuffer: {
+        sampleRate: 48_000,
+        getChannelData: () => Float32Array.from([0.25, -0.25, 0.5]),
+      },
+    } as unknown as AudioProcessingEvent);
+    authMocks.checkAuth.mockImplementationOnce(async () => {
+      authMocks.token = `hash:${Math.floor(Date.now() / 1000) + 300}:retry-signature`;
+      return true;
+    });
+
+    firstSocket.rejectHandshake();
+
+    await vi.waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    const retrySocket = FakeWebSocket.last;
+    expect(retrySocket.url).toContain('retry-signature');
+    retrySocket.emit({ type: 'session.ready' });
+    expect(retrySocket.sent.map((entry) => JSON.parse(entry).type)).toEqual([
+      'input_audio.append',
+    ]);
+
+    handle.cancel();
   });
 
   // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle

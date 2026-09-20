@@ -25,8 +25,10 @@ from backend.apps.audio.pricing import (
     REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE,
 )
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
+from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
 from backend.core.api.app.utils.server_mode import is_payment_enabled
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
+from backend.core.api.app.utils.ws_token import verify_ws_token
 from backend.shared.providers.gemini_transcript_correction import (
     GEMINI_CORRECTION_MODEL,
     clean_transcript_title,
@@ -50,6 +52,30 @@ def _origin_is_allowed(websocket: WebSocket) -> bool:
     origin = websocket.headers.get("origin")
     allowed = set(getattr(websocket.app.state, "allowed_origins", []) or [])
     return bool(origin and origin in allowed)
+
+
+async def _browser_request_is_allowed(
+    websocket: WebSocket, auth_data: dict[str, Any]
+) -> bool:
+    """Authorize the browser origin or a user-bound short-lived WS token.
+
+    Safari can omit or rewrite Origin on an otherwise authenticated WebSocket
+    upgrade. A valid HMAC token is stored in sessionStorage (not a cookie), so a
+    third-party origin cannot obtain it through a cross-site request. Bind the
+    token back to the already-authenticated user before allowing this fallback.
+    Cookie-only connections still require an exact first-party Origin match.
+    """
+    if _origin_is_allowed(websocket):
+        return True
+
+    ws_token = websocket.query_params.get("token")
+    token_hash = verify_ws_token(ws_token) if ws_token else None
+    if not token_hash:
+        return False
+
+    cache = websocket.app.state.cache_service
+    session_data = await cache.get(f"{cache.SESSION_KEY_PREFIX}{token_hash}")
+    return canonical_session_user_id(session_data) == auth_data.get("user_id")
 
 
 def _safe_provider_error(event: dict[str, Any]) -> str:
@@ -184,7 +210,11 @@ async def realtime_transcription(
 ) -> None:
     if auth_data is None:
         return
-    if not _origin_is_allowed(websocket):
+    if not await _browser_request_is_allowed(websocket, auth_data):
+        logger.warning(
+            "Realtime audio WebSocket rejected: neither first-party Origin nor "
+            "a user-bound short-lived token was present"
+        )
         await websocket.close(
             code=status.WS_1008_POLICY_VIOLATION, reason="Origin not allowed"
         )

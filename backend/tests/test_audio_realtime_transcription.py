@@ -21,12 +21,19 @@ from backend.core.api.app.routes import audio_realtime
 
 
 class _FakeWebSocket:
-    def __init__(self, *, origin: str = "https://app.dev.openmates.org") -> None:
+    def __init__(
+        self,
+        *,
+        origin: str = "https://app.dev.openmates.org",
+        query_params: dict[str, str] | None = None,
+        cache_service: object | None = None,
+    ) -> None:
         self.headers = {"origin": origin}
+        self.query_params = query_params or {}
         self.app = SimpleNamespace(
             state=SimpleNamespace(
                 allowed_origins=["https://app.dev.openmates.org"],
-                cache_service=object(),
+                cache_service=cache_service or object(),
                 directus_service=object(),
                 encryption_service=object(),
                 server_stats_service=object(),
@@ -76,6 +83,52 @@ def test_realtime_audio_proxy_only_accepts_the_first_party_origin() -> None:
     assert (
         audio_realtime._origin_is_allowed(_FakeWebSocket(origin="https://evil.example"))
         is False
+    )
+
+
+# contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle
+@pytest.mark.asyncio
+async def test_realtime_audio_accepts_user_bound_short_lived_token_when_safari_origin_differs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeCache:
+        SESSION_KEY_PREFIX = "session:"
+
+        async def get(self, key: str) -> dict[str, str] | None:
+            return {"user_id": "user-1"} if key == "session:token-hash" else None
+
+    monkeypatch.setattr(audio_realtime, "verify_ws_token", lambda token: "token-hash")
+    websocket = _FakeWebSocket(
+        origin="https://safari-origin.example",
+        query_params={"token": "signed-token"},
+        cache_service=FakeCache(),
+    )
+
+    assert await audio_realtime._browser_request_is_allowed(
+        websocket, {"user_id": "user-1"}
+    )
+
+
+# contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle
+@pytest.mark.asyncio
+async def test_realtime_audio_rejects_token_bound_to_another_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeCache:
+        SESSION_KEY_PREFIX = "session:"
+
+        async def get(self, _key: str) -> dict[str, str]:
+            return {"user_id": "different-user"}
+
+    monkeypatch.setattr(audio_realtime, "verify_ws_token", lambda token: "token-hash")
+    websocket = _FakeWebSocket(
+        origin="https://evil.example",
+        query_params={"token": "signed-token"},
+        cache_service=FakeCache(),
+    )
+
+    assert not await audio_realtime._browser_request_is_allowed(
+        websocket, {"user_id": "user-1"}
     )
 
 

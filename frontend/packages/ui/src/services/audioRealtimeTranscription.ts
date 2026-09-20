@@ -59,11 +59,19 @@ export function websocketTokenNeedsRefresh(
 async function freshWebSocketToken(): Promise<string> {
   let token = getWebSocketToken();
   if (websocketTokenNeedsRefresh(token)) {
-    const { checkAuth } = await import('../stores/authSessionActions');
-    const authenticated = await checkAuth(undefined, true);
-    if (!authenticated) throw new Error('Audio transcription session expired');
-    token = getWebSocketToken();
+    token = await refreshWebSocketToken();
   }
+  if (!token || websocketTokenNeedsRefresh(token)) {
+    throw new Error('Audio transcription authentication unavailable');
+  }
+  return token;
+}
+
+async function refreshWebSocketToken(): Promise<string> {
+  const { checkAuth } = await import('../stores/authSessionActions');
+  const authenticated = await checkAuth(undefined, true);
+  if (!authenticated) throw new Error('Audio transcription session expired');
+  const token = getWebSocketToken();
   if (!token || websocketTokenNeedsRefresh(token)) {
     throw new Error('Audio transcription authentication unavailable');
   }
@@ -79,7 +87,9 @@ function pcm16Base64(samples: Float32Array): string {
   }
   let binary = '';
   for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    binary += String.fromCharCode(
+      ...Array.from(bytes.subarray(offset, offset + 0x8000)),
+    );
   }
   return btoa(binary);
 }
@@ -112,6 +122,7 @@ export function startAudioRealtimeTranscription(
   let cancelled = false;
   let settledTranscription = false;
   let settledCorrection = false;
+  let authenticationRetryStarted = false;
   let transcript = '';
   let rawResult: RealtimeTranscriptionResult | null = null;
   let pendingChatId: string | null = null;
@@ -233,8 +244,28 @@ export function startAudioRealtimeTranscription(
           break;
       }
     };
-    activeSocket.onerror = () => fail('Realtime transcription connection failed');
+    activeSocket.onerror = () => {
+      // A rejected WebSocket handshake is followed by `close` in browsers. Let
+      // that handler refresh the short-lived session token without discarding
+      // the audio already queued while the user keeps speaking.
+      if (ready) fail('Realtime transcription connection failed');
+    };
     activeSocket.onclose = () => {
+      if (activeSocket !== socket) return;
+      if (!ready && !cancelled && !authenticationRetryStarted) {
+        authenticationRetryStarted = true;
+        options.onStatus?.('connecting');
+        void refreshWebSocketToken()
+          .then(openSocket)
+          .catch((error) => {
+            fail(
+              error instanceof Error
+                ? error.message
+                : 'Realtime transcription authentication failed',
+            );
+          });
+        return;
+      }
       stopAudioGraph();
       if (!cancelled && !settledCorrection) fail('Realtime transcription ended early');
     };
