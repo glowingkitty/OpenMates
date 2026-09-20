@@ -296,7 +296,7 @@ jobs:
 
   build-ci-schema:
     if: ${{ inputs.notification_test != true && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') }}
-    needs: [prepare, build-image]
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -309,12 +309,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Restore schema producer images
-        run: |
-          docker pull "${REGISTRY}/${IMAGE_NAMESPACE}/openmates-directus:${{ needs.prepare.outputs.ref_tag }}"
-          docker tag "${REGISTRY}/${IMAGE_NAMESPACE}/openmates-directus:${{ needs.prepare.outputs.ref_tag }}" openmates-ci-cms:local
-          docker pull "${REGISTRY}/${IMAGE_NAMESPACE}/openmates-cms-setup:${{ needs.prepare.outputs.ref_tag }}"
-          docker tag "${REGISTRY}/${IMAGE_NAMESPACE}/openmates-cms-setup:${{ needs.prepare.outputs.ref_tag }}" openmates-ci-setup:local
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build schema producer Directus
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/core/directus
+          file: backend/core/directus/Dockerfile
+          load: true
+          tags: openmates-ci-cms:local
+          cache-from: type=gha,scope=ci-schema-cms
+          cache-to: type=gha,scope=ci-schema-cms,mode=max
+
+      - name: Build schema producer initializer
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/core/directus
+          file: backend/core/directus/Dockerfile.setup.selfhost
+          load: true
+          tags: openmates-ci-setup:local
+          cache-from: type=gha,scope=ci-schema-setup
+          cache-to: type=gha,scope=ci-schema-setup,mode=max
 
       - name: Prepare sanitized schema bundle
         run: python3 scripts/ci_schema_bundle.py
@@ -322,9 +338,6 @@ jobs:
       - name: Calculate schema compatibility key
         id: runtime-key
         run: echo "key=$(python3 scripts/ci_runtime_images.py key --kind schema)" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Publish CI schema image
         uses: docker/build-push-action@v6
