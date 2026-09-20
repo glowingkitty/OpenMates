@@ -56,6 +56,7 @@
   let chatSearchResults = $state<ChatResultCard[]>([]);
   let fileSearchResults = $state<UploadedFileSearchResult[]>([]);
   let searchGeneration = 0;
+  let activeSearchController: AbortController | null = null;
 
   function getPublicSearchChats(): Chat[] {
     const translatedPublicChats = translateDemoChats([...INTRO_CHATS, ...LEGAL_CHATS]).map(convertDemoChatToChat);
@@ -77,6 +78,8 @@
 
   $effect(() => {
     const raw = messageInputContent.trim().toLowerCase();
+    searchGeneration += 1;
+    activeSearchController?.abort();
     if (_filterDebounceTimer) clearTimeout(_filterDebounceTimer);
     _filterDebounceTimer = setTimeout(() => {
       filterQuery = raw;
@@ -121,6 +124,9 @@
     }
 
     const gen = ++searchGeneration;
+    const controller = new AbortController();
+    activeSearchController = controller;
+    const { signal } = controller;
     const textFn = get(text);
     const isAuthenticated = $authStore.isAuthenticated;
 
@@ -132,6 +138,7 @@
 
         if (isAuthenticated) {
           await chatDB.init();
+          signal.throwIfAborted();
           const dbChats = await chatDB.getAllChats();
           chatsToSearch = uniqueChatsById([...publicChats, ...dbChats]);
         } else {
@@ -139,11 +146,11 @@
         }
 
         const [results, fileResults] = await Promise.all([
-          performSearch(query, chatsToSearch, textFn),
-          embedStore.searchUploadedFiles(query),
+          performSearch(query, chatsToSearch, textFn, [], isAuthenticated, false, signal),
+          embedStore.searchUploadedFiles(query, undefined, signal),
         ]);
         // Stale guard — a newer search was triggered while this one ran
-        if (gen !== searchGeneration) return;
+        if (signal.aborted || gen !== searchGeneration) return;
 
         // Exclude only the currently open chat. Public/static chats are intentionally searchable
         // for both authenticated and unauthenticated users so the input search can switch to them.
@@ -179,10 +186,11 @@
         );
 
         // Final stale guard after async metadata resolution
-        if (gen !== searchGeneration) return;
+        if (signal.aborted || gen !== searchGeneration) return;
         chatSearchResults = processed;
         fileSearchResults = fileResults;
       } catch (error) {
+        if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
         console.error('[ChatSearchSuggestions] Chat search error:', error);
         if (gen === searchGeneration) {
           chatSearchResults = [];
@@ -190,6 +198,7 @@
         }
       }
     })();
+    return () => controller.abort();
   });
 </script>
 

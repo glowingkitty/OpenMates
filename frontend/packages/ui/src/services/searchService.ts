@@ -815,6 +815,7 @@ const MAX_CONCURRENT_INDEX_JOBS = 5;
 type SearchEntries = Array<{
     messageId: string;
     content: string;
+    normalizedContent: string;
     createdAt: number;
     /** Present when this entry represents embed content rather than raw message text */
     embedSourceLabel?: string;
@@ -942,6 +943,7 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
         entries.push({
           messageId: msg.message_id,
           content: messageText,
+          normalizedContent: messageText.toLowerCase(),
           createdAt: msg.created_at,
           // No embedSourceLabel — this is the base message text
         });
@@ -966,6 +968,7 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
           entries.push({
             messageId: msg.message_id,
             content: result.text,
+            normalizedContent: result.text.toLowerCase(),
             createdAt: msg.created_at,
             embedSourceLabel: result.sourceLabel,
             // Store embed ID and type so clicking the search result can open the embed
@@ -981,6 +984,7 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
     }
 
     if (generation !== indexGeneration) return [];
+    entries.sort(compareSearchEntriesNewestFirst);
     messageIndex.set(chatId, entries);
     return entries;
   } catch (error) {
@@ -1244,6 +1248,7 @@ export async function addMessageToIndex(
   const newEntries: Array<{
     messageId: string;
     content: string;
+    normalizedContent: string;
     createdAt: number;
     embedSourceLabel?: string;
     embedId?: string;
@@ -1260,6 +1265,7 @@ export async function addMessageToIndex(
     newEntries.push({
       messageId: message.message_id,
       content: messageText,
+      normalizedContent: messageText.toLowerCase(),
       createdAt: message.created_at,
     });
   }
@@ -1272,6 +1278,7 @@ export async function addMessageToIndex(
     newEntries.push({
       messageId: message.message_id,
       content: result.text,
+      normalizedContent: result.text.toLowerCase(),
       createdAt: message.created_at,
       embedSourceLabel: result.sourceLabel,
       embedId: ref.embed_id,
@@ -1284,7 +1291,10 @@ export async function addMessageToIndex(
   }
 
   if (generation === indexGeneration && messageIndex.get(chatId) === existing) {
-    messageIndex.set(chatId, [...withoutThisMessage, ...newEntries]);
+    messageIndex.set(
+      chatId,
+      [...withoutThisMessage, ...newEntries].sort(compareSearchEntriesNewestFirst),
+    );
   }
 }
 
@@ -1370,12 +1380,20 @@ function buildSnippet(
  * "Found in: Web page" / "Found in: Code" context labels, and an embedId so
  * clicking the result opens the embed fullscreen view.
  */
-function searchMessagesInChat(
+function compareSearchEntriesNewestFirst(a: SearchEntries[number], b: SearchEntries[number]): number {
+  if (b.createdAt !== a.createdAt) return b.createdAt - a.createdAt;
+  const aIsEmbed = a.embedSourceLabel !== undefined ? 1 : 0;
+  const bIsEmbed = b.embedSourceLabel !== undefined ? 1 : 0;
+  return aIsEmbed - bIsEmbed;
+}
+
+async function searchMessagesInChat(
   chatId: string,
   query: string,
   activeFocusId: string | null = null,
   entries = messageIndex.get(chatId),
-): MessageMatchSnippet[] {
+  signal?: AbortSignal,
+): Promise<MessageMatchSnippet[]> {
   if (!entries) return [];
 
   const snippets: MessageMatchSnippet[] = [];
@@ -1383,18 +1401,14 @@ function searchMessagesInChat(
   const snippetsPerMessage = new Map<string, number>();
   const lowerQuery = query.toLowerCase();
 
-  // Search from newest to oldest (most relevant first).
-  // Sort by createdAt DESC; within the same timestamp, put message-text entries
-  // before embed entries so base text snippets appear first.
-  const sorted = [...entries].sort((a, b) => {
-    if (b.createdAt !== a.createdAt) return b.createdAt - a.createdAt;
-    // Same timestamp: message text (no label) before embed content
-    const aIsEmbed = a.embedSourceLabel !== undefined ? 1 : 0;
-    const bIsEmbed = b.embedSourceLabel !== undefined ? 1 : 0;
-    return aIsEmbed - bIsEmbed;
-  });
-
-  for (const entry of sorted) {
+  // Entries are ordered when indexed. Yield periodically so a large chat cannot
+  // monopolize the UI thread and an obsolete query can be aborted promptly.
+  for (let entryIndex = 0; entryIndex < entries.length; entryIndex++) {
+    if (entryIndex > 0 && entryIndex % 256 === 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      signal?.throwIfAborted();
+    }
+    const entry = entries[entryIndex];
     if (snippets.length >= MAX_SNIPPETS_PER_CHAT) break;
 
     // Cap how many snippets come from the same message (prevents one embed-heavy
@@ -1402,8 +1416,7 @@ function searchMessagesInChat(
     const countForMsg = snippetsPerMessage.get(entry.messageId) ?? 0;
     if (countForMsg >= MAX_SNIPPETS_PER_MESSAGE) continue;
 
-    const lowerContent = entry.content.toLowerCase();
-    const idx = lowerContent.indexOf(lowerQuery);
+    const idx = entry.normalizedContent.indexOf(lowerQuery);
     if (idx === -1) continue;
 
     const { snippet, snippetMatchStart, snippetMatchLength } = buildSnippet(
@@ -1570,6 +1583,7 @@ export async function search(
   isAdmin: boolean = false,
   signal?: AbortSignal,
 ): Promise<SearchResults> {
+  signal?.throwIfAborted();
   if (!query || query.trim().length === 0) {
     return {
       chats: [],
@@ -1594,6 +1608,7 @@ export async function search(
   );
   if (unindexedMetadataChats.length > 0) {
     await Promise.all(unindexedMetadataChats.map((c) => indexChatMetadata(c)));
+    signal?.throwIfAborted();
   }
 
   const chatResults: ChatSearchResult[] = [];
@@ -1611,6 +1626,7 @@ export async function search(
     } else {
       // Authenticated user chats — get decrypted title from cache
       const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+      signal?.throwIfAborted();
       decryptedTitle = metadata?.title || chat.title || null;
       activeFocusId = metadata?.activeFocusId || null;
     }
@@ -1628,11 +1644,12 @@ export async function search(
     if (!chat.is_metadata_only) {
       const entries = useWarmIndexOnly ? messageIndex.get(chat.chat_id) : await indexChatMessages(chat.chat_id);
       signal?.throwIfAborted();
-      messageSnippets = searchMessagesInChat(
+      messageSnippets = await searchMessagesInChat(
         chat.chat_id,
         trimmedQuery,
         activeFocusId,
         entries,
+        signal,
       );
     }
 
@@ -1645,6 +1662,7 @@ export async function search(
     } else if (!isPublicChat(chat.chat_id)) {
       // Full authenticated chats — search metadata inline using already-fetched cache data
       const meta = await chatMetadataCache.getDecryptedMetadata(chat);
+      signal?.throwIfAborted();
       if (meta) {
         metadataSnippets = searchMetadataInline(
           chat.chat_id,

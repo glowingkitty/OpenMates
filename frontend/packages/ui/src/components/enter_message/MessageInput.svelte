@@ -61,7 +61,7 @@
     import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
     import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-    import { TextSelection } from '@tiptap/pm/state';
+    import { TextSelection, type Transaction } from '@tiptap/pm/state';
     import type { Content } from '@tiptap/core';
     import type { FocusModeMetadata } from '../../types/apps';
     import type { AudioWaveformData } from '../../utils/audioWaveform';
@@ -87,6 +87,7 @@
     import { extractEmbedReferences } from '../../services/embedResolver';
     import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
     import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
+    import { transactionInsertedTriggerCharacter } from './services/composerParsingSchedule';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -573,19 +574,6 @@
         });
     }
 
-    function editorHasSignupRequiredEmbed(editor: Editor | null | undefined): boolean {
-        if (!editor || editor.isDestroyed) return false;
-        let found = false;
-        editor.state.doc.descendants((node) => {
-            if (node.type.name === 'embed' && embedAttrsNeedSignup(node.attrs)) {
-                found = true;
-                return false;
-            }
-            return !found;
-        });
-        return found;
-    }
-
     function editorHasInFlightEmbed(editor: Editor | null | undefined): boolean {
         if (!editor || editor.isDestroyed) return false;
         let found = false;
@@ -678,12 +666,24 @@
             .join($text('enter_message.draft_summary.separator'));
     }
 
-    function buildDraftPreviewParts(editor: Editor | null | undefined): DraftPreviewParts {
-        if (!editor || editor.isDestroyed) return EMPTY_DRAFT_PREVIEW_PARTS;
+    function buildDraftPreviewState(editor: Editor | null | undefined): {
+        parts: DraftPreviewParts;
+        hasEmbedContent: boolean;
+        hasSignupRequiredEmbed: boolean;
+    } {
+        if (!editor || editor.isDestroyed) {
+            return {
+                parts: EMPTY_DRAFT_PREVIEW_PARTS,
+                hasEmbedContent: false,
+                hasSignupRequiredEmbed: false,
+            };
+        }
 
         const textContent = editor.getText().replace(/\s+/g, ' ').trim();
         const embedCounts = new Map<DraftEmbedKind, number>();
         const embedOrder: DraftEmbedKind[] = [];
+        let hasEmbedContent = false;
+        let hasSignupRequiredEmbed = false;
         const addEmbedCount = (kind: DraftEmbedKind, count = 1) => {
             if (!embedCounts.has(kind)) embedOrder.push(kind);
             embedCounts.set(kind, (embedCounts.get(kind) ?? 0) + count);
@@ -692,7 +692,11 @@
         editor.state.doc.descendants((node) => {
             if (node.type.name !== 'embed') return true;
 
+            hasEmbedContent = true;
             const attrs = node.attrs ?? {};
+            if (!hasSignupRequiredEmbed && embedAttrsNeedSignup(attrs)) {
+                hasSignupRequiredEmbed = true;
+            }
             const groupedItems = Array.isArray(attrs.groupedItems) ? attrs.groupedItems : [];
             if (groupedItems.length > 0) {
                 for (const item of groupedItems) {
@@ -709,8 +713,12 @@
         });
 
         return {
-            embeds: embedOrder.map((kind) => ({ kind, count: embedCounts.get(kind) ?? 0 })),
-            text: textContent,
+            parts: {
+                embeds: embedOrder.map((kind) => ({ kind, count: embedCounts.get(kind) ?? 0 })),
+                text: textContent,
+            },
+            hasEmbedContent,
+            hasSignupRequiredEmbed,
         };
     }
 
@@ -720,9 +728,10 @@
             draftPreviewParts = EMPTY_DRAFT_PREVIEW_PARTS;
             return;
         }
-        hasEmbedContent = editorHasEmbedContent(editor);
-        draftPreviewParts = buildDraftPreviewParts(editor);
-        setPendingAnonymousFileAttachment(editorHasSignupRequiredEmbed(editor));
+        const previewState = buildDraftPreviewState(editor);
+        hasEmbedContent = previewState.hasEmbedContent;
+        draftPreviewParts = previewState.parts;
+        setPendingAnonymousFileAttachment(previewState.hasSignupRequiredEmbed);
     }
 
     let draftPreviewSummary = $derived(formatDraftPreviewSummary(draftPreviewParts));
@@ -1046,26 +1055,26 @@
     
     /**
      * Schedule or immediately run the heavy parsing operations.
-     * Immediate on delimiter characters and paste events (content is "complete");
-     * debounced fallback for regular typing.
+     * Paste stays immediate. Delimiter-triggered parsing runs in the next task so
+     * the browser can paint the keystroke first; regular typing uses the debounce.
      */
-    function scheduleHeavyParsing(editor: Editor, text: string, forcedByPaste: boolean) {
-        const lastChar = text.length > 0 ? text[text.length - 1] : '';
-        const isDelimiter = PII_TRIGGER_CHARS.has(lastChar);
+    function scheduleHeavyParsing(editor: Editor, transaction: Transaction, forcedByPaste: boolean) {
+        const insertedDelimiter = transactionInsertedTriggerCharacter(transaction, PII_TRIGGER_CHARS);
         
-        if (forcedByPaste || isDelimiter) {
-            // Delimiter typed or paste — content is at a natural boundary, parse now
+        if (forcedByPaste) {
+            // Paste content arrives complete and may need immediate embed conversion.
             if (heavyParsingDebounceTimer) { clearTimeout(heavyParsingDebounceTimer); heavyParsingDebounceTimer = null; }
             runHeavyParsing(editor);
         } else {
-            // Regular character — debounce to avoid parsing on every keystroke
+            // Parse delimiters promptly, but outside TipTap's input transaction so
+            // the browser can commit the typed character before parsing the draft.
             if (heavyParsingDebounceTimer) { clearTimeout(heavyParsingDebounceTimer); }
             heavyParsingDebounceTimer = setTimeout(() => {
                 heavyParsingDebounceTimer = null;
                 if (editor && !editor.isDestroyed) {
                     runHeavyParsing(editor);
                 }
-            }, HEAVY_PARSING_DEBOUNCE_MS);
+            }, insertedDelimiter ? 0 : HEAVY_PARSING_DEBOUNCE_MS);
         }
     }
     
@@ -3190,13 +3199,14 @@
             if (!editor || editor.isDestroyed) return;
 
             const repairedDomDrift = syncTextOnlyDomToEditorBeforeDraftSave(editor);
-            hasContent = editorHasSendableText(editor);
-            refreshDraftPreviewState(editor);
-            if (repairedDomDrift) triggerSaveDraft(currentChatId, editor);
+            if (repairedDomDrift) {
+                hasContent = editorHasSendableText(editor);
+                triggerSaveDraft(currentChatId, editor);
+            }
         }, 0);
     }
 
-    function handleEditorUpdate({ editor }: { editor: Editor }) {
+    function handleEditorUpdate({ editor, transaction }: { editor: Editor; transaction: Transaction }) {
         // --- Text-change guard ---
         // On iOS Firefox, double-tap to select text fires spurious `input` events
         // that ProseMirror treats as content changes, triggering onUpdate even though
@@ -3227,6 +3237,18 @@
             lastEditorUpdateText = currentText;
         }
         
+        // Skip all heavy processing if only the selection changed (no content change).
+        // This prevents the infinite loop on iOS Firefox where empty transaction
+        // dispatches cause further spurious input events.
+        if (!textActuallyChanged) {
+            // Embed attributes can change without changing plain text. Refresh their
+            // preview state, but avoid a document scan for selection-only updates.
+            if (transaction.docChanged) refreshDraftPreviewState(editor);
+            // Still check mention trigger (depends on cursor position, not content)
+            checkMentionTrigger(editor);
+            return;
+        }
+
         const newHasContent = editorHasSendableText(editor);
         refreshDraftPreviewState(editor);
         if (hasContent !== newHasContent) {
@@ -3244,22 +3266,13 @@
             }
         }
         
-        // Skip all heavy processing if only the selection changed (no content change).
-        // This prevents the infinite loop on iOS Firefox where empty transaction
-        // dispatches cause further spurious input events.
-        if (!textActuallyChanged) {
-            // Still check mention trigger (depends on cursor position, not content)
-            checkMentionTrigger(editor);
-            return;
-        }
-        
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId, editor);
 
         // Performance: Stagger PII detection and heavy parsing on delimiter keystrokes.
         // Both are expensive — running them simultaneously on every space/comma causes
         // noticeable input lag. Strategy:
-        //   - Heavy parsing runs immediately on delimiters (needed for URL detection/embeds)
+        //   - Heavy parsing runs in the next task on delimiters (needed for URL detection/embeds)
         //   - PII detection runs immediately ONLY on paste (content arrives complete)
         //   - On delimiters, PII detection stays on its 800ms debounce timer
         // This halves synchronous work on delimiter keystrokes while keeping paste instant.
@@ -3272,10 +3285,10 @@
         }
         
         // Heavy parsing (markdown serialization + unified parser + decorations):
-        // Runs immediately on delimiter characters and paste, with a 400ms fallback
-        // timer for regular characters. Must run BEFORE PII detection on paste so that
+        // Runs in the next task on delimiter characters and immediately on paste, with
+        // a 400ms fallback for regular characters. It must run before PII detection on paste so
         // any content modifications (URL → embed conversion) complete first.
-        scheduleHeavyParsing(editor, currentText, wasPaste);
+        scheduleHeavyParsing(editor, transaction, wasPaste);
         if (wasPaste) {
             void captureDefaultPasteRecoveryCandidate(editor, recoveryText, existingPasteRecoveryEmbedIds);
         }
@@ -5023,7 +5036,7 @@
         const editorHasEmbed = editor && !editor.isDestroyed ? editorHasEmbedContent(editor) : false;
         if (!hasSendableDraft && !editorHasContent && !editorHasEmbed) return;
 
-        if (editorHasSignupRequiredEmbed(editor)) {
+        if (buildDraftPreviewState(editor).hasSignupRequiredEmbed) {
             setPendingAnonymousFileAttachment(true);
             console.warn('[MessageInput] Blocked send for local-only file preview that still requires signup/upload');
             return;
