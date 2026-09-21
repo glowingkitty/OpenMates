@@ -48,7 +48,9 @@ class IssueReportServiceTask(BaseServiceTask):
                 secrets_manager=self._secrets_manager,
                 directus_service=self._directus_service,
             )
-            await self._s3_service.initialize()
+            # Bucket-policy reconciliation is startup maintenance and must not
+            # block an individual report when an unrelated bucket is degraded.
+            await self._s3_service.initialize(configure_buckets=False)
 
         if self._email_template_service is None:
             self._email_template_service = EmailTemplateService(

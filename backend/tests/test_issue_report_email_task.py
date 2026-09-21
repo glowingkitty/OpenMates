@@ -97,7 +97,7 @@ async def test_issue_report_task_initializes_only_required_services(monkeypatch)
     await task.initialize_services()
 
     task.initialize_core_services.assert_awaited()
-    task._s3_service.initialize.assert_awaited_once()
+    task._s3_service.initialize.assert_awaited_once_with(configure_buckets=False)
     assert task._email_template_service.secrets_manager is task._secrets_manager
     assert task._invoice_ninja_service is None
     assert task._payment_service is None
