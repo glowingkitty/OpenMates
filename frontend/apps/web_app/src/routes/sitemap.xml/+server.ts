@@ -23,6 +23,7 @@
 
 import type { RequestHandler } from './$types';
 import { getAllExampleChatData, getAllActiveNewsletterChats, newsletterKindFromChatId, LEGAL_CHATS, getAllOpenMatesEvents } from '@repo/ui';
+import { getPublicationSitemapEntries } from '$lib/server/publications';
 
 export const prerender = false; // SSR so the sitemap always reflects the current build
 
@@ -111,7 +112,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const newsletterUrls = getAllActiveNewsletterChats()
 		.map((chat) => {
 			const kind = newsletterKindFromChatId(chat.chat_id);
-			if (!kind) return null;
+			if (!kind || kind === 'announcements') return null;
 			return `  <url>
     <loc>${siteOrigin}/${kind}/${chat.slug}</loc>
     <changefreq>monthly</changefreq>
@@ -119,6 +120,15 @@ export const GET: RequestHandler = async ({ url }) => {
   </url>`;
 		})
 		.filter((u): u is string => u !== null);
+
+	const publicationUrls = getPublicationSitemapEntries().map((entry) => `  <url>
+    <loc>${siteOrigin}${entry.path}</loc>
+    <xhtml:link rel="alternate" hreflang="${entry.locale}" href="${siteOrigin}${entry.path}" />
+    <xhtml:link rel="alternate" hreflang="${entry.locale === 'en' ? 'de' : 'en'}" href="${siteOrigin}${entry.alternatePath}" />
+    <lastmod>${entry.lastModified}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>${entry.path === '/news' || entry.path === '/blog' ? '0.8' : '0.7'}</priority>
+  </url>`);
 
 	const eventUrls = getAllOpenMatesEvents().map((event) => `  <url>
     <loc>${siteOrigin}/events/${event.slug}</loc>
@@ -128,11 +138,12 @@ export const GET: RequestHandler = async ({ url }) => {
   </url>`);
 
 	const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${staticUrls.join('\n')}
 ${legalUrls.join('\n')}
 ${exampleUrls.join('\n')}
 ${newsletterUrls.join('\n')}
+${publicationUrls.join('\n')}
 ${eventUrls.join('\n')}
 </urlset>`;
 

@@ -3,7 +3,6 @@
  * Uses the installed CLI to discover its already-running daemon, then reads
  * thread metadata over the supported Unix WebSocket control transport.
  * Never reads internal databases, starts a daemon, sends prompts or polls.
- * Legacy OpenCode links remain data and cannot enter the resume path.
  * Architecture: docs/architecture/platforms/tasks-v1.md.
  */
 import { execFile, spawn } from "node:child_process";
@@ -25,7 +24,7 @@ export interface CodexThreadConnection {
 }
 
 export function codexResumeArguments(context: { provider: string; id: string }): string[] {
-  if (context.provider !== "codex") throw new Error("Legacy OpenCode links are read-only. Connect this Task to a Codex thread explicitly.");
+  if (context.provider !== "codex") throw new Error("Codex connection requires the codex provider.");
   if (!THREAD_ID.test(context.id)) throw new Error("Codex connection requires a valid thread UUID.");
   return ["resume", context.id];
 }
@@ -111,7 +110,7 @@ export function taskOwnerConflict(owner: { provider: string; id: string; title?:
   const title = JSON.stringify(owner.title || "Untitled chat");
   const location = owner.provider === "openmates"
     ? `OpenMates chat ID: ${owner.id}. View: openmates chats show ${owner.id}`
-    : `${owner.provider === "codex" ? "Codex" : "OpenCode"} chat ID: ${owner.id}`;
+    : `Codex chat ID: ${owner.id}`;
   return `Task is already linked to ${title}. ${location}. Release that link before claiming the task in another chat.`;
 }
 

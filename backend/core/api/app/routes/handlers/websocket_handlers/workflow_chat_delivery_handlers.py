@@ -77,6 +77,10 @@ def _delivery_payload(delivery: WorkflowChatDelivery) -> dict[str, Any]:
         "created_at": delivery.created_at,
         "expires_at": delivery.expires_at,
         "claim_generation": delivery.claim_generation,
+        "claim_expires_at": delivery.claim_expires_at,
+        "workflow_id": delivery.workflow_id,
+        "run_id": delivery.run_id,
+        "client_persisted": delivery.client_persistence is not None,
     }
 
 
@@ -153,13 +157,17 @@ async def handle_workflow_chat_delivery_claim(
             device_id=device_fingerprint_hash,
         )
         delivery = _service(directus_service).get_delivery(delivery_id=str(delivery_id), owner_id=user_id)
-        plaintext_payload = await _decrypt_claimed_payload(
-            cache_service=cache_service,
-            directus_service=directus_service,
-            encryption_service=encryption_service,
-            user_id=user_id,
-            encrypted_payload=delivery.encrypted_payload,
-        )
+        existing_chat = await _existing_delivery_chat(directus_service, delivery, user_id) if delivery.workflow_id else None
+        if delivery.client_persistence is not None and not delivery.encrypted_payload:
+            plaintext_payload = {"title": "Workflow results", "message": "Delivery already persisted", "embeds": []}
+        else:
+            plaintext_payload = await _decrypt_claimed_payload(
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                user_id=user_id,
+                encrypted_payload=delivery.encrypted_payload,
+            )
         await manager.send_personal_message(
             {
                 "type": "workflow_chat_delivery_claimed",
@@ -167,6 +175,8 @@ async def handle_workflow_chat_delivery_claim(
                     **_delivery_payload(delivery),
                     "title": plaintext_payload["title"],
                     "message": plaintext_payload["message"],
+                    "embeds": plaintext_payload.get("embeds") or [],
+                    "existing_chat": existing_chat,
                     "claim_token": claim.token,
                     "claim_generation": claim.generation,
                     "claim_issued_at": claim.issued_at,
@@ -193,6 +203,7 @@ async def handle_workflow_chat_delivery_persist(
     device_fingerprint_hash: str,
     payload: dict[str, Any],
     user_otel_attrs: dict | None = None,
+    cache_service: Any | None = None,
 ) -> None:
     _otel_span, _otel_token = _start_ws_span(
         "workflow_chat_delivery_persist",
@@ -211,6 +222,8 @@ async def handle_workflow_chat_delivery_persist(
             encrypted_message=str(payload.get("encrypted_message") or ""),
             device_id=device_fingerprint_hash,
         )
+        if delivery.workflow_id and cache_service is not None:
+            await _project_committed_delivery(manager, cache_service, directus_service, delivery, user_id, device_fingerprint_hash)
         await manager.send_personal_message(
             {
                 "type": "workflow_chat_delivery_persisted",
@@ -233,6 +246,7 @@ async def handle_workflow_chat_delivery_ack(
     device_fingerprint_hash: str,
     payload: dict[str, Any],
     user_otel_attrs: dict | None = None,
+    cache_service: Any | None = None,
 ) -> None:
     _otel_span, _otel_token = _start_ws_span(
         "workflow_chat_delivery_ack",
@@ -243,6 +257,9 @@ async def handle_workflow_chat_delivery_ack(
     request_id = _request_id(payload)
     delivery_id = str(payload.get("delivery_id") or "")
     try:
+        pending = _service(directus_service).get_delivery(delivery_id=delivery_id, owner_id=user_id)
+        if pending.workflow_id and pending.client_persistence is not None and cache_service is not None:
+            await _project_committed_delivery(manager, cache_service, directus_service, pending, user_id, device_fingerprint_hash)
         delivery = _service(directus_service).acknowledge_delivery(
             delivery_id=delivery_id,
             owner_id=user_id,
@@ -294,7 +311,7 @@ async def _decrypt_claimed_payload(
     encryption_service: Any,
     user_id: str,
     encrypted_payload: str,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     try:
         envelope = json.loads(encrypted_payload)
     except json.JSONDecodeError as exc:
@@ -319,7 +336,14 @@ async def _decrypt_claimed_payload(
     message = decoded.get("message") if isinstance(decoded, dict) else None
     if not isinstance(title, str) or not title or not isinstance(message, str) or not message:
         raise ValueError("Workflow chat delivery plaintext payload is incomplete")
-    return {"title": title, "message": message}
+    embeds = decoded.get("embeds") or []
+    if not isinstance(embeds, list) or len(embeds) > 500 or any(
+        not isinstance(embed, dict) or not isinstance(embed.get("embed_id"), str)
+        or not isinstance(embed.get("content_type"), str) or not isinstance(embed.get("content"), dict)
+        for embed in embeds
+    ):
+        raise ValueError("Workflow selected embeds are invalid")
+    return {"title": title, "message": message, "embeds": embeds}
 
 
 async def _acquire_claim_lock(cache_service: Any, lock_key: str) -> bool:
@@ -336,3 +360,62 @@ async def _release_claim_lock(cache_service: Any, lock_key: str) -> None:
             await client.delete(lock_key)
     except Exception:
         logger.debug("Workflow chat delivery claim lock release failed", exc_info=True)
+
+
+async def _existing_delivery_chat(directus_service: Any, delivery: WorkflowChatDelivery, user_id: str) -> dict[str, Any] | None:
+    """Canonical owner-encrypted key wrapper; the server never unwraps this key."""
+    import hashlib
+    rows = await directus_service.get_items("chats", params={
+        "filter[id][_eq]": delivery.chat_id,
+        "fields": "id,hashed_user_id,hashed_team_id,encrypted_chat_key,encrypted_title,encrypted_category,messages_v,title_v,created_at,last_edited_overall_timestamp",
+        "limit": 1,
+    }, no_cache=True, raise_on_error=True)
+    if not rows:
+        return None
+    chat = rows[0]
+    if chat.get("hashed_user_id") != hashlib.sha256(user_id.encode()).hexdigest() or chat.get("hashed_team_id"):
+        raise PermissionError("Workflow destination chat is not owned by this user")
+    return {key: chat.get(key) for key in ("encrypted_chat_key", "encrypted_title", "encrypted_category", "messages_v", "title_v", "created_at", "last_edited_overall_timestamp")}
+
+
+async def _project_committed_delivery(manager: Any, cache_service: Any, directus_service: Any,
+                                      delivery: WorkflowChatDelivery, user_id: str, device_hash: str) -> None:
+    """Idempotent normal encrypted sync after the SQL commit, including ACK recovery."""
+    import hashlib
+    if delivery.client_persistence is None:
+        raise ValueError("Workflow ciphertext is not committed")
+    chat = await _existing_delivery_chat(directus_service, delivery, user_id)
+    if not chat:
+        raise ValueError("Committed workflow chat is unavailable")
+    message = json.loads(delivery.client_persistence.encrypted_message)
+    timestamp = int(chat.get("last_edited_overall_timestamp") or delivery.client_persistence.persisted_at)
+    # Use existing cache boundaries. Invalidate list metadata so cached readers
+    # refill from canonical Directus; versions only increase and message append
+    # deduplicates by the stable message ID.
+    operations = [
+        await cache_service.add_chat_to_ids_versions(user_id, delivery.chat_id, timestamp),
+        await cache_service.delete_chat_list_item_data(user_id, delivery.chat_id),
+        await cache_service.set_chat_version_component(user_id, delivery.chat_id, "messages_v", int(chat.get("messages_v") or 1)),
+        await cache_service.set_chat_version_component(user_id, delivery.chat_id, "title_v", int(chat.get("title_v") or 1)),
+        await cache_service.append_sync_message_to_history(user_id, delivery.chat_id, json.dumps({
+            "id": delivery.message_id, "message_id": delivery.message_id, "chat_id": delivery.chat_id,
+            "role": "assistant", "encrypted_content": message["encrypted_content"],
+            "encrypted_category": chat.get("encrypted_category"), "created_at": delivery.client_persistence.persisted_at,
+        })),
+    ]
+    if not all(operations):
+        raise ValueError("Workflow encrypted chat sync is temporarily unavailable")
+    def sha(value: str) -> str:
+        return hashlib.sha256(value.encode()).hexdigest()
+    embeds = []
+    for embed in message.get("embeds") or []:
+        embeds.append({**embed, "embed_keys": [{**key, "hashed_embed_id": sha(embed["embed_id"]),
+            "hashed_user_id": sha(user_id), "hashed_chat_id": sha(delivery.chat_id) if key["key_type"] == "chat" else None,
+            "created_at": delivery.client_persistence.persisted_at} for key in embed["embed_keys"]]})
+    await manager.broadcast_to_user(message={"type": "new_chat_message", "payload": {
+        "chat_id": delivery.chat_id, "message_id": delivery.message_id, "role": "assistant", "content": "",
+        "encrypted_content": message["encrypted_content"], "encrypted_chat_key": chat["encrypted_chat_key"],
+        "encrypted_title": chat.get("encrypted_title"), "encrypted_category": chat.get("encrypted_category"),
+        "created_at": delivery.client_persistence.persisted_at, "messages_v": chat.get("messages_v") or 1,
+        "last_edited_overall_timestamp": timestamp, "workflow_embeds": embeds,
+    }}, user_id=user_id, exclude_device_hash=device_hash)

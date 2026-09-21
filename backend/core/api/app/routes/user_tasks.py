@@ -43,9 +43,9 @@ router = APIRouter(prefix="/v1/user-tasks", tags=["User Tasks"], dependencies=[D
 
 TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "done"]
 AssigneeType = Literal["user", "openmates", "external_ai", "unassigned"]
-AssigneeIdentity = Literal["openmates", "codex", "opencode"]
+AssigneeIdentity = Literal["openmates", "codex"]
 KeyWrapperType = Literal["master", "chat", "project", "plan"]
-ExternalChatProvider = Literal["codex", "opencode"]
+ExternalChatProvider = Literal["codex"]
 BlockedReasonCode = Literal[
     "needs_user_input",
     "waiting_for_approval",
@@ -238,7 +238,7 @@ def _validate_assignment_fields(
     assignee_identity: AssigneeIdentity | None,
     assignee_hash: str | None,
 ) -> None:
-    allowed_identities = {"openmates": {"openmates"}, "external_ai": {"codex", "opencode"}}.get(assignee_type)
+    allowed_identities = {"openmates": {"openmates"}, "external_ai": {"codex"}}.get(assignee_type)
     if allowed_identities is not None and assignee_identity not in allowed_identities:
         raise ValueError(f"Task {assignee_type} assignment requires an allowed identity")
     if assignee_type in {"user", "unassigned"} and assignee_identity is not None:

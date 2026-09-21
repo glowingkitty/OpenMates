@@ -64,7 +64,7 @@ def test_non_check_sync_repairs_codex_hook_mirrors(tmp_path: Path, monkeypatch) 
     assert module.sync_hooks(check=True) == []
 
 
-def test_sync_preserves_codex_safety_without_recreating_opencode(tmp_path: Path, monkeypatch) -> None:
+def test_sync_preserves_codex_safety(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     source_dir = tmp_path / ".claude" / "agents"
     source_dir.mkdir(parents=True)
@@ -78,4 +78,3 @@ def test_sync_preserves_codex_safety_without_recreating_opencode(tmp_path: Path,
     assert "Review every frame." in rendered
     assert "model =" not in rendered
     assert module.sync_agents(check=True) == []
-    assert not (tmp_path / ".opencode").exists()

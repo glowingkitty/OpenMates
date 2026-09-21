@@ -222,6 +222,95 @@ async def test_skill_provider_pricing_uses_provider_ref_display_name(monkeypatch
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.surface.semantic-parity,app-skills.surface.semantic-parity
+async def test_weather_direct_api_uses_flat_price_and_executed_provider() -> None:
+    skill = AppSkillDefinition(
+        id="forecast",
+        name_translation_key="apps.weather.forecast",
+        description_translation_key="apps.weather.forecast.description",
+        pricing={"fixed": 1},
+        providers=[
+            ProviderRef(name="deutscher_wetterdienst", display_name="Deutscher Wetterdienst (DWD)"),
+            ProviderRef(name="open_meteo", display_name="Open-Meteo"),
+        ],
+    )
+    app = AppYAML(
+        id="weather",
+        name_translation_key="apps.weather",
+        description_translation_key="apps.weather.description",
+        skills=[skill],
+    )
+
+    class FakeConfigManager:
+        def get_provider_config(self, provider_id: str):
+            return {
+                "provider_id": provider_id,
+                "name": "Open-Meteo" if provider_id == "open_meteo" else "DWD",
+                "region": "EU",
+            }
+
+    result = {
+        "provider_id": "open_meteo",
+        "results": [{"date": "day-1"}, {"date": "day-2"}, {"date": "day-3"}],
+    }
+    provider_info = apps_api.resolve_skill_provider_info(
+        skill,
+        "weather",
+        FakeConfigManager(),
+        result,
+    )
+
+    assert provider_info == {
+        "model_used": None,
+        "server_provider": "Open-Meteo",
+        "server_region": "EU",
+    }
+    assert await apps_api.calculate_skill_credits(
+        app_metadata=app,
+        skill_id="forecast",
+        input_data={"location": "London", "days": 3},
+        result_data=result,
+        app_id="weather",
+    ) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+def test_weather_direct_api_provider_attribution_fails_safe() -> None:
+    skill = AppSkillDefinition(
+        id="forecast",
+        name_translation_key="apps.weather.forecast",
+        description_translation_key="apps.weather.forecast.description",
+        providers=[
+            ProviderRef(name="deutscher_wetterdienst"),
+            ProviderRef(name="open_meteo"),
+        ],
+    )
+
+    class UnexpectedConfigManager:
+        def get_provider_config(self, _provider_id: str):
+            raise AssertionError("Unknown or mixed weather providers must not be looked up")
+
+    for result_data in (
+        {"provider_id": "unknown_weather", "results": []},
+        [
+            {"provider_id": "open_meteo", "results": []},
+            {"provider_id": "deutscher_wetterdienst", "results": []},
+        ],
+        {"results": []},
+    ):
+        assert apps_api.resolve_skill_provider_info(
+            skill,
+            "weather",
+            UnexpectedConfigManager(),
+            result_data,
+        ) == {
+            "model_used": None,
+            "server_provider": None,
+            "server_region": None,
+        }
+
+
+@pytest.mark.asyncio
 async def test_session_or_api_key_auth_preserves_device_approval_errors(monkeypatch) -> None:
     api_key_auth_module = importlib.import_module("backend.core.api.app.utils.api_key_auth")
 

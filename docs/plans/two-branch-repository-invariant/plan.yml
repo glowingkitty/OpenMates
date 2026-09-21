@@ -1,0 +1,326 @@
+schema_version: 2
+id: two-branch-repository-invariant
+title: Enforce a dev/main-only repository
+status: verified
+
+goal: >
+  Keep exactly two local and remote Git branches, dev and main. Agent work stays
+  in detached managed worktrees; pre-deploy GitHub CI receives exact candidate
+  source through private expiring artifacts rather than Git refs; repository
+  ordinary automation cannot create any other branch; an administrator retains
+  an explicit break-glass bypass; and every existing extra branch is recoverably
+  archived and removed.
+
+scope:
+  in:
+    - Replace codex/ci candidate branches with SHA-verified binary patch artifacts in private lifecycle-managed object storage.
+    - Reconstruct and verify the exact deterministic candidate commit in detached state on GitHub-hosted runners.
+    - Preserve reviewed stale-base deployment without a remote candidate ref.
+    - Change release-version automation to commit directly to dev without a pull-request branch.
+    - Disable Dependabot branch-producing updates while retaining deterministic vulnerability reporting.
+    - Add local deterministic guards and a GitHub ruleset that reject routine branch creation outside dev and main while retaining an administrator break-glass bypass.
+    - Back up, classify, and remove every existing local and remote branch except dev and main.
+  out:
+    - Removing or merging unresolved worktree changes.
+    - Changing product behavior or product Specifications.
+    - Replacing detached worktrees as the repository isolation mechanism.
+
+approvals:
+  specification:
+    status: not_required
+    approved_at: "2026-09-19T15:00:00Z"
+    reason: Engineering repository workflow changes do not alter a user-facing product contract.
+  plan:
+    status: approved
+    approved_at: "2026-09-19T15:00:00Z"
+    reason: "The user explicitly approved the branchless transport, two-branch enforcement, and cleanup proposal and instructed implementation."
+
+decisions:
+  - id: D-1
+    status: active
+    decision: dev and main are the only permitted local or remote branches.
+    reason: Worktree isolation makes per-task branches unnecessary and repository refs must remain comprehensible.
+    decided_at: "2026-09-19T15:00:00Z"
+  - id: D-2
+    status: active
+    decision: Candidate source moves as a private expiring binary patch bound to base SHA, patch SHA-256, tree SHA, and deterministic candidate SHA.
+    reason: GitHub-hosted runners need candidate bytes, but transport does not require a branch or any persistent Git ref.
+    decided_at: "2026-09-19T15:00:00Z"
+  - id: D-3
+    status: active
+    decision: Detached worktrees remain the only agent workspace mechanism.
+    reason: They isolate indexes and files without adding branches.
+    decided_at: "2026-09-19T15:00:00Z"
+  - id: D-4
+    status: active
+    decision: Existing extra refs are archived to an external Git bundle and manifest before exact-SHA deletion.
+    reason: Cleanup must be reversible without retaining repository branches.
+    decided_at: "2026-09-19T15:00:00Z"
+  - id: D-5
+    status: active
+    decision: The branch-creation ruleset has an administrator break-glass bypass, while automatic version advancement uses the repository's sole write deploy key to push only dev through its protection ruleset.
+    reason: Recovery must remain possible without granting the ordinary GitHub Actions token or other automation a protected-branch bypass.
+    decided_at: "2026-09-19T16:00:37Z"
+
+scenarios:
+  - id: S-1
+    title: A dirty detached worktree runs isolated GitHub CI without a branch
+    given:
+      - A managed detached worktree contains reviewed source changes.
+    when:
+      - The session publishes and submits an isolated CI candidate.
+    then:
+      - No local or remote branch is created.
+      - A private expiring artifact carries a binary patch and immutable identity metadata.
+      - The runner checks out the reachable base, verifies the patch, reconstructs the exact candidate commit, and tests that detached commit.
+  - id: S-2
+    title: Repository automation updates dev without an intermediate branch
+    given:
+      - A release version or vetted dependency update is ready.
+    when:
+      - Automation applies the change.
+    then:
+      - It commits through the existing dev integration path or pushes only dev.
+      - No Dependabot, automation, hotfix, or candidate branch is created.
+  - id: S-3
+    title: Routine attempts to create a third branch are rejected
+    given:
+      - The repository contains only dev and main.
+    when:
+      - A user, agent, GitHub Action, or app without the administrator break-glass role attempts to create another branch.
+    then:
+      - Local deterministic guards reject the command before push where applicable.
+      - GitHub rejects remote branch creation through an active ruleset.
+      - A repository audit reports any invariant violation.
+      - An administrator can deliberately bypass the rule for recovery and must return the repository to dev and main afterward.
+  - id: S-4
+    title: Existing branch clutter is removed without losing recoverability
+    given:
+      - Extra local and remote branches have been inventoried.
+    when:
+      - Cleanup runs after branchless transport and enforcement are active.
+    then:
+      - An external bundle and exact ref-to-SHA manifest exist.
+      - Open PR heads and unmerged local work are explicitly resolved or archived.
+      - Local and remote branch inventories contain exactly dev and main.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Candidate publication and dispatch contain no push or remote refs/heads operation and runner verification rejects altered patch, base, tree, or candidate identity.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CI-SOURCE, T-CI-DISPATCH, T-CI-WORKFLOW]
+  - id: AC-2
+    scenario: S-1
+    text: Reviewed candidate deployment validates the retained local candidate manifest and bytes without requiring origin/codex/ci.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-REVIEWED-DEPLOY]
+  - id: AC-3
+    scenario: S-2
+    text: Version advancement and dependency policy cannot create pull-request branches and continue to preserve required checks and security reporting.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-AUTOMATION, T-DEPENDENCY]
+  - id: AC-4
+    scenario: S-3
+    text: Tooling tests reject any scripted branch-producing push outside dev/main and the active GitHub ruleset restricts other branch creation with an administrator-only break-glass bypass.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BRANCH-GUARD, T-RULESET]
+  - id: AC-5
+    scenario: S-4
+    text: A verified external rollback bundle and manifest precede deletion, and authoritative local and remote inventories end with exactly dev and main.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CLEANUP]
+
+tests:
+  - id: T-CI-SOURCE
+    type: pytest
+    file: scripts/tests/test_ci_source.py
+    command: python3 -m pytest scripts/tests/test_ci_source.py
+    assertions:
+      - Publishing a dirty detached worktree creates a private candidate artifact and no Git branch or push.
+    covers: [AC-1]
+    red_phase: {required: false, expected: fail, evidence: {status: not_run}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_ci_source.py", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Included in the 44-test focused repository-workflow suite."}}
+  - id: T-CI-DISPATCH
+    type: pytest
+    file: scripts/tests/test_ci_dispatch.py
+    command: python3 -m pytest scripts/tests/test_ci_dispatch.py scripts/tests/test_ci_coordinator.py
+    assertions:
+      - Dispatch persists and forwards the base, tree, digest, owner, and expiring artifact URL as one immutable candidate identity.
+    covers: [AC-1]
+    red_phase: {required: false, expected: fail, evidence: {status: not_run}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_ci_dispatch.py scripts/tests/test_ci_coordinator.py", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Included in the 44-test focused repository-workflow suite."}}
+  - id: T-CI-WORKFLOW
+    type: pytest
+    file: scripts/tests/test_ci_workflow_scope.py
+    command: python3 -m pytest scripts/tests/test_ci_workflow_scope.py
+    assertions:
+      - The isolated runner verifies the artifact digest and reconstructs the expected detached commit before tests run.
+    covers: [AC-1]
+    red_phase: {required: false, expected: fail, evidence: {status: not_run}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_ci_workflow_scope.py", run_id: "github-35452694871-and-local", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Hosted run reconstructed and verified the exact detached source successfully; local workflow-scope coverage also passed."}}
+  - id: T-REVIEWED-DEPLOY
+    type: pytest
+    file: scripts/tests/test_reviewed_deploy.py
+    command: python3 -m pytest scripts/tests/test_reviewed_deploy.py
+    assertions:
+      - Reviewed deployment authenticates the retained local manifest and patch without a remote candidate ref.
+    covers: [AC-2]
+    red_phase: {required: false, expected: fail, evidence: {status: not_run}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_reviewed_deploy.py", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Included in the 44-test focused repository-workflow suite."}}
+  - id: T-AUTOMATION
+    type: pytest
+    file: scripts/tests/test_advance_dev_version_workflow.py
+    command: python3 -m pytest scripts/tests/test_advance_dev_version_workflow.py
+    assertions:
+      - Version advancement writes only to dev with a dedicated repository deploy key and cannot create an automation branch or pull request.
+    covers: [AC-3]
+    red_phase: {required: false, expected: fail, evidence: {status: not_run}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_advance_dev_version_workflow.py", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Workflow requires VERSION_BUMP_DEPLOY_KEY, forbids GITHUB_TOKEN, creates no branch, and pushes only HEAD:dev; the secret, sole write deploy key, and DeployKey protection bypass are active in GitHub."}}
+  - id: T-DEPENDENCY
+    type: pytest
+    file: scripts/tests/test_dependency_update_policy.py
+    command: python3 -m pytest scripts/tests/test_dependency_update_policy.py
+    assertions:
+      - Dependabot version-update pull requests are disabled while vulnerability scanning remains configured externally.
+    covers: [AC-3]
+    red_phase: {required: false, expected: fail, evidence: {status: not_run}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_dependency_update_policy.py", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Included in the 44-test focused repository-workflow suite; GitHub automated security fixes remain disabled to prevent branch creation."}}
+  - id: T-BRANCH-GUARD
+    type: pytest
+    file: scripts/tests/test_branch_invariant.py
+    command: python3 -m pytest scripts/tests/test_branch_invariant.py
+    assertions:
+      - Local command guards and repository audits reject creation or publication of branches other than dev and main.
+    covers: [AC-4]
+    red_phase: {required: false, expected: fail, evidence: {status: not_run}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_branch_invariant.py && python3 scripts/branch_invariant.py audit", run_id: "local-focused-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", notes: "Guard tests passed and the audit reported no code, local-ref, or remote-ref violations."}}
+  - id: T-RULESET
+    type: manual
+    command: gh api repos/glowingkitty/OpenMates/rulesets
+    assertions:
+      - An active GitHub ruleset restricts creation of every branch except dev and main for ordinary actors and retains only an administrator break-glass bypass.
+    covers: [AC-4]
+    red_phase: {required: false, expected: fail, evidence: {status: not_run}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "gh api repos/glowingkitty/OpenMates/rulesets/23701449 && gh api repos/glowingkitty/OpenMates/rulesets/6180344", run_id: "github-rulesets-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", reason: "GitHub API output directly verifies the active server-side rules and bypass actors.", notes: "Creation protection is active outside dev/main with an admin break-glass bypass; dev/main protection accepts the repository's sole write deploy key and repository admins."}}
+  - id: T-CLEANUP
+    type: manual
+    command: git ls-remote --heads origin
+    assertions:
+      - A verified external bundle and manifest exist and authoritative local and remote branch inventories contain only dev and main.
+    covers: [AC-5]
+    red_phase: {required: false, expected: fail, evidence: {status: not_run}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "git ls-remote --heads origin && git for-each-ref --format='%(refname) %(objectname)' refs/heads", run_id: "branch-audit-20260919", subject_commit: "28dc933c2a34ef8c78bd1fb788d7638bf475b5a6", timestamp: "2026-09-19T16:03:49Z", reason: "The remote and local ref inventories are the authoritative branch state.", notes: "Authoritative local and remote inventories contain only dev and main; external recovery bundle SHA-256 is dbde0d12261adb4e35afb3a3aebaf4e8a47b812b31a2a4f184c3f320d44f0022."}}
+
+tasks:
+  - id: TASK-1
+    title: Replace branch-based candidate transport
+    status: done
+    phase: complete
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1, AC-2]}
+    expected_files: [scripts/ci_source.py, scripts/ci_dispatch.py, scripts/ci_queue.py, scripts/reviewed_deploy.py, .github/workflows/isolated-tests.yml]
+    verification_ids: [T-CI-SOURCE, T-CI-DISPATCH, T-CI-WORKFLOW, T-REVIEWED-DEPLOY]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    ownership: {files: [scripts, .github/workflows/isolated-tests.yml], shared_files: []}
+  - id: TASK-2
+    title: Enforce the two-branch invariant
+    status: done
+    phase: complete
+    covers: {scenarios: [S-2, S-3], acceptance_criteria: [AC-3, AC-4]}
+    expected_files: [.github/workflows/advance-dev-version.yml, .github/dependabot.yml, .claude/hooks/bash-guard.sh, scripts/branch_invariant.py]
+    verification_ids: [T-AUTOMATION, T-DEPENDENCY, T-BRANCH-GUARD, T-RULESET]
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    ownership: {files: [.github, .claude/hooks, scripts/branch_invariant.py], shared_files: []}
+  - id: TASK-3
+    title: Archive and remove legacy branches
+    status: done
+    phase: complete
+    covers: {scenarios: [S-4], acceptance_criteria: [AC-5]}
+    expected_files: [scripts/branch_invariant.py]
+    verification_ids: [T-CLEANUP]
+    dependencies: [TASK-1, TASK-2]
+    blockers: []
+    follow_up_tasks: []
+    ownership: {files: [scripts/branch_invariant.py], shared_files: []}
+
+verification:
+  required:
+    - python3 scripts/plan_validate.py docs/plans/two-branch-repository-invariant/plan.yml
+    - python3 -m pytest scripts/tests/test_ci_source.py scripts/tests/test_ci_dispatch.py scripts/tests/test_ci_coordinator.py scripts/tests/test_reviewed_deploy.py scripts/tests/test_advance_dev_version_workflow.py scripts/tests/test_dependency_update_policy.py
+    - python3 scripts/sync_agent_parity.py --check
+    - python3 scripts/audit_agent_tooling_parity.py
+    - python3 scripts/codex_cached_context.py doctor --repository /home/superdev/projects/OpenMates --thread 01a0ba14-f844-7e00-a653-d9bbbe425b2a
+    - Authoritative git ls-remote and local refs show only refs/heads/dev and refs/heads/main after cleanup.
+  not_required:
+    - Product browser E2E because this changes engineering transport and repository automation rather than product behavior.
+
+rollout:
+  - Implement and locally verify branchless candidate creation, runner reconstruction, and reviewed deployment.
+  - Deploy the branchless transport and automation changes to dev.
+  - Disable branch-producing Dependabot settings and activate the dev/main-only GitHub ruleset.
+  - Create and verify the external rollback bundle and exact deletion manifest.
+  - Resolve open PR heads and branch-attached legacy worktrees, then delete every extra remote and local branch.
+  - Verify the invariant and retain the rollback artifact location in the implementation report.
+
+rollback:
+  - Restore deleted refs from the external bundle only for recovery, then integrate needed commits into dev and delete the temporary recovery refs again.
+  - Revert the code commit on dev if artifact transport fails before cleanup.
+  - Disable the GitHub ruleset temporarily only for an explicitly reviewed recovery operation.
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: This plan changes Git transport, repository refs, credentials, and server-side rulesets with no user-visible visual surface; command and API evidence are the direct proof.
+    classified_at: "2026-09-19T16:03:49Z"
+    verification_ids: [T-CI-SOURCE, T-CI-DISPATCH, T-CI-WORKFLOW, T-REVIEWED-DEPLOY, T-AUTOMATION, T-DEPENDENCY, T-BRANCH-GUARD, T-RULESET, T-CLEANUP]
+
+implementation_state:
+  subject_commit: 28dc933c2a34ef8c78bd1fb788d7638bf475b5a6
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Use one remote codex/ci branch per immutable candidate.
+    outcome: rejected
+    recorded_at: "2026-09-19T15:00:00Z"
+    reason: The user requires a strict dev/main-only branch invariant.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Run the first hosted branchless candidate through the private artifact reconstruction path.
+    outcome: rejected
+    recorded_at: "2026-09-19T15:37:20Z"
+    reason: The live runner proved that text-mode Git output removed the patch's final newline and that step-level URL environment mapping exposed the presigned URL before masking; both defects were corrected in fe580b6.
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Re-run the private artifact on hosted GitHub CI after preserving byte-exact patches and reading the URL from the private event payload.
+    outcome: succeeded
+    recorded_at: "2026-09-19T15:49:19Z"
+    reason: Run 35452694871 completed the exact detached reconstruction step successfully with no presigned URL in logs; its later full-suite failures were unrelated pre-existing test failures outside this plan.
+
+handoff:
+  current_task_id: TASK-2
+  next_action: Observe the next merged main release PR triggering automatic dev version advancement.
+  command: gh run list --workflow advance-dev-version.yml --limit 1
+  expected_outcome: The workflow commits the next alpha line directly to dev without creating another branch.
+  blocker: null
+  last_verified_commit: 28dc933c2a34ef8c78bd1fb788d7638bf475b5a6

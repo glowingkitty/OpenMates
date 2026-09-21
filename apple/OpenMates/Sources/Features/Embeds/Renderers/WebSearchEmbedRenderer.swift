@@ -32,6 +32,9 @@ struct WebSearchEmbedPreviewDetails: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing2) {
+            if model.status == .finished {
+                WebSearchThumbnailStrip(results: model.websiteResults)
+            }
             Text(model.query)
                 .font(.omP)
                 .fontWeight(.semibold)
@@ -70,7 +73,8 @@ struct WebSearchEmbedFullscreenContent: View {
             status: model.status,
             query: model.query,
             results: model.websiteResults,
-            emptyText: emptyText
+            emptyText: emptyText,
+            webLayout: true
         ) { result in
             EmbedPreviewCard(embed: result.embed, variant: .compact) {
                 onOpenEmbed(result.embed)
@@ -81,5 +85,35 @@ struct WebSearchEmbedFullscreenContent: View {
 
     private var emptyText: String {
         AppStrings.searchNoResults(for: model.query)
+    }
+}
+
+// SearchThumbnailStrip.svelte: at most ten unique images, 40x30 cells, 2pt gap.
+// Resolves only already-hydrated metadata; never fetches private chat content.
+struct WebSearchThumbnailStrip: View {
+    let results: [WebsiteResultModel]
+    static func selectedURLs(_ values: [String?]) -> [String] {
+        var seen = Set<String>()
+        return Array(values.compactMap { $0 }.filter { seen.insert($0).inserted }.prefix(10))
+    }
+    var body: some View {
+        let urls = Self.selectedURLs(results.map(\.previewImageURL))
+        if !urls.isEmpty {
+            HStack(spacing: 2) {
+                ForEach(urls, id: \.self) { value in
+                    if let url = URL(string: value) {
+                        CachedRemoteImage(url: url) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: { Color.grey20 }
+                        .frame(width: 40, height: 30).clipped()
+                        .accessibilityIdentifier("web-search-thumbnail")
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 30).clipped()
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("web-search-thumbnail-strip")
+        }
     }
 }

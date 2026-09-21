@@ -154,6 +154,10 @@ final class AppSessionCoordinator: ObservableObject {
     let chatStore = ChatStore()
     let webSocketManager = WebSocketManager()
 
+    lazy var modelPreferences = ModelPreferenceAppRuntime(socket: webSocketManager, store: chatStore,
+        directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("OpenMates/ModelPreferences", isDirectory: true))
+
     private var offlineBridgeStorage: OfflineSyncBridge?
     private var didLoadFromDisk = false
     private var didStartNetworkMonitoring = false
@@ -166,6 +170,7 @@ final class AppSessionCoordinator: ObservableObject {
     }
 
     func prepareAuthenticatedRuntime(lastOpenedChatId: String?) -> OfflineSyncBridge {
+        AssistantSpeechAppRuntime.shared.configure(store: chatStore, socket: webSocketManager)
         let bridge = offlineBridge()
         chatStore.setBridge(bridge)
 
@@ -183,6 +188,11 @@ final class AppSessionCoordinator: ObservableObject {
     }
 
     func resetTransientRuntime() {
+        AssistantSpeechAppRuntime.shared.reset()
+        // Invalidate stream readers/producers before clearing or replacing the
+        // account store. The token changes synchronously; actor cleanup is fenced.
+        StreamingClient.shared.resetSession()
+        modelPreferences.stop()
         offlineBridgeStorage?.stopSession()
         offlineBridgeStorage = nil
         didStartNetworkMonitoring = false
@@ -226,6 +236,10 @@ struct OpenMatesApp: App {
 
     init() {
         FontRegistration.registerFonts()
+        #if DEBUG
+        // Isolated component fixtures must not start account telemetry.
+        if DevPreviewLaunchConfiguration.current != nil { return }
+        #endif
         NativeMetricKitReporter.shared.start()
     }
 
@@ -234,8 +248,23 @@ struct OpenMatesApp: App {
         mainWindowScene
 
         #if os(macOS)
+        #if DEBUG
+        if DevPreviewLaunchConfiguration.current == nil {
+            quickCaptureMenuBarScene
+        }
+        #else
         quickCaptureMenuBarScene
         #endif
+        #endif
+    }
+
+    private var windowColorScheme: ColorScheme? {
+        #if DEBUG
+        // The isolated fixture owns its theme, including URL-driven changes.
+        // The saved account preference must not override that comparison state.
+        if DevPreviewLaunchConfiguration.current != nil { return nil }
+        #endif
+        return themeManager.resolvedScheme
     }
 
     @SceneBuilder
@@ -247,9 +276,14 @@ struct OpenMatesApp: App {
                 .environmentObject(pushManager)
                 .environmentObject(locManager)
                 .environmentObject(offlineStore)
-                .preferredColorScheme(themeManager.resolvedScheme)
+                .preferredColorScheme(windowColorScheme)
                 .environment(\.layoutDirection, locManager.currentLanguage.layoutDirection)
                 .task {
+                    #if DEBUG
+                    // Includes invalid preview configuration: show its error instead
+                    // of accidentally restoring the real account behind the fixture.
+                    guard DevPreviewLaunchConfiguration.current == nil else { return }
+                    #endif
                     NativeDiagnostics.info("Apple app runtime starting", category: "app_lifecycle")
                     NativePerformanceMonitor.shared.startSampling()
                     #if DEBUG
@@ -261,6 +295,9 @@ struct OpenMatesApp: App {
                     await authManager.checkSession()
                 }
                 .onChange(of: authManager.state) { _, newState in
+                    #if DEBUG
+                    guard DevPreviewLaunchConfiguration.current == nil else { return }
+                    #endif
                     if case .authenticated = newState {
                         NativeLogForwarder.shared.startDefaultTelemetry()
                         Task {

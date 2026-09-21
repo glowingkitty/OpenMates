@@ -6,10 +6,13 @@
 -->
 
 <script lang="ts">
+  import { tooltip } from '../../actions/tooltip';
   import { text } from '@repo/ui';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { reportIssueStore } from '../../stores/reportIssueStore';
+
+  let { toolbar = false }: { toolbar?: boolean } = $props();
 
   function openReportIssue(): void {
     reportIssueStore.set({
@@ -23,6 +26,11 @@
   }
 </script>
 
+{#if toolbar}
+  <div class="new-chat-button-wrapper" data-testid="report-issue-button-shell">
+    <button type="button" class="header-action" data-testid="report-issue-button" aria-label={$text('header.report_issue')} onclick={openReportIssue} use:tooltip><span class="clickable-icon icon_bug top-button" aria-hidden="true"></span><span class="action-label">{$text('header.report_issue')}</span></button>
+  </div>
+{:else}
 <div class="report-issue-button-shell" data-testid="report-issue-button-shell">
   <button
     class="clickable-icon icon_bug report-issue-button"
@@ -34,7 +42,11 @@
   ></button>
 </div>
 
+{/if}
+
 <style>
+  .new-chat-button-wrapper { background-color:var(--color-grey-10); border-radius:40px; padding:var(--spacing-4); box-shadow:var(--shadow-md); display:flex; align-items:center; justify-content:center; pointer-events:auto; }
+
   .report-issue-button-shell {
     position: relative;
     z-index: var(--z-index-raised-2);

@@ -2,7 +2,7 @@
 """Tests for serialized remote Apple simulator lifecycle commands.
 
 These tests inspect generated commands without connecting to the remote Mac.
-They prevent concurrent OpenCode sessions from shutting down a simulator while
+They prevent concurrent coding sessions from shutting down a simulator while
 another session's Xcode test runner is active.
 """
 

@@ -149,7 +149,39 @@ def project_speech_segments(*, blocks: Iterable[Mapping[str, Any]], language: st
     return segments
 
 
-def _project_fence(markdown: str) -> tuple[str, str]:
+_GERMAN_FALLBACKS = {
+    "Search results are available.": "Suchergebnisse sind verfügbar.",
+    "I used the News Search skill.": "Ich habe die News-Suche verwendet.",
+    "App results are available.": "App-Ergebnisse sind verfügbar.",
+    "Structured data is available.": "Strukturierte Daten sind verfügbar.",
+    "A code example is available.": "Ein Codebeispiel ist verfügbar.",
+    "A table is available.": "Eine Tabelle ist verfügbar.",
+}
+
+
+def _fallback(text: str, language: str) -> str:
+    """Localize deterministic fallback speech without another inference pass."""
+    return _GERMAN_FALLBACKS.get(text, text) if language.lower().startswith("de") else text
+
+
+def speech_fallback_variants(text: str) -> tuple[str, ...]:
+    """Resolve only known fallback phrases across UI/response language changes.
+
+    These fixed phrases contain no private prose. Existing canonical audio keeps
+    its original response language; historical News summaries also used the
+    generic English search fallback.
+    """
+    for english, german in _GERMAN_FALLBACKS.items():
+        if text not in (english, german):
+            continue
+        variants = [text, german if text == english else english]
+        if english == "I used the News Search skill.":
+            variants.append("Search results are available.")
+        return tuple(variants)
+    return (text,)
+
+
+def _project_fence(markdown: str, language: str = "en") -> tuple[str, str]:
     """Recognize internal embed metadata before applying the code fallback."""
     body = re.sub(r"^```[^\n]*\n|\n?```$", "", markdown).strip()
     try:
@@ -158,28 +190,31 @@ def _project_fence(markdown: str) -> tuple[str, str]:
         payload = None
     if isinstance(payload, dict) and payload.get("type") == "app_skill_use":
         if payload.get("skill_id") == "search":
-            return "embed_summary", "Search results are available."
-        return "embed_summary", "App results are available."
+            summary = "I used the News Search skill." if payload.get("app_id") == "news" else "Search results are available."
+            return "embed_summary", _fallback(summary, language)
+        return "embed_summary", _fallback("App results are available.", language)
     if isinstance(payload, dict) and (payload.get("embed_id") or payload.get("type") in {"website", "image", "audio", "video"}):
-        return "embed_summary", "Structured data is available."
-    return "code_summary", "A code example is available."
+        return "embed_summary", _fallback("Structured data is available.", language)
+    return "code_summary", _fallback("A code example is available.", language)
 
 
-def project_streaming_speech_segment(markdown: str) -> tuple[str, str] | None:
+def project_streaming_speech_segment(markdown: str, language: str = "en") -> tuple[str, str] | None:
     """Create a safe deterministic fallback when streaming lacks semantic blocks."""
     text = markdown.strip()
     if not text:
         return None
+    if text.startswith("```") and not text.endswith("```"):
+        return "code_summary", _fallback("A code example is available.", language)
     if _FENCED_CODE.fullmatch(text):
-        return _project_fence(text)
+        return _project_fence(text, language)
     if _is_markdown_table(text):
-        return "table_summary", "A table is available."
+        return "table_summary", _fallback("A table is available.", language)
     if text.startswith("{") or (text.startswith("[") and not _MARKDOWN_LINK.match(text)):
-        return "embed_summary", "Structured data is available."
+        return "embed_summary", _fallback("Structured data is available.", language)
     # Streaming responses are encrypted client history, so the server cannot
     # recover producer block metadata here. Never turn raw structured syntax into speech.
-    text = _FENCED_CODE_BLOCK.sub(lambda match: " " + _project_fence(match.group(0))[1] + " ", text)
-    text = _TABLE_ROW.sub(" A table is available. ", text)
+    text = _FENCED_CODE_BLOCK.sub(lambda match: " " + _project_fence(match.group(0), language)[1] + " ", text)
+    text = _TABLE_ROW.sub(" " + _fallback("A table is available.", language) + " ", text)
     text = _MARKDOWN_LINK.sub(r"\1", text)
     text = _INLINE_CODE.sub("", text)
     text = _JSON_INLINE.sub(" structured data ", text)

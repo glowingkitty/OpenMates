@@ -26,6 +26,6 @@ User documentation  -> how people use the behavior
 ```
 
 Pages use concise Markdown with structured frontmatter. Optional diagrams use
-ASCII so they remain readable in terminal and OpenCode chats. Recent history is
+ASCII so they remain readable in terminal chats. Recent history is
 derived from contract-aware commits and archived specs rather than copied into
 every page.

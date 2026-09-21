@@ -1,22 +1,25 @@
 ---
 name: verify-ui-change
-description: Deploy a scoped UI or Playwright spec change to dev, wait for Vercel, dispatch the relevant .spec.ts, then run reviewed Playwright visual smoke for larger UI work.
+description: Verify changed UI appearance or interaction behavior against exact source in isolated GitHub CI, with deploy or visual smoke only when the accepted scope requires it. Do not trigger for mechanical UI-file edits with unchanged behavior.
 user-invocable: true
 argument-hint: "<spec-name>.spec.ts [--account N]"
 ---
 
 # Verify UI Change
 
-Use this skill when a web UI, Playwright, embed, settings, chat, or Apple/web
-parity change needs browser verification. It composes existing OpenMates
+Use this skill when accepted work changes web UI appearance, interaction,
+responsive behavior, Playwright behavior, or Apple/web visual parity and needs
+browser verification. Do not invoke it solely because a mechanical refactor,
+rename, generated-file update, or non-visual change touches a UI file. It composes existing OpenMates
 guardrails; it does not replace `sessions.py deploy`, `scripts/tests.py`, or
 `scripts/verify_parity.py`.
 
 ## Policy
 
-Scoped `dev` deploys through `sessions.py deploy` are pre-authorized when they
-are required to verify assigned work. Do not ask for permission just because a
-Playwright `.spec.ts` must run against deployed `dev` code.
+Browser E2E and component proof run before deployment against the exact candidate
+inside isolated GitHub CI. They never require a Vercel deployment or shared-dev
+runtime. Scoped `dev` deploys through `sessions.py deploy` remain pre-authorized
+for assigned implementation work and post-deploy visual smoke.
 
 Ask first for production deploys, raw git commit/push, broad or unscoped dirty
 deploys, destructive data/migrations, secrets, unclear privacy/billing/security
@@ -34,17 +37,11 @@ integration point only.
    ```bash
    python3 scripts/tests.py run --spec <name>.spec.ts --dry-run
    ```
-   For UI elements, components, and screens, identify or create the focused
-   component spec first. It should target
-   `https://app.dev.openmates.org/dev/preview/{component-path}?chrome=0`. Every
-   inspection, test, screenshot, and recording must include `chrome=0` and show
-   only the component, never the configuration UI. Use the `.preview.ts` default
-   fixture for the standard state and encode every non-default input or
-   configuration in URL query parameters such as `variant`, `props`, `theme`,
-   `background`, and `width`. Then
-   assert meaningful hover, focus, click, expanded/collapsed, and on/off states
-   before named proof checkpoints. Broader route or flow specs come after this
-   focused component spec.
+   When a component's visible or interactive behavior changed, use
+   `verify-component-preview` as the single source for focused preview setup and
+   proof. Reuse an existing fixture/spec where it covers the change; do not create
+   a new preview merely because a component file was edited. Broader route or flow
+   specs come after any required focused component proof.
 
 2. Ensure there is an active session and inspect blockers.
    ```bash
@@ -52,39 +49,36 @@ integration point only.
    python3 scripts/sessions.py doctor --session <SESSION_ID>
    ```
 
-3. Preview and perform a scoped deploy.
+3. Publish the immutable source and submit each relevant spec to isolated CI.
    ```bash
-   python3 scripts/sessions.py deploy-docs
-   python3 scripts/sessions.py prepare-deploy --session <SESSION_ID>
+   python3 scripts/sessions.py ci-source --session <SESSION_ID>
+   python3 scripts/ci_coordinator.py submit \
+     --session <SESSION_ID> \
+     --source <source-sha> \
+     --spec <name>.spec.ts \
+     --mode e2e
+   python3 scripts/ci_coordinator.py wait <request-id>
+   ```
+   A multi-spec coordinator submission is split into one GitHub-hosted job per
+   spec. Each job has its own disposable backend stack, database, accounts and
+   runner-local web process. Never pass `--preview-url` for ordinary E2E.
+
+4. Inspect the source-bound result and component artifact. A queued, running,
+   stale, skipped or cleanup-incomplete job is not a pass. Fix objective defects
+   and republish the candidate before continuing.
+
+5. After isolated CI is green, perform the scoped deploy for assigned
+   implementation work.
+   ```bash
    python3 scripts/sessions.py deploy --session <SESSION_ID> \
      --title "type: short description" \
-     --message "Why this UI/spec change is needed"
+     --message "Why this UI/spec change is needed and isolated CI evidence"
    ```
-   `sessions.py deploy` scopes the commit from the session worktree diff,
-   guards root integration and commit/push with the dev deploy verification
-   lock, and records verification state for the resulting commit; use
-   `wait-lock` only for diagnostics/manual inspection.
+   Wait for the exact Vercel commit only when the task also needs post-deploy
+   readiness, manual confirmation or visual smoke. Deployment is not E2E setup.
 
-4. Capture the deployed commit SHA from the deploy output. Use fast latest-ready
-   verification for low-risk checks that do not need an exact deploy proof. Use
-   exact-SHA verification for Playwright evidence, release-critical UI checks,
-   or any case where a stale Ready deployment would be misleading.
-   ```bash
-   python3 scripts/tests.py run \
-     --spec <name>.spec.ts \
-     --gate-deploy \
-     --expected-commit <commit-sha>
-   ```
-
-   If the spec needs a pinned account, include `--account N`.
-
-   For every modified UI component, publish the focused component proof video in
-   the Codex response. Use separate phone and laptop proof profiles only when
-   responsive behavior differs. Derive still frames from the completed video only
-   for failures, explicit requests, or ambiguous visual-intent inspection; do not
-   add screenshot galleries or browser-side screenshot calls for component proof.
-
-5. For larger user-visible web/UI changes, run a deployed Playwright visual smoke
+6. When the accepted task or Plan requires post-deploy review for a material
+   user-visible change, run a deployed Playwright visual smoke
    against the affected `app.dev.openmates.org` route(s) after Playwright and
    before user confirmation or session completion. The helper captures laptop and
    mobile screenshots and hard-fails console/page/network/layout problems; it
@@ -115,7 +109,7 @@ integration point only.
    blocked; keep calls minimal and record why. Skip only for Tier 0/non-visual
    work with `--skip-visual-smoke "reason"`.
 
-6. For cross-client work, prefer the parity wrapper after deploy.
+7. When cross-client parity is in the accepted verification scope, use the parity wrapper after deploy.
    ```bash
    python3 scripts/verify_parity.py --run --web-spec <name>.spec.ts --apple build
    ```
@@ -124,9 +118,12 @@ integration point only.
 
 - If `doctor` reports unrelated dirty files, keep the deploy scoped with tracked
   files, `--exclude`, or `--use-staged` for safe same-file hunks.
-- If the spec is missing or untracked, track and deploy it before dispatching;
-  GitHub Actions cannot run local-only specs.
-- If Vercel is not Ready, fix the deployment before rerunning browser evidence.
+- If the spec is missing or untracked, include it in the immutable candidate;
+  `ci-source` transports dirty candidate bytes without a branch or deploy.
+- If candidate E2E fails, do not deploy merely to retry it. Inspect its isolated
+  artifact, fix the cause, publish a new candidate and resubmit.
+- If Vercel is not Ready after deployment, fix readiness before post-deploy
+  visual smoke; this does not invalidate earlier exact-source E2E evidence.
 - If the test fails, use `e2e-test-investigator` or `stabilize-e2e-pattern` for
   root-cause work rather than adding one-off waits.
 - If visual smoke shows objective visual, error, loading, or responsiveness
@@ -137,9 +134,10 @@ integration point only.
 Return a concise verification note:
 
 ```markdown
-Commit: <sha>
+Source: <candidate sha>
 Spec: <name>.spec.ts
-Run: <GitHub Actions run id or test-results run id>
+Isolated CI: <request id and GitHub Actions run id>
+Deployed commit: <sha or not required>
 Visual smoke: <summary path/screenshot paths or skipped reason>
 Result: <passed|failed|blocked>
 Blocker: <only if blocked>

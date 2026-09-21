@@ -556,6 +556,7 @@ async def prewarm_ai_services():
         return
     
     logger.info("[PERF] Pre-warming AI provider services for app-ai-worker...")
+    warm_ai_tokenizers()
     start_time = asyncio.get_event_loop().time()
     secrets_manager = None
     
@@ -606,6 +607,17 @@ async def prewarm_ai_services():
         except Exception as e:
             logger.warning(f"[PERF] Failed to pre-warm Google client: {e}")
             providers_failed.append("google")
+
+        # Google AI Studio uses a separate API key from Vertex. Warm that key as
+        # well so the first foreground routing request does not spend its timeout
+        # allowance on a Vault lookup.
+        try:
+            from backend.apps.ai.llm_providers.google_client import initialize_google_ai_studio_client
+            await initialize_google_ai_studio_client(secrets_manager)
+            providers_initialized.append("google_ai_studio")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm Google AI Studio client: {e}")
+            providers_failed.append("google_ai_studio")
         
         # Mistral client
         try:
@@ -638,6 +650,27 @@ async def prewarm_ai_services():
         if secrets_manager:
             await secrets_manager.aclose()
             logger.info("[PERF] SecretsManager closed after AI pre-warming")
+
+
+def warm_ai_tokenizers() -> None:
+    """Load token estimators before the first AI task pays their cold-start cost.
+
+    Both Gemini and Mistral use the shared o200k fallback estimator; context
+    budgeting also uses cl100k. Parent warmup lets prefork children inherit these
+    immutable encodings, and the child call covers non-prefork worker pools.
+    """
+    if not _worker_needs_ai_services():
+        return
+    started = time.monotonic()
+    try:
+        import tiktoken
+
+        for encoding_name in ("o200k_base", "cl100k_base"):
+            tiktoken.get_encoding(encoding_name)
+    except Exception:
+        logger.warning("[PERF] AI tokenizer warmup failed; first use will retry", exc_info=True)
+        return
+    logger.info("[PERF] AI tokenizer warmup completed in %.3fs", time.monotonic() - started)
 
 
 def warm_translation_cache() -> None:
@@ -934,6 +967,7 @@ def warm_parent_translation_cache(sender, instance, **kwargs):
     """
     logger.info("[PERF] Warming translation cache in Celery parent process")
     warm_translation_cache()
+    warm_ai_tokenizers()
 
 
 # Configure logging on worker start as well
@@ -1504,7 +1538,7 @@ app.conf.beat_schedule = {
         'options': {'queue': 'persistence'},
     },
     # Daily issue digest - aggregates sanitized prod/dev errors, default client
-    # diagnostics, and latest test failures into email + OpenCode handoff files.
+    # diagnostics, and latest test failures into durable email artifacts.
     'daily-issue-digest-weekdays': {
         'task': 'app.tasks.email_tasks.daily_issue_digest_task.send_daily_issue_digest',
         'schedule': crontab(hour=8, minute=30, day_of_week='1-5'),  # Weekdays 08:30 UTC

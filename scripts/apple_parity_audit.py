@@ -47,6 +47,8 @@ CHAT_FIRST_SURFACES = (
             "apple/OpenMates/Sources/App/MainAppView.swift",
             "apple/OpenMates/Sources/App/RootView.swift",
             "apple/OpenMates/Sources/Shared/Components/ChatListRow.swift",
+            "apple/OpenMates/Sources/Shared/Components/ChatSidebarContent.swift",
+            "apple/OpenMates/Sources/Shared/Components/ChatEmbedWorkspace.swift",
         ),
         "web_specs": (
             "frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts",
@@ -56,6 +58,7 @@ CHAT_FIRST_SURFACES = (
         "native_tests": (
             "apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift",
             "apple/OpenMatesUITests/ChatResponsiveParityUITests.swift",
+            "apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift",
         ),
         "expected_ids": ("sidebar-toggle", "chat-history-panel"),
     },
@@ -69,6 +72,7 @@ CHAT_FIRST_SURFACES = (
         "apple_sources": (
             "apple/OpenMates/Sources/App/MainAppView.swift",
             "apple/OpenMates/Sources/Shared/Components/ChatListRow.swift",
+            "apple/OpenMates/Sources/Shared/Components/ChatSidebarContent.swift",
         ),
         "web_specs": (
             "frontend/apps/web_app/tests/chat-flow.spec.ts",
@@ -78,6 +82,7 @@ CHAT_FIRST_SURFACES = (
         "native_tests": (
             "apple/OpenMatesUITests/ChatFlowParityUITests.swift",
             "apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift",
+            "apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift",
         ),
         "expected_ids": ("chat-history-panel", "chat-item-wrapper", "chat-item", "group-title", "unread-badge"),
     },

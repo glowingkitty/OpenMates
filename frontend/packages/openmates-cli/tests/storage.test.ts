@@ -62,14 +62,14 @@ describe("profile state resolution", () => {
   it("keeps the legacy path unless an explicit state directory or profile is selected", () => {
     assert.strictEqual(resolveStateDir({ homeDir: "/home/dev", stateDir: "", profile: "" }), "/home/dev/.openmates");
     assert.strictEqual(
-      resolveStateDir({ homeDir: "/home/dev", stateDir: "", profile: "opencode-personal" }),
-      "/home/dev/.openmates/profiles/opencode-personal",
+      resolveStateDir({ homeDir: "/home/dev", stateDir: "", profile: "codex-personal" }),
+      "/home/dev/.openmates/profiles/codex-personal",
     );
     assert.strictEqual(
       resolveStateDir({ homeDir: "/home/dev", stateDir: "/tmp/openmates-test" }),
       "/tmp/openmates-test",
     );
-    assert.strictEqual(resolveKeyStorageId("account-hash", "opencode-personal"), "profile:opencode-personal:account-hash");
+    assert.strictEqual(resolveKeyStorageId("account-hash", "codex-personal"), "profile:codex-personal:account-hash");
   });
 
   it("rejects unsafe profile names", () => {

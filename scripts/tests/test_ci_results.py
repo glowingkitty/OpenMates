@@ -16,6 +16,20 @@ import pytest
 from scripts import ci_results
 
 
+def test_timings_separate_preparation_admission_and_actual_github_work():
+    from scripts.ci_results import timings
+    result = timings(
+        {"created": 0, "ready_at": 20, "sent": 30},
+        [{"id": 1, "started_at": "1970-01-01T00:00:40Z", "completed_at": "1970-01-01T00:02:00Z", "steps": [{"name": "Run selected checks", "started_at": "1970-01-01T00:01:00Z", "completed_at": "1970-01-01T00:01:20Z", "conclusion": "success"}]}],
+    )
+    assert result["preparation_wait_seconds"] == 20
+    assert result["coordinator_admission_seconds"] == 10
+    assert result["dispatch_to_job_start_seconds"] == 10
+    assert result["github_job_wall_seconds"] == 80
+    assert result["request_to_github_completion_seconds"] == 120
+    assert result["steps"][0]["seconds"] == 20
+    assert timings({}, [{"id": 1}]) == {"steps": []}
+
 @pytest.mark.parametrize(
     "name",
     ["../escape", "/absolute", "ci-private/account.env", ".auth/session.json", ".env"],

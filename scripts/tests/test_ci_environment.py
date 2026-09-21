@@ -8,7 +8,16 @@ See docs/plans/isolated-github-tests/plan.yml.
 """
 
 import pytest
-from scripts.ci_environment import compose_profile, require_runner
+from scripts.ci_environment import (
+    PREPARED_SCHEMA_ADMIN_PASSWORD,
+    POSTGRES_IMAGE,
+    SCHEMA_BUNDLE_FORMAT,
+    SCHEMA_RESTORE_SEMANTICS,
+    apply_prepared_schema,
+    compose_profile,
+    require_runner,
+    start_stack,
+)
 
 
 def test_profile_is_private_and_source_bound():
@@ -27,6 +36,17 @@ def test_profile_is_private_and_source_bound():
         profile["services"]["api"]["image"]
         == profile["services"]["core-worker"]["image"]
     )
+    api_mounts = profile["services"]["api"]["volumes"]
+    for target in (
+        "/app/backend",
+        "/shared",
+        "/app/scripts",
+        "/app/config",
+        "/app/frontend/apps/web_app/static",
+        "/translations",
+        "/app/frontend/packages/ui/src/i18n",
+    ):
+        assert any(target in str(mount) for mount in api_mounts), target
 
 
 def test_fresh_credentials_and_runner_only(monkeypatch):
@@ -39,6 +59,52 @@ def test_fresh_credentials_and_runner_only(monkeypatch):
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     with pytest.raises(RuntimeError, match="GitHub-hosted"):
         require_runner()
+    assert a["services"]["cms-database"]["image"] == POSTGRES_IMAGE
+    assert "@sha256:" in POSTGRES_IMAGE
+    assert a["services"]["cms-database"]["healthcheck"]["test"] == [
+        "CMD",
+        "pg_isready",
+        "-h",
+        "127.0.0.1",
+        "-U",
+        "openmates",
+    ]
+
+
+def test_stack_start_retries_only_transient_registry_failures():
+    import subprocess
+
+    calls = []
+    delays = []
+
+    def transient_then_success(*args, **kwargs):
+        calls.append((args, kwargs))
+        if len(calls) == 1:
+            raise subprocess.CalledProcessError(
+                1,
+                ["docker", "compose", "up"],
+                stderr="registry request failed: connection reset by peer",
+            )
+        return subprocess.CompletedProcess(args, 0, stdout="started\n", stderr="")
+
+    start_stack(compose_runner=transient_then_success, sleep=delays.append)
+    assert len(calls) == 2
+    assert delays == [5]
+    assert calls[0][1]["capture"] is True
+
+    permanent_calls = []
+
+    def permanent_failure(*args, **kwargs):
+        permanent_calls.append((args, kwargs))
+        raise subprocess.CalledProcessError(
+            1,
+            ["docker", "compose", "up"],
+            stderr="api container is unhealthy",
+        )
+
+    with pytest.raises(subprocess.CalledProcessError):
+        start_stack(compose_runner=permanent_failure, sleep=delays.append)
+    assert len(permanent_calls) == 1
 
 
 def test_named_volumes_have_one_explicit_fixture_writer():
@@ -210,7 +276,18 @@ def test_upload_profile_requires_real_scanner_and_isolated_api_targets():
     assert upload["environment"]["DEV_CORE_API_URL"] == upload["environment"]["PROD_CORE_API_URL"] == "http://api:8000"
     assert upload["environment"]["S3_ENDPOINT_URL"] == "http://storage.ci.test:9000"
     assert upload["ports"] == ["127.0.0.1:8001:8000"]
-    assert upload["volumes"][1]["read_only"] is True
+    token_mount = next(
+        mount for mount in upload["volumes"]
+        if isinstance(mount, dict) and mount["target"] == "/vault-data"
+    )
+    assert token_mount["read_only"] is True
+    for target in (
+        "/app/backend",
+        "/app/backend_shared/python_schemas",
+        "/app/backend_shared/python_utils",
+        "/app/config/media_encryption_rollout.yml",
+    ):
+        assert any(target in str(mount) for mount in upload["volumes"]), target
     assert "object-storage" in services
     assert profile["networks"]["default"]["internal"] is True
     assert services["runner-gateway"]["ports"] == ["127.0.0.1:8000:8000", "127.0.0.1:8055:8055"]
@@ -262,3 +339,62 @@ def test_only_isolated_ai_profile_advertises_fixture_model_readiness():
     assert replay['networks']['default']['internal'] is True
     assert 'ai-worker' in replay['services']
     assert not any(key.startswith('SECRET__') for key in environment)
+
+
+def test_schema_setup_mounts_exact_candidate_and_enables_ci_fast_settle():
+    setup = compose_profile("a" * 40)["services"]["cms-setup"]
+    assert setup["environment"]["CI_FAST_SCHEMA_SETUP"] == "1"
+    assert any(
+        "/setup/setup_schemas.py:/usr/src/app/setup_schemas.py:ro" in str(mount)
+        for mount in setup["volumes"]
+    )
+
+
+def test_compatible_prepared_schema_keeps_fresh_state_but_skips_full_initializer():
+    profile = compose_profile("a" * 40)
+    original_password = profile["services"]["cms-database"]["environment"][
+        "POSTGRES_PASSWORD"
+    ]
+    assert apply_prepared_schema(
+        profile,
+        {
+            "images": [
+                {
+                    "kind": "schema",
+                    "reused": True,
+                    "bundle_format": SCHEMA_BUNDLE_FORMAT,
+                    "restore_semantics": SCHEMA_RESTORE_SEMANTICS,
+                }
+            ]
+        },
+    )
+    database = profile["services"]["cms-database"]
+    setup = profile["services"]["cms-setup"]["environment"]
+    assert database["image"] == "openmates-ci-database:local"
+    assert database["environment"]["POSTGRES_PASSWORD"] == original_password
+    assert setup["CI_PREPARED_SCHEMA"] == "1"
+    assert setup["CI_PREPARED_SCHEMA_ADMIN_PASSWORD"] == PREPARED_SCHEMA_ADMIN_PASSWORD
+
+
+def test_missing_or_incompatible_schema_uses_cold_initializer():
+    profile = compose_profile("a" * 40)
+    assert not apply_prepared_schema(
+        profile, {"images": [{"kind": "schema", "reused": False}]}
+    )
+    assert profile["services"]["cms-database"]["image"] == POSTGRES_IMAGE
+    assert "CI_PREPARED_SCHEMA" not in profile["services"]["cms-setup"]["environment"]
+
+    stale = compose_profile("a" * 40)
+    assert not apply_prepared_schema(
+        stale,
+        {
+            "images": [
+                {
+                    "kind": "schema",
+                    "reused": True,
+                    "bundle_format": "old-format",
+                    "restore_semantics": SCHEMA_RESTORE_SEMANTICS,
+                }
+            ]
+        },
+    )

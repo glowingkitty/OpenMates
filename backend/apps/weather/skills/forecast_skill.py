@@ -9,11 +9,12 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone as datetime_timezone
+from datetime import date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from celery import Celery
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.bright_sky import fetch_weather, normalize_weather_days
@@ -32,6 +33,8 @@ DEFAULT_TIMEZONE = "Europe/Berlin"
 METRIC_UNITS = "metric"
 DWD_PROVIDER_LABEL = "Deutscher Wetterdienst (DWD)"
 OPEN_METEO_PROVIDER_LABEL = "Open-Meteo"
+DWD_PROVIDER_ID = "deutscher_wetterdienst"
+OPEN_METEO_PROVIDER_ID = "open_meteo"
 WEATHER_INFERENCE_EXCLUDE_FIELDS = [
     "type",
     "hourly",
@@ -42,11 +45,24 @@ WEATHER_INFERENCE_EXCLUDE_FIELDS = [
 ]
 
 
+def _readable_forecast_error(error: Exception) -> str:
+    """Collapse Pydantic's developer-oriented validation report for skill users."""
+    if not isinstance(error, ValidationError):
+        return str(error)
+    messages: list[str] = []
+    for detail in error.errors(include_url=False):
+        message = str(detail.get("msg") or "Invalid forecast input")
+        messages.append(message.removeprefix("Value error, "))
+    return "; ".join(messages)
+
+
 class ForecastRequest(BaseModel):
     """Weather forecast request parameters."""
 
     location: str | None = Field(default=None, description="Place name for the forecast.")
-    days: int = Field(default=DEFAULT_FORECAST_DAYS, ge=1, le=MAX_FORECAST_DAYS)
+    start_date: date | None = Field(default=None, description="First forecast date, inclusive.")
+    end_date: date | None = Field(default=None, description="Last forecast date, inclusive.")
+    days: int | None = Field(default=None, ge=1, le=MAX_FORECAST_DAYS)
     latitude: float | None = Field(default=None, description="Optional exact latitude.")
     longitude: float | None = Field(default=None, description="Optional exact longitude.")
     timezone: str | None = Field(default=None, description="Optional IANA timezone.")
@@ -63,7 +79,33 @@ class ForecastRequest(BaseModel):
             raise ValueError("latitude and longitude must be provided together.")
         if self.units != METRIC_UNITS:
             raise ValueError("Only metric units are currently supported.")
+        has_start = self.start_date is not None
+        has_end = self.end_date is not None
+        if has_start != has_end:
+            raise ValueError("Provide both start_date and end_date for a forecast date range.")
+        if has_start and self.days is not None:
+            raise ValueError("Use start_date and end_date instead of days for a forecast date range.")
         return self
+
+    def resolve_date_range(self, today: date) -> tuple[date, date, int]:
+        """Resolve compatibility days or validate an inclusive provider date range."""
+        if self.start_date is None or self.end_date is None:
+            requested_days = self.days or DEFAULT_FORECAST_DAYS
+            return today, today + timedelta(days=requested_days - 1), requested_days
+        if self.end_date < self.start_date:
+            raise ValueError("Forecast end_date must be on or after start_date.")
+        if self.start_date < today:
+            raise ValueError(f"Forecast start_date must be today or later ({today.isoformat()}).")
+        last_available_date = today + timedelta(days=MAX_FORECAST_DAYS - 1)
+        if self.end_date > last_available_date:
+            raise ValueError(
+                f"Forecast end_date must be on or before {last_available_date.isoformat()} "
+                f"(the {MAX_FORECAST_DAYS}-day forecast window)."
+            )
+        requested_days = (self.end_date - self.start_date).days + 1
+        if requested_days > MAX_FORECAST_DAYS:
+            raise ValueError(f"Forecast date ranges can include at most {MAX_FORECAST_DAYS} days.")
+        return self.start_date, self.end_date, requested_days
 
 
 class ForecastResponse(BaseModel):
@@ -71,8 +113,11 @@ class ForecastResponse(BaseModel):
 
     results: list[dict[str, Any]] = Field(default_factory=list)
     provider: str
+    provider_id: str | None = None
     location: dict[str, Any]
     days_requested: int
+    start_date: date | None = None
+    end_date: date | None = None
     suggestions_follow_up_requests: list[str] = Field(default_factory=list)
     ignore_fields_for_inference: list[str] = Field(default_factory=lambda: list(WEATHER_INFERENCE_EXCLUDE_FIELDS))
     error: str | None = None
@@ -109,11 +154,16 @@ class ForecastSkill(BaseSkill):
     def resolve_preview_metadata(cls, request: dict[str, Any]) -> dict[str, Any]:
         """Return fields shown while the forecast skill is processing."""
         location = request.get("location") or "Weather forecast"
+        start_date = request.get("start_date")
+        end_date = request.get("end_date")
         days = request.get("days") or DEFAULT_FORECAST_DAYS
+        date_range = f" from {start_date} through {end_date}" if start_date and end_date else ""
         return {
-            "query": f"{location} weather forecast",
+            "query": f"{location} weather forecast{date_range}",
             "location": location,
             "days_requested": days,
+            "start_date": start_date,
+            "end_date": end_date,
             "provider": f"{DWD_PROVIDER_LABEL} + {OPEN_METEO_PROVIDER_LABEL}",
         }
 
@@ -142,7 +192,9 @@ class ForecastSkill(BaseSkill):
     async def execute(
         self,
         location: str | None = None,
-        days: int = DEFAULT_FORECAST_DAYS,
+        start_date: date | str | None = None,
+        end_date: date | str | None = None,
+        days: int | None = None,
         latitude: float | None = None,
         longitude: float | None = None,
         timezone: str | None = None,
@@ -153,6 +205,8 @@ class ForecastSkill(BaseSkill):
         try:
             request = ForecastRequest(
                 location=location,
+                start_date=start_date,
+                end_date=end_date,
                 days=days,
                 latitude=latitude,
                 longitude=longitude,
@@ -165,13 +219,15 @@ class ForecastSkill(BaseSkill):
             country_code = resolved_location.get("country_code")
             lat = float(resolved_location["latitude"])
             lon = float(resolved_location["longitude"])
+            today = datetime.now(ZoneInfo(resolved_timezone)).date()
+            range_start, range_end, requested_days = request.resolve_date_range(today)
 
             if country_code == GERMANY_COUNTRY_CODE:
                 provider_payload = await fetch_weather(
                     latitude=lat,
                     longitude=lon,
-                    start_date=datetime.now(datetime_timezone.utc).date(),
-                    days=request.days,
+                    start_date=range_start,
+                    end_date=range_end,
                     timezone=resolved_timezone,
                 )
                 results = normalize_weather_days(
@@ -179,14 +235,17 @@ class ForecastSkill(BaseSkill):
                     location_name=location_name,
                     country_code=country_code,
                     timezone=resolved_timezone,
-                    requested_days=request.days,
+                    requested_days=requested_days,
+                    today=today,
                 )
                 provider = DWD_PROVIDER_LABEL
+                provider_id = DWD_PROVIDER_ID
             else:
                 provider_payload = await fetch_forecast(
                     latitude=lat,
                     longitude=lon,
-                    days=request.days,
+                    start_date=range_start,
+                    end_date=range_end,
                     timezone=resolved_timezone,
                 )
                 results = normalize_forecast_days(
@@ -194,13 +253,16 @@ class ForecastSkill(BaseSkill):
                     location_name=location_name,
                     country_code=country_code,
                     timezone=resolved_timezone,
-                    requested_days=request.days,
+                    requested_days=requested_days,
+                    today=today,
                 )
                 provider = OPEN_METEO_PROVIDER_LABEL
+                provider_id = OPEN_METEO_PROVIDER_ID
 
             return ForecastResponse(
                 results=results,
                 provider=provider,
+                provider_id=provider_id,
                 location={
                     "name": location_name,
                     "country": resolved_location.get("country"),
@@ -210,7 +272,9 @@ class ForecastSkill(BaseSkill):
                     "longitude": lon,
                     "timezone": resolved_timezone,
                 },
-                days_requested=request.days,
+                days_requested=requested_days,
+                start_date=range_start,
+                end_date=range_end,
                 suggestions_follow_up_requests=[
                     "When will it rain exactly?",
                     "Show the hourly forecast for one day",
@@ -223,6 +287,6 @@ class ForecastSkill(BaseSkill):
                 results=[],
                 provider="Weather",
                 location={"name": location or "Weather forecast"},
-                days_requested=days,
-                error=str(error),
+                days_requested=days or DEFAULT_FORECAST_DAYS,
+                error=_readable_forecast_error(error),
             )

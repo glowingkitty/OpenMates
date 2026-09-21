@@ -288,6 +288,7 @@ class SearchResponse(BaseModel):
         description="Suggested follow-up actions based on search results.",
     )
     error: Optional[str] = Field(None, description="Error message if the skill failed.")
+    warnings: List[str] = Field(default_factory=list, description="Providers that failed during a partial search.")
     ignore_fields_for_inference: Optional[List[str]] = Field(
         default_factory=lambda: [
             "type",
@@ -1031,7 +1032,7 @@ class SearchSkill(BaseSkill):
         request_id: Any,
         secrets_manager: SecretsManager,  # noqa: ARG002
         proxy_url: Optional[str] = None,
-    ) -> Tuple[Any, List[Dict[str, Any]], Optional[str], int, List[str]]:
+    ) -> tuple:
         """
         Process a single event search request across the requested provider(s).
 
@@ -1049,6 +1050,7 @@ class SearchSkill(BaseSkill):
         Returns:
             Tuple (request_id, results_list, error_or_None, total_available, searched_provider_ids).
         """
+        provider_warnings: List[str] = []
         provider_hint = req.get("provider") or " ".join(req.get("providers") or [])
         conference: Optional[str] = req.get("conference") or None
         if not conference:
@@ -1374,11 +1376,16 @@ class SearchSkill(BaseSkill):
                     logger.warning(
                         "%s failed in auto mode for request %s: %s", pid, request_id, err
                     )
+                    provider_warnings.append(f"{pid} search unavailable")
                 all_event_lists.append(events)
                 total_available += total
 
             # Merge: all providers, deduplicate by URL, re-sort by date.
-            all_events = self._merge_and_sort(*all_event_lists, count=count)
+            if len(provider_warnings) == len(task_entries):
+                return (request_id, [], "All selected event providers failed", 0, searched_provider_ids, provider_warnings)
+            # Apply the date/type window to every bounded fetched candidate before
+            # limiting. Earlier out-of-window events must not hide next week's events.
+            all_events = self._merge_and_sort(*all_event_lists, count=sum(map(len, all_event_lists)))
 
         # Add 'type' field and content hash for UI rendering consistency.
         results: List[Dict[str, Any]] = []
@@ -1408,6 +1415,7 @@ class SearchSkill(BaseSkill):
             end_date=end_date,
             query=query,
         )
+        results = results[:count]
         if quality_metadata.get("filtered_out_count"):
             logger.info(
                 "Events quality filters removed %d result(s) for request %s: %s",
@@ -1424,7 +1432,7 @@ class SearchSkill(BaseSkill):
             provider_choice,
             query,
         )
-        return (request_id, results, None, total_available, searched_provider_ids)
+        return (request_id, results, None, total_available, searched_provider_ids, provider_warnings)
 
     # ------------------------------------------------------------------
     # Public execute() — called by BaseApp/route handler
@@ -1523,6 +1531,7 @@ class SearchSkill(BaseSkill):
         # Group by request ID — handle 4-tuples (request_id, items, error, total_available).
         grouped_results: List[Dict[str, Any]] = [*invalid_results]
         errors: List[str] = []
+        warnings: List[str] = []
         request_order = {req.get("id"): i for i, req in enumerate(requests_list or [])}
         searched_provider_ids: List[str] = []
         seen_searched_provider_ids: set[str] = set()
@@ -1534,7 +1543,10 @@ class SearchSkill(BaseSkill):
                 errors.append(error_msg)
                 continue
 
-            if len(result) == 5:
+            if len(result) == 6:
+                request_id, items, err, total_available, result_provider_ids, result_warnings = result
+                warnings.extend(result_warnings)
+            elif len(result) == 5:
                 request_id, items, err, total_available, result_provider_ids = result
             else:
                 request_id, items, err, total_available = result
@@ -1587,6 +1599,7 @@ class SearchSkill(BaseSkill):
             errors=errors,
             provider=provider_label,
             providers=contributing_providers,
+            warnings=list(dict.fromkeys(warnings)),
             suggestions=self.suggestions_follow_up_requests,
             logger=logger,
         )

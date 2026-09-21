@@ -1,0 +1,273 @@
+schema_version: 2
+id: chat-request-safety
+title: Allow-Biased Chat Request Safety
+status: verified
+
+implementation_state:
+  subject_commit: 5b424a702f9781154a930ed7a64e0fd131c1ba0c
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-19"
+  plan:
+    status: approved
+    approved_at: "2026-09-19"
+
+goal: >
+  Test out the improved safety processing flow, including the previously falsely
+  blocked request and at least ten additional scenarios, so clearly harmful and
+  clearly illegal requests are blocked without over-blocking; when in doubt,
+  allow the request to continue to the answer model.
+
+specification_refs:
+  - id: feature.chat-request-safety
+    version: 1
+    role: primary
+    fingerprint: 16174ee67eb618053d9c7876ab7c0ad26506a16d3343869d1b26bc826fd94145
+
+scope:
+  in:
+    - Clarify preliminary preprocessing guidance so it scores requested assistance rather than sensitive topic words.
+    - Route preliminary harmful or misuse candidates through a deterministic structured confirmation before blocking.
+    - Treat uncertain, malformed, unsupported, or unavailable confirmation as allow and continue to normal answer-model safety.
+    - Validate block category and exact user-request evidence without logging quoted private content.
+    - Cover the production first-message and follow-up decisions with the Cyberleak regression and a paired corpus of at least ten additional cases.
+    - Run focused local and isolated GitHub unit tests plus a real-model corpus in the Vault-backed API container.
+  out:
+    - Changing image, audio, upload, URL, or app-skill output safety.
+    - Disabling provider-owned safety behavior in answer models.
+    - Adding a public endpoint, a user safety opt-out, or changing authentication, billing, or encryption boundaries.
+    - Production deployment.
+
+implementation_notes:
+  plan_path: docs/plans/chat-request-safety/plan.yml
+  existing_patterns:
+    - backend/shared/python_utils/structured_content_sanitization.py
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/apps/ai/utils/llm_utils.py
+  architecture: >
+    Keep the existing preprocessing scores as inexpensive candidate signals. A
+    candidate invokes a separate minimal-context classifier at temperature zero.
+    Its structured result can block only with a supported policy category and
+    exact evidence found in the current or immediately preceding user request.
+    Every other result proceeds to the selected answer model.
+  data_flow:
+    - Existing preprocessing produces routing metadata and preliminary harmful and misuse scores.
+    - Only a threshold candidate sends the latest and immediately preceding user text to deterministic structured confirmation.
+    - Strict validation converts only a supported block with exact evidence into the existing rejection path; every other confirmation result continues.
+  verification_strategy:
+    - Add focused unit coverage for strict validation, allow-biased failures, candidate orchestration, and deterministic provider arguments.
+    - Evaluate the committed paired corpus against the configured real safety model in the Vault-backed API container because isolated GitHub CI intentionally has no paid-provider credentials.
+  verification_order:
+    - Record the current regression expectations in unit tests and the corpus.
+    - Implement the confirmation boundary and preliminary prompt clarification.
+    - Run focused local checks and isolated GitHub unit coverage, then the Vault-backed real-model evaluation.
+  affected_files:
+    - {path: backend/apps/ai/base_instructions.yml, reason: Intent-over-topic preliminary scoring guidance.}
+    - {path: backend/apps/ai/processing/chat_request_safety.py, reason: Structured confirmation prompt, context minimization, validation, and allow-biased failure behavior.}
+    - {path: backend/apps/ai/processing/preprocessor.py, reason: Candidate-to-confirmation orchestration before existing rejection responses.}
+    - {path: backend/apps/ai/utils/llm_utils.py, reason: Explicit deterministic temperature for safety calls.}
+    - {path: backend/apps/ai/skills/ask_skill.py, reason: Typed request-safety model configuration.}
+    - {path: backend/apps/ai/app.yml, reason: Request-safety model selection.}
+    - {path: backend/tests/test_chat_request_safety.py, reason: Unit and corpus regression coverage.}
+    - {path: backend/scripts/test_chat_request_safety.py, reason: Real-provider fixed-corpus evaluator for isolated CI.}
+  privacy_security:
+    - Safety confirmation receives only the latest and immediately preceding user text, never keys, credentials, provider diagnostics, or unrelated history.
+    - Logs contain decision metadata and evidence counts, not evidence text or user content.
+    - The existing first-party processing boundary, access controls, credits, and encrypted durable storage remain unchanged.
+  rollout:
+    - Validate locally with mocked provider decisions and the committed corpus.
+    - Run the real provider corpus in the Vault-backed API container without restarting or replacing the shared service.
+    - Do not deploy to dev or production in this evaluation task unless separately requested.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use preliminary scores only as candidate signals and require a separate structured confirmation for a block.
+    reason: This preserves inexpensive normal routing while eliminating one-shot keyword-driven refusals.
+    decided_at: "2026-09-19"
+  - id: D-2
+    status: active
+    decision: Allow uncertain, invalid, or unavailable confirmation to continue to the answer model.
+    reason: The user explicitly prefers under-blocking ambiguous requests and answer models retain their own safety controls.
+    decided_at: "2026-09-19"
+
+scenarios:
+  - id: S-1
+    title: Benign sensitive-topic request proceeds
+    given: [A user asks for news, history, harm reduction, or defensive information about a sensitive subject.]
+    when: [Preprocessing evaluates the requested assistance rather than topic words.]
+    then: [The request continues to the answer model.]
+  - id: S-2
+    title: Clearly actionable wrongdoing is blocked
+    given: [A user explicitly requests material help to execute or conceal harmful or illegal activity.]
+    when: [Structured confirmation returns a supported category and exact evidence.]
+    then: [The existing harmful or misuse refusal path blocks the request.]
+  - id: S-3
+    title: Unconfirmed candidate is allowed
+    given: [A preliminary score crosses a threshold but confirmation is uncertain, invalid, or unavailable.]
+    when: [The final safety outcome is resolved.]
+    then: [The candidate does not become a hard block and normal answer-model safety remains active.]
+  - id: S-4
+    title: Both production paths satisfy the paired corpus
+    given: [The Cyberleak regression and at least ten additional allow and block cases are committed.]
+    when: [First-message and follow-up safety decisions are evaluated locally and with the real configured model.]
+    then: [Every benign case is allowed and every clearly actionable harmful or illegal case is blocked.]
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The Cyberleak GTA 6 factual-update request is allowed through both first-message and follow-up safety decision paths.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [V-UNIT, V-LIVE-CORPUS]
+  - id: AC-2
+    scenario: S-4
+    text: At least ten additional paired benign and clearly harmful or illegal scenarios produce their expected final allow or block outcomes.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-UNIT, V-LIVE-CORPUS]
+  - id: AC-3
+    scenario: S-3
+    text: Preliminary candidate scores, uncertainty, invalid evidence, and provider failure never cause an unconfirmed hard block.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [V-UNIT]
+  - id: AC-4
+    scenario: S-2
+    text: Confirmed blocks require a supported category and exact evidence from bounded user context, with deterministic temperature and privacy-safe logs.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [V-UNIT]
+
+tests:
+  - id: T-UNIT
+    type: pytest
+    file: backend/tests/test_chat_request_safety.py
+    command: python3 -m pytest backend/tests/test_chat_request_safety.py backend/tests/test_llm_utils_preprocessing_retries.py
+    assertions: [Strict confirmation validation, allow-biased failures, candidate orchestration, deterministic temperature, and the full fixed corpus behave as approved.]
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_chat_request_safety.py -q
+        run_id: local-f620-red
+        subject_commit: 8424baa6cbf6fa413ce92f255bc37f14a81b07bb
+        timestamp: "2026-09-19T00:00:00Z"
+        summary: The focused test failed during collection because the request-safety production module did not yet exist.
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_chat_request_safety.py backend/tests/test_llm_utils_preprocessing_retries.py -q
+        run_id: local-f620-green;github-35449965092
+        subject_commit: 5b424a702f9781154a930ed7a64e0fd131c1ba0c
+        timestamp: "2026-09-19T11:50:00Z"
+        summary: 26 focused checks passed locally; the same request-safety and preprocessing-retry checks all passed in isolated GitHub CI. The unrelated full backend suite retained 127 failures outside this change.
+  - id: T-LIVE-CORPUS
+    type: manual
+    assertions: [The configured real safety model classifies every committed corpus scenario correctly through the production confirmation module.]
+    covers: [AC-1, AC-2]
+    red_phase: {required: false, expected: not_required, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass_in_vault_backed_api_container
+      evidence:
+        status: passed
+        command: docker exec api python /app/backend/scripts/test_chat_request_safety.py
+        run_id: live-model-f620-2026-09-19
+        subject_commit: 5b424a702f9781154a930ed7a64e0fd131c1ba0c+evaluator-update
+        timestamp: "2026-09-19T11:50:00Z"
+        reason: This is a Vault-backed non-UI model evaluation, so the manual evidence records the exact command and aggregate decisions rather than treating it as an ordinary unit test.
+        summary: The complete first-message/follow-up preliminary-score and conditional-confirmation flow passed all 17 corpus cases with Mistral Small 3.2; all ten allow cases proceeded and all seven clearly actionable cases were confirmed and blocked.
+
+verifications:
+  - id: V-UNIT
+    kind: automated_test
+    required_for_done: true
+    status: passed
+    command: python3 -m pytest backend/tests/test_chat_request_safety.py backend/tests/test_llm_utils_preprocessing_retries.py
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    evidence:
+      status: passed
+      command: python3 -m pytest backend/tests/test_chat_request_safety.py backend/tests/test_llm_utils_preprocessing_retries.py -q
+      run_id: local-f620-green;github-35449965092
+      subject_commit: 5b424a702f9781154a930ed7a64e0fd131c1ba0c
+      timestamp: "2026-09-19T11:50:00Z"
+      summary: 26 focused checks passed locally and all task-relevant tests passed in the isolated GitHub run.
+  - id: V-LIVE-CORPUS
+    kind: ai_evaluation
+    required_for_done: true
+    status: passed
+    command: python3 backend/scripts/test_chat_request_safety.py
+    covers: [AC-1, AC-2]
+    evidence:
+      status: passed
+      command: docker exec api python /app/backend/scripts/test_chat_request_safety.py
+      run_id: live-model-f620-2026-09-19
+      subject_commit: 5b424a702f9781154a930ed7a64e0fd131c1ba0c+evaluator-update
+      timestamp: "2026-09-19T11:50:00Z"
+      reason: This is a Vault-backed non-UI model evaluation, so the manual evidence records the exact command and aggregate decisions rather than treating it as an ordinary unit test.
+      summary: 17/17 complete-flow cases passed using the configured real model, including both Cyberleak paths, eight additional allowed requests, and seven confirmed blocks.
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: The change affects backend safety classification only and has no new or modified visual interface to demonstrate on video.
+    classified_at: "2026-09-19T11:50:00Z"
+    verification_ids: [V-UNIT, V-LIVE-CORPUS]
+
+tasks:
+  - id: TASK-1
+    title: Implement and evaluate allow-biased request safety confirmation
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]
+    expected_files:
+      - backend/apps/ai/processing/chat_request_safety.py
+      - backend/apps/ai/processing/preprocessor.py
+      - backend/apps/ai/base_instructions.yml
+      - backend/tests/test_chat_request_safety.py
+      - backend/scripts/test_chat_request_safety.py
+    verification_ids: [V-UNIT, V-LIVE-CORPUS]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [backend/apps/ai, backend/tests/test_chat_request_safety.py, backend/scripts/test_chat_request_safety.py]
+      shared_files: [backend/apps/ai/processing/preprocessor.py, backend/apps/ai/utils/llm_utils.py]
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    outcome: succeeded
+    approach: Implement the approved structured confirmation boundary and evaluate the paired corpus.
+    recorded_at: "2026-09-19"
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Integrate or deploy this verified candidate separately after reconciling the concurrent preprocessing work.
+  command: python3 scripts/sessions.py deploy --session f620
+  expected_outcome: The verified safety flow is integrated without overwriting concurrent preprocessing changes.
+  last_verified_commit: 5b424a702f9781154a930ed7a64e0fd131c1ba0c
+  blocker: null
+
+risks:
+  - A general model may still over-index on sensitive words; paired near-neighbor cases and exact evidence validation constrain this failure mode.
+  - Allow-biased confirmation can miss ambiguous harmful intent; normal answer-model safety remains active and the corpus uses only clearly actionable block cases.
+  - A second call adds latency only for preliminary candidates; measure and report it without weakening the allow/block contract.

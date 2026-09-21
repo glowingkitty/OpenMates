@@ -18,6 +18,20 @@ from backend.core.api.app.utils.encryption import EncryptionService
 
 Granularity = Literal["daily", "weekly", "monthly"]
 ROLLUP_VERSION = 1
+WORKFLOW_USAGE_SOURCES = frozenset({"workflow", "workflow_test"})
+WORKFLOW_USAGE_PAGE_SIZE = 100
+MAX_WORKFLOW_USAGE_PAGES = 200
+WORKFLOW_OVERVIEW_FIELDS = ",".join(
+    [
+        "id",
+        "source",
+        "created_at",
+        "updated_at",
+        "app_id",
+        "skill_id",
+        "encrypted_credits_costs_total",
+    ]
+)
 OVERVIEW_USAGE_FIELDS = ",".join(
     [
         "id",
@@ -223,6 +237,46 @@ def aggregate_usage_entries(entries: Iterable[dict[str, Any]], period: UsagePeri
     }
 
 
+def aggregate_workflow_daily_items(entries: Iterable[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """Group contentless workflow charges for the Settings daily overview."""
+    buckets: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for entry in entries:
+        source = _string_value(entry.get("source"))
+        created_at = _int_value(entry.get("created_at"))
+        if source not in WORKFLOW_USAGE_SOURCES or created_at <= 0:
+            continue
+        date = _utc_datetime(created_at).strftime("%Y-%m-%d")
+        app_id = _string_value(entry.get("app_id")) or ""
+        skill_id = _string_value(entry.get("skill_id")) or ""
+        key = (date, source, app_id, skill_id)
+        bucket = buckets.setdefault(
+            key,
+            {
+                "type": source,
+                "chat_id": None,
+                "api_key_hash": None,
+                "app_id": app_id or None,
+                "skill_id": skill_id or None,
+                "total_credits": 0,
+                "entry_count": 0,
+                "updated_at": 0,
+            },
+        )
+        bucket["total_credits"] += _int_value(entry.get("credits"))
+        bucket["entry_count"] += 1
+        bucket["updated_at"] = max(
+            _int_value(bucket.get("updated_at")),
+            _int_value(entry.get("updated_at")) or created_at,
+        )
+
+    by_date: dict[str, list[dict[str, Any]]] = {}
+    for (date, _source, _app_id, _skill_id), bucket in buckets.items():
+        by_date.setdefault(date, []).append(bucket)
+    for items in by_date.values():
+        items.sort(key=lambda item: _int_value(item.get("updated_at")), reverse=True)
+    return by_date
+
+
 class UsageOverviewService:
     def __init__(self, directus_service: Any, encryption_service: EncryptionService):
         self.directus_service = directus_service
@@ -295,6 +349,42 @@ class UsageOverviewService:
             if "credits" not in processed_entry:
                 processed_entry["credits"] = 0
         return processed_entries
+
+    async def get_workflow_daily_items(
+        self,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        period_start: int,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Read all recent workflow charges without returning workflow content or IDs."""
+        raw_entries: list[dict[str, Any]] = []
+        for page_index in range(MAX_WORKFLOW_USAGE_PAGES):
+            page = await self.directus_service.get_items(
+                "usage",
+                params={
+                    "filter": {
+                        "user_id_hash": {"_eq": user_id_hash},
+                        "source": {"_in": sorted(WORKFLOW_USAGE_SOURCES)},
+                        "created_at": {"_gte": period_start},
+                    },
+                    "fields": WORKFLOW_OVERVIEW_FIELDS,
+                    "sort": ["-created_at", "-id"],
+                    "limit": WORKFLOW_USAGE_PAGE_SIZE,
+                    "offset": page_index * WORKFLOW_USAGE_PAGE_SIZE,
+                },
+                no_cache=True,
+            )
+            page_entries = list(page or [])
+            raw_entries.extend(page_entries)
+            if len(page_entries) < WORKFLOW_USAGE_PAGE_SIZE:
+                break
+        else:
+            raise RuntimeError(
+                "Workflow usage overview exceeded its bounded pagination limit; refusing a partial response"
+            )
+
+        decrypted_entries = await self._decrypt_overview_entries(raw_entries, user_vault_key_id)
+        return aggregate_workflow_daily_items(decrypted_entries)
 
     async def rebuild_period_rollup(self, user_id_hash: str, user_vault_key_id: str, period: UsagePeriod) -> dict[str, Any]:
         params = {

@@ -50,6 +50,7 @@ export interface EmbedNodeV1 {
     | "uploading"
     | "processing"
     | "transcribing"
+    | "correcting"
     | "finished"
     | "error"
     | "cancelled";

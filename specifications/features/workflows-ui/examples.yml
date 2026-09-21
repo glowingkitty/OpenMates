@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows-ui@2
+specification: feature.workflows-ui@3
 visual_language:
 - id: all-workflow-views-share-one-visual-family
   given:
@@ -20,6 +20,35 @@ visual_language:
     compact_pill_controls: true
     harsh_outlines: false
     surface_hierarchy_preserved_in_dark_mode: true
+    default_body_text_px: 16
+    minimum_visible_text_px: 14
+    canonical_icons:
+      add_action: app.svg
+      workflow_tab: workflow.svg
+      runs_tab: projectmanagement.svg
+      time_trigger: calendar.svg
+      send_message: chat.svg
+      add_check: exact_filled_split_arrow_from_supplied_design
+    unrelated_icon_substitutions: false
+- id: workflow-values-are-readable-on-every-screen
+  given:
+    surfaces: [template, skill_test, message_preview, version_history, run_detail]
+    output:
+      rain_expected: true
+      rain_periods: [{start_time: '12:00', end_time: '14:00'}]
+      results: [{title: Example apartment, price_label: 1000 EUR/month}]
+  expect:
+    boolean_shown_as_labeled_readable_value: true
+    rain_times_shown_as_labeled_interval: true
+    result_collection_uses_shared_cards_or_readable_list: true
+    raw_json_or_object_dump_visible: false
+    raw_debug_schema_visible: false
+    expandable_debug_dump_available: false
+route_motion_contract:
+- id: workflow-route-matches-fullscreen-embed-motion
+  given: Alice opens a Workflow and then returns to the Workflows workspace.
+  when: Her system allows motion.
+  then: Opening moves the Workflow upward from the bottom with a fade and closing reverses it, using the fullscreen embed timing of 320ms cubic-bezier(0.32, 0, 0.2, 1); reduced-motion mode removes the nonessential movement.
 workflow_identity:
 - id: generated-software-workflow-identity
   given:
@@ -82,7 +111,14 @@ workspace_start:
     faint_centered_workflow_icon: true
     horizontal_cards: true
     show_all_and_search_centered: true
+    show_all_label: Show all
+    show_all_count_suffix: false
+    large_card_gradient_source: workflow_category
+    large_card_schedule_or_status_detail_visible: true
     composer_floating_at_bottom: true
+    composer_placeholder: Enter a name for a new workflow
+    placeholder_centered_horizontally_and_vertically: true
+    extra_top_right_blank_workflow_button: false
 - id: mobile-retains-start-hierarchy
   given:
     route: /workflows
@@ -91,7 +127,12 @@ workspace_start:
   expect:
     recommendation_banner_compact: true
     identity_and_greeting_centered: true
+    recommendation_and_start_content_overlap: false
     workflow_cards_horizontally_reachable: true
+    compact_card_content: [assigned_workflow_icon, one_line_ellipsized_title, chevron]
+    compact_badge_schedule_status_retention_detail_visible: false
+    show_all_label: Show all
+    search_visible: true
     composer_above_safe_area: true
 - id: valid-title-creates-disabled-draft
   given:
@@ -122,6 +163,19 @@ detail_header:
   when: He inspects its header.
   then: It indicates manual execution and offers contextual Run now without a fabricated time trigger or a
     misleading schedule toggle.
+- id: shared-chat-header-toolbar-and-overflow
+  given: Alice opens a scheduled workflow on desktop or mobile.
+  when: She scrolls the Workflow body and opens Show more.
+  then: The actual ChatHeader toolbar and its Show more behavior are reused; Report, Share, Show more and Close remain sticky and visible, and Workflow actions appear contextually in that menu. There are no standalone history/play/delete icons, centered Run button or corner Ready badge, and the workflow on/off control remains centered as in the supplied design.
+detail_header_contract:
+- id: web-v1-share-is-coming-soon-only
+  given: Alice activates Share in a Workflow header in web v1.
+  when: The Share action responds.
+  then: A notification says that sharing will be possible soon; no sharing controls open and no sharing state changes. Future Workflow sharing management belongs in the regular settings Share menu, and no permanent sharing panel displaces the Template canvas or definition history.
+- id: run-now-runs-the-saved-definition
+  given: Alice has a valid executable saved Workflow and an expanded node with unsaved edits.
+  when: She activates Run now from the shared Show more menu.
+  then: The run uses the saved definition and does not include the unsaved node edits.
 detail_tabs:
 - id: compact-tab-pill-at-header-boundary
   given:
@@ -135,6 +189,8 @@ detail_tabs:
     active_blue_pill: true
     template_icon_light: true
     runs_icon_neutral: true
+    template_icon_asset: workflow.svg
+    runs_icon_asset: projectmanagement.svg
     soft_shadow: true
 - id: template-and-runs-switch-in-place
   given:
@@ -166,9 +222,21 @@ template_editing:
     - then
     - if_true
     - if_false
-    add_controls:
-    - add_action
-    - add_decision
+    continuation_placeholder: "Do nothing.\nOr click here to add a step."
+    duplicate_separate_add_buttons: false
+- id: one-selector-for-continuation-and-empty-branches
+  given:
+    editable_entry_points: [continuation, empty_true_branch, empty_false_branch]
+    upstream_output_available: true
+  when:
+    click_placeholder: "Do nothing.\nOr click here to add a step."
+  expect:
+    single_selector_heading: What should happen next?
+    valid_choices: [Use App, Send message, Add check]
+    separate_duplicate_add_action_button: false
+    separate_duplicate_add_check_button: false
+    add_action_icon: app.svg
+    add_check_icon: exact_filled_split_arrow_from_supplied_design
 - id: node-expands-in-place
   given:
     tab: template
@@ -181,7 +249,12 @@ template_editing:
     summary_header_preserved: true
     input_output_groups_visible: true
     sibling_editor_panel: false
-- id: graph-change-shows-contextual-save-panel
+- id: expanded-editors-reuse-one-header
+  given: Alice opens a Weather node and then a step picker.
+  when: She uses back, collapse or close.
+  then: Both expanded surfaces use the shared Workflow editor header with consistent title, app identity and
+    navigation behavior.
+- id: graph-change-keeps-local-node-save
   given:
     tab: template
     expanded_node: weather_skill
@@ -189,20 +262,24 @@ template_editing:
     change_location: Paris
   expect:
     dirty: true
-    unsaved_message_visible: true
-    undo_visible: true
-    orange_save_visible: true
+    global_unsaved_message_visible: false
+    node_discard_visible: true
+    orange_node_save_visible: true
     server_graph_changed_before_save: false
-- id: share-management-does-not-displace-canvas
+- id: app-skill-identity-matches-editor-and-history
   given:
-    tab: template
-    action: share
+    app_display_name: Weather
+    skill_display_name: Forecast
+    views: [template, expanded_node, skill_test, historical_version, run_detail]
   expect:
-    share_management_opened_contextually: true
-    permanent_share_panel_above_canvas: false
-    top_level_tabs:
-    - template
-    - runs
+    app_skill_label: Weather | Forecast
+    icon_source: actual_weather_app_icon_from_shared_catalog
+    generic_workflow_or_placeholder_icon: false
+node_card_contract:
+- id: editable-node-scale-and-affordance
+  given: Alice views expandable nodes in the Workflow graph.
+  when: The nodes are collapsed or expanded.
+  then: Each node is slightly larger than a compact preview card, keeps a clearly visible expand chevron at its bottom, and shows its bare primary calendar or app icon at exactly 33 by 33 pixels in both states. Toolbar, dropdown and status icons keep their component sizes.
 unsaved_navigation:
 - id: dirty-template-to-runs-is-guarded
   given:
@@ -230,18 +307,9 @@ unsaved_navigation:
     transition_completed: false
 version_history:
 - id: version-selector-and-timeline-composition
-  given:
-    versions:
-    - current
-    - today_1439
-    - today_1438
-    - jul_1_1304
-    selected: today_1439
-  expect:
-    centered_timestamp_selector: true
-    horizontal_ticked_timeline: true
-    selected_marker_blue: true
-    current_marker_has_active_pill: true
+  given: Alice opens Template for a Workflow with multiple saved definition versions.
+  when: She activates the version selector below the tabs and above the first node.
+  then: The edit-history bar toggles in the same tab with explicit selected and current states; no bottom version-history or sharing panel appears.
 - id: historical-version-is-read-only
   given:
     tab: template
@@ -262,7 +330,30 @@ version_history:
     new_current_version: version-4
     version_1_mutated: false
     version_3_deleted: false
+version_selector_contract:
+- id: top-version-selector-toggles-history
+  given: Alice opens Template for a Workflow with multiple saved definition versions.
+  when: She activates the version selector below the tabs and above the first node.
+  then: The edit-history bar toggles in the same tab with explicit selected and current states; no bottom version-history or sharing panel appears.
 run_history:
+- id: run-layout-follows-supplied-runs-pdf
+  given:
+    design_reference: runs.pdf
+    selected_run: completed_weather_and_news_run
+    retained_payload_available: true
+  expect:
+    compact_timestamp_selector: true
+    horizontally_reachable_ruler_baseline_and_ticks: true
+    selected_run_marker_visible: true
+    uses_shared_template_node_cards: true
+    node_status_badges_overlay_cards: true
+    app_skill_label_format: "{app name} | {skill name}"
+    actual_app_icons: true
+    expanded_inputs_and_outputs_are_labeled_readable_values: true
+    result_collections_use_shared_cards_or_readable_lists: true
+    debug_dashboard_visible: false
+    dashboard_summary_tiles_visible: false
+    raw_json_or_debug_schema_visible: false
 - id: pending-is-not-persisted
   given: A completed run has pending chat delivery while its owner is offline.
   when: Alice opens its timeline and execution detail.
@@ -273,6 +364,18 @@ run_history:
   when: She selects each timeline marker.
   then: The upcoming occurrence has no fabricated execution detail, the running execution offers confirmed
     cancellation, and the older run explains unavailable payload while preserving its visible status.
+- id: next-current-and-ended-order
+  given: An enabled scheduled Workflow has a future next_run_at, one running execution and two completed executions.
+  when: Alice opens Runs and selects Next.
+  then: The timeline order is Next, Running, latest-ended, earlier-ended; Next renders the current saved graph with explicit Next status and is not represented as a persisted WorkflowRun.
+- id: disabled-workflow-hides-next
+  given: The same scheduled Workflow is disabled.
+  when: Alice opens Runs.
+  then: No Next marker is shown even if a previous next_run_at value exists.
+- id: visible-runs-refresh-preserves-selection
+  given: Alice has explicitly selected a historical run while Runs is visible.
+  when: A run starts on the server without a page reload.
+  then: The current execution appears through bounded owner-scoped refresh with at most one request in flight, and the historical run remains selected; refresh pauses while hidden and timers and listeners are removed on unmount.
 responsive_accessibility:
 - id: desktop-and-mobile-primary-flow-reachable
   given:
@@ -288,6 +391,8 @@ responsive_accessibility:
   expect:
     primary_controls_clipped: false
     unintended_page_overflow: false
+    recommendation_and_start_content_overlap: false
+    detail_header_actions_sticky_after_scroll: true
     mobile_graph_single_column: true
     mobile_forms_single_column: true
     timelines_horizontally_reachable: true
@@ -309,23 +414,35 @@ responsive_accessibility:
     reduced_motion_respected: true
 mvp_authoring:
 - id: mvp_authoring-example
-  given: A forecast step exists before any live run, and an Events step declares a list.
-  when: Alice adds Check for rain probability and Filter for event descriptions.
-  then: The matching typed fields are offered immediately; Check reads If true / If false and Filter selects
-    items. A complete workflow without a schedule still offers Run now; AI and user-input pauses are absent.
+  given: A forecast step exists before any live run and an Events step declares a result list.
+  when: Alice adds Check for rain and a Send message result block for events.
+  then: Typed fields are offered immediately and unsaved Test results use labeled readable values/cards, never raw JSON/debug schemas; Check shows true and false branches with Do nothing when empty. A complete unscheduled workflow offers Run now. General Filter is absent.
+- id: weather-range-and-shared-field-controls
+  given: Alice adds a Weather forecast step before the Workflow has run.
+  when: The typed skill form opens.
+  then: Location and the shared date-range calendar are basic fields, both inclusive endpoints default to the
+    Today runtime value, dates outside Today through Today plus 13 are disabled, legacy days is hidden, advanced
+    fields are behind Show all fields, and typed choices reuse SettingsDropdown.
+- id: map-city-semantics-across-launch-skills
+  given: Alice searches for and selects Berlin in the shared map picker.
+  when: She uses it in Weather, Events and Home skill forms.
+  then: Weather stores location with latitude and longitude, Events stores request location with lat and lon,
+    Home stores the city in request query, and selection remains disabled until a city resolves.
+- id: removing-check-protects-dependent-fields
+  given: A later step consumes the selected Check's matched boolean.
+  when: Alice removes the Check.
+  then: The builder rewrites the dependency only for an equivalent equality-to-true earlier boolean; otherwise it
+    names the dependent steps, keeps the Check and leaves the saved graph valid.
 schedule_preview:
 - id: schedule_preview-example
-  given: Alice chooses every 15 minutes, 08:00 to 20:00, Europe/Berlin.
-  when: She opens the time preview, then switches to the second Tuesday each month.
-  then: The first preview lists times through 19:45 and explains the excluded end; the second highlights matching
-    dates on a calendar. Both use the same next executions as scheduling.
+  given: Alice chooses hourly apartment search at minute zero in Europe/Berlin.
+  when: She saves the time/date node.
+  then: A readable hourly schedule is saved; daily 09:00 and weekly Sunday are also available without code.
 message_budget:
 - id: message_budget-example
-  given: An apartment workflow selects two results and costs 10 search credits per quarter-hour check during
-    a 12-hour window.
-  when: Alice configures Send message and enables automatic execution.
-  then: She previews introductory text, two result embeds and a run link; the estimate shows 480 search credits
-    per full day plus unknown components, and she either sets a cap or acknowledges no cap.
+  given: An apartment workflow has selected result output and known skill pricing.
+  when: Alice configures Send message.
+  then: She edits deterministic text with references, chooses Only new results and previews readable message text and result cards without sending or saving; raw JSON/debug schemas are absent. Known skill cost is shown; deferred budget caps are not claimed.
 run_deletion:
 - id: run_deletion-example
   given: Run 1 delivered an apartment and is its only remembered delivery; its chat message remains.

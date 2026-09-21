@@ -2,7 +2,7 @@
  * Deterministic macOS-style terminal composition for real CLI recordings.
  *
  * The captured source video is real terminal pixels. Remotion only adds the
- * surrounding terminal chrome and stable background for OpenCode proof playback.
+ * surrounding terminal chrome and stable background for proof playback.
  */
 
 import React from 'react';

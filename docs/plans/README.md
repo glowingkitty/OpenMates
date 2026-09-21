@@ -31,4 +31,4 @@ identifiers here. Use placeholders such as `<USER_EMAIL>`, `<CHAT_ID>`, and
 `<TEAM_ID>`.
 
 See `docs/contributing/guides/spec-driven-development.md` for sizing rules,
-templates, and the OpenCode workflow.
+templates, and the current agent workflow.

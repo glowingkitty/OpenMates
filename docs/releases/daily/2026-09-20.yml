@@ -1,0 +1,1765 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-20'
+generated_at: '2026-09-21T00:46:23+00:00'
+range:
+  since: '2026-09-20T00:00:00+00:00'
+  until: '2026-09-21T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 27
+  section_counts:
+    features: 2
+    bug_fixes: 11
+    improvements: 4
+    docs: 2
+    tests: 8
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 8
+  dev_only_items: 27
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add newsroom design previews'
+    section: features
+    commits:
+    - dd86242f1
+    authored_at: '2026-09-20T16:44:48+00:00'
+    changed_paths:
+    - docs/plans/public-news-blog/plan.yml
+    - frontend/apps/web_app/tests/components/newsroom-surface.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.preview.ts
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
+    - frontend/packages/ui/src/components/newsroom/fixtures.ts
+    - frontend/packages/ui/src/components/newsroom/types.ts
+    - scripts/ci_coverage_manifest.json
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: send voice recordings with Enter shortcuts'
+    section: features
+    commits:
+    - 4b635edc6
+    authored_at: '2026-09-20T10:14:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: preserve composer during draft activation'
+    section: bug_fixes
+    commits:
+    - 2c12b379f
+    authored_at: '2026-09-20T16:53:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: gate unverified prepared builds and retain private schema diagnostics'
+    section: bug_fixes
+    commits:
+    - 6b2c0532c
+    authored_at: '2026-09-20T16:24:28+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - docs/architecture/isolated-github-tests.md
+    - docs/plans/isolated-github-tests/efficiency-verification-2026-09-20.md
+    - scripts/ci_coordinator.py
+    - scripts/ci_preparation_transport.py
+    - scripts/ci_schema_bundle.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_preparation_transport.py
+    - scripts/tests/test_ci_schema_bundle.py
+    - scripts/tests/test_ci_workflow_scope.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ci): use private build transport and await complete schema restoration'
+    section: bug_fixes
+    commits:
+    - bbadc2061
+    authored_at: '2026-09-20T15:56:18+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - docs/architecture/isolated-github-tests.md
+    - docs/plans/isolated-github-tests/efficiency-verification-2026-09-20.md
+    - docs/plans/isolated-github-tests/plan.yml
+    - scripts/ci_artifacts.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_environment.py
+    - scripts/ci_preparation_transport.py
+    - scripts/ci_schema_bundle.py
+    - scripts/tests/test_ci_artifacts.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_environment.py
+    - scripts/tests/test_ci_preparation_transport.py
+    - scripts/tests/test_ci_schema_bundle.py
+    - scripts/tests/test_ci_workflow_scope.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ci): bound schema carrier probes and protect unpublished builds'
+    section: bug_fixes
+    commits:
+    - b591c7577
+    authored_at: '2026-09-20T15:34:54+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - docs/architecture/isolated-github-tests.md
+    - docs/plans/isolated-github-tests/efficiency-verification-2026-09-20.md
+    - scripts/ci_artifacts.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_schema_bundle.py
+    - scripts/ci_schema_image.Dockerfile
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_schema_bundle.py
+    - scripts/tests/test_ci_workflow_scope.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expose prepared schema to Postgres'
+    section: bug_fixes
+    commits:
+    - f8a382e85
+    authored_at: '2026-09-20T14:07:46+00:00'
+    changed_paths:
+    - scripts/ci_schema_image.Dockerfile
+    - scripts/tests/test_ci_schema_bundle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finalize audio recording and narration reliability'
+    section: bug_fixes
+    commits:
+    - 0fb6d4df4
+    authored_at: '2026-09-20T13:51:28+00:00'
+    changed_paths:
+    - backend/apps/ai/assistant_speech/streaming.py
+    - backend/apps/audio/assistant_speech/segment_task.py
+    - backend/apps/audio/assistant_speech/voice_profiles.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/shared/providers/groq/safeguard.py
+    - backend/shared/python_utils/media_generation_safety/pipeline.py
+    - backend/tests/test_admin_debug_log_query.py
+    - backend/tests/test_assistant_speech_projection.py
+    - backend/tests/test_assistant_speech_streaming.py
+    - backend/tests/test_assistant_speech_worker.py
+    - backend/tests/test_media_generation_safety.py
+    - backend/tests/test_unified_detail_metadata.py
+    - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts
+    - frontend/packages/assistantSpeechProjection.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechPlayback.test.mjs
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - specifications/features/issue-reporting/examples.yml
+    - specifications/features/issue-reporting/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio, embed:audio:speak, skill:audio:speak'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: package prepared CI schema'
+    section: bug_fixes
+    commits:
+    - 79be0d3c6
+    authored_at: '2026-09-20T13:43:58+00:00'
+    changed_paths:
+    - .github/workflows/publish-selfhost-images.yml
+    - scripts/ci_schema_image.Dockerfile
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate every browser spec in CI'
+    section: bug_fixes
+    commits:
+    - 0ad6de7ff
+    authored_at: '2026-09-20T10:44:05+00:00'
+    changed_paths:
+    - .agents/skills/add-example-chat/SKILL.md
+    - .agents/skills/verify-component-preview/SKILL.md
+    - .agents/skills/verify-plan/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/rules/testing.md
+    - .claude/skills/add-example-chat/SKILL.md
+    - .claude/skills/verify-component-preview/SKILL.md
+    - .claude/skills/verify-plan/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - docs/architecture/isolated-github-tests.md
+    - docs/architecture/test-orchestration.md
+    - docs/contributing/guides/testing.md
+    - docs/plans/isolated-github-tests/plan.yml
+    - scripts/ci_coordinator.py
+    - scripts/ci_dispatch.py
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_dispatch.py
+    - scripts/tests/test_ci_environment.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finalize realtime voice messages safely'
+    section: bug_fixes
+    commits:
+    - 69b3f777f
+    authored_at: '2026-09-20T10:07:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - frontend/apps/web_app/tests/components/record-audio-live-transcript.spec.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: authenticate realtime audio on iOS Safari'
+    section: bug_fixes
+    commits:
+    - 0ba3c72b7
+    authored_at: '2026-09-20T04:28:40+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/tests/test_audio_realtime_transcription.py
+    - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh live audio transcript session'
+    section: bug_fixes
+    commits:
+    - 0bc03b2ec
+    authored_at: '2026-09-20T04:00:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/record-audio-live-transcript.spec.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.preview.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf(ci): share immutable preparation and streamline scoped verification'
+    section: improvements
+    commits:
+    - 0ef0063dc
+    authored_at: '2026-09-20T15:15:43+00:00'
+    changed_paths:
+    - .agents/skills/verify-component-preview/SKILL.md
+    - .agents/skills/verify-plan/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/skills/verify-component-preview/SKILL.md
+    - .claude/skills/verify-plan/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - .github/workflows/isolated-tests.yml
+    - .github/workflows/publish-selfhost-images.yml
+    - AGENTS.md
+    - backend/core/api/Dockerfile.selfhost
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - backend/upload/Dockerfile
+    - docs/architecture/codex-task-cache.md
+    - docs/architecture/isolated-github-tests.md
+    - docs/plans/isolated-github-tests/architecture-review-2026-09-20.md
+    - docs/plans/isolated-github-tests/plan.yml
+    - scripts/ci_artifacts.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_dispatch.py
+    - scripts/ci_environment.py
+    - scripts/ci_pytest_targets.py
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_runtime_images.py
+    - scripts/ci_schema_bundle.py
+    - scripts/ci_schema_image.Dockerfile
+    - scripts/ci_source.py
+    - scripts/plan_verify.py
+    - scripts/safe_bash_guard.py
+    - scripts/tests/test_ci_artifacts.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_dispatch.py
+    - scripts/tests/test_ci_environment.py
+    - scripts/tests/test_ci_results.py
+    - scripts/tests/test_ci_run_tests.py
+    - scripts/tests/test_ci_runtime_images.py
+    - scripts/tests/test_ci_schema_bundle.py
+    - scripts/tests/test_ci_source.py
+    - scripts/tests/test_ci_workflow_scope.py
+    - scripts/tests/test_plan_demonstration_workflow.py
+    - scripts/tests/test_safe_bash_guard.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: decouple CI schema producer'
+    section: improvements
+    commits:
+    - 6a603b7e0
+    authored_at: '2026-09-20T13:33:50+00:00'
+    changed_paths:
+    - .github/workflows/publish-selfhost-images.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: restore prepared CI schemas'
+    section: improvements
+    commits:
+    - 5d04b8cc7
+    authored_at: '2026-09-20T13:28:51+00:00'
+    changed_paths:
+    - .github/workflows/publish-selfhost-images.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - scripts/ci_environment.py
+    - scripts/ci_runtime_images.py
+    - scripts/ci_schema_bundle.py
+    - scripts/ci_schema_image.Dockerfile
+    - scripts/tests/test_ci_environment.py
+    - scripts/tests/test_ci_runtime_images.py
+    - scripts/tests/test_ci_schema_bundle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: keep composer typing responsive'
+    section: improvements
+    commits:
+    - 1e275438c
+    authored_at: '2026-09-20T10:42:49+00:00'
+    changed_paths:
+    - docs/plans/web-composer-search-performance/plan.yml
+    - frontend/apps/web_app/tests/component-message-input.spec.ts
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/composerParsingSchedule.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/composerParsingSchedule.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingSemantics.performance.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingSemantics.ts
+    - frontend/packages/ui/src/services/__tests__/uploadedFileSearchPerformance.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/searchService.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: finalize composer search performance evidence'
+    section: docs
+    commits:
+    - a8d7927f7
+    authored_at: '2026-09-20T12:49:01+00:00'
+    changed_paths:
+    - docs/plans/web-composer-search-performance/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record isolated CI acceptance'
+    section: docs
+    commits:
+    - 1eef3e02b
+    authored_at: '2026-09-20T11:04:43+00:00'
+    changed_paths:
+    - docs/plans/isolated-github-tests/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: wait for component preview hydration'
+    section: tests
+    commits:
+    - 850e2c91d
+    authored_at: '2026-09-20T12:47:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/record-audio-live-transcript.spec.ts
+    - frontend/apps/web_app/tests/helpers/component-preview.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accelerate isolated GitHub browser jobs'
+    section: tests
+    commits:
+    - 0ace395a3
+    authored_at: '2026-09-20T12:33:47+00:00'
+    changed_paths:
+    - .agents/skills/verify-component-preview/SKILL.md
+    - .claude/rules/testing.md
+    - .claude/skills/verify-component-preview/SKILL.md
+    - .github/workflows/isolated-tests.yml
+    - .github/workflows/publish-selfhost-images.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - docs/plans/isolated-github-tests/latency-improvements.md
+    - docs/plans/isolated-github-tests/plan.yml
+    - frontend/apps/web_app/svelte.config.docker.js
+    - frontend/packages/ui/package.json
+    - scripts/ci_coordinator.py
+    - scripts/ci_coverage.py
+    - scripts/ci_dispatch.py
+    - scripts/ci_environment.py
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_runtime_images.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_coverage.py
+    - scripts/tests/test_ci_dispatch.py
+    - scripts/tests/test_ci_environment.py
+    - scripts/tests/test_ci_run_tests.py
+    - scripts/tests/test_ci_runtime_images.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: make composer caret proof deterministic'
+    section: tests
+    commits:
+    - ac0cbfe78
+    authored_at: '2026-09-20T11:30:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/component-message-input-performance.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: classify composer performance preview'
+    section: tests
+    commits:
+    - 68a896c0b
+    authored_at: '2026-09-20T11:09:56+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate composer responsiveness proof'
+    section: tests
+    commits:
+    - 43dc492eb
+    authored_at: '2026-09-20T11:08:58+00:00'
+    changed_paths:
+    - docs/plans/web-composer-search-performance/plan.yml
+    - frontend/apps/web_app/tests/component-message-input-performance.spec.ts
+    - frontend/apps/web_app/tests/component-message-input.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify live realtime audio processing'
+    section: tests
+    commits:
+    - 03120c643
+    authored_at: '2026-09-20T05:49:01+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/verify_audio_realtime_live_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: prove live audio transcription end to end'
+    section: tests
+    commits:
+    - ee2190926
+    authored_at: '2026-09-20T05:06:44+00:00'
+    changed_paths:
+    - backend/tests/fixtures/realtime_transcription_speech.json
+    - backend/tests/fixtures/realtime_transcription_speech.wav
+    - frontend/apps/web_app/tests/audio-recording-live-provider.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/daily_ai_test_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: classify live transcript component proof'
+    section: tests
+    commits:
+    - 104c3ee5c
+    authored_at: '2026-09-20T04:06:04+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: preserve composer during draft activation'
+    commits:
+    - 2c12b379f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add newsroom design previews'
+    commits:
+    - dd86242f1
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: gate unverified prepared builds and retain private schema diagnostics'
+    commits:
+    - 6b2c0532c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ci): use private build transport and await complete schema restoration'
+    commits:
+    - bbadc2061
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ci): bound schema carrier probes and protect unpublished builds'
+    commits:
+    - b591c7577
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf(ci): share immutable preparation and streamline scoped verification'
+    commits:
+    - 0ef0063dc
+    section: improvements
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: expose prepared schema to Postgres'
+    commits:
+    - f8a382e85
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: finalize audio recording and narration reliability'
+    commits:
+    - 0fb6d4df4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: package prepared CI schema'
+    commits:
+    - 79be0d3c6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: decouple CI schema producer'
+    commits:
+    - 6a603b7e0
+    section: improvements
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: restore prepared CI schemas'
+    commits:
+    - 5d04b8cc7
+    section: improvements
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: finalize composer search performance evidence'
+    commits:
+    - a8d7927f7
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for component preview hydration'
+    commits:
+    - 850e2c91d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: accelerate isolated GitHub browser jobs'
+    commits:
+    - 0ace395a3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: make composer caret proof deterministic'
+    commits:
+    - ac0cbfe78
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: classify composer performance preview'
+    commits:
+    - 68a896c0b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate composer responsiveness proof'
+    commits:
+    - 43dc492eb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record isolated CI acceptance'
+    commits:
+    - 1eef3e02b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: isolate every browser spec in CI'
+    commits:
+    - 0ad6de7ff
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: keep composer typing responsive'
+    commits:
+    - 1e275438c
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: send voice recordings with Enter shortcuts'
+    commits:
+    - 4b635edc6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: finalize realtime voice messages safely'
+    commits:
+    - 69b3f777f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: verify live realtime audio processing'
+    commits:
+    - 03120c643
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: prove live audio transcription end to end'
+    commits:
+    - ee2190926
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: authenticate realtime audio on iOS Safari'
+    commits:
+    - 0ba3c72b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: classify live transcript component proof'
+    commits:
+    - 104c3ee5c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refresh live audio transcript session'
+    commits:
+    - 0bc03b2ec
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: finalize audio recording and narration reliability'
+    commits:
+    - 0fb6d4df4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: preserve composer during draft activation'
+    commits:
+    - 2c12b379f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add newsroom design previews'
+    commits:
+    - dd86242f1
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: finalize audio recording and narration reliability'
+    commits:
+    - 0fb6d4df4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'perf: keep composer typing responsive'
+    commits:
+    - 1e275438c
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: send voice recordings with Enter shortcuts'
+    commits:
+    - 4b635edc6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: finalize realtime voice messages safely'
+    commits:
+    - 69b3f777f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: authenticate realtime audio on iOS Safari'
+    commits:
+    - 0ba3c72b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refresh live audio transcript session'
+    commits:
+    - 0bc03b2ec
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 2c12b379f6e76c614143f2da8882e33e4b927272
+    short_sha: 2c12b379f
+    authored_at: '2026-09-20T16:53:57+00:00'
+    subject: 'fix: preserve composer during draft activation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: dd86242f160a14f06a0d8b2ab932f733088936a8
+    short_sha: dd86242f1
+    authored_at: '2026-09-20T16:44:48+00:00'
+    subject: 'feat: add newsroom design previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/public-news-blog/plan.yml
+    - frontend/apps/web_app/tests/components/newsroom-surface.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.preview.ts
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
+    - frontend/packages/ui/src/components/newsroom/fixtures.ts
+    - frontend/packages/ui/src/components/newsroom/types.ts
+    - scripts/ci_coverage_manifest.json
+    related_feature_ids: []
+  - sha: 6b2c0532c44c2bbe961737401d61109ada2c5dbd
+    short_sha: 6b2c0532c
+    authored_at: '2026-09-20T16:24:28+00:00'
+    subject: 'fix: gate unverified prepared builds and retain private schema diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - docs/architecture/isolated-github-tests.md
+    - docs/plans/isolated-github-tests/efficiency-verification-2026-09-20.md
+    - scripts/ci_coordinator.py
+    - scripts/ci_preparation_transport.py
+    - scripts/ci_schema_bundle.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_preparation_transport.py
+    - scripts/tests/test_ci_schema_bundle.py
+    - scripts/tests/test_ci_workflow_scope.py
+    related_feature_ids: []
+  - sha: bbadc206165d66fb166f0675aa8a76811c6322b2
+    short_sha: bbadc2061
+    authored_at: '2026-09-20T15:56:18+00:00'
+    subject: 'fix(ci): use private build transport and await complete schema restoration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - docs/architecture/isolated-github-tests.md
+    - docs/plans/isolated-github-tests/efficiency-verification-2026-09-20.md
+    - docs/plans/isolated-github-tests/plan.yml
+    - scripts/ci_artifacts.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_environment.py
+    - scripts/ci_preparation_transport.py
+    - scripts/ci_schema_bundle.py
+    - scripts/tests/test_ci_artifacts.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_environment.py
+    - scripts/tests/test_ci_preparation_transport.py
+    - scripts/tests/test_ci_schema_bundle.py
+    - scripts/tests/test_ci_workflow_scope.py
+    related_feature_ids: []
+  - sha: b591c75776b99cecca3da1626b8f56fa5f1aeb73
+    short_sha: b591c7577
+    authored_at: '2026-09-20T15:34:54+00:00'
+    subject: 'fix(ci): bound schema carrier probes and protect unpublished builds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - docs/architecture/isolated-github-tests.md
+    - docs/plans/isolated-github-tests/efficiency-verification-2026-09-20.md
+    - scripts/ci_artifacts.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_schema_bundle.py
+    - scripts/ci_schema_image.Dockerfile
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_schema_bundle.py
+    - scripts/tests/test_ci_workflow_scope.py
+    related_feature_ids: []
+  - sha: 0ef0063dc0a38db5b7d0a955273c2b609b274ca7
+    short_sha: 0ef0063dc
+    authored_at: '2026-09-20T15:15:43+00:00'
+    subject: 'perf(ci): share immutable preparation and streamline scoped verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/verify-component-preview/SKILL.md
+    - .agents/skills/verify-plan/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/skills/verify-component-preview/SKILL.md
+    - .claude/skills/verify-plan/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - .github/workflows/isolated-tests.yml
+    - .github/workflows/publish-selfhost-images.yml
+    - AGENTS.md
+    - backend/core/api/Dockerfile.selfhost
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - backend/upload/Dockerfile
+    - docs/architecture/codex-task-cache.md
+    - docs/architecture/isolated-github-tests.md
+    - docs/plans/isolated-github-tests/architecture-review-2026-09-20.md
+    - docs/plans/isolated-github-tests/plan.yml
+    - scripts/ci_artifacts.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_dispatch.py
+    - scripts/ci_environment.py
+    - scripts/ci_pytest_targets.py
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_runtime_images.py
+    - scripts/ci_schema_bundle.py
+    - scripts/ci_schema_image.Dockerfile
+    - scripts/ci_source.py
+    - scripts/plan_verify.py
+    - scripts/safe_bash_guard.py
+    - scripts/tests/test_ci_artifacts.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_dispatch.py
+    - scripts/tests/test_ci_environment.py
+    - scripts/tests/test_ci_results.py
+    - scripts/tests/test_ci_run_tests.py
+    - scripts/tests/test_ci_runtime_images.py
+    - scripts/tests/test_ci_schema_bundle.py
+    - scripts/tests/test_ci_source.py
+    - scripts/tests/test_ci_workflow_scope.py
+    - scripts/tests/test_plan_demonstration_workflow.py
+    - scripts/tests/test_safe_bash_guard.py
+    related_feature_ids: []
+  - sha: f8a382e856150959e45b508afd2cbedc316b8c93
+    short_sha: f8a382e85
+    authored_at: '2026-09-20T14:07:46+00:00'
+    subject: 'fix: expose prepared schema to Postgres'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_schema_image.Dockerfile
+    - scripts/tests/test_ci_schema_bundle.py
+    related_feature_ids: []
+  - sha: 0fb6d4df41c8f6024949d9e85f107718c96a5fbd
+    short_sha: 0fb6d4df4
+    authored_at: '2026-09-20T13:51:28+00:00'
+    subject: 'fix: finalize audio recording and narration reliability'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/assistant_speech/streaming.py
+    - backend/apps/audio/assistant_speech/segment_task.py
+    - backend/apps/audio/assistant_speech/voice_profiles.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/shared/providers/groq/safeguard.py
+    - backend/shared/python_utils/media_generation_safety/pipeline.py
+    - backend/tests/test_admin_debug_log_query.py
+    - backend/tests/test_assistant_speech_projection.py
+    - backend/tests/test_assistant_speech_streaming.py
+    - backend/tests/test_assistant_speech_worker.py
+    - backend/tests/test_media_generation_safety.py
+    - backend/tests/test_unified_detail_metadata.py
+    - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts
+    - frontend/packages/assistantSpeechProjection.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechPlayback.test.mjs
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - specifications/features/issue-reporting/examples.yml
+    - specifications/features/issue-reporting/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:audio
+    - embed:audio:speak
+    - skill:audio:speak
+  - sha: 79be0d3c64b7ec3969eff41e68f08b72673893a4
+    short_sha: 79be0d3c6
+    authored_at: '2026-09-20T13:43:58+00:00'
+    subject: 'fix: package prepared CI schema'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-selfhost-images.yml
+    - scripts/ci_schema_image.Dockerfile
+    related_feature_ids: []
+  - sha: 6a603b7e04fc2b9d28632817a97cbb75654b40f2
+    short_sha: 6a603b7e0
+    authored_at: '2026-09-20T13:33:50+00:00'
+    subject: 'perf: decouple CI schema producer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-selfhost-images.yml
+    related_feature_ids: []
+  - sha: 5d04b8cc735cfacb41fcbd05b7074c7a26892832
+    short_sha: 5d04b8cc7
+    authored_at: '2026-09-20T13:28:51+00:00'
+    subject: 'perf: restore prepared CI schemas'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-selfhost-images.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - scripts/ci_environment.py
+    - scripts/ci_runtime_images.py
+    - scripts/ci_schema_bundle.py
+    - scripts/ci_schema_image.Dockerfile
+    - scripts/tests/test_ci_environment.py
+    - scripts/tests/test_ci_runtime_images.py
+    - scripts/tests/test_ci_schema_bundle.py
+    related_feature_ids: []
+  - sha: a8d7927f7b967273ab5cb5aea29f7bb9af98b7bf
+    short_sha: a8d7927f7
+    authored_at: '2026-09-20T12:49:01+00:00'
+    subject: 'docs: finalize composer search performance evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/web-composer-search-performance/plan.yml
+    related_feature_ids: []
+  - sha: 850e2c91df5f84171a7ecaa43947eb0fd8a45af7
+    short_sha: 850e2c91d
+    authored_at: '2026-09-20T12:47:47+00:00'
+    subject: 'test: wait for component preview hydration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/record-audio-live-transcript.spec.ts
+    - frontend/apps/web_app/tests/helpers/component-preview.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 0ace395a35f31086ccda8a1f16b40065c6564f26
+    short_sha: 0ace395a3
+    authored_at: '2026-09-20T12:33:47+00:00'
+    subject: 'test: accelerate isolated GitHub browser jobs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/verify-component-preview/SKILL.md
+    - .claude/rules/testing.md
+    - .claude/skills/verify-component-preview/SKILL.md
+    - .github/workflows/isolated-tests.yml
+    - .github/workflows/publish-selfhost-images.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - docs/plans/isolated-github-tests/latency-improvements.md
+    - docs/plans/isolated-github-tests/plan.yml
+    - frontend/apps/web_app/svelte.config.docker.js
+    - frontend/packages/ui/package.json
+    - scripts/ci_coordinator.py
+    - scripts/ci_coverage.py
+    - scripts/ci_dispatch.py
+    - scripts/ci_environment.py
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_runtime_images.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_coverage.py
+    - scripts/tests/test_ci_dispatch.py
+    - scripts/tests/test_ci_environment.py
+    - scripts/tests/test_ci_run_tests.py
+    - scripts/tests/test_ci_runtime_images.py
+    related_feature_ids: []
+  - sha: ac0cbfe7826e802407fa1ba19fafbb530bd6de24
+    short_sha: ac0cbfe78
+    authored_at: '2026-09-20T11:30:44+00:00'
+    subject: 'test: make composer caret proof deterministic'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/component-message-input-performance.spec.ts
+    related_feature_ids: []
+  - sha: 68a896c0b769668bf1fd9171e6c5fbfd8aaa62f9
+    short_sha: 68a896c0b
+    authored_at: '2026-09-20T11:09:56+00:00'
+    subject: 'test: classify composer performance preview'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    related_feature_ids: []
+  - sha: 43dc492eb3e09bdba847068a3491570eb375c558
+    short_sha: 43dc492eb
+    authored_at: '2026-09-20T11:08:58+00:00'
+    subject: 'test: isolate composer responsiveness proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/web-composer-search-performance/plan.yml
+    - frontend/apps/web_app/tests/component-message-input-performance.spec.ts
+    - frontend/apps/web_app/tests/component-message-input.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1eef3e02bb6a89a35f7ea6a1b548b3dcc45fb4b6
+    short_sha: 1eef3e02b
+    authored_at: '2026-09-20T11:04:43+00:00'
+    subject: 'docs: record isolated CI acceptance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/isolated-github-tests/plan.yml
+    related_feature_ids: []
+  - sha: 0ad6de7ffe7c6d3519e2dfadb9221a868bc258eb
+    short_sha: 0ad6de7ff
+    authored_at: '2026-09-20T10:44:05+00:00'
+    subject: 'fix: isolate every browser spec in CI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-example-chat/SKILL.md
+    - .agents/skills/verify-component-preview/SKILL.md
+    - .agents/skills/verify-plan/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/rules/testing.md
+    - .claude/skills/add-example-chat/SKILL.md
+    - .claude/skills/verify-component-preview/SKILL.md
+    - .claude/skills/verify-plan/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - docs/architecture/isolated-github-tests.md
+    - docs/architecture/test-orchestration.md
+    - docs/contributing/guides/testing.md
+    - docs/plans/isolated-github-tests/plan.yml
+    - scripts/ci_coordinator.py
+    - scripts/ci_dispatch.py
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_dispatch.py
+    - scripts/tests/test_ci_environment.py
+    related_feature_ids: []
+  - sha: 1e275438cf74649237254b1c069fefc0b89d086b
+    short_sha: 1e275438c
+    authored_at: '2026-09-20T10:42:49+00:00'
+    subject: 'perf: keep composer typing responsive'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/web-composer-search-performance/plan.yml
+    - frontend/apps/web_app/tests/component-message-input.spec.ts
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/composerParsingSchedule.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/composerParsingSchedule.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingSemantics.performance.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingSemantics.ts
+    - frontend/packages/ui/src/services/__tests__/uploadedFileSearchPerformance.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/searchService.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids: []
+  - sha: 4b635edc61829cd49127996574ac6fc6e39e714b
+    short_sha: 4b635edc6
+    authored_at: '2026-09-20T10:14:58+00:00'
+    subject: 'feat: send voice recordings with Enter shortcuts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 69b3f777ff764026f2f871467ff26ea778b8a7a1
+    short_sha: 69b3f777f
+    authored_at: '2026-09-20T10:07:58+00:00'
+    subject: 'fix: finalize realtime voice messages safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - frontend/apps/web_app/tests/components/record-audio-live-transcript.spec.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 03120c643b1c45e499f870447c243f93ea054c77
+    short_sha: 03120c643
+    authored_at: '2026-09-20T05:49:01+00:00'
+    subject: 'test: verify live realtime audio processing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/verify_audio_realtime_live_smoke.py
+    related_feature_ids: []
+  - sha: ee2190926e7c494568c49f355bc61b24f24d7575
+    short_sha: ee2190926
+    authored_at: '2026-09-20T05:06:44+00:00'
+    subject: 'test: prove live audio transcription end to end'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/fixtures/realtime_transcription_speech.json
+    - backend/tests/fixtures/realtime_transcription_speech.wav
+    - frontend/apps/web_app/tests/audio-recording-live-provider.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/daily_ai_test_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 0ba3c72b702fe070c8d359455e257e87738bfba5
+    short_sha: 0ba3c72b7
+    authored_at: '2026-09-20T04:28:40+00:00'
+    subject: 'fix: authenticate realtime audio on iOS Safari'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/tests/test_audio_realtime_transcription.py
+    - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 104c3ee5c99e478ed128b326c98fc507c79d852e
+    short_sha: 104c3ee5c
+    authored_at: '2026-09-20T04:06:04+00:00'
+    subject: 'test: classify live transcript component proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    related_feature_ids: []
+  - sha: 0bc03b2ec0de2a70b54f16800b24d402f07267fd
+    short_sha: 0bc03b2ec
+    authored_at: '2026-09-20T04:00:50+00:00'
+    subject: 'fix: refresh live audio transcript session'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/record-audio-live-transcript.spec.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.preview.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the audio messaging experience and optimizing composer performance. Significant
+    internal work was also completed to improve the reliability and speed of the automated testing infrastructure.
+  released_changes: []
+  bug_fixes:
+  - text: Audio messaging reliability was improved, addressing issues with recording finalization, narration stability, and
+      session refreshing for live transcripts.
+    evidence:
+      commits:
+      - 0fb6d4df4
+      - 69b3f777f
+      - 0ba3c72b7
+      - 0bc03b2ec
+    release_status: dev_only
+  - text: A fix was implemented to ensure realtime audio authentication functions correctly on iOS Safari.
+    evidence:
+      commits:
+      - 0ba3c72b7
+    release_status: dev_only
+  - text: The composer now correctly preserves content when a draft is activated.
+    evidence:
+      commits:
+      - 2c12b379f
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added the ability to send voice recordings using Enter shortcuts.
+    evidence:
+      commits:
+      - 4b635edc6
+    release_status: dev_only
+  - text: Work is underway to keep the composer responsive during heavy typing and search operations.
+    evidence:
+      commits:
+      - 1e275438c
+    release_status: dev_only
+  - text: Initial design previews for a public newsroom surface were introduced.
+    evidence:
+      commits:
+      - dd86242f1
+    release_status: dev_only
+  internal_progress:
+  - text: The CI pipeline was updated to isolate every browser specification and protect unpublished builds using private
+      transport.
+    evidence:
+      commits:
+      - 0ad6de7ff
+      - 6b2c0532c
+      - bbadc2061
+      - b591c7577
+    release_status: dev_only
+  - text: Infrastructure performance was optimized by decoupling schema production and streamlining the restoration of prepared
+      database schemas during testing.
+    evidence:
+      commits:
+      - 0ef0063dc
+      - 6a603b7e0
+      - 5d04b8cc7
+      - f8a382e85
+      - 79be0d3c6
+    release_status: dev_only
+  - text: Test coverage was expanded for live audio transcription and composer responsiveness proofs.
+    evidence:
+      commits:
+      - 850e2c91d
+      - ac0cbfe78
+      - 43dc492eb
+      - 03120c643
+      - ee2190926
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Voice recording shortcuts for sending messages.
+      evidence:
+        commits:
+        - 4b635edc6
+      reason: This feature is currently in development and not yet available in the main release.
+    - text: Composer responsiveness and search performance improvements.
+      evidence:
+        commits:
+        - 1e275438c
+      reason: Performance optimizations are currently undergoing verification in the development branch.
+    - text: Newsroom design previews.
+      evidence:
+        commits:
+        - dd86242f1
+      reason: The newsroom feature is in an early design preview stage and is not yet public.
+    rationale: All updates from this period are currently restricted to the development branch and have not yet been merged
+      into the main release for public communication.
+  social_video_recommendations:
+  - idea: Demonstrate the speed of sending voice messages using new keyboard shortcuts alongside live transcription.
+    priority: medium
+    reason: Voice messaging is a high-utility feature with a clear visual and functional story.
+    evidence:
+      commits:
+      - 4b635edc6
+      - 0bc03b2ec
+  quality_notes:
+  - Extensive testing was added to verify the end-to-end flow of live audio transcription.
+  - Focus on CI isolation ensures more deterministic test results for UI components.
+  validation_warnings: []

@@ -66,3 +66,15 @@ workflow_chat_deliveries:
     expires_at:
       type: integer
       note: "Unix timestamp when unacknowledged delivery expires."
+    workflow_id:
+      type: uuid
+      note: "[Indexed] Owning workflow for run-linked delivery; legacy deliveries may be null."
+    run_id:
+      type: uuid
+      note: "[Indexed] Owning run for delivery fencing and result memory."
+    node_id:
+      type: string
+      note: "Stable Send message node identity."
+    revision:
+      type: integer
+      note: "Atomic compare-and-set revision; independent of device claim generation."

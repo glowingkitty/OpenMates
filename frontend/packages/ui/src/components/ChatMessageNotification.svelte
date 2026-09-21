@@ -25,6 +25,7 @@
     import { chatDB } from '../services/db';
     import { chatSyncService } from '../services/chatSyncService';
     import { isPreflightAcknowledgementTimeout } from '../services/sendersChatMessages';
+    import type { AudioRealtimeTranscriptionHandle } from '../services/audioRealtimeTranscription';
     import { websocketStatus } from '../stores/websocketStatusStore';
     import { authStore } from '../stores/authStore';
     import { get } from 'svelte/store';
@@ -315,12 +316,19 @@
      * Audio recorded: insert the recording embed into the editor (same as MessageInput).
      * The RecordAudio overlay fires this event after capturing audio.
      */
-    async function handleAudioRecorded(event: CustomEvent<{ blob: Blob; duration: number; mimeType: string }>): Promise<void> {
+    async function handleAudioRecorded(event: CustomEvent<{
+        blob: Blob;
+        duration: number;
+        mimeType: string;
+        realtime?: AudioRealtimeTranscriptionHandle;
+        liveTranscript?: string;
+    }>): Promise<void> {
         if (!editor) return;
-        const { blob, duration, mimeType } = event.detail;
+        const { blob, duration, mimeType, realtime, liveTranscript } = event.detail;
         const formattedDuration = formatDuration(duration);
         // Pass the notification's chatId so the transcription usage entry is linked to the correct chat.
-        await insertRecording(editor, blob, mimeType, formattedDuration, get(authStore).isAuthenticated, notification.chatId ?? undefined);
+        if (notification.chatId) realtime?.setChatId(notification.chatId);
+        await insertRecording(editor, blob, mimeType, formattedDuration, get(authStore).isAuthenticated, notification.chatId ?? undefined, undefined, realtime, liveTranscript);
         replyText = editor.getText();
         handleStopRecordingCleanup();
     }
@@ -477,6 +485,7 @@
                 <RecordAudio
                     bind:this={recordAudioComponent}
                     initialPosition={$recordingState.recordStartPosition}
+                    enableRealtime={get(authStore).isAuthenticated}
                     on:audiorecorded={handleAudioRecorded}
                     on:close={handleStopRecordingCleanup}
                     on:cancel={handleStopRecordingCleanup}

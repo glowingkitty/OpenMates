@@ -417,3 +417,33 @@ async def test_valid_date_formats_and_dst_windows_are_preserved(start: str, end:
     assert invalid == []
     assert SearchSkill._parse_event_datetime(valid[0]["start_date"]) == SearchSkill._parse_event_datetime(start)
     assert SearchSkill._parse_event_datetime(valid[0]["end_date"]) == SearchSkill._parse_event_datetime(end)
+
+
+# contract-test: direct surface=rest_api assertions=events-search.request.validated,events-search.surface-parity
+async def test_auto_search_filters_all_bounded_candidates_before_limit_and_reports_failures(monkeypatch):
+    skill = _make_skill()
+    skill._providers_meta = [{"id": "meetup", "scope": "global"}, {"id": "luma", "scope": "global"}]
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    async def meetup(**kwargs):
+        assert kwargs["start_date"] == "2026-09-21T00:00:00+02:00"
+        return [
+            {"id": "early", "url": "https://example.invalid/early", "date_start": "2026-09-15T18:00:00+02:00", "event_type": "PHYSICAL"},
+            {"id": "next-week", "url": "https://example.invalid/next-week", "date_start": "2026-09-23T18:00:00+02:00", "event_type": "PHYSICAL"},
+        ], 2, None
+
+    async def unavailable(**kwargs):
+        return [], 0, "Provider unavailable"
+
+    monkeypatch.setattr(skill, "_search_meetup", meetup)
+    monkeypatch.setattr(skill, "_search_luma", unavailable)
+    request = SearchRequest(requests=[{"query": "AI", "location": "Berlin", "lat": 52.52, "lon": 13.405,
+        "start_date": "2026-09-21T00:00:00+02:00", "end_date": "2026-09-27T23:59:59+02:00", "count": 1,
+        "event_type": "PHYSICAL", "providers": ["meetup", "luma"]}])
+    response = await skill.execute(request)
+    assert [item["id"] for item in response.results[0]["results"]] == ["next-week"]
+    assert response.warnings == ["luma search unavailable"]
+    assert response.error is None
+    monkeypatch.setattr(skill, "_search_meetup", unavailable)
+    response = await skill.execute(request)
+    assert response.results[0]["error"] == "All selected event providers failed"

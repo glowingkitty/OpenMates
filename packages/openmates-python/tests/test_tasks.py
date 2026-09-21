@@ -72,14 +72,14 @@ def test_pip_sdk_manages_decrypted_task_activity(monkeypatch):
 # contract-test: supporting surface=sdks.pip assertions=tasks.external-chat.encrypted-context
 def test_external_chat_lookup_hash_uses_shared_hkdf_info_literal():
     master_key = bytes(range(32))
-    context = {"provider": "opencode", "id": "ses_known_derivation"}
+    context = {"provider": "codex", "id": "ses_known_derivation"}
     index_key = HKDF(
         algorithm=hashes.SHA256(),
         length=32,
         salt=b"",
         info=b"openmates-task-external-chat-index-v1",
     ).derive(master_key)
-    expected = hmac.new(index_key, b"opencode\x00ses_known_derivation", hashlib.sha256).hexdigest()
+    expected = hmac.new(index_key, b"codex\x00ses_known_derivation", hashlib.sha256).hexdigest()
 
     assert _external_chat_lookup_hash(master_key, context) == expected
 
@@ -210,7 +210,7 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
 
 
 # contract-test: direct surface=sdks.pip assertions=tasks.external-chat.encrypted-context,tasks.blocking.encrypted-reason,tasks.surface.semantic-parity
-@pytest.mark.parametrize("provider", ["codex", "opencode"])
+@pytest.mark.parametrize("provider", ["codex", "codex"])
 def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch, provider):
     master_key = bytes([10]) * 32
     api_key, material = _create_api_key_material("sdk external task parity", master_key)
@@ -245,7 +245,7 @@ def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch, 
             assert json["external_chat_provider"] == provider
             assert len(json["external_chat_lookup_hash"]) == 64
             assert "ses_external_123" not in str(json)
-            assert "OpenCode task bridge" not in str(json)
+            assert "Codex task bridge" not in str(json)
             stored_task = {**json, "short_id": "TASK-EXT"}
             return FakeResponse({"task": stored_task})
         if url.endswith("/block"):
@@ -267,7 +267,7 @@ def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch, 
         else:
             assert json["external_chat_provider"] == provider
             assert "ses_external_456" not in str(json)
-            assert "Updated OpenCode task bridge" not in str(json)
+            assert "Updated Codex task bridge" not in str(json)
         stored_task = {**stored_task, **json}
         return FakeResponse({"task": stored_task})
 
@@ -279,25 +279,25 @@ def test_pip_sdk_encrypts_external_chat_context_and_blocked_reason(monkeypatch, 
     created = client.tasks.create({
         "title": "Implement task bridge",
         "external_chat": f"{provider}:ses_external_123",
-        "external_chat_title": "OpenCode task bridge",
+        "external_chat_title": "Codex task bridge",
     })
 
     assert created["external_chat"] == {
         "provider": provider,
         "id": "ses_external_123",
-        "title": "OpenCode task bridge",
+        "title": "Codex task bridge",
     }
     edited = client.tasks.edit("TASK-EXT", {
         "external_chat": {
             "provider": provider,
             "id": "ses_external_456",
-            "title": "Updated OpenCode task bridge",
+            "title": "Updated Codex task bridge",
         },
     })
     assert edited["external_chat"] == {
         "provider": provider,
         "id": "ses_external_456",
-        "title": "Updated OpenCode task bridge",
+        "title": "Updated Codex task bridge",
     }
     assert client.tasks.list(external_chat={"provider": provider, "id": "ses_external_456"})[0]["external_chat"] == edited["external_chat"]
     blocked = client.tasks.block(
@@ -377,15 +377,3 @@ def test_pip_sdk_keeps_workflow_projection_metadata(monkeypatch):
     assert task["can_cancel"] is False
     assert task["can_delete"] is True
     assert task["read_only"] is True
-
-
-# contract-test: supporting surface=sdks.pip assertions=tasks.assignment.identity-separated,tasks.external-chat.encrypted-context
-def test_codex_provider_defaults_and_legacy_indexes_remain_distinct():
-    from openmates.sdk import _task_assignee, _normalize_external_chat_context
-    assert _task_assignee("external-ai") == ("external_ai", "codex", None)
-    assert _task_assignee("codex") == ("external_ai", "codex", None)
-    codex = _normalize_external_chat_context("codex:thread-1")
-    legacy = _normalize_external_chat_context("opencode:thread-1")
-    assert codex["provider"] == "codex"
-    assert legacy["provider"] == "opencode"
-    assert _external_chat_lookup_hash(bytes([2]) * 32, codex) != _external_chat_lookup_hash(bytes([2]) * 32, legacy)

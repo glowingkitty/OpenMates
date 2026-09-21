@@ -254,7 +254,7 @@ GET eligibility uses personal owner-scoped creator receipts independently of
 board filters. New assignment and legacy-to-Codex switches require Codex
 eligibility. PATCH, comments and external context fields cannot mint it.
 
-Provider identities and external IDs remain separate. Existing OpenCode
+Provider identities and external IDs remain separate. Existing external-agent
 ciphertext and provider-domain keyed lookup indexes are never rewritten.
 Native OpenMates queue admission remains independent. This migration creates
 no polling, worker dispatcher, background agent or replacement periodic workflow.

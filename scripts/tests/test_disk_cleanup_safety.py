@@ -147,14 +147,6 @@ def test_daily_test_artifacts_are_bounded_to_one_week() -> None:
     assert run_tests.DAILY_ARTIFACT_RETENTION_DAYS == 7
 
 
-def test_opencode_cleanup_includes_archived_sessions_and_bounds_todo_retention() -> None:
-    script = (ROOT / "scripts" / "cleanup-opencode-sessions.sh").read_text(encoding="utf-8")
-
-    assert "time_archived IS NULL" not in script
-    assert "OPENMATES_OPENCODE_TODO_RETENTION_DAYS:-90" in script
-    assert "opencode session delete" in script
-
-
 def test_proof_cleanup_expires_only_manifest_owned_media_without_discord() -> None:
     script = (ROOT / "scripts" / "cleanup-proof-videos.sh").read_text(encoding="utf-8")
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Request, Security, Query
+from fastapi import APIRouter, HTTPException, Depends, Header, Request, Security, Query
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 import logging
@@ -42,6 +42,7 @@ from backend.core.api.app.utils.issue_report_contact_email import resolve_accoun
 from backend.core.api.app.utils.issue_report_text import normalize_issue_report_error_sentinels
 from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+from backend.core.api.app.utils.issue_report_auth import resolve_issue_report_user_id
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
     invalidate_recovery_jobs_for_account_deletion,
     invalidate_recovery_leases_for_device,
@@ -86,6 +87,20 @@ LLM_PROVIDER_VAULT_PATHS = (
 )
 
 LOCAL_LLM_SERVER_IDS = {"ollama", "lm_studio", "custom_openai_compatible"}
+
+
+def _usage_overview_order_value(value: Any) -> float:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str) and value:
+        try:
+            return float(value)
+        except ValueError:
+            try:
+                return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                return 0.0
+    return 0.0
 
 
 def _has_configured_secret_value(value: Optional[str]) -> bool:
@@ -2068,7 +2083,8 @@ async def get_daily_overview(
     reconcile: bool = False,
     current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
     directus_service: DirectusService = Depends(get_directus_service),
-    cache_service: CacheService = Depends(get_cache_service)
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
 ):
     """
     Fetch daily usage overview combining all usage types (chats, apps, API keys).
@@ -2106,6 +2122,46 @@ async def get_daily_overview(
             daily_data = await directus_service.usage.get_daily_overview(
                 user_id_hash=user_id_hash,
                 days=days,
+            )
+
+        # Workflow runs and node tests are app-only billing contexts, so they do
+        # not have chat/API summary rows. Merge a contentless projection from the
+        # authoritative usage rows into the existing Overview response.
+        user_vault_key_id = await cache_service.get_user_vault_key_id(current_user.id)
+        if not user_vault_key_id:
+            user_profile_result = await directus_service.get_user_profile(current_user.id)
+            if not user_profile_result or not user_profile_result[0]:
+                raise HTTPException(status_code=404, detail="User profile not found")
+            user_vault_key_id = user_profile_result[1].get("vault_key_id")
+            if not user_vault_key_id:
+                raise HTTPException(status_code=500, detail="User encryption key not found")
+            await cache_service.update_user(current_user.id, {"vault_key_id": user_vault_key_id})
+
+        from backend.core.api.app.services.usage_overview_service import UsageOverviewService
+
+        oldest_day = (
+            datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            - timedelta(days=days - 1)
+        )
+        workflow_items_by_date = await UsageOverviewService(
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+        ).get_workflow_daily_items(
+            user_id_hash=user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            period_start=int(oldest_day.timestamp()),
+        )
+        for day in daily_data:
+            workflow_items = workflow_items_by_date.get(str(day.get("date")), [])
+            if not workflow_items:
+                continue
+            day["items"] = [*(day.get("items") or []), *workflow_items]
+            day["items"].sort(
+                key=lambda item: _usage_overview_order_value(item.get("updated_at")),
+                reverse=True,
+            )
+            day["total_credits"] = int(day.get("total_credits") or 0) + sum(
+                int(item.get("total_credits") or 0) for item in workflow_items
             )
         
         # Calculate total days available by checking if the oldest requested day has data
@@ -2766,14 +2822,6 @@ class IssueReportRequest(BaseModel):
             "merge OTel trace spans into the log timeline."
         )
     )
-    add_to_linear: bool = Field(
-        True,
-        description=(
-            "Whether to create a Linear issue for this report. "
-            "Admin users can set this to false to skip Linear issue creation. "
-            "Non-admin reports default to true (always create)."
-        ),
-    )
     send_email_notification: bool = Field(
         True,
         description=(
@@ -2875,7 +2923,6 @@ async def report_issue(
             else None
         )
         ascii_cleaned_description = None
-        description_ascii_suspicious = False
         if raw_description:
             ascii_cleaned_description, desc_ascii_stats = sanitize_text_for_ascii_smuggling(
                 raw_description, log_prefix="[report_issue/description] ", include_stats=True
@@ -2886,13 +2933,6 @@ async def report_issue(
                     f"{desc_ascii_stats['removed_count']} chars "
                     f"(hidden_ascii={desc_ascii_stats.get('hidden_ascii_detected', False)})"
                 )
-            description_ascii_suspicious = desc_ascii_stats.get("hidden_ascii_detected", False)
-
-        # Track whether ASCII smuggling was detected (used to flag the Linear issue)
-        ascii_smuggling_detected = (
-            title_ascii_stats.get("hidden_ascii_detected", False) or description_ascii_suspicious
-        )
-
         # Layer 2: HTML escape to prevent XSS attacks
         sanitized_title = escape(ascii_cleaned_title)
         
@@ -3249,88 +3289,45 @@ async def report_issue(
         
         from backend.core.api.app.tasks.celery_config import app
 
-        # Dispatch the email task with sanitized data (skipped when admin sets send_email_notification=false).
-        # The email task will create the YAML file, encrypt it, upload to S3, and update the database with the S3 key.
-        if issue_data.send_email_notification:
-            task_result = app.send_task(
-                name='app.tasks.email_tasks.issue_report_email_task.send_issue_report_email',
-                kwargs={
-                    "admin_email": admin_email,
-                    "issue_id": issue_id,  # Pass issue ID so email task can update database with S3 key
-                    "issue_title": sanitized_title,
-                    "issue_description": sanitized_description,
-                    "issue_type": issue_data.issue_type,
-                    "chat_or_embed_url": sanitized_url,
-                    "contact_email": sanitized_email,  # Use plaintext for email (not encrypted)
-                    "language": sanitized_language,    # Client UI language for confirmation email localisation
-                    "timestamp": current_time,
-                    "estimated_location": estimated_location,
-                    "device_info": device_info_str,
-                    "console_logs": console_logs_str,
-                    "indexeddb_report": indexeddb_report_str,
-                    "last_messages_html": last_messages_html_str,
-                    "active_chat_sidebar_html": active_chat_sidebar_html_str,
-                    "runtime_debug_state": runtime_debug_state_str,
-                    "action_history": action_history_str,
-                    # outerHTML of the DOM element the user picked via the element picker overlay.
-                    # Captures the exact HTML of a broken UI element for debugging layout/rendering issues.
-                    "picked_element_html": picked_element_html_str,
-                    # Pre-signed URL for the screenshot PNG (7-day validity). Included in the
-                    # admin email and in inspect_issue.py so LLMs can view the screenshot directly.
-                    "screenshot_presigned_url": screenshot_presigned_url,
-                    # Account stats are resolved in the email task for admin triage.
-                    "reported_by_user_id": reported_by_user_id,
-                    # OTel trace IDs from frontend for trace-to-issue correlation in S3 YAML
-                    "trace_ids": issue_data.trace_ids or []
-                },
-                queue='email'
-            )
-            logger.info(
-                f"Issue report submitted: '{issue_data.title[:50]}...' - "
-                f"email task dispatched to queue 'email' with task_id={task_result.id}, "
-                f"recipient={admin_email}"
-            )
-        else:
-            logger.info(
-                f"Issue report submitted: '{issue_data.title[:50]}...' - "
-                f"email notification skipped (admin toggle off)"
-            )
+        # Always dispatch the report-processing task. Durable diagnostic YAML
+        # retention is mandatory and independent of the optional email toggle.
+        # The task conditionally sends notifications only after persistence.
+        task_result = app.send_task(
+            name='app.tasks.email_tasks.issue_report_email_task.send_issue_report_email',
+            kwargs={
+                "admin_email": admin_email,
+                "issue_id": issue_id,
+                "issue_title": sanitized_title,
+                "issue_description": sanitized_description,
+                "issue_type": issue_data.issue_type,
+                "chat_or_embed_url": sanitized_url,
+                "contact_email": sanitized_email,
+                "language": sanitized_language,
+                "timestamp": current_time,
+                "estimated_location": estimated_location,
+                "device_info": device_info_str,
+                "console_logs": console_logs_str,
+                "indexeddb_report": indexeddb_report_str,
+                "last_messages_html": last_messages_html_str,
+                "active_chat_sidebar_html": active_chat_sidebar_html_str,
+                "runtime_debug_state": runtime_debug_state_str,
+                "action_history": action_history_str,
+                "picked_element_html": picked_element_html_str,
+                "screenshot_presigned_url": screenshot_presigned_url,
+                "reported_by_user_id": reported_by_user_id,
+                "trace_ids": issue_data.trace_ids or [],
+                "send_email_notification": issue_data.send_email_notification,
+            },
+            queue='email'
+        )
+        logger.info(
+            f"Issue report submitted: '{issue_data.title[:50]}...' - "
+            f"diagnostic processing task dispatched to queue 'email' with task_id={task_result.id}, "
+            f"email_notification={issue_data.send_email_notification}"
+        )
 
-        # Auto-create a Linear issue for tracking on the project board.
-        # Dispatched fire-and-forget alongside the email task — never blocks the response.
-        # Skipped when admin sets add_to_linear=false.
-        if issue_data.add_to_linear:
-            try:
-                linear_task_result = app.send_task(
-                    name='app.tasks.linear_issue_task.create_linear_issue_for_report',
-                    kwargs={
-                        "issue_id": issue_id,
-                        "issue_title": sanitized_title,
-                        "issue_description": sanitized_description,
-                        "issue_type": issue_data.issue_type,
-                        "chat_or_embed_url": sanitized_url,
-                        "is_from_admin": is_from_admin,
-                        "contact_email": sanitized_email if sanitized_email else None,
-                        "reported_by_user_id": reported_by_user_id,
-                        "ascii_smuggling_detected": ascii_smuggling_detected,
-                    },
-                    queue='email'
-                )
-                logger.info(
-                    f"Linear issue creation task dispatched for issue '{issue_data.title[:50]}...' "
-                    f"(task_id={linear_task_result.id})"
-                )
-            except Exception as _linear_err:
-                # Never block the issue report response if Linear task dispatch fails
-                logger.error(
-                    f"Failed to dispatch Linear issue creation task: {_linear_err}",
-                    exc_info=True
-                )
-        else:
-            logger.info(
-                f"Linear issue creation skipped for '{issue_data.title[:50]}...' "
-                f"(admin toggle off)"
-            )
+        # Linear is intentionally no longer used. Automatic OpenMates Task
+        # creation is a separate future change and is out of scope here.
 
         return IssueReportResponse(
             success=True,
@@ -6514,7 +6511,9 @@ class IssueLogsRequest(BaseModel):
 async def push_issue_logs(
     request: Request,
     body: IssueLogsRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    cache_service: CacheService = Depends(get_cache_service),
+    ws_token: Optional[str] = Header(default=None, alias="X-WS-Token", include_in_schema=False),
 ) -> dict:
     """
     Push the console log snapshot captured at issue-report time to OpenObserve.
@@ -6528,10 +6527,18 @@ async def push_issue_logs(
     """
     from backend.core.api.app.services.openobserve_push_service import openobserve_push_service
 
+    user_id = await resolve_issue_report_user_id(
+        current_user.id if current_user else None,
+        ws_token,
+        cache_service,
+    )
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated: Missing token")
+
     success = await openobserve_push_service.push_issue_logs(
         logs_text=body.logs_text,
         issue_id=body.issue_id,
-        user_id=current_user.id,
+        user_id=user_id,
         metadata={
             "pageUrl": body.page_url,
             "userAgent": body.user_agent,
@@ -6541,7 +6548,7 @@ async def push_issue_logs(
     if not success:
         import logging as _logging
         _logging.getLogger(__name__).warning(
-            f"Failed to push issue logs to OpenObserve for user {current_user.id}, issue {body.issue_id}"
+            f"Failed to push issue logs to OpenObserve for user {user_id}, issue {body.issue_id}"
         )
 
     # Always return 200 — log push failures must not break the issue submission UX.

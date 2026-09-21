@@ -1,0 +1,38 @@
+schema_version: 1
+specification: feature.issue-reporting@1
+
+role_aware_form:
+  - id: guest-can-report-without-admin-actions
+    given: A guest opens Report Issue from settings.
+    when: The report form becomes ready.
+    then: The title and submit controls are usable, while internal fix, tracker, and notification automation controls are absent.
+  - id: administrator-can-choose-automation
+    given: An authorized administrator opens Report Issue.
+    when: The report form becomes ready.
+    then: Administrator automation choices may be shown without making them available to an ordinary user.
+
+long_title:
+  - id: detailed-observation-is-accepted
+    given: A user writes a title longer than 500 characters describing a multi-part product failure.
+    when: The user submits the report.
+    then: The API accepts the complete title and returns a successful issue confirmation.
+
+successful_submission:
+  - id: screenshot-and-confirmation
+    given: An authenticated user adds a small screenshot to a valid issue report.
+    when: The user submits the form.
+    then: The UI shows the returned short issue ID and the status endpoint confirms that the screenshot was retained.
+  - id: requested-debug-report-finishes
+    given: A non-administrator submits an issue whose consented reporting flow requests an asynchronous debug report.
+    when: Background processing finishes.
+    then: The issue status reports that the debug artifact is available without changing the stable issue identifiers.
+
+compact_logs:
+  - id: authenticated-browser-log-capture
+    given: An authenticated user submits an issue from the web app with compact diagnostic collection enabled.
+    when: The browser sends the compact diagnostic request to the API origin.
+    then: The request carries the authenticated session and the issue-log endpoint accepts it instead of returning an authorization error.
+  - id: structured-user-log-retrieval
+    given: Retained client log entries identify the reporter in a structured user field rather than inside the message text.
+    when: An authorized investigator loads the issue log view.
+    then: Entries for that user are returned and the compact log view is not empty solely because the message text omits the user ID.

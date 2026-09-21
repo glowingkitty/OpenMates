@@ -1,6 +1,8 @@
 # backend/apps/ai/llm_providers/anthropic_shared.py
 # Shared utilities and models for Anthropic implementations
 
+import copy
+import json
 import logging
 from typing import Dict, Any, List, Optional, Tuple, Union
 from pydantic import BaseModel
@@ -98,8 +100,45 @@ def _prepare_system_with_caching(system_prompt: str) -> Union[str, List[Dict[str
 
 
 def _prepare_messages_with_caching(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Prepare messages with selective caching for content over threshold"""
-    anthropic_messages = []
+    """Convert canonical history to Anthropic messages without mutating it.
+
+    Canonical tool history uses an assistant message with ``tool_calls`` followed
+    by one or more ``role=tool`` messages. Anthropic requires the equivalent
+    ``tool_use`` blocks in the assistant turn and all parallel ``tool_result``
+    blocks in one following user turn.
+    """
+    anthropic_messages: List[Dict[str, Any]] = []
+    pending_tool_results: List[Dict[str, Any]] = []
+
+    def flush_tool_results() -> None:
+        if not pending_tool_results:
+            return
+        anthropic_messages.append({
+            "role": "user",
+            "content": list(pending_tool_results),
+        })
+        pending_tool_results.clear()
+
+    def tool_input(tool_call: Dict[str, Any]) -> Dict[str, Any]:
+        function = tool_call.get("function") or {}
+        arguments = function.get("arguments", {})
+        if isinstance(arguments, dict):
+            return copy.deepcopy(arguments)
+        if isinstance(arguments, str):
+            try:
+                parsed_arguments = json.loads(arguments)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"Tool call '{tool_call.get('id', '')}' contains invalid JSON arguments"
+                ) from exc
+            if isinstance(parsed_arguments, dict):
+                return parsed_arguments
+            raise ValueError(
+                f"Tool call '{tool_call.get('id', '')}' arguments must decode to an object"
+            )
+        raise ValueError(
+            f"Tool call '{tool_call.get('id', '')}' arguments must be an object or JSON string"
+        )
     
     for msg in messages:
         role = msg.get("role", "user")
@@ -159,15 +198,38 @@ def _prepare_messages_with_caching(messages: List[Dict[str, Any]]) -> List[Dict[
                 # Plain-text tool result — Anthropic accepts a plain string here
                 anthropic_tool_content = [{"type": "text", "text": str(content) if content else ""}]
             
+            pending_tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_call_id,
+                "content": anthropic_tool_content,
+            })
+            continue
+
+        flush_tool_results()
+
+        tool_calls = msg.get("tool_calls")
+        if role == "assistant" and isinstance(tool_calls, list) and tool_calls:
+            assistant_content: List[Dict[str, Any]] = []
+            if isinstance(content, str) and content:
+                text_block: Dict[str, Any] = {"type": "text", "text": content}
+                if _should_cache_content(content):
+                    text_block["cache_control"] = {"type": "ephemeral"}
+                assistant_content.append(text_block)
+            elif isinstance(content, list):
+                assistant_content.extend(copy.deepcopy(content))
+
+            for tool_call in tool_calls:
+                function = tool_call.get("function") or {}
+                assistant_content.append({
+                    "type": "tool_use",
+                    "id": tool_call.get("id", ""),
+                    "name": function.get("name", ""),
+                    "input": tool_input(tool_call),
+                })
+
             anthropic_messages.append({
-                "role": "user",
-                "content": [
-                    {
-                        "type": "tool_result",
-                        "tool_use_id": tool_call_id,
-                        "content": anthropic_tool_content,
-                    }
-                ]
+                "role": "assistant",
+                "content": assistant_content,
             })
             continue
         
@@ -191,6 +253,7 @@ def _prepare_messages_with_caching(messages: List[Dict[str, Any]]) -> List[Dict[
                 "content": content
             })
             
+    flush_tool_results()
     return anthropic_messages
 
 

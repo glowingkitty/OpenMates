@@ -1,8 +1,7 @@
 """Contracts for opt-in scanner persistence and critical delivery.
 
 Temporary state and isolated environment variables protect operator data.
-A subprocess guard forbids OpenCode launches even when a regression removes
-a collection-mode early return. No test may invoke a real agent or send mail.
+No test may invoke a real agent or send mail.
 """
 
 # contract-test-file: infrastructure
@@ -11,8 +10,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import sys
-import subprocess
-
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -21,18 +18,9 @@ import security_scan_reporting as reporting
 
 @pytest.fixture(autouse=True)
 def isolated_reporting_environment(monkeypatch):
-    """Never inherit operator state or launch OpenCode from offline regressions."""
+    """Never inherit operator state in offline regressions."""
     for name in ("SECURITY_REPORTING_DIR", "SECURITY_REPORTING_COLLECTION_ONLY", "SECURITY_REPORTING_SLOT", "CRON_SESSION_EMAILS_DISABLED", "DRY_RUN", "SUMMARY_ONLY"):
         monkeypatch.delenv(name, raising=False)
-    original_popen = subprocess.Popen
-
-    def guarded_popen(command, *args, **kwargs):
-        executable = command[0] if isinstance(command, (list, tuple)) else command.split()[0]
-        if Path(executable).name == "opencode":
-            raise AssertionError("OpenCode subprocesses are forbidden in reporting tests")
-        return original_popen(command, *args, **kwargs)
-
-    monkeypatch.setattr(subprocess, "Popen", guarded_popen)
 
 
 # Reporting coverage: security-reporting.coverage.no-false-clean

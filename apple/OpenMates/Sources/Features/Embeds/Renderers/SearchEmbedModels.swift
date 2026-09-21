@@ -147,10 +147,10 @@ struct WebsiteResultModel: Identifiable {
         url = resolvedURL
         sourceDomain = EmbedFieldReader.host(from: resolvedURL) ?? resolvedURL
         title = EmbedFieldReader.string(raw, keys: ["title", "site_name", "profile_name"]) ?? sourceDomain
-        faviconURL = EmbedFieldReader.proxiedImageURL(
-            EmbedFieldReader.string(raw, keys: ["meta_url_favicon", "favicon_url", "favicon", "meta_url.favicon"]),
-            maxWidth: 64
-        ) ?? EmbedFieldReader.proxiedFaviconURL(pageURL: resolvedURL)
+        faviconURL = EmbedFieldReader.proxiedFaviconImageURL(
+            directURL: EmbedFieldReader.string(raw, keys: ["meta_url_favicon", "favicon_url", "favicon", "meta_url.favicon"]),
+            pageURL: resolvedURL
+        )
         previewImageURL = EmbedFieldReader.proxiedImageURL(
             EmbedFieldReader.string(raw, keys: [
                 "thumbnail_original", "thumbnail_src", "thumbnail_url",
@@ -485,22 +485,39 @@ enum EmbedFieldReader {
         return decoded.isEmpty ? nil : decoded
     }
 
-    static func proxiedImageURL(_ rawURL: String?, maxWidth: Int) -> String? {
-        guard let rawURL, !rawURL.isEmpty else { return nil }
-        if shouldLoadDirectly(rawURL) {
+    static func proxiedImageURL(
+        _ rawURL: String?, maxWidth: Int,
+        webBaseURL: URL = ServerProfile.current().webBaseURL
+    ) -> String? {
+        guard let rawURL = rawURL?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !rawURL.isEmpty else { return nil }
+        if shouldLoadDirectly(rawURL) || rawURL.hasPrefix("data:") {
             return rawURL
         }
-        if rawURL.hasPrefix("https://preview.openmates.org/api/v1/image")
-            || rawURL.hasPrefix("data:")
-            || rawURL.hasPrefix("/") {
+        // Native URLSession needs an absolute URL for the web's same-origin
+        // /store-examples assets. A //host URL is external and stays proxied.
+        if rawURL.hasPrefix("/"), !rawURL.hasPrefix("//") {
+            return URL(string: rawURL, relativeTo: webBaseURL)?.absoluteURL.absoluteString
+        }
+        if let existing = URLComponents(string: rawURL),
+           existing.scheme == "https", existing.host == "preview.openmates.org",
+           existing.path == "/api/v1/image" {
             return rawURL
         }
         var components = URLComponents(string: "https://preview.openmates.org/api/v1/image")
         components?.queryItems = [
-            URLQueryItem(name: "url", value: rawURL),
+            URLQueryItem(name: "url", value: rawURL.hasPrefix("//") ? "https:" + rawURL : rawURL),
             URLQueryItem(name: "max_width", value: "\(maxWidth)")
         ]
         return components?.url?.absoluteString ?? rawURL
+    }
+
+    static func proxiedFaviconImageURL(directURL: String?, pageURL: String?) -> String? {
+        let direct = directURL?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let source = direct?.isEmpty == false ? direct : proxiedFaviconURL(pageURL: pageURL)
+        // Match the rendered web's extraction → raster image proxy path. This
+        // performs one bounded wrap; an existing image-proxy URL stays unchanged.
+        return proxiedImageURL(source, maxWidth: 38)
     }
 
     static func proxiedFaviconURL(pageURL: String?) -> String? {

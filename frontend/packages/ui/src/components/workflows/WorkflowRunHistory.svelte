@@ -6,9 +6,14 @@
 -->
 
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import { text } from '../../i18n/translations';
+  import { record } from './workflowBuilder';
   import WorkflowGraphRenderer from './WorkflowGraphRenderer.svelte';
   import { focusTrap } from '../../actions/focusTrap';
   import { getLucideIcon } from '../../utils/categoryUtils';
+  import SettingsDropdown from '../settings/elements/SettingsDropdown.svelte';
+  import { orderWorkflowRunsForTimeline } from './workflowRunTimeline';
   import {
     workflowWorkspaceStore,
     type WorkflowDetail,
@@ -39,20 +44,39 @@
   let errorMessage = $state<string | null>(null);
   let cancelConfirmationOpen = $state(false);
   let cancelling = $state(false);
+  let deleting = $state(false);
   let statusOverrides = $state<Record<string, string>>({});
 
   const RUN_POLL_INTERVAL_MS = 2_000;
+  const TIMELINE_POLL_INTERVAL_MS = 5_000;
   const MAX_RUN_POLL_ATTEMPTS = 60;
-  const TERMINAL_RUN_STATUSES = new Set(['completed', 'failed', 'cancelled', 'skipped']);
+  const UPCOMING_RUN_ID = '__upcoming__';
+  const TERMINAL_RUN_STATUSES = new Set(['completed', 'failed', 'cancelled', 'skipped', 'skipped_by_user']);
 
-  const selectedRun = $derived(runs.find((run) => run.id === selectedRunId) ?? runs[0] ?? null);
-  const selectedStatus = $derived(selectedRunDetail?.status ?? (selectedRun ? statusOverrides[selectedRun.id] ?? selectedRun.status : ''));
-  const canCancel = $derived(['queued', 'running', 'waiting'].includes(selectedStatus));
-  const StatusIcon = getLucideIcon('activity');
+  const timelineRuns = $derived(orderWorkflowRunsForTimeline(runs));
+  const nextRunAt = $derived(workflow.enabled && workflow.next_run_at && workflow.next_run_at > Date.now() / 1000 ? workflow.next_run_at : null);
+  const upcomingSelected = $derived(nextRunAt !== null && (selectedRunId === UPCOMING_RUN_ID || timelineRuns.length === 0));
+  const selectedRun = $derived(selectedRunId === UPCOMING_RUN_ID
+    ? null
+    : timelineRuns.find((run) => run.id === selectedRunId) ?? timelineRuns[0] ?? null);
+  const selectedStatus = $derived(upcomingSelected ? '' : selectedRunDetail?.status ?? (selectedRun ? statusOverrides[selectedRun.id] ?? selectedRun.status : ''));
+  const canCancel = $derived(!upcomingSelected && ['queued', 'running', 'waiting'].includes(selectedStatus));
+  const Clock = getLucideIcon('clock');
+  const Trash = getLucideIcon('trash-2');
+  const Back = getLucideIcon('chevron-left');
+  const tr = (key: string) => $text(`workflows.runs.${key}`);
+  const selectedDeliveryPending = $derived(selectedRunDetail ? hasPendingDelivery(selectedRunDetail) : false);
+  const timezone = $derived(String(record(workflow.graph.nodes.find(node => node.type === 'schedule_trigger')?.config?.schedule).timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone));
+  function hasPendingDelivery(run: WorkflowRunDetail): boolean {
+    return Object.values(record(run.output_summary?.deliveries)).some(value => ['delivery_pending', 'claimed'].includes(String(record(value).status)));
+  }
+  function statusIcon(status: string) {
+    return getLucideIcon(status === 'completed' ? 'circle-check' : status === 'failed' ? 'triangle-alert' : status === 'cancelled' ? 'circle-x' : 'clock');
+  }
 
+  const selectedRunKey = $derived(`${workflow.id}/${selectedRun?.id ?? ''}`);
   $effect(() => {
-    const workflowId = workflow.id;
-    const runId = selectedRun?.id;
+    const [workflowId, runId] = selectedRunKey.split('/');
     if (!runId) {
       selectedRunDetail = null;
       selectedGraph = null;
@@ -65,18 +89,76 @@
     async function refreshRun(): Promise<void> {
       const detail = await loadRun(workflowId, runId, attempts > 0);
       attempts += 1;
-      if (disposed || !detail || TERMINAL_RUN_STATUSES.has(detail.status) || attempts >= MAX_RUN_POLL_ATTEMPTS) return;
-      timeoutId = setTimeout(() => void refreshRun(), RUN_POLL_INTERVAL_MS);
+      if (disposed || !detail || (TERMINAL_RUN_STATUSES.has(detail.status) && !hasPendingDelivery(detail)) || attempts >= MAX_RUN_POLL_ATTEMPTS) return;
+      timeoutId = setTimeout(() => void refreshRun(), Math.min(RUN_POLL_INTERVAL_MS + attempts * 500, 8000));
     }
 
-    void refreshRun();
+    untrack(() => void refreshRun());
     return () => {
       disposed = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
   });
 
+  const timelinePollKey = $derived(workflow.id);
+  $effect(() => {
+    const workflowId = timelinePollKey;
+    let disposed = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let refreshInFlight = false;
+
+    async function refreshTimeline(): Promise<void> {
+      if (disposed || document.hidden || refreshInFlight) return;
+      refreshInFlight = true;
+      try {
+        await workflowWorkspaceStore.selectWorkflow(workflowId, { force: true });
+      } catch (error) {
+        if (!disposed) console.error('[WorkflowRunHistory] Timeline refresh failed', error);
+      } finally {
+        refreshInFlight = false;
+      }
+      scheduleRefresh();
+    }
+
+    function scheduleRefresh(delay = TIMELINE_POLL_INTERVAL_MS): void {
+      if (disposed || document.hidden || timeoutId) return;
+      timeoutId = setTimeout(() => {
+        timeoutId = null;
+        void refreshTimeline();
+      }, delay);
+    }
+
+    function handleVisibilityChange(): void {
+      if (document.hidden) {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = null;
+      } else {
+        scheduleRefresh(0);
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    scheduleRefresh();
+    return () => {
+      disposed = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  });
+
+  async function deleteRun(): Promise<void> {
+    if (!selectedRun || !window.confirm($text('workflows.builder.delete_run_confirm'))) return;
+    deleting = true;
+    try {
+      const status = await workflowWorkspaceStore.deleteWorkflowRun(workflow.id, selectedRun.id);
+      if (status === 'deletion_pending') errorMessage = $text('workflows.builder.deletion_pending');
+      else { selectedRunDetail = null; selectedGraph = null; const next = runs.find(run => run.id !== selectedRun?.id); if (next) onSelectRun(next.id); }
+    } catch (error) { console.error('[WorkflowRunHistory] Delete failed', error); errorMessage = tr('delete_failed'); }
+    finally { deleting = false; }
+  }
+
   async function loadRun(workflowId: string, runId: string, preserveExisting = false): Promise<WorkflowRunDetail | null> {
+    if (runId === UPCOMING_RUN_ID) return null;
     if (!preserveExisting) loading = true;
     errorMessage = null;
     cancelConfirmationOpen = false;
@@ -99,7 +181,8 @@
       return detail;
     } catch (error) {
       if (workflow.id === workflowId && selectedRun?.id === runId) {
-        errorMessage = error instanceof Error ? error.message : 'Failed to load this Workflow run.';
+        console.error('[WorkflowRunHistory] Loading failed', error);
+        errorMessage = tr('load_failed');
       }
       return null;
     } finally {
@@ -120,131 +203,131 @@
       if (selectedRunDetail?.id === runId) selectedRunDetail = { ...selectedRunDetail, status };
       cancelConfirmationOpen = false;
     } catch (error) {
-      errorMessage = error instanceof Error ? error.message : 'Failed to cancel this Workflow run.';
+      console.error('[WorkflowRunHistory] Cancellation failed', error);
+      errorMessage = tr('cancel_failed');
     } finally {
       cancelling = false;
     }
   }
 
   function formatStatus(status: string): string {
-    return status.replaceAll('_', ' ');
+    const normalizedStatus = status === 'skipped_by_user' ? 'skipped' : status;
+    const key = ['completed','failed','cancelled','skipped','planned','queued','running','waiting','cancellation_requested'].includes(normalizedStatus) ? normalizedStatus : 'unavailable';
+    return tr(`status_${key}`);
   }
 
-  function formatTimestamp(timestampSeconds?: number | null): string {
-    if (!timestampSeconds) return 'Time unavailable';
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestampSeconds * 1000));
+  function formatDay(timestampSeconds?: number | null): string {
+    if (!timestampSeconds) return tr('time_unavailable');
+    const date = new Date(timestampSeconds * 1000);
+    const calendar = new Intl.DateTimeFormat('en-CA', { year:'numeric', month:'2-digit', day:'2-digit', timeZone:timezone });
+    for (const offset of [0, -1, 1]) {
+      if (calendar.format(date) === calendar.format(new Date(Date.now() + offset * 86400000))) {
+        const relative = new Intl.RelativeTimeFormat(undefined, { numeric:'auto' }).format(offset,'day');
+        return relative.charAt(0).toUpperCase() + relative.slice(1);
+      }
+    }
+    return new Intl.DateTimeFormat(undefined, { month:'short', day:'numeric', timeZone:timezone }).format(date);
   }
+  function formatTime(timestampSeconds?: number | null): string {
+    return timestampSeconds ? new Intl.DateTimeFormat(undefined, { hour:'numeric', minute:'2-digit', hour12:false, timeZone:timezone }).format(new Date(timestampSeconds * 1000)) : '';
+  }
+  function formatTimestamp(timestampSeconds?: number | null): string { return `${formatDay(timestampSeconds)}${timestampSeconds ? ', ' + formatTime(timestampSeconds) : ''}`; }
 
   function ignoreGraphChange(_graph: WorkflowGraph): void {}
 </script>
 
-<div id="tabpanel-runs" class="runs-panel" data-testid="workflow-runs" role="tabpanel" aria-label="Workflow runs">
-  <header>
-    <div><p>Workflow runs</p><h2 data-testid="workflow-run-history-title">Execution history</h2></div>
-    <a href={editorHref} data-testid="workflow-runs-back-to-editor" onclick={(event) => { event.preventDefault(); onOpenEditor(); }}>Back to Template</a>
-  </header>
-
-  {#if workflow.next_run_at || runs.length > 0}
-    <div class="run-selector" data-testid="workflow-run-selector" aria-label="Selected Workflow run">
-      {selectedRun ? formatTimestamp(selectedRun.started_at) : formatTimestamp(workflow.next_run_at)}
-      <span aria-hidden="true">⌄</span>
+<div id="tabpanel-runs" class="runs-panel" data-testid="workflow-runs" role="tabpanel" aria-label={tr('history')}>
+  <h2 class="sr-only" data-testid="workflow-run-history-title">{tr('history')}</h2>
+  <div class="run-toolbar">
+    <a class="context-action editor-link" href={editorHref} aria-label={tr('back_to_workflow')} title={tr('back_to_workflow')} data-testid="workflow-runs-back-to-editor" onclick={event => { event.preventDefault(); onOpenEditor(); }}><Back size={18}/></a>
+    {#if selectedRun || upcomingSelected}
+      <label class="run-selector" data-testid="workflow-run-selector"><span>{tr('run')}:</span><SettingsDropdown dataTestid="workflow-run-select" ariaLabel={tr('select_run')} value={upcomingSelected ? UPCOMING_RUN_ID : selectedRun?.id ?? ''} options={[...(nextRunAt ? [{ value: UPCOMING_RUN_ID, label: `${tr('next')}: ${formatTimestamp(nextRunAt)}` }] : []), ...timelineRuns.map(run => ({ value: run.id, label: formatTimestamp(run.started_at) }))]} onChange={onSelectRun}/></label>
+    {:else if nextRunAt}<span class="run-selector" data-testid="workflow-run-selector">{tr('run')}: {formatTimestamp(nextRunAt)}</span>{/if}
+    <div class="run-actions">
+      {#if canCancel}<button type="button" class="context-action cancel-action" data-testid="workflow-run-cancel" onclick={() => cancelConfirmationOpen = true}>{tr('cancel')}</button>{/if}
+      {#if selectedRun}<button type="button" class="context-action" data-testid="workflow-delete-run" aria-label={$text('workflows.builder.delete_run')} title={$text('workflows.builder.delete_run')} disabled={deleting || !TERMINAL_RUN_STATUSES.has(selectedStatus)} onclick={() => void deleteRun()}><Trash size={17}/></button>{/if}
     </div>
-    <div class="run-timeline" data-testid="workflow-run-timeline" aria-label="Workflow run timeline">
-      {#if workflow.next_run_at}
-        <article class="run-marker next" data-testid="workflow-next-run-marker">
-          <StatusIcon size={18} /><strong>Next</strong><span>{formatTimestamp(workflow.next_run_at)}</span>
-        </article>
-      {/if}
-      {#each runs as run (run.id)}
-        {@const status = statusOverrides[run.id] ?? run.status}
-        <button
-          type="button"
-          class="run-marker"
-          class:selected={selectedRun?.id === run.id}
-          data-testid="workflow-run-marker"
-          data-run-id={run.id}
-          data-run-status={status}
-          onclick={() => onSelectRun(run.id)}
-        >
-          <StatusIcon size={18} /><strong>{formatStatus(status)}</strong><span>{formatTimestamp(run.started_at)}</span>
-        </button>
-      {/each}
-    </div>
-  {:else}
-    <p class="empty-copy" data-testid="workflow-runs-empty">No Workflow runs yet.</p>
-  {/if}
+  </div>
 
-  {#if loading}
-    <p class="loading" data-testid="workflow-run-loading">Loading execution detail...</p>
+  {#if nextRunAt || runs.length > 0}
+    <div class="run-timeline" data-testid="workflow-run-timeline" aria-label={tr('timeline')}>
+      <div class="timeline-track">
+        {#if nextRunAt}
+          <button type="button" class="run-marker next" class:selected={upcomingSelected} data-testid="workflow-next-run-marker" aria-pressed={upcomingSelected} aria-label={`${tr('next')}: ${formatTimestamp(nextRunAt)}`} onclick={() => onSelectRun(UPCOMING_RUN_ID)}>
+            <span class="status-pill next-status"><Clock size={12}/><strong>{tr('next')}</strong></span><span class="marker-date">{formatDay(nextRunAt)}</span><span class="marker-time">{formatTime(nextRunAt)}</span>
+          </button>
+        {/if}
+        {#each timelineRuns as run (run.id)}
+          {@const status = statusOverrides[run.id] ?? run.status}
+          {@const pending = selectedRun?.id === run.id && selectedDeliveryPending}
+          {@const Icon = statusIcon(pending ? 'waiting' : status)}
+          <button type="button" class="run-marker" class:selected={selectedRun?.id === run.id} data-testid="workflow-run-marker" data-run-id={run.id} data-run-status={status} aria-pressed={selectedRun?.id === run.id} aria-label={`${formatTimestamp(run.started_at)}: ${pending ? tr('delivery_pending') : formatStatus(status)}`} onclick={() => onSelectRun(run.id)}>
+            <span class="status-pill" class:complete={status === 'completed' && !pending} class:failed={status === 'failed'}><Icon size={status === 'completed' && !pending ? 18 : 13}/><strong class:sr-only={status === 'completed' && !pending}>{formatStatus(pending ? 'waiting' : status)}</strong></span>
+            <span class="marker-date">{formatDay(run.started_at)}</span><span class="marker-time">{formatTime(run.started_at)}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {:else}<p class="empty-copy" data-testid="workflow-runs-empty">{tr('empty')}</p>{/if}
+
+  {#if upcomingSelected && nextRunAt}
+    <section class="run-detail upcoming-detail" data-testid="workflow-upcoming-run-detail">
+      <p class="upcoming-status" role="status"><Clock size={14}/><strong>{tr('next')}</strong><span>{formatTimestamp(nextRunAt)}</span></p>
+      <WorkflowGraphRenderer graph={workflow.graph} readOnly nodeRuns={[]} testId="workflow-upcoming-run-graph" onChange={ignoreGraphChange} onSave={null}/>
+    </section>
+  {:else if loading}<p class="loading" data-testid="workflow-run-loading">{tr('loading')}</p>
   {:else if selectedRun && selectedRunDetail}
     <section class="run-detail" data-testid="workflow-run-detail">
-      <div class="run-detail-heading">
-        <div><span>Executed definition</span><h3>{formatStatus(selectedRunDetail.status)}</h3></div>
-        {#if canCancel}
-          <button type="button" class="cancel-action" data-testid="workflow-run-cancel" onclick={() => (cancelConfirmationOpen = true)}>Cancel run</button>
-        {/if}
-      </div>
-
-      {#if selectedRunDetail.content_available === false}
-        <div class="unavailable" data-testid="workflow-run-content-unavailable">
-          Retained input and output are no longer available. Execution and node statuses remain visible.
-        </div>
-      {/if}
-
-      {#if selectedGraph}
-        <WorkflowGraphRenderer
-          graph={selectedGraph}
-          readOnly
-          nodeRuns={selectedRunDetail.node_runs ?? []}
-          testId="workflow-run-graph"
-          onChange={ignoreGraphChange}
-        />
-      {/if}
-
-      {#if selectedRunDetail.error_summary}
-        <p class="run-error" role="alert">{selectedRunDetail.error_summary}</p>
-      {/if}
+      {#if selectedDeliveryPending}<p class="delivery-status" role="status"><Clock size={14}/>{tr('delivery_pending')}</p>{/if}
+      {#if selectedRunDetail.content_available === false}<p class="unavailable" data-testid="workflow-run-content-unavailable">{tr('content_unavailable')}</p>{/if}
+      {#if selectedGraph}<WorkflowGraphRenderer graph={selectedGraph} readOnly nodeRuns={selectedRunDetail.node_runs ?? []} testId="workflow-run-graph" onChange={ignoreGraphChange} onSave={null}/>{/if}
+      {#if selectedRunDetail.error_summary}<p class="run-error" role="alert">{tr('execution_failed')}</p>{/if}
     </section>
   {/if}
 
   {#if cancelConfirmationOpen}
-    <div class="cancel-confirmation" data-testid="workflow-run-cancel-confirmation" role="dialog" aria-modal="true" aria-label="Cancel Workflow run" use:focusTrap={{ onEscape: () => (cancelConfirmationOpen = false) }}>
-      <h3>Cancel this run?</h3>
-      <p>The current execution will stop at the next safe boundary.</p>
-      <div>
-        <button type="button" onclick={() => (cancelConfirmationOpen = false)}>Keep running</button>
-        <button type="button" class="danger" data-testid="workflow-run-cancel-confirm" disabled={cancelling} onclick={() => void cancelSelectedRun()}>{cancelling ? 'Cancelling...' : 'Cancel run'}</button>
-      </div>
-    </div>
+    <div class="confirmation-backdrop" role="presentation"><div class="cancel-confirmation" data-testid="workflow-run-cancel-confirmation" role="dialog" aria-modal="true" aria-label={tr('cancel_title')} use:focusTrap={{ onEscape: () => cancelConfirmationOpen = false }}>
+      <h3>{tr('cancel_title')}</h3><p>{tr('cancel_explanation')}</p>
+      <div><button type="button" onclick={() => cancelConfirmationOpen = false}>{tr('keep_running')}</button><button type="button" class="danger" data-testid="workflow-run-cancel-confirm" disabled={cancelling} onclick={() => void cancelSelectedRun()}>{tr(cancelling ? 'cancelling' : 'cancel')}</button></div>
+    </div></div>
   {/if}
-
   {#if errorMessage}<p class="run-error" role="alert" data-testid="workflow-run-error">{errorMessage}</p>{/if}
 </div>
 
 <style>
-  .runs-panel { display: grid; gap: var(--spacing-6); margin: var(--spacing-8); padding: var(--spacing-8); border-radius: var(--radius-12); background: var(--color-grey-10); }
-  header { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-5); text-align: start; }
-  header p, header h2, .run-detail-heading h3, .run-detail-heading span, .cancel-confirmation h3, .cancel-confirmation p { margin: 0; }
-  header p { color: var(--color-font-secondary); font-size: var(--font-size-xs); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-  header a { border-radius: var(--radius-full); padding: var(--spacing-3) var(--spacing-5); color: var(--color-font-button); background: var(--color-button-primary); font-weight: 800; text-decoration: none; }
-  .run-selector { justify-self: center; display: flex; align-items: center; gap: var(--spacing-3); border: 0; border-radius: var(--radius-full); padding: var(--spacing-3) var(--spacing-5); color: var(--color-font-primary); background: var(--color-grey-20); font: inherit; font-weight: 700; }
-  .run-timeline { position: relative; display: flex; gap: var(--spacing-4); overflow-x: auto; padding: var(--spacing-6) var(--spacing-2) var(--spacing-3); scrollbar-width: thin; }
-  .run-timeline::before { content: ''; position: absolute; inset: 31px var(--spacing-5) auto; height: 2px; background: var(--color-grey-30); }
-  .run-marker { position: relative; z-index: 1; box-sizing: border-box; display: grid; min-height: 96px; flex: 0 0 190px; align-content: center; justify-items: center; gap: var(--spacing-2); padding: var(--spacing-4); border: 1px solid transparent; border-radius: var(--radius-8); color: var(--color-font-primary); background: var(--color-grey-0); font: inherit; text-transform: capitalize; cursor: pointer; }
-  .run-marker span { color: var(--color-font-secondary); font-size: var(--font-size-xs); }
-  .run-marker.selected { border-color: var(--color-button-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-button-primary) 16%, transparent); }
-  .run-marker.next { color: var(--color-button-primary); }
-  .run-marker[data-run-status='completed'] strong { color: var(--color-success); }
-  .run-marker[data-run-status='failed'] strong { color: var(--color-danger); }
-  .run-detail { display: grid; gap: var(--spacing-5); border-radius: var(--radius-10); background: var(--color-grey-0); box-shadow: var(--shadow-lg); }
-  .run-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-5); padding: var(--spacing-6) var(--spacing-8) 0; }
-  .run-detail-heading span { color: var(--color-font-secondary); font-size: var(--font-size-small); }
-  .cancel-action, .cancel-confirmation button { border: 0; border-radius: var(--radius-full); padding: var(--spacing-3) var(--spacing-5); color: var(--color-font-primary); background: var(--color-grey-20); font: inherit; font-weight: 800; cursor: pointer; }
-  .unavailable { margin-inline: var(--spacing-8); padding: var(--spacing-5); border-radius: var(--radius-6); color: var(--color-font-secondary); background: var(--color-grey-10); }
-  .cancel-confirmation { display: grid; gap: var(--spacing-4); padding: var(--spacing-6); border-radius: var(--radius-8); color: var(--color-font-primary); background: var(--color-grey-0); box-shadow: var(--shadow-lg); }
-  .cancel-confirmation div { display: flex; justify-content: flex-end; gap: var(--spacing-3); }
-  .cancel-confirmation .danger { color: var(--color-grey-0); background: var(--color-danger); }
-  .run-error { margin: 0; color: var(--color-danger); }
-  .empty-copy, .loading { margin: 0; color: var(--color-font-secondary); text-align: center; }
-  @media (max-width: 600px) { .runs-panel { margin: var(--spacing-4); padding: var(--spacing-5); } header, .run-detail-heading { align-items: flex-start; flex-direction: column; } .cancel-action { width: 100%; } .cancel-confirmation div { display: grid; grid-template-columns: 1fr; } }
+  .runs-panel { position:relative; display:grid; font-size:var(--font-size-p); gap:0; width:min(960px,calc(100% - 4rem)); margin:0 auto 2rem; padding:2.3rem 0 2rem; box-sizing:border-box; border-radius:.75rem; color:var(--color-font-primary); background:var(--color-grey-0); }
+  .run-toolbar { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; min-height:2rem; padding:0 1rem .3rem; gap:.35rem; }
+  .run-selector { grid-column:2; display:flex; align-items:center; justify-content:center; gap:.4rem; font-size:var(--font-size-p); font-weight:650; color:var(--color-font-secondary); white-space:nowrap; }
+  .run-selector :global(.settings-dropdown-wrapper) { width:min(15rem,50vw); padding:0; }
+  .run-selector :global(.settings-dropdown) { min-height:2.25rem; padding:.45rem 2.35rem .45rem .85rem; font-size:var(--font-size-p); }
+  .context-action { display:inline-flex; align-items:center; justify-content:center; gap:.3rem; width:auto; min-width:1.8rem; min-height:1.8rem; padding:.2rem; border:0; border-radius:50%; background:transparent; color:var(--color-font-secondary); font:inherit; font-size:var(--font-size-p); text-decoration:none; cursor:pointer; box-shadow:none; }
+  .context-action:hover { color:var(--color-primary); background:var(--color-grey-10); } .context-action:disabled { opacity:.4; cursor:default; }
+  .editor-link { justify-self:start; } .run-actions { grid-column:3; display:flex; justify-content:flex-end; gap:.25rem; } .cancel-action { border-radius:.6rem; padding-inline:.4rem; }
+  .run-timeline { overflow-x:auto; overflow-y:hidden; scrollbar-width:thin; background:var(--color-grey-10); }
+  .timeline-track { position:relative; display:flex; justify-content:center; width:max-content; min-width:100%; padding:0 .8rem 0; box-sizing:border-box; }
+  .timeline-track::after { content:''; position:absolute; inset:auto .8rem .9rem; height:.65rem; background:repeating-linear-gradient(to right,var(--color-grey-40) 0 1px,transparent 1px 8px); opacity:.5; pointer-events:none; }
+  .run-marker { position:relative; flex:0 0 7rem; min-height:6.25rem; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:.12rem; padding:.45rem .25rem 1.7rem; border:0; border-radius:0; color:var(--color-font-secondary); background:transparent; box-shadow:none; font:inherit; font-size:var(--font-size-small); line-height:1.15; cursor:pointer; }
+  .run-marker::after { content:''; position:absolute; bottom:.5rem; height:1.55rem; width:1px; background:var(--color-font-primary); z-index:1; }
+  .run-marker.selected { color:var(--color-primary); } .run-marker.selected::after { background:var(--color-primary); width:2px; }
+  .run-marker.next { cursor:pointer; } .marker-date,.marker-time { font-weight:650; }
+  .status-pill { max-width:100%; line-height:1.2; display:inline-flex; align-items:center; justify-content:center; gap:.2rem; min-height:1.5rem; box-sizing:border-box; border-radius:1rem; padding:.08rem .38rem; color:var(--color-font-secondary); font-size:var(--font-size-small); }
+  .status-pill strong { min-width:0; overflow-wrap:anywhere; }
+  .status-pill.complete { padding:0; color:var(--color-success); } .status-pill.failed { background:var(--color-error); color:var(--color-font-button); } .next-status { background:var(--color-primary); color:var(--color-font-button); }
+  .run-detail { min-width:0; display:grid; gap:.5rem; padding-top:1rem; }
+  .run-detail :global([data-testid='workflow-run-graph']),.run-detail :global([data-testid='workflow-upcoming-run-graph']) { width:100%; max-width:none; margin:0; padding-bottom:1rem; }
+  .run-detail :global(.graph-canvas) { background:transparent; border-radius:0; padding-top:.25rem; }
+  .delivery-status { display:flex; align-items:center; justify-content:center; gap:.35rem; margin:.25rem 1rem; color:var(--color-font-secondary); font-size:var(--font-size-small); }
+  .upcoming-status { display:flex; align-items:center; justify-content:center; gap:.35rem; margin:.25rem 1rem; color:var(--color-font-secondary); font-size:var(--font-size-p); }
+  .unavailable,.run-error { margin:.5rem 1.25rem; padding:.6rem; border-radius:.5rem; color:var(--color-font-secondary); font-size:var(--font-size-p); text-align:center; }
+  .run-error { color:var(--color-error); }
+  .empty-copy,.loading { margin:2rem 1rem; color:var(--color-font-secondary); text-align:center; font-size:var(--font-size-p); }
+  .confirmation-backdrop { position:fixed; inset:0; display:grid; place-items:center; padding:1rem; background:#0005; z-index:var(--z-index-modal,1000); }
+  .cancel-confirmation { display:grid; gap:1rem; width:min(24rem,100%); box-sizing:border-box; padding:1.5rem; border-radius:1rem; color:var(--color-font-primary); background:var(--color-grey-0); box-shadow:var(--shadow-lg); }
+  .cancel-confirmation h3,.cancel-confirmation p { margin:0; } .cancel-confirmation p { font-size:var(--font-size-small); color:var(--color-font-secondary); }
+  .cancel-confirmation div { display:flex; justify-content:flex-end; gap:.75rem; }
+  .cancel-confirmation button { border:0; border-radius:1rem; padding:.6rem .8rem; background:var(--color-grey-20); color:var(--color-font-primary); font:inherit; font-size:var(--font-size-small); cursor:pointer; }
+  .cancel-confirmation .danger { background:var(--color-error); color:var(--color-font-button); }
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  button:focus-visible,a:focus-visible { outline:2px solid var(--color-primary); outline-offset:2px; }
+  @media(max-width:730px) { .runs-panel { width:calc(100% - 1rem); } .run-toolbar { padding-inline:.5rem; } .run-selector :global(.settings-dropdown-wrapper) { width:min(11rem,45vw); } .run-marker { flex-basis:6rem; } .timeline-track { justify-content:flex-start; } }
 </style>

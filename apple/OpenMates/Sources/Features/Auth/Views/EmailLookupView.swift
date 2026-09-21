@@ -20,11 +20,47 @@ struct EmailLookupView: View {
     let onPasskeyLogin: () -> Void
     let onPairLogin: () -> Void
     let onLookupComplete: ([LoginMethod], Bool, String?) -> Void
+    @State private var didAttemptImmediatePasskey = false
+
+    var body: some View {
+        EmailLookupForm(email: $email, stayLoggedIn: $stayLoggedIn,
+            onPasskeyLogin: onPasskeyLogin, onPairLogin: onPairLogin,
+            lookup: { email, stay in
+                let response = try await authManager.lookup(email: email, stayLoggedIn: stay)
+                onLookupComplete(response.availableLoginMethods, response.tfaEnabled, response.userEmailSalt)
+            }, immediatePasskey: attemptImmediatePasskeyLogin)
+    }
+
+    @MainActor
+    private func attemptImmediatePasskeyLogin() async {
+        #if DEBUG
+        guard !ProcessInfo.processInfo.arguments.contains("--ui-test-prefer-password-login") else { return }
+        #endif
+        guard !didAttemptImmediatePasskey else { return }
+        didAttemptImmediatePasskey = true
+        do {
+            try await PasskeyLoginCoordinator.login(authManager: authManager,
+                stayLoggedIn: stayLoggedIn, preferImmediatelyAvailableCredentials: true)
+        } catch PasskeyError.cancelled {
+            // Absence or dismissal of an immediately available OS credential is normal.
+        } catch {
+            NativeDiagnostics.info("phase=immediatePasskey.skipped", category: "auth")
+        }
+    }
+}
+
+// Shared production form. No environment account, network, or passkey dependency.
+struct EmailLookupForm: View {
+    @Binding var email: String
+    @Binding var stayLoggedIn: Bool
+    let onPasskeyLogin: () -> Void
+    let onPairLogin: () -> Void
+    let lookup: @MainActor (String, Bool) async throws -> Void
+    var immediatePasskey: (@MainActor () async -> Void)? = nil
 
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showEmailWarning = false
-    @State private var didAttemptImmediatePasskey = false
     @FocusState private var emailFocused: Bool
 
     private var hasValidEmail: Bool {
@@ -40,6 +76,7 @@ struct EmailLookupView: View {
                 title: LocalizationManager.shared.text("login.login_with_passkey"),
                 action: onPasskeyLogin
             )
+            .accessibilityIdentifier("login-passkey-option")
             .padding(.top, .spacing4)
 
             loginOption(
@@ -47,15 +84,17 @@ struct EmailLookupView: View {
                 title: LocalizationManager.shared.text("login.login_with_phone_or_pc"),
                 action: onPairLogin
             )
+            .accessibilityIdentifier("login-pair-option")
             .padding(.top, .spacing2)
 
             divider
-                .padding(.vertical, .spacing4)
+                .padding(.vertical, .spacing2)
 
             emailInput
 
             if let errorMessage {
                 Text(errorMessage)
+                    .accessibilityIdentifier("lookup-error")
                     .font(.omXs)
                     .foregroundStyle(Color.error)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -90,13 +129,8 @@ struct EmailLookupView: View {
             }
         }
         .task {
-            #if DEBUG
-            // Password workflow tests must not race an OS passkey sheet.
-            guard !ProcessInfo.processInfo.arguments.contains("--ui-test-prefer-password-login") else { return }
-            #endif
-            guard !didAttemptImmediatePasskey else { return }
-            didAttemptImmediatePasskey = true
-            await attemptImmediatePasskeyLogin()
+            guard let immediatePasskey else { return }
+            await immediatePasskey()
         }
     }
 
@@ -104,7 +138,7 @@ struct EmailLookupView: View {
         Button {
             stayLoggedIn.toggle()
         } label: {
-            HStack(spacing: .spacing6) {
+            HStack(spacing: .spacing2) {
                 ZStack(alignment: stayLoggedIn ? .trailing : .leading) {
                     Capsule()
                         .fill(stayLoggedIn ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.grey30))
@@ -135,7 +169,7 @@ struct EmailLookupView: View {
 
     private func loginOption(icon: String, title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: .spacing4) {
+            HStack(spacing: .spacing2) {
                 Icon(icon, size: 20)
                     .foregroundStyle(LinearGradient.primary)
                 Text(title)
@@ -196,7 +230,7 @@ struct EmailLookupView: View {
     }
 
     private func performLookup() {
-        guard !email.isEmpty else { return }
+        guard !email.isEmpty, !isLoading else { return }
         if let validationError = validationMessage(for: email) {
             errorMessage = validationError
             showEmailWarning = true
@@ -209,8 +243,7 @@ struct EmailLookupView: View {
 
         Task {
             do {
-                let response = try await authManager.lookup(email: email, stayLoggedIn: stayLoggedIn)
-                onLookupComplete(response.availableLoginMethods, response.tfaEnabled, response.userEmailSalt)
+                try await lookup(email, stayLoggedIn)
             } catch let error as APIError {
                 errorMessage = error.localizedDescription
             } catch {
@@ -229,18 +262,4 @@ struct EmailLookupView: View {
         return nil
     }
 
-    @MainActor
-    private func attemptImmediatePasskeyLogin() async {
-        do {
-            try await PasskeyLoginCoordinator.login(
-                authManager: authManager,
-                stayLoggedIn: stayLoggedIn,
-                preferImmediatelyAvailableCredentials: true
-            )
-        } catch PasskeyError.cancelled {
-            // No immediately available passkey or user dismissed the OS prompt.
-        } catch {
-            print("[Auth] Immediate passkey login skipped: \(error)")
-        }
-    }
 }

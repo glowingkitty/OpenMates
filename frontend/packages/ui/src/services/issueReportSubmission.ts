@@ -19,6 +19,8 @@ import { hasPendingSends } from "../stores/pendingUploadStore";
 import { logCollector } from "./logCollector";
 import { userActionTracker } from "./userActionTracker";
 import { isPublicChat } from "../demo_chats/convertToChat";
+import { uint8ArrayToBase64 } from "./cryptoService";
+import { getWebSocketToken } from "../utils/cookies";
 
 type SubmitIssueReportOptions = {
   title: string;
@@ -59,7 +61,22 @@ function collectRuntimeDebugState(activeChatId: string | null) {
   };
 }
 
-async function generateCurrentContextUrl(): Promise<string | null> {
+function collectVisibleChatMessageTexts(): string[] {
+  return Array.from(document.querySelectorAll('[data-message-id]'))
+    .flatMap((message) => {
+      const renderedBodies = Array.from(
+        message.querySelectorAll('.read-only-message .ProseMirror, .chat-message-text .ProseMirror'),
+      )
+        .map((body) => body.textContent?.trim() ?? '')
+        .filter(Boolean);
+      return renderedBodies.length > 0
+        ? renderedBodies
+        : [message.textContent?.trim() ?? ''];
+    })
+    .filter((message) => message.length >= 3);
+}
+
+export async function generateCurrentContextUrl(): Promise<string | null> {
   const baseUrl = window.location.origin;
   const activeEmbedId = get(activeEmbedStore);
   if (activeEmbedId) {
@@ -82,14 +99,7 @@ async function generateCurrentContextUrl(): Promise<string | null> {
     if (!chatKey) chatKey = await chatKeyManager.getKey(activeChatId);
     if (!chatKey) return null;
 
-    let chatKeyBase64: string;
-    if (chatKey instanceof Uint8Array) {
-      let binary = "";
-      chatKey.forEach((byte) => { binary += String.fromCharCode(byte); });
-      chatKeyBase64 = btoa(binary);
-    } else {
-      chatKeyBase64 = chatKey;
-    }
+    const chatKeyBase64 = uint8ArrayToBase64(chatKey);
     const { generateShareKeyBlob } = await import("./shareEncryption");
     const encryptedBlob = await generateShareKeyBlob(activeChatId, chatKeyBase64, 0, undefined);
     return `${baseUrl}/share/chat/${activeChatId}#key=${encryptedBlob}`;
@@ -99,8 +109,77 @@ async function generateCurrentContextUrl(): Promise<string | null> {
   }
 }
 
+/**
+ * Make the context referenced by an issue-report share URL available to a
+ * fresh viewer before the report itself is submitted. The fragment key is
+ * deliberately never sent to the metadata endpoint.
+ */
+export async function ensureIssueReportContextIsShared(
+  shareUrl: string,
+): Promise<void> {
+  const parsed = new URL(shareUrl, window.location.origin);
+  const chatMatch = parsed.pathname.match(/^\/share\/chat\/([^/]+)$/);
+  const embedMatch = parsed.pathname.match(/^\/share\/embed\/([^/]+)$/);
+
+  if (!chatMatch && !embedMatch) return;
+
+  const isChat = Boolean(chatMatch);
+  const contentId = decodeURIComponent((chatMatch ?? embedMatch)![1]);
+  const endpoint = isChat
+    ? "/v1/share/chat/metadata"
+    : "/v1/share/embed/metadata";
+  const body = isChat
+    ? {
+        chat_id: contentId,
+        title: null,
+        summary: null,
+        is_shared: true,
+        share_pii: false,
+        share_highlights: false,
+      }
+    : {
+        embed_id: contentId,
+        title: null,
+        description: null,
+        is_shared: true,
+      };
+
+  const response = await fetch(getApiEndpoint(endpoint), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Origin: window.location.origin,
+    },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.success !== true) {
+    throw new Error("Failed to make the issue-report context shareable");
+  }
+
+  if (isChat) {
+    const { chatDB } = await import("./db");
+    const chat = await chatDB.getChat(contentId);
+    if (chat) {
+      await chatDB.updateChat({
+        ...chat,
+        is_shared: true,
+        is_private: false,
+        share_pii: false,
+        share_highlights: false,
+      });
+      window.dispatchEvent(
+        new CustomEvent("chatShared", { detail: { chat_id: contentId } }),
+      );
+    }
+  }
+}
+
 export async function submitIssueReport(options: SubmitIssueReportOptions): Promise<SubmitIssueReportResult> {
   const activeChatId = get(activeChatStore);
+  const visibleChatMessages = collectVisibleChatMessageTexts();
   const currentLanguage = localStorage.getItem("preferredLanguage")
     || navigator.language.split("-")[0]
     || "en";
@@ -113,6 +192,9 @@ export async function submitIssueReport(options: SubmitIssueReportOptions): Prom
   }
 
   const chatOrEmbedUrl = options.shareCurrentChat ? await generateCurrentContextUrl() : null;
+  if (chatOrEmbedUrl) {
+    await ensureIssueReportContextIsShared(chatOrEmbedUrl);
+  }
   const response = await fetch(getApiEndpoint("/v1/settings/issues"), {
     method: "POST",
     headers: {
@@ -129,7 +211,7 @@ export async function submitIssueReport(options: SubmitIssueReportOptions): Prom
       contact_email: null,
       language: currentLanguage,
       device_info: collectDeviceInfo(),
-      console_logs: logCollector.getLogsAsText(100),
+      console_logs: logCollector.getIssueReportLogsAsText(100, visibleChatMessages),
       indexeddb_report: null,
       last_messages_html: null,
       active_chat_sidebar_html: null,
@@ -138,7 +220,6 @@ export async function submitIssueReport(options: SubmitIssueReportOptions): Prom
       screenshot_png_base64: null,
       picked_element_html: null,
       trace_ids: recentTraceIds,
-      add_to_linear: true,
       send_email_notification: true,
       ephemeral_session_id: sessionStorage.getItem("ephemeral_session_id") ?? null,
     }),
@@ -155,12 +236,17 @@ export async function submitIssueReport(options: SubmitIssueReportOptions): Prom
   const issueId = data.issue_id || "";
   const shortIssueId = data.short_issue_id || "";
   if (issueId && get(authStore).isAuthenticated) {
+    const wsToken = getWebSocketToken();
     void fetch(getApiEndpoint(apiEndpoints.settings.issueLogs), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(wsToken ? { "X-WS-Token": wsToken } : {}),
+      },
       body: JSON.stringify({
         issue_id: issueId,
-        logs_text: logCollector.getLogsAsText(150),
+        logs_text: logCollector.getIssueReportLogsAsText(150, visibleChatMessages),
         page_url: window.location.pathname,
         user_agent: navigator.userAgent,
       }),

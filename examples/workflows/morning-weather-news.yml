@@ -1,0 +1,45 @@
+# Berlin demo. Edit the location, news topic and timezone before enabling.
+title: Morning weather and news
+description: A deterministic morning update at 09:00, including rain timing when forecast.
+start_when:
+  schedule:
+    type: daily
+    time: "09:00"
+    timezone: Europe/Berlin
+run_content_retention: last_5
+steps:
+  - id: weather
+    use_app_skill: weather.forecast
+    input:
+      location: Berlin
+      start_date:
+        $date: today
+        format: date
+      end_date:
+        $date: today
+        format: date
+      timezone: Europe/Berlin
+  - id: rain_check
+    check:
+      left: $nodes.weather.output.rain_expected
+      op: eq
+      right: true
+  - id: news
+    use_app_skill: news.search
+    input:
+      requests:
+        - query: Germany news
+          freshness: pd
+          count: 10
+  - id: report
+    send_chat_message:
+      title: Your morning weather and news
+      message: Here is your morning update.
+      blocks:
+        - id: rain
+          label: Rain today
+          source: $nodes.weather.output.rain_summary
+          include_if: $nodes.rain_check.output.matched
+        - id: news
+          label: Latest news
+          source: $nodes.news.output.results

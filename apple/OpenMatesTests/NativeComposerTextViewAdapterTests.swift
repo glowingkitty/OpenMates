@@ -290,6 +290,23 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         XCTAssertTrue(adapter.excludePII(atUTF16Offset: first.range.location))
         XCTAssertEqual(excludedIDs, [first.id])
     }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testPIITapHandlingDoesNotCompeteWithEditorFocusAndSelection() throws {
+        let controller = try NativeComposerController(
+            document: ComposerDocumentV1(version: 1, nodes: [.text(id: "text-1", source: "alice@example.com")]),
+            selection: NSRange(location: 0, length: 0)
+        )
+        let adapter = makeAdapter(controller: controller)
+        let textView = adapter.makePlatformView()
+        let exclusionTap = try XCTUnwrap(textView.gestureRecognizers?.first { $0.delegate === adapter })
+        XCTAssertFalse(exclusionTap.isEnabled, "Ordinary editor taps must not enter highlight handling")
+        adapter.updatePIIDecorations([.init(id: "email", range: NSRange(location: 0, length: 17))], onExclude: { _ in })
+        XCTAssertTrue(exclusionTap.isEnabled)
+        XCTAssertTrue(adapter.gestureRecognizer(exclusionTap, shouldRecognizeSimultaneouslyWith: UITapGestureRecognizer()))
+        adapter.updatePIIDecorations([], onExclude: { _ in })
+        XCTAssertFalse(exclusionTap.isEnabled)
+    }
     #endif
 
     private func makeAdapter(

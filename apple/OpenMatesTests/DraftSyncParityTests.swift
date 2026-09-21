@@ -161,6 +161,27 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertEqual(changedChatIds, ["chat-1"], "A genuine remote content change still refreshes composers")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative,chat-navigation.open.local-first-coherent
+    func testActualDraftEventsUpdateContinuationPresenceWithoutResubmitting() async throws {
+        let store = ChatStore()
+        store.upsertChat(makeChat(id: "chat-1", messagesV: 2, draftV: 9))
+        let transport = DraftSyncRecordingTransport(isConnected: true)
+        let coordinator = DraftSyncCoordinator(repository: DraftSyncRecordingRepository(), chatStore: store,
+            transport: transport, offlineActions: DraftSyncRecordingOfflineActions())
+        try await coordinator.handleEvent(type: "chat_draft_updated", raw: jsonData([
+            "event": "chat_draft_updated", "chat_id": "chat-1",
+            "data": ["encrypted_draft_md": "encrypted-body", "encrypted_draft_preview": "encrypted-preview"],
+            "versions": ["draft_v": 10]
+        ]))
+        XCTAssertEqual(store.chat(for: "chat-1")?.hasNonEmptyDraft, true)
+        try await coordinator.handleEvent(type: "draft_deleted", raw: jsonData([
+            "type": "draft_deleted", "payload": ["chat_id": "chat-1", "success": true, "draft_v": 11]
+        ]))
+        XCTAssertEqual(store.chat(for: "chat-1")?.hasNonEmptyDraft, false)
+        XCTAssertNotNil(store.chat(for: "chat-1"), "Deleting a draft must preserve its established chat")
+        XCTAssertTrue(transport.sent.isEmpty)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.lifecycle
     func testPersistedDraftOnlyChatRestoresSyntheticNewChatAlias() {
         let chatStore = ChatStore()
@@ -233,7 +254,7 @@ final class DraftSyncParityTests: XCTestCase {
 
         try await coordinator.handleEvent(type: "draft_versions_response", raw: jsonData([
             "type": "draft_versions_response",
-            "payload": ["versions": ["chat-1": 0]],
+            "payload": ["versions": ["chat-1": 0], "tombstone_versions": ["chat-1": 5]],
         ]))
         let deletedDraft = try await repository.record(chatId: "chat-1")
         XCTAssertNil(deletedDraft)
@@ -263,7 +284,7 @@ final class DraftSyncParityTests: XCTestCase {
         for chatId in ["draft-only", "persisted"] {
             try await coordinator.handleEvent(type: "draft_deleted", raw: jsonData([
                 "type": "draft_deleted",
-                "payload": ["chat_id": chatId],
+                "payload": ["chat_id": chatId, "draft_v": 2],
             ]))
         }
 
@@ -352,6 +373,171 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertTrue(offline.cascadedChatIds.isEmpty)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
+    func testStaleContentAndReceiptCannotReplaceNewerCiphertextOrPresence() async throws {
+        let repository = DraftSyncRecordingRepository()
+        let store = ChatStore()
+        store.upsertChat(makeChat(id: "chat-1", messagesV: 2, draftV: 0))
+        let transport = DraftSyncRecordingTransport(isConnected: true)
+        let offline = DraftSyncRecordingOfflineActions()
+        var changed = 0
+        let coordinator = DraftSyncCoordinator(repository: repository, chatStore: store,
+            transport: transport, offlineActions: offline, onDraftChanged: { _ in changed += 1 })
+        try await coordinator.handleEvent(type: "chat_draft_updated", raw: draftUpdate(version: 7, cipher: "new-cipher"))
+        try await coordinator.handleEvent(type: "chat_draft_updated", raw: draftUpdate(version: 4, cipher: "stale-cipher"))
+        try await coordinator.handleEvent(type: "draft_update_receipt", raw: jsonData([
+            "payload": ["chat_id": "chat-1", "draft_v": 3, "success": true]]))
+        let stored = try await repository.record(chatId: "chat-1")
+        XCTAssertEqual(stored?.encryptedMarkdown, "new-cipher")
+        XCTAssertEqual(stored?.draftVersion, 7)
+        XCTAssertEqual(store.chat(for: "chat-1")?.draftV, 7)
+        XCTAssertEqual(store.chat(for: "chat-1")?.hasNonEmptyDraft, true)
+        XCTAssertEqual(changed, 1)
+        XCTAssertTrue(transport.sent.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
+    func testDeletedDraftDoesNotReappearAfterCoordinatorRecreationAndLateBroadcast() async throws {
+        let repository = DraftSyncRecordingRepository()
+        let store = ChatStore()
+        let transport = DraftSyncRecordingTransport(isConnected: true)
+        let offline = DraftSyncRecordingOfflineActions()
+        let first = DraftSyncCoordinator(repository: repository, chatStore: store,
+            transport: transport, offlineActions: offline)
+        try await first.handleEvent(type: "chat_draft_updated", raw: draftUpdate(version: 7, cipher: "draft-seven"))
+        try await first.handleEvent(type: "draft_deleted", raw: jsonData([
+            "payload": ["chat_id": "chat-1", "draft_v": 8]]))
+        XCTAssertNil(store.chat(for: "chat-1"))
+        let retained = await repository.storedState(chatId: "chat-1")
+        XCTAssertEqual(retained?.clearedDraftVersion, 8)
+        let active = try await repository.allRecords()
+        XCTAssertTrue(active.isEmpty)
+        let cold = DraftSyncCoordinator(repository: repository, chatStore: store,
+            transport: transport, offlineActions: offline)
+        // The metadata part of a late page can arrive before its encrypted draft.
+        store.upsertChat(makeChat(id: "chat-1", draftV: 7))
+        try await cold.handleEvent(type: "chat_draft_updated", raw: draftUpdate(version: 7, cipher: "late-seven"))
+        XCTAssertNil(store.chat(for: "chat-1"), "A removed shell must not erase the durable deletion fence")
+        let deleted = try await repository.record(chatId: "chat-1")
+        XCTAssertNil(deleted)
+        try await cold.handleEvent(type: "chat_draft_updated", raw: draftUpdate(version: 9, cipher: "fresh-nine"))
+        let fresh = try await repository.record(chatId: "chat-1")
+        XCTAssertEqual(fresh?.encryptedMarkdown, "fresh-nine")
+        XCTAssertEqual(store.chat(for: "chat-1")?.draftV, 9)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
+    func testVersionlessOrStaleDeletionAndReconnectZeroPreserveNewerDraft() async throws {
+        let repository = DraftSyncRecordingRepository()
+        let store = ChatStore()
+        let transport = DraftSyncRecordingTransport(isConnected: true)
+        let offline = DraftSyncRecordingOfflineActions()
+        let coordinator = DraftSyncCoordinator(repository: repository, chatStore: store,
+            transport: transport, offlineActions: offline)
+        try await coordinator.handleEvent(type: "chat_draft_updated", raw: draftUpdate(version: 7, cipher: "current"))
+        for payload: [String: Any] in [
+            ["chat_id": "chat-1"], ["chat_id": "chat-1", "draft_v": 6],
+            ["chat_id": "chat-1", "draft_v": 8, "success": false]
+        ] {
+            try await coordinator.handleEvent(type: "draft_deleted", raw: jsonData(["payload": payload]))
+        }
+        for payload: [String: Any] in [
+            ["versions": ["chat-1": 0]],
+            ["versions": ["chat-1": 0], "tombstone_versions": ["chat-1": 6]],
+            ["versions": ["chat-1": 0], "tombstone_versions": ["chat-1": 8], "unavailable_chat_ids": ["chat-1"]]
+        ] {
+            try await coordinator.handleEvent(type: "draft_versions_response", raw: jsonData(["payload": payload]))
+        }
+        let current = try await repository.record(chatId: "chat-1")
+        XCTAssertEqual(current?.encryptedMarkdown, "current")
+        XCTAssertEqual(store.chat(for: "chat-1")?.draftV, 7)
+        XCTAssertTrue(offline.cascadedChatIds.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
+    func testPartialMetadataDoesNotDeleteDraftAndPhasedTombstoneRejectsLatePage() async throws {
+        let repository = DraftSyncRecordingRepository()
+        let store = ChatStore()
+        store.upsertChat(makeChat(id: "chat-1", messagesV: 2, draftV: 0))
+        let transport = DraftSyncRecordingTransport(isConnected: true)
+        let offline = DraftSyncRecordingOfflineActions()
+        let coordinator = DraftSyncCoordinator(repository: repository, chatStore: store,
+            transport: transport, offlineActions: offline)
+        try await coordinator.handleEvent(type: "chat_draft_updated", raw: draftUpdate(version: 7, cipher: "current"))
+        try await coordinator.handleSyncEvent(raw: syncDraft(["id": "chat-1", "draft_v": 8]))
+        let untouched = try await repository.record(chatId: "chat-1")
+        XCTAssertEqual(untouched?.encryptedMarkdown, "current", "Omitted ciphertext is not explicit null")
+        try await coordinator.handleSyncEvent(raw: syncDraft(["id": "chat-1", "draft_v": 0,
+            "cleared_draft_v": 8, "encrypted_draft_md": NSNull(), "encrypted_draft_preview": NSNull()]))
+        try await coordinator.handleSyncEvent(raw: syncDraft(["id": "chat-1", "draft_v": 7,
+            "encrypted_draft_md": "late", "encrypted_draft_preview": "late-preview"]))
+        let deleted = try await repository.record(chatId: "chat-1")
+        XCTAssertNil(deleted)
+        XCTAssertEqual(store.chat(for: "chat-1")?.draftV, 0)
+        XCTAssertEqual(store.chat(for: "chat-1")?.clearedDraftV, 8)
+        XCTAssertEqual(store.chat(for: "chat-1")?.hasNonEmptyDraft, false)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
+    func testLocalDeleteImmediatelyClearsExistingChatAndNullBroadcastUsesVersionFence() async throws {
+        let repository = DraftSyncRecordingRepository()
+        let store = ChatStore()
+        store.upsertChat(makeChat(id: "chat-1", messagesV: 2, draftV: 0))
+        let transport = DraftSyncRecordingTransport(isConnected: false)
+        let offline = DraftSyncRecordingOfflineActions()
+        let coordinator = DraftSyncCoordinator(repository: repository, chatStore: store,
+            transport: transport, offlineActions: offline)
+        try await coordinator.handleEvent(type: "chat_draft_updated", raw: draftUpdate(version: 7, cipher: "current"))
+        try await coordinator.submitLocalDelete(chatId: "chat-1")
+        XCTAssertEqual(store.chat(for: "chat-1")?.hasNonEmptyDraft, false)
+        XCTAssertEqual(store.chat(for: "chat-1")?.clearedDraftV, 7)
+        XCTAssertEqual(offline.queuedDeletes, ["chat-1"])
+        try await coordinator.handleEvent(type: "chat_draft_updated", raw: jsonData([
+            "chat_id": "chat-1", "data": ["encrypted_draft_md": NSNull(), "encrypted_draft_preview": NSNull()],
+            "versions": ["draft_v": 8]]))
+        XCTAssertEqual(store.chat(for: "chat-1")?.clearedDraftV, 8)
+        try await coordinator.handleEvent(type: "chat_draft_updated", raw: draftUpdate(version: 7, cipher: "late"))
+        let deleted = try await repository.record(chatId: "chat-1")
+        XCTAssertNil(deleted)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
+    func testSuspendedOldAccountMutationCannotWriteOrPublishIntoNewSession() async throws {
+        let repository = DraftSyncRecordingRepository()
+        let scope = await repository.currentScope()
+        let store = ChatStore()
+        let transport = DraftSyncRecordingTransport(isConnected: true)
+        let offline = DraftSyncRecordingOfflineActions()
+        var current = true
+        var refreshes = 0
+        let coordinator = DraftSyncCoordinator(repository: repository, chatStore: store,
+            transport: transport, offlineActions: offline, onDraftChanged: { _ in refreshes += 1 },
+            expectedScope: scope, isCurrentSession: { current })
+        await repository.pauseNextApplication()
+        let bytes = try draftUpdate(version: 7, cipher: "old-account-cipher")
+        let operation = Task { try await coordinator.handleEvent(type: "chat_draft_updated", raw: bytes) }
+        await repository.waitUntilApplicationSuspends()
+        current = false
+        await repository.changeScope()
+        await repository.resumeApplication()
+        do { try await operation.value; XCTFail("Expected old-account cancellation") }
+        catch OfflineStoreDraftError.staleSession { }
+        XCTAssertTrue(store.chats.isEmpty)
+        let active = try await repository.allRecords()
+        XCTAssertTrue(active.isEmpty)
+        XCTAssertEqual(refreshes, 0)
+        XCTAssertTrue(transport.sent.isEmpty)
+    }
+
+    private func draftUpdate(version: Int, cipher: String) throws -> Data {
+        try jsonData(["chat_id": "chat-1", "data": ["encrypted_draft_md": cipher,
+            "encrypted_draft_preview": "preview-" + cipher], "versions": ["draft_v": version]])
+    }
+
+    private func syncDraft(_ details: [String: Any]) throws -> Data {
+        try jsonData(["payload": ["chats": [["chat_details": details]]]])
+    }
+
     private func jsonData(_ value: [String: Any]) throws -> Data {
         try JSONSerialization.data(withJSONObject: value)
     }
@@ -396,11 +582,49 @@ private actor DraftSyncRecordingRepository: ComposerDraftRepository {
         self.records = records
     }
 
-    func upsert(_ record: ComposerDraftRecord) async throws { records[record.chatId] = record }
-    func record(chatId: String) async throws -> ComposerDraftRecord? { records[chatId] }
+    private var scope = UUID()
+    private var pauseNext = false
+    private var applicationGate: CheckedContinuation<Void, Never>?
+    private var didSuspend: CheckedContinuation<Void, Never>?
+
+    func currentScope() -> UUID { scope }
+    func changeScope() { scope = UUID(); records.removeAll() }
+    func pauseNextApplication() { pauseNext = true }
+    func waitUntilApplicationSuspends() async {
+        if applicationGate != nil { return }
+        await withCheckedContinuation { didSuspend = $0 }
+    }
+    func resumeApplication() { applicationGate?.resume(); applicationGate = nil }
+
+    func upsert(_ record: ComposerDraftRecord) async throws {
+        var resolved = record
+        resolved.clearedDraftVersion = max(records[record.chatId]?.clearedDraftVersion ?? 0, record.clearedDraftVersion)
+        records[record.chatId] = resolved
+    }
+    func record(chatId: String) async throws -> ComposerDraftRecord? {
+        guard let record = records[chatId], !record.isDeleted else { return nil }
+        return record
+    }
+    func storedState(chatId: String) -> ComposerDraftRecord? { records[chatId] }
     func remove(chatId: String) async throws { records.removeValue(forKey: chatId) }
     func removeAll() async throws { records.removeAll() }
-    func allRecords() async throws -> [ComposerDraftRecord] { Array(records.values) }
+    func allRecords() async throws -> [ComposerDraftRecord] { records.values.filter { !$0.isDeleted } }
+    func allDeletionVersions() async throws -> [String: Int] {
+        Dictionary(uniqueKeysWithValues: records.values.filter { $0.isDeleted }
+            .map { ($0.chatId, $0.clearedDraftVersion) })
+    }
+    func apply(_ mutation: ComposerDraftMutation, knownVersion: Int, knownClearedVersion: Int,
+               expectedScope: UUID?) async throws -> ComposerDraftApplication {
+        if pauseNext {
+            pauseNext = false
+            await withCheckedContinuation { applicationGate = $0; didSuspend?.resume(); didSuspend = nil }
+        }
+        if let expectedScope, expectedScope != scope { throw OfflineStoreDraftError.staleSession }
+        let result = mutation.applying(to: records[mutation.chatId], knownVersion: knownVersion,
+                                      knownClearedVersion: knownClearedVersion)
+        if result.applied { records[mutation.chatId] = result.record }
+        return result
+    }
 }
 
 @MainActor
@@ -426,4 +650,5 @@ private final class DraftSyncRecordingOfflineActions: DraftSyncOfflineActions {
     func queueDraftUpdate(_ record: ComposerDraftRecord) { queuedUpdates.append(record) }
     func queueDraftDelete(chatId: String) { queuedDeletes.append(chatId) }
     func cascadeDeleteChat(chatId: String) { cascadedChatIds.append(chatId) }
+    func cascadeDeleteDraftOnlyChat(chatId: String) { cascadedChatIds.append(chatId) }
 }

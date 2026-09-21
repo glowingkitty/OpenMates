@@ -31,6 +31,10 @@ on:
       - 'shared/config/product_version.json'
       - 'config/media_encryption_rollout.yml'
       - 'scripts/prepare_cli_publish_version.mjs'
+      - 'scripts/ci_environment.py'
+      - 'scripts/ci_runtime_images.py'
+      - 'scripts/ci_schema_bundle.py'
+      - 'scripts/ci_schema_image.Dockerfile'
   push:
     branches: [main, dev]
     paths:
@@ -46,6 +50,10 @@ on:
       - 'shared/config/product_version.json'
       - 'config/media_encryption_rollout.yml'
       - 'scripts/prepare_cli_publish_version.mjs'
+      - 'scripts/ci_environment.py'
+      - 'scripts/ci_runtime_images.py'
+      - 'scripts/ci_schema_bundle.py'
+      - 'scripts/ci_schema_image.Dockerfile'
 
 concurrency:
   group: publish-selfhost-images-${{ github.ref }}
@@ -135,6 +143,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Calculate CI runtime compatibility key
+        id: runtime-key
+        run: echo "key=$(python3 scripts/ci_runtime_images.py key --kind api)" >> "$GITHUB_OUTPUT"
+
       - name: Build API image
         uses: docker/build-push-action@v6
         with:
@@ -158,6 +170,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/glowingkitty/OpenMates
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ needs.prepare.outputs.image_tag }}
+            org.openmates.ci.runtime-key=${{ steps.runtime-key.outputs.key }}
 
   build-docs-worker:
     if: ${{ inputs.notification_test != true }}
@@ -206,27 +219,35 @@ jobs:
           - image: openmates-directus
             file: backend/core/directus/Dockerfile
             context: backend/core/directus
+            runtime_kind: cms
           - image: openmates-cms-setup
             file: backend/core/directus/Dockerfile.setup.selfhost
             context: backend/core/directus
+            runtime_kind: setup
           - image: openmates-vault-setup
             file: backend/core/vault/setup/Dockerfile
             context: backend/core/vault/setup
+            runtime_kind: ''
           - image: openmates-admin-sidecar
             file: backend/admin_sidecar/Dockerfile
             context: .
+            runtime_kind: ''
           - image: openmates-uploads
             file: backend/upload/Dockerfile
             context: .
+            runtime_kind: upload
           - image: openmates-upload-vault-setup
             file: backend/upload/vault/Dockerfile
             context: .
+            runtime_kind: ''
           - image: openmates-preview
             file: backend/preview/Dockerfile
             context: .
+            runtime_kind: ''
           - image: openmates-webapp
             file: frontend/apps/web_app/Dockerfile
             context: .
+            runtime_kind: ''
     steps:
       - uses: actions/checkout@v4
 
@@ -240,6 +261,11 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calculate CI runtime compatibility key
+        if: matrix.runtime_kind != ''
+        id: runtime-key
+        run: echo "key=$(python3 scripts/ci_runtime_images.py key --kind '${{ matrix.runtime_kind }}')" >> "$GITHUB_OUTPUT"
 
       - name: Build ${{ matrix.image }} image
         uses: docker/build-push-action@v6
@@ -266,10 +292,84 @@ jobs:
             org.opencontainers.image.source=https://github.com/glowingkitty/OpenMates
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ needs.prepare.outputs.image_tag }}
+            org.openmates.ci.runtime-key=${{ steps.runtime-key.outputs.key }}
+
+  build-ci-schema:
+    if: ${{ inputs.notification_test != true && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build schema producer Directus
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/core/directus
+          file: backend/core/directus/Dockerfile
+          load: true
+          tags: openmates-ci-cms:local
+          cache-from: type=gha,scope=ci-schema-cms
+          cache-to: type=gha,scope=ci-schema-cms,mode=max
+
+      - name: Build schema producer initializer
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/core/directus
+          file: backend/core/directus/Dockerfile.setup.selfhost
+          load: true
+          tags: openmates-ci-setup:local
+          cache-from: type=gha,scope=ci-schema-setup
+          cache-to: type=gha,scope=ci-schema-setup,mode=max
+
+      - name: Prepare sanitized schema bundle
+        run: python3 scripts/ci_schema_bundle.py
+
+      - name: Calculate schema compatibility key
+        id: runtime-key
+        run: echo "key=$(python3 scripts/ci_runtime_images.py key --kind schema)" >> "$GITHUB_OUTPUT"
+
+      - name: Build candidate CI schema image locally
+        uses: docker/build-push-action@v6
+        with:
+          context: test-results/ci-private
+          file: scripts/ci_schema_image.Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: openmates-ci-database:local
+          labels: |
+            org.opencontainers.image.source=https://github.com/glowingkitty/OpenMates
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.image_tag }}
+            org.openmates.ci.runtime-key=${{ steps.runtime-key.outputs.key }}
+
+      - name: Verify candidate schema in two fresh consumers
+        run: python3 scripts/ci_schema_bundle.py verify-image openmates-ci-database:local
+
+      - name: Publish the exact verified CI schema image
+        env:
+          IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
+          REF_TAG: ${{ needs.prepare.outputs.ref_tag }}
+        run: |
+          for tag in "$IMAGE_TAG" "$REF_TAG" "sha-${GITHUB_SHA}"; do
+            remote="${REGISTRY}/${IMAGE_NAMESPACE}/openmates-ci-schema:${tag}"
+            docker tag openmates-ci-database:local "$remote"
+            docker push "$remote"
+          done
 
   notify:
     if: ${{ always() && (inputs.notification_test == true || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
-    needs: [prepare, build-api, build-docs-worker, build-image]
+    needs: [prepare, build-api, build-docs-worker, build-image, build-ci-schema]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

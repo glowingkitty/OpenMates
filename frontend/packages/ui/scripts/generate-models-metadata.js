@@ -22,6 +22,7 @@ import { readFileSync, readdirSync, writeFileSync } from "fs";
 import { join, dirname, resolve, basename } from "path";
 import { fileURLToPath } from "url";
 import yaml from "yaml";
+import { createHash } from "crypto";
 
 // Get the directory of this script
 const __filename = fileURLToPath(import.meta.url);
@@ -497,6 +498,37 @@ function main() {
     }
     return a.name.localeCompare(b.name);
   });
+
+  // Optional native resource shares the exact parsed/defaulted/sorted array.
+  // Normal web invocation/output remains unchanged. No second YAML parser.
+  const jsonIndex = process.argv.indexOf("--json-output");
+  if (jsonIndex !== -1) {
+    const output = process.argv[jsonIndex + 1];
+    if (!output || output.startsWith("--")) throw new Error("--json-output requires a path");
+    const providerDisplayPath = resolve(__dirname, "../src/data/aiProviderDisplay.json");
+    const sharedDisplay = JSON.parse(readFileSync(providerDisplayPath, "utf-8"));
+    const providers = [...new Map(allModels.map(model => [model.provider_id, model])).values()]
+      .map(model => ({
+        id: model.provider_id,
+        ...(sharedDisplay[model.provider_id] ?? {
+          brandName: model.provider_name,
+          companyName: model.provider_name,
+          order: Number.MAX_SAFE_INTEGER,
+        }),
+        logoSvg: model.logo_svg,
+      }))
+      .sort((a, b) => a.order - b.order || a.brandName.localeCompare(b.brandName));
+    const sourceHash = createHash("sha256");
+    sourceHash.update(readFileSync(__filename));
+    sourceHash.update(readFileSync(providerDisplayPath));
+    for (const provider of [...providerFiles].sort((a, b) => a.providerId.localeCompare(b.providerId))) {
+      sourceHash.update(provider.providerId);
+      sourceHash.update(readFileSync(provider.filePath));
+    }
+    writeFileSync(resolve(output), JSON.stringify({
+      schemaVersion: 2, sourceDigest: sourceHash.digest("hex"), providers, models: allModels,
+    }, null, 2) + "\n", "utf-8");
+  }
 
   // Generate TypeScript code
   const tsCode = generateTypeScript(allModels);

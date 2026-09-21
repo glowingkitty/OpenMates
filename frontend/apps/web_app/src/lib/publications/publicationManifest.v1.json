@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "revision": "2026-09-21-social-publication-backfill",
+  "generatedAt": "2026-09-21T18:00:00.000Z",
+  "publications": [
+    {
+      "id": "social-ai-builders-berlin",
+      "slug": "agentic-coding-ai-builders-berlin",
+      "kind": "social",
+      "publishedAt": "2026-09-16T17:41:00.072Z",
+      "updatedAt": "2026-09-16T17:41:00.072Z",
+      "author": "OpenMates",
+      "locales": {
+        "en": {
+          "title": "A more effective agentic coding workflow",
+          "description": "OpenMates at AI Builders Berlin: a better view of what coding agents are working on.",
+          "bodyMarkdown": "Chances are, your agentic coding workflow could be a lot more effective and efficient, and benefit from a better view of what your agents are working on. Join the talk at AI Builders Berlin and learn more: https://luma.com/ber-sep22"
+        }
+      },
+      "media": {
+        "type": "video",
+        "url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/f78ca80db5072b29-agentic-coding-ai-builders-berlin.mp4",
+        "alt": "Announcement video for the OpenMates talk at AI Builders Berlin",
+        "posterUrl": "/publications/social/agentic-coding-ai-builders-berlin.jpg"
+      },
+      "socialLinks": [
+        {
+          "platform": "instagram",
+          "label": "Open this post on Instagram",
+          "href": "https://www.instagram.com/reel/DdW1-2QkWfd/"
+        }
+      ]
+    },
+    {
+      "id": "social-workflow-automation",
+      "slug": "workflow-automation-webinar",
+      "kind": "social",
+      "publishedAt": "2026-09-15T17:47:13.082Z",
+      "updatedAt": "2026-09-15T17:47:13.082Z",
+      "author": "OpenMates",
+      "locales": {
+        "en": {
+          "title": "What if you did not have to constantly search?",
+          "description": "A free OpenMates webinar about recurring searches and privacy-preserving workflow automation.",
+          "bodyMarkdown": "What if you did not need to constantly check for new apartments or doctor appointments? What if events you care about were sent to you every week? And what if you did not need to give up your privacy for any of that? Sign up for the free webinar on workflow automation in OpenMates: https://luma.com/fql7sc2a"
+        }
+      },
+      "media": {
+        "type": "video",
+        "url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/46b4c44c713821cb-workflow-automation-webinar.mp4",
+        "alt": "OpenMates workflow automation webinar announcement",
+        "posterUrl": "/publications/social/workflow-automation-webinar.jpg"
+      },
+      "socialLinks": [
+        {
+          "platform": "bluesky",
+          "label": "Open this post on Bluesky",
+          "href": "https://bsky.app/profile/did:plc:bgflwrmldvtkddskwp6tynt4/post/3mvl6lyi6oy2w"
+        },
+        {
+          "platform": "instagram",
+          "label": "Open this post on Instagram",
+          "href": "https://www.instagram.com/reel/DdURL81mGUs/"
+        },
+        {
+          "platform": "mastodon",
+          "label": "Open this post on Mastodon",
+          "href": "https://mastodon.social/@OpenMates/117276281024759413"
+        }
+      ]
+    },
+    {
+      "id": "social-september-events",
+      "slug": "september-openmates-events",
+      "kind": "social",
+      "publishedAt": "2026-09-08T18:58:42.344Z",
+      "updatedAt": "2026-09-08T18:58:42.344Z",
+      "author": "OpenMates",
+      "locales": {
+        "en": {
+          "title": "Three September events for builders and the OpenMates community",
+          "description": "AI Builders Berlin, the OpenMates Berlin Meetup, and the online Community Hour.",
+          "bodyMarkdown": "Events incoming! Agentic coding can be empowering and frustrating. Join OpenMates at AI Builders Berlin, the Berlin Meetup, and the online Community Hour. Event details: https://luma.com/openmates"
+        }
+      },
+      "media": {
+        "type": "video",
+        "url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/ab9b5123ff633146-september-openmates-events.mp4",
+        "alt": "Video announcing three OpenMates events in September",
+        "posterUrl": "/publications/social/september-openmates-events.jpg"
+      },
+      "socialLinks": [
+        {
+          "platform": "bluesky",
+          "label": "Open this post on Bluesky",
+          "href": "https://bsky.app/profile/did:plc:bgflwrmldvtkddskwp6tynt4/post/3muzpdebq6i2g"
+        },
+        {
+          "platform": "instagram",
+          "label": "Open this post on Instagram",
+          "href": "https://www.instagram.com/reel/DdCYlILAu3U/"
+        },
+        {
+          "platform": "mastodon",
+          "label": "Open this post on Mastodon",
+          "href": "https://mastodon.social/@OpenMates/117236950994849090"
+        }
+      ]
+    },
+    {
+      "id": "social-berlin-meetup",
+      "slug": "openmates-berlin-meetup-august",
+      "kind": "social",
+      "publishedAt": "2026-08-24T18:12:13.855Z",
+      "updatedAt": "2026-08-24T18:12:13.855Z",
+      "author": "OpenMates",
+      "locales": {
+        "en": {
+          "title": "Another OpenMates meetup in Berlin",
+          "description": "Meet people interested in practical, privacy-focused alternatives to big-tech AI products.",
+          "bodyMarkdown": "It is time for another OpenMates meetup in Berlin. Learn how to move away from big-tech AI chatbots and agents, make better use of OpenMates, and shape further development with feedback and ideas."
+        }
+      },
+      "media": {
+        "type": "image",
+        "url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/d0392fe54ef2368b-openmates-berlin-meetup-august.png",
+        "alt": "OpenMates Berlin meetup announcement",
+        "posterUrl": "/publications/social/openmates-berlin-meetup-august.jpg"
+      },
+      "socialLinks": [
+        {
+          "platform": "bluesky",
+          "label": "Open this post on Bluesky",
+          "href": "https://bsky.app/profile/did:plc:bgflwrmldvtkddskwp6tynt4/post/3mttvqatoxr2e"
+        },
+        {
+          "platform": "instagram",
+          "label": "Open this post on Instagram",
+          "href": "https://www.instagram.com/p/DcbrWwRnYLo/"
+        },
+        {
+          "platform": "mastodon",
+          "label": "Open this post on Mastodon",
+          "href": "https://mastodon.social/@OpenMates/117151834150594976"
+        }
+      ]
+    }
+  ]
+}

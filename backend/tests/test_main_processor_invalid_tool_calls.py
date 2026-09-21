@@ -28,6 +28,9 @@ def _install_stub(module_name: str, module: types.ModuleType) -> None:
 def teardown_module() -> None:
     if sys.modules.get("backend.apps.ai.processing.main_processor") is main_processor:
         del sys.modules["backend.apps.ai.processing.main_processor"]
+    processing_package = sys.modules.get("backend.apps.ai.processing")
+    if getattr(processing_package, "main_processor", None) is main_processor:
+        delattr(processing_package, "main_processor")
     for module_name, module in _INSTALLED_STUB_MODULES.items():
         if sys.modules.get(module_name) is module:
             del sys.modules[module_name]
@@ -221,6 +224,17 @@ _get_result_declared_usage_details = main_processor._get_result_declared_usage_d
 _get_variable_preflight_reserved_credits = main_processor._get_variable_preflight_reserved_credits
 _is_empty_post_tool_turn = main_processor._is_empty_post_tool_turn
 _has_visible_text = main_processor._has_visible_text
+_should_cache_skill_call_for_dedup = main_processor._should_cache_skill_call_for_dedup
+_resolve_skill_usage_provider_id = main_processor.resolve_skill_usage_provider_id
+
+# Pytest imports every selected test module during collection, before this
+# module's teardown runs. Remove the stub-bound module immediately so tests
+# collected later import the real implementation rather than this local copy.
+if sys.modules.get("backend.apps.ai.processing.main_processor") is main_processor:
+    del sys.modules["backend.apps.ai.processing.main_processor"]
+processing_package = sys.modules.get("backend.apps.ai.processing")
+if getattr(processing_package, "main_processor", None) is main_processor:
+    delattr(processing_package, "main_processor")
 
 
 def test_chat_skill_dispatch_threads_secrets_manager_context() -> None:
@@ -272,6 +286,88 @@ def test_empty_post_tool_turn_requires_answer_recovery() -> None:
     assert "[POST_TOOL_RECOVERY] Tool continuation produced no answer" in source
     assert "empty_post_tool_recovery_attempted" in source
     assert "yield STANDARDIZED_USER_ERROR_MESSAGE" in source
+
+
+def test_skill_dedup_does_not_cache_explicit_error_wrappers() -> None:
+    assert _should_cache_skill_call_for_dedup(
+        [{"id": "weather-1", "results": [], "error": "location is required"}]
+    ) is False
+    assert _should_cache_skill_call_for_dedup(
+        [{"results": [{"id": "weather-1", "results": [], "error": "provider failed"}]}]
+    ) is False
+    assert _should_cache_skill_call_for_dedup(
+        [{"status": "error", "message": "provider unavailable"}]
+    ) is False
+
+
+def test_skill_dedup_caches_valid_zero_hit_wrapper() -> None:
+    assert _should_cache_skill_call_for_dedup(
+        [{"id": "weather-1", "results": [], "error": None}]
+    ) is True
+
+
+def test_weather_usage_attribution_uses_executed_declared_provider() -> None:
+    skill = SimpleNamespace(
+        full_model_reference=None,
+        providers=[
+            SimpleNamespace(name="deutscher_wetterdienst"),
+            SimpleNamespace(name="open_meteo"),
+        ],
+    )
+
+    assert _resolve_skill_usage_provider_id(
+        "weather", "forecast", skill, [{"provider_id": "open_meteo", "results": [{}, {}, {}]}]
+    ) == "open_meteo"
+    assert _resolve_skill_usage_provider_id(
+        "weather", "forecast", skill, [{"provider_id": "deutscher_wetterdienst", "results": [{}]}]
+    ) == "deutscher_wetterdienst"
+    assert _resolve_skill_usage_provider_id(
+        "weather",
+        "forecast",
+        skill,
+        [{"provider_id": "open_meteo", "results": [{}]}, {"provider_id": "open_meteo", "results": [{}]}],
+    ) == "open_meteo"
+
+
+def test_weather_usage_attribution_fails_safe_for_unknown_or_mixed_provider() -> None:
+    skill = SimpleNamespace(
+        full_model_reference=None,
+        providers=[
+            SimpleNamespace(name="deutscher_wetterdienst"),
+            SimpleNamespace(name="open_meteo"),
+        ],
+    )
+
+    assert _resolve_skill_usage_provider_id(
+        "weather", "forecast", skill, [{"provider_id": "unknown_weather"}]
+    ) is None
+    assert _resolve_skill_usage_provider_id(
+        "weather",
+        "forecast",
+        skill,
+        [{"provider_id": "open_meteo"}, {"provider_id": "deutscher_wetterdienst"}],
+    ) is None
+    assert _resolve_skill_usage_provider_id("weather", "forecast", skill, [{"results": [{}]}]) is None
+
+
+def test_chat_billing_preserves_provider_wrapper_before_result_flattening() -> None:
+    source = inspect.getsource(main_processor.handle_main_processing)
+    tree = ast.parse(source)
+    charge_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_charge_skill_credits"
+    ]
+
+    assert len(charge_calls) == 1
+    provider_keyword = next(
+        keyword for keyword in charge_calls[0].keywords if keyword.arg == "provider_result_data"
+    )
+    assert isinstance(provider_keyword.value, ast.Name)
+    assert provider_keyword.value.id == "provider_result_data"
+    assert "provider_result_data = results  # Preserve trusted response wrappers" in source
 
 
 # contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover

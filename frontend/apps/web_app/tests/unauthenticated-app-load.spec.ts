@@ -858,76 +858,20 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] Intro video fullscreen test passed');
 	});
 
-	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
-	test('announcement chat opens when clicked in sidebar', async ({
-		page
-	}: {
-		page: any;
-	}) => {
+	// contract-test: supporting surface=gui.web assertions=public-publications.routes.localized-archives
+	test('announcement demo chats are replaced by the public news archive', async ({ page }) => {
 		test.setTimeout(60000);
-
-		page.on('console', (msg: any) => {
-			const text = `[${msg.type()}] ${msg.text()}`;
-			consoleLogs.push(text);
-			if (msg.type() === 'error') consoleErrors.push(text);
-		});
-
-		// ─── 1. Load as fresh user, wait for intro chat ────────────────
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-
 		await openForEveryoneIntroChat(page);
-		console.log('[unauthenticated-load] Intro chat loaded');
 
-		// ─── 2. Open sidebar and find the announcements group ──────────
 		const sidebarToggle = page.getByTestId('sidebar-toggle');
 		await expect(sidebarToggle).toBeVisible({ timeout: 10000 });
 		await sidebarToggle.click();
-		console.log('[unauthenticated-load] Sidebar toggle clicked');
+		await expect(page.getByTestId('chat-group').filter({ hasText: /announcements/i })).toHaveCount(0);
 
-		// Find the announcements group by its title text
-		const announcementsGroup = page.getByTestId('chat-group').filter({
-			hasText: /announcements/i
-		}).first();
-		await expect(announcementsGroup).toBeVisible({ timeout: 10000 });
-		console.log('[unauthenticated-load] Announcements group visible');
-
-		// ─── 3. Click the first announcement chat item ─────────────────
-		const announcementItem = announcementsGroup.getByTestId('chat-item').first();
-		await expect(announcementItem).toBeVisible({ timeout: 5000 });
-		await announcementItem.click();
-		console.log('[unauthenticated-load] Clicked announcement chat item');
-
-		// ─── 4. Verify the announcement chat opens ─────────────────────
-		// URL hash should update to the announcement chat ID
-		await page.waitForFunction(
-			() => window.location.hash.includes('announcements-'),
-			null,
-			{ timeout: 10000 }
-		);
-		console.log('[unauthenticated-load] URL hash updated to announcement chat');
-
-		// Active chat container should be visible
-		const activeChatContainer = page.getByTestId('active-chat-container');
-		await expect(activeChatContainer).toBeVisible({ timeout: 10000 });
-
-		// Verify the assistant message content is rendered (not empty)
-		const assistantMessage = page.getByTestId('mate-message-content').first();
-		await expect(assistantMessage).toBeVisible({ timeout: 10000 });
-		const messageText = await assistantMessage.textContent();
-		expect(
-			messageText?.trim().length,
-			'Announcement chat should have message content'
-		).toBeGreaterThan(5);
-		console.log(`[unauthenticated-load] Announcement message rendered (${messageText?.trim().length} chars)`);
-
-		// Announcement chats are read-only public chats and should offer the same
-		// start-new-chat CTA as intro/legal chats.
-		await expect(page.getByTestId('new-chat-cta-fullwidth')).toBeVisible({ timeout: 10000 });
-		console.log('[unauthenticated-load] Announcement new chat CTA visible');
-
-		// ─── 5. No missing translations ─────────────────────────────────
-		await assertNoMissingTranslations(page);
-		console.log('[unauthenticated-load] Announcement click test passed');
+		await page.goto('/news', { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('newsroom-surface')).toBeVisible();
+		await expect(page.getByRole('heading', { name: /v0\.11/i }).first()).toBeVisible();
 	});
 });

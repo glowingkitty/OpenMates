@@ -145,9 +145,13 @@
   // Self-contained here so no extra overhead is added to MessageInput or ActiveChat.
   let filterQuery = $state('');
   let _filterDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+  let searchGeneration = 0;
+  let activeSearchController: AbortController | null = null;
 
   $effect(() => {
     const raw = messageInputContent.trim().toLowerCase();
+    searchGeneration += 1;
+    activeSearchController?.abort();
     if (_filterDebounceTimer) clearTimeout(_filterDebounceTimer);
     _filterDebounceTimer = setTimeout(() => {
       filterQuery = raw;
@@ -169,7 +173,6 @@
   }
   let chatSearchResults = $state<ChatResultCard[]>([]);
   let fileSearchResults = $state<UploadedFileSearchResult[]>([]);
-  let searchGeneration = 0;
 
   function getPublicSearchChats(): Chat[] {
     const translatedPublicChats = translateDemoChats([...INTRO_CHATS, ...LEGAL_CHATS]).map(convertDemoChatToChat);
@@ -219,6 +222,9 @@
     }
 
     const gen = ++searchGeneration;
+    const controller = new AbortController();
+    activeSearchController = controller;
+    const { signal } = controller;
     const textFn = get(text);
 
     (async () => {
@@ -227,14 +233,15 @@
         let allChats = publicChats;
         if ($authStore.isAuthenticated) {
           await chatDB.init();
+          signal.throwIfAborted();
           allChats = uniqueChatsById([...publicChats, ...(await chatDB.getAllChats())]);
         }
         const [results, fileResults] = await Promise.all([
-          performSearch(query, allChats, textFn),
-          embedStore.searchUploadedFiles(query),
+          performSearch(query, allChats, textFn, [], $authStore.isAuthenticated, false, signal),
+          embedStore.searchUploadedFiles(query, undefined, signal),
         ]);
         // Stale guard — a newer search was triggered while this one ran
-        if (gen !== searchGeneration) return;
+        if (signal.aborted || gen !== searchGeneration) return;
 
         const userChatResults = results.chats;
 
@@ -263,10 +270,11 @@
         );
 
         // Final stale guard after async metadata resolution
-        if (gen !== searchGeneration) return;
+        if (signal.aborted || gen !== searchGeneration) return;
         chatSearchResults = processed;
         fileSearchResults = fileResults;
       } catch (error) {
+        if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
         console.error('[NewChatSuggestions] Chat search error:', error);
         if (gen === searchGeneration) {
           chatSearchResults = [];
@@ -274,6 +282,7 @@
         }
       }
     })();
+    return () => controller.abort();
   });
 
   // Context menu state

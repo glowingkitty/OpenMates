@@ -2035,7 +2035,8 @@ async def _async_persist_encrypted_chat_metadata(
             
             # OPTIMISTIC LOCKING: Don't downgrade versions or timestamps
             current_messages_v = int(chat_metadata.get("messages_v", 0) or 0)
-            current_title_v = int(chat_metadata.get("title_v", 0) or 0)
+            persisted_title_v = int(chat_metadata.get("title_v", 0) or 0)
+            current_title_v = persisted_title_v
             persisted_metadata_v = int(chat_metadata.get("metadata_v", 0) or 0)
             if not persisted_metadata_v and current_title_v > 0:
                 persisted_metadata_v = current_title_v
@@ -2151,10 +2152,14 @@ async def _async_persist_encrypted_chat_metadata(
             incoming_title_v = update_fields.get("title_v", 0)
             # CRITICAL FIX: Allow title_v update if current is 0 (chat was created without title)
             # This ensures pre-processing metadata (title, icon, category) gets stored
-            if incoming_title_v <= current_title_v and current_title_v > 0:
+            # Redis is the allocator and can already contain the version reserved for
+            # this exact write. Compare staleness against the durable Directus version,
+            # not the merged cache watermark, or the reserved title_v is discarded and
+            # reload sees ciphertext paired with title_v=0.
+            if incoming_title_v <= persisted_title_v and persisted_title_v > 0:
                 update_fields.pop("title_v", None)
-                logger.debug(f"Skipping title_v update for chat {chat_id}: incoming={incoming_title_v}, current={current_title_v}")
-            elif current_title_v == 0 and incoming_title_v > 0:
+                logger.debug(f"Skipping title_v update for chat {chat_id}: incoming={incoming_title_v}, persisted={persisted_title_v}")
+            elif persisted_title_v == 0 and incoming_title_v > 0:
                 logger.info(f"Updating title_v from 0 to {incoming_title_v} for chat {chat_id} (pre-processing metadata)")
 
             incoming_metadata_v = update_fields.get("metadata_v")

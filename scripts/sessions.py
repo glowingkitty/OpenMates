@@ -6904,8 +6904,9 @@ def cmd_end(args: argparse.Namespace) -> None:
     # Never close a shared agent host; only a recorded task-owned terminal may end.
     candidate_zellij_name = session.get("zellij_session")
     # Historical shared-host metadata is read only to prevent accidentally closing it.
-    zellij_name = None if (session.get("codex_task_id") or session.get("opencode_session_id")
-                          or candidate_zellij_name in {"code", os.environ.get("OPENCODE_ZELLIJ_SESSION", "code")}) else candidate_zellij_name
+    zellij_name = None if (
+        session.get("codex_task_id") or candidate_zellij_name == "code"
+    ) else candidate_zellij_name
     if zellij_name:
         current_zellij = os.environ.get("ZELLIJ_SESSION_NAME")
         if current_zellij == zellij_name:
@@ -7501,7 +7502,9 @@ def cmd_ci_source(args: argparse.Namespace) -> None:
     result = publish(root, args.session, session.get("modified_files", []),
                      base=args.base or "", resolved_patch=Path(args.resolved_patch) if args.resolved_patch else None,
                      patch_sha256=args.patch_sha256 or "")
-    print(json.dumps(result, sort_keys=True))
+    # Presigned candidate URLs are credentials. The dispatcher reads them from
+    # the mode-0600 local manifest; never print them into chat or shell logs.
+    print(json.dumps({key: value for key, value in result.items() if key != "patch_url"}, sort_keys=True))
 
 
 def cmd_ci_adopt(args: argparse.Namespace) -> None:

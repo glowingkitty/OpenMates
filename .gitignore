@@ -230,6 +230,8 @@ deployment/prod_server/prod-cloud-config.yaml
 .tempcontext
 .ruff_cache
 .vscode
+/marketing/
+/vscode_extension/
 .env.openmates-backup-*
 
 *-env*
@@ -338,9 +340,8 @@ backend/tests/output/
 # Claude Code — worktree runtime state (empty dirs managed by sessions.py)
 .claude/worktrees/
 
-# Historical local state stays ignored. The inert protocol marker fences old worktrees.
-.opencode/*
-!.opencode/deploy-protocol-version
+# Retired editor state must remain local and must not be reintroduced.
+.opencode/
 
 
 # Claude Code — additional ephemeral state (rules, skills, agents, hooks are committed)

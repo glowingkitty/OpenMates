@@ -289,6 +289,10 @@ final class PushNotificationManager: NSObject, ObservableObject {
     }
 
     func configureForLaunch() {
+        #if DEBUG
+        // Component preview processes never register devices or drain real replies.
+        guard DevPreviewLaunchConfiguration.current == nil else { return }
+        #endif
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         configureChatMessageCategory(center: center)

@@ -16,6 +16,19 @@ ADMIN_EMAIL = os.getenv('DATABASE_ADMIN_EMAIL')
 ADMIN_PASSWORD = os.getenv('DATABASE_ADMIN_PASSWORD')
 DIRECTUS_TOKEN = os.getenv('DIRECTUS_TOKEN')
 INTERNAL_API_SHARED_TOKEN = os.getenv('INTERNAL_API_SHARED_TOKEN')
+CI_FAST_SCHEMA_SETUP = os.getenv('CI_FAST_SCHEMA_SETUP') == '1'
+CI_PREPARED_SCHEMA = os.getenv('CI_PREPARED_SCHEMA') == '1'
+CI_PREPARED_SCHEMA_ADMIN_PASSWORD = os.getenv('CI_PREPARED_SCHEMA_ADMIN_PASSWORD')
+
+
+def settle(delay):
+    """Retain production settling delays while avoiding redundant CI sleeps.
+
+    Directus mutation responses are synchronous. Isolated CI uses a tiny yield
+    instead of accumulating several minutes of defensive production delays.
+    Readiness retries remain unchanged.
+    """
+    time.sleep(min(delay, 0.01) if CI_FAST_SCHEMA_SETUP else delay)
 
 # Print environment variables for debugging
 print("Environment variables loaded.")
@@ -253,18 +266,57 @@ def wait_for_directus():
     
     print("Directus did not become ready in the allowed time, but we'll try to continue anyway...")
 
-def login():
+def login(password=None):
     """Login to Directus and get access token."""
     try:
         response = requests.post(f"{CMS_URL}/auth/login", json={
             "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "password": password or ADMIN_PASSWORD
         })
         response.raise_for_status()
         return response.json()['data']['access_token']
     except Exception as e:
         print(f'Login failed: {str(e)}')
         raise
+
+
+def verify_login_rejected(password):
+    """Fail unless a superseded prepared-schema credential is unusable."""
+    response = requests.post(
+        f"{CMS_URL}/auth/login",
+        json={"email": ADMIN_EMAIL, "password": password},
+        timeout=15,
+    )
+    if response.status_code not in (400, 401):
+        raise RuntimeError(
+            "Prepared schema bootstrap credential remained usable after rotation"
+        )
+
+
+def activate_prepared_schema():
+    """Rotate the synthetic bundle credential and verify the restored contract."""
+    if not CI_PREPARED_SCHEMA_ADMIN_PASSWORD:
+        raise RuntimeError('Prepared schema activation requires its bootstrap password')
+    wait_for_directus()
+    bootstrap_token = login(CI_PREPARED_SCHEMA_ADMIN_PASSWORD)
+    response = requests.patch(
+        f"{CMS_URL}/users/me",
+        headers={"Authorization": f"Bearer {bootstrap_token}"},
+        json={"password": ADMIN_PASSWORD},
+        timeout=15,
+    )
+    response.raise_for_status()
+    token = login()
+    verify_login_rejected(CI_PREPARED_SCHEMA_ADMIN_PASSWORD)
+    for collection_name in ('invite_codes', 'chats', 'directus_users'):
+        if not collection_exists(token, collection_name):
+            raise RuntimeError(
+                f'Prepared schema is missing required collection {collection_name}'
+            )
+    verify_chat_recovery_endpoint()
+    verify_sub_chat_orchestration_endpoint()
+    verify_anonymous_usage_endpoint()
+    print('Prepared schema activated with fresh runtime credentials')
 
 def collection_exists(token, collection_name):
     """Check if a collection exists in Directus."""
@@ -846,7 +898,7 @@ def create_collection_from_config(token, collection_name, collection):
                 )
                 response.raise_for_status()
                 print(f"Successfully created collection {collection_name}")
-                time.sleep(1) # Wait briefly after collection creation
+                settle(1) # Wait briefly after collection creation
             except Exception as e:
                  print(f"Failed to create collection {collection_name}: {str(e)}")
                  if hasattr(e, 'response') and e.response is not None:
@@ -896,13 +948,13 @@ def create_collection_from_config(token, collection_name, collection):
             # Wait before creating relations
             if relations_to_create:
                 print(f"Waiting before creating {len(relations_to_create)} relations for {collection_name}...")
-                time.sleep(2) # Increased wait time before relations
+                settle(2) # Increased wait time before relations
                 
                 # Create relations
                 print(f"Creating relations for {collection_name}...")
                 for field_name, relation_config in relations_to_create:
                     create_relation(token, collection_name, field_name, relation_config)
-                    time.sleep(0.2) # Small delay between relation creations
+                    settle(0.2) # Small delay between relation creations
         
         # If we reached here, the process for this collection was successful
         print(f"Collection {collection_name} processed successfully (Newly created: {create_new})")
@@ -1660,4 +1712,7 @@ def setup_schemas():
         exit(1)
 
 if __name__ == "__main__":
-    setup_schemas()
+    if CI_PREPARED_SCHEMA:
+        activate_prepared_schema()
+    else:
+        setup_schemas()

@@ -1,0 +1,33 @@
+# Replace Berlin before enabling. Sunday 09:00 is an editable example time.
+# Dates resolve at execution to the next Monday–Sunday in the schedule timezone.
+title: AI events next week
+description: Discover the upcoming calendar week's AI events every Sunday.
+start_when:
+  schedule:
+    type: weekly
+    weekdays: [sunday]
+    time: "09:00"
+    timezone: Europe/Berlin
+run_content_retention: last_5
+steps:
+  - id: events
+    use_app_skill: events.search
+    input:
+      requests:
+        - query: AI
+          providers: [Luma, Eventbrite]
+          location: Berlin
+          event_type: PHYSICAL
+          start_date:
+            $date: next_week_start
+          end_date:
+            $date: next_week_end
+          count: 10
+  - id: report
+    send_chat_message:
+      title: AI events for the upcoming week
+      blocks:
+        - id: events
+          label: Newly found AI events
+          source: $nodes.events.output.results
+          only_new_results: true

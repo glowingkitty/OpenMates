@@ -1,6 +1,6 @@
 ---
 name: verify-plan
-description: Check implemented work against an executable Plan before completion or deploy by validating Specification traceability, acceptance criteria coverage, and red/green evidence
+description: Check implemented work against an executable Plan's accepted scope before completion or deploy, including only its required criteria, waivers, and evidence.
 user-invocable: true
 argument-hint: "docs/plans/<slug>/plan.yml [--phase red|green|complete]"
 ---
@@ -13,8 +13,8 @@ linked approved Specifications.
 
 ### Step 1: Read Inputs
 
-Read the provided `docs/plans/<slug>/plan.yml`, linked Specifications, tasks,
-and the spec-driven-development guide. Review current session status and related
+Read the provided `docs/plans/<slug>/plan.yml`, any Specifications explicitly
+linked by that Plan, and its tasks. Review current session status and related
 test tracking with `sessions.py status` and `sessions.py check-tests`.
 
 ### Step 2: Build The Coverage Table
@@ -40,19 +40,20 @@ Pass only when:
   criteria fail.
 - Required red and green phases have evidence, and evidence subject commits match
   the Plan implementation state.
-- Shared product surfaces have evidence in required order: REST API/WebSocket,
-  CLI, npm/pip SDKs, CI/daily reproduction, web, deployed Playwright visual smoke,
-  user confirmation, then Apple.
-- Larger user-visible web/UI work has a passing or explicitly skipped
-  `V-UI-VISUAL-SMOKE` review before user confirmation or completion.
-- CLI and SDK evidence uses real commands or calls against the real dev API/WebSocket
-  path. Mocks, fixture replay, and direct function calls do not satisfy the gate.
+- Only surfaces, environments, and ordering explicitly required by the accepted
+  Plan are completion gates. Choose evidence appropriate to each affected surface;
+  do not add a universal API/CLI/SDK/web/Apple ladder or a generic dev-API check.
+- Visual smoke, user confirmation, and demonstration/video evidence are gates only
+  when the accepted Plan explicitly marks them required. Preserve explicit user
+  waivers and their scoped decision receipts.
 - Privacy/security criteria, documentation impact, assumptions, open questions,
-  and required proof-video evidence are resolved or explicitly accepted.
+  and explicitly required proof evidence are resolved or explicitly accepted.
 
 Failed required checks keep the Plan active until traceable follow-up work is
 complete or the user accepts a waiver or blocker. Playwright green evidence is
-only valid after deployment to dev and execution against `app.dev.openmates.org`.
+valid when its receipt binds the exact source and harness to a successful
+isolated GitHub run with complete cleanup. Dev deployment and visual-smoke
+evidence are separate gates only when the Plan requires them.
 
 ### Step 4: Output Report
 

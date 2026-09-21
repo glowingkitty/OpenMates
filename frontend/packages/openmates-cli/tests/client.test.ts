@@ -65,6 +65,7 @@ const {
   MEMORY_TYPE_REGISTRY,
   buildAppSettingsMemoryRequestSystemMessage,
   buildAppSettingsMemoryResponseSystemMessage,
+	buildInferenceHistoryMessage,
   buildTaskEventSystemMessage,
   buildTaskUpdateJobPersistPayload,
   messageExplicitlyRequestsTasksAppSkill,
@@ -74,6 +75,7 @@ const {
   buildSubChatEncryptedMetadataPayloads,
   buildTurnTokenRefsRequestPayload,
   getClientMessagesVersionForSync,
+  selectNewChatSlugValue,
 } = await import("../src/client.ts");
 const {
   decryptBytesWithAesGcm,
@@ -110,6 +112,36 @@ describe("OpenMatesClient session API URL", () => {
   beforeEach(() => {
     writeLegacySession();
     rmSync(serverConfigPath, { force: true });
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=cli.slugs.encrypted-stable
+  it("adds a length-safe chat ID suffix only to automatic new-chat slugs", () => {
+    const repeatedPrompt = "Compare these apartment listings in detail ".repeat(8);
+    const firstChatId = "11111111-1111-4111-8111-111111111111";
+    const secondChatId = "22222222-2222-4222-8222-222222222222";
+    const firstSlug = selectNewChatSlugValue({
+      message: repeatedPrompt,
+      chatId: firstChatId,
+    });
+    const secondSlug = selectNewChatSlugValue({
+      message: repeatedPrompt,
+      chatId: secondChatId,
+    });
+
+    assert.notEqual(firstSlug, secondSlug);
+    assert.ok(firstSlug.length <= 80);
+    assert.ok(secondSlug.length <= 80);
+    assert.equal(firstSlug.endsWith(firstChatId), true);
+    assert.equal(secondSlug.endsWith(secondChatId), true);
+    assert.equal(selectNewChatSlugValue({
+      message: repeatedPrompt,
+      chatId: firstChatId,
+      explicitSlug: "My Explicit Chat!",
+    }), "My Explicit Chat!");
+    assert.equal(selectNewChatSlugValue({
+      message: "東京でおすすめの喫茶店を探して ☕",
+      chatId: firstChatId,
+    }), `chat-${firstChatId}`);
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
@@ -1374,6 +1406,58 @@ describe("memory type registry", () => {
       "web/read_later",
     ]);
   });
+
+  // contract-test: direct surface=cli assertions=app-memories.surface.semantic-parity
+  it("loads personal memories from the owner-scoped memory endpoint without account export", async () => {
+    const encryptedItem = await encryptWithAesGcmCombined(
+      JSON.stringify({
+        title: "Private preference",
+        settings_group: "code",
+        _original_item_key: "preferred_tech",
+      }),
+      new Uint8Array(32),
+    );
+    const requestPaths: string[] = [];
+    const server = createServer((request, response) => {
+      requestPaths.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+      if (request.method === "GET" && request.url === "/v1/sdk/memories") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          memories: [{
+            id: "11111111-1111-4111-8111-111111111111",
+            app_id: "code",
+            item_type: "preferred_tech",
+            item_key: "hashed-memory-key",
+            item_version: 3,
+            created_at: 1710000000,
+            updated_at: 1710000100,
+            encrypted_item_json: encryptedItem,
+          }],
+        }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const memories = await client.listMemories({ personal: true });
+
+      assert.equal(memories.length, 1);
+      assert.equal(memories[0]?.data.title, "Private preference");
+      assert.deepEqual(requestPaths, ["GET /v1/sdk/memories"]);
+      assert.equal(requestPaths.some((path) => path.includes("export-account-data")), false);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });
 
 describe("CLI streamed embed persistence", () => {
@@ -2153,6 +2237,16 @@ describe("CLI saved-chat recovery preflight", () => {
       const encryptedChatKey = String(captured.preflightPayload.encrypted_chat_key);
       const chatKey = await decryptBytesWithAesGcm(encryptedChatKey, masterKey);
       assert.ok(chatKey);
+      const automaticChatSlug = await decryptWithAesGcmCombined(
+        String(newChatMetadata.encrypted_slug),
+        chatKey,
+      );
+      assert.ok(automaticChatSlug);
+      assert.ok(automaticChatSlug.length <= 80);
+      assert.equal(
+        automaticChatSlug.endsWith(String(captured.preflightPayload.chat_id)),
+        true,
+      );
       const mappingsJson = await decryptWithAesGcmCombined(
         String(encryptedUserMessage.encrypted_pii_mappings),
         chatKey,
@@ -2658,6 +2752,38 @@ describe("CLI saved-chat recovery preflight", () => {
 });
 
 describe("CLI incognito chat payloads", () => {
+	// contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+	it("preserves only assistant categories in inference history", () => {
+		assert.deepEqual(
+			buildInferenceHistoryMessage({
+				message_id: "assistant-history",
+				role: "assistant",
+				sender_name: "Assistant",
+				content: "Earlier answer",
+				created_at: 101,
+				category: "news",
+			}, "chat-1"),
+			{
+				message_id: "assistant-history",
+				chat_id: "chat-1",
+				role: "assistant",
+				sender_name: "Assistant",
+				content: "Earlier answer",
+				created_at: 101,
+				category: "news",
+			},
+		);
+
+		assert.equal(buildInferenceHistoryMessage({
+			message_id: "user-history",
+			role: "user",
+			sender_name: "User",
+			content: "Earlier question",
+			created_at: 100,
+			category: "news",
+		}, "chat-1").category, undefined);
+	});
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("can include known Learning Mode context without changing incognito state", async () => {
     const captured: { messagePayload?: Record<string, unknown>; frameTypes: string[] } = {
@@ -2866,7 +2992,7 @@ describe("CLI incognito chat payloads", () => {
         incognito: true,
         messageHistory: [
           { message_id: "history-1", role: "user", sender_name: "User", content: "Earlier user", created_at: 100 },
-          { message_id: "history-2", role: "assistant", sender_name: "Assistant", content: "Earlier assistant", created_at: 101 },
+          { message_id: "history-2", role: "assistant", sender_name: "Assistant", content: "Earlier assistant", created_at: 101, category: "news" },
         ],
         precollectResponse: true,
       });
@@ -2875,6 +3001,7 @@ describe("CLI incognito chat payloads", () => {
       assert.equal(history?.length, 3);
       assert.equal(history?.[0]?.message_id, "history-1");
       assert.equal(history?.[1]?.message_id, "history-2");
+			assert.equal(history?.[1]?.category, "news");
       assert.equal(history?.[2]?.content, "Follow-up prompt");
       assert.equal(history?.[0]?.chat_id, captured.messagePayload?.chat_id);
       assert.equal(history?.[1]?.chat_id, captured.messagePayload?.chat_id);

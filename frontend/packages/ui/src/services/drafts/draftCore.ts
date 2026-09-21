@@ -15,9 +15,12 @@ export function shouldPreserveSameChatDraftRestore(
 	currentEditorMarkdown: string,
 	state: DraftEditorState,
 ): boolean {
-	if (!chatId || state.currentChatId !== chatId || currentEditorMarkdown === incomingMarkdown) {
+	if (!chatId || state.currentChatId !== chatId) {
 		return false;
 	}
+	// Equal snapshots need no document transaction either: replacing identical
+	// content can still disturb selection, IME composition and undo history.
+	if (currentEditorMarkdown === incomingMarkdown) return true;
 
 	return state.hasUnsavedChanges ||
 		state.isSaveInProgress ||

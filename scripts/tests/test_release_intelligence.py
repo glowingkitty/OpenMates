@@ -811,8 +811,7 @@ def test_cron_rejects_concurrent_release_artifact_push(tmp_path: Path) -> None:
 
 def test_create_pr_skill_requires_feature_readiness_gate() -> None:
     skill = (ROOT / ".claude" / "skills" / "create-pr" / "SKILL.md").read_text(encoding="utf-8")
-    opencode_skill = (ROOT / ".agents" / "skills" / "create-pr" / "SKILL.md").read_text(encoding="utf-8")
-    opencode_command = (ROOT / ".opencode" / "commands" / "pullrequest.md").read_text(encoding="utf-8")
+    agent_skill = (ROOT / ".agents" / "skills" / "create-pr" / "SKILL.md").read_text(encoding="utf-8")
 
     assert "pr-readiness" in skill
     assert "Feature Readiness" in skill
@@ -845,10 +844,7 @@ def test_create_pr_skill_requires_feature_readiness_gate() -> None:
     assert "!`" not in skill
     assert "2>/dev/null || true" not in skill
     assert "tail -30" not in skill
-    assert opencode_skill == skill.replace("name: openmates:pullrequest", "name: create-pr", 1)
-    assert "Load the `create-pr` skill with the `skill` tool" in opencode_command
-    assert "asks exactly five clarifying" in opencode_command
-    assert opencode_command.split("---", 2)[2].strip()
+    assert agent_skill == skill.replace("name: openmates:pullrequest", "name: create-pr", 1)
 
 
 def test_llm_summary_normalization_keeps_only_known_commit_evidence() -> None:

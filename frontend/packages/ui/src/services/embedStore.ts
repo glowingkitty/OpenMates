@@ -117,6 +117,16 @@ export interface UploadedFileSearchResult {
   updatedAt: number;
 }
 
+type UploadedFileSearchRecord = {
+  signature: string;
+  result: UploadedFileSearchResult;
+  searchText: string;
+};
+
+type UploadedFileSearchCandidate = EmbedStoreEntry & {
+  encryptedContentLength: number;
+};
+
 // TOON decoder (lazy-loaded to avoid circular dependencies)
 let toonDecode:
   | ((toonString: string, options?: { strict?: boolean }) => unknown)
@@ -239,6 +249,83 @@ export interface EmbedKeyEntry {
 export class EmbedStore {
   private readonly pendingEmbedIdsByChatId = new Map<string, Set<string>>();
   private readonly refRepairInFlight = new Map<string, Promise<string | null>>();
+  private uploadedFileCandidates: UploadedFileSearchCandidate[] | null = null;
+  private uploadedFileCandidatesPromise: Promise<UploadedFileSearchCandidate[]> | null = null;
+  private uploadedFileSearchGeneration = 0;
+  private readonly uploadedFileSearchRecords = new BoundedCache<string, UploadedFileSearchRecord>(
+    8 * 1024 * 1024,
+    5000,
+  );
+
+  private toUploadedFileSearchCandidate(entry: EmbedStoreEntry): UploadedFileSearchCandidate {
+    const filename = entry.metadata?.filename;
+    const fileName = entry.metadata?.file_name;
+    return {
+      contentRef: entry.contentRef,
+      type: entry.type,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      embed_id: entry.embed_id,
+      encrypted_type: entry.encrypted_type,
+      status: entry.status,
+      file_path: entry.file_path,
+      content_hash: entry.content_hash,
+      metadata: filename || fileName ? { filename, file_name: fileName } : undefined,
+      encryptedContentLength: entry.encrypted_content?.length ?? 0,
+    };
+  }
+
+  private updateUploadedFileSearchCandidate(entry: EmbedStoreEntry): void {
+    this.uploadedFileSearchRecords.delete(entry.contentRef);
+    if (!this.uploadedFileCandidates) {
+      const generation = this.uploadedFileSearchGeneration;
+      void this.uploadedFileCandidatesPromise?.then(() => {
+        if (generation === this.uploadedFileSearchGeneration) {
+          this.updateUploadedFileSearchCandidate(entry);
+        }
+      });
+      return;
+    }
+    const existingIndex = this.uploadedFileCandidates.findIndex(
+      (candidate) => candidate.contentRef === entry.contentRef,
+    );
+    const isCandidate = entry.status !== "error" &&
+      entry.status !== "cancelled" &&
+      this.hasUploadSearchEvidence(entry);
+    if (!isCandidate) {
+      if (existingIndex >= 0) this.uploadedFileCandidates.splice(existingIndex, 1);
+      return;
+    }
+    const candidate = this.toUploadedFileSearchCandidate(entry);
+    if (existingIndex >= 0) this.uploadedFileCandidates[existingIndex] = candidate;
+    else this.uploadedFileCandidates.push(candidate);
+    this.uploadedFileCandidates.sort(
+      (a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0),
+    );
+  }
+
+  private removeUploadedFileSearchCandidate(contentRef: string): void {
+    this.uploadedFileSearchRecords.delete(contentRef);
+    if (!this.uploadedFileCandidates) {
+      const generation = this.uploadedFileSearchGeneration;
+      void this.uploadedFileCandidatesPromise?.then(() => {
+        if (generation === this.uploadedFileSearchGeneration) {
+          this.removeUploadedFileSearchCandidate(contentRef);
+        }
+      });
+      return;
+    }
+    this.uploadedFileCandidates = this.uploadedFileCandidates.filter(
+      (candidate) => candidate.contentRef !== contentRef,
+    );
+  }
+
+  clearUploadedFileSearchCache(): void {
+    this.uploadedFileSearchGeneration += 1;
+    this.uploadedFileCandidates = null;
+    this.uploadedFileCandidatesPromise = null;
+    this.uploadedFileSearchRecords.clear();
+  }
 
   markEmbedKeyPendingForChat(chatId: string, embedId: string): void {
     const pendingEmbedIds = this.pendingEmbedIdsByChatId.get(chatId) ?? new Set<string>();
@@ -346,38 +433,15 @@ export class EmbedStore {
       // Search should be best-effort and must not log private embed content.
     }
 
-    if (entry.encrypted_content) {
-      const embedId = this.extractEmbedIdFromContentRef(entry.contentRef) || entry.embed_id;
-      if (!embedId) return names;
-
-      try {
-        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
-        if (!embedKey) return names;
-
-        const decryptedContent = await decryptWithEmbedKey(
-          entry.encrypted_content,
-          embedKey,
-        );
-        const decoded = await decodeToonContentSilently(decryptedContent);
-        for (const name of getFileNamesFromDecodedContent(decoded)) {
-          addSearchableName(names, name);
-        }
-      } catch {
-        return names;
-      }
-    }
-
     return names;
   }
 
-  async searchUploadedFiles(
-    query: string,
-    limit: number = FILE_SEARCH_RESULT_LIMIT,
-  ): Promise<UploadedFileSearchResult[]> {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return [];
+  private async getUploadedFileCandidates(): Promise<UploadedFileSearchCandidate[]> {
+    if (this.uploadedFileCandidates) return this.uploadedFileCandidates;
+    if (this.uploadedFileCandidatesPromise) return this.uploadedFileCandidatesPromise;
 
-    try {
+    const generation = this.uploadedFileSearchGeneration;
+    this.uploadedFileCandidatesPromise = (async () => {
       const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], "readonly");
       const store = transaction.objectStore(EMBEDS_STORE_NAME);
       const allEntries = await new Promise<EmbedStoreEntry[]>((resolve, reject) => {
@@ -385,47 +449,108 @@ export class EmbedStore {
         request.onsuccess = () => resolve(request.result || []);
         request.onerror = () => reject(request.error);
       });
-
       const candidates = allEntries
         .filter((entry) => entry?.contentRef && entry.status !== "error" && entry.status !== "cancelled")
         .filter((entry) => this.hasUploadSearchEvidence(entry))
+        .map((entry) => this.toUploadedFileSearchCandidate(entry))
         .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+      if (generation === this.uploadedFileSearchGeneration) {
+        this.uploadedFileCandidates = candidates;
+      }
+      return candidates;
+    })();
 
+    try {
+      return await this.uploadedFileCandidatesPromise;
+    } finally {
+      this.uploadedFileCandidatesPromise = null;
+    }
+  }
+
+  private uploadedFileSearchSignature(entry: UploadedFileSearchCandidate): string {
+    return [
+      entry.updatedAt || entry.createdAt || 0,
+      entry.content_hash || "",
+      entry.file_path || "",
+      entry.type || "",
+      entry.encryptedContentLength,
+      entry.metadata?.filename || "",
+      entry.metadata?.file_name || "",
+    ].join(":");
+  }
+
+  private async getUploadedFileSearchRecord(
+    entry: UploadedFileSearchCandidate,
+    signal?: AbortSignal,
+  ): Promise<UploadedFileSearchRecord | null> {
+    const generation = this.uploadedFileSearchGeneration;
+    const signature = this.uploadedFileSearchSignature(entry);
+    const cached = this.uploadedFileSearchRecords.get(entry.contentRef);
+    if (cached?.signature === signature) return cached;
+
+    signal?.throwIfAborted();
+    const searchableNames = await this.getSearchableFileNames(entry);
+    signal?.throwIfAborted();
+    const title = searchableNames[0];
+    if (!title) return null;
+
+    const embedId = this.extractEmbedIdFromContentRef(entry.contentRef) || entry.embed_id;
+    if (!embedId) return null;
+    const nodeType = this.inferNodeTypeFromFileName(title, entry.type || "file");
+    const result: UploadedFileSearchResult = {
+      embedId,
+      contentRef: entry.contentRef,
+      title,
+      subtitle: this.getFileSubtitle(nodeType),
+      type: entry.type || "file",
+      nodeType,
+      iconName: this.getFileIconName(nodeType),
+      createdAt: entry.createdAt || 0,
+      updatedAt: entry.updatedAt || entry.createdAt || 0,
+    };
+    const record = {
+      signature,
+      result,
+      searchText: [...searchableNames, entry.file_path, entry.type]
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+        .join(" ")
+        .toLowerCase(),
+    };
+    if (generation !== this.uploadedFileSearchGeneration) return null;
+    this.uploadedFileSearchRecords.set(entry.contentRef, record);
+    return record;
+  }
+
+  async searchUploadedFiles(
+    query: string,
+    limit: number = FILE_SEARCH_RESULT_LIMIT,
+    signal?: AbortSignal,
+  ): Promise<UploadedFileSearchResult[]> {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return [];
+
+    try {
+      signal?.throwIfAborted();
+      const candidates = await this.getUploadedFileCandidates();
+      signal?.throwIfAborted();
       const results: UploadedFileSearchResult[] = [];
       const seenEmbedIds = new Set<string>();
 
       for (const entry of candidates) {
-        const embedId = this.extractEmbedIdFromContentRef(entry.contentRef) || entry.embed_id;
-        if (!embedId || seenEmbedIds.has(embedId)) continue;
-
-        const searchableNames = await this.getSearchableFileNames(entry);
-        const title = searchableNames[0];
-        if (!title) continue;
-
-        const haystack = [...searchableNames, entry.file_path, entry.type]
-          .filter((value): value is string => typeof value === "string" && value.length > 0)
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(normalizedQuery)) continue;
-
-        const nodeType = this.inferNodeTypeFromFileName(title, entry.type || "file");
-        results.push({
-          embedId,
-          contentRef: entry.contentRef,
-          title,
-          subtitle: this.getFileSubtitle(nodeType),
-          type: entry.type || "file",
-          nodeType,
-          iconName: this.getFileIconName(nodeType),
-          createdAt: entry.createdAt || 0,
-          updatedAt: entry.updatedAt || entry.createdAt || 0,
-        });
-        seenEmbedIds.add(embedId);
+        signal?.throwIfAborted();
+        const record = await this.getUploadedFileSearchRecord(entry, signal);
+        if (!record || seenEmbedIds.has(record.result.embedId)) continue;
+        if (!record.searchText.includes(normalizedQuery)) continue;
+        results.push(record.result);
+        seenEmbedIds.add(record.result.embedId);
         if (results.length >= limit) break;
       }
 
       return results;
     } catch (error) {
+      if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) {
+        throw error;
+      }
       console.warn("[EmbedStore] Failed to search uploaded files:", error);
       return [];
     }
@@ -1054,6 +1179,7 @@ export class EmbedStore {
 
     // Keep the only copy until the IndexedDB transaction commits.
     embedCache.setPinned(contentRef, entry);
+    this.updateUploadedFileSearchCandidate(entry);
     embedAvailabilityVersion.update((version) => version + 1);
 
     try {
@@ -1336,6 +1462,7 @@ export class EmbedStore {
 
     // Keep the only copy until the IndexedDB transaction commits.
     embedCache.setPinned(contentRef, entry);
+    this.updateUploadedFileSearchCandidate(entry);
     embedAvailabilityVersion.update((version) => version + 1);
 
     try {
@@ -1430,6 +1557,7 @@ export class EmbedStore {
       };
 
       embedCache.setPinned(item.contentRef, entry);
+      this.updateUploadedFileSearchCandidate(entry);
       entries.push(entry);
     }
     embedAvailabilityVersion.update((version) => version + 1);
@@ -2079,6 +2207,7 @@ export class EmbedStore {
     };
 
     embedCache.setPinned(contentRef, entry);
+    this.updateUploadedFileSearchCandidate(entry);
     embedAvailabilityVersion.update((version) => version + 1);
   }
 
@@ -3255,6 +3384,7 @@ export class EmbedStore {
 
       // Delete from in-memory cache
       embedCache.delete(contentRef);
+      this.removeUploadedFileSearchCandidate(contentRef);
 
       // Delete all keys for this embed from embed_keys store
       const keysTransaction = await chatDB.getTransaction(
@@ -3799,6 +3929,12 @@ export class EmbedStore {
 
 // Export singleton instance
 export const embedStore = new EmbedStore();
+
+if (typeof window !== "undefined") {
+  window.addEventListener("userLoggingOut", () => {
+    embedStore.clearUploadedFileSearchCache();
+  });
+}
 
 export function retryPendingEmbedsForReadyChat(chatId: string): boolean {
   return embedStore.retryPendingEmbedKeysForChat(chatId);

@@ -97,6 +97,7 @@ class ExistingQueuedRuntime(FakeRuntime):
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.access.boundaries
 async def test_manual_route_accepts_a_pinned_run_before_dispatch_and_hides_scheduler_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     service = workflow_service(repository=InMemoryWorkflowRepository())
     workflow = service.create_workflow("alice", "Manual", manual_graph(), enabled=True)
@@ -133,6 +134,7 @@ async def test_manual_route_accepts_a_pinned_run_before_dispatch_and_hides_sched
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.access.boundaries
 async def test_manual_route_rejects_an_absent_idempotency_key_before_runtime_acceptance() -> None:
     service = workflow_service(repository=InMemoryWorkflowRepository())
     workflow = service.create_workflow("alice", "Manual", manual_graph(), enabled=True)
@@ -154,6 +156,7 @@ async def test_manual_route_rejects_an_absent_idempotency_key_before_runtime_acc
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.access.boundaries
 async def test_manual_route_requeues_an_existing_accepted_queued_run(monkeypatch: pytest.MonkeyPatch) -> None:
     service = workflow_service(repository=InMemoryWorkflowRepository())
     workflow = service.create_workflow("alice", "Manual", manual_graph(), enabled=True)
@@ -204,12 +207,22 @@ class RecordingAppSkillAdapter:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, dict[str, Any], str | None]] = []
 
-    async def execute(self, app_id: str, skill_id: str, request: dict[str, Any], *, user_id: str | None = None) -> dict[str, Any]:
+    async def execute(
+        self,
+        app_id: str,
+        skill_id: str,
+        request: dict[str, Any],
+        *,
+        user_id: str | None = None,
+        billing_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        del billing_context
         self.calls.append((app_id, skill_id, request, user_id))
         return {"summary": "workflow app skill ok"}
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.access.boundaries
 async def test_worker_does_not_execute_side_effects_when_another_delivery_claimed_the_run() -> None:
     runtime = StartRejectedRuntime()
 
@@ -247,6 +260,7 @@ async def test_worker_does_not_execute_side_effects_when_another_delivery_claime
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.access.boundaries
 async def test_worker_uses_supplied_app_skill_adapter_for_accepted_runs() -> None:
     service = workflow_service(repository=InMemoryWorkflowRepository())
     workflow = service.create_workflow("alice", "Manual app skill", manual_app_skill_graph(), enabled=True)
@@ -299,6 +313,7 @@ def schedule_graph() -> dict[str, Any]:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.access.boundaries
 def test_import_binding_completion_requires_server_evidence_before_enabling() -> None:
     service = workflow_service(repository=InMemoryWorkflowRepository())
     workflow = service.create_workflow("alice", "Imported", schedule_graph(), source="import")
@@ -324,6 +339,7 @@ def test_import_binding_completion_requires_server_evidence_before_enabling() ->
     assert service.update_workflow(workflow.id, "alice", enabled=True).enabled is True
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.access.boundaries
 def test_import_binding_completion_returns_a_typed_reason_when_the_skill_is_unavailable() -> None:
     service = workflow_service(repository=InMemoryWorkflowRepository())
     workflow = service.create_workflow("alice", "Imported", schedule_graph(), source="import")
@@ -343,6 +359,7 @@ def test_import_binding_completion_returns_a_typed_reason_when_the_skill_is_unav
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.access.boundaries
 async def test_binding_completion_endpoint_returns_a_typed_unresolved_reason() -> None:
     service = workflow_service(repository=InMemoryWorkflowRepository())
     workflow = service.create_workflow("alice", "Imported", schedule_graph(), source="import")
@@ -372,6 +389,7 @@ async def test_binding_completion_endpoint_returns_a_typed_unresolved_reason() -
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.access.boundaries
 async def test_runner_rejects_manual_execution_without_a_durable_pinned_run() -> None:
     service = workflow_service(repository=InMemoryWorkflowRepository())
     workflow = service.create_workflow("alice", "Manual", manual_graph())
@@ -380,6 +398,7 @@ async def test_runner_rejects_manual_execution_without_a_durable_pinned_run() ->
         await WorkflowRunner(service).run_workflow(workflow, "alice", trigger_type="manual")
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.access.boundaries
 def test_trigger_owner_id_is_persisted_internally_but_not_returned_to_service_callers() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)

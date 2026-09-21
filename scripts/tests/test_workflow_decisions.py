@@ -25,7 +25,7 @@ def receipt():
         surface="proof",
         revision="abc1234",
         decision="stop",
-        source={"provider": "opencode", "session_id": "ses-1", "message_id": "msg-1"},
+        source={"provider": "codex", "session_id": "ses-1", "message_id": "msg-1"},
         quote="Stop the UI proof",
         read_message=user_message,
     )
@@ -80,7 +80,7 @@ def test_forged_or_missing_provenance_never_grants_waiver():
                 revision="abc1234",
                 decision="stop",
                 source={
-                    "provider": "opencode",
+                    "provider": "codex",
                     "session_id": "ses-1",
                     "message_id": "msg-1",
                 },

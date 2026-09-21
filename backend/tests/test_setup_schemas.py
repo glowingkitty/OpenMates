@@ -54,6 +54,85 @@ def load_setup_schemas_module():
     return importlib.import_module("backend.core.directus.setup.setup_schemas")
 
 
+def test_ci_fast_schema_setup_reduces_only_defensive_settle(monkeypatch) -> None:
+    setup_schemas = load_setup_schemas_module()
+    delays = []
+    monkeypatch.setattr(setup_schemas.time, "sleep", delays.append)
+    monkeypatch.setattr(setup_schemas, "CI_FAST_SCHEMA_SETUP", True)
+    setup_schemas.settle(2)
+    assert delays == [0.01]
+    monkeypatch.setattr(setup_schemas, "CI_FAST_SCHEMA_SETUP", False)
+    setup_schemas.settle(2)
+    assert delays[-1] == 2
+
+
+def test_prepared_schema_rotates_bootstrap_password_and_verifies_contract(monkeypatch) -> None:
+    setup_schemas = load_setup_schemas_module()
+    calls: list[tuple[str, Any]] = []
+
+    monkeypatch.setattr(setup_schemas, "CI_PREPARED_SCHEMA_ADMIN_PASSWORD", "bundle-password")
+    monkeypatch.setattr(setup_schemas, "ADMIN_PASSWORD", "fresh-job-password")
+    monkeypatch.setattr(setup_schemas, "wait_for_directus", lambda: calls.append(("wait", None)))
+    monkeypatch.setattr(
+        setup_schemas,
+        "login",
+        lambda password=None: calls.append(("login", password)) or "token",
+    )
+    monkeypatch.setattr(
+        setup_schemas,
+        "collection_exists",
+        lambda token, collection: calls.append(("collection", collection)) or True,
+    )
+    monkeypatch.setattr(
+        setup_schemas.requests,
+        "patch",
+        lambda url, **kwargs: calls.append(("patch", kwargs["json"]))
+        or FakeResponse(200),
+    )
+    monkeypatch.setattr(
+        setup_schemas,
+        "verify_login_rejected",
+        lambda password: calls.append(("rejected", password)),
+    )
+    for name in (
+        "verify_chat_recovery_endpoint",
+        "verify_sub_chat_orchestration_endpoint",
+        "verify_anonymous_usage_endpoint",
+    ):
+        monkeypatch.setattr(
+            setup_schemas, name, lambda name=name: calls.append((name, None))
+        )
+
+    setup_schemas.activate_prepared_schema()
+
+    assert ("login", "bundle-password") in calls
+    assert ("patch", {"password": "fresh-job-password"}) in calls
+    assert ("login", None) in calls
+    assert ("rejected", "bundle-password") in calls
+    assert {value for kind, value in calls if kind == "collection"} == {
+        "invite_codes",
+        "chats",
+        "directus_users",
+    }
+
+
+def test_prepared_schema_requires_old_bootstrap_login_to_be_rejected(monkeypatch) -> None:
+    setup_schemas = load_setup_schemas_module()
+    monkeypatch.setattr(
+        setup_schemas.requests,
+        "post",
+        lambda *args, **kwargs: FakeResponse(401),
+    )
+    setup_schemas.verify_login_rejected("retired-password")
+    monkeypatch.setattr(
+        setup_schemas.requests,
+        "post",
+        lambda *args, **kwargs: FakeResponse(200),
+    )
+    with pytest.raises(RuntimeError, match="remained usable"):
+        setup_schemas.verify_login_rejected("retired-password")
+
+
 def test_create_collection_preserves_string_primary_key(monkeypatch, tmp_path: Path) -> None:
     setup_schemas = load_setup_schemas_module()
     schema_file = tmp_path / "free_testing_credits_budget.yml"

@@ -3285,6 +3285,7 @@ changes to the documentation (to keep the documentation up to date).
                 <div
                     class="header-chat-icons-layer on-banner"
                     class:menu-open={isMenuVisible}
+                    data-animation-state={isMenuVisible ? 'running' : 'paused'}
                     aria-hidden="true"
                     style:--header-chat-decor-opacity={headerDecorOpacity}
                 >
@@ -3313,6 +3314,7 @@ changes to the documentation (to keep the documentation up to date).
                 teams={sortedProfileTeams}
                 activeTeamId={$activeTeamId}
                 teamContextLoading={profileTeamsLoading}
+                animationsActive={isMenuVisible}
                 teamContextError={profileTeamsLoadError}
                 onTeamContextChange={handleProfileTeamContextChange}
                 onBillingClick={() => handleOpenSettings({ detail: { settingsPath: 'billing', direction: 'forward', icon: 'billing', title: $text('settings.billing') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
@@ -3909,11 +3911,15 @@ changes to the documentation (to keep the documentation up to date).
         /* Orbital float — each icon drifts in a small circle with a per-icon phase offset. */
         animation: decoFloat 16s linear infinite;
         animation-delay: var(--header-chat-icon-animation-delay);
+        animation-play-state: paused;
+        will-change: auto;
     }
 
     .header-chat-icons-layer.menu-open .header-chat-icon {
         opacity: 1;
         transition-delay: 0.2s;
+        animation-play-state: running;
+        will-change: transform;
     }
 
     @media (prefers-reduced-motion: reduce) {

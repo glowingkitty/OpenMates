@@ -29,12 +29,14 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.python_utils.billing_utils import calculate_total_credits
+from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
 from backend.shared.python_utils.app_skill_output_safety import (
     AppSkillOutputSafetyContext,
     APP_SKILL_SURFACE_REST,
     OUTPUT_SAFETY_ERROR_CODES,
     central_app_skill_dispatch,
     is_external_data_skill,
+    prompt_injection_protection_disabled_for_surface,
     sanitize_app_skill_output,
     strip_request_security_controls,
 )
@@ -369,6 +371,18 @@ def _sanitize_dict_recursively(data: Any, log_prefix: str = "") -> Any:
     """
     sanitized, _ = sanitize_text_payload_for_ascii_smuggling(data, log_prefix=log_prefix)
     return sanitized
+
+
+async def _preserve_direct_app_skill_safety_control(
+    request: Optional[Request], validated_body: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Keep authenticated REST/CLI opt-out after Pydantic drops extra fields."""
+    if request is None:
+        return validated_body
+    raw_body = await request.json()
+    if prompt_injection_protection_disabled_for_surface(raw_body, APP_SKILL_SURFACE_REST):
+        return {**validated_body, "security": {"prompt_injection_protection": "disabled"}}
+    return validated_body
 
 
 def resolve_translation(translation_service, translation_key: str, namespace: str, fallback: str = "") -> str:
@@ -992,6 +1006,12 @@ def is_skill_execution_successful(result: Dict[str, Any]) -> bool:
                     if isinstance(item_results, list) and len(item_results) > 0:
                         all_failed = False
                         break
+                    # Some skills (for example weather.forecast) return a flat
+                    # list of successful result objects rather than grouped
+                    # {results: [...]} items.
+                    elif "results" not in result_item and not item_error:
+                        all_failed = False
+                        break
                     # If there's no error and no results, might be a valid empty result
                     # But we need at least one successful result to consider it successful
                     elif not item_error or (isinstance(item_error, str) and not item_error.strip()):
@@ -1344,11 +1364,13 @@ def resolve_skill_provider_info(
     skill: AppSkillDefinition,
     app_id: str,
     config_manager: ConfigManager,
+    result_data: Any = None,
 ) -> Dict[str, Optional[str]]:
     """
     Resolve provider display name, region, and model reference for a skill.
     Used to populate usage_details so the usage detail view shows provider/region
-    for all skills, not just AI Ask.
+    for all skills, not just AI Ask. Dynamic skills use result_data to attribute
+    the provider that actually executed.
     
     Returns dict with keys: model_used, server_provider, server_region
     """
@@ -1357,13 +1379,16 @@ def resolve_skill_provider_info(
     server_region = None
     
     # Determine provider_id
-    provider_id = None
-    if skill.full_model_reference and "/" in skill.full_model_reference:
-        provider_id = skill.full_model_reference.split("/", 1)[0]
-    elif skill.providers and len(skill.providers) > 0:
-        pname = skill.providers[0].name
+    provider_id = resolve_skill_usage_provider_id(
+        app_id,
+        skill.id,
+        skill,
+        result_data,
+    )
+    if provider_id:
+        pname = provider_id
         provider_id = pname.lower().replace(" ", "_")
-        # Same name-to-ID mapping as main_processor.py
+        # Preserve compatibility for legacy human-readable provider refs.
         if pname == "Google" and app_id == "maps":
             provider_id = "google_maps"
         elif pname in ("Brave", "Brave Search"):
@@ -1413,7 +1438,9 @@ async def charge_credits_via_internal_api(
     usage_details: Optional[Dict[str, Any]] = None,
     api_key_hash: Optional[str] = None,  # SHA-256 hash of API key for tracking
     device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
-) -> None:
+    idempotency_key: Optional[str] = None,
+    raise_on_error: bool = False,
+) -> Optional[Dict[str, Any]]:
     """
     Charge credits via the internal billing API.
     This creates a usage entry and deducts credits from the user's account.
@@ -1427,6 +1454,8 @@ async def charge_credits_via_internal_api(
         usage_details: Optional additional usage metadata
         api_key_hash: Optional SHA-256 hash of the API key that created this usage entry
         device_hash: Optional SHA-256 hash of the device that created this usage entry
+        idempotency_key: Stable caller-owned identity for retry-safe background work.
+        raise_on_error: Propagate billing failures when the caller must fail closed.
     """
     if credits <= 0:
         logger.debug(f"Skipping credit charge for user {user_id} - credits is {credits}")
@@ -1438,7 +1467,7 @@ async def charge_credits_via_internal_api(
         "credits": credits,
         "skill_id": skill_id,
         "app_id": app_id,
-        "idempotency_key": _build_app_skill_billing_idempotency_key(
+        "idempotency_key": idempotency_key or _build_app_skill_billing_idempotency_key(
             app_id=app_id,
             skill_id=skill_id,
             user_id_hash=user_id_hash,
@@ -1461,12 +1490,19 @@ async def charge_credits_via_internal_api(
             response = await client.post(url, json=charge_payload, headers=headers)
             response.raise_for_status()
             logger.info(f"Successfully charged {credits} credits for skill '{app_id}.{skill_id}'")
+            response_data = response.json()
+            return response_data if isinstance(response_data, dict) else None
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error charging credits for skill '{app_id}.{skill_id}': {e.response.status_code} - {e.response.text}", exc_info=True)
-        # Don't raise - billing failure shouldn't break skill execution response
+        if raise_on_error:
+            raise
+        # Default REST behavior keeps returning successful provider output when billing is unavailable.
     except Exception as e:
         logger.error(f"Error charging credits for skill '{app_id}.{skill_id}': {e}", exc_info=True)
-        # Don't raise - billing failure shouldn't break skill execution response
+        if raise_on_error:
+            raise
+        # Default REST behavior keeps returning successful provider output when billing is unavailable.
+    return None
 
 
 async def get_api_key_budget_spend(
@@ -2991,6 +3027,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             
                             # Convert Pydantic model to dict for skill execution
                             request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)
+                            request_dict = await _preserve_direct_app_skill_safety_control(request, request_dict)
 
                             preflight_reserved_credits = get_variable_preflight_reserved_credits(
                                 captured_app_id,
@@ -3055,7 +3092,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                     
                                     # Resolve provider info for usage tracking
-                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
+                                    provider_info = resolve_skill_provider_info(
+                                        captured_skill,
+                                        captured_app_id,
+                                        get_config_manager(request),
+                                        result,
+                                    )
                                     
                                     result_charge_items = get_variable_result_charge_items(
                                         captured_app_id,
@@ -3234,6 +3276,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             
                             # Convert Pydantic model to dict for skill execution
                             request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)
+                            request_dict = await _preserve_direct_app_skill_safety_control(request, request_dict)
                             
                             # Execute the skill - pass request_dict directly
                             result = await call_app_skill(
@@ -3270,7 +3313,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 
                                 if credits_charged > 0:
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
-                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
+                                    provider_info = resolve_skill_provider_info(
+                                        captured_skill,
+                                        captured_app_id,
+                                        get_config_manager(request),
+                                        result,
+                                    )
                                     usage_details = {
                                         "api_key_name": user_info.get('api_key_encrypted_name'),
                                         "external_request": True,
@@ -3392,7 +3440,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 
                                 if credits_charged > 0:
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
-                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
+                                    provider_info = resolve_skill_provider_info(
+                                        captured_skill,
+                                        captured_app_id,
+                                        get_config_manager(request),
+                                        result,
+                                    )
                                     result_charge_items = get_variable_result_charge_items(
                                         captured_app_id,
                                         captured_skill.id,
@@ -3506,7 +3559,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                     
                                     # Resolve provider info for usage tracking
-                                    provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
+                                    provider_info = resolve_skill_provider_info(
+                                        captured_skill,
+                                        captured_app_id,
+                                        get_config_manager(request),
+                                        result,
+                                    )
                                     
                                     # Calculate per-request credits (distribute evenly, remainder on last)
                                     per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged

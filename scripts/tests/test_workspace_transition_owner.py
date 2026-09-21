@@ -41,11 +41,6 @@ def test_duplicate_transition_is_coalesced_and_stale_generation_rejected(
     assert calls == ["write", "write"]
 
 
-def test_retired_plugin_cannot_own_workspace_transitions():
-    root = Path(__file__).resolve().parents[2]
-    assert not (root / ".opencode/plugins/openmates-hooks.js").exists()
-
-
 def test_actual_session_temporary_path_is_excluded():
     import subprocess
 

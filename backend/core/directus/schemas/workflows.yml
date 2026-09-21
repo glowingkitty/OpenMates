@@ -107,3 +107,6 @@ workflows:
     updated_at:
       type: integer
       note: "Unix timestamp."
+    encrypted_delivery_key_ref:
+      type: string
+      note: "[Vault reference] Random workflow identity-HMAC key. Never a normal chat key."

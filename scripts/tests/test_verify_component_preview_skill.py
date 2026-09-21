@@ -1,6 +1,6 @@
 """Guard the component-first UI verification workflow.
 
-The canonical Claude skill and generated OpenCode/Codex mirror must stay equal.
+The canonical Claude skill and generated Codex mirror must stay equal.
 The contract requires URL-configured bare previews and a dedicated component
 spec directory before broader use-case Playwright verification.
 """

@@ -257,7 +257,7 @@ enum DevEmbedPreviewFixtures {
                 data: [
                     "url": "https://www.visitberlin.de/en/restaurants",
                     "title": "Top 10 Restaurants in Berlin - Local Guide",
-                    "description": "Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors. Updated for 2026.",
+                    "description": "Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors.",
                     "age": "2026-07-25T00:00:00Z",
                     "page_age": "2026-07-25T00:00:00Z",
                     "language": "en",
@@ -294,6 +294,17 @@ enum DevEmbedPreviewFixtures {
                     "family_friendly": true
                 ],
                 parentEmbedId: "preview-web-search-1"
+            ),
+            record(
+                id: "preview-web-search-result-4",
+                type: EmbedType.webWebsite.rawValue,
+                appId: "web",
+                data: [
+                    "url": "https://www.thrillist.com/eat/berlin",
+                    "title": "Berlin Restaurant Guide 2026",
+                    "description": "The most up-to-date guide to dining in Berlin with new openings and seasonal highlights."
+                ],
+                parentEmbedId: "preview-web-search-1"
             )
         ]
         let parent = appSkill(
@@ -301,7 +312,7 @@ enum DevEmbedPreviewFixtures {
             type: EmbedType.webSearch.rawValue,
             appId: "web",
             skillId: "search",
-            data: ["query": "best restaurants in Berlin", "provider": "Brave Search", "result_count": 3],
+            data: ["query": "best restaurants in Berlin", "provider": "Brave Search", "result_count": children.count],
             embedIds: children.map(\.id).joined(separator: "|")
         )
         return skill(id: "web-search", label: "Search", primary: parent, children: children)
@@ -330,7 +341,7 @@ enum DevEmbedPreviewFixtures {
             appId: "web",
             data: [
                 "url": "https://svelte.dev",
-                "title": "Svelte - Cybernetically enhanced web apps",
+                "title": "Svelte — Cybernetically enhanced web apps",
                 "description": "Svelte is a radical new approach to building user interfaces. Write less code, use no virtual DOM, and create truly reactive apps.",
                 "favicon_url": "https://svelte.dev/favicon.png"
             ]

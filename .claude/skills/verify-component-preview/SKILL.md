@@ -1,23 +1,29 @@
 ---
 name: verify-component-preview
-description: Use whenever adding or modifying a web UI element, Svelte component, screen, icon, hover state, focus state, or responsive layout. Enforces bare URL-configured component proof before broader use-case specs.
+description: Verify material changes to a web component's visible, interactive, or responsive behavior in runner-local bare preview before broader use-case specs. Do not use for mechanical edits with unchanged behavior.
 ---
 
 # Verify Component Preview
 
-Use this workflow after the API/CLI/SDK gates that apply to shared behavior and
-before implementing or running a broader route-level or use-case Playwright
-spec. If Figma is involved, run `figma-reference` first.
+Use this workflow before a broader route-level or use-case Playwright spec when
+accepted work materially changes a component's visible, interactive, or
+responsive behavior. Reuse existing preview fixtures and focused specs whenever
+they cover the changed behavior. A mechanical edit with unchanged behavior does
+not require a new preview fixture or spec. If Figma is involved, run
+`figma-reference` first.
 
 ## Required Order
 
 1. Identify every component materially changed by the task.
-2. Ensure each component has a colocated `ComponentName.preview.ts` fixture
+2. Ensure each component that needs focused proof has a colocated
+   `ComponentName.preview.ts` fixture
    with one semantically valid default state and named variants where static
    state differs.
-3. Open the deployed component in bare capture mode for every inspection, test,
-   screenshot, and recording. The canonical URL is:
-   `https://app.dev.openmates.org/dev/preview/{component-path}?theme=light&background=%23dbeafe&width={width}&chrome=0`.
+3. Open the component in runner-local bare capture mode for every automated
+   inspection, test, screenshot, and recording. The focused spec navigates to:
+   `/dev/preview/{component-path}?theme=light&background=%23dbeafe&width={width}&chrome=0`.
+   Isolated GitHub CI supplies the `http://localhost:5173` base URL and exact
+   candidate build; do not hardcode or pass `app.dev.openmates.org`.
 4. Confirm the page shows only the component on the requested background. The
    preview toolbar, component catalogue, breadcrumb, props editor, variant bar,
    viewport guides, and status bar must not be visible.
@@ -29,9 +35,12 @@ spec. If Figma is involved, run `figma-reference` first.
    apply to the component. Assert layout geometry, control visibility, icon
    presence, readable labels, clipping/overflow, and interaction results before
    each named proof checkpoint.
-7. Deploy, run the focused component spec, review its component-only proof, and
-   fix objective defects before creating, extending, or running the broader
-   use-case spec.
+7. Publish the immutable candidate with `sessions.py ci-source`, submit the
+   focused spec through `ci_coordinator.py`, review its component-only artifact,
+   and fix objective defects before creating, extending, or running the broader
+   use-case spec. The account-free marker routes it to the GitHub Vite-only
+   profile; it must not start Docker/backend, build the CLI, or build the
+   production web app. Do not deploy or wait for Vercel to obtain this proof.
 
 ## Component Spec Contract
 
@@ -50,7 +59,8 @@ spec. If Figma is involved, run `figma-reference` first.
 - The preview route's internal readiness marker may be used only to wait for
   mounting. It is not a product assertion or proof checkpoint.
 - Use phone and laptop profiles only when responsive behavior differs.
-- Publish the focused component video before moving to full-flow verification.
+- Retain the focused component artifact before moving to full-flow verification.
+  Publish a proof video only when the accepted scope explicitly requires one.
 
 ## Stop Conditions
 

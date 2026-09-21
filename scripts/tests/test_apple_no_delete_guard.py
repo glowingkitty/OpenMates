@@ -24,7 +24,6 @@ def guard(tmp_path, monkeypatch):
     monkeypatch.setattr(module, 'STATE_PATH', tmp_path / 'stops.sqlite3')
     monkeypatch.setenv('CODEX_THREAD_ID', 'test-thread')
     monkeypatch.setenv('CODEX_SESSION_ID', 'test-thread')
-    monkeypatch.delenv('OPENCODE_SESSION_ID', raising=False)
     return module
 
 

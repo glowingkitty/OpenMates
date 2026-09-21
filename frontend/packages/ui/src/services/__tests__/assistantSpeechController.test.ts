@@ -126,3 +126,35 @@ it("retains normalized manual chapters when later worker status uses an offset",
   expect(get(controller.player).regions[0]).toMatchObject({ sequence: 0, chapter: { kind: "heading", text: "First" } });
   await controller.close();
 });
+
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.deterministic-chapter-labels
+it("maps reused audio after collapsed searches using the requested chapter order", async () => {
+  const { assistantSpeechController: controller } = await import("../assistantSpeechController");
+  await controller.request("chat", "message", "## First\nFirst paragraph.\n\n## Second\nSecond paragraph.");
+  await accepted([
+    { ...ready, sequence: 5, request_sequence: 0 },
+    { ...ready, segment_id: "segment-1", sequence: 9, request_sequence: 1 },
+  ]);
+  await vi.waitFor(() => expect(get(controller.player).regions).toHaveLength(2));
+  expect(get(controller.player).regions.map((region) => region.chapter)).toEqual([
+    { kind: "heading", text: "First" }, { kind: "heading", text: "Second" },
+  ]);
+  await controller.next();
+  expect(get(controller.player).activeSegmentId).toBe("segment-1");
+  expect(get(controller.player).status).toBe("playing");
+  await controller.close();
+});
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.projection.deterministic-semantic
+it("uses the selected German locale for on-demand News search summaries", async () => {
+  const { locale } = await import("svelte-i18n");
+  locale.set("de");
+  const { assistantSpeechController: controller } = await import("../assistantSpeechController");
+  await controller.request("chat", "message", '```json\n{"type":"app_skill_use","app_id":"news","skill_id":"search"}\n```\n\nAntwort.');
+  expect(mocks.send.mock.calls.at(-1)?.[1].segments.map((segment: { speakable_text: string }) => segment.speakable_text)).toEqual([
+    "Ich habe die News-Suche verwendet.", "Antwort.",
+  ]);
+  await controller.close();
+  locale.set("en");
+});

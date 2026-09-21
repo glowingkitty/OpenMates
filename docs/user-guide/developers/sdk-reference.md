@@ -374,6 +374,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.workflows.createFromYaml()` | `om.workflows.create_from_yaml()` | `source` | `source` | `object` |
 | `om.workflows.createTemplateShortUrl()` | `om.workflows.create_template_short_url()` | `input` | `token, encrypted_url, template_id, ttl_seconds, password_protected` | `object` |
 | `om.workflows.delete()` | `om.workflows.delete()` | `id, confirmed` | `id, confirmed` | `object` |
+| `om.workflows.deleteRun()` | `om.workflows.delete_run()` | `id, run_id` | `id, run_id` | `object` |
 | `om.workflows.disable()` | `om.workflows.disable()` | `id` | `id` | `object` |
 | `om.workflows.enable()` | `om.workflows.enable()` | `id` | `id` | `object` |
 | `om.workflows.followUpInput()` | `om.workflows.follow_up_input()` | `session_id, text` | `session_id, text` | `object` |
@@ -385,6 +386,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.workflows.inputSession()` | `om.workflows.input_session()` | `session_id` | `session_id` | `object` |
 | `om.workflows.keep()` | `om.workflows.keep()` | `id` | `id` | `object` |
 | `om.workflows.list()` | `om.workflows.list()` | `none` | `none` | `list` |
+| `om.workflows.previewStep()` | `om.workflows.preview_step()` | `id, step_id, input, node, upstream_outputs` | `id, step_id, node, input, upstream_outputs` | `object` |
 | `om.workflows.removeFromProject()` | `om.workflows.remove_from_project()` | `id, project_id` | `id, project_id` | `object` |
 | `om.workflows.respond()` | `om.workflows.respond()` | `id, run_id, step_id, input` | `id, run_id, step_id, input` | `object` |
 | `om.workflows.restore()` | `om.workflows.restore()` | `id, entry_id, state` | `id, entry_id, state` | `object` |
@@ -394,7 +396,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.workflows.runDetail()` | `om.workflows.run_detail()` | `id, run_id` | `id, run_id` | `object` |
 | `om.workflows.runs()` | `om.workflows.runs()` | `id` | `id` | `list` |
 | `om.workflows.startInput()` | `om.workflows.start_input()` | `input` | `text, input_type, audio_ref, selected_workflow_id, selected_project_id` | `object` |
-| `om.workflows.stepTest()` | `om.workflows.step_test()` | `id, step_id, input, confirmed` | `id, step_id, input, confirmed` | `object` |
+| `om.workflows.stepTest()` | `om.workflows.step_test()` | `id, step_id, input, confirmed, node, upstream_outputs` | `id, step_id, input, confirmed, node, upstream_outputs` | `object` |
 | `om.workflows.stopInput()` | `om.workflows.stop_input()` | `session_id` | `session_id` | `object` |
 | `om.workflows.temporary()` | `om.workflows.temporary()` | `none` | `none` | `list` |
 | `om.workflows.undoInput()` | `om.workflows.undo_input()` | `session_id` | `session_id` | `object` |

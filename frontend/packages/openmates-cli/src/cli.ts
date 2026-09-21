@@ -23,6 +23,7 @@ import {
   type ChatRewindResult,
   type DecryptedEmbed,
   type DecryptedMessage,
+  type DecryptedMemoryEntry,
   type DailyInspiration,
   type DecryptedNewChatSuggestion,
   type DocsTree,
@@ -40,6 +41,7 @@ import {
   type WorkflowCapability,
   type WorkflowDetail,
   type WorkflowGraph,
+  type WorkflowNode,
   type WorkflowInputSessionResult,
   type WorkflowRunDetail,
   type WorkflowRunContentRetention,
@@ -282,16 +284,6 @@ async function main(): Promise<void> {
   }
 
   const redactor = new OutputRedactor();
-  const piiDetectionEnabled = parsed.flags["no-pii-detection"] !== true;
-  if (piiDetectionEnabled && shouldInitializeRedactor(command, subcommand)) {
-    try {
-      const memories = client.hasSession() ? await client.listMemories() : [];
-      redactor.initializeFromMemories(memories);
-    } catch {
-      // Keep high-confidence pattern detection active even if memory loading fails.
-      redactor.initializeFromMemories([]);
-    }
-  }
 
   if (!command) {
     if (parsed.flags.version !== undefined) {
@@ -675,7 +667,7 @@ const TRUST_GUARD_EXEMPT_COMMANDS = new Set([
   "upgrade",
 ]);
 const TRUST_GUARD_BLOCKED_COMMANDS = new Set(["signup", "e2e"]);
-const TRUST_GUARD_PROFILE = "opencode-personal";
+const TRUST_GUARD_PROFILE = "codex-personal";
 const TRUST_GUARD_API_URL = "https://api.dev.openmates.org";
 
 export function shouldRequireTrustedAccountGuard(command: string | undefined): boolean {
@@ -684,7 +676,7 @@ export function shouldRequireTrustedAccountGuard(command: string | undefined): b
 
 export function assertTrustedAccountCommandAllowed(command: string | undefined): void {
   if (command && TRUST_GUARD_BLOCKED_COMMANDS.has(command)) {
-    throw new Error(`The '${command}' command is disabled for the trusted OpenCode CLI profile.`);
+    throw new Error(`The '${command}' command is disabled for the trusted Codex CLI profile.`);
   }
 }
 
@@ -693,20 +685,20 @@ export function assertTrustedAccountGuardEnvironment(
   environment: NodeJS.ProcessEnv = process.env,
 ): void {
   if (flags.profile !== undefined && flags.profile !== TRUST_GUARD_PROFILE) {
-    throw new Error(`Trusted OpenCode CLI commands cannot override profile ${TRUST_GUARD_PROFILE}.`);
+    throw new Error(`Trusted Codex CLI commands cannot override profile ${TRUST_GUARD_PROFILE}.`);
   }
   if (environment.OPENMATES_PROFILE !== TRUST_GUARD_PROFILE) {
-    throw new Error(`Trusted OpenCode CLI commands require OPENMATES_PROFILE=${TRUST_GUARD_PROFILE}.`);
+    throw new Error(`Trusted Codex CLI commands require OPENMATES_PROFILE=${TRUST_GUARD_PROFILE}.`);
   }
   if (environment.OPENMATES_STATE_DIR) {
-    throw new Error("Trusted OpenCode CLI commands cannot override OPENMATES_STATE_DIR.");
+    throw new Error("Trusted Codex CLI commands cannot override OPENMATES_STATE_DIR.");
   }
   if (environment.OPENMATES_API_URL?.replace(/\/$/, "") !== TRUST_GUARD_API_URL) {
-    throw new Error(`Trusted OpenCode CLI commands require ${TRUST_GUARD_API_URL}.`);
+    throw new Error(`Trusted Codex CLI commands require ${TRUST_GUARD_API_URL}.`);
   }
   const requestedApiUrl = flags["api-url"];
   if (typeof requestedApiUrl === "string" && requestedApiUrl.replace(/\/$/, "") !== TRUST_GUARD_API_URL) {
-    throw new Error("Trusted OpenCode CLI commands cannot override the configured dev API URL.");
+    throw new Error("Trusted Codex CLI commands cannot override the configured dev API URL.");
   }
 }
 
@@ -1273,7 +1265,7 @@ async function handleTasks(
   throw new Error(`Unknown tasks command '${subcommand}'. Run 'openmates tasks --help'.`);
 }
 
-function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: "codex" | "opencode"; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
+function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: "codex"; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
   const externalChat = externalChatFromFlags(flags);
   return {
     status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
@@ -1290,7 +1282,7 @@ function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: 
   };
 }
 
-function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: "codex" | "opencode"; id: string; title?: string } | undefined {
+function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: "codex"; id: string; title?: string } | undefined {
   if (typeof flags["external-chat"] !== "string") return undefined;
   const ref = parseExternalChatRef(flags["external-chat"]);
   return {
@@ -4653,16 +4645,6 @@ async function createEncryptedRemoteAccessProject(
   };
 }
 
-function shouldInitializeRedactor(
-  command: string | undefined,
-  subcommand: string | undefined,
-): boolean {
-  return (
-    command === "chats" &&
-    ["new", "send", "answer-interactive", "incognito"].includes(subcommand ?? "")
-  );
-}
-
 function parseJsonFlag<T>(value: string, flagName: string): T {
   try {
     return JSON.parse(value) as T;
@@ -6308,6 +6290,74 @@ async function openUrl(url: string): Promise<void> {
 // Workflows
 // ---------------------------------------------------------------------------
 
+/** Wait for this accepted run and its selected chat deliveries, never dispatch again. */
+export async function waitForWorkflowRun(
+  client: Pick<OpenMatesClient, "getWorkflowRun" | "ensureSynced">,
+  workflowId: string,
+  initialRun: WorkflowRunDetail,
+  options: { timeoutMs?: number; pollIntervalMs?: number; syncIntervalMs?: number } = {},
+): Promise<WorkflowRunDetail> {
+  const deadline = Date.now() + (options.timeoutMs ?? 180_000);
+  const runId = initialRun.id;
+  let run = initialRun;
+  let lastSyncError = "";
+  const timeoutError = () => new Error(
+    `Workflow run ${runId} is still ${run.status === "completed" ? "waiting for chat delivery acknowledgement" : run.status}. ` +
+    `Inspect it with workflows run-show; retry with the same --idempotency-key to avoid rerunning skills.` +
+    (lastSyncError ? ` Last delivery sync error: ${lastSyncError}` : ""),
+  );
+  async function withinBudget<T>(operation: () => Promise<T>): Promise<T> {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw timeoutError();
+    let timer: ReturnType<typeof setTimeout>;
+    try {
+      return await Promise.race([
+        operation(),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(timeoutError()), remaining); }),
+      ]);
+    } finally {
+      clearTimeout(timer!);
+    }
+  }
+  const pause = () => withinBudget(() => new Promise<void>(resolve => setTimeout(resolve, Math.min(options.pollIntervalMs ?? 2000, deadline - Date.now()))));
+  const refresh = async () => { run = await withinBudget(() => client.getWorkflowRun(workflowId, runId)); };
+  while (["queued", "planned", "running", "waiting", "cancellation_requested"].includes(run.status)) {
+    await pause();
+    await refresh();
+  }
+  // Acceptance can return an already-completed idempotent run without its live
+  // routing projection. Read it once before deciding whether delivery is needed.
+  await refresh();
+  let nextSyncAt = 0;
+  while (true) {
+    if (run.status !== "completed") {
+      throw new Error(`Workflow run ${runId} ${run.status}: ${run.error_summary ?? "inspect workflows run-show for details"}`);
+    }
+    const projection = run.output_summary?.deliveries;
+    const deliveries = isRecord(projection) ? Object.values(projection).filter(isRecord) : [];
+    const failed = deliveries.find(delivery => ["cancelled", "expired"].includes(String(delivery.status)));
+    if (failed) throw new Error(`Workflow run ${runId} completed, but chat delivery ${String(failed.delivery_id)} is ${String(failed.status)}.`);
+    if (deliveries.every(delivery => delivery.status === "acknowledged")) return run;
+    if (Date.now() >= deadline) throw timeoutError();
+    if (Date.now() >= nextSyncAt) {
+      // Personal workflow delivery uses this profile's owner session. The sync
+      // handler respects another device's claim lease before attempting a claim.
+      try {
+        await withinBudget(() => client.ensureSynced(true, [], { personal: true }));
+        lastSyncError = "";
+      } catch (error) {
+        lastSyncError = error instanceof Error ? error.message : String(error);
+        if (Date.now() >= deadline) throw timeoutError();
+      }
+      nextSyncAt = Date.now() + (options.syncIntervalMs ?? 10_000);
+      await refresh();
+      continue;
+    }
+    await pause();
+    await refresh();
+  }
+}
+
 async function handleWorkflows(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -6619,7 +6669,10 @@ async function handleWorkflows(
     if (!idempotencyKey) throw new Error("Missing --idempotency-key. Reuse this stable key when retrying the same workflow run.");
     const mode = flags.mode === "test" ? "test" : "manual";
     const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
-    const run = await client.runWorkflow(workflowId, { idempotencyKey, mode, input });
+    let run = await client.runWorkflow(workflowId, { idempotencyKey, mode, input });
+    if (flags.wait === true) {
+      run = await waitForWorkflowRun(client, workflowId, run);
+    }
     if (flags.json === true) {
       printJson(run);
     } else {
@@ -6653,6 +6706,17 @@ async function handleWorkflows(
     return;
   }
 
+  if (subcommand === "run-delete") {
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "run-delete") : undefined;
+    const runId = rest[1];
+    if (!workflowId || !runId) throw new Error("Usage: openmates workflows run-delete <workflow-id> <run-id> --yes");
+    if (flags.yes !== true) throw new Error("Run deletion forgets its delivered-result history. Existing chat messages remain. Pass --yes to confirm.");
+    const result = await client.deleteWorkflowRun(workflowId, runId);
+    if (flags.json === true) printJson(result);
+    else kv("Status", result.status);
+    return;
+  }
+
   if (subcommand === "run-cancel") {
     const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "run-cancel") : undefined;
     const runId = rest[1];
@@ -6666,12 +6730,20 @@ async function handleWorkflows(
     return;
   }
 
-  if (subcommand === "step-test") {
+  if (subcommand === "step-test" || subcommand === "step-preview") {
     const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "step-test") : undefined;
     const stepId = rest[1];
     if (!workflowId || !stepId) throw new Error("Missing workflow/step ID. Example: openmates workflows step-test <workflow-id> <step-id> --yes");
     const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
-    const run = await client.testWorkflowStep(workflowId, stepId, { input, confirmed: flags.yes === true });
+    const node = typeof flags.node === "string" ? parseJsonFlag<WorkflowNode>(flags.node, "--node") : undefined;
+    const upstreamOutputs = typeof flags.upstream === "string" ? parseJsonFlag<Record<string, Record<string, unknown>>>(flags.upstream, "--upstream") : undefined;
+    if (subcommand === "step-preview") {
+      const preview = await client.previewWorkflowStep(workflowId, stepId, { input, node, upstreamOutputs });
+      if (flags.json === true) printJson(preview);
+      else console.log(String(preview.text ?? preview.message ?? preview.body ?? ""));
+      return;
+    }
+    const run = await client.testWorkflowStep(workflowId, stepId, { input, node, upstreamOutputs, confirmed: flags.yes === true });
     if (flags.json === true) {
       printJson(run);
     } else {
@@ -11052,6 +11124,32 @@ async function sendMessageStreaming(
   }>;
   acceptedTaskProposals: Array<Record<string, unknown>>;
 } | WaitingForUserResult | SignupRequiredResult> {
+  let memorySnapshot: DecryptedMemoryEntry[] = [];
+  const needsMemorySnapshot = client.hasSession() && (
+    params.incognito !== true
+    || params.piiDetection !== false
+    || params.message.includes("@")
+  );
+  if (needsMemorySnapshot) {
+    try {
+      memorySnapshot = await client.listMemories({
+        teamId: params.teamId,
+        personal: params.personal,
+      });
+    } catch (error) {
+      if (params.autoApproveMemories && params.incognito !== true) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to load memories for auto-approval: ${message}`);
+      }
+      // Keep high-confidence pattern detection active and preserve the
+      // existing non-auto-approval behavior when memory loading is unavailable.
+      memorySnapshot = [];
+    }
+  }
+  if (params.piiDetection !== false && redactor) {
+    redactor.initializeFromMemories(memorySnapshot);
+  }
+
   let headerPrinted = false;
   let typingShown = false;
   // Track which embed IDs we've already rendered during streaming
@@ -11212,7 +11310,7 @@ async function sendMessageStreaming(
         (query, language, limit) => client.searchWikipediaTitles(query, language, limit),
       );
       resolvedWikipediaMentions = wikipediaResult.resolved;
-      const mentionCtx = await client.buildMentionContext();
+      const mentionCtx = await client.buildMentionContext({ memorySnapshot });
       const parsed = parseMentions(wikipediaResult.processedMessage, mentionCtx);
       finalMessage = parsed.processedMessage;
 
@@ -11492,6 +11590,7 @@ async function sendMessageStreaming(
     autoApproveMemories: params.autoApproveMemories,
     taskUpdateJobs: params.taskUpdateJobs,
     responseTimeoutMs: params.responseTimeoutMs,
+    memorySnapshot,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
     piiMappings: piiResult.mappings.map((mapping) => ({
       placeholder: mapping.placeholder,
@@ -14001,7 +14100,7 @@ function printPlansHelp(): void {
   openmates plans dependencies list <plan-id|short-id> [--json]
   openmates plans dependencies add|remove <plan-id|short-id> --target plan:<id>|task:<id> [--recovery-root <external-root>] [--json]
   openmates plans assumptions list <plan-id|short-id> [--json]
-  openmates plans assumptions create|update <plan-id|short-id> [--assumption <id>] [--text <text>] [--sub-chat opencode:<session>] [--proof-embed <id>|--proof-file <path[:start[:end]]>|--proof-url <https-url>] [--json]
+  openmates plans assumptions create|update <plan-id|short-id> [--assumption <id>] [--text <text>] [--sub-chat <chat-id>] [--proof-embed <id>|--proof-file <path[:start[:end]]>|--proof-url <https-url>] [--json]
   openmates plans revisions list|submit-for-review|status|diff <plan-id|short-id> [--json]
   openmates plans success-criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]
   openmates plans criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]
@@ -14258,11 +14357,13 @@ function printWorkflowsHelp(): void {
   openmates workflows show <workflow-id> [--json]
   openmates workflows enable <workflow-id> [--json]
   openmates workflows disable <workflow-id> [--json]
-  openmates workflows run <workflow-id> --idempotency-key <stable-key> [--mode manual|test] [--input '<json>'] [--json]
+  openmates workflows run <workflow-id> --idempotency-key <stable-key> [--mode manual|test] [--input '<json>'] [--wait] [--json]
   openmates workflows runs <workflow-id> [--json]
   openmates workflows run-show <workflow-id> <run-id> [--json]
   openmates workflows run-cancel <workflow-id> <run-id> [--json]
-  openmates workflows step-test <workflow-id> <step-id> [--input '<json>'] [--yes] [--json]
+  openmates workflows step-test <workflow-id> <step-id> [--node '<json>'] [--input '<json>'] [--upstream '<json>'] [--json]
+  openmates workflows step-preview <workflow-id> <step-id> [--node '<json>'] [--upstream '<json>'] [--json]
+  openmates workflows run-delete <workflow-id> <run-id> --yes [--json]
   openmates workflows respond <workflow-id> <run-id> <step-id> --input '<json>' [--json]
   openmates workflows help-app <app.skill> [--json]
   openmates workflows delete <workflow-id> --yes [--json]
@@ -14270,6 +14371,9 @@ function printWorkflowsHelp(): void {
 Workflows run on the OpenMates server, not in this terminal process. The CLI
 uses your paired session and shows the same workflow/run records as web, SDKs,
 and Apple clients.
+--wait waits up to three minutes for this run and its selected chat deliveries to
+be acknowledged. No new results completes without creating a chat. On timeout,
+inspect run-show or retry the same --idempotency-key; skills are not rerun.
 
 Examples:
   openmates workflows list

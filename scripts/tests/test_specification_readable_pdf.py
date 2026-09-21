@@ -127,7 +127,12 @@ def bundle(tmp_path: Path) -> specifications.SpecificationBundle:
     examples = {
         "schema_version": 1,
         "specification": "feature.example@2",
-        "example_group": [{"id": "case-one", "expect": {"visible": True}}],
+        "example_group": [{
+            "id": "case-one",
+            "given": "Alice has a readable example.",
+            "when": "She performs the documented action.",
+            "then": "The visible outcome appears.",
+        }],
         "contract_structure": [{"id": "chaptered-contract", "expect": {"raw_yaml_default": False}}],
     }
     return specifications.SpecificationBundle(
@@ -150,6 +155,11 @@ def test_html_renders_chaptered_contract_presentation(tmp_path: Path) -> None:
     assert document.index("First Chapter") < document.index("Second Chapter")
     assert "Example requirement" in document
     assert "Do required behavior." in document
+    requirement = document.split('id="requirement-example.requirement"', 1)[1].split("</section>", 1)[0]
+    assert "Example: Case one" in requirement
+    assert "Given.</strong> Alice has a readable example." in requirement
+    assert "When.</strong> She performs the documented action." in requirement
+    assert "Then.</strong> The visible outcome appears." in requirement
     assert "Create example" in document
     assert "<ol><li>Start.</li><li>Finish.</li></ol>" in document
     assert "Example edge case" in document
@@ -172,6 +182,26 @@ def test_html_renders_chaptered_contract_presentation(tmp_path: Path) -> None:
     assert "height: 39mm" in document
     assert "User flow wireframe" in document
     assert "Edge case wireframe" in document
+
+
+# contract-test: tooling
+def test_requirement_examples_are_rendered_inline_from_explicit_case_mapping(tmp_path: Path) -> None:
+    current = bundle(tmp_path)
+    current.examples["additional_group"] = [{
+        "id": "explicit-case",
+        "assertion_ids": ["example.requirement"],
+        "given": "Bob starts from a second state.",
+        "when": "He performs another action.",
+        "then": "A second observable outcome appears.",
+    }]
+
+    document = readable_pdf.build_html(current)
+    requirement = document.split('id="requirement-example.requirement"', 1)[1].split("</section>", 1)[0]
+
+    assert "Example: Case one" in requirement
+    assert "Example: Explicit case" in requirement
+    assert "Bob starts from a second state." in requirement
+    assert document.index("Example: Case one") < document.index('id="flow-create-example"')
 
 
 # contract-test: tooling
@@ -201,7 +231,7 @@ def test_main_renders_and_publishes_readable_pdf(tmp_path: Path, monkeypatch, ca
         published.append(path)
         return {"bucket": "private-bucket", "key": "readable.pdf", "sha256": "sha256:" + "c" * 64, "snippets": {"markdown": "[Read PDF](https://example.invalid/readable.pdf)", "html": "<a>Read PDF</a>"}}
 
-    monkeypatch.setattr(readable_pdf.opencode_response_media, "upload_file", upload)
+    monkeypatch.setattr(readable_pdf.response_media, "upload_file", upload)
 
     code = readable_pdf.main([str(tmp_path), "--output", str(output)])
 

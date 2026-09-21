@@ -1,21 +1,22 @@
 # Isolated GitHub application tests
 
-Implementation status: migration HOLD. The coordinator must not release dependent work until a successful source-bound runner-local pilot and an explicit coverage disposition are recorded. See `docs/plans/isolated-github-tests/plan.yml`.
+Implementation status: core profiles are admitted; unsupported profiles remain held. Fair admission is active. Shared exact-source preparation is the default for E2E and visual-smoke submissions after successful schema-restore and two-consumer proof. `submit --no-prepared-builds` retains the independent cold path for diagnostics. Live evidence is tracked in `docs/plans/isolated-github-tests/efficiency-verification-2026-09-20.md`. A component pass does not certify a full application journey.
 
 ## Execution and ownership
 
 ```mermaid
 flowchart LR
   W[Preserved Codex worktree] --> U[Local focused unit tests]
-  W --> P[Publish immutable candidate SHA]
+  W --> P[Publish private expiring patch + immutable identity]
   D[Daily scheduler: exact dev SHA] --> Q[Shared durable CI queue]
   P --> Q
   Q --> G[GitHub-hosted VM]
   G --> H[Versioned CI harness]
-  G --> S[Exact candidate checkout]
+  G --> B[Detached base checkout]
+  B --> S[Verify patch digest and reconstruct exact candidate]
   S --> I[Cached dependency image builds]
-  I --> A[Local API and workers]
-  I --> F[Local web app and browser]
+  I --> A[Disposable Docker API and workers]
+  I --> F[Runner-local web process and browser]
   A --> DB[Disposable PostgreSQL / CMS / cache / Vault]
   F --> A
   A --> T[Fresh real CLI signup and encrypted account state]
@@ -28,7 +29,15 @@ flowchart LR
 
 The Hetzner host retains source worktrees, focused unit execution, the queue and bounded result artifacts. It does not start candidate Docker stacks. `ci_environment.py` rejects execution outside a GitHub-hosted job before Docker is invoked. Shared dev domains resolve to a rejected loopback endpoint in both the runner and application containers; verification checks the runner's failed HTTPS connection.
 
-The workflow checks out its trusted harness separately from the immutable subject. Old worktrees and reviewed resolved patches may predate CI tooling. The tested subject and harness commits are recorded separately. Image builds and frontend compilation use the subject checkout. Existing build caches accelerate dependencies without substituting stale application source.
+Every ordinary E2E job contains exactly one Playwright spec. A submission naming
+multiple specs is split into separate GitHub jobs, so each spec receives its own
+VM, Compose project, database, volumes, credentials and web process. The backend
+is containerized; the exact SvelteKit build is served by a runner-host process on
+`localhost:5173`. Because the GitHub VM is already the isolation boundary, the
+web process does not need a second container. Tests inside one spec intentionally
+share that spec's disposable stack.
+
+The workflow checks out its trusted harness separately from the immutable subject. For a worktree candidate it checks out the reachable base in detached state, downloads a private 48-hour patch, verifies its SHA-256, reconstructs the deterministic tree and commit, and rejects any identity mismatch. No candidate branch or other Git ref is created. Old worktrees and reviewed resolved patches may predate CI tooling. The tested subject and harness commits are recorded separately. Image builds and frontend compilation use the subject checkout. Existing build caches accelerate dependencies without substituting stale application source.
 
 ## Commands
 
@@ -56,6 +65,10 @@ python3 scripts/ci_coordinator.py result REQUEST_ID
 python3 scripts/ci_coordinator.py health
 ```
 
+Passing several `--spec` arguments returns several request records, one per
+isolated job. Ordinary E2E rejects `--preview-url`; deployment and Vercel are not
+prerequisites for candidate verification.
+
 `status` reads local state only. `result` fetches and validates artifacts once, then returns the cached receipt and GitHub artifact link. Phone and laptop proofs use separate `--proof-video-profile web-phone` / `web-laptop` requests. Review and delivery requirements remain in force; an artifact link alone does not certify a video review.
 
 For a reviewed stale-base patch:
@@ -68,9 +81,65 @@ This publishes a candidate through a temporary index. It does not integrate or d
 
 ## Queue, cost and retained space
 
-One flocked reconciler dispatches at most four active jobs. Intent is durable before the request; ambiguous dispatches retain their slot and are reconciled rather than resent. Routine status polling is shared at 30 seconds. GitHub request reserve and backoff also apply to artifact retrieval. The coordinator exposes attention states instead of silently rerunning uncertain jobs.
+One flocked reconciler dispatches at most four active jobs by default, reserving one slot for lightweight component/unit jobs. Within explicit priority, admission balances active jobs across owners before FIFO. `OPENMATES_CI_MAX_ACTIVE` and `OPENMATES_CI_LIGHTWEIGHT_RESERVE` configure these bounds. Intent is durable before the request; ambiguous dispatches retain their slot and are reconciled rather than resent. Routine status polling is shared at 30 seconds. GitHub request reserve and backoff also apply to artifact retrieval. The coordinator exposes attention states instead of silently rerunning uncertain jobs.
 
-Candidate publication and artifact retrieval preserve at least 30 GiB free on the host. Artifact downloads are bounded to 256 MiB, extracted data to 512 MiB and 10,000 files, with a one-minute download deadline. Unsafe paths, symlinks and private account state are rejected. GitHub artifact retention is seven days. Local result-cache and candidate-ref retention automation remains pending.
+### Prepare once, run independently
+
+```mermaid
+flowchart LR
+  S[Exact candidate source] --> C[Component: Vite and browser only]
+  S --> P[One keyed preparation job]
+  P --> I[Verified immutable web, CLI, locale and backend artifacts]
+  I --> A[Spec A: fresh VM, Docker backend, DB, account and web]
+  I --> B[Spec B: fresh VM, Docker backend, DB, account and web]
+  A --> R[Source-bound results and phase timings]
+  B --> R
+  C --> R
+```
+
+E2E and visual-smoke submissions attach to one preparation for the exact source,
+harness and capabilities by default. `submit --no-prepared-builds` is available
+for a deliberate cold-path diagnostic.
+Consumers download only that successful producer run's artifact;
+they verify the manifest, source/tree, harness, build contract and content hashes.
+Published compatible images use immutable digests. Cache misses build once and
+travel as checksummed Docker archives in the existing private candidate bucket.
+Public Actions artifacts must not contain preparation bundles. The coordinator
+keeps owner-readable, expiring upload/download capabilities for each preparation;
+only its producer receives upload permission, and consumers receive read-only
+access. Upload writes the source/run-bound manifest last; download verifies it
+before accepting the allowlisted, size-bounded and checksummed files. Objects
+use the existing two-day candidate lifecycle. No storage credentials go to CI.
+Schema carriers must pass two independent fresh-database restores before
+publication. Each consumer still receives new databases, volumes, credentials,
+accounts and containers. Only immutable build output is shared.
+
+Preparation failure blocks dependent tests without crediting coverage. Missing
+or incompatible consumer artifacts report an explicit cold fallback. Component
+tests bypass preparation, application builds, CLI and backend startup entirely.
+Queued superseded generations of the same owner's exact test selection are
+retired; running jobs and other owners are untouched. Producers may finish even
+if a consumer is superseded, avoiding races with another attaching consumer.
+
+Status distinguishes preparation wait, admission queue, GitHub queue and the
+active runner step. Result receipts retain actual step durations and total
+request latency; absent timestamps are not reported as zero. After deploying
+coordinator changes, restart the exact `openmates-ci-coordinator.service` under
+the coordinator queue lock so the running daemon uses the new code. Preserve
+its queue database and already-dispatched GitHub jobs.
+
+Focused backend runs accept repeatable `--test-target` with `--suite pytest`
+(or `--mode pytest` on the coordinator), including `::test_node` selectors.
+Only those targets execute; an empty selection retains the broad daily suite.
+Local source preflight checks touched syntax and existing contract metadata.
+For a resolved patch that is not materialized, syntax/metadata preflight is
+explicitly deferred rather than recorded as passed.
+
+Stack startup retries only recognized transient registry/network failures with
+bounded backoff. Source errors, unhealthy application services and failed
+initializers are not retried and remain visible failures.
+
+Candidate publication and artifact retrieval preserve at least 30 GiB free on the host. Candidate patches are bounded to 100 MiB, stored in a private bucket, addressed by digest, and expire after two days. Result artifact downloads are bounded to 256 MiB, extracted data to 512 MiB and 10,000 files, with a one-minute download deadline. Unsafe paths, symlinks and private account state are rejected. GitHub result-artifact retention is seven days. Local manifests retain the exact reviewed bytes needed by reviewed deployment.
 
 Fresh accounts are created through real CLI signup and security initialization. Generated credentials and client state stay in a private runner directory. The private email verification code is obtained from that account's local cache key; no shared Gmail account is used for account provisioning. This is not a replacement for email-delivery assertions. Any skipped selected case makes coverage incomplete. Signup creation is paced against the real per-IP rate limit. Fresh CLI keys have a lifetime credit cap and expiry; the fresh owner approves the exact registered CLI device through the authenticated API. Earlier completed results survive later fixture failures.
 
@@ -87,7 +156,8 @@ Publishing a candidate is not deployment. A preserved worktree can deploy an exa
 reviewed candidate with `sessions.py deploy --session <existing> --reviewed-candidate
 <full-sha> --reviewed-base <parent-sha> --only <all-candidate-paths> --title ...`.
 Use `ci-source --base ... --resolved-patch ... --patch-sha256 ...` first. The adapter
-requires the session candidate ref, exact parent and full changed-path inventory.
+requires the session's retained local candidate manifest and patch, exact parent,
+digest, tree, commit identity, and full changed-path inventory.
 It runs the ordinary integration gates and push lock, rejects selected-path upstream
 drift and deletion amplification, and requires staged selected files to equal the
 candidate. It checks original worktree/HEAD/index identity and skips source

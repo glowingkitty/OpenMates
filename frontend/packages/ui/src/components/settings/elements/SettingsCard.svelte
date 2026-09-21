@@ -29,12 +29,14 @@
         highlightColor = '',
         padding = 'md' as CardPadding,
         ariaLabel = '',
+        dataTestid = '',
         children,
     }: {
         variant?: CardVariant;
         highlightColor?: string;
         padding?: CardPadding;
         ariaLabel?: string;
+        dataTestid?: string;
         children: Snippet;
     } = $props();
 
@@ -49,6 +51,7 @@
         --card-highlight-color: {resolvedHighlightColor};
     "
     aria-label={ariaLabel || undefined}
+    data-testid={dataTestid || undefined}
 >
     {@render children()}
 </div>

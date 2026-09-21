@@ -31,16 +31,27 @@ async def fetch_weather(
     latitude: float,
     longitude: float,
     start_date: date,
-    days: int,
+    end_date: date | None = None,
+    days: int | None = None,
     timezone: str = "Europe/Berlin",
 ) -> dict[str, Any]:
     """Fetch hourly weather rows from Bright Sky for a date range."""
-    last_date = start_date + timedelta(days=days)
+    if end_date is not None and days is not None:
+        raise ValueError("Use end_date or days, not both")
+    if end_date is None:
+        if days is None or days < 1:
+            raise ValueError("Provide end_date or a positive number of days")
+        end_date = start_date + timedelta(days=days - 1)
+    if end_date < start_date:
+        raise ValueError("end_date must be on or after start_date")
+    # Bright Sky treats date-only last_date as midnight. Advance by one day so
+    # this wrapper's end_date remains inclusive for the full local calendar day.
+    provider_last_date = end_date + timedelta(days=1)
     params: dict[str, Any] = {
         "lat": latitude,
         "lon": longitude,
         "date": start_date.isoformat(),
-        "last_date": last_date.isoformat(),
+        "last_date": provider_last_date.isoformat(),
         "tz": timezone,
     }
     async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT_SECONDS) as client:
@@ -318,6 +329,7 @@ def normalize_weather_days(
     country_code: str | None,
     timezone: str,
     requested_days: int,
+    today: date | None = None,
 ) -> list[dict[str, Any]]:
     """Normalize Bright Sky hourly rows into one weather_day result per day."""
     weather_rows = payload.get("weather") or []
@@ -384,7 +396,13 @@ def normalize_weather_days(
             "type": "weather_day",
             "title": f"{location_name} weather {day}",
             "date": day,
-            "label": "today" if index == 0 else "tomorrow" if index == 1 else None,
+            "label": (
+                "today" if today is not None and day == today.isoformat()
+                else "tomorrow" if today is not None and day == (today + timedelta(days=1)).isoformat()
+                else "today" if today is None and index == 0
+                else "tomorrow" if today is None and index == 1
+                else None
+            ),
             "location_name": location_name,
             "country_code": country_code,
             "timezone": timezone,

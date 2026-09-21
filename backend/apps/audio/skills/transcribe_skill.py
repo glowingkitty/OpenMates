@@ -27,7 +27,6 @@ import base64
 import os
 import math
 import hashlib
-import re
 import asyncio
 import shutil
 import httpx
@@ -36,11 +35,19 @@ from pydantic import BaseModel, Field, StrictInt
 from fastapi import HTTPException
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from backend.apps.audio.pricing import BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_payload_for_ascii_smuggling,
     sanitize_text_simple,
+)
+from backend.shared.providers.gemini_transcript_correction import (
+    GEMINI_CORRECTION_MODEL,
+    GEMINI_TRANSCRIPT_TOOL_NAME,  # noqa: F401 - retained public test/skill constant
+    TRANSCRIPT_TITLE_MAX_LENGTH,  # noqa: F401 - retained public test/skill constant
+    clean_transcript_title,
+    correct_transcript_with_gemini,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,11 +57,6 @@ MISTRAL_TRANSCRIPTION_URL = "https://api.mistral.ai/v1/audio/transcriptions"
 
 # Model to use — voxtral-mini-2602 at $0.003/min is optimal for short recordings
 VOXTRAL_MODEL = "voxtral-mini-2602"
-
-# Model used to clean up raw speech-to-text output after transcription.
-GEMINI_CORRECTION_MODEL = "gemini-3.5-flash"
-GEMINI_TRANSCRIPT_TOOL_NAME = "finalize_transcript"
-TRANSCRIPT_TITLE_MAX_LENGTH = 80
 
 # Timeout for Mistral API calls (seconds)
 MISTRAL_API_TIMEOUT = 120
@@ -222,12 +224,7 @@ def _sanitize_transcription_result_text(
 
 def _clean_transcript_title(title: Optional[str]) -> str:
     """Return a compact, single-line title for a recording transcript."""
-    cleaned = re.sub(r"\s+", " ", (title or "").strip().strip("\"'")).strip(" .")
-    if not cleaned:
-        return "Voice note"
-    if len(cleaned) > TRANSCRIPT_TITLE_MAX_LENGTH:
-        return cleaned[:TRANSCRIPT_TITLE_MAX_LENGTH].rstrip()
-    return cleaned
+    return clean_transcript_title(title)
 
 
 class TranscribeRequestItem(BaseModel):
@@ -737,130 +734,11 @@ class TranscribeSkill(BaseSkill):
         then returns a compact title plus the clean transcript. Raises when
         correction fails so callers do not label the raw transcript as corrected.
         """
-        if not raw_transcript.strip():
-            raise ValueError("Cannot correct an empty transcript")
-
-        model = GEMINI_CORRECTION_MODEL
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-        language_context = (
-            f"Detected or requested transcript language: {detected_language}.\n"
-            if detected_language
-            else "No language hint was provided; infer the language from the transcript.\n"
+        return await correct_transcript_with_gemini(
+            raw_transcript,
+            google_api_key,
+            detected_language,
         )
-
-        prompt = (
-            "You are correcting a raw speech-to-text transcript from an audio recording.\n"
-            "Your goal is to output a clean, coherent written instruction or message while "
-            "preserving the speaker's original intent, meaning, and informal tone.\n"
-            f"{language_context}"
-            "Keep the output in the same language as the input. Do not translate. "
-            "This includes German, English, mixed-language messages, and dialectal phrasing.\n\n"
-            "Rules:\n"
-            "1. Remove speech disfluencies and fillers (e.g., 'umm', 'uhh', 'ahh', 'like', 'ehh').\n"
-            "2. Resolve verbal self-corrections and rambling where the speaker changed their mind "
-            "(e.g., 'umm search for yellow actually no let's search for green boxes' -> 'Search for green boxes').\n"
-            "3. Correct obvious phonetic mistranscriptions or spelling of technical terms.\n"
-            "4. Add capitalization and natural punctuation (periods, commas, question marks).\n"
-            "5. DO NOT rewrite into flowery marketing copy or invent claims. Keep it close to original meaning.\n"
-            "6. For long or confusing recordings, keep all concrete user requirements, remove abandoned starts, "
-            "and organize the final request into short coherent sentences or bullets when that improves readability.\n"
-            "7. If the input is already clean, keep it as-is (with punctuation/formatting adjustments).\n\n"
-            "Call the finalize_transcript function with the final title and corrected transcript.\n"
-            "Title rules:\n"
-            "- Keep title in the same language as the transcript.\n"
-            "- Use 3 to 8 words when possible.\n"
-            "- No quotes, no trailing period, no markdown.\n"
-            "- Do not invent names, facts, or entities that are not in the transcript.\n"
-            "- If the recording is unclear or too generic, use 'Voice note'."
-        )
-
-        body = {
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [
-                        {"text": prompt},
-                        {"text": f"Raw Transcript:\n\"{raw_transcript}\""}
-                    ]
-                }
-            ],
-            "tools": [
-                {
-                    "functionDeclarations": [
-                        {
-                            "name": GEMINI_TRANSCRIPT_TOOL_NAME,
-                            "description": "Return the cleaned transcript and compact display title for the audio recording.",
-                            "parameters": {
-                                "type": "OBJECT",
-                                "required": ["title", "corrected_transcript"],
-                                "properties": {
-                                    "title": {
-                                        "type": "STRING",
-                                        "description": "A compact same-language title for the recording, 3 to 8 words when possible.",
-                                    },
-                                    "corrected_transcript": {
-                                        "type": "STRING",
-                                        "description": "The corrected transcript, preserving the speaker's intent and language.",
-                                    },
-                                },
-                            },
-                        }
-                    ]
-                }
-            ],
-            "toolConfig": {
-                "functionCallingConfig": {
-                    "mode": "ANY",
-                    "allowedFunctionNames": [GEMINI_TRANSCRIPT_TOOL_NAME],
-                }
-            },
-            "generationConfig": {
-                "temperature": 0.1,
-            }
-        }
-
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    url,
-                    params={"key": google_api_key},
-                    json=body,
-                )
-                if response.status_code != 200:
-                    raise RuntimeError(
-                        f"Gemini correction API failed: {response.status_code} {response.text[:500]}"
-                    )
-
-                res = response.json()
-                parts = res.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-                for part in parts:
-                    function_call = part.get("functionCall") if isinstance(part, dict) else None
-                    if not isinstance(function_call, dict):
-                        continue
-                    if function_call.get("name") != GEMINI_TRANSCRIPT_TOOL_NAME:
-                        continue
-                    args = function_call.get("args")
-                    if not isinstance(args, dict):
-                        raise RuntimeError("Gemini transcript tool call did not contain args")
-                    corrected = str(args.get("corrected_transcript") or "").strip()
-                    if not corrected:
-                        raise RuntimeError("Gemini transcript tool call did not contain corrected_transcript")
-                    return {
-                        "title": _clean_transcript_title(str(args.get("title") or "")),
-                        "corrected_transcript": corrected,
-                    }
-
-                text_content = "".join(
-                    part.get("text", "")
-                    for part in parts
-                    if isinstance(part, dict)
-                )
-                raise RuntimeError(
-                    f"Gemini correction response did not call {GEMINI_TRANSCRIPT_TOOL_NAME}. Response text: {text_content[:500]}"
-                )
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to run Gemini correction: {e}") from e
 
     async def _process_single_transcribe_request(
         self,
@@ -1158,7 +1036,7 @@ class TranscribeSkill(BaseSkill):
                 from backend.core.api.app.utils.server_mode import is_payment_enabled
                 if is_payment_enabled():
                     current_credits = await self.app.get_user_credits(user_id)
-                    min_credits_needed = 3  # Minimum: 1 minute × 3 credits/min
+                    min_credits_needed = BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
                     # Only block when we have a confirmed zero balance (cached=True response implies
                     # the cache had data; get_user_credits returns 0 for cache misses too, but
                     # we accept that risk to avoid false-blocking on infra issues)
@@ -1221,8 +1099,9 @@ class TranscribeSkill(BaseSkill):
         )
 
         # --- Billing ---
-        # Charge 3 credits/min (minimum 1 minute) for each successfully transcribed audio.
-        # Pricing rationale: Mistral Voxtral Mini costs $0.003/min ≈ 1 credit; 3x markup applied.
+        # Keep the established batch price of 3 credits/min (minimum 1 minute)
+        # for regular audio.transcribe skill use. Message-input voice recordings
+        # use the separately billed realtime WebSocket path.
         # The 1-minute minimum ensures very short clips are still charged fairly.
         # Billing is non-fatal: failures are logged but do not break the transcription response.
         if user_id and grouped_results:
@@ -1256,11 +1135,12 @@ class TranscribeSkill(BaseSkill):
                 if total_duration_seconds > 0 and success_count > 0:
                     # Round up to nearest minute, enforce 1-minute minimum per request
                     total_minutes = max(success_count, math.ceil(total_duration_seconds / 60))
-                    credits_to_charge = total_minutes * 3
+                    credits_to_charge = total_minutes * BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
                     logger.info(
                         f"[TranscribeSkill] Charging {credits_to_charge} credits for user "
                         f"{user_id_hash[:8]}... ({total_duration_seconds:.1f}s total, "
-                        f"{total_minutes} billed minutes × 3 credits)"
+                        f"{total_minutes} billed minutes × "
+                        f"{BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE} credits)"
                     )
                     usage_details: Dict[str, Any] = {
                         "duration_seconds": total_duration_seconds,
@@ -1283,7 +1163,7 @@ class TranscribeSkill(BaseSkill):
                     )
                 elif success_count > 0:
                     # Duration not returned by Mistral — apply 1-minute minimum per successful request
-                    credits_to_charge = success_count * 3
+                    credits_to_charge = success_count * BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
                     logger.warning(
                         f"[TranscribeSkill] No duration returned from Mistral for {success_count} request(s). "
                         f"Applying 1-minute minimum: {credits_to_charge} credits."

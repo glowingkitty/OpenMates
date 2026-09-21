@@ -17,6 +17,11 @@ final class AuthManager: ObservableObject {
 
     private let api = APIClient.shared
     private let crypto = CryptoManager.shared
+    typealias SessionValidator = @MainActor (ServerProfile, SessionRequest) async throws -> SessionResponse
+    private let sessionValidator: SessionValidator?
+    private let profileCacheWriter: ((UserProfile) -> Void)?
+    private var validationGeneration = UUID()
+    private(set) var lastOpenedSelectionRevision = 0
 
     /// Static accessor for the current user ID (used by ChatViewModel for key loading).
     /// Safe to call from any @MainActor context.
@@ -74,8 +79,31 @@ final class AuthManager: ObservableObject {
     private var pendingPassword: String?
     private var pendingEmail: String?
 
-    init() {
+    init(sessionValidator: SessionValidator? = nil, profileCacheWriter: ((UserProfile) -> Void)? = nil) {
+        self.sessionValidator = sessionValidator
+        self.profileCacheWriter = profileCacheWriter
         Self._shared = self
+    }
+
+    /// The resume card follows the viewed chat; it does not change chat recency.
+    /// Called synchronously for local navigation and the current socket's
+    /// last_opened_updated event. Account ownership is explicit for queued callers.
+    func updateLastOpened(_ chatId: String, accountId: String) {
+        guard state == .authenticated, var user = currentUser, user.id == accountId,
+              !chatId.isEmpty, !chatId.hasPrefix("/"),
+              ChatStore.isServerSyncChatId(chatId), user.lastOpened != chatId else { return }
+        lastOpenedSelectionRevision += 1
+        user.lastOpened = chatId
+        currentUser = user
+        cacheAuthenticatedUser(user)
+    }
+
+    func profilePreservingNewerSelection(_ received: UserProfile, since revision: Int) -> UserProfile {
+        var result = received
+        if lastOpenedSelectionRevision != revision, currentUser?.id == received.id {
+            result.lastOpened = currentUser?.lastOpened
+        }
+        return result
     }
 
     private var isCheckingSession = false
@@ -143,20 +171,38 @@ final class AuthManager: ObservableObject {
     }
 
     private func validateSessionAgainstServer(keepOfflineSessionOnFailure: Bool) async {
+        let generation = UUID()
+        validationGeneration = generation
+        let profile = ServerProfile.current()
+        let sessionId = Self.nativeSessionId
+        let accountId = currentUser?.id
+        let selectionRevision = lastOpenedSelectionRevision
+        func ownsValidation() -> Bool {
+            !Task.isCancelled && validationGeneration == generation &&
+                ServerProfile.current() == profile && Self.nativeSessionId == sessionId &&
+                currentUser?.id == accountId
+        }
         sessionValidationState = .validating
         do {
-            let response: SessionResponse = try await api.request(
-                .post,
-                path: "/v1/auth/session",
-                body: SessionRequest(sessionId: Self.sessionId, deviceInfo: makeDeviceInfo())
-            )
+            let request = SessionRequest(sessionId: sessionId, deviceInfo: makeDeviceInfo())
+            let response: SessionResponse
+            if let sessionValidator {
+                response = try await sessionValidator(profile, request)
+            } else {
+                response = try await api.request(.post, path: "/v1/auth/session",
+                    serverProfile: profile, body: request)
+            }
+            guard ownsValidation() else { return }
 
             if response.isAuthenticated, let user = response.user {
                 if response.needsDeviceVerification != true,
                    (try? await crypto.loadMasterKey(for: user.id)) == nil {
+                    guard ownsValidation() else { return }
                     await forceLocalLogout(reason: "missing_master_key")
                     return
                 }
+                guard ownsValidation() else { return }
+                let user = profilePreservingNewerSelection(user, since: selectionRevision)
                 try activateOfflineScope(for: user)
                 currentUser = user
                 webSocketToken = response.wsToken
@@ -187,8 +233,15 @@ final class AuthManager: ObservableObject {
                 await forceLocalLogout(reason: reason)
             }
         } catch {
+            guard ownsValidation() else { return }
             webSocketToken = nil
             if keepOfflineSessionOnFailure {
+                // An explicit rejected session is not an offline connection.
+                // Keep cached account data, but expose a real sign-in route.
+                if case APIError.httpError(status: 401, message: _) = error {
+                    sessionValidationState = .requiresReauthentication(reason: "session_expired")
+                    return
+                }
                 sessionValidationState = .offlineAuthenticated
                 print("[Auth] Session validation unavailable; keeping cached offline session: \(error.localizedDescription)")
             } else {
@@ -217,8 +270,14 @@ final class AuthManager: ObservableObject {
         userEmailSalt: String?,
         tfaCode: String? = nil,
         codeType: String? = nil,
-        stayLoggedIn: Bool = false
+        stayLoggedIn: Bool = false,
+        signupProof: NativeSignupLoginProof? = nil
     ) async throws {
+        validationGeneration = UUID()
+        let signupSessionId = signupProof?.sessionId
+        if let signupProof, let signupSessionId {
+            try validateSignupContext(signupProof, sessionId: signupSessionId)
+        }
         guard let userEmailSalt,
               let saltData = Data(base64Encoded: userEmailSalt) else {
             print("[Auth] Missing user_email_salt from lookup; cannot compute web-compatible lookup_hash")
@@ -233,8 +292,12 @@ final class AuthManager: ObservableObject {
         ).base64EncodedString()
 
         // Store password temporarily for PBKDF2 master key derivation after login
-        pendingPassword = password
-        pendingEmail = email
+        if let signupProof, let signupSessionId {
+            try validateSignupContext(signupProof, sessionId: signupSessionId)
+        } else {
+            pendingPassword = password
+            pendingEmail = email
+        }
 
         let request = LoginRequest(
             hashedEmail: hashedEmail,
@@ -249,7 +312,18 @@ final class AuthManager: ObservableObject {
         )
 
         NativeDiagnostics.info("phase=passwordLogin.request", category: "auth")
-        let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
+        let response: LoginResponse
+        if let signupProof, let signupSessionId {
+            try validateSignupContext(signupProof, sessionId: signupSessionId)
+            response = try await api.request(.post, path: "/v1/auth/login",
+                serverProfile: signupProof.serverProfile, body: request)
+            try validateSignupContext(signupProof, sessionId: signupSessionId)
+            guard signupProof.validates(response) else {
+                throw NativeSignupError.sessionProofMismatch
+            }
+        } else {
+            response = try await api.request(.post, path: "/v1/auth/login", body: request)
+        }
         NativeDiagnostics.info(
             "phase=passwordLogin.response success=\(response.success) tfaRequired=\(response.tfaRequired == true) hasUser=\(response.user != nil) needsDeviceVerification=\(response.needsDeviceVerification == true)",
             category: "auth"
@@ -268,7 +342,7 @@ final class AuthManager: ObservableObject {
 
         if response.success, response.user != nil {
             NativeDiagnostics.info("phase=passwordLogin.unwrapMasterKey", category: "auth")
-            try await handleSuccessfulLogin(response: response, password: password)
+            try await handleSuccessfulLogin(response: response, password: password, signupProof: signupProof, signupSessionId: signupSessionId)
             return
         }
 
@@ -282,6 +356,7 @@ final class AuthManager: ObservableObject {
     // MARK: - Recovery key login
 
     func loginWithRecoveryKey(email: String, recoveryKey: String, userEmailSalt: String?) async throws {
+        validationGeneration = UUID()
         guard let userEmailSalt,
               let saltData = Data(base64Encoded: userEmailSalt) else {
             print("[Auth] Missing user_email_salt from lookup; cannot compute recovery-key lookup_hash")
@@ -374,6 +449,7 @@ final class AuthManager: ObservableObject {
     }
 
     func completePasskeyLogin(response: LoginResponse, masterKey: SymmetricKey) async throws {
+        validationGeneration = UUID()
         if response.needsDeviceVerification == true,
            let type = response.deviceVerificationType {
             state = .needsDeviceVerification(type: type)
@@ -394,7 +470,31 @@ final class AuthManager: ObservableObject {
         state = .authenticated
     }
 
+    // Signup publishes only after a fresh assertion unwraps the same newly
+    // generated master key and /login returns the matching credential envelope.
+    func completeNativePasskeySignup(response: LoginResponse, masterKey: SymmetricKey,
+        proof: NativeSignupLoginProof, contextIsCurrent: @escaping @MainActor () -> Bool) async throws {
+        try validateSignupContext(proof, sessionId: proof.sessionId)
+        guard contextIsCurrent(), proof.validates(response), proof.validatesMasterKey(masterKey),
+              let user = response.user else { throw NativeSignupError.sessionProofMismatch }
+        let owner = UUID()
+        validationGeneration = owner
+        try await crypto.saveMasterKey(masterKey, for: user.id)
+        try validateSignupContext(proof, sessionId: proof.sessionId)
+        guard validationGeneration == owner, contextIsCurrent() else { throw NativeSignupError.staleContext }
+        try activateOfflineScope(for: user)
+        currentUser = user
+        await migrateLegacyComposerDrafts()
+        try validateSignupContext(proof, sessionId: proof.sessionId, publishingUserId: user.id)
+        guard validationGeneration == owner, currentUser?.id == user.id else { throw NativeSignupError.staleContext }
+        webSocketToken = response.wsToken
+        cacheAuthenticatedUser(user)
+        sessionValidationState = .onlineAuthenticated
+        state = .authenticated
+    }
+
     func completePairLogin(response: LoginResponse, masterKey: SymmetricKey) async throws {
+        validationGeneration = UUID()
         if response.needsDeviceVerification == true,
            let type = response.deviceVerificationType {
             state = .needsDeviceVerification(type: type)
@@ -418,6 +518,7 @@ final class AuthManager: ObservableObject {
     // MARK: - Logout
 
     func logout() async {
+        validationGeneration = UUID()
         await PushNotificationManager.shared.unregisterCurrentDevice()
         do {
             let _: Data = try await api.request(.post, path: "/v1/auth/logout")
@@ -449,6 +550,7 @@ final class AuthManager: ObservableObject {
     }
 
     func forceLocalLogout(reason: String) async {
+        validationGeneration = UUID()
         print("[Auth] Forced local logout reason=\(reason)")
         AppSessionCoordinator.shared.resetTransientRuntime()
         await clearComposerDraftsForLogout()
@@ -471,7 +573,17 @@ final class AuthManager: ObservableObject {
 
     // MARK: - Private
 
-    private func handleSuccessfulLogin(response: LoginResponse, password: String) async throws {
+    private func validateSignupContext(_ proof: NativeSignupLoginProof, sessionId: String, publishingUserId: String? = nil) throws {
+        guard !Task.isCancelled, ServerProfile.current() == proof.serverProfile,
+              Self.nativeSessionId == sessionId,
+              currentUser == nil || currentUser?.id == publishingUserId else {
+            throw NativeSignupError.staleContext
+        }
+    }
+
+    private func handleSuccessfulLogin(response: LoginResponse, password: String,
+                                       signupProof: NativeSignupLoginProof? = nil,
+                                       signupSessionId: String? = nil) async throws {
         guard let user = response.user else {
             throw AuthError.invalidCredentials
         }
@@ -495,20 +607,35 @@ final class AuthManager: ObservableObject {
             wrappingKey: wrappingKey
         )
         NativeDiagnostics.info("phase=passwordLogin.masterKeyUnwrapped", category: "auth")
+        if let signupProof, let signupSessionId {
+            try validateSignupContext(signupProof, sessionId: signupSessionId)
+            guard signupProof.validatesMasterKey(masterKey) else {
+                throw NativeSignupError.sessionProofMismatch
+            }
+        }
         try await crypto.saveMasterKey(masterKey, for: user.id)
+        if let signupProof, let signupSessionId {
+            try validateSignupContext(signupProof, sessionId: signupSessionId)
+        }
         NativeDiagnostics.info("phase=passwordLogin.masterKeySaved", category: "auth")
         try activateOfflineScope(for: user)
         currentUser = user
         await migrateLegacyComposerDrafts()
         NativeDiagnostics.info("phase=passwordLogin.draftsMigrated", category: "auth")
+        if let signupProof, let signupSessionId {
+            try validateSignupContext(signupProof, sessionId: signupSessionId, publishingUserId: user.id)
+        }
 
         webSocketToken = response.wsToken
         cacheAuthenticatedUser(user)
         sessionValidationState = .onlineAuthenticated
 
-        // Clear sensitive data
-        pendingPassword = nil
-        pendingEmail = nil
+        // Signup owns its private material in SignupViewModel. Do not mutate
+        // another login's shared pending state when completing that operation.
+        if signupProof == nil {
+            pendingPassword = nil
+            pendingEmail = nil
+        }
 
         state = .authenticated
         NativeDiagnostics.info("phase=passwordLogin.authenticated", category: "auth")
@@ -578,6 +705,7 @@ final class AuthManager: ObservableObject {
     }
 
     private func cacheAuthenticatedUser(_ user: UserProfile) {
+        if let profileCacheWriter { profileCacheWriter(user); return }
         guard let data = try? JSONEncoder().encode(user) else { return }
         UserDefaults.standard.set(data, forKey: Self.cachedUserDefaultsKey)
         OpenMatesSharedEnvironment.defaults.set(data, forKey: Self.cachedUserDefaultsKey)

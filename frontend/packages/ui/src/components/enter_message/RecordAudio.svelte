@@ -27,26 +27,42 @@
     cancel() — discard the recording
 -->
 <script lang="ts">
-    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+    import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
     import { buildWaveformFromLevels, type AudioWaveformData } from '../../utils/audioWaveform';
+    import {
+        startAudioRealtimeTranscription,
+        type AudioRealtimeTranscriptionHandle,
+    } from '../../services/audioRealtimeTranscription';
 
     const dispatch = createEventDispatcher<{
-        audiorecorded: { blob: Blob; duration: number; mimeType: string; waveform?: AudioWaveformData };
+        audiorecorded: {
+            blob: Blob;
+            duration: number;
+            mimeType: string;
+            waveform?: AudioWaveformData;
+            realtime?: AudioRealtimeTranscriptionHandle;
+            liveTranscript?: string;
+        };
         close: void;
         cancel: void;
         recordingStateChange: { active: boolean };
+        prepareassistantplayback: void;
     }>();
 
     // --- Props ---
     interface Props {
-    initialPosition: { x: number; y: number };
+        initialPosition: { x: number; y: number };
         externalStream?: MediaStream | null;
+        enableRealtime?: boolean;
+        previewTranscript?: string | null;
     }
     let {
         initialPosition,
         externalStream = null,
+        enableRealtime = false,
+        previewTranscript = null,
     }: Props = $props();
 
     // --- Internal State ---
@@ -86,6 +102,19 @@
     let waveformAnimationFrame: number | null = null;
     let lastWaveformSampleAt = 0;
     let recordOverlayElement: HTMLDivElement | null = null;
+    let liveTranscript = $state('');
+    let liveTranscriptViewportElement = $state<HTMLSpanElement | null>(null);
+    let liveTranscriptFlowElement = $state<HTMLSpanElement | null>(null);
+    let liveTranscriptLineHeight = $state(0);
+    let liveTranscriptLineCount = $state(1);
+    let transcriptMeasurementFrame: number | null = null;
+    let transcriptResizeObserver: ResizeObserver | null = null;
+    let liveTranscriptOffset = $derived(
+        Math.max(0, liveTranscriptLineCount - 1) * liveTranscriptLineHeight,
+    );
+    let realtimeStatus = $state<'connecting' | 'listening' | 'correcting' | 'failed'>('connecting');
+    let realtimeHandle: AudioRealtimeTranscriptionHandle | null = null;
+    let realtimeHandedOff = false;
 
     const logger = {
         debug: (...args: unknown[]) => console.debug('[RecordAudio]', ...args),
@@ -106,13 +135,20 @@
             recordOverlayElement?.focus({ preventScroll: true });
         });
 
-        initializeAndStartRecording();
+        if (previewTranscript !== null) {
+            setLiveTranscript(previewTranscript);
+            isRecording = true;
+        } else {
+            initializeAndStartRecording();
+        }
         dispatch('recordingStateChange', { active: true });
     });
 
     onDestroy(() => {
         logger.debug('Component destroying.');
         stopWaveform();
+        stopTranscriptMeasurement();
+        if (!realtimeHandedOff) realtimeHandle?.cancel();
         // Guard: don't double-stop if stop/cancel already ran
         if (!stopAlreadyCalled) {
             stopInternal(true);
@@ -156,6 +192,13 @@
                 audioBitsPerSecond: 128000
             });
 
+            if (enableRealtime) {
+                realtimeHandle = startAudioRealtimeTranscription(streamToUse, {
+                    onTranscript: setLiveTranscript,
+                    onStatus: (value) => { realtimeStatus = value; },
+                });
+            }
+
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data && e.data.size > 0) recordedChunks.push(e.data);
             };
@@ -181,7 +224,15 @@
                         mimeType:  blob.type,
                         waveformSamples: waveform?.samples.length ?? 0,
                     });
-                    dispatch('audiorecorded', { blob, duration: finalDuration, mimeType: finalMimeType, waveform });
+                    realtimeHandedOff = !!realtimeHandle;
+                    dispatch('audiorecorded', {
+                        blob,
+                        duration: finalDuration,
+                        mimeType: finalMimeType,
+                        waveform,
+                        realtime: realtimeHandle ?? undefined,
+                        liveTranscript: liveTranscript || undefined,
+                    });
                 } else {
                     logger.info(isCancelled ? 'Recording cancelled.' : 'Recording stopped with no data.');
                     dispatch('cancel');
@@ -230,6 +281,47 @@
         }
     }
 
+    // --- Live transcript line ticker ---
+
+    function setLiveTranscript(value: string) {
+        liveTranscript = value;
+        scheduleTranscriptMeasurement();
+    }
+
+    function scheduleTranscriptMeasurement() {
+        if (transcriptMeasurementFrame !== null) return;
+        transcriptMeasurementFrame = requestAnimationFrame(() => {
+            transcriptMeasurementFrame = null;
+            void measureTranscriptLines();
+        });
+    }
+
+    async function measureTranscriptLines() {
+        await tick();
+        const viewport = liveTranscriptViewportElement;
+        const flow = liveTranscriptFlowElement;
+        if (!viewport || !flow || !liveTranscript) return;
+
+        if (!transcriptResizeObserver && typeof ResizeObserver !== 'undefined') {
+            transcriptResizeObserver = new ResizeObserver(scheduleTranscriptMeasurement);
+            transcriptResizeObserver.observe(viewport);
+        }
+
+        const lineHeight = Number.parseFloat(getComputedStyle(flow).lineHeight);
+        if (!Number.isFinite(lineHeight) || lineHeight <= 0) return;
+        liveTranscriptLineHeight = lineHeight;
+        liveTranscriptLineCount = Math.max(1, Math.round(flow.scrollHeight / lineHeight));
+    }
+
+    function stopTranscriptMeasurement() {
+        if (transcriptMeasurementFrame !== null) {
+            cancelAnimationFrame(transcriptMeasurementFrame);
+            transcriptMeasurementFrame = null;
+        }
+        transcriptResizeObserver?.disconnect();
+        transcriptResizeObserver = null;
+    }
+
     /**
      * Core stop/cancel — all paths converge here.
      * Guards against double-invocation via stopAlreadyCalled.
@@ -245,6 +337,8 @@
         logger.info(`Stopping recording. Cancelled: ${isCancelled}`);
 
         stopRecordingTimer();
+        if (isCancelled) realtimeHandle?.cancel();
+        else realtimeHandle?.finish();
         stopWaveform();
         isRecording = false;
 
@@ -394,6 +488,7 @@
                 return;
             }
             logger.debug('Enter pressed — finishing recording.');
+            dispatch('prepareassistantplayback');
             stopInternal(false);
         }
         if (event.key === 'Escape') {
@@ -412,6 +507,7 @@
 
     /** Complete the recording (produces audiorecorded event). */
     export function stop() {
+        dispatch('prepareassistantplayback');
         if (!readyForRelease) {
             logger.debug('stop() called by parent — deferred (not ready for release yet).');
             pendingReleaseCancel = false;
@@ -449,7 +545,25 @@
         <!-- Top: explicit completion/cancellation shortcuts. -->
         <div class="record-header">
             <span class="release-text" data-testid="release-text">
-                {$text('enter_message.record_audio.recording')}
+                {#if liveTranscript}
+                    <span
+                        bind:this={liveTranscriptViewportElement}
+                        class="live-transcript-viewport"
+                        class:has-previous-line={liveTranscriptLineCount > 1}
+                        data-testid="recording-live-transcript"
+                        data-line-count={liveTranscriptLineCount}
+                        aria-live="polite"
+                    >
+                        <span
+                            bind:this={liveTranscriptFlowElement}
+                            class="live-transcript-flow"
+                            data-testid="recording-live-transcript-flow"
+                            style:transform={`translateY(-${liveTranscriptOffset}px)`}
+                        >{liveTranscript.trim()}</span>
+                    </span>
+                {:else}
+                    {$text('enter_message.record_audio.recording')}
+                {/if}
             </span>
             <span class="record-shortcuts" data-testid="record-shortcuts">
                 {$text('enter_message.record_audio.enter_to_finish_escape_to_cancel')}
@@ -467,6 +581,9 @@
                 ></span>
             {/each}
         </div>
+        {#if !liveTranscript && enableRealtime && realtimeStatus === 'connecting'}
+            <span class="live-transcript-placeholder" aria-hidden="true">•••</span>
+        {/if}
     </div>
 
     <!-- Bottom controls: timer | explicit actions -->
@@ -538,10 +655,40 @@
     }
 
     .release-text {
+        width: min(100%, 560px);
         font-size: var(--font-size-p);
         font-weight: 700;
         color: white;
         letter-spacing: 0.01em;
+        line-height: 1.3;
+        display: block;
+    }
+
+    .live-transcript-viewport {
+        display: block;
+        width: 100%;
+        height: 1.3em;
+        overflow: hidden;
+    }
+
+    .live-transcript-viewport.has-previous-line {
+        -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 4px, #000 100%);
+        mask-image: linear-gradient(to bottom, transparent 0, #000 4px, #000 100%);
+    }
+
+    .live-transcript-flow {
+        display: block;
+        width: 100%;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+        transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .live-transcript-flow {
+            transition-duration: 0ms;
+        }
     }
 
     .record-shortcuts {
@@ -572,6 +719,11 @@
         flex: 0 1 3px;
         background-color: currentColor;
         border-radius: var(--radius-full);
+    }
+
+    .live-transcript-placeholder {
+        color: rgba(255, 255, 255, 0.72);
+        letter-spacing: 0.18em;
     }
 
     /* Bottom controls row */

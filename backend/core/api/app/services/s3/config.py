@@ -52,8 +52,8 @@ CORS_ENABLED_BUCKETS = [
     'dev-openmates-invoices',
     'openmates-test-recordings',
     'dev-openmates-test-recordings',
-    'openmates-opencode-response-media',
-    'dev-openmates-opencode-response-media',
+    'openmates-review-media',
+    'dev-openmates-review-media',
     'openmates-public-examples',
     'dev-openmates-public-examples',
 ]
@@ -217,15 +217,15 @@ BUCKETS = {
         'access': 'private',
         'lifecycle_policy': 1,  # 1 day auto-delete (safety net only)
     },
-    # Temporary plaintext media bucket for OpenCode assistant responses.
+    # Temporary plaintext media bucket for agent review responses.
     # This is a developer/agent workflow bucket, not a product data surface:
     # agents upload synthetic proof screenshots, short demo clips, or other
     # intentionally shareable response media here, then embed only a presigned
     # URL in Markdown. The bucket stays private and expires objects after two
     # days so URLs are bounded bearer tokens rather than permanent public assets.
-    'opencode_response_media': {
-        'name': 'openmates-opencode-response-media',
-        'dev_name': 'dev-openmates-opencode-response-media',
+    'review_media': {
+        'name': 'openmates-review-media',
+        'dev_name': 'dev-openmates-review-media',
         'allowed_types': [
             'image/jpeg',
             'image/png',

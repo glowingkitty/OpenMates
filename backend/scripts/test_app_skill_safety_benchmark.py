@@ -579,7 +579,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--report",
         type=Path,
-        default=Path("/tmp/opencode/app-skill-safety-benchmark.json"),
+        default=Path("/tmp/openmates/app-skill-safety-benchmark.json"),
     )
     return parser.parse_args()
 

@@ -46,7 +46,7 @@ models:
     scan_failure:
       type: enum
       values: [none, blocked, unavailable, timeout, malformed, incomplete]
-      constraints: {non_none_result: fail_closed, technical_failure: safe_retryable_error, automatic_retry: forbidden}
+      constraints: {technical_failure: return_ascii_cleaned_content_and_log_unscanned, uncertainty: preserve_content, automatic_retry: forbidden, user_input: forbidden}
     coverage:
       type: server_owned
       required: true
@@ -54,33 +54,33 @@ models:
     deadline:
       type: finite_per_skill_budget
       required: true
-      constraints: {includes_queue_and_model_time: true, cancellation_propagates: true, no_silent_ascii_only_fallback: true}
+      constraints: {includes_queue_and_model_time: true, cancellation_propagates: true, fallback_status_logged: true}
     technical_error_codes:
       type: enum
       values: [OUTPUT_SAFETY_TIMEOUT, OUTPUT_SAFETY_UNAVAILABLE, OUTPUT_SAFETY_INVALID]
-      constraints: {delivery: stable_prefix_in_existing_safe_error_string, caller_retry_allowed: true, raw_provider_error: forbidden}
+      constraints: {delivery: server_logs, raw_provider_error: forbidden, failed_scan_reported_as_safe: forbidden}
 
   SemanticScanBatch:
     fields:
       type: array
       required: true
       items: identified_external_text_unit
-      constraints: {server_assigned_unique_ids: true, max_batch_text_chars: 50000, max_unit_chars: 12000, max_parallel_batches: 4, partition_order: source_order, source_context_preserved: true, silent_truncation: forbidden}
+      constraints: {server_assigned_unique_ids: true, max_batch_text_chars: 50000, max_unit_chars: 4000, max_model_calls: 1, partition_order: source_order, source_context_preserved: true, silent_truncation: forbidden, oversized_input: return_cleaned_content_and_log_unscanned}
     decisions:
       type: array
       required: true
-      constraints: {one_per_input_id: true, values: [safe, injection], unknown_duplicate_or_missing_ids: reject, model_rewritten_text: forbidden}
+      constraints: {one_per_input_id: true, values: [safe, injection, uncertain], injection_evidence: exact_unique_source_quotes, unknown_duplicate_or_missing_ids: reject_scan, model_rewritten_text: forbidden}
     application:
       type: deterministic
       required: true
-      constraints: {safe_units: preserve_exactly_after_ascii_cleanup, injection_units: replace_entire_unit_with_fixed_warning, field_level_rescan: forbidden, serialized_structure_redaction: forbidden}
+      constraints: {safe_and_uncertain_units: preserve_exactly_after_ascii_cleanup, injection_units: replace_verified_spans_with_fixed_warning, field_level_rescan: forbidden, serialized_structure_redaction: forbidden}
     partial_payload_mutation:
       type: boolean
       required: true
       constraints: {must_remain_false_on_failure: true}
     long_documents:
       type: bounded_contextual_sections
-      constraints: {web_read_semantic_protection: retained, entire_coverage_required: true, partition_boundaries: paragraph_then_sentence_then_character, boundary_context: required_within_batch_budget, flagged_section: replace_entire_section, retained_directives_across_boundaries: forbidden, cannot_cover_within_deadline: reject_payload_atomically}
+      constraints: {web_read_semantic_protection: retained, entire_coverage_required_for_valid_scan: true, partition_boundaries: paragraph_then_sentence_then_character, boundary_context: required_within_batch_budget, flagged_section: redact_verified_spans_only, cannot_cover_within_deadline: return_cleaned_content_and_log_unscanned}
 
   ParallelSafeSkillBatch:
     eligibility:
@@ -107,11 +107,11 @@ assertions:
     depends_on: [models.AppSkillOutputSafety.ascii_smuggling_cleanup, examples.output_safety]
   - id: app-skills.output.external-semantic
     type: security
-    must: All policy-selected external provider text, including web search snippets and web read sections, is semantically scanned by default before client exposure, persistence, or AI context; assistant and Workflow callers cannot disable the scan, and unavailable, blocked, timed-out, malformed, or incomplete scans fail closed. Existing explicit direct-programmatic opt-out eligibility is unchanged; performance targets never authorize an implicit opt-out.
+    must: All existing policy-selected external provider text across app skills is routed through the shared semantic scanner by default after deterministic ASCII cleanup. Assistant and Workflow callers cannot explicitly disable it. Unavailable, timed-out, malformed, incomplete, or oversized scans return cleaned content and record an unscanned status; uncertainty preserves text. Valid injections require exact evidence and are redacted. Direct-programmatic opt-out eligibility is unchanged.
     depends_on: [models.AppSkillOutputSafety, examples.output_safety]
   - id: app-skills.output.batch-equivalent
     type: security
-    must: Each bounded semantic batch returns exactly one validated safe or injection decision for every server-assigned text-unit ID; safe units remain unchanged after deterministic cleanup and flagged units are replaced in full with a fixed application-owned warning. Unknown, duplicate, missing, or invalid decisions reject the payload atomically. Neither model-authored replacement text, substring redaction of serialized structures, nor automatic field-by-field rescans are permitted.
+    must: One bounded semantic call returns a safe, injection, or uncertain decision for every server-assigned unit ID. Injection decisions require exact uniquely located quotes; deterministic application replaces only those spans with a fixed warning and preserves surrounding text and result structure. Safe and uncertain text remains unchanged after ASCII cleanup. Unknown, duplicate, missing, or invalid decisions invalidate the scan atomically and return cleaned input with an unscanned log. No model-authored replacement text, serialized-structure redaction, or additional model call is permitted.
     depends_on: [models.SemanticScanBatch, examples.batch_outcomes]
   - id: app-skills.output.single-boundary
     type: security
@@ -119,7 +119,7 @@ assertions:
     depends_on: [models.AppSkillOutputSafety.coverage, examples.output_safety]
   - id: app-skills.output.bounded-failure
     type: failure
-    must: Queueing and semantic processing share a finite declared per-skill deadline; technical scan failures return a safe visible retryable error without raw external content, automatic model retries, or field-level fallback. Cancellation stops unfinished work. A valid injection decision is handled by replacing its whole text unit, not by retrying the scan; a policy-level block remains a fail-closed rejection.
+    must: Semantic processing has a finite per-skill deadline. Scanner timeout or failure returns ASCII-cleaned content and records an unscanned reason without exposing provider diagnostics or treating failure as a safe verdict. No retries, confirmation scans, or user-input requests occur. Timeout cancels unfinished scanner work and caller cancellation propagates. These rules do not relax tool authorization or request validation.
     depends_on: [models.AppSkillOutputSafety.deadline, models.AppSkillOutputSafety.scan_failure, examples.batch_outcomes]
   - id: app-skills.cli.truthful-status
     type: behavior

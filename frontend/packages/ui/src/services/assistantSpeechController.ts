@@ -4,7 +4,7 @@
 // this module; status handling and player state never expose persisted plaintext.
 // One controller instance owns playback across the application.
 
-import { writable, type Readable } from "svelte/store";
+import { get, writable, type Readable } from "svelte/store";
 import {
   fetchAndDecryptAudio,
   releaseCachedAudio,
@@ -19,6 +19,7 @@ import {
 } from "./assistantSpeechQueue";
 import { buildWaveformFromAudioUrl } from "../utils/audioWaveform";
 import { webSocketService } from "./websocketService";
+import { locale } from "svelte-i18n";
 import { projectAssistantSpeech as projectSharedAssistantSpeech } from "../../../assistantSpeechProjection";
 
 interface ProjectedSpeechSegment {
@@ -37,6 +38,7 @@ interface SpeechStatusSegment {
   duration_seconds?: number;
   retryable?: boolean;
   sequence?: number;
+  request_sequence?: number;
   kind?: string;
 }
 
@@ -181,6 +183,7 @@ class AssistantSpeechController {
   }
 
   pause(): void { this.queue.pause(); }
+  primeForAutoplay(): void { this.queue.primeForAutoplay(); }
   async play(): Promise<void> {
     if (this.queue.state.status === "failed") {
       const activeId = this.queue.state.activeSegmentId;
@@ -290,7 +293,7 @@ class AssistantSpeechController {
       const sequences = payload.segments.flatMap((status) => typeof status.sequence === "number" ? [status.sequence] : []);
       const sequenceOffset = sequences.length ? Math.max(0, Math.min(...sequences) - projected[0].sequence) : 0;
       const segments = payload.segments.flatMap((status, index) => {
-        const sequence = (status.sequence ?? projected[index]?.sequence ?? index) - sequenceOffset;
+        const sequence = status.request_sequence ?? ((status.sequence ?? projected[index]?.sequence ?? index) - sequenceOffset);
         const source = projected.find((segment) => segment.sequence === sequence);
         if (!status.segment_id || !source) return [];
         const latest = this.latestStatusBySegmentId.get(status.segment_id);
@@ -394,7 +397,6 @@ class AssistantSpeechController {
     if (sequence === undefined) return;
     const presentation = this.presentationBySegmentId.get(status.segment_id) ?? defaultPresentation(sequence, status.kind);
     if (status.status !== "ready" || !status.generated_asset_id) {
-      if (status.status === "error") this.error = "Speech is temporarily unavailable.";
       this.queue.upsertSegment({
         id: status.segment_id,
         sequence,
@@ -403,6 +405,9 @@ class AssistantSpeechController {
         waveform: [],
         ...presentation,
       });
+      if (status.status === "error") {
+        this.error = this.queue.state.status === "failed" ? "Speech is temporarily unavailable." : null;
+      }
       this.publish();
       return;
     }
@@ -520,7 +525,7 @@ class AssistantSpeechController {
       regions: this.queue.waveformRegions,
       // A prefetched chapter can fail while the current audio is still playing.
       // Keep its failure in the queue; show recovery when that chapter is active.
-      error: this.queue.state.status === "failed" ? this.error : null,
+      error: this.queue.state.status === "failed" ? (this.error || "Speech is temporarily unavailable.") : null,
       presentationMode: this.queue.presentationMode,
       hasReplayableTracks: this.queue.hasReplayableTracks,
       mateName: this.mateName,
@@ -530,7 +535,9 @@ class AssistantSpeechController {
 }
 
 function projectAssistantSpeech(markdown: string): ProjectedSpeechSegment[] {
-  return projectSharedAssistantSpeech(markdown).map((segment) => ({
+  // The locale supplies new historical fallbacks. Replay resolves these finite
+  // phrases to existing canonical audio in the original response language.
+  return projectSharedAssistantSpeech(markdown, get(locale) || "en").map((segment) => ({
     sequence: segment.sequence,
     kind: segment.kind,
     speakable_text: segment.speakableText,

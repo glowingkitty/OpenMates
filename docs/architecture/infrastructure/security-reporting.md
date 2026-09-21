@@ -4,7 +4,7 @@ The approved contract is `specifications/architecture/security-reporting/` and t
 
 ## September 7 execution hold
 
-Automatic OpenCode launches remain disabled. Workflow migration belongs to TASK-8338 (September 14 backlog). The coordinator owns every cron/systemd change. Do not install the old dependency scheduler or invoke scanner shell wrappers that launch agents.
+Automatic agent launches remain disabled. Workflow migration belongs to TASK-8338 (September 14 backlog). The coordinator owns every cron/systemd change. Do not install the old dependency scheduler or invoke scanner shell wrappers that launch agents.
 
 `SECURITY_REPORTING_COLLECTION_ONLY=true` makes dependency helpers exit after deterministic collection, before remediation tracking, prompts or dispatch. The audit/red-team helpers instead ingest existing structured snapshots. The common launcher rejects this mode before filesystem/process effects. This mode also prevents critical delivery, even if the reporting marker otherwise enables email.
 
@@ -15,7 +15,7 @@ Automatic OpenCode launches remain disabled. Workflow migration belongs to TASK-
 3. `verify_security_reporting.py --verify-adapters` runs isolated temporary-state tests and records hashes of the tested adapter sources. Source changes invalidate this evidence. This is not a live transport receipt.
 4. `verify_security_reporting.py --prepare-test --output <private-directory>` freezes one labeled current-data test payload per reporting day and writes private HTML/text for review. Empty scan history is refused. No email is sent.
 5. After existing explicit test-email authorization and coordinator admission, `verify_security_reporting.py --env dev --send-test` sends that frozen payload through the existing configured container transport. Replaying the same ID retains the original payload/hash. Queue acceptance or an ambiguous result never substitutes for provider acceptance.
-6. The coordinator may separately install/enable reporting timers only after readiness verification and the scheduling hold is released. The timer proposal is daily 08:30 UTC with persistent catch-up and a 15-minute retry tick; no scanner schedules or OpenCode jobs are created by the reporting installer. `--check-cutover` checks exact units, runtime activity, durable accepted test receipt and source-bound adapter evidence.
+6. The coordinator may separately install/enable reporting timers only after readiness verification and the scheduling hold is released. The timer proposal is daily 08:30 UTC with persistent catch-up and a 15-minute retry tick; no scanner schedules or agent jobs are created by the reporting installer. `--check-cutover` checks exact units, runtime activity, durable accepted test receipt and source-bound adapter evidence.
 
 Do not turn ordinary collection records into delivery receipts. Accepted test evidence must match the durable delivery ledger and immutable test payload and be no older than 36 hours. Unknown outcomes require reconciliation, never blind replay. Rollback disables only reporting timers and suppression, retaining history and receipts; it must not re-enable held scanner jobs.
 

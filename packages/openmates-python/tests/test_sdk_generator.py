@@ -59,6 +59,11 @@ def test_generated_metadata_includes_audio_web_search_images_generate_business_a
         for skill in APP_SKILL_METADATA
         if skill["app_id"] == "fitness" and skill["skill_id"] == "search_classes"
     )
+    weather_forecast = next(
+        skill
+        for skill in APP_SKILL_METADATA
+        if skill["app_id"] == "weather" and skill["skill_id"] == "forecast"
+    )
     travel_connections = next(
         skill
         for skill in APP_SKILL_METADATA
@@ -125,6 +130,12 @@ def test_generated_metadata_includes_audio_web_search_images_generate_business_a
     assert fitness_classes["app_namespace_py"] == "fitness"
     assert fitness_classes["skill_method_py"] == "search_classes"
     assert "requests" in fitness_classes["schema"]["properties"]
+
+    weather_schema = weather_forecast["schema"]
+    assert weather_schema["properties"]["start_date"]["format"] == "date"
+    assert weather_schema["properties"]["end_date"]["format"] == "date"
+    assert weather_schema["x-ui"]["max_offset_days"] == 13
+    assert weather_schema["properties"]["days"]["x-ui"]["hidden"] is True
 
     travel_request = travel_connections["schema"]["properties"]["requests"]["items"]["properties"]
     assert "transitous" in travel_request["providers"]["items"]["enum"]

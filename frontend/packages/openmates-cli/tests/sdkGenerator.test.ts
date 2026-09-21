@@ -48,6 +48,9 @@ describe("generated npm SDK app skills", () => {
     const fitnessClasses = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "fitness" && skill.skill_id === "search_classes",
     );
+    const weatherForecast = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "weather" && skill.skill_id === "forecast",
+    );
 
     assert.ok(audioGenerate);
     assert.equal(audioGenerate.app_namespace_ts, "audio");
@@ -116,6 +119,12 @@ describe("generated npm SDK app skills", () => {
     assert.equal(fitnessClasses.app_namespace_ts, "fitness");
     assert.equal(fitnessClasses.skill_method_ts, "searchClasses");
     assert.ok(fitnessClasses.schema.properties.requests);
+
+    assert.ok(weatherForecast);
+    assert.equal(weatherForecast.schema.properties.start_date.format, "date");
+    assert.equal(weatherForecast.schema.properties.end_date.format, "date");
+    assert.equal(weatherForecast.schema["x-ui"].max_offset_days, 13);
+    assert.equal(weatherForecast.schema.properties.days["x-ui"].hidden, true);
   });
 
   // contract-test: supporting surface=sdks.npm assertions=audio-generate.surface-parity,audio-speak.surface-parity

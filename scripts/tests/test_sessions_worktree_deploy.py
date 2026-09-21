@@ -831,7 +831,7 @@ def test_prune_stale_preserves_managed_worktree_sessions(monkeypatch):
     data = {
         "sessions": {
             "plain": {"last_active": "old"},
-            "bound": {"last_active": "old", "opencode_session_id": "ses_active"},
+            "bound": {"last_active": "old"},
             "worktree": {"last_active": "old", "worktree": {"path": "/tmp/agent", "status": "active"}},
             "archived": {"last_active": "old", "worktree": {"path": "/tmp/archive", "status": "archived"}},
         }

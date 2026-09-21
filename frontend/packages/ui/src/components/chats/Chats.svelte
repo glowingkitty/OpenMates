@@ -348,12 +348,33 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		.sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime()));
 	let visibleOpenMatesEvents = $derived(upcomingOpenMatesEvents.slice(0, visibleEventLimit));
 	let remainingEventsCount = $derived(Math.max(0, upcomingOpenMatesEvents.length - visibleEventLimit));
+	let latestNewsItems = $derived((() => {
+		// Re-resolve translated release titles whenever the app language changes.
+		void $svelteLocaleStore;
+		void $text;
+		void _languageChangeTick;
+
+		return getActiveNewsletterChatsByKind('announcements')
+			.filter((chat) => chat.slug.startsWith('introducing-openmates-v') && Boolean(chat.metadata.publishedAt))
+			.slice()
+			.sort((a, b) => Date.parse(b.metadata.publishedAt || '') - Date.parse(a.metadata.publishedAt || ''))
+			.slice(0, 3)
+			.map((chat) => translateDemoChat(chat));
+	})());
+
+	function formatNewsDate(publishedAt: string | undefined): string {
+		if (!publishedAt) return '';
+		const date = new Date(publishedAt);
+		if (Number.isNaN(date.getTime())) return '';
+		return new Intl.DateTimeFormat($svelteLocaleStore || undefined, {
+			day: 'numeric',
+			month: 'short',
+			year: 'numeric'
+		}).format(date);
+	}
 
 	const DEFAULT_EXAMPLE_CHAT_LIMIT = 10;
-	const DEFAULT_ANNOUNCEMENT_CHAT_LIMIT = 3;
-
 	let visibleExampleChatLimit = $state(DEFAULT_EXAMPLE_CHAT_LIMIT);
-	let visibleAnnouncementChatLimit = $state(DEFAULT_ANNOUNCEMENT_CHAT_LIMIT);
 
 	function getHiddenPublicChatIds(): string[] {
 		return $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
@@ -445,28 +466,8 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 				group_key: 'examples' // Example chats go in "Examples" group
 			}));
 		
-		// 3. Announcement chats — the most recent Updates & Announcements
-		// newsletter issues, shown under an "Announcements" section so users can
-		// always jump back to the latest product update. Hidden (via
-		// hidden_demo_chats) works the same as for intro/legal chats.
-		const allVisibleAnnouncementChats = getActiveNewsletterChatsByKind('announcements')
-			.filter(chat => !hiddenIds.includes(chat.chat_id))
-			.slice()
-			.sort((a, b) => {
-				const at = Date.parse(a.metadata.publishedAt || a.metadata.lastUpdated || '') || 0;
-				const bt = Date.parse(b.metadata.publishedAt || b.metadata.lastUpdated || '') || 0;
-				return bt - at;
-			})
-			.slice(0, visibleAnnouncementChatLimit);
-		const announcementChats: ChatType[] = allVisibleAnnouncementChats
-			.map(demo => translateDemoChat(demo))
-			.map(demo => {
-				const chat = convertDemoChatToChat(demo);
-				chat.group_key = 'announcements';
-				return chat;
-			});
-
-		// 3b. Tips & Tricks chats — shown only when entries exist.
+		// 3. Tips & Tricks chats — shown only when entries exist. Product
+		// announcements now live on the public /news pages rather than in Chats.
 		const tipsAndTricksChats: ChatType[] = getActiveNewsletterChatsByKind('tips')
 			.filter(chat => !hiddenIds.includes(chat.chat_id))
 			.slice()
@@ -502,7 +503,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 				});
 		}
 		
-		return [...introChats, ...exampleChats, ...announcementChats, ...tipsAndTricksChats, ...legalChats];
+		return [...introChats, ...exampleChats, ...tipsAndTricksChats, ...legalChats];
 	})());
 
 	// Combine public chats (intro + example chats + legal) with real chats from IndexedDB
@@ -762,7 +763,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		
 		// 2. Then, add any remaining time groups (e.g., month groups) in their order
 		// CRITICAL: Include 'shared_by_others' in static groups - these are chats shared with user by others
-		const staticGroups = ['shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal'];
+		const staticGroups = ['shared_by_others', 'intro', 'examples', 'tips_and_tricks', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
 			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
@@ -785,7 +786,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	// STATIC_GROUP_KEYS are excluded from time-based grouping and from the phased-load limit.
 	// 'incognito' is listed first so it renders at the top of the sidebar (above user time-groups).
 	// 'shared_by_others' comes before intro/examples/legal since those are real user-shared chats.
-	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal'];
+	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'tips_and_tricks', 'legal'];
 
 	// Initial display limit: matches Phase 1a (10 recent + 1 last-opened).
 	// Only user chats count toward this limit — static chats (intro, examples, legal) are always shown.
@@ -864,16 +865,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		return Math.max(0, totalExampleChats - visibleExampleChatLimit);
 	})());
 
-	let remainingAnnouncementChatsCount = $derived((() => {
-		const hiddenIds = getHiddenPublicChatIds();
-		const totalAnnouncementChats = getActiveNewsletterChatsByKind('announcements')
-			.filter(chat => !hiddenIds.includes(chat.chat_id))
-			.length;
-		return Math.max(0, totalAnnouncementChats - visibleAnnouncementChatLimit);
-	})());
-
 	let showMoreExampleChatsVisible = $derived(remainingExampleChatsCount > 0);
-	let showMoreAnnouncementChatsVisible = $derived(remainingAnnouncementChatsCount > 0);
 
 	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
@@ -1479,10 +1471,6 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 	function handleShowMoreExampleChatsClick() {
 		visibleExampleChatLimit += DEFAULT_EXAMPLE_CHAT_LIMIT;
-	}
-
-	function handleShowMoreAnnouncementChatsClick() {
-		visibleAnnouncementChatLimit += DEFAULT_ANNOUNCEMENT_CHAT_LIMIT;
 	}
 
 	/**
@@ -2485,7 +2473,12 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	 * @param userInitiated - Whether this was user-initiated (affects phasedSyncState)
 	 * @param closePanelOnMobile - Whether to close the panel on mobile viewports (default: true)
 	 */
-	async function handleChatClick(chat: ChatType, userInitiated: boolean = true, closePanelOnMobile: boolean = true) {
+	async function handleChatClick(
+		chat: ChatType,
+		userInitiated: boolean = true,
+		closePanelOnMobile: boolean = true,
+		preserveActiveComposer: boolean = false,
+	) {
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
 		setLastActiveChatIdForDisplay(chat.chat_id);
@@ -2523,7 +2516,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		activeChatStore.setActiveChat(chat.chat_id);
 
 		// Dispatch event to notify parent components like +page.svelte
-		dispatch('chatSelected', { chat: chat });
+		dispatch('chatSelected', { chat, preserveActiveComposer });
 
 		// NOTE: A global 'globalChatSelected' event was previously dispatched here.
 		// This was removed because it caused a duplicate 'set_active_chat' request,
@@ -3018,7 +3011,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					recordE2EDraftSelectionDecision({ chatId: queuedChatId, consumer: 'chat_list', result: 'applied' });
 				}
 				console.debug(`[Chats] Selecting chat after list update: ${queuedChatId}`);
-				await handleChatClick(chatToSelect, false); // System-initiated selection, don't close menu
+				await handleChatClick(chatToSelect, false, true, isDraftActivation); // System-initiated selection, don't replace the live draft composer
 			} else {
 				console.warn(`[Chats] Chat ID ${queuedChatId} not found for selection after list update.`);
 			}
@@ -4446,8 +4439,33 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					</div>
 				{/if}
 
-				<!-- 6. Static chat groups that appear after Events -->
-				{#each orderedStaticChatGroups.filter(([k]) => ['examples', 'announcements', 'tips_and_tricks', 'legal'].includes(k)) as [groupKey, groupItems] (groupKey)}
+				<!-- 6. The latest releases link to their canonical public news pages. -->
+				{#if latestNewsItems.length > 0}
+					<div class="chat-group latest-news-group" data-testid="latest-news-group">
+						<h2 class="group-title" data-testid="latest-news-title">{$text('chats.latest_news')}</h2>
+						{#each latestNewsItems as newsItem (newsItem.chat_id)}
+							<a
+								class="news-list-item"
+								data-testid="latest-news-item"
+								href={`/news/${newsItem.slug}`}
+								aria-label={`Open news: ${newsItem.title}`}
+							>
+								<span class="news-list-icon" aria-hidden="true">
+									<img src="/favicon.svg" alt="" />
+								</span>
+								<span class="news-list-body">
+									<span class="news-list-title">{newsItem.title}</span>
+									<time class="news-list-meta" datetime={newsItem.metadata.publishedAt}>
+										{formatNewsDate(newsItem.metadata.publishedAt)}
+									</time>
+								</span>
+							</a>
+						{/each}
+					</div>
+				{/if}
+
+				<!-- 7. Static chat groups that appear after Events and News -->
+				{#each orderedStaticChatGroups.filter(([k]) => ['examples', 'tips_and_tricks', 'legal'].includes(k)) as [groupKey, groupItems] (groupKey)}
 					{@render chatGroupSnippet(groupKey, groupItems)}
 					{#if groupKey === 'examples' && showMoreExampleChatsVisible}
 						<div class="load-more-container">
@@ -4457,17 +4475,6 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 								onclick={handleShowMoreExampleChatsClick}
 							>
 								{$text('chats.loadMore.button')}{#if remainingExampleChatsCount > 0}&nbsp;({remainingExampleChatsCount}){/if}
-							</button>
-						</div>
-					{/if}
-					{#if groupKey === 'announcements' && showMoreAnnouncementChatsVisible}
-						<div class="load-more-container">
-							<button
-								class="load-more-button"
-								data-testid="show-more-announcements"
-								onclick={handleShowMoreAnnouncementChatsClick}
-							>
-								{$text('chats.loadMore.button')}{#if remainingAnnouncementChatsCount > 0}&nbsp;({remainingAnnouncementChatsCount}){/if}
 							</button>
 						</div>
 					{/if}
@@ -4844,6 +4851,75 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+
+	.latest-news-group {
+		gap: var(--spacing-2);
+	}
+
+	.news-list-item {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-6);
+		box-sizing: border-box;
+		width: 100%;
+		padding: var(--spacing-5) 15px;
+		border-radius: var(--radius-3);
+		color: inherit;
+		text-decoration: none;
+		transition: background-color var(--duration-fast) var(--easing-default);
+	}
+
+	@media (hover: hover) {
+		.news-list-item:hover {
+			background-color: var(--color-grey-25);
+		}
+	}
+
+	.news-list-item:focus-visible {
+		outline: 2px solid var(--color-primary-focus);
+		outline-offset: 2px;
+		background-color: var(--color-grey-25);
+	}
+
+	.news-list-icon {
+		flex: 0 0 42px;
+		height: 42px;
+		border-radius: var(--radius-3);
+		display: grid;
+		place-items: center;
+		overflow: hidden;
+		box-shadow: var(--shadow-xs);
+	}
+
+	.news-list-icon img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.news-list-body {
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.news-list-title {
+		color: var(--color-text-primary);
+		font-size: 0.95rem;
+		font-weight: 600;
+		line-height: 1.25;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		overflow: hidden;
+	}
+
+	.news-list-meta {
+		color: var(--color-grey-60);
+		font-size: 0.8rem;
+	}
 
     /* Improve focus visibility */
     .chat-item:focus-visible {

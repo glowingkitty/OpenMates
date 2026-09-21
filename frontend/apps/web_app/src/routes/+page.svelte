@@ -1211,6 +1211,7 @@
 			isStaticPublicChatTarget(activeChatId) ||
 			isAnonymousChatId(activeChatId) ||
 			lastLoadedChatId === activeChatId ||
+			untrack(() => activeChatComponent.getCurrentChatId()) === activeChatId ||
 			authenticatedHashRecoveryChatId === activeChatId
 		) {
 			return;
@@ -1233,7 +1234,9 @@
 					return;
 				}
 
-				if (!chat || lastLoadedChatId === activeChatId) return;
+				// A local draft may have been adopted while the IndexedDB read was
+				// pending. Its live editor is already authoritative for this ID.
+				if (!chat || lastLoadedChatId === activeChatId || activeChatComponent.getCurrentChatId() === activeChatId) return;
 				console.debug(`[+page.svelte] Recovering authenticated active chat from hash/store: ${activeChatId}`);
 				activeChatComponent.loadChat(chat);
 				lastLoadedChatId = activeChatId;
@@ -3314,6 +3317,7 @@
 	// FIXED: Improved retry mechanism with multiple attempts to ensure chat loads for SEO
 	async function handleChatSelected(event: CustomEvent) {
 		const selectedChat: Chat = event.detail.chat;
+		const preserveActiveComposer = event.detail.preserveActiveComposer === true;
 		console.debug('[+page.svelte] Received chatSelected event:', selectedChat.chat_id); // Use chat_id
 		notFoundPathStore.set(null);
 
@@ -3321,7 +3325,7 @@
 		const loadChatWithRetry = async (retries = 20): Promise<void> => {
 			if (activeChat) {
 				console.debug('[+page.svelte] activeChat ready, loading chat:', selectedChat.chat_id);
-				activeChat.loadChat(selectedChat);
+				activeChat.loadChat(selectedChat, { preserveActiveComposer });
 				lastLoadedChatId = selectedChat.chat_id;
 				console.debug('[+page.svelte] ✅ Successfully called loadChat for:', selectedChat.chat_id);
 				return;
@@ -3342,8 +3346,12 @@
 
 		await loadChatWithRetry();
 
-		// Move focus to main chat area for keyboard/screen reader users
-		document.getElementById('main-chat')?.focus();
+		// Explicit chat navigation moves focus into the selected chat. Persisting
+		// the draft that is already open is only an identity/header transition;
+		// moving focus then would interrupt the user's active composer.
+		if (!preserveActiveComposer) {
+			document.getElementById('main-chat')?.focus();
+		}
 
 		// Optionally close Activity History on mobile after selection
 		// if ($panelState.isMobileView) { // Assuming isMobileView is exposed or checked

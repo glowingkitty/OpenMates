@@ -152,7 +152,9 @@ function detectNonCodeBlockElements(
         partialEmbeds.push({ id, type: 'sheet', status: 'processing', contentRef: `stream:${id}` });
         unclosedBlocks.push({ type: 'table', startLine: i, content: tableContent });
       }
-      // Skip processed table lines (handled by continuing to next iteration)
+      // The rows were consumed as one table block. Advancing to the final row
+      // keeps this pass linear instead of rescanning the remainder for every row.
+      i = Math.max(i, j - 1);
       inTableBlock = true;
     } else if (trimmed === '') {
       inTableBlock = false;

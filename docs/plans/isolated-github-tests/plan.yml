@@ -12,6 +12,7 @@ authorization:
 scope:
   in:
   - One shared CI implementation for focused candidate runs and daily suites.
+  - One browser spec per GitHub job, with multi-spec selections split before dispatch.
   - Exact source identity, isolated web/API/worker/CMS/database/cache and fresh accounts.
   - Durable deduplicated dispatch, bounded concurrency, shared polling and rate backoff.
   - Preserve reports, traces and proof artifacts tied to source and run identity.
@@ -19,7 +20,7 @@ scope:
   out:
   - Hetzner resizing, production changes, resuming other tasks or changing their code.
 architecture:
-  execution: GitHub-hosted Linux runner is the isolation boundary; no nested Docker daemon.
+  execution: GitHub-hosted Linux runner is the isolation boundary; each E2E spec gets a disposable Docker backend and runner-local web process, without a web container.
   source: Immutable Git commit; uncommitted candidates require a reviewed source snapshot transport.
   dependencies: Reuse cached dependency layers; invalidate on build/dependency changes.
   accounts: Disposable accounts initialized through real client crypto/auth flows in a fresh database.
@@ -36,6 +37,8 @@ acceptance:
 - Runtime identities and artifacts identify exact source; failures never become successful empty reports.
 - Fresh accounts cannot collide across jobs; auth/encryption flows remain real.
 - No test traffic reaches shared dev; failures save diagnostics before cleanup.
+- Browser E2E never waits for deployment or Vercel and cannot share a job with another spec.
+- Transient registry pull failures retry with bounded backoff without masking application-health failures.
 - Superseded local runtime code removed, existing worktree binding preserved.
 implementation_slices:
 - id: CI-1
@@ -105,6 +108,19 @@ evidence:
   result: Actual 03:00 cron now calls canonical run-tests-daily.sh --detach without sourcing .env or entering
     shared runtime. Four legacy hourly/production schedules explicitly held pending isolated coverage
     disposition.
+- kind: tooling
+  command: python3 -m pytest scripts/tests/test_ci_coordinator.py scripts/tests/test_ci_dispatch.py scripts/tests/test_ci_environment.py scripts/tests/test_ci_coverage.py scripts/tests/test_ci_run_tests.py scripts/tests/test_ci_results.py scripts/tests/test_ci_workflow_scope.py scripts/tests/test_ci_source.py -q
+  result: 92 passed; multi-spec E2E selections split into singleton jobs and transient registry retry remains bounded to recognized network failures.
+- kind: deployment
+  commit: 0ad6de7ffe7c6d3519e2dfadb9221a868bc258eb
+  result: Canonical skills, coordinator, dispatcher, retry logic, docs and generated mirrors deployed to dev with lint and test gates passing.
+- kind: github_parallel_spec_isolation
+  run_ids:
+  - 35505920209
+  - 35505922128
+  subject: 0ad6de7ffe7c6d3519e2dfadb9221a868bc258eb
+  harness: 0ad6de7ffe7c6d3519e2dfadb9221a868bc258eb
+  result: One two-spec submission produced two concurrent GitHub-hosted jobs. Both component specs passed with exact runner-local frontend/backend identities, shared-dev DNS and HTTPS rejected, and zero containers or volumes after cleanup.
 handoff:
   session: ecad
   next: Migrate remaining runtime profiles and actual pending candidate specs; core runtime verified.
@@ -338,7 +354,7 @@ tasks:
     files: *id004
     shared_files: []
 implementation_state:
-  subject_commit: d3f5cb4780a18dc01862a72f2018a3a17ad95112
+  subject_commit: 0ad6de7ffe7c6d3519e2dfadb9221a868bc258eb
 approvals:
   specification:
     status: not_required
@@ -353,6 +369,60 @@ decisions:
   decision: Replace local task runtimes with isolated GitHub test execution.
   reason: Explicit user approval on 2026-09-07
   decided_at: '2026-09-07'
+- id: D-2
+  status: active
+  decision: Keep the web app as a runner-private localhost process; isolate every E2E spec in its own GitHub job and remove dev deployment from E2E setup.
+  reason: User approved the reviewed W1-W4 batch and explicitly declined an unnecessary localhost web container.
+  decided_at: '2026-09-20'
+- id: D-3
+  status: active
+  decision: Keep component browser tests on isolated GitHub CI; use a Vite-only component profile instead of a host-local lane.
+  reason: User explicitly chose the GitHub CI path for component testing on 2026-09-20.
+  decided_at: '2026-09-20'
+planning_amendments:
+- id: EFFICIENCY-2
+  revision: 1
+  requested_at: '2026-09-20'
+  goal: >-
+    Need a proper understanding of the slowdown causes and then a reliable plan to fix this
+    architecture once and for all, ensuring efficient fast testing.
+  document: docs/plans/isolated-github-tests/architecture-review-2026-09-20.md
+  authority: >-
+    User approved R1, R2 and R3 implementation on 2026-09-20 and authorized restoring the
+    existing personal dev-test CLI login. Larger architectural changes still require
+    confirmation. After the artifact-visibility explanation, the user additionally approved
+    keeping unpublished code private by using the existing private storage for reusable
+    builds, including runner upload/download support. LATENCY-1 approval remains in force.
+  execution_authority: OpenMates Tasks remains the status authority; recommendation IDs describe outcomes, not a second task ledger.
+  tasks:
+    R1: ed78f2b4-e70e-42c8-b1b7-c9f2929e24a2
+    R2: ce87c5ff-ecf3-4d15-93f9-8782fb6a5967
+    R3: 97c5e63b-7970-4952-a2a4-d62a4f4bffe3
+- id: LATENCY-1
+  revision: 2
+  requested_at: '2026-09-20'
+  goal: >-
+    The whole idea was to use prebuilt docker images to save time… and only add the worktree changes
+    that are needed to test what’s new / changed, right? And as long as we ensure we have only one
+    localhost web app running then localhost testing for component Ui tests makes indeed the most
+    sense I assume, right? Go ahead and plan out the list of concrete changes you recommended
+  document: docs/plans/isolated-github-tests/latency-improvements.md
+  authority: >-
+    User approved implementation and then explicitly retained GitHub CI for component tests. The approved
+    amendment is a lightweight GitHub component profile plus compatible prebuilt runtime reuse and startup
+    reductions; all application E2E remains isolated on GitHub.
+  execution_authority: OpenMates Tasks owns execution status and dependencies; package IDs in the document are design references only.
+  task_link: null
+  task_delivery: >-
+    The initial CLI login outage was resolved on 2026-09-20 using the existing personal dev account.
+    R1/R2/R3 Tasks linked under EFFICIENCY-2 are acknowledged and own the approved implementation.
+  constraints:
+  - Component and application browser tests remain on GitHub CI, one spec per job.
+  - No web Docker container, host-local application backend, shared-dev test traffic, or reused browser/account state.
+  - Prebuilt images must be compatible with candidate dependencies and pinned by digest; reconstruct the complete candidate tree before mounting source.
+  - Reusable schema artifacts contain no user data or reusable credentials; each E2E spec keeps its own databases, volumes and accounts.
+  - Reuse builds and schema artifacts, never running containers or mutable test state between CI jobs.
+  - Preserve held full-journey/provider coverage; component passes cannot satisfy those missing integration checks.
 attempts:
 - id: A-1
   task_id: TASK-1

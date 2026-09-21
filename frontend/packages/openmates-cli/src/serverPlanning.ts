@@ -312,7 +312,6 @@ const INTEGRATION_ENV_KEYS = new Set([
   "REPORT_ISSUE_EMAIL",
   "ADMIN_NOTIFY_EMAIL",
   "DAILY_MEETING_NOTIFY_EMAIL",
-  "OPENCODE_WEB_BASE_URL",
 ]);
 
 export function envKeyCategory(key: string): EnvCategory {

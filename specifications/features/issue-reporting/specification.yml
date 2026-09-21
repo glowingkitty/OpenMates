@@ -1,0 +1,93 @@
+schema_version: 1
+id: feature.issue-reporting
+version: 1
+status: draft
+title: Issue Reporting
+summary: >
+  OpenMates issue reporting lets a user submit a clear problem report, attach
+  diagnostic context with their authenticated consent, and receive a stable
+  confirmation while keeping administrator-only automation controls private.
+
+scope:
+  includes:
+    - The first-party Report Issue form and its confirmation state.
+    - Authenticated collection of compact client diagnostics for a submitted issue.
+    - Role-aware visibility of administrator-only issue automation controls.
+    - Durable issue identifiers, screenshots, and asynchronous debug-report status.
+  excludes:
+    - Internal agent investigation behavior after an issue has been retained.
+    - Linear, email-provider, and object-storage interfaces beyond the reported persistence outcome.
+    - Unconsented collection of private chat content or credentials.
+
+models:
+  IssueReport:
+    title:
+      type: string
+      required: true
+      constraints: {user_written_long_description_supported: true}
+    issue_id:
+      type: stable_id
+      required: true
+    short_issue_id:
+      type: short_id
+      required: true
+    attachment_state:
+      type: persistence_state
+      required: true
+      constraints: {observable: true}
+  DiagnosticCapture:
+    authentication:
+      type: authenticated_user_context
+      required: true
+      constraints: {owner_scoped: true}
+    compact_client_logs:
+      type: privacy_filtered_diagnostics
+      required: true
+      constraints: {credentials_excluded: true, accepted_by_api: true}
+  ReportControls:
+    automation_actions:
+      type: role_gated_controls
+      required: true
+      constraints: {administrator_only: true}
+
+assertions:
+  - id: issue-reporting.form.role-aware-controls
+    type: behavior
+    must: The Report Issue form remains usable for guests and authenticated users, while controls that directly trigger internal fix, tracker, or notification automation are shown only to an authorized administrator.
+    depends_on: [models.ReportControls, examples.role_aware_form]
+  - id: issue-reporting.input.long-title-preserved
+    type: behavior
+    must: A user may submit a detailed issue title longer than 500 characters without the issue API rejecting or silently truncating the report.
+    depends_on: [models.IssueReport.title, examples.long_title]
+  - id: issue-reporting.submission.confirmed-and-durable
+    type: behavior
+    must: A successful report submission returns stable full and short issue identifiers, visibly confirms the report, and exposes the eventual persistence state of an attached screenshot and any requested asynchronous debug report.
+    depends_on: [models.IssueReport, examples.successful_submission]
+  - id: issue-reporting.logs.authenticated-capture
+    type: behavior
+    must: When an authenticated user submits an issue with diagnostic collection enabled, the browser sends privacy-filtered compact client logs with the user's authenticated request, the API accepts them, and authorized issue investigation can retrieve entries associated with that user or issue instead of presenting an empty log view solely because the user identifier is stored as a structured field.
+    depends_on: [models.DiagnosticCapture, examples.compact_logs]
+
+applies_to:
+  rest_api:
+    required: true
+    role: The settings issue and issue-log endpoints own authenticated acceptance, identifiers, and persistence status.
+  cli:
+    required: false
+    role: Internal issue investigation tooling consumes retained reports but is not a user submission surface.
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [role_aware_form, long_title, successful_submission, compact_logs]

@@ -23,6 +23,7 @@ sys.modules.setdefault("backend.apps.ai.utils.llm_utils", llm_utils_stub)
 
 from backend.apps.ai.processing.preprocessor import (
     _build_skill_resolver_map,
+    _resolve_explicit_natural_search_intent,
     _resolve_explicit_skill_mentions_from_latest_user_text,
 )
 
@@ -92,6 +93,46 @@ def test_explicit_skill_mention_ignores_assistant_history() -> None:
             _user_message("What events can I attend in Berlin?"),
         ],
         ["events-search"],
+    )
+
+    assert result == []
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,web-search.surface-parity
+def test_explicit_recent_articles_request_resolves_news_search() -> None:
+    result = _resolve_explicit_natural_search_intent(
+        [_user_message("Search for recent articles about OpenAI safety incidents")],
+        ["news-search", "web-search"],
+    )
+
+    assert result == ["news-search"]
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+def test_explicit_recent_news_request_requires_current_news_wording() -> None:
+    result = _resolve_explicit_natural_search_intent(
+        [_user_message("Search news for OpenAI")],
+        ["news-search", "web-search"],
+    )
+
+    assert result == []
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+def test_negated_news_search_request_does_not_force_skill() -> None:
+    result = _resolve_explicit_natural_search_intent(
+        [_user_message("Don't search for recent news articles; explain the earlier result.")],
+        ["news-search", "web-search"],
+    )
+
+    assert result == []
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+def test_non_news_articles_request_does_not_force_news_search() -> None:
+    result = _resolve_explicit_natural_search_intent(
+        [_user_message("Find articles about the history of algebra")],
+        ["news-search", "web-search"],
     )
 
     assert result == []

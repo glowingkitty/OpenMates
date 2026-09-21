@@ -22,6 +22,10 @@ import { getApiUrl } from "../../config/api";
 import { notificationStore } from "../../stores/notificationStore";
 import { settingsDeepLink } from "../../stores/settingsDeepLinkStore";
 import { panelState } from "../../stores/panelStateStore";
+import {
+  REALTIME_TRANSCRIPTION_MODEL,
+  type AudioRealtimeTranscriptionHandle,
+} from "../../services/audioRealtimeTranscription";
 
 /**
  * Ensure the editor has an empty paragraph at the very beginning so that when
@@ -419,7 +423,10 @@ async function _performUpload(
         if (found) {
           updateEmbedProgress(found.chatId, localEmbedId, {
             uploadPercent: percent,
-            status: "uploading",
+            // Once raw realtime text exists, keep the user-facing state on
+            // automatic correction even if encrypted upload progress arrives
+            // afterward. Both operations continue concurrently.
+            status: realtimeRawReady ? "correcting" : "uploading",
           });
         }
       })
@@ -1374,19 +1381,17 @@ export async function insertEpub(editor: Editor, file: File): Promise<void> {
 const VOXTRAL_MODEL_INTERIM = "voxtral-mini-2602";
 
 /**
- * Inserts a recording embed (audio) into the editor and triggers the upload +
- * Mistral Voxtral transcription pipeline in parallel.
+ * Inserts a recording embed and continues the realtime transcription pipeline
+ * alongside the encrypted audio upload.
  *
  * Flow:
  *  1. Create a local blob URL for immediate audio playback (no server round-trip).
  *  2. Generate a stable embed ID used to reference the node after insertion.
  *  3. Insert the embed node with status: 'uploading' immediately (non-blocking).
- *  4. In parallel:
- *     a. Upload audio blob to the upload server (AES-256-GCM + S3 pipeline).
- *     b. After upload completes, call the audio.transcribe skill with the
- *        S3 file reference. Update embed status to 'transcribing' in between.
- *  5. On success: update node with transcript text and status: 'finished'.
- *  6. On failure: update node with status: 'error' and error message.
+ *  4. Upload the audio through the AES-256-GCM + S3 pipeline while realtime
+ *     transcription and correction continue independently.
+ *  5. On realtime failure, use the uploaded file with the batch transcriber.
+ *  6. Finalize the same embed (and any deferred-send snapshot) with the result.
  *
  * Demo mode (unauthenticated users):
  *  - Insert with status: 'finished' immediately — no server upload or transcription.
@@ -1406,6 +1411,8 @@ export async function insertRecording(
   isAuthenticated: boolean = true,
   chatId?: string,
   waveform?: AudioWaveformData,
+  realtime?: AudioRealtimeTranscriptionHandle,
+  liveTranscript?: string,
 ): Promise<void> {
   const timestamp = Date.now();
   // Derive a sensible filename from the MIME type (e.g. audio/webm → .webm)
@@ -1474,7 +1481,8 @@ export async function insertRecording(
         mimeType,
         // Populated after server response:
         uploadEmbedId: null,
-        transcript: null,
+        transcript: liveTranscript ?? null,
+        transcriptOriginal: liveTranscript ?? null,
         s3Files: null,
         s3BaseUrl: null,
         aesKey: null,
@@ -1500,6 +1508,7 @@ export async function insertRecording(
     controller.signal,
     chatId,
     waveform,
+    realtime,
   ).catch((err) => {
     console.error(
       "[EmbedHandlers] Unhandled error in _performRecordingUpload:",
@@ -1720,13 +1729,13 @@ export async function retryTranscription(
 }
 
 /**
- * Performs the full audio upload + transcription pipeline for a recording embed.
+ * Performs the audio upload and realtime/fallback transcription pipeline.
  *
  * Steps:
  *  1. Upload audio to the upload server → get S3 keys + AES key.
- *  2. Update embed node to status: 'transcribing' with S3 data.
- *  3. Call POST /v1/apps/audio/skills/transcribe with the S3 file reference.
- *  4. Update embed node with transcript text and status: 'finished'.
+ *  2. Mirror raw realtime text and automatic-correction state as it arrives.
+ *  3. Use POST /v1/apps/audio/skills/transcribe only if realtime failed.
+ *  4. Update the embed and pending chat snapshot with the final transcript.
  *
  * Errors at any step set status: 'error' on the embed node.
  */
@@ -1739,6 +1748,7 @@ async function _performRecordingUpload(
   signal?: AbortSignal,
   chatId?: string,
   waveform?: AudioWaveformData,
+  realtime?: AudioRealtimeTranscriptionHandle,
 ): Promise<void> {
   // Helper: update embed node attrs via a ProseMirror transaction.
   function updateEmbedNode(updates: Record<string, unknown>): void {
@@ -1755,6 +1765,34 @@ async function _performRecordingUpload(
     });
     if (found) dispatch(tr);
   }
+
+  function updatePendingRecordingStatus(status: string): void {
+    void import("../../stores/pendingUploadStore")
+      .then(({ updateEmbedProgress, findPendingSendByEmbedId }) => {
+        const found = findPendingSendByEmbedId(localEmbedId);
+        if (!found) return;
+        updateEmbedProgress(found.chatId, localEmbedId, { status });
+      })
+      .catch(() => {
+        /* Pending-send mirroring is best-effort. */
+      });
+  }
+
+  let realtimeRawReady = false;
+  signal?.addEventListener("abort", () => realtime?.cancel(), { once: true });
+  const realtimeRawPromise = realtime?.transcription.then((raw) => {
+    realtimeRawReady = true;
+    updateEmbedNode({
+      status: "correcting",
+      transcript: raw.transcript,
+      transcriptOriginal: raw.transcript,
+      model: raw.model,
+      uploadError: null,
+    });
+    updatePendingRecordingStatus("correcting");
+    return raw;
+  });
+  void realtimeRawPromise?.catch(() => undefined);
 
   // Progress callback for pendingUploadStore
   const onUploadProgress = (percent: number) => {
@@ -1793,26 +1831,25 @@ async function _performRecordingUpload(
     // Include model so the subtitle shows "Processing · voxtral-mini-2602"
     // -----------------------------------------------------------------------
     updateEmbedNode({
-      status: "transcribing",
+      status: realtimeRawReady ? "correcting" : "transcribing",
       uploadEmbedId: uploadResult.embed_id,
       s3Files: uploadResult.files,
       s3BaseUrl: uploadResult.s3_base_url,
       aesKey: uploadResult.aes_key,
       aesNonce: uploadResult.aes_nonce,
       vaultWrappedAesKey: uploadResult.vault_wrapped_aes_key,
-      model: VOXTRAL_MODEL_INTERIM,
+      model: realtime ? REALTIME_TRANSCRIPTION_MODEL : VOXTRAL_MODEL_INTERIM,
       uploadError: null,
     });
+    updatePendingRecordingStatus(realtimeRawReady ? "correcting" : "transcribing");
 
     // -----------------------------------------------------------------------
-    // Step 3: Call the audio.transcribe skill via the backend API
+    // Step 3: Reuse the already-running realtime result. If the realtime
+    // connection failed, call the batch audio.transcribe skill as a fallback.
     //
     // POST /v1/apps/audio/skills/transcribe
     // Body: { requests: [{ id, embed_id, s3_key, s3_base_url, aes_key, aes_nonce, vault_wrapped_aes_key, filename, mime_type }] }
     // -----------------------------------------------------------------------
-    const apiUrl = getApiUrl();
-    const transcribeUrl = `${apiUrl}/v1/apps/audio/skills/transcribe`;
-
     // Use the 'original' variant key if present, otherwise the first available key
     const s3Key =
       uploadResult.files?.original?.s3_key ??
@@ -1830,215 +1867,175 @@ async function _performRecordingUpload(
       return;
     }
 
-    // Build the transcription request item.
-    // chat_id is included when available so the usage entry can be linked to the correct
-    // chat in usage statistics. For recordings in new (not-yet-sent) chats a pre-allocated
-    // draft UUID is passed; for existing chats the real chat_id is passed.
-    const transcribeRequestItem: Record<string, unknown> = {
-      id: localEmbedId,
-      embed_id: uploadResult.embed_id,
-      s3_key: s3Key,
-      s3_base_url: uploadResult.s3_base_url,
-      aes_key: uploadResult.aes_key,
-      aes_nonce: uploadResult.aes_nonce,
-      vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
-      filename: file.name,
-      mime_type: mimeType,
-    };
-    if (chatId) {
-      transcribeRequestItem.chat_id = chatId;
-    }
-    const transcribeBody = {
-      requests: [transcribeRequestItem],
-    };
-
-    let transcribeResponse: Response;
-    try {
-      transcribeResponse = await fetch(transcribeUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(transcribeBody),
-        signal,
-      });
-    } catch (fetchError) {
-      if (fetchError instanceof Error && fetchError.name === "AbortError")
-        throw fetchError;
-      // Non-abort network error — clean up controller and return
-      _uploadControllers.delete(localEmbedId);
-      console.error("[EmbedHandlers] Transcription network error:", fetchError);
-      updateEmbedNode({
-        status: "finished", // Upload succeeded; transcription failed non-fatally
-        uploadError: "Transcription failed: network error",
-      });
-      return;
-    }
-
-    if (!transcribeResponse.ok) {
-      // API error — clean up controller and return
-      _uploadControllers.delete(localEmbedId);
-      let detail = `Transcription failed (${transcribeResponse.status})`;
-      try {
-        const errBody = await transcribeResponse.json();
-        detail = errBody.detail || detail;
-      } catch {
-        // Response body not JSON — ignore
-      }
-      console.error("[EmbedHandlers] Transcription API error:", detail);
-
-      if (transcribeResponse.status === 402) {
-        // Not enough credits — set error state so the retry button appears.
-        // The audio file is already on S3; user can retry once they have credits.
-        updateEmbedNode({
-          status: "error",
-          uploadError: "Not enough credits to transcribe",
-        });
-        // Show a persistent notification with a direct "Buy Credits" action.
-        notificationStore.addNotificationWithOptions("error", {
-          message: "Not enough credits to transcribe your voice recording.",
-          actionLabel: "Buy Credits",
-          onAction: () => {
-            settingsDeepLink.set("billing/buy-credits");
-            panelState.openSettings();
-          },
-          duration: 0, // Persistent — user must dismiss explicitly
-          dismissible: true,
-        });
-      } else {
-        // Other server-side failures — set error state (upload succeeded, transcript missing).
-        // The retry button will appear so the user can try again.
-        updateEmbedNode({ status: "error", uploadError: detail });
-      }
-      return;
-    }
-
-    // -----------------------------------------------------------------------
-    // Step 4: Parse transcript and update embed to 'finished'
-    // -----------------------------------------------------------------------
-  let transcriptText: string | undefined;
-  let titleFromResponse: string | undefined;
-  let modelFromResponse: string | undefined;
+    let transcriptText: string | undefined;
+    let titleFromResponse: string | undefined;
+    let modelFromResponse: string | undefined;
     let transcriptOriginal: string | undefined;
     let transcriptCorrected: string | undefined;
     let useCorrected: boolean | undefined;
     let correctionModel: string | undefined;
     let responseWaveform: AudioWaveformData | undefined;
-    try {
-      const responseData = await transcribeResponse.json();
-      // Response shape: SkillResponse wrapper from apps_api.py:
-      // { success: true, data: { results: [{ id: request_id, results: [{ transcript, model, s3_key, ... }] }] } }
-      const group = responseData?.data?.results?.find(
-        (r: { id: string }) => r.id === localEmbedId,
-      );
-      const resultObj = group?.results?.[0];
-      titleFromResponse = resultObj?.title ?? undefined;
-      transcriptText = resultObj?.transcript ?? undefined;
-      // Read model from API response — backend includes the model ID in result_entry
-      // so the frontend never needs to hardcode it after the response arrives.
-      modelFromResponse = resultObj?.model ?? undefined;
-      transcriptOriginal = resultObj?.transcript_original ?? undefined;
-      transcriptCorrected = resultObj?.transcript_corrected ?? undefined;
-      useCorrected = resultObj?.use_corrected ?? undefined;
-      correctionModel = resultObj?.correction_model ?? undefined;
-      responseWaveform = resultObj?.waveform ?? undefined;
-    } catch (parseError) {
-      console.error(
-        "[EmbedHandlers] Failed to parse transcription response:",
-        parseError,
-      );
+    let realtimeSucceeded = false;
+
+    if (realtime) {
+      try {
+        const raw = await realtimeRawPromise!;
+        transcriptText = raw.transcript;
+        transcriptOriginal = raw.transcript;
+        modelFromResponse = raw.model;
+        const corrected = await realtime.correction;
+        titleFromResponse = corrected.title;
+        transcriptText = corrected.transcript;
+        transcriptOriginal = corrected.transcriptOriginal;
+        transcriptCorrected = corrected.transcriptCorrected;
+        useCorrected = corrected.useCorrected;
+        correctionModel = corrected.correctionModel;
+        modelFromResponse = corrected.model;
+        realtimeSucceeded = true;
+      } catch (realtimeError) {
+        console.warn(
+          "[EmbedHandlers] Realtime transcription failed; using batch fallback:",
+          realtimeError,
+        );
+      }
+    }
+
+    if (!realtimeSucceeded) {
+      const transcribeUrl = `${getApiUrl()}/v1/apps/audio/skills/transcribe`;
+      const transcribeRequestItem: Record<string, unknown> = {
+        id: localEmbedId,
+        embed_id: uploadResult.embed_id,
+        s3_key: s3Key,
+        s3_base_url: uploadResult.s3_base_url,
+        aes_key: uploadResult.aes_key,
+        aes_nonce: uploadResult.aes_nonce,
+        vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+        filename: file.name,
+        mime_type: mimeType,
+      };
+      if (chatId) transcribeRequestItem.chat_id = chatId;
+
+      let transcribeResponse: Response;
+      try {
+        transcribeResponse = await fetch(transcribeUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ requests: [transcribeRequestItem] }),
+          signal,
+        });
+      } catch (fetchError) {
+        if (fetchError instanceof Error && fetchError.name === "AbortError") throw fetchError;
+        _uploadControllers.delete(localEmbedId);
+        updateEmbedNode({ status: "finished", uploadError: "Transcription failed: network error" });
+        return;
+      }
+
+      if (!transcribeResponse.ok) {
+        _uploadControllers.delete(localEmbedId);
+        let detail = `Transcription failed (${transcribeResponse.status})`;
+        try {
+          const errBody = await transcribeResponse.json();
+          detail = errBody.detail || detail;
+        } catch { /* response body is optional */ }
+        if (transcribeResponse.status === 402) {
+          updateEmbedNode({ status: "error", uploadError: "Not enough credits to transcribe" });
+          notificationStore.addNotificationWithOptions("error", {
+            message: "Not enough credits to transcribe your voice recording.",
+            actionLabel: "Buy Credits",
+            onAction: () => {
+              settingsDeepLink.set("billing/buy-credits");
+              panelState.openSettings();
+            },
+            duration: 0,
+            dismissible: true,
+          });
+        } else {
+          updateEmbedNode({ status: "error", uploadError: detail });
+        }
+        return;
+      }
+
+      try {
+        const responseData = await transcribeResponse.json();
+        const group = responseData?.data?.results?.find((r: { id: string }) => r.id === localEmbedId);
+        const resultObj = group?.results?.[0];
+        titleFromResponse = resultObj?.title ?? undefined;
+        transcriptText = resultObj?.transcript ?? undefined;
+        modelFromResponse = resultObj?.model ?? undefined;
+        transcriptOriginal = resultObj?.transcript_original ?? undefined;
+        transcriptCorrected = resultObj?.transcript_corrected ?? undefined;
+        useCorrected = resultObj?.use_corrected ?? undefined;
+        correctionModel = resultObj?.correction_model ?? undefined;
+        responseWaveform = resultObj?.waveform ?? undefined;
+      } catch (parseError) {
+        console.error("[EmbedHandlers] Failed to parse transcription response:", parseError);
+      }
     }
 
     // Remove the AbortController — the full pipeline (upload + transcription) is done.
     // Must happen AFTER the transcription fetch so cancelUpload() can still abort it.
     _uploadControllers.delete(localEmbedId);
 
-    updateEmbedNode({
-      status: "finished",
-      title: titleFromResponse ?? null,
-      transcript: transcriptText ?? null,
-      transcriptOriginal: transcriptOriginal ?? null,
-      transcriptCorrected: transcriptCorrected ?? null,
-      useCorrected: useCorrected ?? null,
-      correctionModel: correctionModel ?? null,
-      model: modelFromResponse ?? null,
-      waveform: waveform ?? responseWaveform ?? null,
-      uploadError: null,
-    });
-
+    // Keep the node in its blocking state until the finished embed is actually
+    // available under contentRef. Publishing `status: finished` before this
+    // await allowed an immediate Send click to bypass deferred-send handling;
+    // sendNewMessage would then reject the dangling audio reference.
+    //
     // Register the recording embed in EmbedStore immediately after transcription completes.
     // Same pattern as _performUpload() does for images. This ensures the embed data is in
     // EmbedStore when the deferred-send path reads it (the user may have already navigated
     // away and the editor is cleared). handleSend() filters by !node.attrs.contentRef so
     // it will skip re-registering nodes that already have contentRef — fully idempotent.
     const uploadEmbedIdForStore = uploadResult.embed_id;
+    const { encode: toonEncodeRec } = await import("@toon-format/toon");
+    const recEmbedContent = {
+      app_id: "audio",
+      skill_id: "transcribe",
+      type: "audio-recording",
+      status: "finished",
+      title: titleFromResponse ?? null,
+      filename: file.name || null,
+      duration: duration || null,
+      waveform: waveform ?? responseWaveform ?? null,
+      mime_type: mimeType || null,
+      transcript: transcriptText ?? null,
+      transcript_original: transcriptOriginal ?? null,
+      transcript_corrected: transcriptCorrected ?? null,
+      use_corrected: useCorrected ?? null,
+      correction_model: correctionModel ?? null,
+      model: modelFromResponse ?? null,
+      s3_base_url: uploadResult.s3_base_url || null,
+      files: uploadResult.files || null,
+      aes_key: uploadResult.aes_key || null,
+      aes_nonce: uploadResult.aes_nonce || null,
+      vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key || null,
+    };
+
+    let toonRecContent: string;
     try {
-      const { encode: toonEncodeRec } = await import("@toon-format/toon");
-      const recEmbedContent = {
-        app_id: "audio",
-        skill_id: "transcribe",
-        type: "audio-recording",
-        status: "finished",
-        title: titleFromResponse ?? null,
-        filename: file.name || null,
-        duration: duration || null,
-        waveform: waveform ?? responseWaveform ?? null,
-        mime_type: mimeType || null,
-        transcript: transcriptText ?? null,
-        transcript_original: transcriptOriginal ?? null,
-        transcript_corrected: transcriptCorrected ?? null,
-        use_corrected: useCorrected ?? null,
-        correction_model: correctionModel ?? null,
-        model: modelFromResponse ?? null,
-        s3_base_url: uploadResult.s3_base_url || null,
-        files: uploadResult.files || null,
-        aes_key: uploadResult.aes_key || null,
-        aes_nonce: uploadResult.aes_nonce || null,
-        vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key || null,
-      };
-
-      let toonRecContent: string;
-      try {
-        toonRecContent = toonEncodeRec(recEmbedContent);
-      } catch {
-        toonRecContent = JSON.stringify(recEmbedContent);
-      }
-
-      const nowRec = Date.now();
-      await embedStore.put(
-        `embed:${uploadEmbedIdForStore}`,
-        {
-          embed_id: uploadEmbedIdForStore,
-          type: "audio-recording",
-          status: "finished",
-          content: toonRecContent,
-          text_preview: titleFromResponse || transcriptText || file.name || "Voice note",
-          createdAt: nowRec,
-          updatedAt: nowRec,
-        },
-        "audio-recording",
-      );
-      console.debug(
-        "[EmbedHandlers] Registered recording embed in EmbedStore for deferred send:",
-        uploadEmbedIdForStore,
-      );
-    } catch (recStoreError) {
-      // Non-fatal: the recording is still usable — the deferred send path may fail to
-      // find the embed in EmbedStore but the normal handleSend() path will still work.
-      console.error(
-        "[EmbedHandlers] Failed to register recording in EmbedStore:",
-        recStoreError,
-      );
+      toonRecContent = toonEncodeRec(recEmbedContent);
+    } catch {
+      toonRecContent = JSON.stringify(recEmbedContent);
     }
 
-    // Also set contentRef on the TipTap node so the serializer can emit a proper embed
-    // reference block. This mirrors what _performUpload does for images.
-    updateEmbedNode({
-      contentRef: `embed:${uploadEmbedIdForStore}`,
-    });
-
+    const nowRec = Date.now();
+    await embedStore.put(
+      `embed:${uploadEmbedIdForStore}`,
+      {
+        embed_id: uploadEmbedIdForStore,
+        type: "audio-recording",
+        status: "finished",
+        content: toonRecContent,
+        text_preview: titleFromResponse || transcriptText || file.name || "Voice note",
+        createdAt: nowRec,
+        updatedAt: nowRec,
+      },
+      "audio-recording",
+    );
     console.debug(
-      `[EmbedHandlers] Recording ${localEmbedId} upload + transcription complete.`,
-      { hasTranscript: !!transcriptText },
+      "[EmbedHandlers] Registered recording embed in EmbedStore for deferred send:",
+      uploadEmbedIdForStore,
     );
 
     // Update the DeferredEmbedSnapshot in pendingUploadStore with the server-assigned
@@ -2067,15 +2064,40 @@ async function _performRecordingUpload(
       /* non-fatal — only needed for deferred sends */
     }
 
+    // Publish readiness as one node update only after both storage and the
+    // detached deferred-send snapshot point at the finished embed.
+    updateEmbedNode({
+      status: "finished",
+      contentRef: `embed:${uploadEmbedIdForStore}`,
+      title: titleFromResponse ?? null,
+      transcript: transcriptText ?? null,
+      transcriptOriginal: transcriptOriginal ?? null,
+      transcriptCorrected: transcriptCorrected ?? null,
+      useCorrected: useCorrected ?? null,
+      correctionModel: correctionModel ?? null,
+      model: modelFromResponse ?? null,
+      waveform: waveform ?? responseWaveform ?? null,
+      uploadError: null,
+    });
+    console.debug(
+      `[EmbedHandlers] Recording ${localEmbedId} upload + transcription complete.`,
+      { hasTranscript: !!transcriptText },
+    );
+
     // Notify pending sends that this recording embed is done
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("embedUploadFinished", {
-          detail: { embedId: localEmbedId, status: "finished" },
+          detail: {
+            embedId: localEmbedId,
+            uploadEmbedId: uploadEmbedIdForStore,
+            status: "finished",
+          },
         }),
       );
     }
   } catch (err) {
+    realtime?.cancel();
     // Remove the AbortController regardless of error type
     _uploadControllers.delete(localEmbedId);
 

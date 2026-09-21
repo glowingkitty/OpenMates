@@ -19,7 +19,7 @@ const THREAD = "00000000-0000-4000-8000-000000000001";
 // contract-test: supporting surface=cli assertions=tasks.assignment.identity-separated,tasks.external-chat.encrypted-context
 test("Codex resume only accepts an explicit Codex UUID", () => {
   assert.deepEqual(codexResumeArguments({ provider: "codex", id: THREAD }), ["resume", THREAD]);
-  assert.throws(() => codexResumeArguments({ provider: "opencode", id: "ses_old" }), /read-only/);
+  assert.throws(() => codexResumeArguments({ provider: "codex", id: "ses_old" }), /UUID/);
   assert.throws(() => codexResumeArguments({ provider: "codex", id: "--last" }), /UUID/);
 });
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+
+# contract-test-file: infrastructure
 Tests for report-only stale-code scheduling and Discord notification.
 
 The daily runner must preserve local evidence on every path, redact notification
@@ -174,7 +176,6 @@ def test_webhook_lookup_falls_back_to_canonical_checkout(monkeypatch) -> None:
 def test_runner_source_has_no_agent_or_deploy_dispatch() -> None:
     source = MODULE_PATH.read_text(encoding="utf-8")
 
-    assert "run_opencode_session" not in source
     assert "sessions.py deploy" not in source
     assert "git commit" not in source
     assert "git push" not in source

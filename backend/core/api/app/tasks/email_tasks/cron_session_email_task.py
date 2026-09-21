@@ -4,7 +4,7 @@ Celery task for sending cron job session notification emails to admins.
 
 Notifies maintainers when automated coding-agent sessions complete, fail, or
 are ready for review, so cron job results are visible without checking logs.
-The task supports both legacy Claude session IDs and OpenCode web deep links.
+The task accepts the session identifiers supplied by supported automation.
 
 Architecture: cron script → internal API → this task → EmailTemplateService.
 See docs/architecture/infrastructure/cronjobs.md

@@ -17,12 +17,30 @@ import re
 from pathlib import Path
 import subprocess
 import sys
+import time
 
 MIB = 1024**2
 SOURCE = os.environ.get(
     "OPENMATES_CI_SOURCE_ROOT", str(Path(__file__).resolve().parent.parent)
 )
 QUEUES = "persistence,health_check,server_stats,user_init,user_tasks,email,push"
+STACK_START_RETRY_DELAYS = (5, 15)
+TRANSIENT_REGISTRY_FAILURE = re.compile(
+    r"connection reset by peer|tls handshake timeout|i/o timeout|"
+    r"timeout awaiting response headers|unexpected eof|temporary failure|"
+    r"too many requests",
+    re.IGNORECASE,
+)
+PREPARED_SCHEMA_ADMIN_PASSWORD = "openmates-ci-prepared-schema-admin-v1"
+# These values are part of the prepared-schema compatibility contract. Bump the
+# bundle format when the carrier contents change, and the restore semantics when
+# a consumer interprets or activates those contents differently.
+SCHEMA_BUNDLE_FORMAT = "openmates-postgres-plain-gzip-v3"
+SCHEMA_RESTORE_SEMANTICS = "fresh-volume-directus-credential-rotation-v2"
+POSTGRES_IMAGE = (
+    "postgres:13-alpine@sha256:"
+    "fb9065b6e3e213bdc07edd372a5b2a26245840b7fb65d1fd8b6700106d51805c"
+)
 VAULT_INITIALIZE = """import asyncio, os, pathlib, requests
 from backend.core.vault.setup.vault_setup.policies import PolicyManager
 from backend.core.api.app.utils.vault_token_check import validate_token_file
@@ -89,7 +107,18 @@ app.start(['beat','--loglevel=warning','--schedule=/tmp/ci-workflows-schedule','
 """
 
 
-def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_storage: bool = False, uploads: bool = False, public_provider: bool = False, workflows: bool = False, account_emails: list[str] | None = None, offline_preview: bool = False) -> dict:
+def compose_profile(
+    source_hash: str,
+    *,
+    ai_fixtures: bool = False,
+    object_storage: bool = False,
+    uploads: bool = False,
+    public_provider: bool = False,
+    workflows: bool = False,
+    account_emails: list[str] | None = None,
+    offline_preview: bool = False,
+    credential_overrides: dict[str, str] | None = None,
+) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
     ai_fixtures = ai_fixtures or public_provider
     object_storage = object_storage or uploads
@@ -110,6 +139,7 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
             "storage_secret",
         )
     }
+    credentials.update(credential_overrides or {})
     fresh_emails = account_emails or []
     if len(set(fresh_emails)) != len(fresh_emails) or any(not email.endswith("@example.com") or not email.startswith("ci-") for email in fresh_emails):
         raise ValueError("CI account allowlist requires unique generated example.com identities")
@@ -145,7 +175,10 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
     source_mounts = [
         f"{SOURCE}/backend:/app/backend:ro",
         f"{SOURCE}/shared:/shared:ro",
+        f"{SOURCE}/scripts:/app/scripts:ro",
+        f"{SOURCE}/config:/app/config:ro",
         f"{SOURCE}/backend/config:/config:ro",
+        f"{SOURCE}/frontend/apps/web_app/static:/app/frontend/apps/web_app/static:ro",
         f"{SOURCE}/frontend/packages/ui/src/i18n/locales:/translations:ro",
         f"{SOURCE}/frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n:ro",
         "api-logs:/app/logs",
@@ -195,7 +228,7 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
         "api": api,
         "core-worker": worker,
         "cms-database": {
-            "image": "postgres:13-alpine",
+            "image": POSTGRES_IMAGE,
             "mem_limit": 512 * MIB,
             "environment": {
                 "POSTGRES_DB": "openmates",
@@ -204,7 +237,14 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
             },
             "volumes": ["postgres:/var/lib/postgresql/data"],
             "healthcheck": {
-                "test": ["CMD-SHELL", "pg_isready -U openmates"],
+                "test": [
+                    "CMD",
+                    "pg_isready",
+                    "-h",
+                    "127.0.0.1",
+                    "-U",
+                    "openmates",
+                ],
                 "interval": "3s",
                 "timeout": "3s",
                 "retries": 30,
@@ -270,10 +310,12 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
                 "DB_DATABASE": "openmates",
                 "DB_USER": "openmates",
                 "DB_PASSWORD": credentials["database"],
+                "CI_FAST_SCHEMA_SETUP": "1",
             },
             "volumes": [
                 f"{SOURCE}/backend/core/directus/schemas:/usr/src/app/schemas:ro",
                 f"{SOURCE}/backend/core/directus/setup:/usr/src/app/migrations:ro",
+                f"{SOURCE}/backend/core/directus/setup/setup_schemas.py:/usr/src/app/setup_schemas.py:ro",
             ],
             "depends_on": {"cms": {"condition": "service_started"}},
         },
@@ -338,7 +380,16 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
             "image": "openmates-ci-upload:local",
             "build": {"context": SOURCE, "dockerfile": "backend/upload/Dockerfile"},
             "environment": {**common, "CLAMAV_HOST": "clamav", "CLAMAV_PORT": "3310", "UPLOADS_APP_INTERNAL_PORT": "8000", "DEV_CORE_API_URL": "http://api:8000", "PROD_CORE_API_URL": "http://api:8000", "DEV_INTERNAL_API_SHARED_TOKEN": credentials["internal"], "PROD_INTERNAL_API_SHARED_TOKEN": credentials["internal"]},
-            "volumes": [f"{SOURCE}/backend:/app/backend:ro", {"type": "volume", "source": "vault-tokens", "target": "/vault-data", "read_only": True, "volume": {"nocopy": True}}],
+            "volumes": [
+                f"{SOURCE}/backend:/app/backend:ro",
+                f"{SOURCE}/backend/apps/base_app.py:/app/apps/base_app.py:ro",
+                f"{SOURCE}/backend/apps/base_skill.py:/app/apps/base_skill.py:ro",
+                f"{SOURCE}/backend/shared/python_schemas:/app/backend_shared/python_schemas:ro",
+                f"{SOURCE}/backend/shared/python_utils:/app/backend_shared/python_utils:ro",
+                f"{SOURCE}/config/media_encryption_rollout.yml:/app/config/media_encryption_rollout.yml:ro",
+                f"{SOURCE}/backend/upload/vault/wait-for-vault.sh:/app/wait-for-vault.sh:ro",
+                {"type": "volume", "source": "vault-tokens", "target": "/vault-data", "read_only": True, "volume": {"nocopy": True}},
+            ],
             "ports": ["127.0.0.1:8001:8000"], "mem_limit": 1024 * MIB,
             "depends_on": {"clamav": {"condition": "service_healthy"}, "object-storage": {"condition": "service_healthy"}, "vault-init": {"condition": "service_completed_successfully"}, "api": {"condition": "service_healthy"}},
             "healthcheck": {"test": ["CMD", "curl", "-f", "http://localhost:8000/health"], "interval": "5s", "timeout": "5s", "retries": 30},
@@ -463,6 +514,87 @@ def compose(*args, capture=False, timeout=90):
     )
 
 
+def start_stack(*, compose_runner=None, sleep=time.sleep):
+    """Start once, retrying only bounded registry/network pull failures."""
+    compose_runner = compose if compose_runner is None else compose_runner
+    attempts = len(STACK_START_RETRY_DELAYS) + 1
+    for attempt in range(attempts):
+        try:
+            result = compose_runner(
+                "up",
+                "-d",
+                "--no-build",
+                "--wait",
+                "--wait-timeout",
+                "600",
+                capture=True,
+                timeout=720,
+            )
+        except subprocess.CalledProcessError as exc:
+            stdout = exc.stdout or exc.output or ""
+            stderr = exc.stderr or ""
+            if stdout:
+                sys.stdout.write(stdout)
+            if stderr:
+                sys.stderr.write(stderr)
+            combined = stdout + "\n" + stderr
+            if attempt >= len(STACK_START_RETRY_DELAYS) or not TRANSIENT_REGISTRY_FAILURE.search(combined):
+                raise
+            delay = STACK_START_RETRY_DELAYS[attempt]
+            print(
+                f"Transient container registry failure; retrying isolated stack start "
+                f"in {delay}s ({attempt + 2}/{attempts}).",
+                file=sys.stderr,
+            )
+            sleep(delay)
+            continue
+        if result.stdout:
+            sys.stdout.write(result.stdout)
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        return result
+    raise AssertionError("unreachable")
+
+
+def apply_prepared_schema(profile: dict, runtime_evidence: dict) -> bool:
+    """Select the compatible schema image without sharing a database or volume."""
+    schema_image = next(
+        (
+            image
+            for image in runtime_evidence.get("images", [])
+            if image.get("kind") == "schema" and image.get("reused") is True
+        ),
+        None,
+    )
+    if not schema_image:
+        return False
+    if (
+        schema_image.get("bundle_format") != SCHEMA_BUNDLE_FORMAT
+        or schema_image.get("restore_semantics") != SCHEMA_RESTORE_SEMANTICS
+    ):
+        return False
+    services = profile["services"]
+    services["cms-database"]["image"] = "openmates-ci-database:local"
+    services["cms-setup"]["environment"].update(
+        CI_PREPARED_SCHEMA="1",
+        CI_PREPARED_SCHEMA_ADMIN_PASSWORD=PREPARED_SCHEMA_ADMIN_PASSWORD,
+    )
+    return True
+
+
+def select_runtime_profile() -> bool:
+    evidence_path = Path(SOURCE) / "test-results/ci-runtime-images.json"
+    if not evidence_path.is_file() or not COMPOSE_PATH.is_file():
+        return False
+    profile = json.loads(COMPOSE_PATH.read_text())
+    evidence = json.loads(evidence_path.read_text())
+    if not apply_prepared_schema(profile, evidence):
+        return False
+    COMPOSE_PATH.write_text(json.dumps(profile))
+    COMPOSE_PATH.chmod(0o600)
+    return True
+
+
 def main():
     require_runner()
     action = sys.argv[1]
@@ -516,15 +648,19 @@ def main():
         )
     elif action == "start":
         # Compose's wait limit may not bound one-shot dependency startup.
-        compose(
-            "up", "-d", "--no-build", "--wait", "--wait-timeout", "600", timeout=720
-        )
+        select_runtime_profile()
+        start_stack()
     elif action == "verify":
         import socket
         import urllib.request
 
         evidence_path = Path(SOURCE) / "test-results/ci-environment.json"
         evidence = json.loads(evidence_path.read_text())
+        runtime_images = Path(SOURCE) / "test-results/ci-runtime-images.json"
+        if runtime_images.is_file():
+            evidence["runtime_images"] = json.loads(runtime_images.read_text())[
+                "images"
+            ]
         for host in ("api.dev.openmates.org", "app.dev.openmates.org"):
             addresses = {
                 item[4][0]

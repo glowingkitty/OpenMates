@@ -610,7 +610,7 @@ export async function handleSend(
   editor.view.state.doc.descendants((node) => {
     if (node.type.name === "embed") {
       const st = node.attrs.status as string | undefined;
-      if (st === "uploading" || st === "transcribing") {
+      if (st === "uploading" || st === "transcribing" || st === "correcting") {
         const label =
           (node.attrs.filename as string) ||
           (node.attrs.type === "recording" ? "Recording" : "Attachment");

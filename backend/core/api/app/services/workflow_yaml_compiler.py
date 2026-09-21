@@ -22,6 +22,7 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowGraph,
     WorkflowNode,
     WorkflowNodeType,
+    validate_workflow_readiness,
 )
 
 
@@ -38,7 +39,7 @@ ALLOWED_TOP_LEVEL_FIELDS = {
     "run_content_retention",
 }
 ALLOWED_START_WHEN_FIELDS = {"schedule", "manual"}
-ALLOWED_SCHEDULE_FIELDS = {"type", "time", "timezone", "at", "cron"}
+ALLOWED_SCHEDULE_FIELDS = {"type", "time", "timezone", "at", "cron", "minute", "weekdays"}
 ALLOWED_MANUAL_FIELDS = {"input_schema"}
 ALLOWED_APP_SKILL_STEP_FIELDS = {"id", "use_app_skill", "input"}
 ALLOWED_NOTIFICATION_STEP_FIELDS = {"id", "send_notification"}
@@ -50,6 +51,7 @@ ALLOWED_REPEAT_UNTIL_STEP_FIELDS = {"id", "repeat_until"}
 ALLOWED_IF_STEP_FIELDS = {"id", "if", "if_true", "if_false"}
 SUPPORTED_STEP_FORMS = {
     "use_app_skill",
+    "check",
     "send_notification",
     "send_chat_message",
     "ask_for_user_input",
@@ -179,6 +181,15 @@ def validate_workflow_yaml(source: str, capability_registry: Any | None = None) 
         )
 
     readiness_diagnostics = _validate_enable_readiness(document, capability_registry)
+    if not readiness_diagnostics:
+        try:
+            # YAML and UI execution share typed app-input and graph preflight.
+            # Keep an incomplete draft editable while reporting it as not ready.
+            validate_workflow_readiness(graph)
+        except ValueError as error:
+            readiness_diagnostics.append(
+                WorkflowYamlDiagnostic(code="WORKFLOW_NOT_READY", path="$", message=str(error))
+            )
     return WorkflowYamlValidationResult(
         draft_valid=True,
         enable_ready=not readiness_diagnostics,
@@ -241,6 +252,8 @@ def _validate_document_structure(document: dict[str, Any]) -> list[WorkflowYamlD
 
 
 def _validate_start_when(value: Any) -> list[WorkflowYamlDiagnostic]:
+    if value is None:
+        return []
     if not isinstance(value, dict):
         return [WorkflowYamlDiagnostic("START_WHEN_REQUIRED", "start_when", "start_when must define one supported trigger")]
 
@@ -291,6 +304,7 @@ def _validate_steps(value: Any, path: str, step_ids: set[str], *, allow_empty: b
         form = forms[0]
         allowed_fields = {
             "use_app_skill": ALLOWED_APP_SKILL_STEP_FIELDS,
+            "check": {"id", "check"},
             "send_notification": ALLOWED_NOTIFICATION_STEP_FIELDS,
             "send_chat_message": ALLOWED_CHAT_STEP_FIELDS,
             "ask_for_user_input": ALLOWED_ASK_USER_STEP_FIELDS,
@@ -302,6 +316,9 @@ def _validate_steps(value: Any, path: str, step_ids: set[str], *, allow_empty: b
         diagnostics.extend(_unknown_field_diagnostics(step, allowed_fields, step_path))
         if form == "use_app_skill":
             diagnostics.extend(_validate_app_skill_step(step, step_path, step_id))
+        elif form == "check":
+            if not isinstance(step.get("check"), dict):
+                diagnostics.append(WorkflowYamlDiagnostic("FIELD_TYPE", f"{step_path}.check", "check must be a structured predicate"))
         elif form == "send_notification":
             diagnostics.extend(_validate_notification_step(step, step_path, step_id))
         elif form == "send_chat_message":
@@ -356,8 +373,11 @@ def _validate_chat_step(step: dict[str, Any], path: str, step_id: Any) -> list[W
     value = step.get("send_chat_message")
     if not isinstance(value, dict):
         return [WorkflowYamlDiagnostic("FIELD_TYPE", f"{path}.send_chat_message", "send_chat_message must be a mapping", step_id=step_id if isinstance(step_id, str) else None, expected_type="object")]
-    diagnostics = _unknown_field_diagnostics(value, {"title", "message", "chat_id"}, f"{path}.send_chat_message")
-    for field_name in ("title", "message"):
+    diagnostics = _unknown_field_diagnostics(value, {"title", "message", "chat_id", "blocks"}, f"{path}.send_chat_message")
+    required_fields = () if value.get("chat_id") else ("title",)
+    if not value.get("blocks"):
+        required_fields += ("message",)
+    for field_name in required_fields:
         if not isinstance(value.get(field_name), str) or not value[field_name].strip():
             diagnostics.append(WorkflowYamlDiagnostic("FIELD_REQUIRED", f"{path}.send_chat_message.{field_name}", f"{field_name} must be a non-empty string", step_id=step_id if isinstance(step_id, str) else None))
     if "chat_id" in value and not isinstance(value["chat_id"], str):
@@ -485,13 +505,13 @@ def _walk_steps(steps: list[dict[str, Any]], path: str):
 
 
 def _compile_graph(document: dict[str, Any]) -> WorkflowGraph:
-    trigger = _compile_trigger(document["start_when"])
-    nodes = [trigger]
+    trigger = _compile_trigger(document["start_when"]) if document.get("start_when") else None
+    nodes = [trigger] if trigger else []
     edges: list[WorkflowEdge] = []
-    _compile_steps(document["steps"], [(trigger.id, None)], nodes, edges)
+    _compile_steps(document["steps"], [(trigger.id, None)] if trigger else [], nodes, edges)
     return WorkflowGraph(
-        version=AUTHORING_VERSION,
-        trigger_node_id=trigger.id,
+        version=2 if all(node.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER, WorkflowNodeType.APP_SKILL_ACTION, WorkflowNodeType.CHECK, WorkflowNodeType.SEND_CHAT_MESSAGE} for node in nodes) else AUTHORING_VERSION,
+        trigger_node_id=trigger.id if trigger else None,
         nodes=nodes,
         edges=edges,
     )
@@ -536,10 +556,12 @@ def _compile_step_node(step: dict[str, Any]) -> WorkflowNode:
             type=WorkflowNodeType.APP_SKILL_ACTION,
             config={"app_id": app_id, "skill_id": skill_id, "input": dict(step.get("input", {}))},
         )
+    if "check" in step:
+        return WorkflowNode(id=step["id"], type=WorkflowNodeType.CHECK, config={"predicate": _normalize_predicate(dict(step["check"]))})
     if "send_notification" in step:
         return WorkflowNode(id=step["id"], type=WorkflowNodeType.SEND_NOTIFICATION, config=dict(step["send_notification"]))
     if "send_chat_message" in step:
-        return WorkflowNode(id=step["id"], type=WorkflowNodeType.START_NEW_CHAT, config=dict(step["send_chat_message"]))
+        return WorkflowNode(id=step["id"], type=WorkflowNodeType.SEND_CHAT_MESSAGE, config=dict(step["send_chat_message"]))
     if "ask_for_user_input" in step:
         return WorkflowNode(id=step["id"], type=WorkflowNodeType.ASK_USER, config=dict(step["ask_for_user_input"]))
     if "wait" in step:

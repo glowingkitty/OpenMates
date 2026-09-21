@@ -119,7 +119,7 @@ def test_debug_vercel_starts_bug_session_with_complete_args(monkeypatch):
     monkeypatch.setattr(sessions, "cmd_start", fake_start)
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
 
-    sessions.cmd_debug_vercel(argparse.Namespace(opencode_session="oc-session"))
+    sessions.cmd_debug_vercel(argparse.Namespace())
 
     start_args = captured["start_args"]
     assert start_args.mode == "bug"
@@ -127,7 +127,6 @@ def test_debug_vercel_starts_bug_session_with_complete_args(monkeypatch):
     assert start_args.tags == "debug"
     assert start_args.vercel is False
     assert start_args.error_since == 7
-    assert not hasattr(start_args, "opencode_session")
     assert captured["cmd"] == [
         sys.executable,
         str(sessions.PROJECT_ROOT / "backend" / "scripts" / "debug_vercel.py"),

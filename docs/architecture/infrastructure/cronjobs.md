@@ -57,9 +57,9 @@ claims:
     path: scripts/run_contract_audits.py
 ---
 
-# Scheduled jobs and retired OpenCode automation
+# Scheduled jobs and retired agent automation
 
-Automatic OpenCode launches were turned off and their obsolete scheduling implementations removed under TASK-7543 on September 7, 2026. Do not reinstall old launcher units or copy historical cron examples into a live crontab. The new `openmates-ci-coordinator` is an independent GitHub queue/service and remains intact.
+Automatic agent launches were turned off and their obsolete scheduling implementations removed under TASK-7543 on September 7, 2026. Do not reinstall old launcher units or copy historical cron examples into a live crontab. The `openmates-ci-coordinator` is an independent GitHub queue/service and remains intact.
 
 ## Retained jobs and manual tools
 
@@ -74,9 +74,9 @@ Automatic OpenCode launches were turned off and their obsolete scheduling implem
 | `update_obsidian_daily_note.py` | Daily-note statistics and activity |
 | Managed GitHub test schedules | Separate CI ownership; scheduler removal does not dispatch or relocate tests |
 | Linear archive and artifact maintenance | Retained installer: `linear-cron-setup.sh` |
-| `sessions.py` routing/deploy and worktree reconciliation | Shared repository lifecycle, separate from OpenCode automatic chat scheduling |
+| `sessions.py` routing/deploy and worktree reconciliation | Shared repository lifecycle, separate from retired automatic chat scheduling |
 | `_daily_meeting_helper.py dry-run` | Manual data gathering and prompt preview without launching AI |
-| Manual OpenCode transcript/review tools and Claude compatibility | Preserved for existing records and explicit use |
+| Manual transcript/review tools and Claude compatibility | Preserved for existing records and explicit use |
 
 ## Removed implementations
 
@@ -86,7 +86,7 @@ The Vercel failure-to-repair launcher, deep AI security review and legal/complia
 
 The Linear label poller, host trigger watcher, weekday meeting launcher, nightly issue review, codebase audit, nightly quick-win/pattern/code-structure/UI/Apple/SEO launchers and weekly AI recommendation helpers are retired. Their historical reports, original task/worktree records and prompt requirements remain available. Removing a launcher does not remove its deterministic scanner. EU vulnerability entry points retain deterministic collection and reporting, without remediation chats or legacy dispatch tracking. The Dependabot launcher tail is removed; its automatic schedule stays off and deterministic digest collection stays intact. Security audit/red-team entry points ingest existing snapshots through the digest adapter, which retains missing/stale snapshot checks; they do not create a fresh AI review.
 
-OpenCode-only runtime registrations are narrowly removed after inspecting their actual definitions and dependencies. Recoverable local unit/crontab copies are in `logs/codex-orchestration/2026-09-07-6989/scheduler-registration-backup/`. No product service or shared work-life `allowed` guard is part of this removal.
+Retired runtime registrations were removed after inspecting their actual definitions and dependencies. Recoverable local unit/crontab copies are in `logs/codex-orchestration/2026-09-07-6989/scheduler-registration-backup/`. No product service or shared work-life `allowed` guard is part of this removal.
 
 ## Future workflow requirements — TASK-8338
 
@@ -116,5 +116,5 @@ The independent `worktree-reconciliation-setup.sh` service retains its existing
 `sessions.py worktree expire --max-age-hours 72` and
 `sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe`
 operations. It preserves source-free manifests for 30 days. This shared
-repository maintenance is outside OpenCode scheduler retirement; no registration
+repository maintenance is outside scheduler retirement; no registration
 or runtime state is changed by this removal.

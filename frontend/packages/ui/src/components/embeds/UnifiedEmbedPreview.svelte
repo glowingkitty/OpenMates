@@ -485,7 +485,7 @@
       return `perspective(${TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${TILT_SCALE})`;
     }
 
-    if (isTouchTiltEnabled) {
+    if (isScrollTilting) {
       const rotateX = -scrollTiltY * TILT_MAX_ANGLE;
       return `perspective(${TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(0deg) scale(${TILT_SCALE})`;
     }
@@ -503,6 +503,13 @@
     }
 
     const rect = previewElement.getBoundingClientRect();
+    // Offscreen cards must release their 3D surface instead of retaining a
+    // clamped transform for the entire scrollback.
+    if (rect.bottom <= 0 || rect.top >= window.innerHeight ||
+        rect.right <= 0 || rect.left >= window.innerWidth) {
+      scrollTiltY = 0;
+      return;
+    }
     const viewportHalfHeight = Math.max(window.innerHeight / 2, 1);
     const elementCenterY = rect.top + rect.height / 2;
     const viewportCenterY = viewportHalfHeight;
@@ -1002,7 +1009,12 @@
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
-    /* Performance hint for transform animations */
+
+  }
+
+  /* Promote only active cards, not every embed in a long conversation. */
+  .unified-embed-preview.hovering,
+  .unified-embed-preview.scroll-tilting {
     will-change: transform;
   }
 

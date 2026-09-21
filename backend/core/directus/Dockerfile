@@ -4,7 +4,7 @@
 # Startup fails unless Directus loads the endpoint and internal auth fails closed.
 # Container health additionally requires the recovery collections and indexes.
 
-FROM directus/directus:11.5
+FROM directus/directus:11.5@sha256:23f2f526599bff1746121fd7e4e1101744661c7ce35d90370a738bc5c48bea3e
 
 USER root
 RUN apk add --no-cache curl postgresql-client su-exec

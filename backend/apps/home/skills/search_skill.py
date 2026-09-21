@@ -22,7 +22,7 @@ See: backend/apps/home/providers/ for individual provider implementations.
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
 from pydantic import BaseModel, Field
 
@@ -73,10 +73,15 @@ class SearchRequestItem(BaseModel):
     query: str = Field(
         description="City or location to search in (e.g. 'Berlin', 'Munich', 'Hamburg')."
     )
-    listing_type: str = Field(
+    listing_type: Literal["rent", "buy"] = Field(
         default="rent",
         description="Type of listing: 'rent' for rentals, 'buy' for purchases.",
     )
+    property_type: Literal["apartment", "shared_room"] = Field(default="apartment", description="Entire apartment or shared room.")
+    sort: Literal["price_asc", "newest"] = Field(default="price_asc", description="Price order or provider discovery order for monitoring new listings.")
+    max_price_eur: Optional[float] = Field(default=None, ge=0, description="Maximum advertised monthly rent or purchase price in EUR; provider price basis is retained.")
+    min_rooms: Optional[float] = Field(default=None, ge=0, description="Minimum advertised room count; unknown values are excluded when set.")
+    min_size_sqm: Optional[float] = Field(default=None, ge=0, description="Minimum advertised area; unknown values are excluded when set.")
     providers: Optional[List[str]] = Field(
         default=None,
         description="Providers to search. Defaults to all three: ImmoScout24, Kleinanzeigen, WG-Gesucht.",
@@ -85,6 +90,11 @@ class SearchRequestItem(BaseModel):
         default=10,
         description="Maximum number of listings to return (1-20, default 10).",
     )
+
+
+class SearchRequest(BaseModel):
+    """Typed public request matching the app skill schema."""
+    requests: List[SearchRequestItem] = Field(description="Housing searches to execute.")
 
 
 class SearchResponse(BaseModel):
@@ -106,6 +116,7 @@ class SearchResponse(BaseModel):
     )
     suggestions_follow_up_requests: Optional[List[str]] = None
     error: Optional[str] = None
+    warnings: List[str] = Field(default_factory=list, description="Provider failures or coverage limitations in a partial search.")
     ignore_fields_for_llm: Optional[List[str]] = Field(
         default_factory=lambda: IGNORE_FIELDS_FOR_LLM.copy()
     )
@@ -165,6 +176,7 @@ class SearchSkill(BaseSkill):
         Returns:
             SearchResponse with grouped, sorted listing results.
         """
+        requests = [item.model_dump(exclude_none=True) if isinstance(item, BaseModel) else item for item in requests]
         validated_requests, invalid_grouped_results, validation_errors, validation_error = self._partition_requests_by_required_fields(
             requests=requests,
             required_fields=["query"],
@@ -191,6 +203,15 @@ class SearchSkill(BaseSkill):
             process_single_request_func=self._process_single_request,
             logger=logger,
         )
+
+        warnings: List[str] = []
+        normalized_results = []
+        for result in all_results:
+            if isinstance(result, tuple) and len(result) == 4:
+                warnings.extend(result[3])
+                result = result[:3]
+            normalized_results.append(result)
+        all_results = normalized_results
 
         # 3. Group results by request ID
         grouped_results, errors = self._group_results_by_request_id(
@@ -223,6 +244,7 @@ class SearchSkill(BaseSkill):
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
             providers=successful_providers,
+            warnings=sorted(set(warnings)),
         )
 
     async def _geocode_listings(
@@ -271,6 +293,11 @@ class SearchSkill(BaseSkill):
         Returns:
             Tuple of (request_id, results_list, error_string_or_none).
         """
+        try:
+            validated = SearchRequestItem.model_validate(req)
+        except Exception as exc:
+            return (request_id, [], f"Invalid housing search input: {exc}")
+        req = validated.model_dump(exclude_none=True)
         query: str = req.get("query", "").strip()
         listing_type: str = req.get("listing_type", "rent").strip().lower()
         providers_requested: Optional[List[str]] = req.get("providers")
@@ -286,6 +313,9 @@ class SearchSkill(BaseSkill):
         if listing_type not in ("rent", "buy"):
             listing_type = "rent"
 
+        property_type = req.get("property_type", "apartment")
+        sort = req.get("sort", "price_asc")
+
         # Determine which providers to search
         if providers_requested:
             selected_providers = {
@@ -293,20 +323,30 @@ class SearchSkill(BaseSkill):
                 for name, func in PROVIDER_MAP.items()
                 if name in providers_requested
             }
-            if not selected_providers:
-                selected_providers = PROVIDER_MAP
+            if len(selected_providers) != len(set(providers_requested)):
+                return (request_id, [], "Unknown housing search provider")
         else:
             selected_providers = PROVIDER_MAP
+
+        if property_type == "shared_room":
+            selected_providers = {name: func for name, func in selected_providers.items() if name == "WG-Gesucht"}
+            if not selected_providers:
+                return (request_id, [], "Shared-room searches require WG-Gesucht")
 
         logger.info(
             "Home search query=%r type=%s providers=%s max=%d",
             query, listing_type, list(selected_providers.keys()), max_results,
         )
 
+        discovery_limit = MAX_RESULTS_HARD_LIMIT if sort == "newest" or any(
+            req.get(key) is not None for key in ("max_price_eur", "min_rooms", "min_size_sqm")
+        ) else max_results
+
         # Call all selected providers in parallel
         try:
             provider_tasks = [
-                func(city=query, listing_type=listing_type, max_results=max_results)
+                func(city=query, listing_type=listing_type, max_results=discovery_limit,
+                     property_type=property_type, sort=sort)
                 for func in selected_providers.values()
             ]
             provider_results = await asyncio.gather(*provider_tasks, return_exceptions=True)
@@ -317,6 +357,7 @@ class SearchSkill(BaseSkill):
         # Merge results from all providers
         merged: List[Dict[str, Any]] = []
         provider_errors: List[str] = []
+        warnings: List[str] = []
 
         for provider_name, result in zip(selected_providers.keys(), provider_results):
             if isinstance(result, Exception):
@@ -324,13 +365,29 @@ class SearchSkill(BaseSkill):
                 logger.error("Home search provider error: %s", error_msg)
                 provider_errors.append(error_msg)
             elif isinstance(result, list):
-                merged.extend(result)
+                warnings.extend(getattr(result, "warnings", []))
+                for rank, listing in enumerate(result):
+                    listing["discovery_rank"] = rank
+                    listing["property_type"] = property_type
+                    merged.append(listing)
                 logger.info("Home search %s returned %d listings", provider_name, len(result))
             else:
                 logger.warning("Home search %s returned unexpected type: %s", provider_name, type(result))
+                provider_errors.append(f"{provider_name} returned an invalid response")
 
-        # Sort by price ascending (nulls last)
-        merged.sort(key=lambda x: (x.get("price") is None, x.get("price") or 0))
+        # Criteria belong to the skill, before its bounded result limit.
+        for input_name, field, maximum in (("max_price_eur", "price", True), ("min_rooms", "rooms", False), ("min_size_sqm", "size_sqm", False)):
+            threshold = req.get(input_name)
+            if threshold is not None:
+                merged = [item for item in merged if isinstance(item.get(field), (int, float))
+                          and (item[field] <= threshold if maximum else item[field] >= threshold)]
+        if sort == "newest":
+            # Interleave providers fairly without inventing cross-provider posting dates.
+            merged.sort(key=lambda item: item["discovery_rank"])
+            if any(name != "Kleinanzeigen" for name in selected_providers):
+                warnings.append("ImmoScout24 and WG-Gesucht retain provider order; newest ordering is not guaranteed.")
+        else:
+            merged.sort(key=lambda x: (x.get("price") is None, x.get("price") or 0))
 
         # Truncate to max_results
         merged = merged[:max_results]
@@ -342,11 +399,18 @@ class SearchSkill(BaseSkill):
         await self._geocode_listings(merged, city=query)
 
         # Build error string if some providers failed (but we still have results)
-        error = "; ".join(provider_errors) if provider_errors and not merged else None
+        error = "; ".join(provider_errors) if len(provider_errors) == len(selected_providers) else None
+        if not error:
+            warnings.extend(provider_errors)
+
+        if property_type == "shared_room":
+            selected_providers = {name: func for name, func in selected_providers.items() if name == "WG-Gesucht"}
+            if not selected_providers:
+                return (request_id, [], "Shared-room searches require WG-Gesucht")
 
         logger.info(
             "Home search query=%r -> %d merged listings (%d provider errors)",
             query, len(merged), len(provider_errors),
         )
 
-        return (request_id, merged, error)
+        return (request_id, merged, error, warnings)

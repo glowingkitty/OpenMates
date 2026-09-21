@@ -197,7 +197,7 @@ capabilities:
     test_allowed: true
     test_example_input:
       requests:
-        - query: apartments in Berlin
+        - query: Berlin
           max_results: 3
     output_schema: *search_output
   images.search:

@@ -49,6 +49,39 @@ import AppKit
 
 // ChatBannerView and ChatBannerState are defined in ChatBannerView.swift
 
+/// One immutable presentation snapshot per transcript evaluation. Rows share
+/// the same user mappings and restored embed graph, including citation children.
+/// Building these values inside ForEach repeats the whole-chat work per row.
+struct ChatTranscriptDisplayProjection {
+    let piiMappings: [PIIMapping]
+    let embedRecords: [String: EmbedRecord]
+
+    init(messages: [Message], embedRecords: [String: EmbedRecord], isPIIRevealed: Bool,
+         restoreEmbed: (EmbedRecord, [PIIMapping]) -> EmbedRecord = {
+             PIIDetector.restorePII(in: $0, mappings: $1)
+         }) {
+        let mappings = Self.cumulativeMappings(in: messages)
+        piiMappings = mappings
+        self.embedRecords = isPIIRevealed
+            ? embedRecords.mapValues { restoreEmbed($0, mappings) }
+            : embedRecords
+    }
+
+    func embeds(for message: Message) -> [EmbedRecord] {
+        message.embedRefs?.compactMap { embedRecords[$0.id] } ?? []
+    }
+
+    static func cumulativeMappings(in messages: [Message]) -> [PIIMapping] {
+        var byPlaceholder: [String: PIIMapping] = [:]
+        for message in messages where message.role == .user {
+            for mapping in message.piiMappings ?? [] {
+                byPlaceholder[mapping.placeholder] = mapping
+            }
+        }
+        return Array(byPlaceholder.values)
+    }
+}
+
 private enum ChatScrollSentinelEdge: Hashable {
     case top
     case bottom
@@ -118,11 +151,15 @@ private struct ChatTranscriptScrollTracking: ViewModifier {
     let viewportHeight: CGFloat
     let onBoundariesChanged: (ChatScrollBoundaries) -> Void
     let onVisibleMessagesChanged: (Set<String>) -> Void
+    let onUserScroll: () -> Void
 
     @ViewBuilder
     func body(content: Content) -> some View {
         if #available(iOS 18.0, macOS 15.0, *) {
             content
+                .onScrollPhaseChange { _, phase in
+                    if phase == .interacting || phase == .decelerating { onUserScroll() }
+                }
                 .onScrollGeometryChange(for: ChatScrollBoundaries.self) { geometry in
                     ChatScrollBoundaries(
                         isAtTop: geometry.contentOffset.y + geometry.contentInsets.top <= 8,
@@ -183,6 +220,10 @@ private enum ChatMessageLayoutMetric {
 }
 
 struct ChatView: View {
+    #if DEBUG
+    var isolatedHistory = false
+    #endif
+    @StateObject private var modelHost = NativeComposerModelHost()
     let chatId: String
     /// Optional gradient banner state. Provide `.loaded` for demo/example chats;
     /// omit (nil) for regular user chats where no banner should appear.
@@ -227,6 +268,10 @@ struct ChatView: View {
     @StateObject private var enhancedPIIRecommendationStore = EnhancedPIIRecommendationStore.shared
     @StateObject private var composerSession = NativeComposerSession()
     @ObservedObject private var draftService = DraftService.shared
+    @Environment(\.workspacePaneIsVisible) private var parentPaneVisible
+    private var transcriptIsVisible: Bool { parentPaneVisible && (!showEmbedFullscreen || (chatWorkspaceWidth >= 1024 && !hideSplitChat)) }
+    @State private var chatWorkspaceWidth: CGFloat = 0
+    @State private var hideSplitChat = false
     @State private var selectedEmbed: EmbedRecord?
     @State private var fullscreenPreviousEmbeds: [EmbedRecord] = []
     @State private var showEmbedFullscreen = false
@@ -251,6 +296,10 @@ struct ChatView: View {
     @State private var actionMessage: Message?
     @State private var chatViewportHeight: CGFloat = 0
     @State private var chatContainerWidth: CGFloat = 0
+    @State private var historyNavigationTask: Task<Void, Never>?
+    @State private var historyNavigationID = UUID()
+    @State private var completedSearchTargetID: String?
+    @State private var userHasScrolledHistory = false
     @State private var isAtTop = true
     @State private var isAtBottom = false
     @State private var followsStreamingResponse = false
@@ -321,7 +370,48 @@ struct ChatView: View {
     }
 
     var body: some View {
+        #if DEBUG
+        if isolatedHistory {
+            GeometryReader { geometry in
+                ZStack {
+                    ChatEmbedWorkspace(embedOpen: showEmbedFullscreen, chatHidden: $hideSplitChat, onLayout: { width, transcriptWidth in
+                        chatWorkspaceWidth = width; chatContainerWidth = transcriptWidth
+                    }) {
+                        messageList
+                    } embed: {
+                        if let embed = selectedEmbed { embedFullscreenSheet(for: embed) }
+                    }
+                    if let actionMessage { messageActionsOverlay(for: actionMessage) }
+                }
+                .onAppear { chatViewportHeight = geometry.size.height; chatContainerWidth = showEmbedFullscreen && geometry.size.width >= 1024 ? 400 : geometry.size.width }
+                .onChange(of: geometry.size) { _, size in chatViewportHeight = size.height; chatContainerWidth = showEmbedFullscreen && size.width >= 1024 ? 400 : size.width }
+            }.task(id: chatId) {
+                if let initialChat { viewModel.seedIsolatedHistory(chat: initialChat, messages: initialMessages, embeds: initialEmbeds) }
+            }
+        } else { normalLifecycleBody }
+        #else
+        normalLifecycleBody
+        #endif
+    }
+
+    private var normalLifecycleBody: some View {
         lifecycleChatView
+            .onChange(of: transcriptIsVisible) { _, visible in
+                if !visible {
+                    scrollPositionDebounceTask?.cancel()
+                    scrollPositionDebounceTask = nil
+                    // A skipped pending write must not suppress the next real
+                    // visible scroll observation after this pane is restored.
+                    lastReportedVisibleMessageId = nil
+                }
+            }
+            #if DEBUG
+            .overlay(alignment: .topLeading) {
+                if ProcessInfo.processInfo.arguments.contains("--ui-test-expose-chat-ids"), let chatStore {
+                    ChatRecoveryStateProbe(store: chatStore, chatId: chatId)
+                }
+            }
+            #endif
     }
 
     private var baseChatView: some View {
@@ -335,6 +425,9 @@ struct ChatView: View {
                     .allowsHitTesting(false)
                 #endif
 
+                ChatEmbedWorkspace(embedOpen: showEmbedFullscreen, chatHidden: $hideSplitChat, onLayout: { width, transcriptWidth in
+                        chatWorkspaceWidth = width; chatContainerWidth = transcriptWidth
+                    }) {
                 VStack(spacing: 0) {
                     if bannerState == nil {
                         if effectiveBannerState == nil {
@@ -375,6 +468,10 @@ struct ChatView: View {
                     }
                 }
                 .background(Color.grey20)
+                } embed: {
+                    if let embed = selectedEmbed { embedFullscreenSheet(for: embed) }
+                }
+
 
                 if showReminder {
                     customOverlay(title: AppStrings.setReminder, isPresented: $showReminder) {
@@ -382,11 +479,6 @@ struct ChatView: View {
                     }
                 }
 
-                if showEmbedFullscreen, let embed = selectedEmbed {
-                    embedFullscreenSheet(for: embed)
-                        .id(embed.id)
-                        .ignoresSafeArea()
-                }
 
                 if let actionMessage {
                     messageActionsOverlay(for: actionMessage)
@@ -394,13 +486,13 @@ struct ChatView: View {
             }
             .onAppear {
                 chatViewportHeight = geo.size.height
-                chatContainerWidth = geo.size.width
+                chatContainerWidth = showEmbedFullscreen && geo.size.width >= 1024 ? 400 : geo.size.width
             }
             .onChange(of: geo.size.height) { _, height in
                 chatViewportHeight = height
             }
             .onChange(of: geo.size.width) { _, width in
-                chatContainerWidth = width
+                chatContainerWidth = showEmbedFullscreen && width >= 1024 ? 400 : width
             }
         }
     }
@@ -463,6 +555,9 @@ struct ChatView: View {
         }
         .task(id: chatId) {
             await handleChatTask()
+        }
+        .task(id: modelHost.savedContext(chatID: chatId)) {
+            await modelHost.activate(modelHost.savedContext(chatID: chatId))
         }
         .onDisappear(perform: handleChatLifecycleDisappear)
         .onChange(of: viewModel.forkedChatId) {
@@ -606,6 +701,7 @@ struct ChatView: View {
     }
 
     private func handleChatLifecycleDisappear() {
+        modelHost.deactivate()
         scrollPositionDebounceTask?.cancel()
         handoffManager.stopAdvertising()
         Task { await invalidateDeferredComposerSends() }
@@ -701,6 +797,7 @@ struct ChatView: View {
 
             Spacer()
 
+            if showEmbedFullscreen && chatWorkspaceWidth >= 1024 { splitChatHideAction }
             if chatHasPIIMappings {
                 chatFloatingAction(
                     icon: isPIIRevealed ? "hidden" : "visible",
@@ -727,18 +824,13 @@ struct ChatView: View {
     }
 
     private var cumulativePIIMappings: [PIIMapping] {
-        var byPlaceholder: [String: PIIMapping] = [:]
-        for message in viewModel.messages where message.role == .user {
-            for mapping in message.piiMappings ?? [] {
-                byPlaceholder[mapping.placeholder] = mapping
-            }
-        }
-        return Array(byPlaceholder.values)
+        ChatTranscriptDisplayProjection.cumulativeMappings(in: viewModel.messages)
     }
 
     private var displayedEmbedRecords: [String: EmbedRecord] {
         guard isPIIRevealed else { return viewModel.embedRecords }
-        return viewModel.embedRecords.mapValues { displayEmbed($0) }
+        let mappings = cumulativePIIMappings
+        return viewModel.embedRecords.mapValues { PIIDetector.restorePII(in: $0, mappings: mappings) }
     }
 
     private func displayEmbed(_ embed: EmbedRecord) -> EmbedRecord {
@@ -812,7 +904,7 @@ struct ChatView: View {
 
     @ViewBuilder
     private func embedFullscreenSheet(for embed: EmbedRecord) -> some View {
-        let displayedSelectedEmbed = displayEmbed(embed)
+        let displayedSelectedEmbed = displayEmbed(viewModel.embedRecords[embed.id] ?? embed)
         let matchingMessage = viewModel.messages.first { msg in
             msg.embedRefs?.contains(where: { $0.id == embed.id }) == true
         }
@@ -822,9 +914,11 @@ struct ChatView: View {
         } else {
             []
         }
-        let fullscreenEmbeds = messageEmbeds.contains(where: { $0.id == displayedSelectedEmbed.id })
-            ? messageEmbeds
-            : [displayedSelectedEmbed]
+        let fullscreenEmbeds = EmbedGrouper.fullscreenNavigationEmbeds(
+            selected: displayedSelectedEmbed, messageEmbeds: messageEmbeds,
+            allRecords: displayedEmbedRecords,
+            parent: fullscreenPreviousEmbeds.last.map(displayEmbed)
+        )
         EmbedFullscreenContainer(
             embeds: fullscreenEmbeds,
             initialEmbedId: displayedSelectedEmbed.id,
@@ -835,11 +929,22 @@ struct ChatView: View {
             },
             onClose: {
                 closeEmbedFullscreenRoute()
-            }
+            },
+            isSidePanel: chatWorkspaceWidth >= 1024,
+            showChat: chatWorkspaceWidth >= 1024 && hideSplitChat,
+            onShowChat: { hideSplitChat = false }
         )
     }
 
     private func openEmbedFullscreen(_ embed: EmbedRecord) {
+        // Do not let a suspended page discard this overlay's parent/sibling
+        // graph or restore the background scroll after the embed opens.
+        viewModel.cancelHistoryWindowNavigation()
+        historyNavigationTask?.cancel()
+        historyNavigationTask = nil
+        historyNavigationID = UUID()
+        userHasScrolledHistory = false
+        isRestoringScroll = false
         fullscreenPreviousEmbeds = []
         selectedEmbed = embed
         showEmbedFullscreen = true
@@ -869,6 +974,7 @@ struct ChatView: View {
             return
         }
 
+        hideSplitChat = false
         selectedEmbed = nil
         showEmbedFullscreen = false
     }
@@ -877,6 +983,9 @@ struct ChatView: View {
 
     private var messageList: some View {
         GeometryReader { scrollGeo in
+            let displayProjection = ChatTranscriptDisplayProjection(
+                messages: viewModel.messages, embedRecords: viewModel.embedRecords,
+                isPIIRevealed: isPIIRevealed)
             ScrollViewReader { proxy in
                 ZStack {
                     ScrollView {
@@ -909,12 +1018,8 @@ struct ChatView: View {
                                 // Load older messages button at the top
                                 if viewModel.hasOlderMessages {
                                     Button {
-                                        let topMessageId = viewModel.messages.first?.id
-                                        viewModel.loadOlderMessages()
-                                        // Keep scroll position at the previously-top message
-                                        if let topId = topMessageId {
-                                            proxy.scrollTo(topId, anchor: .top)
-                                        }
+                                        navigateHistory(.older, retaining: viewModel.messages.first?.id,
+                                                        anchor: .top, proxy: proxy)
                                     } label: {
                                         HStack(spacing: .spacing2) {
                                             if viewModel.isLoadingOlder {
@@ -931,6 +1036,8 @@ struct ChatView: View {
                                         .frame(maxWidth: .infinity)
                                     }
                                     .buttonStyle(.plain)
+                                    .disabled(viewModel.isLoadingOlder)
+                                    .accessibilityIdentifier("load-older-messages")
                                     .id("load-older")
                                 }
 
@@ -945,15 +1052,15 @@ struct ChatView: View {
                                         message: message,
                                         chatId: chatId,
                                         appId: viewModel.chat?.category ?? viewModel.chat?.appId,
-                                        embeds: displayedEmbeds(for: message),
-                                        allEmbedRecords: displayedEmbedRecords,
+                                        embeds: displayProjection.embeds(for: message),
+                                        allEmbedRecords: displayProjection.embedRecords,
                                         streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
                                         thinkingContent: message.id == viewModel.streamingLifecycle.messageId
                                             ? viewModel.streamingLifecycle.thinkingContent
                                             : message.thinkingContent,
                                         isThinkingStreaming: message.id == viewModel.streamingLifecycle.messageId
                                             && viewModel.streamingLifecycle.isThinkingStreaming,
-                                        piiMappings: cumulativePIIMappings,
+                                        piiMappings: displayProjection.piiMappings,
                                         isPIIRevealed: isPIIRevealed,
                                         containerWidth: scrollGeo.size.width,
                                         isSearchTarget: searchTarget?.messageId == message.id,
@@ -985,14 +1092,33 @@ struct ChatView: View {
                                 }
                                 #endif
 
-                                if !activeProcessingSteps.isEmpty {
+                                if viewModel.hasNewerMessages {
+                                    Button {
+                                        navigateHistory(.newer, retaining: viewModel.messages.last?.id,
+                                                        anchor: .bottom, proxy: proxy)
+                                    } label: {
+                                        HStack(spacing: .spacing2) {
+                                            Text(AppStrings.next).font(.omXs)
+                                            Icon("dropdown", size: 12)
+                                        }
+                                        .foregroundStyle(Color.fontSecondary)
+                                        .padding(.vertical, .spacing3)
+                                        .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(viewModel.isLoadingOlder)
+                                    .accessibilityIdentifier("load-newer-messages")
+                                    .id("load-newer")
+                                }
+
+                                if !viewModel.hasNewerMessages && !activeProcessingSteps.isEmpty {
                                     ProcessingDetailsView(steps: activeProcessingSteps, isComplete: false)
                                         .padding(.leading, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 86)
                                         .padding(.trailing, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 12)
                                         .id("processing-details")
                                 }
 
-                                if showAssistantFeedback {
+                                if !viewModel.hasNewerMessages && showAssistantFeedback {
                                     AssistantResponseFeedbackView(
                                         selectedRating: $selectedAssistantRating,
                                         submitted: assistantFeedbackSubmitted,
@@ -1006,7 +1132,7 @@ struct ChatView: View {
                                     .id("assistant-response-feedback")
                                 }
 
-                                if !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
+                                if !viewModel.hasNewerMessages && !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
                                     FollowUpSuggestions(
                                         suggestions: viewModel.followUpSuggestions,
                                         category: followUpSuggestionCategory,
@@ -1029,6 +1155,10 @@ struct ChatView: View {
                             // propagate it over user/assistant row identifiers.
                             .accessibilityElement(children: .contain)
                             .accessibilityIdentifier("chat-history-content")
+                            #if DEBUG
+                            .accessibilityValue(isUITestHistoryWindowMetricsEnabled
+                                ? viewModel.historyWindowAccessibilityValue : "")
+                            #endif
 
                             scrollSentinel(id: "scroll-bottom", edge: .bottom)
                         }
@@ -1039,8 +1169,16 @@ struct ChatView: View {
                     .accessibilityIdentifier("chat-history-container")
                     .scrollDismissesKeyboard(.interactively)
                     .simultaneousGesture(
-                        DragGesture(minimumDistance: 4).onChanged { _ in
+                        DragGesture(minimumDistance: 4).onChanged { value in
+                            if !userHasScrolledHistory { userHasScrolledHistory = true }
                             stopFollowingStreamingResponse()
+                            // Also handles dragging past an already-reached edge;
+                            // the geometry callback handles wheel/trackpad scrolling.
+                            if value.translation.height > 4 && isAtTop {
+                                pageHistoryAtBoundary(isTop: true, proxy: proxy)
+                            } else if value.translation.height < -4 && isAtBottom {
+                                pageHistoryAtBoundary(isTop: false, proxy: proxy)
+                            }
                         }
                     )
                     .onTapGesture {
@@ -1049,26 +1187,30 @@ struct ChatView: View {
                     .modifier(ChatTranscriptScrollTracking(
                         viewportHeight: scrollGeo.size.height,
                         onBoundariesChanged: { boundaries in
+                            let reachedTop = !isAtTop && boundaries.isAtTop
+                            let reachedBottom = !isAtBottom && boundaries.isAtBottom
                             if isAtTop != boundaries.isAtTop { isAtTop = boundaries.isAtTop }
                             if isAtBottom != boundaries.isAtBottom { isAtBottom = boundaries.isAtBottom }
+                            if reachedTop { pageHistoryAtBoundary(isTop: true, proxy: proxy) }
+                            else if reachedBottom { pageHistoryAtBoundary(isTop: false, proxy: proxy) }
                         },
-                        onVisibleMessagesChanged: trackVisibleMessage))
+                        onVisibleMessagesChanged: trackVisibleMessage,
+                        onUserScroll: {
+                            if !userHasScrolledHistory { userHasScrolledHistory = true }
+                            stopFollowingStreamingResponse()
+                        }))
 
-                    if !viewModel.messages.isEmpty && !isAtTop {
+                    if !viewModel.messages.isEmpty && (!isAtTop || viewModel.hasOlderMessages) {
                         scrollNavButton(isTop: true) {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                proxy.scrollTo("scroll-top", anchor: .top)
-                            }
+                            navigateHistory(.oldest, retaining: nil, anchor: .top, proxy: proxy)
                         }
                         .padding(.top, 18)
                         .frame(maxHeight: .infinity, alignment: .top)
                     }
 
-                    if !viewModel.messages.isEmpty && !isAtBottom {
+                    if !viewModel.messages.isEmpty && (!isAtBottom || viewModel.hasNewerMessages) {
                         scrollNavButton(isTop: false) {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                proxy.scrollTo("scroll-bottom", anchor: .bottom)
-                            }
+                            navigateHistory(.latest, retaining: nil, anchor: .bottom, proxy: proxy)
                         }
                         .frame(maxHeight: .infinity, alignment: .bottom)
                     }
@@ -1104,7 +1246,8 @@ struct ChatView: View {
                 }
                 .onChange(of: viewModel.isStreaming) { wasStreaming, isStreaming in
                     if !wasStreaming, isStreaming {
-                        followsStreamingResponse = displayedChatMessages.last?.role == .user || isAtBottom
+                        followsStreamingResponse = !viewModel.hasNewerMessages
+                            && (displayedChatMessages.last?.role == .user || isAtBottom)
                         scrollToStreamingResponseIfNeeded(proxy: proxy)
                         return
                     }
@@ -1112,7 +1255,8 @@ struct ChatView: View {
                     finalizeStreamingResponseScroll(proxy: proxy)
                 }
                 .onChange(of: viewModel.followUpSuggestions) { _, suggestions in
-                    guard !suggestions.isEmpty, followsStreamingResponse || isAtBottom else { return }
+                    guard !viewModel.hasNewerMessages, !isRestoringScroll,
+                          !suggestions.isEmpty, followsStreamingResponse || isAtBottom else { return }
                     Task { @MainActor in
                         await Task.yield()
                         withAnimation(.easeInOut(duration: 0.25)) {
@@ -1121,13 +1265,24 @@ struct ChatView: View {
                     }
                 }
                 .onChange(of: searchTarget) { _, _ in
+                    completedSearchTargetID = nil
                     scrollToSearchTargetIfNeeded(proxy: proxy)
+                }
+                .onDisappear {
+                    historyNavigationTask?.cancel()
+                    historyNavigationID = UUID()
+                    scrollPositionDebounceTask?.cancel()
                 }
             }
         }
     }
 
     #if DEBUG
+    private var isUITestHistoryWindowMetricsEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-history-window-metrics")
+            || ProcessInfo.processInfo.environment["UI_TEST_HISTORY_WINDOW_METRICS"] == "1"
+    }
+
     private var isUITestChatHistoryFullParityEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-chat-history-full-parity")
             || ProcessInfo.processInfo.environment["UI_TEST_CHAT_HISTORY_FULL_PARITY"] == "1"
@@ -1348,6 +1503,7 @@ struct ChatView: View {
 
     private func chatHistoryFixtureIdentifier(for message: Message) -> String? {
         #if DEBUG
+        if isUITestHistoryWindowMetricsEnabled { return "chat-history-message-" + message.id }
         guard isUITestChatHistoryFullParityEnabled else { return nil }
         if message.id == "ui-test-history-user" { return "chat-history-fixture-user" }
         if message.id == "ui-test-history-assistant" { return "chat-history-fixture-assistant" }
@@ -1356,27 +1512,81 @@ struct ChatView: View {
     }
 
     private func scrollToSearchTargetIfNeeded(proxy: ScrollViewProxy) {
-        guard let targetMessageId = searchTarget?.messageId else { return }
-        if viewModel.messages.contains(where: { $0.id == targetMessageId }) {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                proxy.scrollTo(targetMessageId, anchor: UnitPoint(x: 0.5, y: 0.18))
-            }
-            NativeSyncPerfLog.info("phase=chatSearchScroll chat=\(chatId.prefix(8)) message=\(targetMessageId.prefix(8)) mode=visible")
-            return
-        }
+        guard let targetMessageId = searchTarget?.messageId,
+              completedSearchTargetID != targetMessageId, !viewModel.isLoading,
+              !viewModel.messages.isEmpty else { return }
+        completedSearchTargetID = targetMessageId
+        navigateHistory(.message(targetMessageId), retaining: targetMessageId,
+                        anchor: UnitPoint(x: 0.5, y: 0.18), proxy: proxy)
+    }
 
-        guard viewModel.hasOlderMessages, !viewModel.isLoadingOlder else { return }
-        viewModel.loadOlderMessages()
+    private func pageHistoryAtBoundary(isTop: Bool, proxy: ScrollViewProxy) {
+        guard !showEmbedFullscreen, userHasScrolledHistory, hasRestoredInitialScroll,
+              !isRestoringScroll, !viewModel.isLoadingOlder,
+              !followsStreamingResponse else { return }
+        if isTop && viewModel.hasOlderMessages {
+            navigateHistory(.older, retaining: viewModel.messages.first?.id, anchor: .top, proxy: proxy)
+        } else if !isTop && viewModel.hasNewerMessages {
+            navigateHistory(.newer, retaining: viewModel.messages.last?.id, anchor: .bottom, proxy: proxy)
+        }
+    }
+
+    /// Keep the overlap only after the model commits its replacement window.
+    /// One retained task and generation guard prevent an old chat/page from
+    /// moving the new transcript or persisting its temporary scroll position.
+    private func navigateHistory(_ destination: ChatHistoryWindowDestination, retaining anchorMessageID: String?,
+                                 anchor: UnitPoint, proxy: ScrollViewProxy) {
+        stopFollowingStreamingResponse()
+        historyNavigationTask?.cancel()
+        scrollPositionDebounceTask?.cancel()
+        let navigationID = UUID()
+        historyNavigationID = navigationID
+        userHasScrolledHistory = false
+        isRestoringScroll = true
+        let requestedChatID = chatId
+        let scope = OfflineStore.shared.scopeGeneration
+        let previousRevision = viewModel.historyWindowRevision
+        let page = viewModel.loadMessageWindow(destination)
+        let requestGeneration = viewModel.windowRequestGeneration
+        historyNavigationTask = Task { @MainActor in
+            defer {
+                if historyNavigationID == navigationID {
+                    isRestoringScroll = false
+                    historyNavigationTask = nil
+                }
+            }
+            if let page { await page.value }
+            await Task.yield()
+            guard !Task.isCancelled, historyNavigationID == navigationID,
+                  chatId == requestedChatID, viewModel.chat?.id == requestedChatID,
+                  viewModel.windowRequestGeneration == requestGeneration,
+                  OfflineStore.shared.scopeGeneration == scope,
+                  page == nil || viewModel.historyWindowRevision != previousRevision else { return }
+            let target: String
+            if let anchorMessageID, viewModel.messages.contains(where: { $0.id == anchorMessageID }) {
+                target = anchorMessageID
+            } else {
+                switch destination {
+                case .oldest: target = "scroll-top"
+                case .latest: target = "scroll-bottom"
+                default: return // A removed/missing target must not jump elsewhere.
+                }
+            }
+            // Intentionally no animated extent transition while rows are replaced.
+            proxy.scrollTo(target, anchor: anchor)
+            try? await Task.sleep(nanoseconds: 120_000_000)
+        }
     }
 
     private func scrollToStreamingResponseIfNeeded(proxy: ScrollViewProxy) {
-        guard followsStreamingResponse else { return }
+        guard followsStreamingResponse, !viewModel.hasNewerMessages, !isRestoringScroll else { return }
         streamingScrollTask?.cancel()
         streamingScrollTask = Task { @MainActor in
             try? await Task.sleep(
                 for: .milliseconds(ChatHistoryLayoutMetric.streamingUpdateDebounceMilliseconds)
             )
-            guard !Task.isCancelled, followsStreamingResponse else { return }
+            guard !Task.isCancelled, followsStreamingResponse, !viewModel.hasNewerMessages,
+                  !isRestoringScroll else { return }
             proxy.scrollTo("scroll-bottom", anchor: .bottom)
         }
     }
@@ -1385,12 +1595,14 @@ struct ChatView: View {
         streamingScrollTask?.cancel()
         streamingScrollTask = Task { @MainActor in
             await Task.yield()
-            guard !Task.isCancelled, followsStreamingResponse else { return }
+            guard !Task.isCancelled, followsStreamingResponse, !viewModel.hasNewerMessages,
+                  !isRestoringScroll else { return }
             proxy.scrollTo("scroll-bottom", anchor: .bottom)
             try? await Task.sleep(
                 for: .milliseconds(ChatHistoryLayoutMetric.streamingFinalizationDelayMilliseconds)
             )
-            guard !Task.isCancelled, followsStreamingResponse else { return }
+            guard !Task.isCancelled, followsStreamingResponse, !viewModel.hasNewerMessages,
+                  !isRestoringScroll else { return }
             proxy.scrollTo("scroll-bottom", anchor: .bottom)
             followsStreamingResponse = false
         }
@@ -1423,6 +1635,11 @@ struct ChatView: View {
     }
 
     private func resetScrollRestoration() {
+        historyNavigationTask?.cancel()
+        historyNavigationTask = nil
+        historyNavigationID = UUID()
+        completedSearchTargetID = nil
+        userHasScrolledHistory = false
         hasRestoredInitialScroll = false
         isRestoringScroll = true
         lastReportedVisibleMessageId = nil
@@ -1465,22 +1682,32 @@ struct ChatView: View {
             NativeSyncPerfLog.info("phase=chatScrollRestore chat=\(chatId.prefix(8)) mode=noSavedTop messages=\(viewModel.messages.count)")
         }
 
-        Task { @MainActor in
+        let navigationID = historyNavigationID
+        let requestedChatID = chatId
+        historyNavigationTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 120_000_000)
+            guard !Task.isCancelled, historyNavigationID == navigationID,
+                  chatId == requestedChatID else { return }
             isRestoringScroll = false
+            historyNavigationTask = nil
         }
     }
 
     private func trackVisibleMessage(_ visibleIds: Set<String>) {
-        guard !isRestoringScroll, onScrollPositionChanged != nil, !viewModel.messages.isEmpty else { return }
+        guard transcriptIsVisible, !isRestoringScroll, onScrollPositionChanged != nil, !viewModel.messages.isEmpty else { return }
         guard let lastVisibleId = viewModel.messages.last(where: { visibleIds.contains($0.id) })?.id,
               lastVisibleId != lastReportedVisibleMessageId else { return }
 
         lastReportedVisibleMessageId = lastVisibleId
+        let requestedChatID = chatId
+        let navigationID = historyNavigationID
+        let scope = OfflineStore.shared.scopeGeneration
         scrollPositionDebounceTask?.cancel()
         scrollPositionDebounceTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 500_000_000)
-            guard !Task.isCancelled, !isRestoringScroll else { return }
+            guard !Task.isCancelled, transcriptIsVisible, !isRestoringScroll, chatId == requestedChatID,
+                  historyNavigationID == navigationID, OfflineStore.shared.scopeGeneration == scope,
+                  viewModel.messages.contains(where: { $0.id == lastVisibleId }) else { return }
             onScrollPositionChanged?(lastVisibleId)
             NativeSyncPerfLog.info("phase=chatScrollPositionSend chat=\(chatId.prefix(8)) message=\(lastVisibleId.prefix(8))")
         }
@@ -1488,17 +1715,25 @@ struct ChatView: View {
 
     private func scrollNavButton(isTop: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Icon("dropdown", size: 12)
-                .foregroundStyle(Color.grey60)
-                .rotationEffect(isTop ? .degrees(180) : .degrees(0))
-                .frame(width: 120, height: 36)
-                .contentShape(RoundedRectangle(cornerRadius: 18))
+            HStack(spacing: .spacing2) {
+                Icon("dropdown", size: 12)
+                    .rotationEffect(isTop ? .degrees(180) : .degrees(0))
+                if !isTop && viewModel.newerMessageCount > 0 {
+                    Text("\(viewModel.newerMessageCount)")
+                        .font(.omXs)
+                        .monospacedDigit()
+                }
+            }
+            .foregroundStyle(Color.grey60)
+            .frame(width: 120, height: 36)
+            .contentShape(RoundedRectangle(cornerRadius: 18))
         }
         .buttonStyle(.plain)
         .opacity(0.7)
         .help(Text(isTop ? AppStrings.scrollToTop : AppStrings.scrollToBottom))
         .accessibilityLabel(isTop ? AppStrings.scrollToTop : AppStrings.scrollToBottom)
         .accessibilityIdentifier(isTop ? "scroll-to-top-button" : "scroll-to-bottom-button")
+        .accessibilityValue(!isTop && viewModel.newerMessageCount > 0 ? "\(viewModel.newerMessageCount)" : "")
     }
 
     private var chatFloatingActions: some View {
@@ -1514,11 +1749,21 @@ struct ChatView: View {
 
             Spacer(minLength: .spacing6)
 
+            if showEmbedFullscreen && chatWorkspaceWidth >= 1024 {
+                splitChatHideAction
+            } else {
             chatFloatingAction(icon: "reminder", label: AppStrings.setReminder) {
                 showReminder = true
             }
+            }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var splitChatHideAction: some View {
+        chatFloatingAction(icon: "close", label: AppStrings.close, accessibilityIdentifier: "workspace-hide-chat") {
+            hideSplitChat = true
+        }
     }
 
     private func chatFloatingAction(
@@ -1565,11 +1810,15 @@ struct ChatView: View {
                     copyMessage(message)
                     actionMessage = nil
                 }
+                .accessibilityIdentifier("message-action-copy")
 
                 messageActionRow(icon: "copy", title: AppStrings.forkConversation) {
                     Task { await viewModel.forkFromMessage(message.id) }
                     actionMessage = nil
                 }
+                #if DEBUG
+                .disabled(isolatedHistory)
+                #endif
 
                 messageActionRow(icon: "delete", title: AppStrings.deleteMessage, isDestructive: true) {
                     Task { await viewModel.deleteMessage(message.id) }
@@ -1581,6 +1830,8 @@ struct ChatView: View {
             .background(Color.greyBlue)
             .clipShape(RoundedRectangle(cornerRadius: .radius5))
             .shadow(color: .black.opacity(0.22), radius: 16, x: 0, y: 8)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("message-actions-menu")
         }
     }
 
@@ -1947,46 +2198,22 @@ struct ChatView: View {
                     overlay
                 }
             } actionButtons: {
-                HStack(spacing: .spacing6) {
-                AttachmentPicker(
-                    isPresented: $showAttachmentMenu,
-                    onImageSelected: { data, filename in
-                        enqueueAttachmentUpload(data: data, filename: filename)
-                    },
-                    onFileSelected: { data, filename in
-                        enqueueAttachmentUpload(data: data, filename: filename)
-                    }
-                )
-                .help(Text(AppStrings.attachFiles))
-                .accessibilityLabel(AppStrings.attachFiles)
-                .accessibilityIdentifier("attach-files-button")
-
-                MessageComposerActionIcon(icon: "maps", label: AppStrings.shareLocation) {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        composerOverlay = .location
-                        isInputFocused = false
-                    }
-                }
-
-                MessageComposerActionIcon(icon: "whiteboard", label: AppStrings.sketchAction) {
-                    #if os(iOS)
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        composerOverlay = .sketch
-                        isInputFocused = false
-                    }
-                    #else
-                    ToastManager.shared.show(AppStrings.sketchAction, type: .info)
-                    #endif
-                }
-
-                Spacer()
-
-                #if os(iOS)
-                MessageComposerActionIcon(icon: "camera", label: AppStrings.takePhoto, identifier: "take-photo-button") {
-                    showCameraCapture = true
-                }
-                #endif
-
+                GeometryReader { actionGeometry in
+                    ComposerAttachmentActionRow(viewportWidth: actionGeometry.size.width,
+                        onDrawing: {
+                            #if os(iOS)
+                            withAnimation(.easeInOut(duration: 0.2)) { composerOverlay = .sketch; isInputFocused = false }
+                            #else
+                            ToastManager.shared.show(AppStrings.sketchAction, type: .info)
+                            #endif
+                        },
+                        onLocation: { withAnimation(.easeInOut(duration: 0.2)) { composerOverlay = .location; isInputFocused = false } },
+                        onCamera: {
+                            #if os(iOS)
+                            showCameraCapture = true
+                            #endif
+                        }, onFiles: { showAttachmentMenu = true },
+                        model: { NativeComposerModelHostView(host: modelHost, viewportWidth: actionGeometry.size.width) }, speech: { ComposerSpeechHostView(chatID: chatId, supported: !IncognitoChatSession.isIncognitoChatId(chatId)) }, record: { EmptyView() }, submit: {
                 if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerHasEmbed && !viewModel.isStreaming {
                     recordActionControls
                 } else {
@@ -2001,9 +2228,14 @@ struct ChatView: View {
                     .keyboardShortcut(.return, modifiers: .command)
                     #endif
                 }
-                }
-                .padding(.horizontal, .spacing5)
-                .padding(.bottom, .spacing6)
+                        })
+                        .background {
+                            AttachmentPicker(isPresented: $showAttachmentMenu,
+                                onImageSelected: { data, name in enqueueAttachmentUpload(data: data, filename: name) },
+                                onFileSelected: { data, name in enqueueAttachmentUpload(data: data, filename: name) }, externalFilesOnly: true)
+                        }
+                }.frame(height: 56)
+
             }
             .overlay(alignment: .topTrailing) {
                 if !overlayActive && (isInputFocused || !messageText.isEmpty || composerHasEmbed || isComposerExpanded) {
@@ -2857,7 +3089,12 @@ struct ChatView: View {
             viewModel.error = AppStrings.error
             return
         }
+        guard viewModel.chat?.id == chatId else { return }
+        let sendingOwner = ComposerModelSendOwnership(server: ServerProfile.current().apiBaseURL.absoluteString,
+            accountGeneration: OfflineStore.shared.scopeGeneration, chatID: chatId)
+        let routingGeneration = modelHost.sendGeneration
         messageText = ""
+        let clearedRevision = composerSession.revision
         followsStreamingResponse = true
         viewModel.error = nil
         detectedPIIMatches = []
@@ -2865,21 +3102,36 @@ struct ChatView: View {
         mentionQuery = nil
 
         Task { @MainActor in
+            let routedText: String
+            do {
+                routedText = try await modelHost.textForSend(text, expectedGeneration: routingGeneration)
+                guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
+                    accountGeneration: OfflineStore.shared.scopeGeneration, chatID: viewModel.chat?.id) else { return }
+            }
+            catch {
+                guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
+                    accountGeneration: OfflineStore.shared.scopeGeneration, chatID: viewModel.chat?.id) else { return }
+                viewModel.error = LocalizationManager.shared.text("enter_message.model_selector.unavailable_reset")
+                if composerSession.revision == clearedRevision { messageText = originalText }
+                return
+            }
             await viewModel.sendMessage(
-                text,
+                routedText,
                 piiMappings: piiMappings,
                 excludedPIIOriginals: excludedOriginals,
                 broadcastToSiblings: broadcastToSiblingSubChats,
                 composerEmbeds: composerEmbeds.isEmpty ? nil : composerEmbeds
             )
+            guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
+                accountGeneration: OfflineStore.shared.scopeGeneration, chatID: viewModel.chat?.id) else { return }
             if viewModel.error != nil {
                 stopFollowingStreamingResponse()
-                messageText = originalText
+                if composerSession.revision == clearedRevision { messageText = originalText }
             } else {
                 for nodeID in documentNodeIDs {
                     resolvedComposerEmbeds.removeValue(forKey: nodeID)
                 }
-                try? await DraftService.shared.clearDraft(chatId: chatId)
+                if composerSession.revision == clearedRevision { try? await DraftService.shared.clearDraft(chatId: sendingOwner.chatID) }
             }
         }
     }
@@ -3272,7 +3524,7 @@ enum ChatMessageStreamingRenderPolicy {
         return visibleLines.joined(separator: "\n")
     }
 
-    private static func isInternalProtocolFence(language: String, body: String, isClosed: Bool) -> Bool {
+    static func isInternalProtocolFence(language: String, body: String, isClosed: Bool) -> Bool {
         if language == "interactive_response" || language == "interactive_question" {
             return true
         }
@@ -3376,6 +3628,7 @@ struct MessageBubble: View {
         RichMarkdownView(
             content: displayContent,
             renderDocument: stableRenderDocument,
+            progressiveRequest: progressiveMarkdownRequest,
             isUserMessage: false,
             onOpenPublicChat: onOpenPublicChat,
             embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
@@ -3385,6 +3638,17 @@ struct MessageBubble: View {
             onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil,
             searchHighlightQuery: searchHighlightQuery
         )
+    }
+
+    private var progressiveMarkdownRequest: ProgressiveMarkdownRequest {
+        let raw = streamingContent ?? message.content ?? ""
+        let content = isPIIRevealed && !piiMappings.isEmpty
+            ? PIIDetector.restorePII(in: raw, mappings: piiMappings) : raw
+        return ProgressiveMarkdownRequest(
+            identity: ProgressiveMarkdownIdentity(scopeID: OfflineStore.shared.scopeGeneration.uuidString,
+                chatID: chatId, messageID: message.id),
+            content: content, isStreaming: streamingContent != nil,
+            renderDocument: stableRenderDocument, embedRefs: message.embedRefs ?? [])
     }
 
     private var stableRenderDocument: ChatHistoryRenderDocument? {
@@ -3799,18 +4063,17 @@ struct MessageBubble: View {
                 }
             } else if isSystem {
                 systemContent
-            } else if useStackedLayout {
-                // Web ≤500px: assistant avatar stacked above message
-                VStack(alignment: .leading, spacing: ChatMessageLayoutMetric.stackedAvatarGap) {
-                    assistantAvatar
-                    assistantContent
-                }
             } else {
-                // Desktop: assistant avatar left of message
-                HStack(alignment: .top, spacing: ChatMessageLayoutMetric.rowGap) {
+                // Change only layout at the web breakpoint. Conditional stack
+                // branches destroyed the mounted markdown/citation state when
+                // resizing from a desktop width to a phone width.
+                let layout = useStackedLayout
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: ChatMessageLayoutMetric.stackedAvatarGap))
+                    : AnyLayout(HStackLayout(alignment: .top, spacing: ChatMessageLayoutMetric.rowGap))
+                layout {
                     assistantAvatar
                     assistantContent
-                    Spacer(minLength: ChatMessageLayoutMetric.assistantDesktopReserve)
+                        .padding(.trailing, useStackedLayout ? 0 : ChatMessageLayoutMetric.assistantDesktopReserve)
                 }
             }
         }
@@ -3915,3 +4178,28 @@ private struct SpeechTailView: View {
 
 // MarkdownText and IsUserMessage environment removed — replaced by
 // RichMarkdownView / InlineMarkdownText in RichMarkdownRenderer.swift
+
+#if DEBUG
+/// Counts only, enabled explicitly by the real-account test. The test still
+/// asserts rendered user/assistant text; this additional evidence distinguishes
+/// a cached reply from the server-acknowledged encrypted completion.
+private struct ChatRecoveryStateProbe: View {
+    @ObservedObject var store: ChatStore
+    let chatId: String
+
+    var body: some View {
+        let pending = store.pendingAssistantRecoveryMessageIds(in: chatId).count
+        let version = store.chat(for: chatId)?.messagesV ?? 0
+        let encrypted = store.messages(for: chatId).filter {
+            $0.role == .assistant && !($0.encryptedContent?.isEmpty ?? true)
+        }.count
+        Color.clear
+            .frame(width: 1, height: 1)
+            .accessibilityElement()
+            .accessibilityLabel("Chat recovery state")
+            .accessibilityValue("pending=\(pending);version=\(version);encrypted=\(encrypted)")
+            .accessibilityIdentifier("chat-recovery-state")
+            .allowsHitTesting(false)
+    }
+}
+#endif

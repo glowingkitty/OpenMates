@@ -1,5 +1,5 @@
 # contract-test-file: tooling
-"""Tests for Claude Code, Codex, and OpenCode tooling parity audits.
+"""Tests for Claude Code and Codex tooling parity audits.
 
 Purpose: make shared safety hook coverage reproducible from tracked files rather
 than from ignored local Claude settings or implicit bridge behavior.
@@ -153,13 +153,6 @@ def test_codex_bridge_narrowed_matcher_fails(tmp_path: Path) -> None:
     issues = audit.audit(tmp_path)
 
     assert any("Codex bridge missing shared hook: e2e-encryption-guard.sh" in issue.message for issue in issues)
-
-
-def test_no_opencode_setup_required(tmp_path: Path) -> None:
-    audit = load_audit_module()
-    write_valid_fixture(tmp_path)
-    assert not (tmp_path / ".opencode").exists()
-    assert audit.audit(tmp_path) == []
 
 
 def test_quickstart_missing_required_links_fails(tmp_path: Path) -> None:

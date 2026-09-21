@@ -72,6 +72,10 @@ def _workflow_scope_for_request(method: str, path: str) -> str:
         return "workflow:read"
     if method_upper == "POST" and path.rstrip("/") == "/v1/workflows":
         return "workflow:create"
+    if method_upper == "DELETE" and "/runs/" in path:
+        return "workflow:write"
+    if method_upper == "POST" and "/steps/" in path and path.endswith("/preview"):
+        return "workflow:read"
     if any(part in path for part in WORKFLOW_EXECUTION_PATH_PARTS):
         return "workflow:execute"
     return "workflow:write"

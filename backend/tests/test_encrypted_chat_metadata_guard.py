@@ -7,6 +7,7 @@ chat key; the server must fail closed before anything is persisted.
 """
 
 import asyncio
+from pathlib import Path
 import sys
 import types
 from types import SimpleNamespace
@@ -21,6 +22,13 @@ directus_module = types.ModuleType("backend.core.api.app.services.directus.direc
 directus_module.DirectusService = object
 sys.modules.setdefault("backend.core.api.app.services.directus", directus_package)
 sys.modules.setdefault("backend.core.api.app.services.directus.directus", directus_module)
+team_methods_module = types.ModuleType(
+    "backend.core.api.app.services.directus.team_methods"
+)
+team_methods_module.hash_id = lambda value: f"hashed-{value}"
+sys.modules.setdefault(
+    "backend.core.api.app.services.directus.team_methods", team_methods_module
+)
 
 encryption_module = types.ModuleType("backend.core.api.app.utils.encryption")
 encryption_module.EncryptionService = object
@@ -36,7 +44,7 @@ sys.modules.setdefault(
 
 if "backend.core.api.app.tasks.celery_config" not in sys.modules:
     tasks_module = types.ModuleType("backend.core.api.app.tasks")
-    tasks_module.__path__ = []
+    tasks_module.__path__ = [str(Path(__file__).resolve().parents[1] / "core/api/app/tasks")]
     celery_config_module = types.ModuleType("backend.core.api.app.tasks.celery_config")
     celery_config_module.app = SimpleNamespace(send_task=lambda *args, **kwargs: None)
     sys.modules["backend.core.api.app.tasks"] = tasks_module
@@ -172,6 +180,53 @@ def test_incomplete_initial_chat_metadata_rejects_entire_payload(monkeypatch):
 # contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
 def test_explicit_chat_key_rotation_is_broadcast_with_rotation_flag(monkeypatch):
     asyncio.run(_run_explicit_chat_key_rotation_is_broadcast_with_rotation_flag(monkeypatch))
+
+
+# contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
+def test_key_only_new_chat_shell_stays_empty_for_deferred_audio_send(monkeypatch):
+    asyncio.run(_run_key_only_new_chat_shell_stays_empty_for_deferred_audio_send(monkeypatch))
+
+
+async def _run_key_only_new_chat_shell_stays_empty_for_deferred_audio_send(monkeypatch):
+    persisted_payloads: list[dict] = []
+
+    async def fake_persist(
+        chat_id: str,
+        encrypted_metadata: dict,
+        task_id: str,
+        hashed_user_id: str,
+        user_id: str,
+        hashed_team_id: str | None = None,
+    ) -> bool:
+        persisted_payloads.append(dict(encrypted_metadata))
+        return True
+
+    monkeypatch.setattr(
+        _handler_module(),
+        "_async_persist_encrypted_chat_metadata",
+        fake_persist,
+    )
+
+    await _handle_encrypted_chat_metadata(
+        websocket=None,
+        manager=FakeManager(),
+        cache_service=FakeNewChatCacheService(),
+        directus_service=FakeNewChatDirectusService(),
+        encryption_service=None,
+        user_id="user-123",
+        user_id_hash="user-hash-123",
+        device_fingerprint_hash="device-123",
+        payload={
+            "chat_id": "new-audio-chat",
+            "encrypted_chat_key": "encrypted-chat-key",
+            "created_at": 1_778_686_000,
+            "versions": {},
+        },
+    )
+
+    assert len(persisted_payloads) == 1
+    assert persisted_payloads[0]["messages_v"] == 0
+    assert "last_message_timestamp" not in persisted_payloads[0]
 
 
 # contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted

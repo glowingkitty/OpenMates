@@ -15,10 +15,6 @@
         <mj-text font-size="14px" align="center" color="#aaaaaa" padding-bottom="20px">
           Last 24 hours, generated {{ generated_at }} UTC
         </mj-text>
-        <mj-text font-size="13px" color="#aaaaaa" padding-bottom="20px">
-          OpenCode handoff prompt: <code>{{ opencode_prompt_path }}</code>
-        </mj-text>
-
         <mj-text font-size="18px" font-weight="bold" padding-bottom="8px">Production errors</mj-text>
         {% if prod_top_errors %}
         {% for row in prod_top_errors %}

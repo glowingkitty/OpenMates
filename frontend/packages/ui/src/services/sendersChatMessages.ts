@@ -200,6 +200,24 @@ export function isPreflightAcknowledgementTimeout(error: unknown): boolean {
 	return error instanceof Error && error.message === CHAT_PREFLIGHT_TIMEOUT_MESSAGE;
 }
 
+export async function resolveHistoryCategoryForInference(
+	message: Message,
+	isIncognito: boolean,
+	decryptCategory?: (encryptedCategory: string) => Promise<string | null>
+): Promise<string | undefined> {
+	if (message.role !== "assistant") return undefined;
+	if (typeof message.category === "string" && message.category.length > 0) {
+		return message.category;
+	}
+	if (isIncognito || !message.encrypted_category || !decryptCategory) return undefined;
+
+	try {
+		return (await decryptCategory(message.encrypted_category)) || undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 export function buildTeamMessageTransport(params: {
 	message: Message;
 	content: string;
@@ -969,6 +987,8 @@ export async function sendNewMessageImpl(
 			model_name?: string;
 			chat_has_title?: boolean;
 			current_chat_title?: string | null; // OPE-265: Decrypted title for post-processing title update evaluation
+			current_chat_summary?: string | null; // Decrypted only for this request's bounded preprocessing context
+			current_chat_summary_v?: number;
 			current_chat_title_v?: number;
 			current_chat_metadata_v?: number;
 			auto_speak_response?: boolean;
@@ -1112,17 +1132,42 @@ export async function sendNewMessageImpl(
 		}
 	}
 
+	// The summary is already client-encrypted at rest. Send its plaintext only in this
+	// authorized inference request so preprocessing can avoid replaying the full chat.
+	if (!isIncognitoChat && chat?.encrypted_chat_summary) {
+		try {
+			const chatKey = await chatKeyManager.getKey(message.chat_id);
+			if (chatKey) {
+				const currentSummary = await decryptWithChatKey(
+					chat.encrypted_chat_summary,
+					chatKey
+				);
+				if (currentSummary) {
+					payload.message.current_chat_summary = currentSummary;
+					payload.message.current_chat_summary_v = chat.metadata_v ?? chat.title_v ?? 0;
+				}
+			}
+		} catch (e) {
+			console.warn(
+				"[ChatSyncService:Senders] Failed to decrypt chat summary for bounded preprocessing:",
+				e
+			);
+		}
+	}
+
 	// For incognito chats, include full message history (no server-side caching)
 	if (isIncognitoChat && messageHistory.length > 0) {
-		payload.message_history = messageHistory.map(
-			(msg) =>
+		payload.message_history = await Promise.all(
+			messageHistory.map(async (msg) =>
 				({
 					message_id: msg.message_id,
 					role: msg.role,
 					content: getHistoryContentForServer(msg),
 					created_at: msg.created_at,
-					sender_name: msg.sender_name
+					sender_name: msg.sender_name,
+					category: await resolveHistoryCategoryForInference(msg, true)
 				}) as Message
+			)
 		);
 		console.debug(
 			`[ChatSyncService:Senders] Including full message history for incognito chat: ${messageHistory.length} messages`
@@ -1133,8 +1178,17 @@ export async function sendNewMessageImpl(
 	// original inference request. This lets the server rebuild a cold AI cache
 	// without asking the client to resend after preflight has committed the user row.
 	if (!isIncognitoChat && messageHistory.length > 0) {
-		payload.message_history = messageHistory.map(
-			(msg) =>
+		let historyChatKey: Uint8Array | null = null;
+		try {
+			historyChatKey = await chatKeyManager.getKey(message.chat_id);
+		} catch (error) {
+			console.warn(
+				"[ChatSyncService:Senders] Failed to load chat key for history categories:",
+				error
+			);
+		}
+		payload.message_history = await Promise.all(
+			messageHistory.map(async (msg) =>
 				({
 					message_id: msg.message_id,
 					chat_id: message.chat_id,
@@ -1146,8 +1200,16 @@ export async function sendNewMessageImpl(
 					encrypted_model_name: msg.encrypted_model_name,
 					encrypted_pii_mappings: msg.encrypted_pii_mappings,
 					created_at: msg.created_at,
-					sender_name: msg.sender_name
+					sender_name: msg.sender_name,
+					category: await resolveHistoryCategoryForInference(
+						msg,
+						false,
+						historyChatKey
+							? (encryptedCategory) => decryptWithChatKey(encryptedCategory, historyChatKey)
+							: undefined
+					)
 				}) as Message
+			)
 		);
 
 		console.info(

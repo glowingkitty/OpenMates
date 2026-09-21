@@ -7,6 +7,7 @@
 -->
 
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { text } from '../../i18n/translations';
   import WorkflowGraphRenderer from './WorkflowGraphRenderer.svelte';
   import {
@@ -21,8 +22,10 @@
     disabled = false,
     onRequestNavigation,
     onRestored,
+    children,
   }: {
     workflow: WorkflowDetail;
+    children: Snippet;
     disabled?: boolean;
     onRequestNavigation: (action: () => void | Promise<void>) => void;
     onRestored: (workflow: WorkflowDetail) => void | Promise<void>;
@@ -32,7 +35,7 @@
   let currentVersionId = $state<string | null>(null);
   let selectedVersionId = $state<string | null>(null);
   let inspectedGraph = $state<WorkflowGraph | null>(null);
-  let maxVersions = $state<number | null>(null);
+  let expanded = $state(false);
   let loading = $state(true);
   let inspecting = $state(false);
   let restoring = $state(false);
@@ -46,7 +49,8 @@
 
   $effect(() => {
     const workflowId = workflow.id;
-    void loadHistory(workflowId, workflow.graph);
+    if (workflow.version > 1) void loadHistory(workflowId, workflow.graph);
+    else { versions = []; loading = false; inspectedGraph = null; selectedVersionId = null; }
   });
 
   async function loadHistory(workflowId: string, currentGraph: WorkflowGraph) {
@@ -57,13 +61,14 @@
       if (workflow.id !== workflowId) return;
       versions = history.versions;
       currentVersionId = history.current_version_id;
-      maxVersions = history.retention.max_versions;
+
       selectedVersionId = history.current_version_id;
       inspectedGraph = currentGraph;
       restoreConfirmationVersionId = null;
     } catch (error) {
       if (workflow.id !== workflowId) return;
-      errorMessage = error instanceof Error ? error.message : $text('workflows.version_history.load_failed');
+      console.error('[WorkflowVersions] Failed to load history', error);
+      errorMessage = $text('workflows.version_history.load_failed');
     } finally {
       if (workflow.id === workflowId) loading = false;
     }
@@ -88,7 +93,8 @@
     } catch (error) {
       if (selectedVersionId === version.version_id) {
         inspectedGraph = null;
-        errorMessage = error instanceof Error ? error.message : $text('workflows.version_history.inspect_failed');
+        console.error('[WorkflowVersions] Failed to inspect version', error);
+        errorMessage = $text('workflows.version_history.inspect_failed');
       }
     } finally {
       if (request === inspectionRequest) inspecting = false;
@@ -117,7 +123,8 @@
       restoredMessage = $text('workflows.version_history.restore_success', { values: { version: versionNumber } });
       await loadHistory(workflow.id, restoredWorkflow.graph);
     } catch (error) {
-      errorMessage = error instanceof Error ? error.message : $text('workflows.version_history.restore_failed');
+      console.error('[WorkflowVersions] Failed to restore version', error);
+      errorMessage = $text('workflows.version_history.restore_failed');
     } finally {
       restoring = false;
     }
@@ -136,64 +143,27 @@
   function ignoreGraphChange(_graph: WorkflowGraph): void {}
 </script>
 
+{#if workflow.version > 1}
 <section class="version-history" data-testid="workflow-version-history" aria-label={$text('workflows.version_history.title')}>
-  <div class="history-heading">
-    <div>
-      <h2>{$text('workflows.version_history.title')}</h2>
-      <p data-testid="workflow-version-history-retention">
-        {maxVersions
-          ? $text('workflows.version_history.retention', { values: { max: maxVersions } })
-          : $text('workflows.version_history.retention_loading')}
-      </p>
-    </div>
-  </div>
-
-  {#if loading}
-    <p data-testid="workflow-version-history-loading">{$text('workflows.version_history.loading')}</p>
-  {:else if versions.length === 0}
-    <p data-testid="workflow-version-history-empty">{$text('workflows.version_history.empty')}</p>
-  {:else}
-    <div class="version-selector" data-testid="workflow-version-selector" aria-label="Selected Workflow version">
-      {selectedVersion ? formatVersionDate(selectedVersion.created_at) : $text('workflows.version_history.title')}
-      <span aria-hidden="true">⌄</span>
-    </div>
-    <div class="version-list" role="list" data-testid="workflow-version-timeline">
+  <button type="button" class="version-selector" data-testid="workflow-version-selector" aria-expanded={expanded} onclick={() => (expanded = !expanded)}>
+    <span>{$text('workflows.version_history.version', { values: { version: selectedVersion?.version_number ?? workflow.version } })}:</span>
+    <span>{formatVersionDate(selectedVersion?.created_at ?? workflow.updated_at)}</span>
+    <span aria-hidden="true">{expanded ? '⌃' : '⌄'}</span>
+  </button>
+  {#if expanded}
+    {#if loading}<p data-testid="workflow-version-history-loading">{$text('workflows.version_history.loading')}</p>{/if}
+    <div class="version-list" data-testid="workflow-version-timeline" aria-label={$text('workflows.version_history.title')}>
       {#each versions as version (version.version_id)}
-        <button
-          type="button"
-          class:selected={selectedVersionId === version.version_id}
-          class:current={version.current}
-          data-testid="workflow-version-row"
-          data-current={version.current ? 'true' : 'false'}
-          data-version-number={version.version_number}
-          disabled={restoring}
-          onclick={() => requestVersionInspection(version)}
-        >
+        <button type="button" class:selected={selectedVersionId === version.version_id} class:current={version.current}
+          aria-pressed={selectedVersionId === version.version_id} data-testid="workflow-version-row" data-current={version.current ? 'true' : 'false'}
+          data-version-number={version.version_number} disabled={restoring} onclick={() => requestVersionInspection(version)}>
           <span class="version-label">{$text('workflows.version_history.version', { values: { version: version.version_number } })}</span>
           <span>{formatVersionDate(version.created_at)}</span>
-          {#if version.current}<span class="current-marker">Active</span>{/if}
-          {#if version.restored_from_version_id}<span>{$text('workflows.version_history.restored')}</span>{/if}
+          {#if version.current}<span class="current-marker">{$text('workflows.version_history.current')}</span>{/if}
         </button>
       {/each}
     </div>
-
-    <section class="graph-inspection" data-testid="workflow-version-graph-inspection" data-read-only="true" aria-live="polite">
-      {#if inspecting}
-        <p data-testid="workflow-version-inspection-loading">{$text('workflows.version_history.inspecting')}</p>
-      {:else if selectedVersion && inspectedGraph}
-        <div class="inspection-heading">
-          <h3>{$text('workflows.version_history.inspecting_version', { values: { version: selectedVersion.version_number } })}</h3>
-          <span>{inspectedGraph.nodes.length} {$text('workflows.version_history.nodes')}</span>
-        </div>
-        <div class="inspection-node-count" data-testid="workflow-version-inspection-nodes" aria-hidden="true">
-          {#each inspectedGraph.nodes as node (node.id)}
-            <span data-testid="workflow-version-inspection-node">{node.title ?? node.type}</span>
-          {/each}
-        </div>
-        <WorkflowGraphRenderer graph={inspectedGraph} readOnly testId="workflow-version-graph" onChange={ignoreGraphChange} />
-      {/if}
-    </section>
-
+  {/if}
     {#if canRestoreSelected}
       {#if restoreConfirmationVersionId === selectedVersion?.version_id}
         <div class="restore-confirmation" data-testid="workflow-version-restore-confirmation">
@@ -209,7 +179,6 @@
         </button>
       {/if}
     {/if}
-  {/if}
 
   {#if restoredMessage}
     <p class="success-message" role="status" data-testid="workflow-version-restored">{restoredMessage}</p>
@@ -218,126 +187,45 @@
     <p class="error-message" role="alert" data-testid="workflow-version-error">{errorMessage}</p>
   {/if}
 </section>
+{/if}
+
+{#if inspecting || (selectedVersion && !selectedVersion.current)}
+    <section class="graph-inspection" data-testid="workflow-version-graph-inspection" data-read-only="true" aria-live="polite">
+      {#if inspecting}
+        <p data-testid="workflow-version-inspection-loading">{$text('workflows.version_history.inspecting')}</p>
+      {:else if selectedVersion && !selectedVersion.current && inspectedGraph}
+        <div class="inspection-heading">
+          <h3>{$text('workflows.version_history.inspecting_version', { values: { version: selectedVersion.version_number } })}</h3>
+          <span>{inspectedGraph.nodes.length} {$text('workflows.version_history.nodes')}</span>
+        </div>
+        <div class="inspection-node-count" data-testid="workflow-version-inspection-nodes" aria-hidden="true">
+          {#each inspectedGraph.nodes as node (node.id)}
+            <span data-testid="workflow-version-inspection-node">{node.title ?? node.type}</span>
+          {/each}
+        </div>
+        <WorkflowGraphRenderer graph={inspectedGraph} readOnly testId="workflow-version-graph" onChange={ignoreGraphChange} onSave={null} />
+      {/if}
+    </section>
+
+
+{:else}
+  {@render children()}
+{/if}
 
 <style>
-  .version-history {
-    display: grid;
-    gap: var(--spacing-5);
-    margin-block: var(--spacing-8);
-    padding: var(--spacing-6);
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-8);
-    background: var(--color-grey-0);
-  }
-
-  .history-heading,
-  .inspection-heading,
-  .version-list button,
-  .restore-confirmation {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--spacing-4);
-  }
-
-  h2,
-  h3,
-  p {
-    margin: 0;
-  }
-
-  h2 { font-size: var(--font-size-h4); }
-  h3 { font-size: var(--font-size-p); }
-
-  .history-heading p,
-  .inspection-heading span,
-  .version-list button span:not(.version-label),
-  .restore-confirmation p {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-small);
-  }
-
-  .version-list {
-    position: relative;
-    display: flex;
-    gap: var(--spacing-4);
-    overflow-x: auto;
-    padding: var(--spacing-6) var(--spacing-2) var(--spacing-3);
-    scrollbar-width: thin;
-  }
-
-  .version-list::before { content: ''; position: absolute; inset: 31px var(--spacing-5) auto; height: 2px; background: var(--color-grey-30); }
-
-  .version-list button {
-    position: relative;
-    z-index: 1;
-    flex: 0 0 190px;
-    border: 1px solid transparent;
-    border-radius: var(--radius-4);
-    padding: var(--spacing-4);
-    color: var(--color-font-primary);
-    background: var(--color-grey-10);
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .version-list button:hover,
-  .version-list button.selected {
-    border-color: var(--color-button-primary);
-    background: color-mix(in srgb, var(--color-button-primary) 8%, var(--color-grey-0));
-  }
-
-  .version-label { font-weight: 800; }
-  .current-marker { color: var(--color-button-primary) !important; font-weight: 700; }
-
-  .version-selector {
-    justify-self: center;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    border: 0;
-    border-radius: var(--radius-full);
-    padding: var(--spacing-3) var(--spacing-5);
-    color: var(--color-font-primary);
-    background: var(--color-grey-20);
-    font: inherit;
-    font-weight: 700;
-  }
-
-  .graph-inspection,
-  .restore-confirmation {
-    display: grid;
-    gap: var(--spacing-4);
-    padding: var(--spacing-4);
-    border-radius: var(--radius-4);
-    background: var(--color-grey-10);
-  }
-
-  .inspection-node-count { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-
-  .restore-action,
-  .restore-confirmation button {
-    width: fit-content;
-    border: 0;
-    border-radius: var(--radius-4);
-    padding: var(--spacing-4) var(--spacing-5);
-    color: var(--color-font-button);
-    background: var(--color-button-primary);
-    font: inherit;
-    font-weight: 700;
-    cursor: pointer;
-  }
-
-  .restore-confirmation .secondary {
-    color: var(--color-font-primary);
-    background: var(--color-grey-20);
-  }
-
-  .error-message { color: var(--color-danger); }
-  .success-message { color: var(--color-success, #067647); }
-
-  @media (max-width: 600px) {
-    .version-list button,
-    .restore-confirmation { align-items: flex-start; flex-direction: column; }
-  }
+  .version-history button { height:auto; min-width:0; margin:0; filter:none; }
+  .version-history { display:grid; gap:var(--spacing-3); margin:0 auto var(--spacing-6); width:100%; font-size:var(--font-size-p); }
+  .version-selector { justify-self:center; display:flex; flex-wrap:wrap; justify-content:center; max-width:calc(100% - 2rem); align-items:center; gap:var(--spacing-2); border:0; border-radius:var(--radius-full); padding:var(--spacing-2) var(--spacing-4); color:var(--color-font-secondary); background:var(--color-grey-10); font:inherit; font-weight:700; cursor:pointer; }
+  .version-list { position:relative; display:flex; justify-content:safe center; gap:var(--spacing-4); overflow-x:auto; padding:var(--spacing-3) var(--spacing-4) var(--spacing-6); scrollbar-width:thin; background:var(--color-grey-10); }
+  .version-list::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1rem; background:repeating-linear-gradient(to right,transparent 0,transparent 7px,var(--color-grey-30) 7px,var(--color-grey-30) 8px); pointer-events:none; }
+  .version-list button { flex:0 0 10rem; display:grid; gap:var(--spacing-1); position:relative; padding:var(--spacing-2); border:0; background:transparent; color:var(--color-font-secondary); font:inherit; font-size:var(--font-size-small); text-align:center; cursor:pointer; }
+  .version-list button::after { content:''; position:absolute; bottom:-1.3rem; left:50%; height:1.1rem; width:2px; background:var(--color-font-secondary); z-index:1; }
+  .version-list button.selected,.current-marker { color:var(--color-primary); } .version-list button.selected::after { background:var(--color-primary); }
+  .version-label { font-weight:700; } p,h3 { margin:0; } h3 { font-size:var(--font-size-p); }
+  .graph-inspection { display:grid; gap:var(--spacing-4); } .inspection-heading { display:flex; justify-content:center; gap:var(--spacing-4); color:var(--color-font-secondary); font-size:var(--font-size-small); }
+  .inspection-node-count { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  .restore-action,.restore-confirmation button { justify-self:center; width:fit-content; border:0; border-radius:var(--radius-full); padding:var(--spacing-3) var(--spacing-5); background:var(--color-button-primary); color:var(--color-font-button); font:inherit; cursor:pointer; }
+  .restore-confirmation { display:flex; justify-content:center; flex-wrap:wrap; gap:var(--spacing-3); font-size:var(--font-size-p); } .restore-confirmation p { flex-basis:100%; text-align:center; } .restore-confirmation .secondary { background:var(--color-grey-20); color:var(--color-font-primary); }
+  .error-message { color:var(--color-error); } .success-message { color:var(--color-primary); }
+  button:focus-visible { outline:2px solid var(--color-primary); outline-offset:2px; } button:disabled { opacity:.5; cursor:default; }
 </style>

@@ -231,6 +231,7 @@ async def observe_ai_stream(
     """Trace one provider stream, including time to its first yielded chunk."""
     started_at = monotonic()
     first_chunk = True
+    first_text = True
     with ai_phase_span(phase) as span:
         if provider_purpose is not None:
             if phase != "provider" or provider_purpose not in AI_PROVIDER_PURPOSES:
@@ -241,6 +242,12 @@ async def observe_ai_stream(
                 if first_chunk:
                     span.set_attribute("ai.ttft_ms", (monotonic() - started_at) * 1000)
                     first_chunk = False
+                if first_text and isinstance(item, str) and item:
+                    span.set_attribute(
+                        "ai.first_text_ms",
+                        (monotonic() - started_at) * 1000,
+                    )
+                    first_text = False
                 yield item
         finally:
             span.set_attribute("ai.stream_duration_ms", (monotonic() - started_at) * 1000)

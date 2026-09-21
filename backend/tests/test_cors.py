@@ -102,19 +102,18 @@ def test_apply_cors_settings_exposes_media_range_headers(monkeypatch) -> None:
     apply_cors_settings(
         s3_client,
         bucket_names=[
-            "openmates-opencode-response-media",
-            "dev-openmates-opencode-response-media",
+            "openmates-review-media",
+            "dev-openmates-review-media",
         ],
     )
 
     assert len(s3_client.cors_calls) == 1
-    assert s3_client.cors_calls[0]["Bucket"] == "dev-openmates-opencode-response-media"
+    assert s3_client.cors_calls[0]["Bucket"] == "dev-openmates-review-media"
 
     cors_rule = s3_client.cors_calls[0]["CORSConfiguration"]["CORSRules"][0]
     exposed_headers = set(cors_rule["ExposeHeaders"])
 
     assert cors_rule["AllowedMethods"] == ["GET", "HEAD"]
-    assert "https://code.dev.openmates.org" in cors_rule["AllowedOrigins"]
     assert {
         "Accept-Ranges",
         "Content-Length",

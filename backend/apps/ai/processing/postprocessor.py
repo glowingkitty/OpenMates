@@ -8,12 +8,14 @@
 # to inline deep links in the main AI response. See docs/architecture/app-skills.md.
 
 import copy
+import json
 import logging
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 import datetime
 
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult, resolve_fallback_servers_from_provider_config
+from backend.apps.ai.utils.utility_model_fallbacks import utility_model_fallbacks
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
@@ -36,13 +38,14 @@ from backend.shared.python_utils.learning_mode import (
 logger = logging.getLogger(__name__)
 
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
+POSTPROCESSING_MODEL_ID = "google/gemini-3.5-flash-lite"
 
 
 def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
-    """Prefer a non-Mistral utility fallback when direct Mistral is degraded."""
-    return [DEEPSEEK_V4_FLASH_FALLBACK] + [
+    """Keep same-model server recovery first, then add a cross-provider fallback."""
+    return [
         fallback for fallback in fallbacks if fallback != DEEPSEEK_V4_FLASH_FALLBACK
-    ]
+    ] + [DEEPSEEK_V4_FLASH_FALLBACK]
 
 
 def extract_available_skills(
@@ -178,6 +181,7 @@ class PostProcessingResult(BaseModel):
     harmful_response: float = Field(default=0.0, description="Score 0-10 for harmful response detection")
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
     chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
+    chat_tags: List[str] = Field(default_factory=list, description="Up to 10 search and categorization tags for the completed conversation")
     share_cta_text: Optional[str] = Field(None, description="Short call-to-open text for shared chat previews and OG images")
     # Updated chat title: only set when the conversation has evolved significantly beyond the original title.
     # None means the current title still fits. See OPE-265 for feature context.
@@ -206,7 +210,7 @@ async def handle_postprocessing(
     task_id: str,
     user_message: str,
     assistant_response: str,
-    chat_summary: str,
+    chat_summary: Optional[str],
     chat_tags: List[str],
     message_history: List[Dict[str, Any]],
     base_instructions: Dict[str, Any],
@@ -234,8 +238,8 @@ async def handle_postprocessing(
         task_id: Task ID for logging
         user_message: Last user message content
         assistant_response: Last assistant response content
-        chat_summary: Chat summary from preprocessing (based on full chat history)
-        chat_tags: Chat tags from preprocessing (topics, technologies, concepts discussed)
+        chat_summary: Optional prior summary for rollback compatibility. The postprocessor generates the new summary.
+        chat_tags: Optional prior tags; the postprocessor generates the new tags.
         message_history: Full chat message history (list of dicts with role/content),
             truncated to 120k token budget. Used for generating accurate updated summaries.
         base_instructions: Base instructions from yml
@@ -370,6 +374,7 @@ async def handle_postprocessing(
     language_lines.extend([
         f"- **new_chat_app_skill_suggestions** and **new_chat_general_suggestions**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **chat_summary**: Generate in '{user_system_language}' (the user's system/UI language).",
+        f"- **chat_tags**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **share_cta_text**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **updated_chat_title**: Generate in '{user_system_language}' (the user's system/UI language), if needed.",
     ])
@@ -439,14 +444,15 @@ async def handle_postprocessing(
     )
     messages.append({"role": "user", "content": combined_context})
 
-    # Use same model as preprocessing (Mistral Small) for consistency
-    model_id = "mistral/mistral-small-2506"
+    # Use the low-latency utility model for optional metadata. Keeping this
+    # post-answer call fast prevents CLI/task completion from waiting on a slow
+    # Mistral fallback chain after the assistant answer is already available.
+    model_id = POSTPROCESSING_MODEL_ID
 
-    # Resolve fallback providers from the model's provider config (e.g. openrouter)
-    # so that post-processing is resilient to Mistral API timeouts/outages,
-    # the same way the preprocessor handles fallbacks.
-    postprocess_fallbacks = _with_deepseek_utility_fallback(
-        resolve_fallback_servers_from_provider_config(model_id)
+    # Use independent Mistral recovery before the alternate Google server, with
+    # the same deadline and attempt count as foreground routing.
+    postprocess_fallbacks = utility_model_fallbacks(
+        model_id, resolve_fallback_servers_from_provider_config(model_id)
     )
 
     # Call the LLM with function calling
@@ -541,6 +547,22 @@ async def handle_postprocessing(
         logger.warning(f"[Task ID: {task_id}] [PostProcessor] chat_summary missing or empty from post-processing LLM. Will fall back to preprocessing summary.")
         postproc_chat_summary = None
 
+    raw_chat_tags = llm_result.arguments.get("chat_tags", [])
+    postproc_chat_tags: List[str] = []
+    if isinstance(raw_chat_tags, list):
+        seen_chat_tags: set[str] = set()
+        for raw_tag in raw_chat_tags:
+            if not isinstance(raw_tag, str):
+                continue
+            tag = raw_tag.strip()
+            tag_key = tag.casefold()
+            if not tag or tag_key in seen_chat_tags:
+                continue
+            seen_chat_tags.add(tag_key)
+            postproc_chat_tags.append(tag)
+            if len(postproc_chat_tags) == 10:
+                break
+
     raw_share_cta_text = llm_result.arguments.get("share_cta_text")
     share_cta_text = raw_share_cta_text.strip() if isinstance(raw_share_cta_text, str) else None
     if share_cta_text:
@@ -568,49 +590,21 @@ async def handle_postprocessing(
     else:
         postproc_updated_title = None
 
-    # Translate the chat summary into the user's system/UI language. This mirrors the
-    # translate_new_chat_suggestions pattern: an isolated call with no conversation context
-    # avoids language bleed reliably.
-    # The system prompt already instructs the LLM to use user_system_language, but that
-    # instruction is frequently overridden when the entire conversation history is in a
-    # foreign language. The post-hoc translation call is the reliable enforcement layer.
-    if postproc_chat_summary:
-        logger.info(
-            f"[Task ID: {task_id}] [PostProcessor] Ensuring chat summary is in "
-            f"UI language '{user_system_language}'."
-        )
-        postproc_chat_summary = await translate_chat_summary(
-            task_id=task_id,
-            summary=postproc_chat_summary,
-            target_language=user_system_language,
-            secrets_manager=secrets_manager,
-        )
-
-    if share_cta_text:
-        logger.info(
-            f"[Task ID: {task_id}] [PostProcessor] Ensuring share_cta_text is in "
-            f"UI language '{user_system_language}'."
-        )
-        share_cta_text = await translate_chat_summary(
-            task_id=task_id,
-            summary=share_cta_text,
-            target_language=user_system_language,
-            secrets_manager=secrets_manager,
-        )
-
-    # Translate the updated title into the user's system/UI language (same pattern as chat_summary).
-    # Reuses translate_chat_summary since it's the same isolated translation pattern.
-    if postproc_updated_title:
-        logger.info(
-            f"[Task ID: {task_id}] [PostProcessor] Ensuring updated_chat_title is in "
-            f"UI language '{user_system_language}'"
-        )
-        postproc_updated_title = await translate_chat_summary(
-            task_id=task_id,
-            summary=postproc_updated_title,
-            target_language=user_system_language,
-            secrets_manager=secrets_manager,
-        )
+    # Enforce the UI language in one isolated request. This preserves the reliable
+    # language-bleed guard while avoiding three or four sequential translation calls.
+    translated_metadata = await translate_postprocessing_metadata(
+        task_id=task_id,
+        chat_summary=postproc_chat_summary,
+        share_cta_text=share_cta_text,
+        updated_chat_title=postproc_updated_title,
+        new_chat_suggestions=sanitized_new_chat,
+        target_language=user_system_language,
+        secrets_manager=secrets_manager,
+    )
+    postproc_chat_summary = translated_metadata["chat_summary"]
+    share_cta_text = translated_metadata["share_cta_text"]
+    postproc_updated_title = translated_metadata["updated_chat_title"]
+    translated_new_chat_suggestions = translated_metadata["new_chat_suggestions"]
 
     # Parse and validate daily inspiration topic suggestions
     # These are short topic phrases (English, 2-5 words) capturing user interests from the conversation.
@@ -648,34 +642,13 @@ async def handle_postprocessing(
             )
             quick_tip_slugs = [sanitized_quick_tip_slug] if sanitized_quick_tip_slug else []
 
-    # Translate new chat suggestions into the user's system/UI language.
-    #
-    # Why: The main postprocessor call sees the full conversation history (potentially in any
-    # language). Even with explicit language instructions, the model frequently "bleeds" the
-    # conversation language into new_chat_request_suggestions. A separate isolated translation
-    # call with no conversation context is far more reliable.
-    #
-    # Follow-up suggestions are intentionally NOT translated here — they should remain in the
-    # conversation language (a French chat should show French follow-ups).
-    #
-    # Note: The sanitized_new_chat list is used here (not raw LLM output) so that the
-    # translated suggestions are already free of hidden routing syntax before translation.
-    if sanitized_new_chat:
-        translated_new_chat_suggestions = await translate_new_chat_suggestions(
-            task_id=task_id,
-            suggestions=sanitized_new_chat,
-            target_language=user_system_language,
-            secrets_manager=secrets_manager,
-        )
-    else:
-        translated_new_chat_suggestions = sanitized_new_chat
-
     result = PostProcessingResult(
         follow_up_request_suggestions=sanitized_follow_up,
         new_chat_request_suggestions=translated_new_chat_suggestions,
         harmful_response=llm_result.arguments.get("harmful_response", 0.0),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
+        chat_tags=postproc_chat_tags,
         share_cta_text=share_cta_text,
         updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)
         daily_inspiration_topic_suggestions=validated_topic_suggestions,
@@ -714,6 +687,138 @@ async def handle_postprocessing(
     )
 
     return result
+
+
+async def translate_postprocessing_metadata(
+    task_id: str,
+    chat_summary: Optional[str],
+    share_cta_text: Optional[str],
+    updated_chat_title: Optional[str],
+    new_chat_suggestions: List[str],
+    target_language: str,
+    secrets_manager: SecretsManager,
+) -> Dict[str, Any]:
+    """Translate all UI-language metadata in one bounded provider request."""
+    original: Dict[str, Any] = {
+        "chat_summary": chat_summary,
+        "share_cta_text": share_cta_text,
+        "updated_chat_title": updated_chat_title,
+        "new_chat_suggestions": new_chat_suggestions,
+    }
+    if not any((chat_summary, share_cta_text, updated_chat_title, new_chat_suggestions)):
+        return original
+
+    language_names = {
+        "en": "English", "de": "German", "fr": "French", "es": "Spanish",
+        "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "pl": "Polish",
+        "ru": "Russian", "ja": "Japanese", "zh": "Chinese", "ko": "Korean",
+        "ar": "Arabic", "tr": "Turkish", "sv": "Swedish", "no": "Norwegian",
+        "da": "Danish", "fi": "Finnish", "cs": "Czech", "ro": "Romanian",
+        "hu": "Hungarian", "el": "Greek", "he": "Hebrew", "hi": "Hindi",
+        "uk": "Ukrainian",
+    }
+    language_name = language_names.get(target_language, target_language.upper())
+    translation_tool = {
+        "type": "function",
+        "function": {
+            "name": "translate_postprocessing_metadata",
+            "description": (
+                f"Translate the supplied UI metadata into {language_name}. Preserve meaning, "
+                "brevity, item order, and empty values. Return plain text without routing syntax."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "chat_summary": {"type": "string"},
+                    "share_cta_text": {"type": "string"},
+                    "updated_chat_title": {"type": "string"},
+                    "new_chat_suggestions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+                "required": [
+                    "chat_summary",
+                    "share_cta_text",
+                    "updated_chat_title",
+                    "new_chat_suggestions",
+                ],
+            },
+        },
+    }
+    payload = {
+        "chat_summary": chat_summary or "",
+        "share_cta_text": share_cta_text or "",
+        "updated_chat_title": updated_chat_title or "",
+        "new_chat_suggestions": new_chat_suggestions,
+    }
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                f"Translate every non-empty value to {language_name} ({target_language}). "
+                "Keep the summary concise, the CTA under 12 words, the title concise, and "
+                "the suggestions action-oriented. Preserve empty values and array length."
+            ),
+        },
+        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+    ]
+    model_id = POSTPROCESSING_MODEL_ID
+    fallbacks = utility_model_fallbacks(
+        model_id, resolve_fallback_servers_from_provider_config(model_id)
+    )
+
+    try:
+        llm_result = await call_preprocessing_llm(
+            task_id=task_id,
+            model_id=model_id,
+            message_history=messages,
+            tool_definition=translation_tool,
+            secrets_manager=secrets_manager,
+            fallback_models=fallbacks,
+            observability_purpose="translation",
+        )
+        if llm_result.error_message or not llm_result.arguments:
+            logger.warning(
+                "[Task ID: %s] [TranslateMetadata] Translation failed; preserving original metadata.",
+                task_id,
+            )
+            return original
+
+        translated = llm_result.arguments
+        translated_suggestions = translated.get("new_chat_suggestions")
+        if not isinstance(translated_suggestions, list) or len(translated_suggestions) != len(new_chat_suggestions):
+            logger.warning(
+                "[Task ID: %s] [TranslateMetadata] Suggestion count changed; preserving original metadata.",
+                task_id,
+            )
+            return original
+        sanitized_suggestions = sanitize_plain_suggestions(
+            translated_suggestions,
+            task_id,
+            "translated new-chat",
+        )
+        if len(sanitized_suggestions) != len(new_chat_suggestions):
+            return original
+
+        def translated_optional(field: str, original_value: Optional[str]) -> Optional[str]:
+            if not original_value:
+                return None
+            value = translated.get(field)
+            return value.strip() if isinstance(value, str) and value.strip() else original_value
+
+        return {
+            "chat_summary": translated_optional("chat_summary", chat_summary),
+            "share_cta_text": translated_optional("share_cta_text", share_cta_text),
+            "updated_chat_title": translated_optional("updated_chat_title", updated_chat_title),
+            "new_chat_suggestions": sanitized_suggestions,
+        }
+    except Exception:
+        logger.exception(
+            "[Task ID: %s] [TranslateMetadata] Unexpected failure; preserving original metadata.",
+            task_id,
+        )
+        return original
 
 
 async def translate_chat_summary(

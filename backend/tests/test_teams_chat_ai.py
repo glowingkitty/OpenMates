@@ -106,6 +106,8 @@ def test_core_and_app_ask_skill_requests_carry_team_billing_context() -> None:
         "team_id_hash": hash_id("team-1"),
         "team_workspace_type": "chat",
         "team_object_id_hash": hash_id("chat-1"),
+        "current_chat_summary": "Existing team-chat context",
+        "current_chat_summary_v": 3,
     }
 
     core_request = CoreAskSkillRequest(**base_payload)
@@ -115,6 +117,8 @@ def test_core_and_app_ask_skill_requests_carry_team_billing_context() -> None:
     assert core_request.team_object_id_hash == hash_id("chat-1")
     assert app_request.team_id == "team-1"
     assert app_request.team_workspace_type == "chat"
+    assert core_request.current_chat_summary == app_request.current_chat_summary
+    assert core_request.current_chat_summary_v == app_request.current_chat_summary_v == 3
 
 
 # contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary

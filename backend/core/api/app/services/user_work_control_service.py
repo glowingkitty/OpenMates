@@ -4,7 +4,7 @@
 # receives routing metadata, statuses, encrypted revision snapshots, and hashes;
 # it never decrypts or derives private Plan or Task content.
 #
-# Spec: docs/specs/opencode-openmates-work-control/spec.yml
+# Spec: specifications/features/tasks/specification.yml
 
 import re
 import secrets
@@ -17,7 +17,6 @@ from typing import Any, AsyncIterator, Protocol
 
 
 ITEM_REF_RE = re.compile(r"^(plan|task):([^:]+)$")
-OPENCODE_SUB_CHAT_RE = re.compile(r"^opencode:[^:\s]+$")
 RESOLVED_ASSUMPTION_STATUSES = {"confirmed", "corrected"}
 GRAPH_LOCK_TTL_SECONDS = 30
 _RENEW_GRAPH_LOCK_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) else return 0 end"
@@ -263,12 +262,10 @@ class UserWorkControlService:
             yield lease if isinstance(lease, GraphMutationLease) else GraphMutationLease()
 
     def validate_linked_sub_chat_id(self, linked_sub_chat_id: str) -> str:
-        if OPENCODE_SUB_CHAT_RE.fullmatch(linked_sub_chat_id):
-            return linked_sub_chat_id
         try:
             return str(uuid.UUID(linked_sub_chat_id))
         except (ValueError, AttributeError) as exc:
-            raise WorkControlValidationError("linked_sub_chat_id must be a native UUID or opencode:<opaque-id>") from exc
+            raise WorkControlValidationError("linked_sub_chat_id must be a native chat UUID") from exc
 
     async def execution_blockers(self, plan_id: str, *, phase: str = "task_execution") -> list[dict[str, str]]:
         required_before = {"completion"} if phase == "completion" else {"implementation", "task_execution"}

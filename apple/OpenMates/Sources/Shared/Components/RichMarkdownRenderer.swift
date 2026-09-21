@@ -112,7 +112,7 @@ private enum SearchTextHighlighter {
 /// Handles fenced code blocks (```lang), blockquotes (>), headers (#),
 /// horizontal rules (---), and unordered/ordered lists. Everything else
 /// is treated as a paragraph with inline markdown formatting.
-enum MarkdownBlock {
+enum MarkdownBlock: Equatable {
     case paragraph(String)
     case codeBlock(language: String?, code: String)
     case blockquote(String)
@@ -341,6 +341,12 @@ struct MarkdownEmbedReference: Equatable {
     let isLargePreview: Bool
 }
 
+struct MarkdownParsedBlock {
+    let block: MarkdownBlock
+    let sourceStartUTF8: Int
+    let sourceEndUTF8: Int
+}
+
 enum MarkdownParser {
     private static let demoPlaceholders: [String: DemoGroupKind] = [
         "[[example_chats_group]]": .exampleChats,
@@ -357,11 +363,30 @@ enum MarkdownParser {
     ]
 
     static func parse(_ text: String) -> [MarkdownBlock] {
+        parseSpans(text).map(\.block)
+    }
+
+    /// The existing grammar emits source spans for streaming-tail reuse. It is
+    /// still the sole parser for stable history and active streaming messages.
+    static func parseSpans(_ text: String, isStreaming: Bool = false) -> [MarkdownParsedBlock] {
         var blocks: [MarkdownBlock] = []
+        var spans: [MarkdownParsedBlock] = []
         let lines = text.components(separatedBy: "\n")
+        var offsets: [Int] = []
+        var offset = 0
+        for line in lines { offsets.append(offset); offset += line.utf8.count + 1 }
+        let sourceLength = text.utf8.count
         var i = 0
 
         while i < lines.count {
+            let startLine = i
+            let previousCount = blocks.count
+            defer {
+                let end = i < offsets.count ? offsets[i] : sourceLength
+                for block in blocks.dropFirst(previousCount) {
+                    spans.append(.init(block: block, sourceStartUTF8: offsets[startLine], sourceEndUTF8: end))
+                }
+            }
             let line = lines[i]
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
@@ -394,9 +419,11 @@ enum MarkdownParser {
                 let lang = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
                 let language = lang.isEmpty ? nil : lang
                 var codeLines: [String] = []
+                var isClosed = false
                 i += 1
                 while i < lines.count {
                     if lines[i].trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+                        isClosed = true
                         i += 1
                         break
                     }
@@ -404,7 +431,11 @@ enum MarkdownParser {
                     i += 1
                 }
                 let code = codeLines.joined(separator: "\n")
-                if language == "interactive_response" {
+                if isStreaming && ChatMessageStreamingRenderPolicy.isInternalProtocolFence(
+                    language: language ?? "", body: code, isClosed: isClosed
+                ) {
+                    blocks.append(.hiddenProtocol)
+                } else if language == "interactive_response" {
                     blocks.append(.hiddenProtocol)
                 } else if language == "interactive_question" {
                     if let payload = parseInteractiveQuestionPayload(code) {
@@ -511,7 +542,7 @@ enum MarkdownParser {
             while i < lines.count {
                 let pLine = lines[i]
                 let pTrimmed = pLine.trimmingCharacters(in: .whitespaces)
-                if pTrimmed.isEmpty || pTrimmed.hasPrefix("```") || pTrimmed.hasPrefix("#")
+                if pTrimmed.isEmpty || pTrimmed.hasPrefix("```") || parseHeader(pTrimmed) != nil
                     || pTrimmed.hasPrefix(">") || pTrimmed == "---" || pTrimmed == "***"
                     || pTrimmed.hasPrefix("- ") || pTrimmed.hasPrefix("* ")
                     || pTrimmed.range(of: #"^\d+\.\s"#, options: .regularExpression) != nil
@@ -527,7 +558,7 @@ enum MarkdownParser {
             }
         }
 
-        return blocks
+        return spans
     }
 
     private static func parseHeader(_ line: String) -> (Int, String)? {
@@ -626,6 +657,7 @@ enum MarkdownParser {
 struct RichMarkdownView: View {
     let content: String
     let renderDocument: ChatHistoryRenderDocument?
+    let progressiveRequest: ProgressiveMarkdownRequest?
     let isUserMessage: Bool
     let onOpenPublicChat: ((String) -> Void)?
     let embedLookup: [String: EmbedRecord]
@@ -639,6 +671,7 @@ struct RichMarkdownView: View {
     init(
         content: String,
         renderDocument: ChatHistoryRenderDocument? = nil,
+        progressiveRequest: ProgressiveMarkdownRequest? = nil,
         isUserMessage: Bool,
         onOpenPublicChat: ((String) -> Void)? = nil,
         embedLookup: [String: EmbedRecord] = [:],
@@ -650,6 +683,7 @@ struct RichMarkdownView: View {
     ) {
         self.content = content
         self.renderDocument = renderDocument
+        self.progressiveRequest = progressiveRequest
         self.isUserMessage = isUserMessage
         self.onOpenPublicChat = onOpenPublicChat
         self.embedLookup = embedLookup
@@ -658,12 +692,22 @@ struct RichMarkdownView: View {
         self.onEmbedTap = onEmbedTap
         self.onInteractiveQuestionSubmit = onInteractiveQuestionSubmit
         self.searchHighlightQuery = searchHighlightQuery
-        self.blocks = renderDocument == nil ? MarkdownParser.parse(content) : []
+        self.blocks = renderDocument == nil && progressiveRequest == nil ? MarkdownParser.parse(content) : []
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            if let renderDocument {
+            if let progressiveRequest {
+                ProgressiveMarkdownBlocksView(request: progressiveRequest) { block in
+                    if let markdown = block.markdown,
+                       block.document.kind == .interactiveQuestion || block.document.kind == .demoGroup {
+                        blockView(for: markdown)
+                    } else {
+                        documentBlockView(for: block.document)
+                    }
+                }
+                .id(progressiveRequest.identity)
+            } else if let renderDocument {
                 ForEach(renderDocument.blocks) { block in
                     documentBlockView(for: block)
                 }
@@ -1400,6 +1444,40 @@ private struct MacCarouselScrollWheelMonitor: NSViewRepresentable {
 
 // MARK: - Inline markdown (paragraphs, list items)
 
+struct InlineMarkdownPreparationInput: Equatable {
+    let content: String
+    let searchHighlightQuery: String?
+}
+
+struct InlineMarkdownPreparedContent {
+    let attributedContent: AttributedString
+    let tokens: [InlineMarkdownToken]
+    let highlightRanges: [[NSRange]]
+    let customLayout: Bool
+}
+
+@MainActor
+final class InlineMarkdownPreparationModel: ObservableObject {
+    @Published private(set) var value: InlineMarkdownPreparedContent
+    private(set) var input: InlineMarkdownPreparationInput
+    private(set) var parseCount = 1
+    private(set) var parsedUTF8: Int
+
+    init(input: InlineMarkdownPreparationInput) {
+        self.input = input
+        parsedUTF8 = input.content.utf8.count
+        value = InlineMarkdownText.prepare(input)
+    }
+
+    func update(_ input: InlineMarkdownPreparationInput) {
+        guard self.input != input else { return }
+        self.input = input
+        value = InlineMarkdownText.prepare(input)
+        parseCount += 1
+        parsedUTF8 += input.content.utf8.count
+    }
+}
+
 struct InlineMarkdownText: View {
     let content: String
     let isUserMessage: Bool
@@ -1407,10 +1485,11 @@ struct InlineMarkdownText: View {
     let onEmbedTap: ((EmbedRecord) -> Void)?
     let searchHighlightQuery: String?
     @Environment(\.colorScheme) private var colorScheme
-    private let attributedContent: AttributedString
-    private let inlineTokens: [InlineMarkdownToken]
-    private let inlineTokenHighlightRanges: [[NSRange]]
-    private let needsCustomInlineLayout: Bool
+    @StateObject private var preparation: InlineMarkdownPreparationModel
+    private var attributedContent: AttributedString { preparation.value.attributedContent }
+    private var inlineTokens: [InlineMarkdownToken] { preparation.value.tokens }
+    private var inlineTokenHighlightRanges: [[NSRange]] { preparation.value.highlightRanges }
+    private var needsCustomInlineLayout: Bool { preparation.value.customLayout }
 
     init(
         content: String,
@@ -1424,39 +1503,41 @@ struct InlineMarkdownText: View {
         self.allEmbedRecords = allEmbedRecords
         self.onEmbedTap = onEmbedTap
         self.searchHighlightQuery = searchHighlightQuery
-        let shouldUseCustomInlineLayout = Self.shouldUseCustomInlineLayout(for: content)
-        // Citation paragraphs render their individual text/chip tokens below.
-        // Parsing a second attributed document here never contributed to their
-        // output and repeated Foundation markdown work as rows were updated.
-        self.attributedContent = shouldUseCustomInlineLayout ? AttributedString() :
+        _preparation = StateObject(wrappedValue: InlineMarkdownPreparationModel(
+            input: InlineMarkdownPreparationInput(content: content, searchHighlightQuery: searchHighlightQuery)))
+    }
+
+    fileprivate static func prepare(_ input: InlineMarkdownPreparationInput) -> InlineMarkdownPreparedContent {
+        let content = input.content
+        // References must remain interactive regardless of paragraph length.
+        // The mounted preparation cache prevents reparsing on unrelated updates;
+        // the existing flow keeps its bounded cache of measured width proposals.
+        let customLayout = content.contains("(wiki:") || content.contains("(embed:") || content.contains("](")
+        let attributed = customLayout ? AttributedString() :
             ((try? AttributedString(markdown: content, options: .init(
                 interpretedSyntax: .inlineOnlyPreservingWhitespace
             ))) ?? AttributedString(content))
-        let tokens = shouldUseCustomInlineLayout ? InlineMarkdownTokenizer.parse(content) : []
-        self.inlineTokens = tokens
-        self.inlineTokenHighlightRanges = shouldUseCustomInlineLayout
-            ? Self.highlightRangesByToken(in: tokens, query: searchHighlightQuery)
-            : []
-        self.needsCustomInlineLayout = shouldUseCustomInlineLayout
-    }
-
-    private static func shouldUseCustomInlineLayout(for content: String) -> Bool {
-        guard content.count <= 3_000 else { return false }
-        return content.contains("(wiki:")
-            || content.contains("(embed:")
-            || content.contains("](")
+        let tokens = customLayout ? InlineMarkdownTokenizer.parse(content) : []
+        return InlineMarkdownPreparedContent(attributedContent: attributed, tokens: tokens,
+            highlightRanges: customLayout ? Self.highlightRangesByToken(in: tokens, query: input.searchHighlightQuery) : [],
+            customLayout: customLayout)
     }
 
     var body: some View {
-        if needsCustomInlineLayout {
-            InlineMarkdownFlowLayout(spacing: 0, lineSpacing: 2) {
-                ForEach(Array(inlineTokens.enumerated()), id: \.offset) { index, token in
-                    tokenView(token, highlightRanges: highlightRanges(forTokenAt: index))
+        Group {
+            if needsCustomInlineLayout {
+                InlineMarkdownFlowLayout(spacing: 0, lineSpacing: 2) {
+                    ForEach(Array(inlineTokens.enumerated()), id: \.offset) { index, token in
+                        tokenView(token, highlightRanges: highlightRanges(forTokenAt: index))
+                    }
                 }
+                .textSelection(.disabled)
+            } else {
+                standardText
             }
-            .textSelection(.disabled)
-        } else {
-            standardText
+        }
+        .onChange(of: InlineMarkdownPreparationInput(content: content, searchHighlightQuery: searchHighlightQuery)) { _, input in
+            preparation.update(input)
         }
     }
 
@@ -2586,7 +2667,7 @@ struct TableBlockView: View {
 
 // MARK: - Demo placeholder groups
 
-enum DemoGroupKind {
+enum DemoGroupKind: Equatable {
     case exampleChats
     case developerExampleChats
     case apps

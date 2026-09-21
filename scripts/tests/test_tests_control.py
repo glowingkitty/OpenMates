@@ -1229,7 +1229,7 @@ def test_record_latest_run_artifact_keeps_cropped_thumbnail_out_of_video_player(
     def fake_uploader(**kwargs):
         uploads.append(kwargs)
         return {
-            "key": "opencode-responses/latest/spec-ts-web-laptop/video.webm",
+            "key": "review-responses/latest/spec-ts-web-laptop/video.webm",
             "snippets": {"html": "<video></video>", "markdown": "[video](https://example.invalid/video.webm)"},
         }
 
@@ -1249,7 +1249,7 @@ def test_record_latest_run_artifact_keeps_cropped_thumbnail_out_of_video_player(
     run_data = json.loads(artifact.read_text(encoding="utf-8"))
     assert run_data["response_media_video"]["response_media_html"] == "<video></video>"
     latest = json.loads(tests_control.RESPONSE_MEDIA_LATEST_FILE.read_text(encoding="utf-8"))
-    assert latest["playwright_spec"]["response_media_key"] == "opencode-responses/latest/spec-ts-web-laptop/video.webm"
+    assert latest["playwright_spec"]["response_media_key"] == "review-responses/latest/spec-ts-web-laptop/video.webm"
 
 
 def test_record_latest_run_artifact_rejects_stale_downloaded_recording(tmp_path, monkeypatch):

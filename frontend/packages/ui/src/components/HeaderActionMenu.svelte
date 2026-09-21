@@ -23,6 +23,7 @@
     resetKey,
     hasShare,
     actionCount,
+    forceOverflow = false,
   }: {
     report: Snippet;
     share: Snippet;
@@ -34,6 +35,7 @@
     resetKey?: string;
     hasShare: boolean;
     actionCount: number;
+    forceOverflow?: boolean;
   } = $props();
   const SHARE_MIN_WIDTH = 460;
   const REPORT_LABEL_MIN_WIDTH = 640;
@@ -51,7 +53,7 @@
   const menuId = $props.id();
   const overflowCount = $derived(actionCount + Number(hasShare && (hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)));
   // Keep Share in More whenever sensitive-data controls occupy the primary slot.
-  const hasOverflowActions = $derived(overflowCount >= 2 || (hasPriorityAction && overflowCount > 0));
+  const hasOverflowActions = $derived(forceOverflow || overflowCount >= 2 || (hasPriorityAction && overflowCount > 0));
 
   $effect(() => {
     if (!hasOverflowActions) open = false;
@@ -138,7 +140,7 @@
         {@render share()}
       </div>{/if}
     {@render restoreChat?.()}
-    {#if overflowCount === 1 && !hasPriorityAction}
+    {#if overflowCount === 1 && !hasPriorityAction && !forceOverflow}
       <div class="direct-action">
         {#if hasShare && containerWidth < SHARE_MIN_WIDTH}{@render share()}{/if}
         {#if actionCount === 1}{@render actions()}{/if}

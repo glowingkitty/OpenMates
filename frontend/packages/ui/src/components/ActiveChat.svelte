@@ -5697,6 +5697,10 @@
         guestAllExamplesVisible = false;
     }
 
+    function handleShowAllChats() {
+        panelState.openChats();
+    }
+
     function handleSearchGuestExamples() {
         panelState.openChats();
         openSearch({ closeChatsOnEscape: false });
@@ -6050,8 +6054,14 @@
                     return;
                 }
                 recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'applied' });
-                activeChatStore.setActiveChat(persistedChatId);
-                await loadChat(newChat);
+                // The editor already owns the newest draft document. Loading the
+                // just-persisted shell back into it would replace the live TipTap
+                // state, interrupt the caret, and can discard typing that happened
+                // after the autosave snapshot was captured.
+                await loadChat(newChat, { preserveActiveComposer: true });
+                if (currentChat?.chat_id === persistedChatId && activeChatStore.get() !== persistedChatId) {
+                    activeChatStore.setActiveChat(persistedChatId);
+                }
                 temporaryChatId = null;
                 console.debug("[ActiveChat] Activated persisted draft-only chat:", persistedChatId);
             }
@@ -9291,8 +9301,48 @@
         }
     }
 
+    /** The page recovery path must not reopen a surface this component already owns. */
+    export function getCurrentChatId(): string | null {
+        return currentChat?.chat_id ?? null;
+    }
+
+    /**
+     * First persistence gives the live composer a durable identity; it is not
+     * navigation. Commit ownership before publishing the URL/store so recovery
+     * effects cannot reload the saved snapshot over the live editor.
+     */
+    function adoptPersistedDraft(chat: Chat): boolean {
+        if (!isPersistedDraftOnlyChat(chat)
+            || get(draftEditorUIState).currentChatId !== chat.chat_id
+            || !messageInputHasContent
+            || currentMessages.length > 0
+            || (currentChat && currentChat.chat_id !== chat.chat_id)) {
+            return false;
+        }
+
+        // Both the sidebar and the active surface can observe the persistence
+        // notification. Adoption is idempotent, including a delayed duplicate.
+        if (currentChat?.chat_id === chat.chat_id && activeChatStore.get() === chat.chat_id && !showWelcome) {
+            return true;
+        }
+
+        const generation = ++loadChatGeneration;
+        currentChat = chat;
+        temporaryChatId = null;
+        showWelcome = false;
+        chatLoadState = 'ready';
+        updateNavFromCache(chat.chat_id);
+        void applyPersistedDraftHeader(chat, 'local draft adoption', () =>
+            generation === loadChatGeneration && currentChat?.chat_id === chat.chat_id,
+        ).catch((error) => console.error('[ActiveChat] Could not render adopted draft header:', error));
+        activeChatStore.setActiveChat(chat.chat_id);
+        notifyBackendOfActiveChat();
+        return true;
+    }
+
      // Update the loadChat function
-     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null }) {
+     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean }) {
+         if (options?.preserveActiveComposer && adoptPersistedDraft(chat)) return;
          // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
          // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
          // chatUpdated events can see the new currentChat but operate on the old currentMessages.
@@ -10660,8 +10710,16 @@
                 }
             }
         };
-        await restoreDraftWithRetry();
+        if (options?.preserveActiveComposer) {
+            console.debug('[ActiveChat] Preserving live composer while activating persisted draft shell:', chat.chat_id);
+        } else {
+            await restoreDraftWithRetry();
+        }
         
+        notifyBackendOfActiveChat();
+    }
+
+    function notifyBackendOfActiveChat() {
         // Notify backend about the active chat, but only if WebSocket is connected
         // CRITICAL: Don't send set_active_chat if user is in signup flow - this would overwrite last_opened
         // and cause the user to skip remaining signup steps
@@ -13719,6 +13777,30 @@
                                             <span>{$text(activeGuestAllExamplesLinkKey)}</span>
                                         </button>
                                     {/if}
+                                </div>
+                            {/if}
+                            {#if $authStore.isAuthenticated && hasContinueItems}
+                                <div class="guest-example-link-row" data-testid="chat-browse-controls">
+                                    <button
+                                        type="button"
+                                        class="guest-show-all-examples"
+                                        data-testid="chat-show-all"
+                                        data-surface="chats"
+                                        onclick={handleShowAllChats}
+                                    >
+                                        <span class="guest-link-icon guest-link-icon-surface" aria-hidden="true"></span>
+                                        <span>{$text('chat.welcome.show_all_chats')}</span>
+                                    </button>
+                                    <span class="guest-example-link-divider" aria-hidden="true"></span>
+                                    <button
+                                        type="button"
+                                        class="guest-show-all-examples"
+                                        data-testid="chat-search"
+                                        onclick={handleSearchGuestExamples}
+                                    >
+                                        <GuestAllExamplesSearchIcon size={18} color="currentColor" />
+                                        <span>{$text('common.search')}</span>
+                                    </button>
                                 </div>
                             {/if}
                             {/if}

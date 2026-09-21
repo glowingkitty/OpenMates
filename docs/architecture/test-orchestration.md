@@ -1,17 +1,26 @@
 # Test orchestration
 
-New full-application testing uses isolated GitHub Actions Docker and web runtimes.
-`ci_coordinator.py` owns the durable queue, concurrency and GitHub polling budget;
-`ci_dispatch.py` selects immutable source and supported coverage. Runtime admission
-and cutover readiness remain enforced. Unsupported coverage is not a pass and
-must not fall back to mutating the shared dev stack.
+New full-application testing uses one GitHub-hosted VM per browser spec. Each job
+owns a disposable Docker backend/database stack, fresh accounts and a
+runner-private localhost web process built from the exact source.
+`ci_coordinator.py` splits multi-spec E2E submissions into separate jobs and owns
+the durable queue, concurrency and GitHub polling budget; `ci_dispatch.py` selects
+immutable source and supported coverage. Runtime admission and cutover readiness
+remain enforced. Unsupported coverage is not a pass and must not fall back to
+deploying or mutating the shared dev stack.
 
-Prepare a source with `sessions.py ci-source`, submit the matching supported
+Prepare a source with `sessions.py ci-source`; dirty candidate bytes move through
+a private expiring patch artifact, never a Git branch. Submit the matching supported
 mode/spec, then use `ci_coordinator.py wait <id>`. Waiting reads the cache and
 validates exact-source result artifacts once when a workflow succeeds. Status,
 submission and result commands default to concise text; `--json` retains complete
 programmatic receipts. Timeout, attention, cancellation and failure return a
 non-success exit status.
+
+Deployment is not test setup. Vercel readiness and `app.dev.openmates.org`
+visual smoke happen only after isolated E2E when the accepted task requires a
+deployed-dev check. Transient container-registry network failures receive bounded
+stack-start retries; application health failures remain immediate failures.
 
 `tests.py` retains historical test inventory, triage and explicitly requested
 campaign records in the private engineering control plane. It is not a mandatory

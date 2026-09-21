@@ -62,3 +62,23 @@ test('OpenMates event embed deep link renders details and registration CTA', asy
 	await expect(page.locator('body')).toContainText('OpenMates Events', { timeout: 10000 });
 	await expect(page.locator('body')).toContainText('Tired of big-tech AI chatbots and agents', { timeout: 10000 });
 });
+
+// contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity
+test('chat sidebar lists the three latest release news links below events', async ({ page }) => {
+	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+
+	const history = page.getByTestId('activity-history-wrapper');
+	if (!(await history.isVisible().catch(() => false))) {
+		await page.getByTestId('sidebar-toggle').click();
+	}
+	await expect(history).toBeVisible({ timeout: 10000 });
+
+	const newsGroup = page.getByTestId('latest-news-group');
+	await expect(newsGroup).toBeVisible();
+	const links = newsGroup.getByTestId('latest-news-item');
+	await expect(links).toHaveCount(3);
+	await expect(links.nth(0)).toHaveAttribute('href', '/news/introducing-openmates-v011');
+	await expect(links.nth(1)).toHaveAttribute('href', '/news/introducing-openmates-v010');
+	await expect(links.nth(2)).toHaveAttribute('href', '/news/introducing-openmates-v09');
+	await expect(links.nth(0)).not.toHaveAttribute('target', '_blank');
+});

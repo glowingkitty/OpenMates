@@ -4,6 +4,7 @@
 
 import Foundation
 import CryptoKit
+import ImageIO
 
 actor S3MediaClient {
     static let shared = S3MediaClient()
@@ -20,9 +21,11 @@ actor S3MediaClient {
         aesKeyHex: String,
         aesNonceHex: String?,
         encryption: String? = nil,
-        s3Key: String? = nil
+        s3Key: String? = nil,
+        cacheNamespace: String? = nil
     ) async throws -> Data {
-        let cacheKey = s3Key ?? s3Url
+        let cacheKey = Self.cacheKey(s3Url: s3Url, aesKey: aesKeyHex, nonce: aesNonceHex,
+                                     encryption: encryption, s3Key: s3Key, namespace: cacheNamespace)
 
         if let cached = cache[cacheKey] {
             return cached
@@ -57,6 +60,13 @@ actor S3MediaClient {
             inFlight.removeValue(forKey: cacheKey)
             throw error
         }
+    }
+
+    static func cacheKey(s3Url: String, aesKey: String, nonce: String?, encryption: String?, s3Key: String?, namespace: String?) -> String {
+        let mediaIdentity = s3Key ?? s3Url
+        guard let namespace else { return mediaIdentity }
+        let material = "\(namespace):\(mediaIdentity):\(aesKey):\(nonce ?? ""):\(encryption ?? "")"
+        return SHA256.hash(data: Data(material.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     func clearCache() {
@@ -214,14 +224,12 @@ actor RemoteImageCache {
 
     func data(for urlString: String) async -> Data? {
         if let cached = memoryCache[urlString] {
-            guard !Self.isClearlyInvalidImageData(cached) else {
-                memoryCache.removeValue(forKey: urlString)
-                return nil
-            }
+            // Only decoded/validated bytes enter this process's memory cache.
             return cached
         }
         if let cached = try? diskCache.load(cacheKey: urlString) {
-            guard !Self.isClearlyInvalidImageData(cached) else {
+            // Earlier builds could persist SVG or an error body as image data.
+            guard Self.isDecodableImageData(cached) else {
                 return nil
             }
             memoryCache[urlString] = cached
@@ -261,51 +269,36 @@ actor RemoteImageCache {
         }
     }
 
-    private static func download(_ urlString: String) async throws -> Data {
+    typealias ImageTransport = @Sendable (URL) async throws -> (Data, URLResponse)
+
+    static func download(
+        _ urlString: String,
+        transport: ImageTransport = { try await URLSession.shared.data(from: $0) }
+    ) async throws -> Data {
         guard let url = URL(string: urlString) else { throw S3Error.invalidURL }
-        let (data, response) = try await URLSession.shared.data(from: url)
-        if let httpResponse = response as? HTTPURLResponse,
-           (200...299).contains(httpResponse.statusCode),
-           isRenderableImage(data, response: httpResponse) {
-            return data
+        let (data, response) = try await transport(url)
+        guard let response = response as? HTTPURLResponse,
+              (200...299).contains(response.statusCode),
+              isDecodableImageData(data) else {
+            // Public preview proxy failure must never expose the user's IP by
+            // retrying its `url` parameter against the third-party origin.
+            throw S3Error.downloadFailed
         }
-        if let originalURL = originalImageURL(fromProxyURL: urlString) {
-            return try await download(originalURL)
-        }
-        throw S3Error.downloadFailed
+        return data
     }
 
-    private static func originalImageURL(fromProxyURL urlString: String) -> String? {
-        guard let components = URLComponents(string: urlString),
-              components.host == "preview.openmates.org",
-              components.path == "/api/v1/image",
-              let original = components.queryItems?.first(where: { $0.name == "url" })?.value,
-              original != urlString else {
-            return nil
-        }
-        return original
+    static func isDecodableImageData(_ data: Data) -> Bool {
+        guard !data.isEmpty,
+              let source = CGImageSourceCreateWithData(data as CFData,
+                  [kCGImageSourceShouldCache: false] as CFDictionary),
+              CGImageSourceGetCount(source) > 0 else { return false }
+        // Image MIME alone is insufficient: UIImage cannot display an SVG,
+        // even though it legitimately has an image/svg+xml content type.
+        // Avoid eagerly decoding/caching the full pixel buffer during validation.
+        return CGImageSourceCreateImageAtIndex(source, 0,
+            [kCGImageSourceShouldCache: false] as CFDictionary) != nil
     }
 
-    private static func isRenderableImage(_ data: Data, response: HTTPURLResponse) -> Bool {
-        guard !data.isEmpty else { return false }
-        if response.mimeType?.lowercased().hasPrefix("image/") == true {
-            return true
-        }
-        return data.starts(with: [0xFF, 0xD8, 0xFF])
-            || data.starts(with: [0x89, 0x50, 0x4E, 0x47])
-            || data.starts(with: [0x47, 0x49, 0x46])
-            || data.starts(with: [0x52, 0x49, 0x46, 0x46])
-    }
-
-    private static func isClearlyInvalidImageData(_ data: Data) -> Bool {
-        guard !data.isEmpty else { return true }
-        let prefix = String(decoding: data.prefix(80), as: UTF8.self)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-        return prefix.hasPrefix("<!doctype html")
-            || prefix.hasPrefix("<html")
-            || prefix.hasPrefix("{\"detail\"")
-    }
 }
 
 struct EmbedMediaOfflineCache {

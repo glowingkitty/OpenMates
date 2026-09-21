@@ -46,7 +46,7 @@ claims:
 
 # Retired Linear automatic processing
 
-The Linear-label-to-OpenCode poller and host trigger watcher were removed on September 7, 2026 (TASK-7543). Labels no longer schedule or launch OpenCode chats. Do not reinstall their services.
+The Linear-label agent poller and host trigger watcher were removed on September 7, 2026 (TASK-7543). Labels no longer schedule or launch coding chats. Do not reinstall their services.
 
 `scripts/linear-cron-setup.sh` retains only the Linear archive, artifact cleanup and legacy session cleanup services. `_linear_client.py`, `_zellij_utils.py`, existing issue history and `scripts/.tmp/poller-sessions.json` are retained for manual tooling and compatibility. No historical task/worktree records are deleted by this removal.
 

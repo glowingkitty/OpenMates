@@ -345,7 +345,7 @@ async def test_restore_task_entry_preserves_external_context_and_encrypted_block
     target = {
         **created,
         "primary_chat_id": None,
-        "external_chat_provider": "opencode",
+        "external_chat_provider": "codex",
         "external_chat_lookup_hash": "c" * 64,
         "encrypted_external_chat_id": "cipher-external-id",
         "encrypted_external_chat_title": "cipher-external-title",
@@ -369,7 +369,7 @@ async def test_restore_task_entry_preserves_external_context_and_encrypted_block
         state="after",
     )
 
-    assert restored["object"]["external_chat_provider"] == "opencode"
+    assert restored["object"]["external_chat_provider"] == "codex"
     assert restored["object"]["external_chat_lookup_hash"] == "c" * 64
     assert restored["object"]["encrypted_external_chat_id"] == "cipher-external-id"
     assert restored["object"]["encrypted_external_chat_title"] == "cipher-external-title"

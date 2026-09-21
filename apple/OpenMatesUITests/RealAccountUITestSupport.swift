@@ -84,7 +84,24 @@ enum RealAccountUITestSupport {
 
         let passwordInput = waitForPasswordInput(app: app)
         guard focusForTextEntry(passwordInput, in: app, identifier: "password-input") else { return }
-        passwordInput.typeText(credentials.password)
+        app.typeText(credentials.password)
+        let loginButton = app.buttons["login-button"]
+        let passwordAccepted = NSPredicate { _, _ in
+            guard let value = passwordInput.value as? String else { return false }
+            return !value.isEmpty && value != passwordInput.placeholderValue && loginButton.isEnabled
+        }
+        if XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: passwordAccepted, object: nil)], timeout: 2) != .completed {
+            // Retry only an empty field: never append a second password to a
+            // partially delivered value, and never expose the value in a failure.
+            let value = passwordInput.value as? String ?? ""
+            if value.isEmpty || value == passwordInput.placeholderValue {
+                guard focusForTextEntry(passwordInput, in: app, identifier: "password-input") else { return }
+                app.typeText(credentials.password)
+            }
+        }
+        let entered = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: passwordAccepted, object: nil)], timeout: 2) == .completed
+        XCTAssertTrue(entered, "Password entry must reach the real form before submitting")
+        guard entered else { return }
 
         submitPasswordAndOtpIfNeeded(app: app, credentials: credentials)
 
@@ -98,6 +115,30 @@ enum RealAccountUITestSupport {
             return
         }
         guard focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        // Failed live runs intentionally retain their draft. Replace only this
+        // test's known prompt through the real editor; preserve unknown content.
+        if let restored = editor.value as? String, !restored.isEmpty {
+            var remaining = restored
+            for _ in 0..<4 {
+                let reduced = remaining.replacingOccurrences(of: prompt, with: "")
+                if reduced == remaining { break }
+                remaining = reduced
+            }
+            guard remaining.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                XCTFail("An unrelated draft is present; the live test preserved it")
+                return
+            }
+            editor.press(forDuration: 1.1)
+            let menuSelectAll = app.menuItems["Select All"]
+            let selectAll = menuSelectAll.exists ? menuSelectAll : app.buttons["Select All"]
+            guard selectAll.waitForExistence(timeout: 3) else {
+                XCTFail("Expected native Select All to replace the retained test draft")
+                return
+            }
+            selectAll.tap()
+            app.typeText(XCUIKeyboardKey.delete.rawValue)
+            XCTAssertEqual(editor.value as? String, "", "Native editing must clear the retained test draft")
+        }
         app.typeText(prompt)
         XCTAssertEqual(editor.value as? String, prompt, "Typing must preserve the complete prompt before send")
 
@@ -112,7 +153,7 @@ enum RealAccountUITestSupport {
         )
         XCTAssertTrue(
             userMessage.waitForExistence(timeout: 60),
-            "Expected sent user message after tapping send. Visible UI: \(visibleStateLabels(in: app))"
+            "Expected sent user message after tapping send. Stage: \(app.staticTexts["welcome-send-stage"].firstMatch.exists ? app.staticTexts["welcome-send-stage"].firstMatch.label : "unavailable"). Visible UI: \(visibleStateLabels(in: app))"
         )
     }
 
@@ -250,7 +291,15 @@ enum RealAccountUITestSupport {
     private static func submitPasswordAndOtpIfNeeded(app: XCUIApplication, credentials: RealAccountTestCredentials) {
         let loginButton = app.buttons["login-button"]
         XCTAssertTrue(loginButton.waitForExistence(timeout: 10))
-        loginButton.tap()
+        XCTAssertTrue(loginButton.isEnabled, "Password form must be valid before submission")
+        guard loginButton.isEnabled else { return }
+        // The landscape keyboard can cover the button. Use the production
+        // SecureField onSubmit path while its confirmed input remains focused.
+        if loginButton.isHittable && app.frame.contains(loginButton.frame) {
+            loginButton.tap()
+        } else {
+            app.typeText("\n")
+        }
 
         let tfaInput = app.textFields["tfa-code-input"]
         let authenticationDeadline = Date().addingTimeInterval(15)

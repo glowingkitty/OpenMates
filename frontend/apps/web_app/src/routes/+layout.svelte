@@ -14,22 +14,11 @@
 	import '@repo/ui/src/styles/settings.css';
 	import '@repo/ui/src/styles/animations.css';
 	// KaTeX CSS is imported via markdown.css
-	import {
-		// components
-		MetaTags,
-		OfflineBanner,
-		OfflineIndicator,
-		// Config
-		loadMetaTags,
-		getApiEndpoint,
-		// Stores
-		theme,
-		initializeTheme,
-		initializeUiFont,
-		initializeServerStatus,
-		notificationStore
-	} from '@repo/ui';
-	import { onDestroy, onMount } from 'svelte';
+	import { getApiEndpoint } from '@repo/ui/config/api';
+	import { theme, initializeTheme } from '@repo/ui/stores/theme';
+	import { initializeUiFont } from '@repo/ui/stores/uiFont';
+	import { notificationStore } from '@repo/ui/stores/notificationStore';
+	import { onDestroy, onMount, type Component } from 'svelte';
 	import { browser } from '$app/environment';
 	import { waitLocale } from 'svelte-i18n';
 	import { page, updated } from '$app/state';
@@ -40,8 +29,11 @@
 	let isSeoRoute = $derived(
 		['/example', '/intro', '/legal', '/events', '/announcements', '/tips'].some((path) =>
 			page.url.pathname === path || page.url.pathname.startsWith(`${path}/`)
-		)
+		) || /^\/(?:de\/)?(?:news|blog|social)(?:\/|$)/.test(page.url.pathname)
 	);
+	let MetaTagsComponent = $state<Component | null>(null);
+	let OfflineBannerComponent = $state<Component | null>(null);
+	let OfflineIndicatorComponent = $state<Component | null>(null);
 	const TRANSLATION_STARTUP_TIMEOUT_MS = 5000;
 	const OPENMATES_FAVICONS = [
 		{ key: 'primary', rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
@@ -140,6 +132,21 @@
 	}
 
 	onMount(async () => {
+		if (!isSeoRoute) {
+			const [metaTags, offlineBanner, offlineIndicator, metaConfig, serverStatus] = await Promise.all([
+				import('@repo/ui/components/MetaTags.svelte'),
+				import('@repo/ui/components/OfflineBanner.svelte'),
+				import('@repo/ui/components/OfflineIndicator.svelte'),
+				import('@repo/ui/config/meta'),
+				import('@repo/ui/stores/serverStatusStore')
+			]);
+			MetaTagsComponent = metaTags.default;
+			OfflineBannerComponent = offlineBanner.default;
+			OfflineIndicatorComponent = offlineIndicator.default;
+			await metaConfig.loadMetaTags();
+			serverStatus.initializeServerStatus();
+		}
+
 		ensureOpenMatesFavicons();
 		faviconObserver = new MutationObserver(() => ensureOpenMatesFavicons());
 		faviconObserver.observe(document.head, {
@@ -232,13 +239,7 @@
 			);
 		}
 
-		// Load meta tags after translations are ready
-		await loadMetaTags();
 		ensureOpenMatesFavicons();
-
-		// Initialize server status early to prevent UI flashing
-		// (e.g., legal chats briefly appearing on self-hosted instances)
-		initializeServerStatus();
 
 		// =====================================================================
 		// Mobile zoom glitch prevention
@@ -386,10 +387,10 @@
 	  - The `<main>` wrapper is always present; on SPA routes it's empty until
 	    hydration completes (same as before — the SPA mounts into the Svelte body div).
 -->
-{#if loaded && !isSeoRoute}
-	<MetaTags />
-	<OfflineBanner />
-	<OfflineIndicator />
+{#if loaded && !isSeoRoute && MetaTagsComponent && OfflineBannerComponent && OfflineIndicatorComponent}
+	<MetaTagsComponent />
+	<OfflineBannerComponent />
+	<OfflineIndicatorComponent />
 {/if}
 <main>
 	{@render children()}

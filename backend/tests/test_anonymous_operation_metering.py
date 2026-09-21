@@ -129,6 +129,84 @@ async def test_anonymous_skill_requests_reserve_and_settle_each_provider_charge(
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,app-skills.surface.semantic-parity
+async def test_weather_chat_billing_uses_executed_provider_and_flat_execution_price(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request_data = anonymous_request()
+    request_data.is_anonymous = False
+    request_data.user_id = "user-1"
+    request_data.user_id_hash = "user-hash-1"
+    skill_definition = SimpleNamespace(
+        full_model_reference=None,
+        providers=[
+            SimpleNamespace(name="deutscher_wetterdienst"),
+            SimpleNamespace(name="open_meteo"),
+        ],
+        pricing=SimpleNamespace(model_dump=lambda **_kwargs: {"fixed": 1}),
+    )
+    provider_info_requests: list[str] = []
+    charge_payloads: list[dict] = []
+
+    async def resolve_config(**_kwargs):
+        return skill_definition, {"fixed": 1}
+
+    async def internal_request(method: str, endpoint: str, *_args, **_kwargs):
+        assert method == "GET"
+        provider_info_requests.append(endpoint)
+        return {"name": "Open-Meteo", "region": "EU"}
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"status": "success"}
+
+    class FakeClient:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args) -> None:
+            return None
+
+        async def post(self, _url: str, *, json: dict, **_kwargs):
+            charge_payloads.append(json)
+            return FakeResponse()
+
+    monkeypatch.setattr(main_processor, "_resolve_skill_billing_config", resolve_config)
+    monkeypatch.setattr(main_processor, "_make_internal_api_request", internal_request)
+    monkeypatch.setattr(main_processor.httpx, "AsyncClient", FakeClient)
+
+    await main_processor._charge_skill_credits(
+        task_id="task-weather",
+        execution_id="execution-weather",
+        request_data=request_data,
+        app_id="weather",
+        skill_id="forecast",
+        discovered_apps_metadata={},
+        results=[
+            {
+                "provider_id": "open_meteo",
+                "results": [{"date": "day-1"}, {"date": "day-2"}, {"date": "day-3"}],
+            }
+        ],
+        parsed_args={"location": "London", "days": 3},
+        log_prefix="test",
+    )
+
+    assert provider_info_requests == ["internal/config/provider_info/open_meteo"]
+    assert len(charge_payloads) == 1
+    assert charge_payloads[0]["credits"] == 1
+    assert charge_payloads[0]["usage_details"]["units_processed"] == 1
+    assert charge_payloads[0]["usage_details"]["server_provider"] == "Open-Meteo"
+    assert charge_payloads[0]["usage_details"]["server_region"] == "EU"
+
+
+@pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
 async def test_anonymous_main_ai_usage_settles_internal_charge(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict = {}

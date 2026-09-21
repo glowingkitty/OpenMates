@@ -1,413 +1,357 @@
-<!--
-  WorkflowGraphRenderer.svelte
-  Shared vertical graph used by editable Templates, immutable versions, and runs.
-  The component owns ephemeral expansion state while callers own persistence.
-  Execution detail is presentation-only and never fabricates unavailable content.
--->
-
+<!-- Progressive workflow authoring. Unsaved node inputs and test outputs stay in memory. -->
 <script lang="ts">
-  import { getCategoryGradientColors, getLucideIcon } from '../../utils/categoryUtils';
-  import type { WorkflowGraph, WorkflowNode, WorkflowNodeRun, WorkflowNodeType } from '../../stores/workflowWorkspaceStore';
+  import { onMount } from 'svelte';
+  import { text } from '../../i18n/translations';
+  import { getLucideIcon } from '../../utils/categoryUtils';
+  import { appsMetadata } from '../../data/appsMetadata';
+  import AppStoreCard from '../settings/AppStoreCard.svelte';
+  import ChatPreviewCard from '../settings/ChatPreviewCard.svelte';
+  import SettingsDropdown from '../settings/elements/SettingsDropdown.svelte';
+  import WorkflowEditorHeader from './WorkflowEditorHeader.svelte';
+  import WorkflowSchemaFields from './WorkflowSchemaFields.svelte';
+  import WorkflowValueView from './WorkflowValueView.svelte';
+  import WorkflowMessageEditor from './WorkflowMessageEditor.svelte';
+  import { outputFields, valueType, valueEntries, exampleValue } from './workflowValuePresentation';
+  import { workflowApiRequest, workflowWorkspaceStore, type WorkflowGraph, type WorkflowNode, type WorkflowNodeRun } from '../../stores/workflowWorkspaceStore';
+  import type { Chat } from '../../types/chat';
+  import type { AppMetadata } from '../../types/apps';
+  import { record, label, schemaDefault, normalizeSchema, isCheck, isTrigger, isMessage, messageDestinationConfig, capabilityFor, outputsBefore, insertNode, removeNode, WorkflowNodeDependencyError, type Capability, type Insertion, type Output } from './workflowBuilder';
 
-  type FlowItem =
-    | { kind: 'connector'; id: string; label: string; indent?: boolean }
-    | { kind: 'branch-label'; id: string; label: string }
-    | { kind: 'placeholder'; id: string; label: string }
-    | { kind: 'node'; id: string; node: WorkflowNode; branch?: boolean };
-
-  let {
-    graph,
-    readOnly = false,
-    nodeRuns = [],
-    testId = 'workflow-graph-renderer',
-    onChange,
-  }: {
-    graph: WorkflowGraph;
-    readOnly?: boolean;
-    nodeRuns?: WorkflowNodeRun[];
-    testId?: string;
-    onChange: (graph: WorkflowGraph) => void;
+  let { graph, readOnly = false, nodeRuns = [], testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, onSave }: {
+    graph: WorkflowGraph; readOnly?: boolean; nodeRuns?: WorkflowNodeRun[]; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null;
+    onChange: (graph: WorkflowGraph) => void; onSave: ((graph: WorkflowGraph) => Promise<void>) | null;
   } = $props();
+  let capabilities = $state<Capability[]>([]);
+  let loadError = $state('');
+  let draft = $state<WorkflowNode | null>(null);
+  let insertion = $state<Insertion>({ after: null });
+  let picker = $state<'trigger' | 'action' | 'app' | 'skill' | null>(null);
+  let selectedApp = $state('');
+  let expandedReadOnly = $state<string | null>(null);
+  let busy = $state(false);
+  let nodeError = $state('');
+  let testStatus = $state<'idle' | 'processing' | 'completed' | 'cancelled' | 'failed'>('idle');
+  let testingRunId = $state<string | null>(null);
+  let testOutputs = $state<Record<string, Record<string, unknown>>>({});
+  let testRevision = 0;
+  let preview = $state<Record<string, unknown> | null>(null);
+  let chats = $state<Chat[]>([]);
+  let chatSearch = $state('');
+  const visibleChats = $derived(chatSearch.trim() ? chats.filter(chat => (chat.title ?? '').toLowerCase().includes(chatSearch.trim().toLowerCase())) : chats.slice(0, 6));
+  let chooseChat = $state(false);
+  let showReferences = $state(false);
+  let messageEditor = $state<{ insertReference: (output: Output) => void; removeMentionTrigger: () => void } | null>(null);
+  const tr = (key: string) => $text(`workflows.builder.${key}`);
+  const Down = getLucideIcon('chevron-down');
+  const Coin = getLucideIcon('coins'); const Play = getLucideIcon('play'); const Stop = getLucideIcon('square');
+  const available = $derived(capabilities.filter(item => item.type === 'app_skill' && item.enabled && item.metadata.app_id !== 'ai'));
+  const appIds = $derived([...new Set(available.map(item => item.metadata.app_id).filter(Boolean))] as string[]);
+  const draftCapability = $derived(draft ? capabilityFor(draft, capabilities) : undefined);
+  const outputs = $derived(draft ? outputsBefore(graph, draft.id, capabilities, insertion) : []);
+  const blocks = $derived(Array.isArray(draft?.config?.blocks) ? draft.config.blocks as Record<string, unknown>[] : []);
+  const rootNodes = $derived(graph.nodes.filter(node => !graph.edges.some(edge => edge.to === node.id)).sort((a, b) => Number(isTrigger(b)) - Number(isTrigger(a))));
 
-  let expandedNodeId = $state<string | null>(null);
-  let stepMenuOpen = $state(false);
-  const ChevronIcon = getLucideIcon('chevron-down');
-  const PlusIcon = getLucideIcon('plus');
-  const TRIGGER_NODE_TYPES = new Set<WorkflowNodeType>(['schedule_trigger', 'manual_trigger', 'webhook_trigger', 'event_trigger']);
-  const QUALIFYING_EFFECT_TYPES = new Set<WorkflowNodeType>(['create_chat_report', 'start_new_chat', 'send_notification', 'send_email_notification']);
-  const triggerCount = $derived(graph.nodes.filter((node) => TRIGGER_NODE_TYPES.has(node.type)).length);
-  const stepCount = $derived(graph.nodes.filter((node) => !TRIGGER_NODE_TYPES.has(node.type) && node.type !== 'end').length);
-  const qualifyingEffectReachable = $derived(hasReachableQualifyingEffect());
-
-  function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  onMount(() => {
+    const setCapabilities = (items: Capability[]) => capabilities = items.map(item => ({ ...item, metadata: { ...item.metadata, input_schema: item.metadata.input_schema ? normalizeSchema(item.metadata.input_schema) : undefined, output_schema: item.metadata.output_schema ? normalizeSchema(item.metadata.output_schema) : undefined } }));
+    if (capabilityFixtures) setCapabilities(capabilityFixtures);
+    else if (!readOnly) void workflowApiRequest<{ capabilities: Capability[] }>('/v1/workflows/capabilities').then(data => setCapabilities(data.capabilities)).catch(error => { console.error('[Workflow capabilities]', error); loadError = tr('schema_unavailable'); });
+    return () => { testRevision += 1; };
+  });
+  function appMetadata(appId: string, capability?: Capability): AppMetadata {
+    const app = (appsMetadata as Record<string, AppMetadata>)[appId];
+    const skill = app?.skills.find(item => item.id === capability?.metadata.skill_id);
+    if (!capability) return app ?? { id: appId, name: label(appId), icon_image: `${appId}.svg`, skills: [], focus_modes: [], settings_and_memories: [] };
+    return { ...appMetadata(appId), name: capability.title, name_translation_key: skill?.name_translation_key, description: '', description_translation_key: skill?.description_translation_key, icon_image: skill?.icon_image ?? `${appId}.svg` };
   }
-
-  function configRecord(node: WorkflowNode): Record<string, unknown> {
-    return node.config ?? {};
-  }
-
-  function inputRecord(node: WorkflowNode): Record<string, unknown> {
-    const input = configRecord(node).input;
-    return isRecord(input) ? input : {};
-  }
-
-  function scheduleRecord(node: WorkflowNode): Record<string, unknown> {
-    const schedule = configRecord(node).schedule;
-    return isRecord(schedule) ? schedule : {};
-  }
-
-  function predicateRecord(node: WorkflowNode): Record<string, unknown> {
-    const predicate = configRecord(node).predicate;
-    return isRecord(predicate) ? predicate : { left: '', op: 'gte', right: 0 };
-  }
-
-  function stringValue(value: unknown, fallback = ''): string {
-    return typeof value === 'string' ? value : fallback;
-  }
-
-  function numberValue(value: unknown, fallback = 0): number {
-    return typeof value === 'number' ? value : fallback;
-  }
-
-  function firstRequestQuery(node: WorkflowNode): string {
-    const requests = inputRecord(node).requests;
-    if (!Array.isArray(requests)) return 'AI news';
-    const firstRequest = requests[0];
-    return isRecord(firstRequest) ? stringValue(firstRequest.query, 'AI news') : 'AI news';
-  }
-
-  function nodeTypeLabel(type: WorkflowNodeType): string {
-    const labels: Record<WorkflowNodeType, string> = {
-      schedule_trigger: 'Time trigger', manual_trigger: 'Manual start', webhook_trigger: 'Webhook trigger', event_trigger: 'Event trigger',
-      app_skill_action: 'Use App skill', decision: 'Check', repeat: 'Repeat', create_chat_report: 'Create report', start_new_chat: 'Start chat',
-      send_notification: 'Notify', send_email_notification: 'Email', ask_user: 'Ask for input', wait: 'Wait', custom_code: 'Code', end: 'End',
-    };
-    return labels[type];
-  }
-
-  function cardIcon(type: WorkflowNodeType): string {
-    const icons: Record<WorkflowNodeType, string> = {
-      schedule_trigger: 'calendar-clock', manual_trigger: 'play', webhook_trigger: 'webhook', event_trigger: 'radio', app_skill_action: 'sparkles',
-      decision: 'git-branch', repeat: 'repeat-2', create_chat_report: 'file-text', start_new_chat: 'message-square-plus', send_notification: 'bell',
-      send_email_notification: 'mail', ask_user: 'message-circle-question', wait: 'timer', custom_code: 'code', end: 'circle-check',
-    };
-    return icons[type];
-  }
-
-  function formatTime(value: string): string {
-    const [hourValue, minuteValue] = value.split(':');
-    const hour = Number(hourValue);
-    if (!Number.isFinite(hour)) return value;
-    return `${hour % 12 || 12}:${minuteValue ?? '00'}${hour >= 12 ? 'PM' : 'AM'}`;
-  }
-
-  function cardSummary(node: WorkflowNode): string {
-    if (node.type === 'schedule_trigger') {
-      const schedule = scheduleRecord(node);
-      return `${stringValue(schedule.type, 'daily') === 'weekly' ? 'Every week' : 'Every day'}, at ${formatTime(stringValue(schedule.time, '09:00'))}`;
+  function sameSlot(slot: Insertion): boolean { return insertion.after === slot.after && (insertion.branch ?? '') === (slot.branch ?? ''); }
+  function openPicker(kind: typeof picker, slot: Insertion): void { if (busy || testStatus === 'processing') return; draft = null; nodeError = ''; preview = null; insertion = slot; picker = kind; }
+  function closeEditor(): void { draft = null; picker = null; nodeError = ''; preview = null; chooseChat = false; showReferences = false; }
+  function edit(node: WorkflowNode): void { if (busy || testStatus === 'processing') return; if (readOnly) { expandedReadOnly = expandedReadOnly === node.id ? null : node.id; return; } closeEditor(); draft = structuredClone($state.snapshot(node)); testStatus = testOutputs[node.id] ? 'completed' : 'idle'; }
+  function configure(type: WorkflowNode['type'], capability?: Capability): void {
+    if (busy || testStatus === 'processing') return;
+    picker = null; nodeError = ''; preview = null; testStatus = 'idle';
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    draft = { id: `${type}_${crypto.randomUUID().slice(0, 8)}`, type, title: '', config: {} };
+    if (type === 'schedule_trigger') draft.config = { schedule: { type: 'daily', time: '09:00', timezone } };
+    if (type === 'app_skill_action' && capability) {
+      draft.title = appMetadata(capability.metadata.app_id!, capability).name_translation_key ? $text(appMetadata(capability.metadata.app_id!, capability).name_translation_key!) : capability.title;
+      draft.config = { app_id: capability.metadata.app_id, skill_id: capability.metadata.skill_id, input: schemaDefault(capability.metadata.input_schema ?? { type: 'object' }) };
     }
+    if (type === 'check') draft.config = { predicate: { left: '', op: '', right: '' } };
+    if (type === 'send_chat_message') { draft.config = { title: '', message: '', blocks: [] }; chooseChat = true; void loadChats(); }
+  }
+  function patch(config: Record<string, unknown>): void { if (draft) { draft = { ...draft, config: { ...draft.config, ...config } }; preview = null; } }
+  function schedulePatch(config: Record<string, unknown>): void { patch({ schedule: { ...record(draft?.config?.schedule), ...config } }); }
+  function predicatePatch(config: Record<string, unknown>): void { patch({ predicate: { ...record(draft?.config?.predicate), ...config } }); }
+  function sourceSchema(reference: unknown) { return outputs.find(output => output.reference === reference)?.schema; }
+  function operators(reference: unknown): string[] { const type = sourceSchema(reference)?.type; return ['number', 'integer'].includes(type ?? '') ? ['gt', 'gte', 'lt', 'lte', 'eq', 'ne'] : type === 'boolean' ? ['eq', 'ne'] : ['eq', 'ne', 'contains']; }
+  function operatorSymbol(op: unknown): string { return ({ gt: '>', gte: '≥', lt: '<', lte: '≤', eq: '=', ne: '≠', contains: tr('contains') } as Record<string, string>)[String(op)] ?? ''; }
+  function kind(node: WorkflowNode): string { return tr(isTrigger(node) ? 'time_trigger' : isCheck(node) ? 'check' : isMessage(node) ? 'send_message' : node.type === 'app_skill_action' ? 'use_app_skill' : 'action'); }
+  function summary(node: WorkflowNode): string {
+    if (isTrigger(node)) { const schedule = record(node.config?.schedule); if (schedule.type === 'hourly') return `${tr('hourly')} · :${String(schedule.minute ?? 0).padStart(2, '0')}`; if (schedule.type === 'once') return String(schedule.at ?? tr('once')); return `${tr(String(schedule.type ?? 'daily'))}${schedule.type === 'weekly' ? ` · ${(Array.isArray(schedule.weekdays) ? schedule.weekdays : ['sunday']).map(day => tr(String(day))).join(', ')}` : ''}, ${schedule.time ?? '09:00'}`; }
+    if (isCheck(node)) { const predicate = record(node.config?.predicate); const output = outputsBefore(graph, node.id, capabilities).find(item => item.reference === predicate.left); return `${output?.label ?? label(String(predicate.left ?? '').split('.').at(-1) ?? '')} ${operatorSymbol(predicate.op)} ${String(predicate.right ?? '')}`; }
+    if (isMessage(node)) return String(node.config?.chat_id ? `${tr('to')} ${chats.find(chat => chat.chat_id === node.config?.chat_id)?.title ?? tr('existing_chat')}` : tr('new_chat_each_run'));
     if (node.type === 'app_skill_action') {
-      const appId = stringValue(configRecord(node).app_id, 'weather');
-      if (appId === 'weather') return `Weather | Get forecast for ${stringValue(inputRecord(node).location, 'Berlin')}`;
-      if (appId === 'news') return `News | Search ${firstRequestQuery(node)}`;
-      return `${appId} | ${stringValue(configRecord(node).skill_id, 'action')}`;
+      const appId = String(node.config?.app_id ?? '');
+      const skillId = String(node.config?.skill_id ?? '');
+      const app = appMetadata(appId);
+      const skill = app.skills.find(item => item.id === skillId);
+      const appName = app.name_translation_key ? $text(app.name_translation_key) : app.name || label(appId);
+      const skillName = skill?.name_translation_key ? $text(skill.name_translation_key) : label(skillId);
+      return `${appName} | ${skillName}`;
     }
-    if (node.type === 'decision') {
-      const predicate = predicateRecord(node);
-      const left = stringValue(predicate.left, 'value').replace('$nodes.weather.output.', '').replaceAll('_', ' ').replaceAll('.', ' ');
-      const operator = { gte: '>', gt: '>', lte: '<', lt: '<', eq: '=' }[stringValue(predicate.op, 'gte')] ?? stringValue(predicate.op, 'gte');
-      return `${left} ${operator} ${predicate.right ?? ''}`.trim();
-    }
-    if (node.type === 'send_notification') return 'Send notification';
-    if (node.type === 'send_email_notification') return 'Send email';
-    if (node.type === 'create_chat_report') return stringValue(configRecord(node).summary, 'Create report');
-    if (node.type === 'repeat') return `Repeat up to ${numberValue(configRecord(node).max_iterations, 3)} times`;
-    if (node.type === 'ask_user') return stringValue(configRecord(node).prompt, node.title ?? 'Ask for input');
-    return node.title ?? nodeTypeLabel(node.type);
+    return node.title || label(node.type);
   }
-
-  function flowItems(): FlowItem[] {
-    const items: FlowItem[] = [];
-    graph.nodes.forEach((node, index) => {
-      const incomingEdge = graph.edges.find((edge) => edge.to === node.id);
-      const branch = incomingEdge?.branch;
-      if (index > 0) {
-        items.push({
-          kind: branch ? 'branch-label' : 'connector',
-          id: `connector-${node.id}`,
-          label: branch === 'yes' || branch === 'true' ? 'If true:' : branch === 'no' || branch === 'false' ? 'If false:' : 'then',
-          ...(branch ? {} : { indent: false }),
-        });
+  function style(node: WorkflowNode): string { const appId = String(node.config?.app_id ?? 'workflows'); return `--node-gradient: var(--color-app-${appId}, linear-gradient(135deg, #0064a3, #00a6bc));`; }
+  function nextId(nodeId: string, branch?: string): string | undefined { return graph.edges.find(edge => edge.from === nodeId && (edge.branch ?? '') === (branch ?? ''))?.to; }
+  function checkSource(node: WorkflowNode): WorkflowNode | undefined { const reference = String(record(node.config?.predicate).left ?? ''); const id = reference.startsWith('$nodes.') ? reference.split('.')[1] : reference.match(/steps\.([^.]+)/)?.[1]; return graph.nodes.find(item => item.id === id && item.type === 'app_skill_action'); }
+  function appIcon(node: WorkflowNode): string { return (appMetadata(String(node.config?.app_id ?? '')).icon_image ?? `${node.config?.app_id}.svg`).trim().replace(/\.svg$/, ''); }
+  function assetIconStyle(name: string, size: number, color = 'var(--color-primary, #536de6)'): string { return `--workflow-icon:var(--icon-url-${name}, var(--icon-url-app));--workflow-icon-size:${size}px;color:${color}`; }
+  function primaryNodeIconStyle(node: WorkflowNode): string {
+    if (node.type === 'app_skill_action') return assetIconStyle(appIcon(node), 33, 'var(--color-font-button)');
+    if (isCheck(node)) return assetIconStyle(checkSource(node) ? appIcon(checkSource(node)!) : 'workflow-check', 33);
+    return assetIconStyle(isTrigger(node) ? 'calendar' : isMessage(node) ? 'chat' : 'app', 33);
+  }
+  function location(node: WorkflowNode): string { const input = record(node.config?.input); const request = Array.isArray(input.requests) ? record(input.requests[0]) : {}; return String(input.location ?? request.location ?? ''); }
+  function workflowTimezone(node: WorkflowNode): string { const input = record(node.config?.input); const trigger = graph.nodes.find(isTrigger); return String(input.timezone || record(trigger?.config?.schedule).timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'); }
+  function inputValue(node: WorkflowNode, run?: WorkflowNodeRun): Record<string, unknown> { if (Object.keys(run?.input_summary ?? {}).length) return run!.input_summary!; if (isMessage(node)) return { title: node.config?.title, message: node.config?.message ?? node.config?.summary, destination: tr(node.config?.chat_id ? 'existing_chat' : 'new_chat_each_run') }; return record(node.config?.input ?? node.config?.inputs ?? node.config?.input_mapping ?? node.config?.schedule ?? node.config?.predicate); }
+  function outputValue(node: WorkflowNode, run: WorkflowNodeRun): Record<string, unknown> {
+    const data = record(run.output_summary);
+    const fields = capabilityFor(node, capabilities)?.metadata.output_schema?.properties;
+    if (fields) return Object.fromEntries(outputFields(fields).filter(([key]) => key in data).map(([key]) => [key, data[key]]));
+    const keys = String(node.config?.app_id) === 'weather' ? ['summary','rain_probability','max_temperature_c','rain_expected','rain_summary','forecast_day','forecast_days','rain_periods'] : data.results ? ['result_count','results','warnings','partial'] : null;
+    return keys ? Object.fromEntries(keys.filter(key => key in data).map(key => [key, data[key]])) : Object.fromEntries(valueEntries(data));
+  }
+  function failForUser(error: unknown, key: string): void { console.error('[Workflow builder]', error); nodeError = tr(key); }
+  function sourceApp(reference: unknown): string { const id = String(reference ?? '').split('.')[1]; return String(graph.nodes.find(node => node.id === id)?.config?.app_id ?? ''); }
+  async function saveNode(): Promise<void> {
+    if (!draft || !onSave || busy) return;
+    if (isMessage(draft) && !String(draft.config?.title ?? '').trim()) { nodeError = tr('title_required'); return; }
+    if (isCheck(draft) && (!record(draft.config?.predicate).left || !record(draft.config?.predicate).op)) { nodeError = tr('check_required'); return; }
+    busy = true; nodeError = '';
+    const saved = structuredClone($state.snapshot(draft)); saved.title ||= summary(saved);
+    try {
+      await onSave({ ...insertNode(graph, saved, insertion), version: 2 }); closeEditor(); busy = false;
+      if (isTrigger(saved) && !graph.nodes.some(node => !isTrigger(node) && node.type !== 'end')) openPicker('action', { after: saved.id });
+      else if (isCheck(saved)) openPicker('action', { after: saved.id, branch: 'yes' });
+    } catch (error) { failForUser(error, 'save_failed'); }
+    finally { busy = false; }
+  }
+  async function deleteNode(): Promise<void> { if (!draft || !onSave || busy) return; busy = true; try { await onSave({ ...removeNode(graph, draft.id, capabilities), version: 2 }); closeEditor(); } catch (error) { if (error instanceof WorkflowNodeDependencyError) { console.error('[Workflow builder]', error); nodeError = tr('step_in_use').replace('{steps}', error.dependentNodeTitles.join(', ')); } else failForUser(error, 'save_failed'); } finally { busy = false; } }
+  async function testNode(): Promise<void> {
+    if (!draft || !workflowId || testStatus === 'processing') return;
+    const node = structuredClone($state.snapshot(draft)); const revision = ++testRevision; testStatus = 'processing'; nodeError = '';
+    try {
+      const data = await workflowApiRequest<{ run: { id: string } }>(`/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(node.id)}/test`, { method: 'POST', body: JSON.stringify({ node, input: {}, upstream_outputs: testOutputs }) });
+      testingRunId = data.run.id;
+      for (let attempt = 0; attempt < 60 && revision === testRevision; attempt++) {
+        const run = await workflowWorkspaceStore.getWorkflowRun(workflowId, data.run.id);
+        if (!['accepted', 'queued', 'running', 'cancellation_requested'].includes(run.status)) {
+          const result = run.node_runs?.find(item => item.node_id === node.id);
+          if (run.status === 'completed') { testOutputs = { ...testOutputs, [node.id]: result?.output_summary ?? run.output_summary ?? {} }; testStatus = 'completed'; }
+          else { testStatus = run.status === 'cancelled' ? 'cancelled' : 'failed'; console.error('[Workflow test]', result?.error_summary ?? run.error_summary ?? run.status); nodeError = tr('output_test_failed'); }
+          testingRunId = null; return;
+        }
+        await new Promise(resolve => setTimeout(resolve, Math.min(1500 + attempt * 500, 5000)));
       }
-      items.push({ kind: 'node', id: `node-${node.id}`, node, branch: !!branch });
-    });
-    const decision = graph.nodes.find((node) => node.type === 'decision');
-    if (decision && !graph.edges.some((edge) => edge.from === decision.id && ['no', 'false'].includes(edge.branch ?? ''))) {
-      items.push({ kind: 'branch-label', id: `if-false-${decision.id}`, label: 'If false:' });
-      items.push({ kind: 'placeholder', id: `false-placeholder-${decision.id}`, label: 'Do nothing' });
-    }
-    return items;
+      if (revision === testRevision) { testStatus = 'idle'; nodeError = tr('test_pending'); }
+    } catch (error) { if (revision === testRevision) { testStatus = 'failed'; failForUser(error, 'output_test_failed'); } }
   }
-
-  function updateNode(nodeId: string, updater: (node: WorkflowNode) => WorkflowNode): void {
-    if (readOnly) return;
-    onChange({ ...graph, nodes: graph.nodes.map((node) => node.id === nodeId ? updater(node) : node) });
+  async function stopTest(): Promise<void> { if (!workflowId || !testingRunId) return; try { await workflowWorkspaceStore.cancelWorkflowRun(workflowId, testingRunId); } catch (error) { failForUser(error, 'save_failed'); } }
+  async function loadChats(): Promise<void> {
+    try {
+      const [{ chatDB }, { chatMetadataCache }] = await Promise.all([import('../../services/db'), import('../../services/chatMetadataCache')]);
+      const localChats = await chatDB.getAllChats();
+      // Reuse the owner client's in-memory decryption cache; never persist these display fields.
+      chats = await Promise.all(localChats.map(async chat => {
+        const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+        return { ...chat, title: metadata?.title ?? chat.title, category: metadata?.category ?? chat.category, icon: metadata?.icon ?? chat.icon, chat_summary: metadata?.summary ?? chat.chat_summary };
+      }));
+    } catch { nodeError = tr('chats_unavailable'); }
   }
-
-  function updateNodeConfig(node: WorkflowNode, config: Record<string, unknown>): void {
-    updateNode(node.id, (current) => ({ ...current, config: { ...configRecord(current), ...config } }));
+  function selectChat(chat: Chat | null): void {
+    if (draft) draft = { ...draft, config: messageDestinationConfig(draft.config, chat?.chat_id) };
+    preview = null; chooseChat = false;
   }
-
-  function defaultNode(type: 'app_skill_action' | 'decision' | 'create_chat_report'): WorkflowNode {
-    const id = `${type}-${Date.now().toString(36)}`;
-    if (type === 'create_chat_report') {
-      return { id, type, title: 'Create chat report', config: { summary: 'Workflow report' } };
-    }
-    return type === 'decision'
-      ? { id, type, title: 'Decision', config: { predicate: { left: '$nodes.weather.output.rain_probability', op: 'gte', right: 60 } } }
-      : { id, type, title: 'Check weather', config: { app_id: 'weather', skill_id: 'forecast', input: { location: 'Berlin', days: 1 } } };
+  function addReference(output: Output): void {
+    if (!draft) return;
+    if (['array', 'object'].includes(output.schema.type ?? '')) {
+      messageEditor?.removeMentionTrigger();
+      if (!blocks.some(block => block.source === output.reference)) patch({ blocks: [...blocks, { id: `block_${crypto.randomUUID().slice(0, 8)}`, source: output.reference, only_new_results: false }] });
+    } else messageEditor?.insertReference(output);
+    showReferences = false;
   }
-
-  function appendNode(type: 'app_skill_action' | 'decision' | 'create_chat_report'): void {
-    if (readOnly) return;
-    stepMenuOpen = false;
-    const node = defaultNode(type);
-    const endIndex = graph.nodes.findIndex((item) => item.type === 'end');
-    const nodes = endIndex >= 0 ? [...graph.nodes.slice(0, endIndex), node, ...graph.nodes.slice(endIndex)] : [...graph.nodes, node];
-    const endNode = endIndex >= 0 ? graph.nodes[endIndex] : null;
-    if (!endNode) {
-      const previousNode = graph.nodes.at(-1);
-      onChange({ ...graph, nodes, edges: previousNode ? [...graph.edges, { from: previousNode.id, to: node.id }] : graph.edges });
-      return;
-    }
-    const incomingEndEdges = graph.edges.filter((edge) => edge.to === endNode.id);
-    const edges = incomingEndEdges.length > 0
-      ? [
-          ...graph.edges.filter((edge) => edge.to !== endNode.id),
-          ...incomingEndEdges.map((edge) => ({ ...edge, to: node.id })),
-          { from: node.id, to: endNode.id },
-        ]
-      : [...graph.edges, { from: node.id, to: endNode.id }];
-    onChange({ ...graph, nodes, edges });
-  }
-
-  function addTimeTrigger(): void {
-    if (readOnly || triggerCount > 0) return;
-    const trigger: WorkflowNode = {
-      id: 'trigger',
-      type: 'schedule_trigger',
-      title: 'Every day',
-      config: { schedule: { type: 'daily', time: '09:00', timezone: 'Europe/Berlin' } },
-    };
-    const firstNode = graph.nodes[0];
-    onChange({
-      ...graph,
-      trigger_node_id: trigger.id,
-      nodes: [trigger, ...graph.nodes],
-      edges: firstNode ? [{ from: trigger.id, to: firstNode.id }, ...graph.edges] : graph.edges,
-    });
-    expandedNodeId = trigger.id;
-  }
-
-  function hasReachableQualifyingEffect(): boolean {
-    if (!graph.trigger_node_id) return false;
-    const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
-    const pending = [graph.trigger_node_id];
-    const visited = new Set<string>();
-    while (pending.length > 0) {
-      const nodeId = pending.shift();
-      if (!nodeId || visited.has(nodeId)) continue;
-      visited.add(nodeId);
-      const node = nodesById.get(nodeId);
-      if (node && QUALIFYING_EFFECT_TYPES.has(node.type)) return true;
-      for (const edge of graph.edges) if (edge.from === nodeId) pending.push(edge.to);
-    }
-    return false;
-  }
-
-  function removeNode(nodeId: string): void {
-    if (readOnly) return;
-    const nodes = graph.nodes.filter((node) => node.id !== nodeId || ['schedule_trigger', 'manual_trigger', 'end'].includes(node.type));
-    if (nodes.length === graph.nodes.length) return;
-    const incoming = graph.edges.filter((edge) => edge.to === nodeId);
-    const outgoing = graph.edges.filter((edge) => edge.from === nodeId);
-    const bridged = incoming.flatMap((before) => outgoing.map((after) => ({ from: before.from, to: after.to, ...(before.branch ? { branch: before.branch } : after.branch ? { branch: after.branch } : {}) })));
-    onChange({ ...graph, nodes, edges: [...graph.edges.filter((edge) => edge.from !== nodeId && edge.to !== nodeId), ...bridged] });
-  }
-
-  function nodeRun(nodeId: string): WorkflowNodeRun | undefined {
-    return nodeRuns.find((run) => run.node_id === nodeId);
-  }
-
-  function detailValue(value: unknown): string {
-    if (value === null || value === undefined) return 'Unavailable';
-    if (typeof value === 'string') return value;
-    return JSON.stringify(value, null, 2);
-  }
-
-  function appCardStyle(node: WorkflowNode): string | undefined {
-    if (node.type !== 'app_skill_action') return undefined;
-    const category = stringValue(configRecord(node).app_id) === 'weather' ? 'science' : 'general_knowledge';
-    const colors = getCategoryGradientColors(category);
-    return colors ? `--node-gradient-start: ${colors.start}; --node-gradient-end: ${colors.end};` : undefined;
+  function patchBlock(index: number, values: Record<string, unknown>): void { patch({ blocks: blocks.map((block, i) => i === index ? { ...block, ...values } : block) }); }
+  async function previewMessage(): Promise<void> {
+    if (!workflowId || !draft) return; busy = true; nodeError = '';
+    try { const data = await workflowApiRequest<{ preview: Record<string, unknown> }>(`/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(draft.id)}/preview`, { method: 'POST', body: JSON.stringify({ node: draft, input: {}, upstream_outputs: testOutputs }) }); preview = data.preview; }
+    catch (error) { failForUser(error, 'output_preview_failed'); } finally { busy = false; }
   }
 </script>
 
-<section class="graph-panel" data-testid={testId} data-read-only={readOnly ? 'true' : 'false'}>
-  <div class="graph-canvas">
-    {#if !readOnly}
-      <div class="readiness-panel" data-testid="workflow-readiness">
-        <div><span>Triggers</span><strong data-testid="workflow-readiness-trigger-count">{triggerCount}</strong></div>
-        <div><span>Steps</span><strong data-testid="workflow-readiness-step-count">{stepCount}</strong></div>
-        <div data-testid="workflow-reachable-qualifying-side-effect" data-reachable={qualifyingEffectReachable ? 'true' : 'false'}>
-          <span>Reachable result</span><strong>{qualifyingEffectReachable ? 'Ready' : 'Needed'}</strong>
-        </div>
-      </div>
-      {#if triggerCount === 0 && stepCount === 0}
-        <p class="blank-draft" data-testid="workflow-blank-draft">Add one time trigger and at least one result-producing step to activate this Workflow.</p>
-      {/if}
-    {/if}
-    <div class="node-stack" data-testid="workflow-node-stack">
-      {#each flowItems() as item (item.id)}
-        {#if item.kind === 'connector'}
-          <div class="flow-connector" class:branch-connector={item.indent}>{item.label}</div>
-        {:else if item.kind === 'branch-label'}
-          <div class="branch-label">{item.label}</div>
-        {:else if item.kind === 'placeholder'}
-          <article class="workflow-card placeholder-card">{item.label}</article>
-        {:else}
-          {@const run = nodeRun(item.node.id)}
-          {@const IconComponent = getLucideIcon(cardIcon(item.node.type))}
-          <article class="flow-node" class:branch-node={item.branch} class:expanded={expandedNodeId === item.node.id} data-node-type={item.node.type} data-testid="workflow-node-card">
-            <button
-              type="button"
-              class="workflow-card"
-              class:app-skill-card={item.node.type === 'app_skill_action'}
-              style={appCardStyle(item.node)}
-              data-testid="workflow-node-summary"
-              aria-expanded={expandedNodeId === item.node.id}
-              onclick={() => (expandedNodeId = expandedNodeId === item.node.id ? null : item.node.id)}
-            >
-              <span class="card-kind">{nodeTypeLabel(item.node.type)}</span>
-              <span class="card-icon" aria-hidden="true"><IconComponent size={26} /></span>
-              <strong data-testid="workflow-node-title-label">{cardSummary(item.node)}</strong>
-              {#if run}<span class="node-status" data-testid="workflow-run-node-status" data-node-status={run.status}>{run.status.replaceAll('_', ' ')}</span>{/if}
-              <span class="expand-icon" aria-hidden="true"><ChevronIcon size={18} /></span>
-            </button>
+{#snippet choice(icon: string, title: string, action: () => void, testId?: string)}
+  {@const Icon = getLucideIcon(icon)}{@const asset = ({ blocks: 'app', 'messages-square': 'chat', 'calendar-clock': 'workflow', 'calendar-days': 'calendar', 'git-branch': 'workflow-check' } as Record<string, string>)[icon]}<button type="button" class="choice" data-testid={testId} onclick={action}>{#if asset}<span class="workflow-icon" style={assetIconStyle(asset, 16)} aria-hidden="true"></span>{:else}<Icon size={16}/>{/if}<span>{title}</span></button>
+{/snippet}
 
-            {#if expandedNodeId === item.node.id}
-              <div class="node-editor-panel" data-testid="workflow-node-expanded">
-                <div class="expanded-header">
-                  <div><span>{nodeTypeLabel(item.node.type)}</span><h3>{cardSummary(item.node)}</h3></div>
-                  {#if !readOnly && !['schedule_trigger', 'manual_trigger', 'end'].includes(item.node.type)}
-                    <button type="button" class="remove-node" data-testid="remove-workflow-node" onclick={() => removeNode(item.node.id)}>Remove</button>
-                  {/if}
-                </div>
-
-                {#if readOnly}
-                  {#if run?.input_summary && Object.keys(run.input_summary).length > 0}
-                    <section class="detail-group"><h4>Input</h4><pre>{detailValue(run.input_summary)}</pre></section>
-                  {/if}
-                  {#if run?.output_summary && Object.keys(run.output_summary).length > 0}
-                    <section class="detail-group"><h4>Output and sources</h4><pre>{detailValue(run.output_summary)}</pre></section>
-                  {/if}
-                  {#if run?.skipped_reason}<section class="detail-group"><h4>Branch</h4><p>{run.skipped_reason}</p></section>{/if}
-                  {#if run?.error_summary}<section class="detail-group error"><h4>Error</h4><p>{run.error_summary}</p></section>{/if}
-                {:else}
-                  <label class="node-field"><span>Action title</span><input data-testid="workflow-node-title-input" value={item.node.title ?? item.node.type} oninput={(event) => updateNode(item.node.id, (node) => ({ ...node, title: event.currentTarget.value }))} /></label>
-                  {#if item.node.type === 'schedule_trigger'}
-                    <div class="node-grid">
-                      <label class="node-field"><span>Repeat</span><select data-testid="workflow-time-trigger-schedule" value={stringValue(scheduleRecord(item.node).type, 'daily')} oninput={(event) => updateNodeConfig(item.node, { schedule: { ...scheduleRecord(item.node), type: event.currentTarget.value } })}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
-                      <label class="node-field"><span>Time</span><input value={stringValue(scheduleRecord(item.node).time, '09:00')} oninput={(event) => updateNodeConfig(item.node, { schedule: { ...scheduleRecord(item.node), time: event.currentTarget.value } })} /></label>
-                      <label class="node-field"><span>Timezone</span><input value={stringValue(scheduleRecord(item.node).timezone, 'Europe/Berlin')} oninput={(event) => updateNodeConfig(item.node, { schedule: { ...scheduleRecord(item.node), timezone: event.currentTarget.value } })} /></label>
-                    </div>
-                  {:else if item.node.type === 'app_skill_action'}
-                    <div class="node-grid">
-                      <label class="node-field"><span>Skill</span><select value={`${stringValue(configRecord(item.node).app_id, 'weather')}:${stringValue(configRecord(item.node).skill_id, 'forecast')}`} oninput={(event) => { const [appId, skillId] = event.currentTarget.value.split(':'); updateNodeConfig(item.node, { app_id: appId, skill_id: skillId, input: appId === 'news' ? { requests: [{ query: 'AI news' }] } : { location: 'Berlin', days: 1 } }); }}><option value="weather:forecast">Weather forecast</option><option value="news:search">News search</option></select></label>
-                      {#if stringValue(configRecord(item.node).app_id, 'weather') === 'news'}
-                        <label class="node-field wide"><span>Search query</span><input value={firstRequestQuery(item.node)} oninput={(event) => updateNodeConfig(item.node, { input: { requests: [{ query: event.currentTarget.value }] } })} /></label>
-                      {:else}
-                        <label class="node-field"><span>Location</span><input data-testid="workflow-node-location-input" value={stringValue(inputRecord(item.node).location, 'Berlin')} oninput={(event) => updateNodeConfig(item.node, { input: { ...inputRecord(item.node), location: event.currentTarget.value } })} /></label>
-                        <label class="node-field"><span>Days</span><input type="number" min="1" max="7" value={numberValue(inputRecord(item.node).days, 1)} oninput={(event) => updateNodeConfig(item.node, { input: { ...inputRecord(item.node), days: Number(event.currentTarget.value) } })} /></label>
-                      {/if}
-                    </div>
-                  {:else if item.node.type === 'decision'}
-                    <div class="node-grid"><label class="node-field wide"><span>Check value</span><input value={stringValue(predicateRecord(item.node).left)} oninput={(event) => updateNodeConfig(item.node, { predicate: { ...predicateRecord(item.node), left: event.currentTarget.value } })} /></label><label class="node-field"><span>Value</span><input type="number" value={numberValue(predicateRecord(item.node).right, 60)} oninput={(event) => updateNodeConfig(item.node, { predicate: { ...predicateRecord(item.node), right: Number(event.currentTarget.value) } })} /></label></div>
-                  {:else}
-                    <p class="node-note">{detailValue(item.node.config ?? {})}</p>
-                  {/if}
-                {/if}
-              </div>
-            {/if}
-          </article>
-        {/if}
-      {/each}
-    </div>
-
-    {#if !readOnly}
-      <div class="editor-toolbar" data-testid="workflow-action-palette">
-        {#if triggerCount === 0}
-          <button type="button" data-testid="workflow-add-time-trigger" onclick={addTimeTrigger}><PlusIcon size={24} />Add time trigger</button>
-        {/if}
-        <button type="button" data-testid="workflow-add-step" onclick={() => (stepMenuOpen = !stepMenuOpen)}><PlusIcon size={24} />Add step</button>
-        {#if stepMenuOpen}
-          <div class="step-menu" data-testid="workflow-step-menu">
-            <button type="button" data-testid="workflow-step-app-skill-action" onclick={() => appendNode('app_skill_action')}>Use App skill</button>
-            <button type="button" data-testid="workflow-step-create-chat-report" onclick={() => appendNode('create_chat_report')}>Create chat report</button>
-            <button type="button" data-testid="add-decision-node" onclick={() => appendNode('decision')}>Add decision</button>
-          </div>
-        {/if}
+{#snippet slotControls(slot: Insertion)}
+  {#if !readOnly}
+    {#if sameSlot(slot) && (picker || (draft && !graph.nodes.some(node => node.id === draft?.id)))}
+      {#if draft}{@render editor()}{:else}{@render pickerPanel()}{/if}
+    {:else}
+      <div class="add-controls" data-testid="workflow-action-palette">
+        {#if !graph.nodes.some(isTrigger) && !slot.branch}{@render choice('calendar-clock', tr('add_trigger'), () => openPicker('trigger', slot), 'workflow-add-time-trigger')}{/if}
+        {#if !slot.after && !graph.nodes.length}{@render choice('blocks', tr('add_action'), () => openPicker('action', slot), 'workflow-add-step')}{:else}<button type="button" class="nothing" data-testid="workflow-add-step" onclick={() => openPicker('action', slot)}>{tr('do_nothing_add_step')}</button>{/if}
       </div>
     {/if}
+  {/if}
+{/snippet}
+
+{#snippet pickerPanel()}
+  <div class="editor picker" data-testid="workflow-step-menu">
+    <WorkflowEditorHeader
+      title={tr(picker === 'trigger' ? 'add_trigger' : picker === 'app' ? 'use_app' : picker === 'skill' ? 'choose_skill' : 'add_action')}
+      backLabel={picker === 'app' || picker === 'skill' ? tr('back') : ''}
+      closeLabel={tr('close')}
+      collapseLabel={tr('collapse')}
+      onBack={() => picker = picker === 'skill' ? 'app' : 'action'}
+      onClose={closeEditor}
+    />
+    <h3>{tr(picker === 'trigger' ? 'trigger_question' : picker === 'app' ? 'app_question' : picker === 'skill' ? 'skill_question' : 'action_question')}</h3>
+    {#if picker === 'trigger'}<div class="choices">{@render choice('calendar-days', tr('date_time'), () => configure('schedule_trigger'), 'workflow-trigger-date-time')}</div>
+    {:else if picker === 'action'}<div class="choices">{@render choice('blocks', tr('use_app'), () => picker = 'app', 'workflow-step-app-skill-action')}{@render choice('messages-square', tr('send_message'), () => configure('send_chat_message'), 'workflow-step-create-chat-report')}{#if insertion.after && !isTrigger(graph.nodes.find(node => node.id === insertion.after)!)}{@render choice('git-branch', tr('add_check'), () => configure('check'))}{/if}</div>
+    {:else if picker === 'app'}<div class="card-scroll">{#each appIds as appId}<AppStoreCard app={appMetadata(appId)} onSelect={() => { selectedApp = appId; picker = 'skill'; }}/>{/each}</div>{#if !appIds.length}<p>{loadError || tr('loading_apps')}</p>{/if}
+    {:else if picker === 'skill'}<div class="card-scroll">{#each available.filter(item => item.metadata.app_id === selectedApp) as capability}<AppStoreCard app={appMetadata(selectedApp, capability)} cardIconType="skill" onSelect={() => configure('app_skill_action', capability)}/>{/each}</div>{/if}
   </div>
+{/snippet}
+
+{#snippet editor()}
+  {#if draft}
+    {@const predicate = record(draft.config?.predicate)}
+    {@const schedule = record(draft.config?.schedule)}
+    <div class="editor" class:skill-editor={draft.type === 'app_skill_action'} style={style(draft)} data-testid="workflow-node-expanded">
+      <WorkflowEditorHeader
+        title={draft.type === 'app_skill_action' ? summary(draft) : kind(draft)}
+        backLabel={draft.type === 'app_skill_action' ? tr('back_to_app_skill') : ''}
+        iconStyle={primaryNodeIconStyle(draft)}
+        colored={draft.type === 'app_skill_action'}
+        collapsible
+        disabled={busy || testStatus === 'processing'}
+        closeLabel={tr('close')}
+        collapseLabel={tr('collapse')}
+        onBack={closeEditor}
+        onClose={closeEditor}
+      />
+      {#if isTrigger(draft)}
+        <h3>{tr('date_time')}</h3><div class="field-grid">
+          <label>{tr('repeat')}<SettingsDropdown dataTestid="workflow-time-trigger-schedule" value={String(schedule.type ?? 'daily')} options={[{value:'once',label:tr('once')},{value:'hourly',label:tr('hourly')},{value:'daily',label:tr('daily')},{value:'weekly',label:tr('weekly')}]} ariaLabel={tr('repeat')} onChange={type => patch({ schedule: { type, timezone: schedule.timezone, ...(type === 'hourly' ? { minute: 0 } : type === 'once' ? { at: '' } : { time: schedule.time ?? '09:00', ...(type === 'weekly' ? { weekdays: ['sunday'] } : {}) }) } })}/></label>
+          {#if schedule.type === 'once'}<label>{tr('date_time')}<input type="datetime-local" value={String(schedule.at ?? '').slice(0, 16)} onchange={event => schedulePatch({ at: event.currentTarget.value })}/></label>
+          {:else if schedule.type === 'hourly'}<label>{tr('minute')}<input type="number" min="0" max="59" value={Number(schedule.minute ?? 0)} oninput={event => schedulePatch({ minute: Number(event.currentTarget.value) })}/></label>
+          {:else}<label>{tr('time')}<input type="time" value={String(schedule.time ?? '09:00')} oninput={event => schedulePatch({ time: event.currentTarget.value })}/></label>{/if}
+          <label>{tr('timezone')}<input value={String(schedule.timezone ?? '')} oninput={event => schedulePatch({ timezone: event.currentTarget.value })}/></label>
+        </div>
+        {#if schedule.type === 'weekly'}<div class="weekdays">{#each ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as day}<label><input type="checkbox" checked={Array.isArray(schedule.weekdays) && schedule.weekdays.includes(day)} onchange={event => schedulePatch({ weekdays: event.currentTarget.checked ? [...(Array.isArray(schedule.weekdays) ? schedule.weekdays : []), day] : (Array.isArray(schedule.weekdays) ? schedule.weekdays : []).filter(item => item !== day) })}/>{tr(day)}</label>{/each}</div>{/if}
+      {:else if draft.type === 'app_skill_action'}
+        {#if location(draft)}<span class="expanded-location">{location(draft)}</span>{/if}
+        <h4>↓ {tr('input')}</h4>
+        {#if draftCapability?.metadata.input_schema}<WorkflowSchemaFields schema={draftCapability.metadata.input_schema} value={draft.config?.input} {outputs} path={draft.id} appId={String(draft.config?.app_id ?? '')} timezone={workflowTimezone(draft)} onChange={value => patch({ input: value })}/>{:else}<p>{loadError || tr('schema_unavailable')}</p>{/if}
+        <div class="test-control">
+          {#if testStatus === 'processing'}<span aria-live="polite">{tr('processing')}</span>{#if testingRunId}<button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
+          {:else}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled={!workflowId || draftCapability?.metadata.workflow?.test_allowed === false || !draftCapability} onclick={() => void testNode()}><Play size={16}/>{tr(testOutputs[draft.id] ? 'test_again' : 'test_action')}<Coin size={16}/><span>{draftCapability?.metadata.cost?.fixed ?? draftCapability?.metadata.cost?.per_unit?.credits ?? tr('variable_cost')}</span></button>{/if}
+        </div>
+        <div class="output-heading"><h4>↑ {tr('output')}</h4><span>{tr(testOutputs[draft.id] ? 'test_output' : 'example')}</span></div>
+        <div class="output-fields" data-testid="workflow-output-fields">{#each outputFields(draftCapability?.metadata.output_schema?.properties ?? {}) as [key, spec]}{@const value = testOutputs[draft.id] ? testOutputs[draft.id][key] : exampleValue(spec)}<div><div class="output-label"><span class="type" data-value-type={valueType(spec, value)}>{tr(`output_type_${valueType(spec, value)}`)}</span><strong>{spec.title || label(key)}</strong></div><WorkflowValueView {value} schema={spec} appId={String(draft.config?.app_id ?? '')} path={`${draft.id}.${key}`}/></div>{/each}</div>
+      {:else if isCheck(draft)}
+        <h3>{tr('check_question')}</h3><h2>{tr('if')}</h2>
+        <div class="check-fields"><SettingsDropdown value={String(predicate.left ?? '')} options={outputs.filter(item => !['array','object'].includes(item.schema.type ?? '')).map(output => ({value:output.reference,label:output.label}))} placeholder={tr('select_output')} ariaLabel={tr('select_output')} onChange={left => predicatePatch({ left, op: '', right: '' })}/>
+          {#if predicate.left}<SettingsDropdown value={String(predicate.op ?? '')} options={operators(predicate.left).map(op => ({value:op,label:`${operatorSymbol(op)} ${tr(`operator_${op}`)}`}))} placeholder={tr('compare_type')} ariaLabel={tr('compare_type')} onChange={op => predicatePatch({ op, right: sourceSchema(predicate.left)?.type === 'boolean' ? true : '' })}/>{/if}
+          {#if predicate.op}<span class="type" data-value-type={valueType(sourceSchema(predicate.left))}>{tr(`output_type_${valueType(sourceSchema(predicate.left))}`)}</span>{#if sourceSchema(predicate.left)?.type === 'boolean'}<SettingsDropdown value={String(predicate.right)} options={[{value:'true',label:tr('true')},{value:'false',label:tr('false')}]} ariaLabel={tr('compare_value')} onChange={value => predicatePatch({ right: value === 'true' })}/>{:else}<input aria-label={tr('compare_value')} type={['number','integer'].includes(sourceSchema(predicate.left)?.type ?? '') ? 'number' : 'text'} value={String(predicate.right ?? '')} oninput={event => predicatePatch({ right: ['number','integer'].includes(sourceSchema(predicate.left)?.type ?? '') ? Number(event.currentTarget.value) : event.currentTarget.value })}/>{/if}{/if}
+        </div>
+      {:else if isMessage(draft)}
+        {#if chooseChat}<h3>{tr('chat_question')}</h3><input aria-label={tr('search_chats')} placeholder={tr('search_chats')} bind:value={chatSearch}/><div class="card-scroll">{#each visibleChats as chat}<ChatPreviewCard {chat} onOpen={selectChat}/>{/each}</div><button class="primary" type="button" data-testid="workflow-new-chat-destination" onclick={() => selectChat(null)}>+ {tr('new_chat_each_run')}</button>
+        {:else}
+          <h3>{tr('message_question')}</h3><button class="quiet target" type="button" onclick={() => { chooseChat = true; void loadChats(); }}>{tr('to')}: {summary(draft)}</button>
+          <label>{tr('chat_title')}<input data-testid="workflow-message-title" value={String(draft.config?.title ?? '')} oninput={event => patch({ title: event.currentTarget.value })}/></label>
+          <div class="reference-chips">{#each outputs as output}<button type="button" class="chip" onclick={() => addReference(output)}>+ {output.label}</button>{/each}</div>
+          <WorkflowMessageEditor bind:this={messageEditor} value={String(draft.config?.message ?? draft.config?.summary ?? '')} {outputs} placeholder={tr('message_placeholder')} disabled={busy || testStatus === 'processing'} onChange={value => patch({ message: value })} onMentionTrigger={visible => showReferences = visible}/>
+          {#if showReferences}<div class="references" aria-label={tr('select_output')}>{#each outputs as output}<button type="button" class="quiet" onclick={() => addReference(output)}>{output.label}</button>{/each}</div>{/if}
+          {#each blocks as block, index}<div class="message-block"><div><strong>{outputs.find(output => output.reference === block.source)?.label ?? String(block.source)}</strong><button type="button" class="quiet" aria-label={tr('remove')} onclick={() => patch({ blocks: blocks.filter((_, i) => i !== index) })}>×</button></div>
+            {#if sourceSchema(block.source)?.type === 'array'}<label class="checkbox"><input type="checkbox" checked={block.only_new_results === true} onchange={event => patchBlock(index, { only_new_results: event.currentTarget.checked })}/>{tr('only_new_results')}</label>{/if}
+            <label>{tr('include_when')}<SettingsDropdown value={String(block.include_if ?? '')} options={[{value:'',label:tr('always')},...outputs.filter(output => output.schema.type === 'boolean').map(output => ({value:output.reference,label:`${output.label} = ${tr('true')}`}))]} ariaLabel={tr('include_when')} onChange={value => patchBlock(index, { include_if: value || null })}/></label>
+          </div>{/each}
+          <button class="quiet" type="button" data-testid="workflow-preview-message" disabled={busy || !String(draft.config?.title ?? '').trim()} onclick={() => void previewMessage()}>{tr('preview_message')}</button>
+          {#if preview}<div class="message-preview" data-testid="workflow-message-preview">{#if preview.title}<h4>{String(preview.title)}</h4>{/if}{#if preview.message || (!Array.isArray(preview.blocks) && preview.text)}<WorkflowValueView value={preview.message || preview.text}/>{/if}{#if Array.isArray(preview.blocks)}{#each preview.blocks as value}{@const block = record(value)}<section>{#if block.label}<h4>{String(block.label)}</h4>{/if}<WorkflowValueView value={block.value} appId={sourceApp(block.source)} path={`preview.${block.id}`}/></section>{/each}{/if}</div>{/if}
+        {/if}
+      {:else}<WorkflowValueView value={draft.config}/>{/if}
+      {#if nodeError}<p class="error" role="alert">{nodeError}</p>{/if}
+      {#if !chooseChat}<div class="save-row"><button type="button" class="primary" data-testid="workflow-node-save" disabled={busy || testStatus === 'processing'} onclick={() => void saveNode()}>{tr(busy ? 'saving' : 'save')}</button>{#if graph.nodes.some(node => node.id === draft?.id)}<button type="button" class="quiet" data-testid="remove-workflow-node" disabled={busy || testStatus === 'processing'} onclick={() => void deleteNode()}>{tr('remove')}</button>{/if}</div>{/if}
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet chain(nodeId: string, visited: string[] = [], stopAt?: string)}
+  {@const node = graph.nodes.find(item => item.id === nodeId)}
+  {#if node && node.type !== 'end' && !visited.includes(nodeId) && nodeId !== stopAt}
+    {@const run = nodeRuns.find(item => item.node_id === node.id)}
+    {@const rawRunStatus = String(isMessage(node) && run?.output_summary?.status ? run.output_summary.status : run?.status ?? '')}
+    {@const runStatus = ['acknowledged','completed','no_new_results'].includes(rawRunStatus) ? 'completed' : ['failed','cancelled','skipped','queued','running','cancellation_requested'].includes(rawRunStatus) ? rawRunStatus : 'waiting'}
+    <article class="flow-node" data-node-id={node.id} data-node-type={node.type} data-testid="workflow-node-card">
+      {#if draft?.id === node.id}{@render editor()}{:else}
+        <button type="button" class="node-summary" class:skill={node.type === 'app_skill_action'} class:expanded={readOnly && expandedReadOnly === node.id} style={style(node)} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} onclick={() => edit(node)}><span class="kind">{kind(node)}</span><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && location(node)}<span class="location">{location(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={run.status} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}<span class="node-chevron" aria-hidden="true"><Down size={16}/></span></button>
+        {#if readOnly && expandedReadOnly === node.id}<div class="editor" data-testid="workflow-node-expanded">{#if run}<h4>{tr('input')}</h4><WorkflowValueView value={inputValue(node, run)} appId={String(node.config?.app_id ?? '')}/><h4>{tr('output')}</h4>{#if isMessage(node)}<WorkflowValueView value={{ status: run.output_summary?.status ?? run.status, delivered_results: run.output_summary?.delivered_result_count ?? 0, pending_results: run.output_summary?.pending_result_count ?? 0 }}/>{#if run.output_summary?.chat_id}<a class="quiet" href={`/#chat-id=${encodeURIComponent(String(run.output_summary.chat_id))}`}>{tr('output_open_chat')}</a>{/if}{:else}<WorkflowValueView value={outputValue(node, run)} appId={String(node.config?.app_id ?? '')}/>{/if}{#if run.error_summary}<p class="error">{tr('output_step_failed')}</p>{/if}{#if run.skipped_reason}<p>{tr('output_step_skipped')}</p>{/if}{:else}<WorkflowValueView value={inputValue(node)} appId={String(node.config?.app_id ?? '')}/>{/if}</div>{/if}
+      {/if}
+    </article>
+    {#if isCheck(node)}
+      {@const continuation = nextId(node.id)}
+      <div class="branch-group">
+        {#each ['yes','no'] as branch}{@const target = nextId(node.id, branch) ?? nextId(node.id, branch === 'yes' ? 'true' : 'false')}<div class="branch"><div class="connector branch-label"><span class="workflow-icon" style={assetIconStyle('workflow-check', 18, 'var(--color-font-secondary)')} aria-hidden="true"></span>{tr(branch === 'yes' ? 'if_true' : 'else')}</div>{#if target}{@render chain(target, [...visited, node.id], continuation)}{:else}{#if !readOnly}{#if sameSlot({ after: node.id, branch }) && (picker || draft)}{@render slotControls({ after: node.id, branch })}{:else}<button type="button" class="nothing" onclick={() => openPicker('action', { after: node.id, branch })}>{tr('do_nothing_add_step')}</button>{/if}{:else}<p class="nothing">{tr('do_nothing')}</p>{/if}{/if}</div>{/each}
+      </div>
+    {/if}
+    {@const next = nextId(node.id)}
+    {#if next && next !== stopAt && graph.nodes.find(item => item.id === next)?.type !== 'end'}<div class="connector">{tr('then')}</div>{@render chain(next, [...visited, node.id], stopAt)}
+    {:else if !readOnly}<div class="connector">{tr('then')}</div>{@render slotControls({ after: node.id })}{/if}
+  {/if}
+{/snippet}
+
+<section class="graph-panel" data-testid={testId} data-read-only={readOnly ? 'true' : 'false'}>
+  <div class="graph-canvas"><div class="node-stack" data-testid="workflow-node-stack">
+    {#each rootNodes as root}{@render chain(root.id)}{/each}
+    {#if !graph.nodes.some(node => node.type !== 'end')}{@render slotControls({ after: null })}{/if}
+  </div></div>
 </section>
 
 <style>
-  .graph-panel { margin: var(--spacing-8); padding: var(--spacing-6); border-radius: var(--radius-12); background: var(--color-grey-10); }
-  .graph-canvas { display: grid; justify-items: center; gap: var(--spacing-10); padding: var(--spacing-8); border-radius: var(--radius-10); background: var(--color-grey-0); box-shadow: var(--shadow-lg); }
-  .node-stack, .editor-toolbar, .readiness-panel, .blank-draft { width: min(680px, 100%); }
-  .readiness-panel { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--spacing-3); }
-  .readiness-panel div { display: grid; gap: var(--spacing-2); padding: var(--spacing-4); border-radius: var(--radius-6); background: var(--color-grey-10); text-align: center; }
-  .readiness-panel span { color: var(--color-font-secondary); font-size: var(--font-size-xs); }
-  .readiness-panel strong { font-size: var(--font-size-h4); }
-  .blank-draft { margin: 0; color: var(--color-font-secondary); text-align: center; }
-  .node-stack, .flow-node { display: grid; justify-items: center; }
-  .flow-node { width: 100%; }
-  .flow-node.branch-node, .placeholder-card, .branch-label, .branch-connector { width: 82%; justify-self: end; }
-  .flow-connector, .branch-label { color: var(--color-font-secondary); font-size: 1rem; font-weight: 800; }
-  .flow-connector { padding-block: var(--spacing-6); }
-  .branch-label { padding-block: var(--spacing-6) var(--spacing-4); }
-  .workflow-card { position: relative; display: grid; width: 100%; min-height: 132px; place-items: center; gap: var(--spacing-4); padding: var(--spacing-8); border: 0; border-radius: var(--radius-12); color: var(--color-font-primary); background: var(--color-grey-10); box-shadow: var(--shadow-sm); cursor: pointer; }
-  .workflow-card.app-skill-card { color: var(--color-grey-0); background: linear-gradient(135deg, var(--node-gradient-start), var(--node-gradient-end)); }
-  .placeholder-card { min-height: 80px; color: var(--color-font-secondary); }
-  .card-kind { color: var(--color-font-secondary); font-size: var(--font-size-small); font-weight: 800; }
-  .app-skill-card .card-kind { color: color-mix(in srgb, var(--color-grey-0) 78%, transparent); }
-  .card-icon { display: grid; width: 48px; height: 48px; place-items: center; border-radius: var(--radius-8); color: var(--color-button-primary); background: color-mix(in srgb, var(--color-button-primary) 12%, transparent); }
-  .app-skill-card .card-icon { color: var(--color-grey-0); background: color-mix(in srgb, var(--color-grey-0) 18%, transparent); }
-  .workflow-card strong { font-size: clamp(1.15rem, 2.5vw, 1.65rem); }
-  .expand-icon { position: absolute; inset-inline-end: var(--spacing-6); inset-block-end: var(--spacing-5); }
-  .node-status { padding: var(--spacing-2) var(--spacing-4); border-radius: var(--radius-full); background: color-mix(in srgb, var(--color-grey-0) 72%, transparent); color: var(--color-font-primary); font-size: var(--font-size-xs); font-weight: 800; text-transform: capitalize; }
-  .node-editor-panel { box-sizing: border-box; width: min(760px, calc(100% + 72px)); display: grid; gap: var(--spacing-5); margin-block: var(--spacing-5); padding: var(--spacing-6); border-radius: var(--radius-10); background: var(--color-grey-0); box-shadow: var(--shadow-lg); }
-  .expanded-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-5); }
-  .expanded-header span { color: var(--color-font-secondary); font-size: var(--font-size-small); font-weight: 800; }
-  .expanded-header h3, .detail-group h4, .detail-group p { margin: 0; }
-  .remove-node { border: 0; border-radius: var(--radius-full); padding: var(--spacing-3) var(--spacing-5); background: var(--color-grey-20); }
-  .node-field, .detail-group { display: grid; gap: var(--spacing-3); min-width: 0; }
-  .node-field span, .detail-group h4 { color: var(--color-font-secondary); font-size: var(--font-size-small); }
-  .node-field input, .node-field select { box-sizing: border-box; width: 100%; padding: var(--spacing-4); border: 1px solid var(--color-grey-30); border-radius: var(--radius-6); color: var(--color-font-primary); background: var(--color-grey-0); font: inherit; }
-  .node-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--spacing-4); }
-  .node-field.wide { grid-column: span 2; }
-  .node-note { margin: 0; color: var(--color-font-secondary); }
-  .detail-group { padding: var(--spacing-5); border-radius: var(--radius-6); background: var(--color-grey-10); }
-  .detail-group pre { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; color: var(--color-font-primary); }
-  .detail-group.error { color: var(--color-danger); }
-  .editor-toolbar { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-block-start: 2px solid var(--color-grey-20); }
-  .editor-toolbar button { display: flex; min-height: 84px; align-items: center; justify-content: center; gap: var(--spacing-3); border: 0; color: var(--color-font-secondary); background: transparent; font: inherit; font-weight: 800; cursor: pointer; }
-  .editor-toolbar button + button { border-inline-start: 2px solid var(--color-grey-20); }
-  .step-menu { position: absolute; z-index: 5; inset: calc(100% - var(--spacing-2)) 0 auto; display: grid; padding: var(--spacing-3); border-radius: var(--radius-6); background: var(--color-grey-0); box-shadow: var(--shadow-lg); }
-  .step-menu button { min-height: 48px; justify-content: flex-start; padding-inline: var(--spacing-5); }
-  .step-menu button + button { border-inline-start: 0; border-block-start: 1px solid var(--color-grey-20); }
-  @media (max-width: 600px) { .graph-panel { margin: var(--spacing-4); padding: var(--spacing-3); } .graph-canvas { padding: var(--spacing-5); } .readiness-panel { grid-template-columns: 1fr; } .node-editor-panel { width: 100%; } .node-grid { grid-template-columns: 1fr; } .node-field.wide { grid-column: auto; } }
-  @media (prefers-reduced-motion: reduce) { .workflow-card { transition: none; } }
+  .workflow-icon{display:inline-block;flex:0 0 auto;width:var(--workflow-icon-size);height:var(--workflow-icon-size);background:currentColor;-webkit-mask:var(--workflow-icon) center/contain no-repeat;mask:var(--workflow-icon) center/contain no-repeat}
+  .graph-panel{font-size:16px;margin:0 auto;width:min(60rem,calc(100% - 4rem));padding:0 0 2rem}.graph-canvas{min-height:16rem;padding:2rem 1.25rem;background:var(--color-grey-0);border-radius:.9rem}.node-stack{display:grid;justify-items:center}.flow-node{display:grid;justify-items:center;width:100%;min-width:0}.node-summary{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:min(19rem,100%);padding:.7rem 1rem .4rem;min-height:8rem;border:0;border-radius:1rem;background:var(--color-grey-10);color:var(--color-font-primary);box-shadow:var(--shadow-sm);cursor:pointer;font:inherit}.node-summary strong{font-size:16px;line-height:1.4}.node-summary> :global(svg){color:var(--color-primary)}.node-summary .kind{font-size:14px;color:var(--color-font-secondary)}.node-summary.skill{background:var(--node-gradient);color:var(--color-font-button)}.node-summary.skill .kind,.node-summary.skill> :global(svg){color:var(--color-font-button);opacity:.9}.location{font-size:16px;opacity:.8}.connector{color:var(--color-font-secondary);font-size:16px;font-weight:650;text-align:center;padding:.8rem 0}.branch-group{width:min(42rem,100%);padding:0 .75rem .7rem;border:1px solid var(--color-grey-20);border-radius:1rem;margin-top:-.5rem;box-sizing:border-box}.branch{display:grid;justify-items:center}.branch .branch-label{padding-top:1rem}.nothing{white-space:pre-line;line-height:1.5;font-size:16px;font:inherit;cursor:pointer;background:transparent;margin:0;border:1px dashed var(--color-grey-30);border-radius:.6rem;width:min(18rem,90%);padding:.7rem;text-align:center;color:var(--color-font-secondary);font-size:16px}.add-controls,.choices{display:flex;flex-wrap:wrap;gap:.8rem;justify-content:center;padding:.75rem 0}.choice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;min-width:6.5rem;min-height:4.5rem;border:0;border-radius:.7rem;color:var(--color-font-secondary);background:var(--color-grey-10);box-shadow:var(--shadow-sm);padding:.65rem;cursor:pointer;font:inherit;font-size:16px;font-weight:600}.choice :global(svg){color:var(--color-primary)}.editor{position:relative;min-width:0;width:min(42rem,100%);box-sizing:border-box;display:grid;gap:1rem;padding:0 1.5rem 1rem;background:var(--color-grey-10);border-radius:1rem;box-shadow:var(--shadow-sm);color:var(--color-font-primary);text-align:center}.picker{min-height:11rem}h2,h3,h4,p{margin:0}h3{font-size:16px}h4{font-size:16px;text-align:start;color:var(--color-font-secondary)}.card-scroll{display:flex;flex-wrap:nowrap;min-width:0;max-width:100%;gap:1rem;overflow-x:auto;width:100%;padding:.5rem 0 1rem;scroll-snap-type:x proximity}.card-scroll :global(>*){flex-shrink:0;scroll-snap-align:center}.quiet{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2rem;padding:.3rem .5rem;border:0;box-shadow:none;background:transparent;color:var(--color-primary);font:inherit;font-size:16px;cursor:pointer}.primary{justify-self:center;min-width:9rem;min-height:2.4rem;border:0;border-radius:.8rem;padding:.55rem 1.2rem;font:inherit;font-size:16px;font-weight:650;background:var(--color-button-primary);color:var(--color-font-button);box-shadow:var(--shadow-sm);cursor:pointer}.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}label{display:grid;gap:.4rem;min-width:0;text-align:start;font-size:16px}input{box-sizing:border-box;width:100%;min-height:2.5rem;border:1px solid var(--color-grey-25);border-radius:.8rem;padding:.5rem .7rem;background:var(--color-grey-0);color:var(--color-font-primary);font:inherit;font-size:16px;box-shadow:var(--shadow-sm)}.weekdays{display:flex;gap:.7rem;flex-wrap:wrap}.weekdays label,.checkbox{display:flex;align-items:center;gap:.45rem}.weekdays input,input[type=checkbox]{width:1.05rem;height:1.05rem;min-height:0;box-shadow:none;accent-color:var(--color-primary)}.test-control{display:flex;justify-content:center;align-items:center;gap:.7rem;font-size:16px}.output-heading{display:flex;justify-content:space-between;font-size:16px;color:var(--color-font-secondary)}.output-fields{display:grid;gap:.5rem;text-align:start}.output-fields>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:.8rem}.output-label{display:flex;align-items:center;gap:.4rem;min-width:0}.output-fields strong{font-size:16px}.type{font-size:14px;border-radius:.2rem;background:var(--color-primary);color:var(--color-font-button);padding:.1rem .3rem;width:fit-content}.output-fields :global(.workflow-value){animation:output-appear .2s ease}.check-fields{display:grid;gap:.8rem;width:min(23rem,100%);margin:auto}.check-fields>.type{justify-self:center}.reference-chips{display:flex;flex-wrap:wrap;gap:.4rem}.chip{border:0;border-radius:1rem;padding:.3rem .55rem;background:var(--color-primary);color:var(--color-font-button);font:inherit;font-size:16px;cursor:pointer}.message-block{border:1px solid var(--color-grey-25);border-radius:.7rem;padding:.7rem;display:grid;gap:.6rem;text-align:start;font-size:16px}.message-block>div{display:flex;justify-content:space-between;align-items:center;gap:.5rem}.message-block strong{overflow-wrap:anywhere}.references{display:grid;text-align:start}.message-preview{white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;text-align:start;font-size:16px}.message-preview{display:grid;gap:.8rem;padding:1rem;background:var(--color-grey-0);border-radius:.8rem}.save-row{display:flex;justify-content:center;align-items:center;gap:1rem;margin-top:.3rem}.error{color:var(--color-error);font-size:16px;overflow-wrap:anywhere}.target{justify-self:start}button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible{outline:2px solid var(--color-button-primary);outline-offset:2px}
+  @keyframes output-appear{from{opacity:0}to{opacity:1}}@media(max-width:730px){.graph-panel{width:calc(100% - 1rem)}.graph-canvas{padding:1.5rem .5rem}.editor{padding:0 .8rem 1rem}.field-grid{grid-template-columns:1fr}.branch-group{padding-inline:.4rem}.choice{min-width:5.6rem}.card-scroll :global(.resume-chat-large-card){width:15rem;min-width:15rem;max-width:15rem}.output-fields>div{grid-template-columns:auto 1fr}.output-fields :global(.workflow-value){grid-column:auto}}@media(prefers-reduced-motion:reduce){.output-fields :global(.workflow-value){animation:none}}
+  .node-app-icon{display:grid;place-items:center}.message-preview section{display:grid;gap:.55rem}.graph-panel{margin-block:1.75rem}.node-summary.skill .node-app-icon{color:white}@media(max-width:730px){.output-fields>div{grid-template-columns:1fr;gap:.35rem}}
+  .node-summary{width:min(21rem,100%);min-height:9.25rem;padding:.9rem 1.25rem .65rem;gap:.55rem}.node-chevron{display:grid;place-items:center;min-height:20px;color:inherit;opacity:.9}
+  .node-summary.expanded{width:min(42rem,100%);border-radius:1rem 1rem 0 0}.node-summary.expanded+.editor{border-radius:0 0 1rem 1rem}.check-source{font-size:14px;color:var(--color-font-secondary)}
+  .branch-label{display:flex;align-items:center;justify-content:center;gap:.4rem}
+  .type{background:#315aef;color:white}.type[data-value-type="number"]{background:#b3213c}.type[data-value-type="date"]{background:#eb9d00}.type[data-value-type="boolean"]{background:#7651b5}
+  .expanded-location{font-size:16px;color:var(--color-font-secondary)}
+  .editor :global(.settings-dropdown-wrapper){padding:0}
+  .editor :global(.settings-dropdown){min-height:3.375rem}
+
+  /* Shared app/skill/chat pickers keep workflow typography without changing other screens. */
+  .graph-panel {
+    --font-size-p: max(16px, 1rem);
+    --font-size-small: max(14px, 0.875rem);
+    --font-size-xs: max(14px, 0.875rem);
+    --font-size-xxs: max(14px, 0.875rem);
+  }
+  /* Result cards contain local badge sizes; raise only those small labels. */
+  .graph-panel :global(.workflow-value .event-location),
+  .graph-panel :global(.workflow-value .event-type-badge),
+  .graph-panel :global(.workflow-value .event-fee),
+  .graph-panel :global(.workflow-value .event-rsvp),
+  .graph-panel :global(.workflow-value .event-source),
+  .graph-panel :global(.workflow-value .listing-address),
+  .graph-panel :global(.workflow-value .listing-metadata),
+  .graph-panel :global(.workflow-value .provider-badge) {
+    font-size: max(14px, 0.875rem);
+  }
+  .node-summary { position:relative; }
+  .run-status { position:absolute; top:.4rem; left:.4rem; display:flex; align-items:center; justify-content:center; min-height:1.5rem; padding:0 .5rem; border-radius:var(--radius-full); background:var(--color-grey-20); color:var(--color-font-primary); font-size:var(--font-size-small); }
+  .run-status.success { width:1.5rem; padding:0; background:var(--color-chat-rainbow-green); }
+  .run-status.failed { background:var(--color-error); color:var(--color-font-button); }
 </style>

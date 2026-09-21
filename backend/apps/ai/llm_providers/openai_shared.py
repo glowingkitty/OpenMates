@@ -230,8 +230,13 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
     if not isinstance(schema, dict):
         return schema
     
-    # Create a copy to avoid modifying the original
-    sanitized = schema.copy()
+    # UI/vendor extensions belong to the app schema, not the provider schema.
+    # Google validates declarations before sending and rejects even nested x-ui.
+    # This runs at schema nodes only: a property *named* x-ui remains an argument.
+    sanitized = {
+        key: value for key, value in schema.items()
+        if not (isinstance(key, str) and key.startswith("x-"))
+    }
     
     # Convert type list (e.g., type: [string, integer]) to anyOf format
     # Some LLM providers (Cerebras, Google) don't support list types and require anyOf instead

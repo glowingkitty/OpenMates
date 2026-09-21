@@ -18,15 +18,16 @@ class FakeAppSkillAdapter:
     def __init__(self) -> None:
         self.calls = []
 
-    async def execute(self, app_id, skill_id, request, *, user_id=None):
+    async def execute(self, app_id, skill_id, request, *, user_id=None, billing_context=None):
         del user_id
-        self.calls.append({"app_id": app_id, "skill_id": skill_id, "request": request})
+        self.calls.append({"app_id": app_id, "skill_id": skill_id, "request": request, "billing_context": billing_context})
         if app_id == "weather":
             return {
                 "app_id": app_id,
                 "skill_id": skill_id,
                 "summary": f"Weather forecast for {request.get('location')}",
                 "rain_probability": request.get("mock_rain_probability", 70),
+                "_workflow_credit_cost": 5,
             }
         return {
             "app_id": app_id,
@@ -34,6 +35,7 @@ class FakeAppSkillAdapter:
             "summary": "News search completed",
             "queries": [item["query"] for item in request.get("requests", [])],
             "result_count": len(request.get("requests", [])),
+            "_workflow_credit_cost": 7,
         }
 
 
@@ -150,8 +152,17 @@ async def test_rain_workflow_runs_server_side_and_records_node_history() -> None
     assert run.status == "completed"
     assert [node.node_id for node in run.node_runs] == ["trigger", "weather", "decision", "notify", "email"]
     assert run.node_runs[1].output_summary["rain_probability"] == 70
+    assert run.node_runs[1].credit_cost == 5
+    assert "_workflow_credit_cost" not in run.node_runs[1].output_summary
+    assert run.cost_summary == {"credits": 5}
     assert run.node_runs[2].output_summary == {"matched": True, "branch": "yes"}
     assert run.node_runs[3].output_summary["queued"] is True
+    assert app_adapter.calls[0]["billing_context"] == {
+        "workflow_id": workflow.id,
+        "run_id": run.id,
+        "node_id": "weather",
+        "source": "workflow",
+    }
     assert app_adapter.calls[0]["app_id"] == "weather"
     assert [call["type"] for call in action_adapter.calls] == ["send_notification", "send_email_notification"]
     assert service.get_run(workflow.id, run.id, "alice").id == run.id
@@ -273,7 +284,8 @@ async def test_none_retention_keeps_only_latest_ephemeral_run_content() -> None:
 
     assert persisted_first.content_available is False
     assert persisted_first.content_storage == WorkflowRunContentStorage.DELETED
-    assert persisted_first.node_runs == []
+    assert persisted_first.node_runs
+    assert all(not node.output_summary and not node.input_summary for node in persisted_first.node_runs)
     assert persisted_second.content_available is True
     assert persisted_second.content_storage == WorkflowRunContentStorage.EPHEMERAL
     assert persisted_second.content_expires_at is not None

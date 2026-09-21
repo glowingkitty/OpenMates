@@ -1,0 +1,63 @@
+id: workflows-design-v1
+status: implementing
+title: Ship the approved workflow v1 builder and deterministic demo workflows
+session: 0dc3
+approval:
+  source: Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b
+  date: "2026-09-14"
+  statement: User approved implementation; prioritize speed and essential tests.
+  design_clarification:
+    date: "2026-09-14"
+    source: Explicit user design correction in the same Codex task during Safari review, in addition to the original approved implementation plan.
+    requirements:
+      - No raw JSON, object dumps or debug schemas in any user-facing workflow screen; Test, Preview and history use structured labeled values and shared cards.
+      - "Editor and history app-skill cards show '{app name} | {skill name}' and the actual app icon."
+      - Run history follows the supplied runs.pdf compact ruler timeline and shared node/status-badge layout, with no debug dashboard.
+      - Use 16px default body text and a 14px minimum everywhere, including compact cards, badges, fields and placeholders.
+      - "Keep the centered start placeholder exactly 'Enter a name for a new workflow'."
+      - "Continuations and empty branches use 'Do nothing.\nOr click here to add a step.' to open one 'What should happen next?' selector with valid choices; remove duplicate separate Add action/Add check buttons."
+      - Use the existing canonical app/workflow/projectmanagement/chat/calendar icons and the exact supplied-design split-arrow for Add check, not unrelated replacements.
+      - Reuse the actual ChatHeader toolbar and Show more behavior; keep workflow on/off centered, with no standalone header history/play/delete icons or corner Ready badge.
+      - Workflow sharing management is outside web v1. The header Share action only shows a notification that sharing will be possible soon; future management belongs in the regular settings Share menu.
+      - Remove the bottom version-history-and-sharing area entirely. When saved edits exist, show the version selector below the tabs and above the first node; it toggles edit history in the same tab.
+      - For every valid executable saved Workflow, center Run now at the header bottom above the tabs and always execute the saved definition, ignoring unsaved node edits.
+      - Workflow open/close uses the fullscreen-embed bottom-up/reversed motion and fade with 320ms cubic-bezier(0.32, 0, 0.2, 1), honoring reduced motion; graph nodes are slightly larger with a visible bottom chevron.
+    semantics: Presentation correction only; existing workflow execution, privacy, encryption, runtime/CLI sharing APIs, and immutable definition history stay unchanged.
+billing_correction:
+  approved_by_user: true
+  source: Explicit urgent user request on 2026-09-14 to fix missing charges and billing entries for Workflow executions and node Tests.
+  requirements:
+    - Reuse existing skill prices, balance eligibility, deduction and usage records for full runs and node Tests.
+    - Show readable Workflow run and Workflow test entries in Billing and Usage and synchronize the remaining balance.
+    - Preserve privacy and duplicate-charge protection; do not retroactively charge old unbilled executions.
+    - Correct the observed version-selector overlap inside the tab container and use the canonical Events icon asset.
+goal: Match the supplied new-workflow Figma/PDF, enable real deterministic weather/news, AI events and apartment workflows, and preserve privacy.
+scope:
+  in: [web, backend, CLI, npm SDK, Python SDK, node Save, unsaved skill Test, message preview, run-owned delivered-result memory, run deletion]
+  out: [web Workflow sharing management, Apple app, general Filter, AI steps, webhooks, app-use triggers, loops, waits, advanced recurrence, new budget forecasts]
+sequence:
+  - Align shared contracts with approved semantics.
+  - Implement progressive builder and start-screen corrections.
+  - Place saved-version history at the top of Template and saved-definition Run now at the bottom of the header.
+  - Wire typed skills, schedules, deterministic message delivery and encrypted result history.
+  - Add CLI and SDK parity and editable example YAML.
+  - Run focused unit/contract checks and deploy scoped dev services.
+  - Per the explicit user follow-up, verify through the connected global CLI personal dev account first, then verify web.
+  - Use Berlin, Germany news and apartment maximum EUR 1200/month; request targeted user review only for remaining uncertainties.
+privacy: Existing Vault workflow payloads and client-encrypted regular chats remain distinct; no server chat keys. Only confirmed delivered results are remembered using keyed fingerprints.
+verification:
+  - Node save and unsaved test/preview contracts.
+  - Hourly and next-calendar-week dates, typed skill normalization.
+  - Conditional combined message, new-result lifecycle, retry and delete fencing.
+  - Three workflow scenarios in the explicitly authorized CLI personal dev profile first, then Safari; focused npm/Python parity checks.
+  - Desktop and narrow viewport comparison; ask user about unresolved live provider behavior.
+  - Check Test/Preview/history for readable values and cards without raw JSON/debug schemas; compare exact app/skill labels, app icons and run-history composition with the supplied runs.pdf.
+
+approved_by_user: true
+approvals:
+  specification:
+    status: approved
+    source: User approved the plan and workflow semantic decisions in this task; requested keeping the source-of-truth specifications aligned.
+  plan:
+    status: approved
+    source: "User: ok, approved. Go ahead with implementation."

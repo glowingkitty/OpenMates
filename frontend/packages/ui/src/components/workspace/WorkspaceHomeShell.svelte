@@ -13,7 +13,7 @@
   import WorkspaceReportIssueButton from './WorkspaceReportIssueButton.svelte';
   import { getContinueGradientColors, getResumeCardGradientStyle } from '../activeChatUtils';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
-  import type { DailyInspiration } from '../../stores/dailyInspirationStore';
+  import { dailyInspirationStore, type DailyInspiration } from '../../stores/dailyInspirationStore';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
 
   type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans' | 'teams';
@@ -103,10 +103,10 @@
     onSearchAll,
   }: Props = $props();
 
+  let restoreWorkspaceDefaults = $state(false);
   let containerWidth = $state(0);
-  let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1200);
   let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
-  let isTallViewport = $derived(viewportHeight >= 800 && viewportWidth >= 550);
+  let isTallViewport = $derived(viewportHeight >= 800 && containerWidth >= 550);
   let hasShowAllLink = $derived(!!onShowAll && showAllLabel.trim().length > 0 && !showAllMode);
   let hasBrowseControls = $derived(!showAllMode && (hasShowAllLink || !!onSearchAll));
   let hasAllItemsToolbar = $derived(showAllMode && (!!onBackToRecent || !!onSearchAll));
@@ -115,10 +115,19 @@
   const AllItemsBackIcon = getLucideIcon('grid-2x2');
   const AllItemsSearchIcon = getLucideIcon('search');
 
+  // Chat sync can replace the shared array after this workspace first mounted.
+  // Rehydrate only a missing non-chat surface, through the existing scoped loader.
+  $effect(() => {
+    if (restoreWorkspaceDefaults && surface !== 'chats' && !$dailyInspirationStore.inspirations.some(item => (item.surface ?? 'chats') === surface)) {
+      void loadDefaultInspirations({ surface, allowIndexedDB: false });
+    }
+  });
+
   onMount(() => {
+    const params = new URLSearchParams(window.location.search);
+    restoreWorkspaceDefaults = params.get('media') !== '1' && !params.has('og_example');
     void loadDefaultInspirations({ surface, allowIndexedDB: false });
     const handleResize = () => {
-      viewportWidth = window.innerWidth;
       viewportHeight = window.innerHeight;
     };
     window.addEventListener('resize', handleResize);
@@ -154,7 +163,7 @@
   }
 
   function continueCardStyle(item: ContinueItem): string {
-    return getResumeCardGradientStyle(getContinueGradientColors(item.category ?? 'productivity', item.appId));
+    return getResumeCardGradientStyle(getContinueGradientColors(item.category ?? 'productivity', surface === 'workflows' ? null : item.appId));
   }
 
 </script>
@@ -208,7 +217,7 @@
               summary={item.summary ?? null}
               badge={item.badge ?? null}
               category={item.category ?? 'productivity'}
-              appId={item.appId ?? surface}
+              appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
               testId={allItemTestId}
               href={null}
@@ -244,7 +253,7 @@
               summary={item.summary ?? null}
               badge={item.badge ?? null}
               category={item.category ?? 'productivity'}
-              appId={item.appId ?? surface}
+              appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
               testId={itemTestId}
               href={null}
@@ -267,11 +276,11 @@
                 <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
               </div>
               <div class="resume-chat-content">
-                {#if item.badge}
+                {#if surface !== 'workflows' && item.badge}
                   <span class="resume-chat-kind-badge compact">{item.badge}</span>
                 {/if}
                 <span class="resume-chat-title" data-testid="resume-chat-title">{item.title}</span>
-                {#if item.summary}
+                {#if surface !== 'workflows' && item.summary}
                   <span class="resume-chat-summary">{item.summary}</span>
                 {/if}
               </div>
@@ -311,7 +320,7 @@
               summary={item.summary ?? null}
               badge={item.badge ?? null}
               category={item.category ?? 'productivity'}
-              appId={item.appId ?? surface}
+              appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
               testId="resume-chat-large-card"
               href={null}
@@ -331,11 +340,11 @@
                 <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
               </div>
               <div class="resume-chat-content">
-                {#if item.badge}
+                {#if surface !== 'workflows' && item.badge}
                   <span class="resume-chat-kind-badge compact">{item.badge}</span>
                 {/if}
                 <span class="resume-chat-title" data-testid="resume-chat-title">{item.title}</span>
-                {#if item.summary}
+                {#if surface !== 'workflows' && item.summary}
                   <span class="resume-chat-summary">{item.summary}</span>
                 {/if}
               </div>
@@ -367,11 +376,11 @@
               <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
             </div>
             <div class="resume-chat-content">
-              {#if item.badge}
+              {#if surface !== 'workflows' && item.badge}
                 <span class="resume-chat-kind-badge compact">{item.badge}</span>
               {/if}
               <span class="resume-chat-title" data-testid="resume-chat-title">{item.title}</span>
-              {#if item.summary}
+              {#if surface !== 'workflows' && item.summary}
                 <span class="resume-chat-summary">{item.summary}</span>
               {/if}
             </div>
@@ -411,12 +420,41 @@
     overflow: hidden;
   }
 
+  /* Workflow typography follows the design's 16px body / 14px minimum.
+     Custom properties keep other shared-workspace surfaces unchanged. */
+  .workspace-home-shell[data-surface='workflows'] {
+    font-size: max(16px, 1rem);
+    --workspace-card-title-font-size: max(16px, 1rem);
+    --workspace-card-summary-font-size: max(14px, 0.875rem);
+    --workspace-card-badge-font-size: max(14px, 0.875rem);
+    --workspace-card-summary-lines: 2;
+  }
+
+  .workspace-home-shell[data-surface='workflows'] .resume-chat-card {
+    font: inherit;
+  }
+
+  .workspace-home-shell[data-surface='workflows'] .workspace-eyebrow,
+  .workspace-home-shell[data-surface='workflows'] .workspace-all-items-action,
+  .workspace-home-shell[data-surface='workflows'] .workspace-subtitle,
+  .workspace-home-shell[data-surface='workflows'] .workspace-continue-label,
+  .workspace-home-shell[data-surface='workflows'] .workspace-show-all-link {
+    font-size: max(16px, 1rem);
+  }
+
+  .workspace-home-shell[data-surface='workflows'] .workspace-composer-slot :global(input),
+  .workspace-home-shell[data-surface='workflows'] .workspace-composer-slot :global(textarea) {
+    font-size: max(16px, 1rem);
+  }
+
   .workspace-scroll-layer {
     position: relative;
     width: 100%;
     height: 100%;
     min-height: 0;
     overflow: hidden;
+    container-type: inline-size;
+    container-name: chat-side;
   }
 
   .workspace-home-shell.content-slot-mode .workspace-scroll-layer {
@@ -776,20 +814,23 @@
   }
 
   .resume-chat-card {
+    box-sizing: border-box;
+    flex-shrink: 0;
     position: relative;
     display: flex;
     align-items: center;
     gap: var(--spacing-6);
     width: 100%;
     max-width: 400px;
-    min-height: 44px;
+    min-height: 2.75rem;
+    height: auto;
     padding: var(--spacing-5) var(--spacing-8);
     background-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: var(--radius-8);
     cursor: pointer;
     overflow: hidden;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.11), 0 1px 4px rgba(0, 0, 0, 0.08);
     transition: background-position 0.25s ease, transform 0.15s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease;
     background-size: 140% 140%;
     background-position: 0% 50%;
@@ -841,6 +882,7 @@
   }
 
   .resume-chat-title {
+    font-size: var(--workspace-card-title-font-size, inherit);
     font-weight: 600;
     color: rgba(255, 255, 255, 0.96);
     white-space: nowrap;
@@ -854,7 +896,7 @@
     display: block;
     margin-top: 2px;
     color: rgba(255, 255, 255, 0.78);
-    font-size: var(--font-size-xxs);
+    font-size: var(--workspace-card-summary-font-size, var(--font-size-xxs));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -869,7 +911,7 @@
     padding: 3px 7px;
     background: rgba(255, 255, 255, 0.18);
     color: rgba(255, 255, 255, 0.94);
-    font-size: 0.66rem;
+    font-size: var(--workspace-card-badge-font-size, 0.66rem);
     font-weight: 700;
     line-height: 1;
     letter-spacing: 0.01em;
@@ -945,8 +987,10 @@
       height: 76px;
     }
 
-    .workspace-home-shell[data-surface='workflows'] .workspace-center-content.center-content {
-      top: 32%;
+    .workspace-home-shell[data-surface='workflows']:not(.content-slot-mode) .workspace-center-content.center-content {
+      /* Center between the 190px banner/action row and the 94px composer,
+         instead of using Chat's offset, which does not reserve this composer. */
+      top: calc(50% + 4.5rem);
     }
 
     .workspace-home-shell.all-items-mode .workspace-center-content.center-content {

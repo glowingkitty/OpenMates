@@ -13,6 +13,7 @@ from backend.core.api.app.services.email.variable_processor import process_templ
 from backend.core.api.app.services.email.renderer import render_mjml_template
 from backend.core.api.app.services.email.mjml_processor import image_cache
 from backend.core.api.app.services.email.brevo_provider import BrevoProvider
+from backend.core.api.app.services.email_sender_profiles import sender_profile_for_template
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter  # Import the filter
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
@@ -254,9 +255,15 @@ class EmailTemplateService:
             # SensitiveDataFilter will redact this if it ever appears in logs.
             context.setdefault("recipient_email", recipient_email)
                 
-            # Set defaults for sender
-            sender_name = sender_name or self.default_sender_name
-            sender_email = sender_email or self.default_sender_email
+            # Explicit caller overrides remain authoritative (for example,
+            # invoice senders loaded from Vault). Otherwise select a stable
+            # identity by email purpose so marketing reputation cannot blur
+            # account-security and user-notification traffic.
+            if sender_name is not None or sender_email is not None:
+                sender_name = sender_name or self.default_sender_name
+                sender_email = sender_email or self.default_sender_email
+            else:
+                sender_name, sender_email = sender_profile_for_template(template)
             
             # Get translations for the current language
             translations = self.translation_service.get_translations(lang, variables=context)

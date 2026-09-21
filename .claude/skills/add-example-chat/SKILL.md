@@ -285,9 +285,10 @@ print(f'Keys: {list(ec.keys())}')
 "
 ```
 
-### 8. Deploy
+### 8. Verify in isolated CI, then deploy
 
-Track only intended files and deploy via `sessions.py deploy`:
+Track only intended files, publish the immutable candidate, and run each related
+Playwright spec in its own isolated GitHub job before deployment:
 
 ```bash
 python3 scripts/sessions.py start --mode feature --tags frontend,i18n,feature
@@ -301,24 +302,25 @@ python3 scripts/sessions.py track --session {SESSION_ID} --file \
 
 python3 scripts/sessions.py prepare-deploy --session {SESSION_ID}
 
+python3 scripts/sessions.py ci-source --session {SESSION_ID}
+python3 scripts/ci_coordinator.py submit --session {SESSION_ID} \
+  --source {SOURCE_SHA} --mode e2e --spec example-chats-load.spec.ts
+python3 scripts/ci_coordinator.py submit --session {SESSION_ID} \
+  --source {SOURCE_SHA} --mode e2e --spec example-chat-clone.spec.ts
+python3 scripts/ci_coordinator.py wait {LOAD_REQUEST_ID}
+python3 scripts/ci_coordinator.py wait {CLONE_REQUEST_ID}
+
 python3 scripts/sessions.py deploy \
   --session {SESSION_ID} \
   --title "feat: add example chat - {title}" \
-  --message "New example chat from shared link. {n} messages, {m} embeds. All content behind i18n keys with 21 language translations." \
-  --skip-tests "OpenMates E2E specs must run against deployed dev per repo policy; targeted syntax, translation build, and locale validation passed pre-deploy." \
+  --message "New example chat from shared link. {n} messages, {m} embeds. All content behind i18n keys with 21 language translations. Exact-source isolated E2E passed." \
   --end
 ```
 
 **IMPORTANT:** Always use `sessions.py deploy` — never raw `git commit`, never `git add .`, and do not use `--no-verify` unless a pre-existing hook bug is confirmed and documented.
 
-After deploy, run related Playwright specs against deployed dev:
-
-```bash
-python3 scripts/tests.py run --suite playwright --spec example-chats-load.spec.ts --environment development --force
-python3 scripts/tests.py run --suite playwright --spec example-chat-clone.spec.ts --environment development --force
-```
-
-Then verify the specific deployed example page yourself before responding:
+After deploy, verify the specific deployed example page yourself before responding.
+Do not rerun the E2E specs against shared dev:
 
 1. Open `https://app.dev.openmates.org/example/{slug}`.
 2. Confirm the expected user and assistant messages render in the transcript.

@@ -1,3 +1,7 @@
+/* Every standalone surface needs tokens even when it imports no UI barrel. */
+@import "../tokens/generated/theme.generated.css";
+@import "../tokens/generated/component-classes.generated.css";
+
 /* frontend/packages/ui/src/styles/theme.css
  *
  * Global utility classes, resets, and browser-level styles.

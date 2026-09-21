@@ -4,7 +4,7 @@
  * safe reason-code fallbacks. The deterministic preview avoids API plaintext
  * fixtures while proving the deployed responsive presentation.
  *
- * Plan: docs/plans/opencode-external-task-bridge/plan.yml
+ * Specification: specifications/features/tasks/specification.yml
  */
 export {};
 

@@ -945,6 +945,77 @@ def test_metadata_persistence_writes_reserved_cache_version_to_directus(monkeypa
     assert updates[0]["encrypted_chat_summary"] == "cipher-summary-v5"
 
 
+def test_metadata_persistence_writes_reserved_title_version_when_cache_is_ahead(monkeypatch) -> None:
+    record = {
+        "id": "chat-1",
+        "messages_v": 2,
+        "title_v": 0,
+        "metadata_v": 1,
+        "encrypted_title": None,
+        "encrypted_chat_key": "cipher-key",
+    }
+    updates: list[dict[str, object]] = []
+
+    class DirectusDouble:
+        def __init__(self) -> None:
+            self.chat = SimpleNamespace(
+                get_chat_metadata=AsyncMock(side_effect=lambda _chat_id: dict(record)),
+                update_chat_fields_in_directus=AsyncMock(side_effect=self.update_chat),
+            )
+
+        async def ensure_auth_token(self) -> None:
+            return None
+
+        async def update_chat(self, chat_id: str, fields_to_update: dict[str, object]) -> dict[str, object]:
+            assert chat_id == "chat-1"
+            updates.append(dict(fields_to_update))
+            record.update(fields_to_update)
+            return dict(record)
+
+    class CacheDouble:
+        async def get_chat_versions(self, _user_id: str, _chat_id: str) -> SimpleNamespace:
+            # The websocket allocator reserves these values before Directus writes.
+            return SimpleNamespace(messages_v=2, title_v=1, metadata_v=2)
+
+        async def get_chat_list_item_data(self, _user_id: str, _chat_id: str) -> None:
+            return None
+
+        async def set_chat_list_item_data(self, _user_id: str, _chat_id: str, _cache_data) -> bool:
+            return True
+
+        async def set_chat_versions(self, _user_id: str, _chat_id: str, _versions) -> bool:
+            return True
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(persistence_tasks, "DirectusService", DirectusDouble)
+    monkeypatch.setattr(persistence_tasks, "CacheService", CacheDouble)
+
+    persisted = asyncio.run(
+        persistence_tasks._async_persist_encrypted_chat_metadata(
+            "chat-1",
+            {
+                "encrypted_title": "cipher-title-v1",
+                "encrypted_icon": "cipher-icon",
+                "encrypted_category": "cipher-category",
+                "messages_v": 2,
+                "title_v": 1,
+                "metadata_v": 2,
+                "updated_at": 1000,
+            },
+            "task-1",
+            hashed_user_id="owner-hash",
+            user_id="owner-1",
+        )
+    )
+
+    assert persisted is True
+    assert updates[0]["title_v"] == 1
+    assert updates[0]["metadata_v"] == 2
+    assert updates[0]["encrypted_title"] == "cipher-title-v1"
+
+
 def test_metadata_persistence_preserves_newer_cached_title_when_refreshing_cache(monkeypatch) -> None:
     record = {
         "id": "chat-1",

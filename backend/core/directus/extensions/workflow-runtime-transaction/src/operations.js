@@ -1,5 +1,6 @@
 /* Durable Workflow trigger claims and event receipts. No payload or predicate plaintext crosses this boundary. */
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { deliveryHistory } from './delivery_history.js';
 
 const TRIGGERS = 'workflow_triggers';
 const RUNS = 'workflow_runs';
@@ -299,6 +300,7 @@ async function acceptEventTrigger(database, raw, now) {
 
 const handlers = Object.freeze({ list_due_triggers: listDueTriggers, claim_due_trigger: claimDueTrigger, accept_manual_run: acceptManualRun, start_accepted_run: startAcceptedRun, request_run_cancellation: requestRunCancellation, start_claimed_run: startClaimedRun, advance_claimed_trigger: advanceClaimedTrigger, accept_event_trigger: acceptEventTrigger });
 export async function executeOperation(database, operation, body, now = new Date()) {
+  if (operation === 'delivery_history') return deliveryHistory(database, body, now, fail);
   if (operation === 'health_check') {
     bodyFor(body, operation);
     return { ready: true };

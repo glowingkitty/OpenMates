@@ -7267,3 +7267,46 @@ free_testing_credits_received:
   sv: Du fick {credits} gratis krediter för testning.
   he: קיבלת {credits} קרדיטים בחינם לבדיקה.
   verified_by_human: []
+
+native_setup_unavailable:
+  context: Apple signup basics availability and request feedback
+  en: Account creation in the Apple app is not available yet. Please sign up in the web app.
+
+native_request_failed:
+  context: Native password signup state and recovery feedback
+  en: "The request could not be completed. Please try again."
+native_passkey_registration_pending:
+  context: Native password signup state and recovery feedback
+  en: "Passkey account creation is not available in this Apple build yet. You can create this account with a password."
+
+native_account_ready:
+  context: Native password signup state and recovery feedback
+  en: "Your account is ready."
+
+native_retry_login:
+  context: Native password signup state and recovery feedback
+  en: "Retry signing in"
+
+native_invalid_invite:
+  context: Native password signup state and recovery feedback
+  en: "Enter a valid personal invite code to continue."
+
+native_username_unavailable:
+  context: Native password signup state and recovery feedback
+  en: "This username is unavailable. Choose another one."
+
+native_invalid_email_code:
+  context: Native password signup state and recovery feedback
+  en: "This email code is invalid or expired. Try again or request a new code."
+
+native_verification_required:
+  context: Native password signup state and recovery feedback
+  en: "Please confirm your email before creating the account."
+
+native_creation_unconfirmed:
+  context: Native password signup state and recovery feedback
+  en: "Account creation could not be confirmed. Retry signing in with the same credentials. If this continues, return to login or contact support."
+
+native_context_changed:
+  context: Native password signup state and recovery feedback
+  en: "The login session changed. Return to login and start again."

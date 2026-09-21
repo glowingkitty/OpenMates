@@ -1606,3 +1606,75 @@ open_embed:
   sv: Öppna resultat
   he: פתח תוצאה
   verified_by_human: []
+workflow_run:
+  context: Billing usage context label for an app skill charged during a full workflow execution
+  en: Workflow run
+  de: Workflow-Ausführung
+  zh: 工作流运行
+  es: Ejecución del flujo de trabajo
+  fr: Exécution du workflow
+  pt: Execução do fluxo de trabalho
+  ru: Запуск рабочего процесса
+  ja: ワークフロー実行
+  ko: 워크플로 실행
+  it: Esecuzione del workflow
+  tr: İş akışı çalıştırması
+  vi: Lần chạy quy trình
+  id: Eksekusi alur kerja
+  pl: Uruchomienie przepływu pracy
+  nl: Workflowuitvoering
+  ar: تشغيل سير العمل
+  hi: वर्कफ़्लो रन
+  th: การเรียกใช้เวิร์กโฟลว์
+  cs: Spuštění pracovního postupu
+  sv: Arbetsflödeskörning
+  he: הפעלת תהליך עבודה
+  verified_by_human: []
+workflow_test:
+  context: Billing usage context label for an app skill charged during a workflow node test
+  en: Workflow test
+  de: Workflow-Test
+  zh: 工作流测试
+  es: Prueba del flujo de trabajo
+  fr: Test du workflow
+  pt: Teste do fluxo de trabalho
+  ru: Тест рабочего процесса
+  ja: ワークフローテスト
+  ko: 워크플로 테스트
+  it: Test del workflow
+  tr: İş akışı testi
+  vi: Kiểm thử quy trình
+  id: Pengujian alur kerja
+  pl: Test przepływu pracy
+  nl: Workflowtest
+  ar: اختبار سير العمل
+  hi: वर्कफ़्लो परीक्षण
+  th: การทดสอบเวิร์กโฟลว์
+  cs: Test pracovního postupu
+  sv: Arbetsflödestest
+  he: בדיקת תהליך עבודה
+  verified_by_human: []
+workflow_app_activity:
+  context: Privacy-safe fallback app name for workflow billing rows whose app metadata is unavailable
+  en: App activity
+  de: App-Aktivität
+  zh: 应用活动
+  es: Actividad de la aplicación
+  fr: Activité de l’application
+  pt: Atividade do app
+  ru: Активность приложения
+  ja: アプリのアクティビティ
+  ko: 앱 활동
+  it: Attività dell’app
+  tr: Uygulama etkinliği
+  vi: Hoạt động ứng dụng
+  id: Aktivitas aplikasi
+  pl: Aktywność aplikacji
+  nl: App-activiteit
+  ar: نشاط التطبيق
+  hi: ऐप गतिविधि
+  th: กิจกรรมของแอป
+  cs: Aktivita aplikace
+  sv: Appaktivitet
+  he: פעילות באפליקציה
+  verified_by_human: []

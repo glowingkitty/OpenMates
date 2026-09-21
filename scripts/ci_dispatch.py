@@ -22,11 +22,23 @@ import tempfile
 import time
 
 try:
-    from scripts.ci_coordinator import Queue, canonical_root, TERMINAL
+    from scripts.ci_coordinator import Queue, canonical_root, enqueue_submission, TERMINAL
+    from scripts.ci_candidate import load as load_candidate
+    from scripts.ci_pytest_targets import validate_pytest_targets
 except ModuleNotFoundError:
-    from ci_coordinator import Queue, canonical_root, TERMINAL
+    from ci_coordinator import Queue, canonical_root, enqueue_submission, TERMINAL
+    from ci_candidate import load as load_candidate
+    from ci_pytest_targets import validate_pytest_targets
 
-BATCH_SIZE = 4
+NON_E2E_BATCH_SIZE = 4
+
+
+def spec_source(root: Path, source: str, spec: str) -> str:
+    return subprocess.check_output(
+        ["git", "show", f"{source}:frontend/apps/web_app/tests/{spec}"],
+        cwd=root,
+        text=True,
+    )
 
 
 def ensure_coordinator(root: Path):
@@ -120,6 +132,12 @@ def run(argv: list[str]) -> int:
     parser.add_argument("--worktree", type=Path)
     parser.add_argument("--spec", action="append", default=[])
     parser.add_argument(
+        "--test-target",
+        action="append",
+        default=[],
+        help="Exact repository-relative pytest file or node ID; repeatable",
+    )
+    parser.add_argument(
         "--suite",
         choices=["all", "pytest", "vitest", "playwright", "cli"],
         default="all",
@@ -143,6 +161,9 @@ def run(argv: list[str]) -> int:
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
     )
     args = parser.parse_args(argv)
+    if args.test_target and args.suite != "pytest":
+        raise ValueError("--test-target requires --suite pytest")
+    pytest_targets = validate_pytest_targets(args.test_target)
     root = (
         args.worktree.resolve()
         if args.worktree
@@ -156,7 +177,12 @@ def run(argv: list[str]) -> int:
         args.session = root.name.removeprefix("agent-")
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     canonical = canonical_root(root)
-    if args.suite in ("all", "pytest", "vitest") and not args.daily and not args.spec:
+    if (
+        args.suite in ("all", "pytest", "vitest")
+        and not args.daily
+        and not args.spec
+        and not pytest_targets
+    ):
         from scripts import run_tests as local_tests
 
         local_tests.PROJECT_ROOT = root
@@ -187,10 +213,12 @@ def run(argv: list[str]) -> int:
         raise RuntimeError(
             "Isolated GitHub CI migration HOLD: runner-local pilot is not verified. Shared-dev and self-hosted-runner fallback are forbidden. Local unit tests remain available."
         )
+    candidate = {}
     if args.source:
         source = subprocess.check_output(
             ["git", "rev-parse", args.source + "^{commit}"], cwd=root, text=True
         ).strip()
+        candidate = load_candidate(root, source, require_fresh=True)
     elif args.daily:
         subprocess.run(
             ["git", "fetch", "--no-tags", "origin", "dev"], cwd=canonical, check=True
@@ -214,7 +242,11 @@ def run(argv: list[str]) -> int:
             cwd=root,
             text=True,
         )
-        source = json.loads(output)["source"]
+        published = json.loads(output)
+        source = published["source"]
+        candidate = {} if published.get("unchanged") else load_candidate(
+            root, source, required=True, require_fresh=True
+        )
     queue = Queue(canonical / "logs/ci-coordinator/queue.sqlite3")
     owner = args.session or "daily"
     attempt = (
@@ -227,9 +259,17 @@ def run(argv: list[str]) -> int:
     jobs = []
     held_specs = []
     held_reasons = {}
+    if pytest_targets:
+        # The runner validates existence against the immutable candidate before
+        # invoking pytest; the queue retains these exact node IDs unchanged.
+        jobs.append(
+            queue.enqueue(
+                owner, source, pytest_targets, "pytest", attempt, candidate=candidate
+            )
+        )
     if args.daily and args.suite in ("all", "pytest", "vitest"):
         for mode in ("pytest", "vitest") if args.suite == "all" else (args.suite,):
-            jobs.append(queue.enqueue(owner, source, [], mode, attempt))
+            jobs.append(queue.enqueue(owner, source, [], mode, attempt, candidate=candidate))
     if args.spec or args.suite in ("all", "playwright", "cli"):
         specs = select_specs(root, args, source)
         if args.suite == "cli":
@@ -243,13 +283,38 @@ def run(argv: list[str]) -> int:
             specs, held_reasons = partition(specs)
             held_specs = list(held_reasons)
         from scripts.ci_coverage import execution_mode, runtime_batches
-        for mode in ("e2e", "artifact", "selfhost"):
-            selected = [spec for spec in specs if execution_mode(spec) == mode]
-            for batch in runtime_batches(selected, BATCH_SIZE):
-                jobs.append(queue.enqueue(
-                    owner, source, batch, mode,
-                    attempt, args.proof_video_profile,
-                ))
+        modes = {
+            spec: execution_mode(spec, spec_source(root, source, spec))
+            for spec in specs
+        }
+        for mode in ("component", "e2e", "artifact", "selfhost"):
+            selected = [spec for spec in specs if modes[spec] == mode]
+            batches = (
+                [[spec] for spec in selected]
+                if mode in ("component", "e2e")
+                else runtime_batches(selected, NON_E2E_BATCH_SIZE)
+            )
+            for batch in batches:
+                if mode == "e2e":
+                    jobs.extend(
+                        enqueue_submission(
+                            queue,
+                            owner,
+                            source,
+                            batch,
+                            mode,
+                            attempt,
+                            args.proof_video_profile,
+                            candidate,
+                            source_root=canonical,
+                            prepared_builds=True,
+                        )
+                    )
+                else:
+                    jobs.append(queue.enqueue(
+                        owner, source, batch, mode,
+                        attempt, args.proof_video_profile, candidate,
+                    ))
     if args.daily:
         # Persist the selected/held inventory before detaching, including zero-job
         # runs. The meeting must not infer coverage from job batch counts.

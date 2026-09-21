@@ -27,6 +27,28 @@ def test_warm_translation_cache_preloads_english(monkeypatch):
     assert calls == ["en"]
 
 
+def test_ai_worker_preloads_shared_token_estimator_encodings(monkeypatch):
+    import tiktoken
+    from backend.core.api.app.tasks import celery_config
+
+    calls = []
+    monkeypatch.setattr(celery_config, "_worker_needs_ai_services", lambda: True)
+    monkeypatch.setattr(tiktoken, "get_encoding", calls.append)
+    celery_config.warm_ai_tokenizers()
+    assert calls == ["o200k_base", "cl100k_base"]
+
+
+def test_non_ai_worker_does_not_load_ai_tokenizers(monkeypatch):
+    import tiktoken
+    from backend.core.api.app.tasks import celery_config
+
+    calls = []
+    monkeypatch.setattr(celery_config, "_worker_needs_ai_services", lambda: False)
+    monkeypatch.setattr(tiktoken, "get_encoding", calls.append)
+    celery_config.warm_ai_tokenizers()
+    assert calls == []
+
+
 def test_custom_workflow_task_names_route_execution_to_isolated_queue():
     from backend.core.api.app.tasks import celery_config
 

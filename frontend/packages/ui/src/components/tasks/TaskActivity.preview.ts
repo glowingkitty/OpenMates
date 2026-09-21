@@ -12,7 +12,7 @@ const avatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" wid
 
 const task = {
   task_id: 'preview-task-activity', title: 'Prepare launch brief', description: '', tags: [], latestInstruction: '',
-  status: 'in_progress', assigneeType: 'external_ai', assigneeIdentity: 'opencode', primaryChatId: null, externalChat: null, linkedProjectIds: [], planId: null,
+  status: 'in_progress', assigneeType: 'external_ai', assigneeIdentity: 'codex', primaryChatId: null, externalChat: null, linkedProjectIds: [], planId: null,
   dueAt: null, priority: 2, position: 1, version: 1, createdAt, updatedAt: createdAt, blockedReasonCode: null,
   blockedReason: '', aiExecutionState: null,
   encrypted: { task_id: 'preview-task-activity', encrypted_task_key: 'preview-key', encrypted_title: 'preview-ciphertext', status: 'in_progress', assignee_type: 'user', version: 1, created_at: createdAt, updated_at: createdAt },
@@ -35,10 +35,10 @@ const initialEntries: UserTaskActivityEntry[] = [
   { ...base, entryId: 'cli', kind: 'comment', actorType: 'user', actorDisplayName: 'Sam Rivera', actorProfileImageUrl: avatar, eventType: 'comment_added', sourceSurface: 'cli', createdAt: createdAt + 20, message: 'Validated the rollout checklist from the terminal.' },
   { ...base, entryId: 'web', kind: 'comment', actorType: 'user', actorDisplayName: 'Alice Weber', actorProfileImageUrl: avatar, eventType: 'comment_added', sourceSurface: 'web', createdAt: createdAt + 10, message: 'I added the launch milestones and owner notes.' },
   { ...base, entryId: 'sdk', kind: 'comment', actorType: 'user', actorDisplayName: 'Sam Rivera', actorProfileImageUrl: avatar, eventType: 'comment_added', sourceSurface: 'sdk_npm', createdAt: createdAt + 30, message: 'Synced the external release status.' },
-  { ...base, entryId: 'mate', kind: 'comment', actorType: 'external_ai', actorIdentity: 'opencode', actorDisplayName: null, actorProfileImageUrl: null, eventType: 'comment_added', sourceSurface: 'cli', createdAt: createdAt + 40, message: 'OpenCode completed the dependency review.' },
+  { ...base, entryId: 'mate', kind: 'comment', actorType: 'external_ai', actorIdentity: 'codex', actorDisplayName: null, actorProfileImageUrl: null, eventType: 'comment_added', sourceSurface: 'cli', createdAt: createdAt + 40, message: 'Codex completed the dependency review.' },
   { ...base, entryId: 'lifecycle', kind: 'lifecycle_update', actorType: 'system', actorDisplayName: null, actorProfileImageUrl: null, eventType: 'status', previousStatus: 'todo', nextStatus: 'in_progress', sourceSurface: 'system', createdAt: createdAt + 50 },
   { ...base, entryId: 'deleted-user', kind: 'tombstone', actorType: 'user', actorDisplayName: 'Alice Weber', actorProfileImageUrl: avatar, eventType: 'comment_deleted', sourceSurface: 'web', createdAt: createdAt + 60, deletedAt: createdAt + 70, deletedByDisplayName: 'Sam Rivera' },
-  { ...base, entryId: 'deleted-mate', kind: 'tombstone', actorType: 'external_ai', actorIdentity: 'opencode', actorDisplayName: null, actorProfileImageUrl: null, eventType: 'comment_deleted', sourceSurface: 'web', createdAt: createdAt + 80, deletedAt: createdAt + 90, deletedByDisplayName: 'Alice Weber' },
+  { ...base, entryId: 'deleted-mate', kind: 'tombstone', actorType: 'external_ai', actorIdentity: 'codex', actorDisplayName: null, actorProfileImageUrl: null, eventType: 'comment_deleted', sourceSurface: 'web', createdAt: createdAt + 80, deletedAt: createdAt + 90, deletedByDisplayName: 'Alice Weber' },
 ];
 
 async function onCreate(_input: CreateUserTaskActivityInput): Promise<UserTaskActivityEntry> {

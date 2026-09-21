@@ -20,4 +20,3 @@ def isolate_apple_stop_state(request, tmp_path, monkeypatch):
     monkeypatch.setattr(apple_no_delete_guard, 'STATE_PATH', tmp_path / 'apple-stops.sqlite3')
     monkeypatch.setenv('CODEX_THREAD_ID', 'isolated-apple-test')
     monkeypatch.setenv('CODEX_SESSION_ID', 'isolated-apple-test')
-    monkeypatch.delenv('OPENCODE_SESSION_ID', raising=False)

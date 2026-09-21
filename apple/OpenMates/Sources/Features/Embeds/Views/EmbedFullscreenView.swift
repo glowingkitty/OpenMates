@@ -517,45 +517,25 @@ struct EmbedFullscreenView: View {
 
 // MARK: - Gradient background helper
 
+// CSS135deg is a physical45deg gradient even in a wide short rectangle.
+// Project all rectangle corners onto that diagonal to find its full line length.
+enum CSSHeaderGradientGeometry {
+    static func endpoints(size: CGSize) -> (UnitPoint, UnitPoint) {
+        guard size.width > 0, size.height > 0 else { return (.topLeading, .bottomTrailing) }
+        let projection = (size.width + size.height) / 4
+        return (UnitPoint(x: 0.5 - projection / size.width, y: 0.5 - projection / size.height),
+                UnitPoint(x: 0.5 + projection / size.width, y: 0.5 + projection / size.height))
+    }
+}
 struct AppGradientBackground: View {
     let appId: String
-
     var body: some View {
-        Rectangle()
-            .fill(gradient)
-            .overlay(
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.3)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-    }
-
-    private var gradient: AnyShapeStyle {
-        switch appId {
-        case "web": return AnyShapeStyle(LinearGradient.appWeb)
-        case "videos": return AnyShapeStyle(LinearGradient.appVideos)
-        case "code": return AnyShapeStyle(LinearGradient.appCode)
-        case "maps": return AnyShapeStyle(LinearGradient.appMaps)
-        case "travel": return AnyShapeStyle(LinearGradient.appTravel)
-        case "news": return AnyShapeStyle(LinearGradient.appNews)
-        case "shopping": return AnyShapeStyle(LinearGradient.appShopping)
-        case "health": return AnyShapeStyle(LinearGradient.appHealth)
-        case "nutrition": return AnyShapeStyle(LinearGradient.appNutrition)
-        case "events": return AnyShapeStyle(LinearGradient.appEvents)
-        case "photos", "images": return AnyShapeStyle(LinearGradient.appPhotos)
-        case "music": return AnyShapeStyle(LinearGradient.appMusic)
-        case "mail": return AnyShapeStyle(LinearGradient.appMail)
-        case "docs": return AnyShapeStyle(LinearGradient.appDocs)
-        case "sheets": return AnyShapeStyle(LinearGradient.appSheets)
-        case "mindmaps": return AnyShapeStyle(LinearGradient.appDiagrams)
-        case "pdf": return AnyShapeStyle(LinearGradient.appPdf)
-        case "home": return AnyShapeStyle(LinearGradient.appHome)
-        case "finance": return AnyShapeStyle(LinearGradient.appFinance)
-        case "math": return AnyShapeStyle(LinearGradient.appMath)
-        case "audio": return AnyShapeStyle(LinearGradient.appAudio)
-        default: return AnyShapeStyle(LinearGradient.primary)
-        }
+        GeometryReader { geometry in
+            let colors = AppGradientPalette.colors(for: appId == "images" ? "photos" : appId)
+            let points = CSSHeaderGradientGeometry.endpoints(size: geometry.size)
+            LinearGradient(stops: [.init(color: colors.start, location: 0.0904),
+                                   .init(color: colors.end, location: 0.9006)],
+                           startPoint: points.0, endPoint: points.1)
+        }.accessibilityHidden(true)
     }
 }

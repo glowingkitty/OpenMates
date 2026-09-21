@@ -16,18 +16,20 @@ const { captureTestThumbnail, defineTestThumbnail } = require('./helpers/test-th
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
-const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
-const PROOF_DEVICE = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10) === 390 ? 'web-phone' : 'web-laptop';
+const IS_PROOF_CAPTURE = Boolean(
+	process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT
+);
+const PROOF_DEVICE =
+	Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10) === 390
+		? 'web-phone'
+		: 'web-laptop';
 const PROOF_STATE_SETTLE_MS = 750;
 const PROOF_TEMPLATE_HOLD_MS = 2500;
 const WORKFLOW_TITLE_PREFIX = 'Workflow UI contract';
 const WORKFLOWS_UI_THUMBNAIL = defineTestThumbnail({
 	id: 'workflows-workspace',
 	focus: [{ testId: 'daily-inspiration-banner' }],
-	context: [
-		{ testId: 'workflows-show-all' },
-		{ testId: 'workflow-input-composer' }
-	]
+	context: [{ testId: 'workflows-show-all' }, { testId: 'workflow-input-composer' }]
 });
 
 const WORKFLOWS_UI_PROOF = defineVideoProof({
@@ -51,7 +53,7 @@ const WORKFLOWS_UI_PROOF = defineVideoProof({
 		},
 		{
 			id: 'guard-visible',
-			text: 'Editing a node reveals explicit Save and Undo controls, while navigation asks whether to Save, Discard, or Stay.',
+			text: 'Editing a node reveals its own Save control. Saving persists the workflow immediately.',
 			checkpoint: 'guard-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
@@ -72,31 +74,36 @@ const WORKFLOWS_UI_PROOF = defineVideoProof({
 		{
 			id: 'workspace-visible.assertion',
 			checkpoint: 'workspace-visible',
-			visual: 'The recommendation, centered Workflow identity, category cards, Show all, Search, and composer are visible without clipping.',
+			visual:
+				'The recommendation, centered Workflow identity, category cards, Show all, Search, and composer are visible without clipping.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'template-visible.assertion',
 			checkpoint: 'template-visible',
-			visual: 'The category header, shared tab pill, and centered Template graph form one stable detail composition.',
+			visual:
+				'The category header, shared tab pill, and centered Template graph form one stable detail composition.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'guard-visible.assertion',
 			checkpoint: 'guard-visible',
-			visual: 'The unsaved panel and Save, Discard, and Stay navigation decision remain reachable.',
+			visual:
+				'The expanded node and its Save control remain reachable without a workflow-wide save banner.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'version-visible.assertion',
 			checkpoint: 'version-visible',
-			visual: 'The selected historical version, Active current marker, timeline, and read-only graph are visible.',
+			visual:
+				'The selected historical version, Active current marker, timeline, and read-only graph are visible.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'runs-visible.assertion',
 			checkpoint: 'runs-visible',
-			visual: 'The waiting run, execution graph, node statuses, and cancel action are visible without raw protocol text.',
+			visual:
+				'The waiting run, execution graph, node statuses, and cancel action are visible without raw protocol text.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -106,7 +113,8 @@ const WORKFLOWS_UI_PROOF = defineVideoProof({
 function deriveApiUrl(baseUrl: string): string {
 	try {
 		const url = new URL(baseUrl);
-		if (url.hostname === 'openmates.org' || url.hostname === 'www.openmates.org') return 'https://api.openmates.org';
+		if (url.hostname === 'openmates.org' || url.hostname === 'www.openmates.org')
+			return 'https://api.openmates.org';
 		if (url.hostname.startsWith('app.')) return `${url.protocol}//api.${url.hostname.slice(4)}`;
 		if (url.hostname === 'localhost') return 'http://localhost:8000';
 	} catch {
@@ -120,8 +128,18 @@ function rainGraph(location: string) {
 		version: 1,
 		trigger_node_id: 'trigger',
 		nodes: [
-			{ id: 'trigger', type: 'schedule_trigger', title: 'Every morning', config: { schedule: { type: 'daily', time: '07:00', timezone: 'Europe/Berlin' } } },
-			{ id: 'weather', type: 'app_skill_action', title: 'Check weather', config: { app_id: 'weather', skill_id: 'forecast', input: { location, days: 1 } } },
+			{
+				id: 'trigger',
+				type: 'schedule_trigger',
+				title: 'Every morning',
+				config: { schedule: { type: 'daily', time: '07:00', timezone: 'Europe/Berlin' } }
+			},
+			{
+				id: 'weather',
+				type: 'app_skill_action',
+				title: 'Check weather',
+				config: { app_id: 'weather', skill_id: 'forecast', input: { location, days: 1 } }
+			},
 			{ id: 'end', type: 'end', title: 'Done', config: {} }
 		],
 		edges: [
@@ -137,7 +155,12 @@ function waitingGraph() {
 		trigger_node_id: 'manual',
 		nodes: [
 			{ id: 'manual', type: 'manual_trigger', title: 'Manual start', config: {} },
-			{ id: 'approval', type: 'ask_user', title: 'Confirm the next step', config: { prompt: 'Continue this Workflow?', timeout_seconds: 600 } },
+			{
+				id: 'approval',
+				type: 'ask_user',
+				title: 'Confirm the next step',
+				config: { prompt: 'Continue this Workflow?', timeout_seconds: 600 }
+			},
 			{ id: 'end', type: 'end', title: 'Done', config: {} }
 		],
 		edges: [
@@ -162,12 +185,20 @@ async function createWorkflow(page: any, apiUrl: string, data: Record<string, un
 }
 
 async function expectNoPageOverflow(page: any): Promise<void> {
-	await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+	await expect
+		.poll(async () =>
+			page.evaluate(
+				() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+			)
+		)
+		.toBe(true);
 }
 
 test.describe('Workflows web UI contract', () => {
 	// contract-test: direct surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,workflows-ui.workspace.title-first-draft,workflows-ui.detail.stable-visual-header,workflows-ui.detail.shared-template-runs-tabs,workflows-ui.template.centered-in-place-editor,workflows-ui.template.explicit-guarded-save,workflows-ui.versions.timeline-readonly-restore-new,workflows-ui.runs.timeline-execution-detail,workflows-ui.responsive-accessible-reachable
-	test('preserves identity while editing versions and inspecting a cancellable run', async ({ page }: { page: any }, testInfo: any) => {
+	test('preserves identity while editing versions and inspecting a cancellable run', async ({
+		page
+	}: { page: any }, testInfo: any) => {
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
@@ -179,10 +210,10 @@ test.describe('Workflows web UI contract', () => {
 		const runnerTitle = `${WORKFLOW_TITLE_PREFIX} approval ${suffix}`;
 		const proof = IS_PROOF_CAPTURE
 			? createVideoProofRuntime(WORKFLOWS_UI_PROOF, {
-				device: PROOF_DEVICE,
-				attach: testInfo.attach.bind(testInfo),
-				captureFrame: () => page.screenshot({ type: 'png' })
-			})
+					device: PROOF_DEVICE,
+					attach: testInfo.attach.bind(testInfo),
+					captureFrame: () => page.screenshot({ type: 'png' })
+				})
 			: null;
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -200,9 +231,12 @@ test.describe('Workflows web UI contract', () => {
 			expect(editorWorkflow.category).toBe('science');
 			expect(editorWorkflow.icon).toBe('cloud-rain');
 
-			const versionResponse = await page.request.patch(`${apiUrl}/v1/workflows/${encodeURIComponent(editorWorkflow.id)}`, {
-				data: { graph: rainGraph('Hamburg') }
-			});
+			const versionResponse = await page.request.patch(
+				`${apiUrl}/v1/workflows/${encodeURIComponent(editorWorkflow.id)}`,
+				{
+					data: { graph: rainGraph('Hamburg') }
+				}
+			);
 			expect(versionResponse.ok(), await versionResponse.text()).toBe(true);
 
 			const runnerWorkflow = await createWorkflow(page, apiUrl, {
@@ -216,10 +250,13 @@ test.describe('Workflows web UI contract', () => {
 			});
 			createdWorkflowIds.add(runnerWorkflow.id);
 
-			const runResponse = await page.request.post(`${apiUrl}/v1/workflows/${encodeURIComponent(runnerWorkflow.id)}/run`, {
-				data: { mode: 'test', input: {} },
-				headers: { 'Idempotency-Key': `${runnerWorkflow.id}-ui-contract` }
-			});
+			const runResponse = await page.request.post(
+				`${apiUrl}/v1/workflows/${encodeURIComponent(runnerWorkflow.id)}/run`,
+				{
+					data: { mode: 'test', input: {} },
+					headers: { 'Idempotency-Key': `${runnerWorkflow.id}-ui-contract` }
+				}
+			);
 			expect(runResponse.ok(), await runResponse.text()).toBe(true);
 			const run = (await runResponse.json()).run;
 
@@ -227,13 +264,32 @@ test.describe('Workflows web UI contract', () => {
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible({ timeout: 30_000 });
 			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
 			await expect(page.getByTestId('workflows-workspace-background-icon')).toBeVisible();
-			await expect(page.getByTestId('workflows-show-all')).toBeVisible();
+			await expect(page.getByTestId('workflows-show-all')).toHaveText('Show all');
 			await expect(page.getByTestId('workflows-search')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
-			const editorCard = page.getByTestId('workflow-landing-card').filter({ hasText: editorTitle }).first();
+			const editorCard = page
+				.getByTestId('workflow-landing-card')
+				.filter({ hasText: editorTitle })
+				.first();
 			await expect(editorCard).toHaveAttribute('data-card-source', 'recent');
 			await expect(editorCard).toHaveAttribute('data-category', 'science');
 			await expect(editorCard).toHaveAttribute('data-icon', 'cloud-rain');
+			const startScreenBox = await page.getByTestId('workflows-start-screen').boundingBox();
+			if (!startScreenBox) throw new Error('Workflow start screen must be measurable.');
+			const shouldUseCompactCards = startScreenBox.width < 550 || (page.viewportSize()?.height ?? 0) < 800;
+			if (shouldUseCompactCards) {
+				await expect(editorCard).toHaveClass(/resume-chat-card/);
+				await expect(editorCard.locator('.resume-chat-kind-badge')).toHaveCount(0);
+				await expect(editorCard.locator('.resume-chat-summary')).toHaveCount(0);
+				await expect(editorCard.getByTestId('resume-chat-title')).toHaveCSS('white-space', 'nowrap');
+			} else {
+				await expect(editorCard).toHaveClass(/workspace-continue-card/);
+				await expect(editorCard).toHaveAttribute('style', /#CE5B06.*#8F220E/);
+			}
+			const bannerBox = await page.getByTestId('daily-inspiration-banner').boundingBox();
+			const centerBox = await page.getByTestId('workflows-workspace-center').boundingBox();
+			if (!bannerBox || !centerBox) throw new Error('Workflow banner and start content must be measurable.');
+			expect(centerBox.y).toBeGreaterThanOrEqual(bannerBox.y + bannerBox.height);
 			await expectNoPageOverflow(page);
 			await captureTestThumbnail(page, testInfo, WORKFLOWS_UI_THUMBNAIL);
 			if (proof) {
@@ -249,14 +305,33 @@ test.describe('Workflows web UI contract', () => {
 
 			await editorCard.click();
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(editorWorkflow.id));
+			const workflowManagement = page.getByTestId('workflow-management');
+			await expect(workflowManagement).toHaveCSS('will-change', 'auto');
+			await expect(workflowManagement).toHaveCSS('transform', 'none');
+			const settingsMenu = page.getByTestId('settings-menu');
+			const settingsHeader = settingsMenu.locator('.settings-main-header');
+			const settingsHeaderOrbs = settingsHeader.locator('.orb');
+			await expect(settingsHeader).toHaveAttribute('data-animation-state', 'paused');
+			await expect(settingsHeaderOrbs).toHaveCount(3);
+			for (let index = 0; index < 3; index += 1) {
+				await expect(settingsHeaderOrbs.nth(index)).toHaveCSS('animation-play-state', 'paused');
+				await expect(settingsHeaderOrbs.nth(index)).toHaveCSS('will-change', 'auto');
+			}
 			const detailHeader = page.getByTestId('workspace-detail-header');
 			await expect(detailHeader).toHaveAttribute('data-category', 'science');
 			await expect(detailHeader).toHaveAttribute('data-icon', 'cloud-rain');
+			await expect(page.getByTestId('workflow-detail-actions')).toHaveCSS('position', 'sticky');
 			await expect(page.getByTestId('workflow-identity-icon')).toBeVisible();
-			await expect(page.getByTestId('workflow-tab-template')).toHaveAttribute('aria-selected', 'true');
+			await expect(page.getByTestId('workflow-tab-template')).toHaveAttribute(
+				'aria-selected',
+				'true'
+			);
 			await expect(page.getByTestId('workflow-tab-runs')).toHaveAttribute('aria-selected', 'false');
 			await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
-			await expect(page.getByTestId('workflow-graph-renderer')).toHaveAttribute('data-read-only', 'false');
+			await expect(page.getByTestId('workflow-graph-renderer')).toHaveAttribute(
+				'data-read-only',
+				'false'
+			);
 			await expectNoPageOverflow(page);
 			if (proof) {
 				await settleProofState(page);
@@ -268,44 +343,77 @@ test.describe('Workflows web UI contract', () => {
 				await settleProofState(page, PROOF_TEMPLATE_HOLD_MS);
 			}
 
-			const weatherNode = page.getByTestId('workflow-node-card').filter({ hasText: 'Weather' }).first();
+			const weatherNode = page
+				.getByTestId('workflow-node-card')
+				.filter({ hasText: 'Weather' })
+				.first();
+			const primaryNodeIcons = page.getByTestId('workflow-node-primary-icon').locator('.workflow-icon');
+			await expect.poll(async () => primaryNodeIcons.count()).toBeGreaterThan(1);
+			for (let index = 0; index < (await primaryNodeIcons.count()); index += 1) {
+				await expect(primaryNodeIcons.nth(index)).toHaveCSS('width', '33px');
+				await expect(primaryNodeIcons.nth(index)).toHaveCSS('height', '33px');
+			}
+			await page.route('**/v1/geocode/search?**', (route) =>
+				route.fulfill({
+					json: [{
+						lat: '48.8566', lon: '2.3522', name: 'Paris', display_name: 'Paris, France',
+						class: 'place', type: 'city', namedetails: { name: 'Paris' },
+						address: { city: 'Paris', country: 'France' }
+					}]
+				})
+			);
 			await weatherNode.getByTestId('workflow-node-summary').click();
-			await weatherNode.getByTestId('workflow-node-location-input').fill('Paris');
-			await expect(page.getByTestId('workflow-dirty-panel')).toBeVisible();
-			await page.getByTestId('workflow-tab-runs').click();
-			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
-			await expect(page.getByTestId('workflow-guard-save')).toBeVisible();
-			await expect(page.getByTestId('workflow-guard-discard')).toBeVisible();
-			await expect(page.getByTestId('workflow-guard-stay')).toBeVisible();
-			await expect.poll(async () => page.evaluate(() => Boolean(document.activeElement?.closest('[data-testid="workflow-unsaved-guard"]')))).toBe(true);
+			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('width', '33px');
+			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('height', '33px');
+			await weatherNode.getByTestId('workflow-node-location-picker').click();
+			await weatherNode.getByTestId('map-location-search-input').fill('Paris');
+			await weatherNode.getByTestId('map-location-search-result').click();
+			await weatherNode.getByTestId('map-location-select').click();
+			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-node-save')).toBeVisible();
 			if (proof) {
 				await settleProofState(page);
 				await proof.assert('guard-visible.assertion', async () => {
-					await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
+					await expect(page.getByTestId('workflow-node-save')).toBeVisible();
 				});
 				await proof.checkpoint('guard-visible');
-				await settleProofState(page);
 			}
-			await page.keyboard.press('Escape');
-			await expect(page.getByTestId('workflow-unsaved-guard')).toHaveCount(0);
-			await page.getByTestId('workflow-tab-runs').click();
-			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
-			await page.getByTestId('workflow-guard-stay').click();
-			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(editorWorkflow.id));
-			await page.getByTestId('save-workflow').click();
-			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0, { timeout: 30_000 });
+			await page.getByTestId('workflow-node-save').click();
+			await expect(
+				page.getByTestId('workflow-graph-renderer').getByTestId('workflow-node-stack')
+			).toContainText('Paris');
 			await expect(page.getByTestId('save-workflow')).toHaveCount(0);
-			await expect(page.getByTestId('workflow-graph-renderer').getByTestId('workflow-node-stack')).toContainText('Paris');
+			await expect(page.getByTestId('workflow-more-options')).toHaveCount(0);
+			await page.getByTestId('workflow-version-selector').click();
 
 			await expect(page.getByTestId('workflow-version-selector')).toBeVisible();
 			await expect(page.getByTestId('workflow-version-timeline')).toBeVisible();
-			const historicalVersion = page.locator('[data-testid="workflow-version-row"][data-current="false"]').first();
+			const versionPanel = page.getByTestId('workflow-template-panel');
+			await expect(versionPanel.getByTestId('workflow-version-timeline')).toBeVisible();
+			const tabBounds = await page.getByTestId('workflow-view-tabs').boundingBox();
+			const selectorBounds = await page.getByTestId('workflow-version-selector').boundingBox();
+			expect(selectorBounds.y).toBeGreaterThanOrEqual(tabBounds.y + tabBounds.height);
+			expect(await page.getByTestId('workflow-version-row').evaluateAll(rows =>
+				rows.every(row => [...row.children].every(label =>
+					label.getBoundingClientRect().bottom <= row.getBoundingClientRect().bottom + 1
+				))
+			)).toBe(true);
+			const historicalVersion = page
+				.locator('[data-testid="workflow-version-row"][data-current="false"]')
+				.first();
 			await historicalVersion.click();
 			await expect(page.getByTestId('workflow-version-graph-inspection')).toBeVisible();
-			await expect(page.getByTestId('workflow-version-graph-inspection')).toHaveAttribute('data-read-only', 'true');
+			await expect(page.getByTestId('workflow-version-graph-inspection')).toHaveAttribute(
+				'data-read-only',
+				'true'
+			);
 			await expect(page.getByTestId('workflow-version-graph')).toBeVisible({ timeout: 30_000 });
-			await expect(page.getByTestId('workflow-version-graph-inspection')).not.toContainText('app_id');
-			await expect(page.locator('[data-testid="workflow-version-row"][data-current="true"]')).toContainText('Active');
+			await expect(page.getByTestId('workflow-version-graph-inspection')).not.toContainText(
+				'app_id'
+			);
+			await expect(
+				page.locator('[data-testid="workflow-version-row"][data-current="true"]')
+			).toContainText(/current|active/i);
 			if (proof) {
 				await settleProofState(page);
 				await proof.assert('version-visible.assertion', async () => {
@@ -318,23 +426,45 @@ test.describe('Workflows web UI contract', () => {
 
 			await page.getByTestId('workflow-detail-back').click();
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
-			await page.getByTestId('workflow-landing-card').filter({ hasText: runnerTitle }).first().click();
+			await page
+				.getByTestId('workflow-landing-card')
+				.filter({ hasText: runnerTitle })
+				.first()
+				.click();
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(runnerWorkflow.id));
+			await expect(page.getByTestId('workflow-detail-actions').getByRole('toolbar')).toBeVisible();
+			await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
+			await expect(page.getByTestId('run-workflow')).toBeVisible();
 			await page.getByTestId('workflow-tab-runs').click();
-			await expect(page).toHaveURL(new RegExp(`workflow-id=${runnerWorkflow.id}&workflow-tab=runs`));
+			await expect(page).toHaveURL(
+				new RegExp(`workflow-id=${runnerWorkflow.id}&workflow-tab=runs`)
+			);
 			await expect(page.getByTestId('workflow-run-selector')).toBeVisible();
+			await expect(page.getByTestId('workflow-run-selector').locator('select')).toHaveValue(run.id);
+			await expect(page.getByTestId('workflow-delete-run')).toHaveAttribute('title', /Delete run/);
 			await expect(page.getByTestId('workflow-run-timeline')).toBeVisible();
-			const selectedRun = page.locator(`[data-testid="workflow-run-marker"][data-run-id="${run.id}"]`);
+			const selectedRun = page.locator(
+				`[data-testid="workflow-run-marker"][data-run-id="${run.id}"]`
+			);
 			await expect(selectedRun).toContainText(/waiting/i);
-			await expect.poll(async () => selectedRun.evaluate((element: HTMLElement) => {
-				const marker = element.getBoundingClientRect();
-				const status = element.querySelector('strong')?.getBoundingClientRect();
-				return Boolean(status && status.top >= marker.top && status.bottom <= marker.bottom);
-			})).toBe(true);
+			await expect
+				.poll(async () =>
+					selectedRun.evaluate((element: HTMLElement) => {
+						const marker = element.getBoundingClientRect();
+						const status = element.querySelector('strong')?.getBoundingClientRect();
+						return Boolean(status && status.top >= marker.top && status.bottom <= marker.bottom);
+					})
+				)
+				.toBe(true);
 			await selectedRun.click();
 			await expect(page.getByTestId('workflow-run-detail')).toBeVisible();
-			await expect(page.getByTestId('workflow-run-graph')).toHaveAttribute('data-read-only', 'true');
-			await expect(page.getByTestId('workflow-run-node-status').first()).toContainText(/queued|running|completed|skipped|failed/i);
+			await expect(page.getByTestId('workflow-run-graph')).toHaveAttribute(
+				'data-read-only',
+				'true'
+			);
+			await expect(page.getByTestId('workflow-run-node-status').first()).toContainText(
+				/queued|running|completed|skipped|failed/i
+			);
 			await expect(page.getByTestId('workflow-run-cancel')).toBeVisible();
 			if (proof) {
 				await settleProofState(page);
@@ -349,20 +479,45 @@ test.describe('Workflows web UI contract', () => {
 
 			await page.getByTestId('workflow-run-cancel').click();
 			await expect(page.getByTestId('workflow-run-cancel-confirmation')).toBeVisible();
-			await expect.poll(async () => page.evaluate(() => Boolean(document.activeElement?.closest('[data-testid="workflow-run-cancel-confirmation"]')))).toBe(true);
+			await expect
+				.poll(async () =>
+					page.evaluate(() =>
+						Boolean(
+							document.activeElement?.closest('[data-testid="workflow-run-cancel-confirmation"]')
+						)
+					)
+				)
+				.toBe(true);
 			const cancelResponse = page.waitForResponse(
-				(response: any) => response.url().endsWith(`/runs/${run.id}/cancel`) && response.request().method() === 'POST' && response.ok(),
+				(response: any) =>
+					response.url().endsWith(`/runs/${run.id}/cancel`) &&
+					response.request().method() === 'POST' &&
+					response.ok(),
 				{ timeout: 30_000 }
 			);
 			await page.getByTestId('workflow-run-cancel-confirm').click();
 			await cancelResponse;
-			await expect(selectedRun).toContainText(/cancellation requested|cancelled/i, { timeout: 30_000 });
+			await expect(selectedRun).toContainText(/cancellation requested|cancelled/i, {
+				timeout: 30_000
+			});
 			await expectNoPageOverflow(page);
+
+			// Sharing stays in the header but only shows the v1 coming-soon notice.
+			if (!(await page.getByTestId('workflow-share').isVisible())) {
+				await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
+			}
+			const sharingOriginUrl = page.url();
+			await page.getByTestId('workflow-share').click();
+			await expect(page).toHaveURL(sharingOriginUrl);
+			await expect(page.getByText('Workflow sharing is coming soon.', { exact: true })).toBeVisible();
+			await expect(page.getByTestId('workflow-template-share')).toHaveCount(0);
 
 			if (proof) await proof.attach();
 		} finally {
 			for (const workflowId of createdWorkflowIds) {
-				await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
+				await page.request
+					.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`)
+					.catch(() => null);
 			}
 		}
 	});

@@ -17,6 +17,8 @@
         "apple-settings-ui-contracts.spec.ts",
         "backup-code-login-flow.spec.ts",
         "backup-codes-settings.spec.ts",
+        "audio-recording-deferred-send.spec.ts",
+        "components/audio-recording-realtime.spec.ts",
         "calendar-connected-accounts.spec.ts",
         "calendar-permission-flow.spec.ts",
         "chat-error-report-consent.spec.ts",
@@ -114,7 +116,7 @@
       "enabling_work": "AI/app workers and original app/provider fixtures. Preserve live-vs-recorded mode; dedicated credentials/spend caps before real inference. Pure browser fixtures can move independently after checking interception scope.",
       "specs": [
         "apple-cross-client-chat.spec.ts",
-        "audio-recording-deferred-send.spec.ts",
+        "audio-recording-live-provider.spec.ts",
         "background-chat-notification.spec.ts",
         "cli-embed-diff-versions.spec.ts",
         "cli-file-upload.spec.ts",
@@ -193,15 +195,20 @@
         "business-company-financials-example.spec.ts",
         "business-company-financials.spec.ts",
         "components/pdf-view-preview.spec.ts",
+        "components/record-audio-live-transcript.spec.ts",
         "chat-replay-demo-mode.spec.ts",
         "chat-response-processing-ui.spec.ts",
         "chat-streaming-render-performance.spec.ts",
         "cli-tui-workflows.spec.ts",
+        "component-message-input-performance.spec.ts",
         "component-message-input.spec.ts",
         "components/chat-processing-indicator.spec.ts",
         "components/specification-fullscreen.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
+        "components/map-load-recovery.spec.ts",
+        "components/newsroom-surface.spec.ts",
+        "components/report-issue-confirmation.spec.ts",
         "components/embed-workspace.spec.ts",
         "components/panel-responsiveness.spec.ts",
         "composer-model-routing.spec.ts",
@@ -238,6 +245,7 @@
         "preview-error.spec.ts",
         "proof-audio-speech-example.spec.ts",
         "proof-video-architecture.spec.ts",
+        "public-publications.spec.ts",
         "report-issue-email-fallback.spec.ts",
         "search-parent-preview-stress.spec.ts",
         "seo-demo-chat.spec.ts",
@@ -451,6 +459,12 @@
         "PLAYWRIGHT_TEST_API_URL"
       ]
     },
+    "audio-recording-live-provider.spec.ts": {
+      "dependency": "dedicated_realtime_audio_provider_credentials",
+      "next_action": "Provision isolated CI with dedicated Mistral realtime and Gemini correction credentials plus an explicit per-run spend cap. The spec already preserves real microphone capture, authenticated WebSocket streaming, live transcript deltas, immediate send, and in-place correction; normal isolated CI intentionally has no paid provider secrets.",
+      "user_input_required": true,
+      "source_environment_names": []
+    },
     "audio-recording-and-speech.spec.ts": {
       "dependency": "missing_original_recorded_cache",
       "next_action": "Original cache group(s) assistant_response_speech_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
@@ -462,12 +476,6 @@
       "committed_cache_files": {
         "assistant_response_speech_web": 0
       }
-    },
-    "audio-recording-deferred-send.spec.ts": {
-      "dependency": "live_media_provider_and_storage",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: sending while transcription is pending finalizes the same audio message. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
-      "user_input_required": true,
-      "source_environment_names": []
     },
     "background-chat-notification.spec.ts": {
       "dependency": "original_live_inference",

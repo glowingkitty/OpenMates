@@ -42,6 +42,36 @@ def _load_protocol_json_payload(raw_payload: str) -> dict[str, object] | None:
     return payload
 
 
+def extract_app_skill_references(text: str) -> list[dict[str, str]]:
+    """Return only canonical app-skill identity fields from protocol fences.
+
+    This intentionally excludes arguments, queries, result content, URLs and other
+    transport metadata so callers can build routing history without retaining tool
+    inputs or outputs.
+    """
+    references: list[dict[str, str]] = []
+    if not text:
+        return references
+
+    for match in APP_SKILL_EMBED_REFERENCE_FENCE_PATTERN.finditer(text):
+        payload = _load_protocol_json_payload(match.group(1))
+        if payload is None or payload.get("type") != "app_skill_use":
+            continue
+        embed_id = payload.get("embed_id")
+        app_id = payload.get("app_id")
+        skill_id = payload.get("skill_id")
+        if not all(isinstance(value, str) and value.strip() for value in (embed_id, app_id, skill_id)):
+            continue
+        references.append(
+            {
+                "embed_id": embed_id.strip(),
+                "app_id": app_id.strip(),
+                "skill_id": skill_id.strip(),
+            }
+        )
+    return references
+
+
 def canonicalize_app_skill_json_blocks(text: str, log_prefix: str = "") -> str:
     """Keep app-skill identity/order while removing non-canonical request metadata."""
     if not text:

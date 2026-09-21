@@ -15,6 +15,7 @@ Architecture:
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 from typing import TYPE_CHECKING, Dict, Any, List, Optional
@@ -110,7 +111,7 @@ async def handle_load_more_chats(
             # IDs), not a complete ordered account inventory. Its offsets cannot
             # address the authoritative list, even when it contains some rows.
             chats_to_send = await _fetch_chats_from_directus_paginated(
-                directus_service, user_id, offset, limit, team_id=team_id
+                directus_service, user_id, offset, limit, team_id=team_id, cache_service=cache_service
             )
 
             has_more = (offset + len(chats_to_send)) < total_count
@@ -250,20 +251,45 @@ async def _fetch_chats_from_directus_paginated(
     offset: int,
     limit: int,
     team_id: Optional[str] = None,
+    cache_service: Optional[CacheService] = None,
 ) -> List[Dict[str, Any]]:
     """Fetch an authoritative metadata page in the requested account/team scope."""
     try:
         all_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
             user_id, limit=limit, offset=offset, team_id=team_id
         )
-        # Convert to the expected format (metadata only, no messages)
-        return [
-            {
-                "chat_details": chat.get("chat_details", {}),
-                "messages": None,
-                "server_message_count": None,
-            }
+        # Directus returns user-owned draft ciphertext beside chat_details.
+        # Normalize it before discarding that wrapper, exactly as startup sync
+        # does. Page size/order remain the authoritative scoped Directus result.
+        from .phased_sync_handler import (
+            PHASE2_DRAFT_LOOKUP_CONCURRENCY,
+            _apply_batched_draft_metadata,
+            _apply_cached_draft_override,
+        )
+
+        normalized = [
+            {**chat, "chat_details": dict(chat.get("chat_details", {}))}
             for chat in all_chats
+        ]
+        for wrapper in normalized:
+            _apply_batched_draft_metadata(wrapper)
+
+        if cache_service is not None:
+            # A newer draft or deletion can still be waiting for its Directus
+            # write. Reuse the same version/tombstone rule as phased sync, with
+            # bounded concurrent Redis reads; no per-chat database reads.
+            for start in range(0, len(normalized), PHASE2_DRAFT_LOOKUP_CONCURRENCY):
+                await asyncio.gather(*(
+                    _apply_cached_draft_override(
+                        wrapper["chat_details"], cache_service, user_id,
+                        wrapper["chat_details"]["id"],
+                    )
+                    for wrapper in normalized[start:start + PHASE2_DRAFT_LOOKUP_CONCURRENCY]
+                    if wrapper["chat_details"].get("id")
+                ))
+        return [
+            {"chat_details": wrapper["chat_details"], "messages": None, "server_message_count": None}
+            for wrapper in normalized
         ]
     except Exception as e:
         logger.error(f"Error fetching paginated chats from Directus for user {user_id[:8]}...: {e}", exc_info=True)

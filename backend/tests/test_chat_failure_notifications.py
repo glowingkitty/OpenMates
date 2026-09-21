@@ -78,6 +78,42 @@ def test_terminal_classification(result, expected):
     assert dispatch.failure_stage(result, "ERROR_MARKER") == expected
 
 
+@pytest.mark.parametrize(
+    "result,expected",
+    [
+        (
+            {
+                "status": "completed",
+                "preprocessing_summary": {
+                    "can_proceed": False,
+                    "rejection_reason": "internal_error_llm_preprocessing_failed",
+                },
+            },
+            "failed_before_main",
+        ),
+        (
+            {"status": "completed", "main_processing_output": "ERROR_MARKER"},
+            "failed_during_main",
+        ),
+        (
+            {"status": "completed", "main_processing_output": "Useful answer"},
+            "completed",
+        ),
+        (
+            {"interrupted_by_soft_time_limit": True},
+            "soft_limited",
+        ),
+        (
+            {"interrupted_by_revocation": True},
+            "revoked",
+        ),
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+def test_observability_terminal_classification(result, expected):
+    assert dispatch.terminal_class(result, "ERROR_MARKER") == expected
+
+
 # contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.daily-cap
 @pytest.mark.asyncio
 async def test_concurrent_failures_share_five_slots_and_deduplicate(sender):

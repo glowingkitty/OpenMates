@@ -230,10 +230,36 @@ models:
         model_id: "voxtral-mini-2602"
         region: "EU"
     pricing:
-      per_minute: 3 # 3 credits per minute of audio ($0.003/min × 3x markup)
+      per_minute: 3 # Existing batch audio.transcribe price
     costs:
       per_minute:
         price: 0.003
+        currency: USD
+
+  - id: "voxtral-mini-transcribe-realtime-2602"
+    name: "Voxtral Mini Realtime"
+    description: >-
+      Mistral AI's low-latency streaming speech transcription model. Produces
+      incremental text while an audio recording is still in progress.
+    country_origin: "FR"
+    for_app_skill: "audio.transcribe"
+    release_date: "2026-02-04"
+    allow_auto_select: false
+    input_types:
+      - audio
+    output_types:
+      - text
+    default_server: "mistral"
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "voxtral-mini-transcribe-realtime-2602"
+        region: "EU"
+    pricing:
+      per_minute: 8 # Whole-credit ceiling of $0.006/min provider cost + 20%
+    costs:
+      per_minute:
+        price: 0.006
         currency: USD
 
   - id: "devstral-2512" # Official model ID

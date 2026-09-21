@@ -483,3 +483,24 @@ describe("OpenMates SDK workflows", () => {
     );
   });
 });
+
+// contract-test: supporting surface=sdks.npm assertions=workflows.message.standard,workflows.history.delete-forgets,workflows.surface.semantic-parity,sdk.surface.semantic-parity
+it("previews unsaved messages and deletes run-owned history through owner workflow routes", async () => {
+  const workflowId = "11111111-1111-4111-8111-111111111111";
+  const node = { id: "send", type: "send_chat_message" as const, config: { title: "News", message: "Latest news" } };
+  const outputs = { news: { results: [{ id: "article-1", title: "Example" }] } };
+  await withServer((request, body) => {
+    if (request.url?.endsWith("/preview")) {
+      assert.deepEqual(body, { node, input: {}, upstream_outputs: outputs });
+      return { preview: { message: "Latest news" } };
+    }
+    assert.equal(request.method, "DELETE");
+    assert.equal(request.url, `/v1/workflows/${workflowId}/runs/run-1`);
+    return { run_id: "run-1", status: "deleted" };
+  }, async (apiUrl, seen) => {
+    const client = new OpenMates({ apiKey: "x", apiUrl });
+    assert.equal((await client.workflows.previewStep(workflowId, "send", { node, upstreamOutputs: outputs })).message, "Latest news");
+    assert.equal((await client.workflows.deleteRun(workflowId, "run-1")).status, "deleted");
+    assert.equal(seen.length, 2);
+  });
+});

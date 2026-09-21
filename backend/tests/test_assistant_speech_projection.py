@@ -71,7 +71,7 @@ def test_resolves_a_provider_neutral_profile_without_exposing_voice_ids() -> Non
     assert resolved.provider == "elevenlabs"
     assert resolved.model == "eleven_v3_conversational"
     assert resolved.output_format == "mp3_44100_128"
-    assert resolved.voice_settings == {"speed": 1.0}
+    assert resolved.voice_settings == {"speed": 1.1}
     assert not hasattr(resolved, "voice_id")
 
 

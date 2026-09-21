@@ -130,7 +130,10 @@ External content processed by app skills (websites, emails, code, PDFs, video tr
 
 - ASCII-smuggling removal always runs on app-skill outputs and cannot be disabled on any surface.
 - External-data skill outputs run semantic GPT-OSS prompt-injection scanning by default.
-- Semantic scanner failures fail closed while protection is enabled; unscanned external text is not returned as a fallback.
+- Semantic scanning uses one model call per nonempty external skill result after ASCII cleanup. The shared policy covers all existing selected text fields, including multiline website, transcript, mail, document and search content.
+- The scanner distinguishes assistant-directed instructions from human-facing documentation, narration and quoted demonstrations. Exact, uniquely located evidence is required for injection decisions; only verified spans are replaced. Uncertain text is preserved.
+- Scanner timeout, malformed output, unavailability, or input exceeding the 50,000-character serialized single-call bound returns ASCII-cleaned content and logs `status=unscanned` with a stable reason. There are no retries or user questions, and failed scans are never reported as safe. Units are at most 4,000 characters with 256 characters of neighboring context.
+- Skill-local helpers defer semantic work only inside an active server-owned dispatch scope. Background helpers without that scope still scan before persistence. Request authorization, tool permissions and explicit REST/CLI opt-out eligibility are unchanged.
 - Binary/media fields, encrypted blobs, hashes, keys, and base64 payloads are excluded from semantic scanning by the existing external-result sanitizer rules.
 
 **Opt-out contract:**
@@ -198,7 +201,7 @@ For direct REST API, npm package, pip package, and CLI app-skill access, users c
 
 ## Edge Cases
 
-- **Safeguard API outage**: App-skill external-data outputs fail closed while semantic protection is enabled. ASCII smuggling protection has no external dependency and still runs before failure.
+- **Safeguard API outage**: App-skill external-data outputs remain available after ASCII cleanup, with the semantic failure logged as unscanned. This availability tradeoff can pass undetected injections; downstream authorization must not depend on a successful semantic verdict.
 - **False positives**: Content discussing AI systems or prompt engineering may trigger moderate scores (5.0-6.9). The review threshold allows these through with targeted string replacement rather than full blocking.
 - **Cached preview metadata**: Sanitization happens at fetch time. Cached metadata is already sanitized.
 

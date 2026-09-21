@@ -3,7 +3,7 @@
 Purpose: keep Plan and Task dependency operations consistent with the npm SDK.
 Architecture: these facades delegate to the owning SDK namespace for ID resolution.
 Security: they only transport encrypted work records and safe dependency metadata.
-Spec: docs/specs/opencode-openmates-work-control/spec.yml.
+Spec: specifications/features/tasks/specification.yml.
 """
 
 from __future__ import annotations

@@ -22,7 +22,10 @@ from backend.apps.ai.llm_providers.mistral_client import UnifiedMistralResponse 
 from backend.apps.ai.llm_providers.google_client import UnifiedGoogleResponse, ParsedGoogleToolCall as ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import UnifiedAnthropicResponse
 from backend.apps.ai.llm_providers.bedrock_shared import UnifiedBedrockResponse  # noqa: F401
-from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, _sanitize_schema_for_llm_providers
+from backend.apps.ai.llm_providers.openai_shared import (
+    UnifiedOpenAIResponse,
+    _sanitize_schema_for_llm_providers,
+)
 from backend.apps.ai.utils.timeout_utils import (
     stream_with_first_chunk_timeout,
     PREPROCESSING_TIMEOUT_SECONDS,
@@ -937,10 +940,17 @@ async def call_preprocessing_llm(
     fallback_models: Optional[List[str]] = None,  # List of fallback model IDs to try if primary fails
     allow_retries: bool = True,
     reasoning_effort: Optional[str] = None,
+    temperature: Optional[float] = None,
     observability_purpose: str = "preprocess",
 ) -> LLMPreprocessingCallResult:
     if reasoning_effort not in {None, "low", "medium", "high"}:
         raise ValueError("reasoning_effort must be one of: low, medium, high")
+    if temperature is not None and (
+        isinstance(temperature, bool)
+        or not isinstance(temperature, (int, float))
+        or not 0.0 <= temperature <= 2.0
+    ):
+        raise ValueError("temperature must be a number between 0.0 and 2.0")
 
     logger.info(f"[{task_id}] LLM Utils: Calling preprocessing LLM {model_id}.")
 
@@ -1041,6 +1051,27 @@ async def call_preprocessing_llm(
         )
     transformed_messages_for_llm = filtered_messages_for_llm
 
+    # Privacy-safe, constant-time request telemetry. Do not invoke a tokenizer on
+    # the foreground path: loading its vocabulary added several seconds to cold
+    # workers. Provider-reported exact usage is logged after a successful response.
+    schema_characters = len(
+        json.dumps(current_tool_definition, ensure_ascii=False, separators=(",", ":"))
+    )
+    history_characters = sum(
+        len(str(message.get("content", ""))) for message in transformed_messages_for_llm
+    )
+    estimated_system_tokens = (schema_characters + 3) // 4
+    estimated_user_tokens = (history_characters + 3) // 4
+    logger.info(
+        "[%s] LLM Utils: Preprocessing request footprint: "
+        "estimated_input_tokens=%d, schema_tokens=%d, history_tokens=%d, history_messages=%d",
+        task_id,
+        estimated_system_tokens + estimated_user_tokens,
+        estimated_system_tokens,
+        estimated_user_tokens,
+        len(transformed_messages_for_llm),
+    )
+
     def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse, UnifiedAnthropicResponse, UnifiedOpenAIResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
         current_raw_provider_response_summary = response.model_dump(
             exclude_none=True,
@@ -1078,6 +1109,13 @@ async def call_preprocessing_llm(
                     if "injection_strings" in sanitized_args and isinstance(sanitized_args["injection_strings"], list):
                         sanitized_args["injection_strings"] = {
                             "count": len(sanitized_args["injection_strings"]),
+                            "content": "[REDACTED_CONTENT]",
+                        }
+                    if "decisions" in sanitized_args and isinstance(sanitized_args["decisions"], list):
+                        # Span evidence can quote private mail/documents. Retain
+                        # diagnostics without copying that source text into logs.
+                        sanitized_args["decisions"] = {
+                            "count": len(sanitized_args["decisions"]),
                             "content": "[REDACTED_CONTENT]",
                         }
                     tc_dict["function_arguments_parsed"] = sanitized_args
@@ -1187,6 +1225,7 @@ async def call_preprocessing_llm(
         provider_model_id: str,
         is_last_provider: bool = False,
         timeout_seconds: Optional[float] = None,
+        is_primary_model: bool = False,
     ) -> LLMPreprocessingCallResult:
         """Calls a single provider with the given model_id. Returns result with error if provider fails."""
         provider_prefix = ""
@@ -1199,10 +1238,20 @@ async def call_preprocessing_llm(
             temp_provider_prefix = parts[0]
             temp_actual_model_id = parts[1]
             
-            # Always try to resolve default server for ANY provider (not just hardcoded ones)
-            # This allows any provider to have a default_server configured in their YAML
-            # For example: "openai/gpt-oss-safeguard-20b" can be routed to Groq or OpenRouter
-            default_server_id, transformed_model_id = resolve_default_server_from_provider_config(provider_model_id)
+            # Resolve the logical primary model to its configured default server.
+            # Fallback entries produced from provider YAML are already concrete
+            # server/model pairs and must not be resolved back to the default
+            # (notably google/* means Vertex when it is a Gemini server fallback).
+            # Cross-provider logical fallbacks such as deepseek/* still need
+            # resolution because they have no direct registered client.
+            should_resolve_default = (
+                is_primary_model or temp_provider_prefix not in PROVIDER_CLIENT_REGISTRY
+            )
+            default_server_id, transformed_model_id = (
+                resolve_default_server_from_provider_config(provider_model_id)
+                if should_resolve_default
+                else (None, None)
+            )
             if default_server_id and transformed_model_id:
                 logger.debug(f"[{task_id}] LLM Utils: Resolved default server '{default_server_id}' for preprocessing model '{provider_model_id}'. Using transformed model_id: '{transformed_model_id}'")
                 # Update provider_model_id to use the transformed version with server prefix
@@ -1264,19 +1313,50 @@ async def call_preprocessing_llm(
                         "tool_choice": "required",
                         "stream": False,
                     }
-                    if provider_prefix == "groq" and not allow_retries:
+                    # The outer preprocessing chain owns retries and its shared
+                    # deadline. Disable nested SDK retries so one logical attempt
+                    # cannot multiply RPM or silently consume the fallback budget.
+                    if provider_prefix == "groq":
                         provider_request_kwargs["max_retries"] = 0
                     if provider_prefix == "groq" and reasoning_effort:
                         provider_request_kwargs["reasoning_effort"] = reasoning_effort
+                    if temperature is not None:
+                        provider_request_kwargs["temperature"] = temperature
                     effective_timeout = PREPROCESSING_TIMEOUT_SECONDS
                     if timeout_seconds is not None:
                         effective_timeout = min(PREPROCESSING_TIMEOUT_SECONDS, max(0.0, timeout_seconds))
                     if effective_timeout <= 0:
                         return LLMPreprocessingCallResult(error_message=_preprocessing_budget_exhausted_error())
 
+                    provider_started_at = asyncio.get_running_loop().time()
                     response = await asyncio.wait_for(
                         provider_client(**provider_request_kwargs),
                         timeout=effective_timeout
+                    )
+                    provider_elapsed_seconds = asyncio.get_running_loop().time() - provider_started_at
+                    usage = getattr(response, "usage", None)
+                    usage_data = usage.model_dump(exclude_none=True) if hasattr(usage, "model_dump") else {}
+                    provider_input_tokens = (
+                        usage_data.get("prompt_token_count")
+                        or usage_data.get("prompt_tokens")
+                        or usage_data.get("input_tokens")
+                        or 0
+                    )
+                    provider_output_tokens = (
+                        usage_data.get("candidates_token_count")
+                        or usage_data.get("completion_tokens")
+                        or usage_data.get("output_tokens")
+                        or 0
+                    )
+                    logger.info(
+                        "[%s] LLM Utils: Preprocessing provider completed: "
+                        "provider=%s, elapsed_seconds=%.3f, input_tokens=%d, output_tokens=%d, success=%s",
+                        task_id,
+                        provider_model_id,
+                        provider_elapsed_seconds,
+                        provider_input_tokens,
+                        provider_output_tokens,
+                        bool(getattr(response, "success", False)),
                     )
                     return handle_response(response, expected_tool_name)
                 except asyncio.TimeoutError:
@@ -1363,21 +1443,9 @@ async def call_preprocessing_llm(
         ]
         return any(indicator in error_lower for indicator in retryable_indicators)
 
-    def is_wrong_tool_error(error_message: Optional[str]) -> bool:
-        """True when the LLM called a different tool than the expected one (model hallucination).
-
-        These errors get one same-provider retry before falling through to the fallback, because
-        LLM tool selection is stochastic and a second attempt often succeeds.
-        Infra errors (rate-limit, timeout, 5xx) skip the same-provider retry — retrying the same
-        unhealthy or overloaded provider would only waste time.
-        """
-        if not error_message:
-            return False
-        return "not found in tool calls. actual tool calls made:" in error_message.lower()
-
-    # Try primary provider first, then fallbacks.
-    # For wrong-tool errors (model hallucination) we attempt the same provider once more before
-    # moving on — LLM tool selection is stochastic and one retry often clears it.
+    # Try primary provider once, then configured fallbacks. The bounded chain owns
+    # recovery; repeating the same provider would spend extra RPM and delay a known
+    # independent fallback.
     providers_to_try = [model_id]
     if fallback_models:
         providers_to_try.extend(fallback_models)
@@ -1387,9 +1455,7 @@ async def call_preprocessing_llm(
     budget_exhausted_error: Optional[str] = None
 
     for provider_idx, provider_model_id in enumerate(providers_to_try):
-        # Allow one same-provider retry for wrong-tool errors; infra errors go straight to fallback.
-        WRONG_TOOL_SAME_PROVIDER_RETRIES = 1
-        attempts_for_this_provider = WRONG_TOOL_SAME_PROVIDER_RETRIES + 1  # updated after first call
+        attempts_for_this_provider = 1
         is_last_provider = (provider_idx == len(providers_to_try) - 1)
 
         attempt = 0
@@ -1408,7 +1474,7 @@ async def call_preprocessing_llm(
             attempted_providers.append(provider_model_id)
             logger.info(
                 f"[{task_id}] LLM Utils: Attempting preprocessing with provider: {provider_model_id} "
-                f"(attempt {len(attempted_providers)}/{len(providers_to_try) + WRONG_TOOL_SAME_PROVIDER_RETRIES})"
+                f"(attempt {len(attempted_providers)}/{len(providers_to_try)})"
             )
 
             # Reserve a share of the existing deadline for each configured fallback.
@@ -1424,6 +1490,7 @@ async def call_preprocessing_llm(
                     provider_model_id,
                     is_last_provider=is_last_provider,
                     timeout_seconds=attempt_budget_seconds,
+                    is_primary_model=provider_idx == 0,
                 )
 
             # Success — return immediately.
@@ -1452,15 +1519,7 @@ async def call_preprocessing_llm(
                 )
                 return result
 
-            # Wrong-tool error on first attempt — retry same provider once.
-            if is_wrong_tool_error(result.error_message) and attempt == 1:
-                logger.warning(
-                    f"[{task_id}] LLM Utils: Provider {provider_model_id} called the wrong tool "
-                    f"(attempt {attempt}). Retrying same provider once before trying fallback..."
-                )
-                continue  # loop again with same provider_model_id
-
-            # Any other retryable error, or wrong-tool on the retry attempt — move to next provider.
+            # Any retryable error moves directly to the next independent provider.
             last_error = result.error_message
             logger.warning(
                 f"[{task_id}] LLM Utils: Provider {provider_model_id} failed "

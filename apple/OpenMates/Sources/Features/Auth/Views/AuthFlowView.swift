@@ -64,6 +64,8 @@ struct AuthFlowView: View {
     @ObservedObject var flowState: AuthFlowState
 
     @EnvironmentObject var authManager: AuthManager
+    @State private var authViewportWidth: CGFloat = 390
+    @State private var signupSessionIdentity = UUID()
 
     private var prefersPasswordLoginForUITests: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-prefer-password-login")
@@ -72,6 +74,7 @@ struct AuthFlowView: View {
     var body: some View {
         ZStack {
             Color.grey20.ignoresSafeArea()
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { authViewportWidth = $0 }
             AuthIconGridBackground()
                 .opacity(0.16)
                 .ignoresSafeArea()
@@ -86,30 +89,18 @@ struct AuthFlowView: View {
                         authTabs
 
                         if flowState.authMode == .login {
-                            Text(LocalizationManager.shared.text("login.login"))
-                                .font(.omH1)
-                                .fontWeight(.bold)
-                                .foregroundStyle(LinearGradient.primary)
-
-                            Text("\(LocalizationManager.shared.text("login.to_chat_to_your"))\n\(LocalizationManager.shared.text("login.digital_team_mates"))")
-                                .font(.omH3)
-                                .fontWeight(.bold)
-                                .multilineTextAlignment(.center)
-                                .foregroundStyle(Color.fontPrimary)
+                            AuthLoginHeading(compact: authViewportWidth <= 730)
                         }
 
                         if flowState.authMode == .login {
                             loginContent
                         } else {
-                            SignupFlowView()
+                            SignupFlowView(compact: authViewportWidth <= 730)
+                                .id(signupSessionIdentity)
                         }
                     }
-                    .padding(.horizontal, .spacing6)
                     .padding(.vertical, .spacing6)
-                    .frame(maxWidth: 430)
-                    .background(Color.grey0)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
-                    .shadow(color: .black.opacity(0.14), radius: 20, x: 0, y: 8)
+                    .frame(maxWidth: authViewportWidth <= 730 ? (flowState.authMode == .signup ? 326 : 300) : 440)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, .spacing5)
@@ -154,6 +145,11 @@ struct AuthFlowView: View {
         Button {
             if flowState.currentStep == .pairInitiate {
                 flowState.phonePair.reset()
+            }
+            if mode == .signup && flowState.authMode != .signup {
+                // Closing signup cancels and scrubs its coordinator. Returning
+                // creates a fresh session, never reuses an inactive StateObject.
+                signupSessionIdentity = UUID()
             }
             flowState.authMode = mode
             if mode == .login {

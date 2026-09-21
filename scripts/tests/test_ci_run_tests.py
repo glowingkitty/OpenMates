@@ -13,6 +13,73 @@ from types import SimpleNamespace
 from scripts import ci_environment
 
 
+def test_focused_pytest_runs_only_exact_targets(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    target = "backend/tests/test_example.py::test_regression"
+    path = tmp_path / "backend/tests/test_example.py"
+    path.parent.mkdir(parents=True)
+    path.write_text("def test_regression(): pass\n")
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    monkeypatch.setattr(runner, "RESULTS", tmp_path / "test-results")
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    monkeypatch.setenv("CI_TEST_MODE", "pytest")
+    monkeypatch.setenv("CI_SPECS_JSON", json.dumps([target]))
+    monkeypatch.setenv("GITHUB_RUN_ID", "8")
+    calls = []
+    monkeypatch.setattr(
+        runner.subprocess,
+        "run",
+        lambda command, **kwargs: calls.append(command) or SimpleNamespace(returncode=1),
+    )
+    monkeypatch.setattr(runner.subprocess, "check_output", lambda *a, **k: "b" * 40)
+
+    assert runner.main() == 1
+    pytest_calls = [command for command in calls if "pytest" in command]
+    assert len(pytest_calls) == 1
+    assert target in pytest_calls[0]
+    assert "backend/tests" not in pytest_calls[0]
+    assert "packages/openmates-python/tests/test_account_import.py" not in pytest_calls[0]
+    report = json.loads((runner.RESULTS / "ci-results.json").read_text())
+    assert report["results"] == [{
+        "suite": "pytest",
+        "exit_code": 1,
+        "selected_tests": [target],
+        "selection_mode": "focused",
+        "failed_tests": [],
+        "failure": "pytest failed; inspect ci-pytest.json",
+    }]
+
+
+def test_pytest_target_validation_rejects_options_and_traversal():
+    import pytest
+    from scripts.ci_pytest_targets import validate_pytest_targets
+
+    for target in ("-k", "../backend/tests/test_x.py", "frontend/test_x.py"):
+        with pytest.raises(ValueError):
+            validate_pytest_targets([target])
+
+
+def test_pytest_failure_report_preserves_exact_node_ids(tmp_path):
+    monkeypatch_report = tmp_path / "report.json"
+    monkeypatch_report.write_text(json.dumps({
+        "tests": [
+            {"nodeid": "backend/tests/test_x.py::test_failed", "outcome": "failed"},
+            {"nodeid": "backend/tests/test_x.py::test_passed", "outcome": "passed"},
+        ],
+        "collectors": [
+            {"nodeid": "backend/tests/test_broken.py", "outcome": "failed"},
+        ],
+    }))
+    from scripts.ci_run_tests import pytest_failures
+
+    assert pytest_failures(monkeypatch_report) == [
+        "backend/tests/test_x.py::test_failed",
+        "backend/tests/test_broken.py",
+    ]
+
+
 def test_daily_pytest_preserves_sdk_gate_after_unit_failure(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
@@ -125,6 +192,61 @@ def test_artifact_browser_never_starts_stack_web_or_accounts(tmp_path, monkeypat
     assert "incomplete" in incomplete["error"]
 
 
+def test_component_browser_uses_vite_dev_without_backend_or_accounts(tmp_path, monkeypatch):
+    import pytest
+    from pathlib import Path
+    from scripts import ci_coverage
+
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    monkeypatch.setitem(sys.modules, "ci_coverage", ci_coverage)
+    from scripts import ci_run_tests as runner
+
+    web = tmp_path / "web"
+    (web / "tests/components").mkdir(parents=True)
+    spec = "components/example.spec.ts"
+    (web / "tests" / spec).write_text(ci_coverage.COMPONENT_MARKER)
+    results = tmp_path / "results"
+    results.mkdir()
+    monkeypatch.setattr(runner, "WEB", web)
+    monkeypatch.setattr(runner, "RESULTS", results)
+    monkeypatch.setattr(
+        runner,
+        "provision_account",
+        lambda *args, **kwargs: pytest.fail("Component mode must not provision accounts"),
+    )
+    launched = []
+
+    class Process:
+        def poll(self):
+            return None
+
+        def terminate(self):
+            return None
+
+        def wait(self, timeout=None):
+            return 0
+
+    def popen(command, **kwargs):
+        launched.append(command)
+        return Process()
+
+    monkeypatch.setattr(runner.subprocess, "Popen", popen)
+    monkeypatch.setattr(runner, "wait_component_web", lambda child: None)
+
+    def browser(command, **kwargs):
+        assert command[:4] == ["pnpm", "exec", "playwright", "test"]
+        Path(kwargs["env"]["PLAYWRIGHT_JSON_OUTPUT_NAME"]).write_text(
+            json.dumps({"stats": {"expected": 1}})
+        )
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(runner.subprocess, "run", browser)
+    result = runner.run_e2e([spec], component=True)
+    assert result[0]["exit_code"] == 0
+    assert len(launched) == 1
+    assert launched[0][:4] == ["pnpm", "exec", "vite", "dev"]
+
+
 def test_reserved_account_policy_is_read_from_candidate_without_import(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
@@ -197,7 +319,7 @@ def test_later_harness_failure_preserves_completed_results(tmp_path, monkeypatch
     monkeypatch.setenv("GITHUB_RUN_ID", "unit-fixture")
     monkeypatch.setenv("CI_SPECS_JSON", '["first.spec.ts","second.spec.ts"]')
     monkeypatch.setattr(runner.subprocess, "check_output", lambda *a, **k: "a" * 40)
-    def fail(specs, *, artifact, results):
+    def fail(specs, *, artifact, component, results):
         results.append({"spec": specs[0], "exit_code": 0})
         raise RuntimeError("second account fixture failed")
     monkeypatch.setattr(runner, "run_e2e", fail)

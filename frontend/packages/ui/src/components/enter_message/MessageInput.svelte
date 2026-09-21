@@ -24,6 +24,8 @@
         cleanupDraftService,
         setCurrentChatContext as setDraftServiceCurrentChatContext,
         clearEditorAndResetDraftState,
+        reconcilePreservedDraftVersion,
+        shouldPreserveSameChatDraftRestore,
         triggerSaveDraft,
         flushSaveDraft
     } from '../../services/draftService';
@@ -61,7 +63,7 @@
     import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
     import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-    import { TextSelection } from '@tiptap/pm/state';
+    import { TextSelection, type Transaction } from '@tiptap/pm/state';
     import type { Content } from '@tiptap/core';
     import type { FocusModeMetadata } from '../../types/apps';
     import type { AudioWaveformData } from '../../utils/audioWaveform';
@@ -86,6 +88,9 @@
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
     import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
+    import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
+    import { transactionInsertedTriggerCharacter } from './services/composerParsingSchedule';
+    import { assistantSpeechController } from '../../services/assistantSpeechController';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -262,6 +267,16 @@
     let messageInputWrapper: HTMLElement;
     let recordAudioComponent = $state<RecordAudio>();
     let keyboardRecordingStartCheckTimer: ReturnType<typeof setTimeout> | null = null;
+    const RECORDING_DOUBLE_ENTER_WINDOW_MS = 500;
+    const RECORDING_ENTER_HOLD_SEND_MS = 1000;
+    let recordingFinishEnterAt: number | null = null;
+    let recordingDoubleEnterTimer: ReturnType<typeof setTimeout> | null = null;
+    let recordingEnterHoldTimer: ReturnType<typeof setTimeout> | null = null;
+    let recordingEnterKeyHeld = false;
+    let suppressRecordingEnterUntilKeyUp = false;
+    let sendRecordingAfterInsert = false;
+    let recordingEmbedReadyToSend = false;
+    let recordingShortcutSendInFlight = false;
 
     // --- Local UI State ---
     let showCamera = $state(false);
@@ -562,19 +577,6 @@
         });
     }
 
-    function editorHasSignupRequiredEmbed(editor: Editor | null | undefined): boolean {
-        if (!editor || editor.isDestroyed) return false;
-        let found = false;
-        editor.state.doc.descendants((node) => {
-            if (node.type.name === 'embed' && embedAttrsNeedSignup(node.attrs)) {
-                found = true;
-                return false;
-            }
-            return !found;
-        });
-        return found;
-    }
-
     function editorHasInFlightEmbed(editor: Editor | null | undefined): boolean {
         if (!editor || editor.isDestroyed) return false;
         let found = false;
@@ -582,7 +584,7 @@
             if (node.type.name !== 'embed') return true;
             const attrs = node.attrs as Record<string, unknown>;
             const status = typeof attrs.status === 'string' ? attrs.status : '';
-            if (status === 'uploading' || status === 'processing' || status === 'transcribing') {
+            if (status === 'uploading' || status === 'processing' || status === 'transcribing' || status === 'correcting') {
                 found = true;
                 return false;
             }
@@ -667,12 +669,24 @@
             .join($text('enter_message.draft_summary.separator'));
     }
 
-    function buildDraftPreviewParts(editor: Editor | null | undefined): DraftPreviewParts {
-        if (!editor || editor.isDestroyed) return EMPTY_DRAFT_PREVIEW_PARTS;
+    function buildDraftPreviewState(editor: Editor | null | undefined): {
+        parts: DraftPreviewParts;
+        hasEmbedContent: boolean;
+        hasSignupRequiredEmbed: boolean;
+    } {
+        if (!editor || editor.isDestroyed) {
+            return {
+                parts: EMPTY_DRAFT_PREVIEW_PARTS,
+                hasEmbedContent: false,
+                hasSignupRequiredEmbed: false,
+            };
+        }
 
         const textContent = editor.getText().replace(/\s+/g, ' ').trim();
         const embedCounts = new Map<DraftEmbedKind, number>();
         const embedOrder: DraftEmbedKind[] = [];
+        let hasEmbedContent = false;
+        let hasSignupRequiredEmbed = false;
         const addEmbedCount = (kind: DraftEmbedKind, count = 1) => {
             if (!embedCounts.has(kind)) embedOrder.push(kind);
             embedCounts.set(kind, (embedCounts.get(kind) ?? 0) + count);
@@ -681,7 +695,11 @@
         editor.state.doc.descendants((node) => {
             if (node.type.name !== 'embed') return true;
 
+            hasEmbedContent = true;
             const attrs = node.attrs ?? {};
+            if (!hasSignupRequiredEmbed && embedAttrsNeedSignup(attrs)) {
+                hasSignupRequiredEmbed = true;
+            }
             const groupedItems = Array.isArray(attrs.groupedItems) ? attrs.groupedItems : [];
             if (groupedItems.length > 0) {
                 for (const item of groupedItems) {
@@ -698,8 +716,12 @@
         });
 
         return {
-            embeds: embedOrder.map((kind) => ({ kind, count: embedCounts.get(kind) ?? 0 })),
-            text: textContent,
+            parts: {
+                embeds: embedOrder.map((kind) => ({ kind, count: embedCounts.get(kind) ?? 0 })),
+                text: textContent,
+            },
+            hasEmbedContent,
+            hasSignupRequiredEmbed,
         };
     }
 
@@ -709,9 +731,10 @@
             draftPreviewParts = EMPTY_DRAFT_PREVIEW_PARTS;
             return;
         }
-        hasEmbedContent = editorHasEmbedContent(editor);
-        draftPreviewParts = buildDraftPreviewParts(editor);
-        setPendingAnonymousFileAttachment(editorHasSignupRequiredEmbed(editor));
+        const previewState = buildDraftPreviewState(editor);
+        hasEmbedContent = previewState.hasEmbedContent;
+        draftPreviewParts = previewState.parts;
+        setPendingAnonymousFileAttachment(previewState.hasSignupRequiredEmbed);
     }
 
     let draftPreviewSummary = $derived(formatDraftPreviewSummary(draftPreviewParts));
@@ -1035,26 +1058,26 @@
     
     /**
      * Schedule or immediately run the heavy parsing operations.
-     * Immediate on delimiter characters and paste events (content is "complete");
-     * debounced fallback for regular typing.
+     * Paste stays immediate. Delimiter-triggered parsing runs in the next task so
+     * the browser can paint the keystroke first; regular typing uses the debounce.
      */
-    function scheduleHeavyParsing(editor: Editor, text: string, forcedByPaste: boolean) {
-        const lastChar = text.length > 0 ? text[text.length - 1] : '';
-        const isDelimiter = PII_TRIGGER_CHARS.has(lastChar);
+    function scheduleHeavyParsing(editor: Editor, transaction: Transaction, forcedByPaste: boolean) {
+        const insertedDelimiter = transactionInsertedTriggerCharacter(transaction, PII_TRIGGER_CHARS);
         
-        if (forcedByPaste || isDelimiter) {
-            // Delimiter typed or paste — content is at a natural boundary, parse now
+        if (forcedByPaste) {
+            // Paste content arrives complete and may need immediate embed conversion.
             if (heavyParsingDebounceTimer) { clearTimeout(heavyParsingDebounceTimer); heavyParsingDebounceTimer = null; }
             runHeavyParsing(editor);
         } else {
-            // Regular character — debounce to avoid parsing on every keystroke
+            // Parse delimiters promptly, but outside TipTap's input transaction so
+            // the browser can commit the typed character before parsing the draft.
             if (heavyParsingDebounceTimer) { clearTimeout(heavyParsingDebounceTimer); }
             heavyParsingDebounceTimer = setTimeout(() => {
                 heavyParsingDebounceTimer = null;
                 if (editor && !editor.isDestroyed) {
                     runHeavyParsing(editor);
                 }
-            }, HEAVY_PARSING_DEBOUNCE_MS);
+            }, insertedDelimiter ? 0 : HEAVY_PARSING_DEBOUNCE_MS);
         }
     }
     
@@ -3179,13 +3202,14 @@
             if (!editor || editor.isDestroyed) return;
 
             const repairedDomDrift = syncTextOnlyDomToEditorBeforeDraftSave(editor);
-            hasContent = editorHasSendableText(editor);
-            refreshDraftPreviewState(editor);
-            if (repairedDomDrift) triggerSaveDraft(currentChatId, editor);
+            if (repairedDomDrift) {
+                hasContent = editorHasSendableText(editor);
+                triggerSaveDraft(currentChatId, editor);
+            }
         }, 0);
     }
 
-    function handleEditorUpdate({ editor }: { editor: Editor }) {
+    function handleEditorUpdate({ editor, transaction }: { editor: Editor; transaction: Transaction }) {
         // --- Text-change guard ---
         // On iOS Firefox, double-tap to select text fires spurious `input` events
         // that ProseMirror treats as content changes, triggering onUpdate even though
@@ -3216,6 +3240,18 @@
             lastEditorUpdateText = currentText;
         }
         
+        // Skip all heavy processing if only the selection changed (no content change).
+        // This prevents the infinite loop on iOS Firefox where empty transaction
+        // dispatches cause further spurious input events.
+        if (!textActuallyChanged) {
+            // Embed attributes can change without changing plain text. Refresh their
+            // preview state, but avoid a document scan for selection-only updates.
+            if (transaction.docChanged) refreshDraftPreviewState(editor);
+            // Still check mention trigger (depends on cursor position, not content)
+            checkMentionTrigger(editor);
+            return;
+        }
+
         const newHasContent = editorHasSendableText(editor);
         refreshDraftPreviewState(editor);
         if (hasContent !== newHasContent) {
@@ -3233,22 +3269,13 @@
             }
         }
         
-        // Skip all heavy processing if only the selection changed (no content change).
-        // This prevents the infinite loop on iOS Firefox where empty transaction
-        // dispatches cause further spurious input events.
-        if (!textActuallyChanged) {
-            // Still check mention trigger (depends on cursor position, not content)
-            checkMentionTrigger(editor);
-            return;
-        }
-        
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId, editor);
 
         // Performance: Stagger PII detection and heavy parsing on delimiter keystrokes.
         // Both are expensive — running them simultaneously on every space/comma causes
         // noticeable input lag. Strategy:
-        //   - Heavy parsing runs immediately on delimiters (needed for URL detection/embeds)
+        //   - Heavy parsing runs in the next task on delimiters (needed for URL detection/embeds)
         //   - PII detection runs immediately ONLY on paste (content arrives complete)
         //   - On delimiters, PII detection stays on its 800ms debounce timer
         // This halves synchronous work on delimiter keystrokes while keeping paste instant.
@@ -3261,10 +3288,10 @@
         }
         
         // Heavy parsing (markdown serialization + unified parser + decorations):
-        // Runs immediately on delimiter characters and paste, with a 400ms fallback
-        // timer for regular characters. Must run BEFORE PII detection on paste so that
+        // Runs in the next task on delimiter characters and immediately on paste, with
+        // a 400ms fallback for regular characters. It must run before PII detection on paste so
         // any content modifications (URL → embed conversion) complete first.
-        scheduleHeavyParsing(editor, currentText, wasPaste);
+        scheduleHeavyParsing(editor, transaction, wasPaste);
         if (wasPaste) {
             void captureDefaultPasteRecoveryCandidate(editor, recoveryText, existingPasteRecoveryEmbedIds);
         }
@@ -3312,6 +3339,8 @@
         editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.addEventListener('custom-sign-up-click', handleSignUpClick as EventListener); // Handle Enter key for unauthenticated users
         editorElement?.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('keydown', handleRecordingSendKeyDown, true);
+        document.addEventListener('keyup', handleRecordingSendKeyUp, true);
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         editorElement?.addEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.addEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
@@ -3574,6 +3603,8 @@
         editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.removeEventListener('custom-sign-up-click', handleSignUpClick as EventListener);
         editorElement?.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener('keydown', handleRecordingSendKeyDown, true);
+        document.removeEventListener('keyup', handleRecordingSendKeyUp, true);
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         editorElement?.removeEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.removeEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
@@ -3601,6 +3632,7 @@
         }
         cleanupDraftService(editor ?? undefined);
         if (editor && !editor.isDestroyed) editor.destroy();
+        clearRecordingSendShortcutTimers();
         handleStopRecordingCleanup();
     }
 
@@ -4548,8 +4580,16 @@
      *     });
      * }
      */
-    async function handleAudioRecorded(event: CustomEvent<{ blob: Blob, duration: number, mimeType: string, waveform?: AudioWaveformData }>) {
-        const { blob, duration, mimeType, waveform } = event.detail;
+    async function handleAudioRecorded(event: CustomEvent<{
+        blob: Blob,
+        duration: number,
+        mimeType: string,
+        waveform?: AudioWaveformData,
+        realtime?: AudioRealtimeTranscriptionHandle,
+        liveTranscript?: string,
+    }>) {
+        recordingEmbedReadyToSend = false;
+        const { blob, duration, mimeType, waveform, realtime, liveTranscript } = event.detail;
         const formattedDuration = formatDuration(duration);
         if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
 
@@ -4587,9 +4627,21 @@
             markChatIdAsDraftAudio(draftChatId);
             chatIdForRecording = draftChatId;
         }
+        if (chatIdForRecording) realtime?.setChatId(chatIdForRecording);
         // insertRecording() uploads to server + triggers Mistral Voxtral transcription in parallel.
         // It does NOT need a pre-created blob URL — it creates its own internally.
-        await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated, chatIdForRecording, waveform);
+        await insertRecording(
+            editor,
+            blob,
+            mimeType,
+            formattedDuration,
+            $authStore.isAuthenticated,
+            chatIdForRecording,
+            waveform,
+            realtime,
+            liveTranscript,
+        );
+        recordingEmbedReadyToSend = true;
         hasContent = editorHasSendableText(editor);
         refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
@@ -4599,6 +4651,10 @@
         }
         handleStopRecordingCleanup(); // Called here after recording is inserted
         await tick();
+        if (sendRecordingAfterInsert) {
+            await sendCompletedRecordingFromShortcut();
+            return;
+        }
         focus();
     }
     function handleLocationClick() { showMaps = true; }
@@ -4983,7 +5039,7 @@
         const editorHasEmbed = editor && !editor.isDestroyed ? editorHasEmbedContent(editor) : false;
         if (!hasSendableDraft && !editorHasContent && !editorHasEmbed) return;
 
-        if (editorHasSignupRequiredEmbed(editor)) {
+        if (buildDraftPreviewState(editor).hasSignupRequiredEmbed) {
             setPendingAnonymousFileAttachment(true);
             console.warn('[MessageInput] Blocked send for local-only file preview that still requires signup/upload');
             return;
@@ -5385,8 +5441,102 @@
     }
 
     function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
+        if (event.detail.active) resetRecordingSendShortcut();
         updateRecordingState({ isRecordingActive: event.detail.active });
         tick().then(updateHeight);
+    }
+
+    function clearRecordingSendShortcutTimers() {
+        if (recordingDoubleEnterTimer) clearTimeout(recordingDoubleEnterTimer);
+        if (recordingEnterHoldTimer) clearTimeout(recordingEnterHoldTimer);
+        recordingDoubleEnterTimer = null;
+        recordingEnterHoldTimer = null;
+    }
+
+    function resetRecordingSendShortcut() {
+        clearRecordingSendShortcutTimers();
+        recordingFinishEnterAt = null;
+        recordingEnterKeyHeld = false;
+        suppressRecordingEnterUntilKeyUp = false;
+        sendRecordingAfterInsert = false;
+        recordingEmbedReadyToSend = false;
+        recordingShortcutSendInFlight = false;
+    }
+
+    function requestCompletedRecordingSend() {
+        sendRecordingAfterInsert = true;
+        void sendCompletedRecordingFromShortcut();
+    }
+
+    async function sendCompletedRecordingFromShortcut() {
+        if (
+            !sendRecordingAfterInsert ||
+            !recordingEmbedReadyToSend ||
+            recordingShortcutSendInFlight
+        ) return;
+
+        recordingShortcutSendInFlight = true;
+        sendRecordingAfterInsert = false;
+        try {
+            await tick();
+            await handleSendMessage();
+        } finally {
+            recordingShortcutSendInFlight = false;
+            recordingEmbedReadyToSend = false;
+        }
+    }
+
+    function handleRecordingSendKeyDown(event: KeyboardEvent) {
+        if (event.key !== 'Enter') return;
+
+        if (event.repeat && suppressRecordingEnterUntilKeyUp) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
+        const now = performance.now();
+        if (
+            !event.repeat &&
+            recordingFinishEnterAt !== null &&
+            now - recordingFinishEnterAt <= RECORDING_DOUBLE_ENTER_WINDOW_MS
+        ) {
+            event.preventDefault();
+            event.stopPropagation();
+            suppressRecordingEnterUntilKeyUp = true;
+            recordingFinishEnterAt = null;
+            if (recordingDoubleEnterTimer) clearTimeout(recordingDoubleEnterTimer);
+            recordingDoubleEnterTimer = null;
+            requestCompletedRecordingSend();
+            return;
+        }
+
+        const ownsRecordingOverlay = Boolean(
+            messageInputWrapper?.querySelector('[data-testid="record-overlay"]'),
+        );
+        if (event.repeat || !ownsRecordingOverlay) return;
+
+        recordingFinishEnterAt = now;
+        recordingEnterKeyHeld = true;
+        suppressRecordingEnterUntilKeyUp = true;
+        if (recordingDoubleEnterTimer) clearTimeout(recordingDoubleEnterTimer);
+        recordingDoubleEnterTimer = setTimeout(() => {
+            recordingFinishEnterAt = null;
+            recordingDoubleEnterTimer = null;
+        }, RECORDING_DOUBLE_ENTER_WINDOW_MS);
+        if (recordingEnterHoldTimer) clearTimeout(recordingEnterHoldTimer);
+        recordingEnterHoldTimer = setTimeout(() => {
+            recordingEnterHoldTimer = null;
+            if (recordingEnterKeyHeld) requestCompletedRecordingSend();
+        }, RECORDING_ENTER_HOLD_SEND_MS);
+    }
+
+    function handleRecordingSendKeyUp(event: KeyboardEvent) {
+        if (event.key !== 'Enter' || !suppressRecordingEnterUntilKeyUp) return;
+        event.preventDefault();
+        event.stopPropagation();
+        recordingEnterKeyHeld = false;
+        suppressRecordingEnterUntilKeyUp = false;
     }
 
     function handleStopRecordingCleanup() {
@@ -5614,7 +5764,8 @@
             textLength: editor && !editor.isDestroyed ? editor.getText().length : 0,
         });
 
-        const draftStateChatId = get(draftEditorUIState).currentChatId;
+        const draftState = get(draftEditorUIState);
+        const draftStateChatId = draftState.currentChatId;
         const isSameOrPendingDraftContext = !draftStateChatId || draftStateChatId === chatId;
         const isActiveComposerContext = !chatId || !currentChatId || currentChatId === chatId;
         const shouldPreserveInFlightEmbed = !!editor && !editor.isDestroyed &&
@@ -5623,6 +5774,29 @@
             editorHasInFlightEmbed(editor) &&
             isSameOrPendingDraftContext &&
             isActiveComposerContext;
+        const shouldPreserveNewerLocalDraft = !!editor && !editor.isDestroyed &&
+            draftContent !== null &&
+            shouldPreserveSameChatDraftRestore(
+                chatId,
+                tipTapToCanonicalMarkdown(draftContent),
+                tipTapToCanonicalMarkdown(editor.getJSON()),
+                draftState,
+            );
+
+        if (shouldPreserveNewerLocalDraft) {
+            appendMessageInputDiagnostic('setDraftContent-preserve-local-editor', {
+                draftStateChatId,
+                currentChatId,
+                reason: 'newer-local-draft',
+            });
+            console.debug('[MessageInput] Preserving active editor during delayed draft restore', {
+                chatId,
+                currentChatId,
+                draftStateChatId,
+            });
+            draftEditorUIState.update((state) => reconcilePreservedDraftVersion(state, chatId, version));
+            return;
+        }
 
         if (shouldPreserveInFlightEmbed) {
             appendMessageInputDiagnostic('setDraftContent-preserve-in-flight-embed', {
@@ -6387,10 +6561,12 @@
             <RecordAudio
                 bind:this={recordAudioComponent}
                 initialPosition={$recordingState.recordStartPosition}
+                enableRealtime={$authStore.isAuthenticated}
                 on:audiorecorded={handleAudioRecorded}
                 on:close={handleStopRecordingCleanup}
                 on:cancel={handleStopRecordingCleanup}
                 on:recordingStateChange={handleRecordingLayoutChange}
+                on:prepareassistantplayback={() => assistantSpeechController.primeForAutoplay()}
             />
         {/if}
 

@@ -304,11 +304,64 @@ def _meta_row(label: str, value_html: str) -> str:
     return f'<div class="meta-row"><div class="meta-label">{_escape(label)}</div><div>{value_html}</div></div>'
 
 
-def _render_requirement(assertion: dict[str, Any], surface_lookup: dict[str, dict[str, Any]]) -> str:
+def requirement_examples(assertion: dict[str, Any], examples: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """Resolve explicitly mapped example cases for one requirement without guessing."""
+    groups = {
+        value.removeprefix("examples.")
+        for value in assertion.get("depends_on", [])
+        if isinstance(value, str) and value.startswith("examples.")
+    }
+    return [
+        (group, case)
+        for group, cases in examples.items()
+        if isinstance(cases, list)
+        for case in cases
+        if isinstance(case, dict)
+        and (group in groups or assertion["id"] in case.get("assertion_ids", []))
+    ]
+
+
+def _render_example_value(label: str, value: Any) -> str:
+    label_html = f"<strong>{_escape(label)}.</strong>"
+    if isinstance(value, str):
+        return f'<p class="requirement-example-prose">{label_html} {_escape(value)}</p>'
+    if isinstance(value, dict) and isinstance(value.get("code"), str):
+        return (
+            f'<p class="requirement-example-prose">{label_html}</p>'
+            f'<pre class="requirement-example-code"><code>{_escape(value["code"])}</code></pre>'
+        )
+    rendered = json.dumps(value, ensure_ascii=False, indent=2)
+    return (
+        f'<p class="requirement-example-prose">{label_html}</p>'
+        f'<pre class="requirement-example-code"><code>{_escape(rendered)}</code></pre>'
+    )
+
+
+def _render_requirement_examples(assertion: dict[str, Any], examples: dict[str, Any]) -> str:
+    cards = []
+    for group, case in requirement_examples(assertion, examples):
+        fields = {key: value for key, value in case.items() if key not in {"id", "assertion_ids"}}
+        content = "".join(_render_example_value(_label(key), value) for key, value in fields.items())
+        cards.append(
+            f'<article class="requirement-example"><h5>Example: {_escape(_label(case.get("id", group)))}</h5>'
+            f"{content}</article>"
+        )
+    content = "".join(cards)
+    if not content:
+        content = '<p class="example-coverage-warning">No explicitly mapped examples in this requirement.</p>'
+    return f'<div class="requirement-examples">{content}</div>'
+
+
+def _render_requirement(
+    assertion: dict[str, Any],
+    surface_lookup: dict[str, dict[str, Any]],
+    examples: dict[str, Any] | None,
+) -> str:
     assertion_id = str(assertion["id"])
     title = str(assertion.get("title") or assertion_id)
     surfaces = _string_ids(assertion.get("project_surface_ids"))
     checks = _string_ids(assertion.get("check_obligation_ids"))
+    examples_html = _render_requirement_examples(assertion, examples) if examples is not None else ""
     return f"""
 <section class="card requirement" id="{_anchor('requirement', assertion_id)}">
   <div class="card-kind">{_icon('requirement', css_class='card-icon')}Requirement</div>
@@ -321,6 +374,7 @@ def _render_requirement(assertion: dict[str, Any], surface_lookup: dict[str, dic
     {_meta_row('Checks', _render_chips(checks, css_class='chip check-chip'))}
   </div>
   <p>{_escape(assertion.get('must', ''))}</p>
+  {examples_html}
 </section>"""
 
 
@@ -465,10 +519,15 @@ def _render_chapter(
     flows_by_id: dict[str, dict[str, Any]],
     checks_by_id: dict[str, dict[str, Any]],
     surface_lookup: dict[str, dict[str, Any]],
+    examples: dict[str, Any] | None,
 ) -> str:
     models = _as_mapping(contract.get("models"), "models")
     items = _chapter_items(chapter, contract)
-    requirement_cards = [_render_requirement(assertions_by_id[item], surface_lookup) for item in items["requirements"] if item in assertions_by_id]
+    requirement_cards = [
+        _render_requirement(assertions_by_id[item], surface_lookup, examples)
+        for item in items["requirements"]
+        if item in assertions_by_id
+    ]
     user_flow_cards = [_render_flow(flows_by_id[item], surface_lookup) for item in items["user_flows"] if item in flows_by_id]
     edge_case_cards = [_render_flow(flows_by_id[item], surface_lookup) for item in items["edge_cases"] if item in flows_by_id]
     model_cards = [_render_model(item, models[item]) for item in items["models"] if item in models and isinstance(models[item], dict)]
@@ -620,7 +679,11 @@ def _render_generated_indexes(bundle: specifications.SpecificationBundle, surfac
     return f'<section class="indexes" id="generated-indexes">{_heading(2, "indexes", "Generated Indexes")}{"".join(sections)}</section>'
 
 
-def build_html(bundle: specifications.SpecificationBundle) -> str:
+def build_html(
+    bundle: specifications.SpecificationBundle,
+    *,
+    include_requirement_examples: bool = True,
+) -> str:
     bundle = with_default_presentation(bundle)
     contract = bundle.specification
     _as_mapping(contract.get("presentation"), "presentation")
@@ -637,6 +700,7 @@ def build_html(bundle: specifications.SpecificationBundle) -> str:
             flows_by_id=flows_by_id,
             checks_by_id=checks_by_id,
             surface_lookup=surface_lookup,
+            examples=bundle.examples if include_requirement_examples else None,
         )
         for chapter in chapters
     )
@@ -703,6 +767,12 @@ li {{ margin: .8mm 0; }}
 .chapter-block {{ margin-top: 4mm; }}
 .card {{ border: 1px solid #d8e1ea; border-radius: 3mm; break-inside: avoid; margin: 2mm 0 3mm; padding: 3mm; }}
 .requirement {{ border-left: 4px solid #7256d9; }}
+.requirement-examples {{ margin-top: 3mm; }}
+.requirement-example {{ border-top: 1px solid #cbd5df; break-inside: avoid; margin-top: 2mm; padding-top: 1mm; }}
+.requirement-example h5 {{ font-size: 9pt; margin: 1mm 0; }}
+.requirement-example-prose {{ font-size: 9pt; line-height: 1.4; overflow-wrap: anywhere; }}
+.requirement-example-code {{ margin: 1mm 0 2mm; overflow-wrap: anywhere; white-space: pre-wrap; }}
+.example-coverage-warning {{ color: #8c5b16; font-size: 8.5pt; }}
 .flow {{ border-left: 4px solid #2c8ccf; }}
 .flow-layout {{ align-items: start; display: grid; gap: 3mm; grid-template-columns: 58mm 1fr; }}
 .flow-wireframe {{ margin: 0; width: 58mm; }}

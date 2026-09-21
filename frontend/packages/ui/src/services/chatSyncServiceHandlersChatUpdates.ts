@@ -624,6 +624,11 @@ export async function handleNewChatMessageImpl(
     chat_id: string;
     message_id: string;
     content: string;
+    encrypted_content?: string;
+    workflow_embeds?: Array<{
+      embed_id:string;encrypted_content:string;encrypted_type:string;encrypted_text_preview?:string;
+      embed_keys:Array<{hashed_embed_id:string;key_type:"master"|"chat";hashed_chat_id:string|null;encrypted_embed_key:string;hashed_user_id:string;created_at:number}>;
+    }>;
     role?: string;
     sender_name?: string;
     created_at?: number;
@@ -666,6 +671,15 @@ export async function handleNewChatMessageImpl(
       payload,
     );
     return;
+  }
+
+  if (!payload.content && payload.encrypted_content && payload.encrypted_chat_key) {
+    const canonicalKey = await decryptChatKeyWithMasterKey(payload.encrypted_chat_key);
+    const key = await chatKeyManager.receiveKeyFromServer(payload.chat_id, payload.encrypted_chat_key);
+    if (!canonicalKey || !key || canonicalKey.length !== key.length || canonicalKey.some((byte,index)=>byte !== key[index])) return;
+    const plaintext = await decryptWithChatKey(payload.encrypted_content, key);
+    if (!plaintext) return;
+    payload = { ...payload, content: plaintext };
   }
 
   if (!payload.message_id || !payload.content) {
@@ -977,6 +991,28 @@ export async function handleNewChatMessageImpl(
     chat.updated_at = Math.floor(Date.now() / 1000);
 
     await chatDB.updateChat(chat);
+
+    // Workflow selected embeds arrive only as owner-encrypted content and key wrappers.
+    if (payload.workflow_embeds?.length) {
+      const { embedStore } = await import("./embedStore");
+      const { unwrapEmbedKeyWithChatKey, decryptWithEmbedKey } = await import("./encryption/MetadataEncryptor");
+      const { computeSHA256 } = await import("../message_parsing/utils");
+      const key = await chatKeyManager.getKey(payload.chat_id);
+      if (!key) throw new Error("Workflow sync chat key unavailable");
+      for (const embed of payload.workflow_embeds) {
+        await embedStore.storeEmbedKeys(embed.embed_keys);
+        const wrapper = embed.embed_keys.find(item=>item.key_type === "chat");
+        if (!wrapper) throw new Error("Workflow sync embed key unavailable");
+        const embedKey = await unwrapEmbedKeyWithChatKey(wrapper.encrypted_embed_key, key);
+        if (!embedKey) throw new Error("Workflow sync embed key could not be recovered");
+        const type = await decryptWithEmbedKey(embed.encrypted_type, embedKey);
+        await embedStore.putEncrypted(`embed:${embed.embed_id}`, {
+          embed_id:embed.embed_id,encrypted_content:embed.encrypted_content,encrypted_type:embed.encrypted_type,
+          encrypted_text_preview:embed.encrypted_text_preview,status:"finished",encryption_mode:"client",
+          hashed_chat_id:await computeSHA256(payload.chat_id),
+        }, (type || "website") as EmbedType);
+      }
+    }
 
     // ── Store inspiration embed data if included in the broadcast ─────────
     // When a daily inspiration chat is synced, the sending device includes

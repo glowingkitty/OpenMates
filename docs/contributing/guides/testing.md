@@ -5,12 +5,14 @@ when missing. Preserve contract/assertion markers. A waiver of test execution
 does not waive coverage updates unless explicitly stated by the user.
 
 Run relevant unit, lint and build checks locally. Full product browser, REST,
-WebSocket and CLI/SDK E2E run with isolated Docker and web apps in GitHub CI. Use
+WebSocket and CLI/SDK E2E use one GitHub-hosted job per browser spec, with a
+disposable Docker backend and runner-private localhost web process. Use
 `sessions.py ci-source` to prepare the source, then `ci_coordinator.py submit`
-with the matching supported mode/spec. `ci_coordinator.py wait <id>` waits on the
-coordinator cache; `result <id>` retrieves evidence. Use `--json` only for parsers.
-Retain source/run identity when reporting a pass. Unsupported coverage or a
-queue timeout is not a passing result.
+with the matching supported mode/spec; multi-spec E2E submissions are split into
+independent jobs. `ci_coordinator.py wait <id>` waits on the coordinator cache;
+`result <id>` retrieves evidence. Use `--json` only for parsers. Retain source/run
+identity when reporting a pass. Unsupported coverage or a queue timeout is not a
+passing result. Deployment and Vercel readiness are not E2E prerequisites.
 
 Keep investigation tied to the original acceptance criteria. Inspect the first
 useful failure, rerun only after a relevant change or new evidence, and reassess

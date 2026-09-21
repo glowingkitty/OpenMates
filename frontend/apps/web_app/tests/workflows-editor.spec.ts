@@ -1,149 +1,196 @@
-/* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
-/**
- * Workflows V1 web editor smoke coverage.
- *
- * Purpose: verifies the deployed Workflows route opens a clean Figma detail
- * canvas with the shared editable header, contextual dirty-state controls, and
- * inline mobile node expansion without the rejected management UI.
- * Security: uses the shared E2E test account and cleans up only workflows made
- * during the current test run.
- */
-
+/* eslint-disable @typescript-eslint/no-require-imports -- Existing browser test helpers. */
+/** Focused v1 authoring contract; real persistence, deterministic fixtures for optional paid tests. */
+export {};
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
-
-function deriveApiUrl(baseUrl: string): string {
-	try {
-		const url = new URL(baseUrl);
-		if (url.hostname === 'openmates.org' || url.hostname === 'www.openmates.org') return 'https://api.openmates.org';
-		if (url.hostname.startsWith('app.')) return `${url.protocol}//api.${url.hostname.slice(4)}`;
-		if (url.hostname === 'localhost') return 'http://localhost:8000';
-	} catch {
-		// Fall through to the production API default.
-	}
-	return 'https://api.openmates.org';
+function apiUrl(): string {
+	const url = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org');
+	return url.hostname === 'localhost'
+		? 'http://localhost:8000'
+		: `${url.protocol}//${url.hostname.replace(/^app\./, 'api.')}`;
 }
 
 test.describe('Workflows editor', () => {
-	// contract-test: supporting surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.versions.timeline-readonly-restore-new
-	test('opens a focused editor with explicit dirty-state controls', async ({ page }) => {
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.versions.timeline-readonly-restore-new,workflows.activation.reachable-side-effect,workflows-ui.schedule.preview,workflows-ui.mvp.authoring
+	test('node Save persists, while testing current inputs leaves the definition unchanged', async ({
+		page
+	}) => {
 		test.setTimeout(180000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
-
-		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
-		const log = (message: string, metadata: Record<string, unknown> = {}) => {
-			console.log(`[WORKFLOWS_E2E] ${message} ${JSON.stringify(metadata)}`);
-		};
-		const screenshot = async () => {};
-
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await loginToTestAccount(page, log, screenshot);
-
-		const initialResponse = await page.request.get(`${apiUrl}/v1/workflows`);
-		expect(initialResponse.ok()).toBe(true);
-		const initialData = await initialResponse.json();
-		const initialIds = new Set((initialData.workflows ?? []).map((workflow: { id: string }) => workflow.id));
-
+		await loginToTestAccount(
+			page,
+			() => {},
+			async () => {}
+		);
+		const graph = {
+			version: 2,
+			trigger_node_id: null,
+			nodes: [
+				{
+					id: 'weather',
+					type: 'app_skill_action',
+					title: 'Weather forecast',
+					config: {
+						app_id: 'weather',
+						skill_id: 'forecast',
+						input: { location: 'Berlin', days: 1 }
+					}
+				},
+				{
+					id: 'message',
+					type: 'send_chat_message',
+					config: {
+						title: 'Daily report',
+						blocks: [{ id: 'weather', source: '$nodes.weather.output.forecast_day' }]
+					}
+				}
+			],
+			edges: [{ from: 'weather', to: 'message' }]
+		};
+		const response = await page.request.post(`${apiUrl()}/v1/workflows`, {
+			data: { title: `Workflow node save ${Date.now()}`, graph, enabled: false }
+		});
+		expect(response.ok()).toBe(true);
+		const { workflow } = await response.json();
 		try {
 			await page.setViewportSize({ width: 390, height: 844 });
 			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
-			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
-			await expect(page.getByTestId('workflow-mixed-row')).toBeVisible();
-			await page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: 'Tell me if it will rain tomorrow' }).click();
-			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
-			await expect(page).toHaveURL(/\/workflows#workflow-id=[^&]+&workflow-tab=details/);
-			await expect(page.getByTestId('workflows-list')).toHaveCount(0);
-			await page.getByTestId('workflow-detail-back').click();
-			await expect(page).toHaveURL(/\/workflows$/);
-			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
-			await page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: 'Daily rain alert' }).first().click();
-			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
-			await expect(page).toHaveURL(/\/workflows#workflow-id=[^&]+&workflow-tab=details/);
-			await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-header-system', 'workflow-detail');
-			await expect(page.getByTestId('workflow-detail-actions')).toBeVisible();
-			const headerBox = await page.getByTestId('workspace-detail-header').boundingBox();
-			const actionsBox = await page.getByTestId('workflow-detail-actions').boundingBox();
-			if (!headerBox || !actionsBox) throw new Error('Workflow header and actions must be measurable.');
-			expect(actionsBox.x).toBeLessThan(headerBox.x + headerBox.width / 2);
-			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily rain alert');
-			await expect(page.getByTestId('workflow-detail-metadata')).toContainText(/Next run (soon|in \d+ min|in \d+ hr|in \d+ days?)/);
-			await expect(page.getByTestId('workflow-title-input')).toHaveCount(0);
-			await expect(page.getByTestId('workflow-description-input')).toHaveCount(0);
-			await expect(page.getByTestId('workflow-retention-select')).toHaveCount(0);
-			await expect(page.getByTestId('selected-workflow-retention')).toHaveCount(0);
-			await expect(page.getByTestId('selected-workflow-retention-select')).toHaveCount(0);
-			await expect(page.getByTestId('run-workflow')).toBeVisible();
-			await expect(page.getByTestId('delete-workflow')).toBeVisible();
-			await expect(page.getByTestId('workflow-run-history')).toHaveAttribute('href', /\/workflows#workflow-id=[^&]+&workflow-tab=runs$/);
-			await page.getByTestId('workflow-run-history').click();
-			await expect(page).toHaveURL(/\/workflows#workflow-id=[^&]+&workflow-tab=runs$/);
-			await expect(page.getByTestId('workflow-runs')).toBeVisible();
-			await page.getByTestId('workflow-runs-back-to-editor').click();
-			await expect(page).toHaveURL(/\/workflows#workflow-id=[^&]+&workflow-tab=details$/);
-			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
-			await expect(page.getByTestId('workflow-action-palette')).toContainText('Add action');
-			const templateNodeStack = page.getByTestId('workflow-graph-renderer').getByTestId('workflow-node-stack');
-			await expect(templateNodeStack).toContainText('then');
-			await expect(templateNodeStack).toContainText('If true:');
-			await expect(templateNodeStack).toContainText('If false:');
-			await expect(templateNodeStack).toContainText('Do nothing');
-			await expect(templateNodeStack).toContainText('Weather | Get forecast for Berlin');
-			await expect(templateNodeStack).toContainText('rain probability > 60');
-
-			await expect(page.getByTestId('save-workflow')).toHaveCount(0);
-			await expect(page.getByTestId('undo-workflow')).toHaveCount(0);
-
-			const mobileWeatherNode = page.getByTestId('workflow-node-card').nth(1);
-			await mobileWeatherNode.getByTestId('workflow-node-summary').click();
-			await expect(mobileWeatherNode.getByTestId('workflow-node-expanded')).toBeVisible();
-			await mobileWeatherNode.getByTestId('workflow-node-location-input').fill('Paris');
-			await expect(page.getByTestId('undo-workflow')).toBeVisible();
-			await expect(page.getByTestId('save-workflow')).toBeVisible();
-			await expect(page.getByTestId('save-workflow')).toBeEnabled();
-			const saveWorkflowResponse = page.waitForResponse(
-				(response) => response.url().includes('/v1/workflows/') && response.request().method() === 'PATCH' && response.ok(),
-				{ timeout: 30000 }
+			await expect(page.getByTestId('create-blank-workflow')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-input-textarea')).toHaveAttribute(
+				'placeholder',
+				'Enter a name for a new workflow'
 			);
-			await page.getByTestId('save-workflow').click();
-			await saveWorkflowResponse;
-			await expect(templateNodeStack).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
-			await expect(page.getByTestId('save-workflow')).toHaveCount(0);
-			await expect(page.getByTestId('undo-workflow')).toHaveCount(0);
-			await expect(page.getByTestId('workflow-version-history')).toBeVisible();
-			await expect(page.getByTestId('workflow-version-history-retention')).toContainText('Keeps up to 25 definitions');
-			const historicalVersion = page.locator('[data-testid="workflow-version-row"][data-current="false"]').first();
-			await expect(historicalVersion).toBeVisible();
-			await historicalVersion.click();
-			await expect(page.getByTestId('workflow-version-graph-inspection')).toBeVisible();
-			await expect(page.getByTestId('workflow-version-inspection-node')).toHaveCount(6);
-			await page.getByTestId('workflow-version-restore').click();
-			await expect(page.getByTestId('workflow-version-restore-confirmation')).toContainText('creates a new current version');
-			await page.route('**/v1/workflows/*/versions/*/restore', (route) => route.fulfill({ status: 500, json: { detail: 'restore failed' } }), { times: 1 });
-			await page.getByTestId('workflow-version-restore-confirm').click();
-			await expect(page.getByTestId('workflow-version-error')).toBeVisible();
-			const restoreResponse = page.waitForResponse(
-				(response) => response.url().includes('/versions/') && response.url().endsWith('/restore') && response.request().method() === 'POST' && response.ok(),
-				{ timeout: 30000 }
-			);
-			await page.getByTestId('workflow-version-restore-confirm').click();
-			await restoreResponse;
-			await expect(page.getByTestId('workflow-version-restored')).toContainText('new current version');
-			await expect(page.locator('[data-testid="workflow-version-row"][data-current="true"]')).toHaveCount(1);
-			await expect(page.getByTestId('toggle-workflow')).toBeVisible();
-			await expect(page.getByTestId('create-blank-workflow')).toBeVisible();
-		} finally {
-			const finalResponse = await page.request.get(`${apiUrl}/v1/workflows`);
-			if (finalResponse.ok()) {
-				const finalData = await finalResponse.json();
-				for (const workflow of finalData.workflows ?? []) {
-					if (!initialIds.has(workflow.id)) {
-						await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflow.id)}`).catch(() => null);
+			await page
+				.getByTestId('workflow-landing-card')
+				.filter({ hasText: workflow.title })
+				.first()
+				.click();
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(workflow.title);
+			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0);
+			await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
+			await expect(page.getByTestId('run-workflow')).toBeEnabled();
+			await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
+
+			// Nodes loaded into the route's reactive graph must open and save without
+			// passing a Svelte proxy directly to structuredClone.
+			const scheduled = await page.request.patch(`${apiUrl()}/v1/workflows/${workflow.id}`, {
+				data: {
+					graph: {
+						...graph,
+						trigger_node_id: 'trigger',
+						nodes: [
+							{
+								id: 'trigger',
+								type: 'schedule_trigger',
+								config: { schedule: { type: 'daily', time: '09:00', timezone: 'Europe/Berlin' } }
+							},
+							...graph.nodes
+						],
+						edges: [{ from: 'trigger', to: 'weather' }, ...graph.edges]
 					}
 				}
-			}
+			});
+			expect(scheduled.ok()).toBe(true);
+			await page.reload();
+			const trigger = page.locator('[data-node-id="trigger"]');
+			await trigger.getByTestId('workflow-node-summary').click();
+			await expect(trigger.getByTestId('workflow-time-trigger-schedule')).toHaveValue('daily');
+			const triggerSave = page.waitForResponse(
+				(response) =>
+					response.url().endsWith(`/v1/workflows/${workflow.id}`) &&
+					response.request().method() === 'PATCH'
+			);
+			await trigger.getByTestId('workflow-node-save').click();
+			expect((await triggerSave).ok()).toBe(true);
+			await expect(trigger.getByTestId('workflow-node-summary')).toBeVisible();
+
+			const node = page.locator('[data-node-id="weather"]');
+			await page.route('**/v1/geocode/search?**', (route) =>
+				route.fulfill({
+					json: [{
+						lat: '53.5511', lon: '9.9937', name: 'Hamburg', display_name: 'Hamburg, Germany',
+						class: 'place', type: 'city', namedetails: { name: 'Hamburg' },
+						address: { city: 'Hamburg', country: 'Germany' }
+					}]
+				})
+			);
+			await node.getByTestId('workflow-node-summary').click();
+			await expect(node.getByTestId('workflow-node-expanded')).toBeVisible();
+			await node.getByTestId('workflow-node-location-picker').click();
+			await node.getByTestId('map-location-search-input').fill('Hamburg');
+			await node.getByTestId('map-location-search-result').click();
+			await node.getByTestId('map-location-select').click();
+			await expect(node.getByTestId('workflow-node-save')).toBeVisible();
+			const before = await (
+				await page.request.get(`${apiUrl()}/v1/workflows/${workflow.id}`)
+			).json();
+			expect(
+				before.workflow.graph.nodes.find((item: { id: string }) => item.id === 'weather').config
+					.input.location
+			).toBe('Berlin');
+			let testedInput: unknown;
+			await page.route(`**/v1/workflows/${workflow.id}/steps/weather/test`, async (route) => {
+				testedInput = route.request().postDataJSON();
+				await route.fulfill({ json: { run: { id: 'fixture-current-inputs' } } });
+			});
+			await page.route(`**/v1/workflows/${workflow.id}/runs/fixture-current-inputs`, (route) =>
+				route.fulfill({
+					json: {
+						run: {
+							id: 'fixture-current-inputs',
+							workflow_id: workflow.id,
+							version_id: workflow.current_version_id,
+							status: 'completed',
+							node_runs: [
+								{
+									node_id: 'weather',
+									status: 'completed',
+									output_summary: { rain_probability: 35, rain_periods: [] }
+								}
+							]
+						}
+					}
+				})
+			);
+			await node.getByTestId('workflow-test-action').click();
+			await expect(node.getByTestId('workflow-output-fields')).toContainText('35');
+			expect(
+				(testedInput as { node: { config: { input: { location: string } } } }).node.config.input
+					.location
+			).toBe('Hamburg');
+			const afterTest = await (
+				await page.request.get(`${apiUrl()}/v1/workflows/${workflow.id}`)
+			).json();
+			expect(afterTest.workflow.current_version_id).toBe(before.workflow.current_version_id);
+			const savedResponse = page.waitForResponse(
+				(response) =>
+					response.url().endsWith(`/v1/workflows/${workflow.id}`) &&
+					response.request().method() === 'PATCH'
+			);
+			await node.getByTestId('workflow-node-save').click();
+			expect((await savedResponse).ok()).toBe(true);
+			await expect(node.getByTestId('workflow-node-summary')).toContainText('Hamburg');
+			await expect(page.getByTestId('save-workflow')).toHaveCount(0);
+			await page.reload();
+			await expect(
+				page.locator('[data-node-id="weather"]').getByTestId('workflow-node-summary')
+			).toContainText('Hamburg');
+			await page.getByTestId('workflow-more-options').locator('summary').click();
+			await expect(page.getByTestId('workflow-version-history')).toBeVisible();
+			await page
+				.locator('[data-testid="workflow-version-row"][data-current="false"]')
+				.first()
+				.click();
+			await expect(page.getByTestId('workflow-version-graph')).toHaveAttribute(
+				'data-read-only',
+				'true'
+			);
+		} finally {
+			await page.request.delete(`${apiUrl()}/v1/workflows/${workflow.id}`);
 		}
 	});
 });

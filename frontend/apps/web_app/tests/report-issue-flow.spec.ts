@@ -6,7 +6,7 @@
  * attach path and the async debug pipeline that stores the YAML report in S3:
  *
  * 1. Login with test account + 2FA
- * 2. Open Settings menu → navigate to "Report Issue"
+ * 2. Open Settings → "Report Issue"
  * 3. Verify the report issue form is visible with required elements
  * 4. Attempt to submit with empty title — verify validation error
  * 5. Fill in the title + description fields with valid test data
@@ -16,7 +16,7 @@
  *      - response.success === true
  *      - response.issue_id is set
  *      - response.screenshot_uploaded === true  ← proves synchronous S3 upload
- * 8. Verify the confirmation page appears with the returned issue ID
+ * 8. Verify the confirmation page appears with a report summary and returned issue ID
  * 9. Poll GET /v1/settings/issues/{id}/status until has_yaml_report === true
  *    (the YAML upload happens in a celery email task, usually within a few seconds)
  * 10. Click "Submit another report" — verify form resets
@@ -129,8 +129,23 @@ async function closeSettings(page: any): Promise<void> {
 
 async function expectAdminReportActionsHidden(page: any): Promise<void> {
 	await expect(page.getByTestId('admin-implement-fix-directly')).toHaveCount(0);
-	await expect(page.getByTestId('admin-add-to-linear')).toHaveCount(0);
 	await expect(page.getByTestId('admin-send-email-notification')).toHaveCount(0);
+}
+
+async function installAnonymousUsageStatusStub(page: any): Promise<void> {
+	await page.route('**/v1/anonymous/free-usage/status**', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				active: false,
+				can_send_text: false,
+				reason: 'authenticated-report-test',
+				reset_at: null,
+				cta: null,
+			}),
+		});
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -139,11 +154,13 @@ async function expectAdminReportActionsHidden(page: any): Promise<void> {
 
 test.describe('Report Issue Flow', () => {
 	// Login + settings navigation + form submission needs time
-	test.describe.configure({ timeout: 180000 });
+	test.describe.configure({ timeout: 300000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	// contract-test: direct surface=gui.web assertions=issue-reporting.form.role-aware-controls
 	test('Guest report issue form hides admin automation controls', async ({ page }) => {
 		const logCheckpoint = createSignupLogger('REPORT_ISSUE_GUEST');
+		await installAnonymousUsageStatusStub(page);
 		attachConsoleListeners(page, logCheckpoint);
 		attachNetworkListeners(page, logCheckpoint);
 
@@ -156,8 +173,10 @@ test.describe('Report Issue Flow', () => {
 		logCheckpoint('Admin-only report issue actions are hidden for a guest/non-admin context.');
 	});
 
+	// contract-test: direct surface=rest_api assertions=issue-reporting.input.long-title-preserved
 	test('Report issue API accepts long user-written titles', async ({ page }) => {
 		const logCheckpoint = createSignupLogger('REPORT_ISSUE_LONG_TITLE');
+		await installAnonymousUsageStatusStub(page);
 		attachConsoleListeners(page, logCheckpoint);
 		attachNetworkListeners(page, logCheckpoint);
 
@@ -204,7 +223,6 @@ test.describe('Report Issue Flow', () => {
 				screenshot_png_base64: null,
 				picked_element_html: null,
 				trace_ids: [],
-				add_to_linear: false,
 				send_email_notification: false,
 			},
 		});
@@ -216,8 +234,10 @@ test.describe('Report Issue Flow', () => {
 		expect(responseBody?.short_issue_id).toMatch(/^[A-HJ-NP-Z2-9]{5}$/);
 	});
 
+	// contract-test: direct surface=gui.web assertions=issue-reporting.submission.confirmed-and-durable,issue-reporting.logs.authenticated-capture,chat-share-settings.shared-link-open,settings-ui.composition.canonical-and-accessible,settings-ui.localization.visible-content-resolves
 	test('Report issue form submits successfully and shows confirmation', async ({ page }) => {
 		const logCheckpoint = createSignupLogger('REPORT_ISSUE');
+		await installAnonymousUsageStatusStub(page);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
 			filenamePrefix: 'report-issue-flow'
 		});
@@ -256,7 +276,7 @@ test.describe('Report Issue Flow', () => {
 			const state = await debug?.state?.();
 			return Boolean(state?.user && state.user !== 'unavailable' && state.user.id);
 		}, null, { timeout: 10000 });
-		const adminControlsVisible = await page.getByTestId('admin-add-to-linear').count() > 0;
+		const adminControlsVisible = await page.getByTestId('admin-send-email-notification').count() > 0;
 		logCheckpoint(`Admin report controls visible for authenticated test account: ${adminControlsVisible}`);
 
 		// Direct calls to the admin investigation endpoint must not be accepted from
@@ -287,7 +307,27 @@ test.describe('Report Issue Flow', () => {
 
 		// ── Step 5: Fill in the title ──────────────────────────────────
 		const testTitle = `[E2E Test] Report issue flow validation — ${new Date().toISOString()}`;
+		const testUserFlow = 'Opened the report form and submitted the completed fields.';
+		const testExpectedBehaviour = 'The confirmation should summarize the submitted report.';
+		const testActualBehaviour = 'The report was accepted by the issue endpoint.';
 		await titleField.fill(testTitle);
+		await page.getByTestId('report-issue-user-flow').fill(testUserFlow);
+		await page.getByTestId('report-issue-expected-behaviour').fill(testExpectedBehaviour);
+		await page.getByTestId('report-issue-actual-behaviour').fill(testActualBehaviour);
+		const sharedChatMarker = 'Report issue privacy redaction marker';
+		await page.evaluate((marker: string) => {
+			const message = document.createElement('div');
+			message.setAttribute('data-message-id', 'report-privacy-probe');
+			message.innerHTML = `<div class="chat-message-text"><div class="ProseMirror"></div></div>`;
+			const body = message.querySelector('.ProseMirror');
+			if (body) body.textContent = marker;
+			document.body.append(message);
+			console.warn(
+				'[ReportIssueRedactionProbe]',
+				marker,
+				'https://app.example/share/chat/example#key=secret-report-share-key-material'
+			);
+		}, sharedChatMarker);
 		logCheckpoint(`Filled title: "${testTitle}"`);
 
 		// Wait for validation to enable the button
@@ -326,7 +366,6 @@ test.describe('Report Issue Flow', () => {
 				response.request().method() === 'POST',
 			{ timeout: 30000 }
 		);
-
 		await submitButton.click();
 		logCheckpoint('Clicked submit button.');
 
@@ -352,7 +391,13 @@ test.describe('Report Issue Flow', () => {
 		expect(responseBody?.screenshot_uploaded).toBe(true);
 		const submittedPayload = apiResponse.request().postDataJSON?.();
 		expect(submittedPayload?.contact_email).toBe(TEST_EMAIL);
-		expect(submittedPayload?.add_to_linear).toBe(adminControlsVisible ? false : true);
+		expect(submittedPayload?.chat_or_embed_url).toBeNull();
+		expect(submittedPayload?.last_messages_html).toBeNull();
+		expect(submittedPayload?.console_logs).not.toContain(sharedChatMarker);
+		expect(submittedPayload?.console_logs).not.toContain('secret-report-share-key-material');
+		expect(submittedPayload?.console_logs).toContain('[CHAT-CONTENT-REDACTED]');
+		expect(submittedPayload?.console_logs).toContain('[SHARE-KEY-REDACTED]');
+		expect(submittedPayload?.add_to_linear).toBeUndefined();
 		expect(submittedPayload?.send_email_notification).toBe(adminControlsVisible ? false : true);
 		logCheckpoint(
 			`Issue created with ID: ${responseBody?.issue_id} and short ID: ${responseBody?.short_issue_id} ` +
@@ -361,10 +406,7 @@ test.describe('Report Issue Flow', () => {
 		await takeStepScreenshot(page, '05-submitted');
 
 		// ── Step 6b: Poll /status until the async persistence state is ready ──
-		// Non-admin reports send email by default, and the email task generates the
-		// YAML report. Admin reports skip email by default, so they persist the
-		// screenshot synchronously but intentionally do not create YAML unless the
-		// admin enables email notifications.
+		// Diagnostic persistence is mandatory even when an admin disables email.
 		const issueId: string = responseBody?.issue_id;
 		const shortIssueId: string = responseBody?.short_issue_id;
 		const statusUrl = `${API_BASE_URL}/v1/settings/issues/${shortIssueId}/status`;
@@ -379,7 +421,10 @@ test.describe('Report Issue Flow', () => {
 				const ct = statusResp.headers()['content-type'] || '';
 				if (ct.includes('application/json')) {
 					lastStatus = await statusResp.json();
-					if (lastStatus?.has_screenshot && (adminControlsVisible || lastStatus?.has_yaml_report)) {
+					if (
+						lastStatus?.has_screenshot &&
+						lastStatus?.has_yaml_report && lastStatus?.processed
+					) {
 						break;
 					}
 				} else {
@@ -394,13 +439,9 @@ test.describe('Report Issue Flow', () => {
 		expect(lastStatus?.id).toBe(issueId);
 		expect(lastStatus?.short_issue_id).toBe(shortIssueId);
 		expect(lastStatus?.has_screenshot, 'screenshot never persisted to S3/Directus').toBe(true);
-		if (adminControlsVisible) {
-			expect(lastStatus?.has_yaml_report, 'admin report should skip YAML when email notification is off by default').toBe(false);
-			logCheckpoint('Screenshot persisted; YAML correctly skipped for admin default email-off report.');
-		} else {
-			expect(lastStatus?.has_yaml_report, 'YAML debug report never persisted to S3/Directus').toBe(true);
-			logCheckpoint('Screenshot + YAML report confirmed persisted in Directus.');
-		}
+		expect(lastStatus?.has_yaml_report, 'YAML debug report never persisted to S3/Directus').toBe(true);
+		expect(lastStatus?.processed, 'report processing worker never completed').toBe(true);
+		logCheckpoint('Screenshot + YAML report confirmed persisted in Directus.');
 
 		// ── Step 7: Verify confirmation page ───────────────────────────
 		const confirmation = page.getByTestId('report-issue-confirmation');
@@ -416,6 +457,14 @@ test.describe('Report Issue Flow', () => {
 		expect(displayedIssueId).toBe(shortIssueId);
 		expect(displayedIssueId).not.toBe(issueId);
 		logCheckpoint(`Confirmation shows issue ID: ${displayedIssueId}`);
+
+		const reportSummary = confirmation.getByTestId('report-issue-summary');
+		await expect(reportSummary).toBeVisible({ timeout: 5000 });
+		await expect(reportSummary).toContainText(testTitle);
+		await expect(reportSummary).toContainText(testUserFlow);
+		await expect(reportSummary).toContainText(testExpectedBehaviour);
+		await expect(reportSummary).toContainText(testActualBehaviour);
+		logCheckpoint('Confirmation shows the submitted report summary.');
 		await takeStepScreenshot(page, '06-confirmation');
 
 		// ── Step 8: Submit another report — verify form resets ──────────

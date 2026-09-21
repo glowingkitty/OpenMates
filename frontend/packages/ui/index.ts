@@ -73,6 +73,17 @@ export { default as EventAppCard } from "./src/components/cards/EventAppCard.sve
 export { default as PushNotificationBanner } from "./src/components/PushNotificationBanner.svelte";
 export { default as OfflineBanner } from "./src/components/OfflineBanner.svelte";
 export { default as OfflineIndicator } from "./src/components/OfflineIndicator.svelte";
+export { default as NewsroomSurface } from "./src/components/newsroom/NewsroomSurface.svelte";
+export type {
+  NewsroomAction,
+  NewsroomArticleContent,
+  NewsroomHero,
+  NewsroomItem,
+  NewsroomMediaSource,
+  NewsroomSurfaceData,
+  NewsroomView,
+  SocialPostLink,
+} from "./src/components/newsroom/types";
 // Removed Imprint, Privacy, Terms Svelte components - legal documents are now handled via chat system
 // See frontend/packages/ui/src/legal/ for legal chat document definitions
 // Removed export * from Settings.svelte as default export on line 6 is sufficient

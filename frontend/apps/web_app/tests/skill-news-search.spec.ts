@@ -17,7 +17,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
-	withLiveMockMarker
+	withLiveMockMarker,
+	installE2EServerContentOverrideGate
 } = require('./signup-flow-helpers');
 const {
 	loginToTestAccount,
@@ -94,7 +95,7 @@ test.describe('App: News / Skill: search', () => {
 	});
 
 	// contract-test: direct surface=gui.web assertions=web-search.surface-parity
-	test('Phase 4: Web chat triggers news search with embed', async ({ page }: { page: any }) => {
+	test('Phase 4: Web chat and short follow-up each execute news search with embeds', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -103,6 +104,7 @@ test.describe('App: News / Skill: search', () => {
 		await archiveExistingScreenshots(logCheckpoint);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 
+		await installE2EServerContentOverrideGate(page, 'news-search-mock-marker');
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);
 
@@ -132,6 +134,55 @@ test.describe('App: News / Skill: search', () => {
 		await expect(reloadedAssistantMessage).not.toContainText('app_skill_use');
 		await expect(reloadedAssistantMessage).not.toContainText('embed_ref');
 		logCheckpoint('Reload preserved finished news search card without raw protocol text.');
+
+		// JDPC5: an implicit same-intent follow-up used to emit a TOON code
+		// embed without executing news.search. Scope to the NEW assistant turn
+		// so the first turn's successful search cannot satisfy this assertion.
+		const originalEmbedId = await reloadedEmbed.getAttribute('data-embed-id');
+		const originalMate = (await reloadedAssistantMessage.getByTestId('chat-mate-name').innerText()).trim();
+		expect(originalMate).toBeTruthy();
+		const assistantCount = await page.getByTestId('message-assistant').count();
+		await sendMessage(
+			page,
+			withLiveMockMarker('und OpenAI?', 'news_search_web_followup'),
+			logCheckpoint, takeStepScreenshot, 'news-search-followup'
+		);
+		await expect(page.getByTestId('message-assistant')).toHaveCount(assistantCount + 1, { timeout: 90_000 });
+		const followup = page.getByTestId('message-assistant').nth(assistantCount);
+		const followupEmbed = followup.locator(
+			'[data-testid="embed-preview"][data-app-id="news"][data-skill-id="search"][data-status="finished"]'
+		).first();
+		await expect(followupEmbed).toBeVisible({ timeout: 90_000 });
+		expect(await followupEmbed.getAttribute('data-embed-id')).not.toBe(originalEmbedId);
+		await expect(followupEmbed).toContainText(/OpenAI/i);
+		await expect(followup.getByTestId('chat-mate-name')).toHaveText(originalMate);
+		await expect(followup).not.toContainText(/app_id:|skill_id:|app_skill_use|embed_ref|```toon/);
+		await expect(followup.locator('[data-testid="embed-preview"][data-app-id="code"]')).toHaveCount(0);
+		const followupOverlay = await openFullscreen(page, followupEmbed);
+		await verifySearchGrid(followupOverlay);
+		await closeFullscreen(page, followupOverlay);
+
+		// Existing results are sufficient: routing must not force another app call.
+		await sendMessage(
+			page,
+			withLiveMockMarker('Fasse diese OpenAI-Meldungen in drei Stichpunkten zusammen. Nutze nur die vorhandenen Ergebnisse.', 'news_search_web_summary'),
+			logCheckpoint, takeStepScreenshot, 'news-search-summary'
+		);
+		await expect(page.getByTestId('message-assistant')).toHaveCount(assistantCount + 2, { timeout: 90_000 });
+		const summary = page.getByTestId('message-assistant').nth(assistantCount + 1);
+		await expect(summary).toContainText(/OpenAI/i, { timeout: 90_000 });
+		await expect(page.getByTestId('stop-processing-button')).toBeHidden({ timeout: 90_000 });
+		await expect(summary.locator('[data-testid="embed-preview"][data-skill-id="search"]')).toHaveCount(0);
+		await expect(summary).not.toContainText(/app_id:|skill_id:|```toon/);
+		await expect(summary.getByTestId('chat-mate-name')).toHaveText(originalMate);
+
+		await page.reload({ waitUntil: 'networkidle' });
+		const persistedFollowup = page.getByTestId('message-assistant').nth(assistantCount);
+		await expect(persistedFollowup.locator(
+			'[data-testid="embed-preview"][data-app-id="news"][data-skill-id="search"][data-status="finished"]'
+		).first()).toContainText(/OpenAI/i, { timeout: 90_000 });
+		await expect(persistedFollowup).not.toContainText(/app_id:|skill_id:|app_skill_use|embed_ref|```toon/);
+		logCheckpoint('Short follow-up executed a distinct news search and survived reload without protocol leakage.');
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'news-search');
 	});
 });

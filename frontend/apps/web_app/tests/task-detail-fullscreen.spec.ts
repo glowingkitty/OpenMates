@@ -147,11 +147,11 @@ test.describe('Task detail fullscreen component', () => {
 			'fits 2-3 people'
 		);
 		await expect(detail.getByTestId('task-detail-status-select')).toHaveValue('blocked');
-		await expect(detail.getByTestId('task-detail-assignee-select')).toHaveValue('opencode');
+		await expect(detail.getByTestId('task-detail-assignee-select')).toHaveValue('codex');
 		await expect(detail.getByTestId('task-detail-description')).toContainText('fits 2-3 people');
 		await expect(page.getByTestId('task-detail-status')).toContainText('Blocked');
 		await expect(page.getByTestId('task-detail-priority')).toContainText('Urgent');
-		await expect(detail.getByTestId('task-detail-assignee')).toContainText('OpenCode');
+		await expect(detail.getByTestId('task-detail-assignee')).toContainText('Codex');
 		await expect(detail.getByTestId('task-detail-due')).toContainText('Oct 22, 2026');
 		await expect(detail.getByTestId('task-detail-projects')).toContainText('Research project');
 		await expect(detail.getByTestId('task-detail-plan')).toContainText('Research launch plan');
@@ -163,9 +163,9 @@ test.describe('Task detail fullscreen component', () => {
 			'A repository write token is required'
 		);
 		await expect(detail.getByTestId('task-detail-external-chat')).toContainText(
-			'OpenCode task bridge'
+			'Codex task bridge'
 		);
-		await expect(detail.getByTestId('task-detail-chat')).toContainText('OpenCode');
+		await expect(detail.getByTestId('task-detail-chat')).toContainText('Codex');
 		await expect(detail.getByTestId('task-detail-project-card')).toHaveAttribute(
 			'href',
 			'/projects/preview-project'

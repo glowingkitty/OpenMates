@@ -60,6 +60,7 @@ final class DraftService: ObservableObject {
     private var syncCoordinator: DraftSyncCoordinator?
     private var draftLifecycleGeneration = UUID()
     private var draftGenerationByChatId: [String: UUID] = [:]
+    private var draftReadGenerationByChatId: [String: UUID] = [:]
 
     init(
         repository: any ComposerDraftRepository,
@@ -77,23 +78,52 @@ final class DraftService: ObservableObject {
         transport: any DraftSyncTransport,
         offlineActions: any DraftSyncOfflineActions
     ) {
+        let lifecycle = draftLifecycleGeneration
+        let scope = OfflineStore.shared.scopeGeneration
         syncCoordinator = DraftSyncCoordinator(
             repository: repository,
             chatStore: chatStore,
             transport: transport,
             offlineActions: offlineActions,
             onDraftChanged: { [weak self] chatId in
-                Task { @MainActor in
-                    await self?.refreshDraftState(chatId: chatId)
+                guard let self, lifecycle == self.draftLifecycleGeneration,
+                      scope == OfflineStore.shared.scopeGeneration else { return }
+                // Invalidate the old read synchronously, before scheduling its replacement.
+                self.draftReadGenerationByChatId[chatId] = UUID()
+                Task { @MainActor [weak self] in
+                    guard let self, lifecycle == self.draftLifecycleGeneration,
+                          scope == OfflineStore.shared.scopeGeneration else { return }
+                    await self.refreshDraftState(chatId: chatId)
                 }
+            },
+            expectedScope: scope,
+            isCurrentSession: { [weak self] in
+                guard let self else { return false }
+                return lifecycle == draftLifecycleGeneration && scope == OfflineStore.shared.scopeGeneration
             }
         )
         Task { [weak self] in
             guard let self else { return }
             do {
                 let records = try await repository.allRecords()
+                let deletionVersions = try await repository.allDeletionVersions()
+                guard !Task.isCancelled, lifecycle == draftLifecycleGeneration,
+                      scope == OfflineStore.shared.scopeGeneration else { return }
+                syncCoordinator?.restoreDeletionMarkers(deletionVersions)
                 syncCoordinator?.restoreNewChatDraftId(from: records)
                 for record in records {
+                    if let deletedVersion = deletionVersions[record.chatId], deletedVersion >= record.draftVersion { continue }
+                    guard !Task.isCancelled, lifecycle == draftLifecycleGeneration,
+                          scope == OfflineStore.shared.scopeGeneration else { return }
+                    // Legacy caches predate the presence column. A durable
+                    // encrypted draft supplies authoritative local presence and
+                    // can bring its older cached chat metadata into this session.
+                    if chatStore.chat(for: record.chatId) == nil,
+                       let cached = OfflineStore.shared.loadChat(id: record.chatId) {
+                        chatStore.performWithoutPersistence { chatStore.upsertChat(cached) }
+                    }
+                    chatStore.updateDraftVersion(chatId: record.chatId, draftVersion: record.draftVersion,
+                                                 hasNonEmptyDraft: !record.encryptedMarkdown.isEmpty)
                     await refreshDraftState(chatId: record.chatId)
                 }
             } catch {
@@ -166,15 +196,26 @@ final class DraftService: ObservableObject {
         try requireCurrentSave()
         try await syncCoordinator?.submitLocalUpdate(record, resolvedChatId: resolvedChatId)
         try requireCurrentSave()
+        draftReadGenerationByChatId[resolvedChatId] = UUID()
         currentDraft = canonicalMarkdown
         draftPreviews[resolvedChatId] = preview
         postDraftChange(chatId: resolvedChatId, reloadComposer: false)
     }
 
     func loadDraft(chatId: String) async throws -> ComposerDraft? {
+        let resolvedChatId = syncCoordinator?.resolveChatId(chatId, hasNonEmptyDraft: false) ?? chatId
+        let draftGeneration = draftGenerationByChatId[resolvedChatId]
+        let readGeneration = draftReadGenerationByChatId[resolvedChatId]
+        let lifecycle = draftLifecycleGeneration
+        let scope = OfflineStore.shared.scopeGeneration
+        func requireCurrentLoad() throws {
+            guard !Task.isCancelled, lifecycle == draftLifecycleGeneration,
+                  draftGeneration == draftGenerationByChatId[resolvedChatId],
+                  readGeneration == draftReadGenerationByChatId[resolvedChatId],
+                  scope == OfflineStore.shared.scopeGeneration else { throw CancellationError() }
+        }
         let record: ComposerDraftRecord
         do {
-            let resolvedChatId = syncCoordinator?.resolveChatId(chatId, hasNonEmptyDraft: false) ?? chatId
             guard let stored = try await repository.record(chatId: resolvedChatId) else { return nil }
             record = stored
         } catch {
@@ -187,22 +228,31 @@ final class DraftService: ObservableObject {
                 key: masterKey
             )
             let preview: String
+            var expectedEncryptedPreview = record.encryptedPreview
             if record.encryptedPreview.isEmpty {
                 preview = String(markdown.prefix(160))
                 let encryptedPreview = try await crypto.encryptWithMasterKey(preview, masterKey: masterKey)
-                try await repository.upsert(ComposerDraftRecord(
-                    chatId: record.chatId,
-                    encryptedMarkdown: record.encryptedMarkdown,
-                    encryptedPreview: encryptedPreview,
-                    revision: record.revision,
-                    draftVersion: record.draftVersion
-                ))
+                try requireCurrentLoad()
+                let repaired = try await repository.apply(.previewRepair(ComposerDraftRecord(
+                    chatId: record.chatId, encryptedMarkdown: record.encryptedMarkdown,
+                    encryptedPreview: encryptedPreview, revision: record.revision,
+                    draftVersion: record.draftVersion)), knownVersion: 0, knownClearedVersion: 0,
+                    expectedScope: scope)
+                guard repaired.applied else { throw ComposerDraftError.versionConflict }
+                expectedEncryptedPreview = encryptedPreview
             } else {
                 preview = try await crypto.decryptContent(
                     base64String: record.encryptedPreview,
                     key: masterKey
                 )
             }
+            guard let latest = try await repository.record(chatId: record.chatId),
+                  latest.revision == record.revision, latest.draftVersion == record.draftVersion,
+                  latest.encryptedMarkdown == record.encryptedMarkdown,
+                  latest.encryptedPreview == expectedEncryptedPreview else {
+                throw ComposerDraftError.versionConflict
+            }
+            try requireCurrentLoad()
             currentDraft = markdown
             draftPreviews[record.chatId] = preview
             return ComposerDraft(
@@ -290,6 +340,7 @@ final class DraftService: ObservableObject {
     func clearAll() async throws {
         draftLifecycleGeneration = UUID()
         draftGenerationByChatId.removeAll()
+        draftReadGenerationByChatId.removeAll()
         await legacyStore.removeAllDrafts()
         try await repository.removeAll()
         syncCoordinator?.resetNewChatDraftId()

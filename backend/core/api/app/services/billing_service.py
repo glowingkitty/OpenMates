@@ -24,6 +24,22 @@ from backend.shared.python_utils.e2e_user_detection import is_non_production_e2e
 logger = logging.getLogger(__name__)
 MAX_BALANCE_CAS_RETRIES = 3
 BALANCE_CAS_RETRY_BASE_SECONDS = 0.05
+EXPLICIT_USAGE_SOURCES = frozenset({"benchmark", "workflow", "workflow_test"})
+WORKFLOW_USAGE_SOURCES = frozenset({"workflow", "workflow_test"})
+
+
+def _resolve_usage_source(
+    usage_details: Optional[Dict[str, Any]],
+    *,
+    api_key_hash: Optional[str],
+    chat_id: Optional[str],
+) -> str:
+    explicit_source = usage_details.get("source") if usage_details else None
+    if explicit_source in EXPLICIT_USAGE_SOURCES:
+        return str(explicit_source)
+    if api_key_hash:
+        return "api_key"
+    return "chat" if chat_id else "direct"
 
 class BillingService:
     def __init__(
@@ -372,11 +388,15 @@ class BillingService:
                     raw_message_id = usage_details.get("message_id")
                     if isinstance(raw_message_id, str) and raw_message_id.strip():
                         transaction_message_id = raw_message_id.strip()
-                transaction_source = (
-                    "benchmark"
-                    if usage_details and usage_details.get("source") == "benchmark"
-                    else "api_key" if api_key_hash else "chat" if transaction_chat_id else "direct"
+                transaction_source = _resolve_usage_source(
+                    usage_details,
+                    api_key_hash=api_key_hash,
+                    chat_id=transaction_chat_id,
                 )
+                workflow_usage = transaction_source in WORKFLOW_USAGE_SOURCES
+                if workflow_usage:
+                    transaction_chat_id = None
+                    transaction_message_id = None
                 transaction_usage_payload = await self.directus_service.usage.create_usage_entry(
                     user_id_hash=user_id_hash,
                     app_id=app_id.strip(),
@@ -387,11 +407,11 @@ class BillingService:
                     user_vault_key_id=vault_key_id,
                     model_used=usage_details.get("model_used") if usage_details else None,
                     chat_id=transaction_chat_id,
-                    root_chat_id=usage_details.get("root_chat_id") if usage_details else None,
-                    actual_chat_id=(usage_details.get("actual_chat_id") if usage_details else None) or transaction_chat_id,
-                    root_turn_id=usage_details.get("root_turn_id") if usage_details else None,
-                    orchestration_id=usage_details.get("orchestration_id") if usage_details else None,
-                    depth=usage_details.get("depth") if usage_details else None,
+                    root_chat_id=None if workflow_usage else usage_details.get("root_chat_id") if usage_details else None,
+                    actual_chat_id=None if workflow_usage else (usage_details.get("actual_chat_id") if usage_details else None) or transaction_chat_id,
+                    root_turn_id=None if workflow_usage else usage_details.get("root_turn_id") if usage_details else None,
+                    orchestration_id=None if workflow_usage else usage_details.get("orchestration_id") if usage_details else None,
+                    depth=None if workflow_usage else usage_details.get("depth") if usage_details else None,
                     charge_id=idempotency_key,
                     operation_id=usage_details.get("operation_id") if usage_details else None,
                     message_id=transaction_message_id,
@@ -561,15 +581,12 @@ class BillingService:
                 if message_id_val and isinstance(message_id_val, str) and message_id_val.strip():
                     message_id = message_id_val.strip()
             
-            # Determine source: explicit benchmark metadata wins, then API key/chat/direct.
-            if usage_details and usage_details.get("source") == "benchmark":
-                source = "benchmark"
-            elif api_key_hash:
-                source = "api_key"
-            elif chat_id:
-                source = "chat"
-            else:
-                source = "direct"
+            # Trusted semantic sources win, then API key/chat/direct attribution.
+            source = _resolve_usage_source(usage_details, api_key_hash=api_key_hash, chat_id=chat_id)
+            workflow_usage = source in WORKFLOW_USAGE_SOURCES
+            if workflow_usage:
+                chat_id = None
+                message_id = None
             
             # Extract tool_inference_iterations from usage_details (AI Ask skill only).
             # This is the count of extra LLM calls triggered by tool use in this turn.
@@ -586,7 +603,7 @@ class BillingService:
                     user_id_hash=user_id_hash,
                     timestamp=timestamp,
                     credits_charged=credits_to_deduct,
-                    chat_id=(usage_details.get("root_chat_id") if usage_details else None) or chat_id,
+                    chat_id=None if workflow_usage else (usage_details.get("root_chat_id") if usage_details else None) or chat_id,
                     app_id=app_id.strip(),
                     api_key_hash=api_key_hash,
                     device_hash=device_hash,
@@ -609,11 +626,11 @@ class BillingService:
                     user_vault_key_id=_vault_key_id_for_usage,
                     model_used=usage_details.get("model_used") if usage_details else None,
                     chat_id=chat_id,  # Cleartext - for client-side matching with IndexedDB
-                    root_chat_id=usage_details.get("root_chat_id") if usage_details else None,
-                    actual_chat_id=(usage_details.get("actual_chat_id") if usage_details else None) or chat_id,
-                    root_turn_id=usage_details.get("root_turn_id") if usage_details else None,
-                    orchestration_id=usage_details.get("orchestration_id") if usage_details else None,
-                    depth=usage_details.get("depth") if usage_details else None,
+                    root_chat_id=None if workflow_usage else usage_details.get("root_chat_id") if usage_details else None,
+                    actual_chat_id=None if workflow_usage else (usage_details.get("actual_chat_id") if usage_details else None) or chat_id,
+                    root_turn_id=None if workflow_usage else usage_details.get("root_turn_id") if usage_details else None,
+                    orchestration_id=None if workflow_usage else usage_details.get("orchestration_id") if usage_details else None,
+                    depth=None if workflow_usage else usage_details.get("depth") if usage_details else None,
                     charge_id=idempotency_key,
                     operation_id=usage_details.get("operation_id") if usage_details else None,
                     message_id=message_id,  # Cleartext - for client-side matching with IndexedDB

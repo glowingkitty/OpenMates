@@ -1,0 +1,331 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-15'
+generated_at: '2026-09-21T00:45:34+00:00'
+range:
+  since: '2026-09-15T00:00:00+00:00'
+  until: '2026-09-16T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 1
+  section_counts:
+    features: 0
+    bug_fixes: 1
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 1
+  dev_only_items: 1
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: scan external skill content once with verified span redaction'
+    section: bug_fixes
+    commits:
+    - e7283a765
+    authored_at: '2026-09-15T16:12:55+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/scripts/benchmark_single_pass_safety.py
+    - backend/shared/python_utils/app_skill_helpers.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/shared/python_utils/structured_content_sanitization.py
+    - backend/tests/test_app_skill_output_safety.py
+    - backend/tests/test_app_skill_rest_context.py
+    - backend/tests/test_external_result_sanitizer_batching.py
+    - backend/tests/test_single_pass_output_safety.py
+    - backend/tests/test_structured_content_sanitization.py
+    - docs/architecture/privacy/prompt-injection.md
+    - docs/plans/single-pass-external-safety/plan.yml
+    - frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
+    - scripts/audit_app_skill_output_safety.py
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/features/app-skills/web-search/examples.yml
+    - specifications/features/app-skills/web-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: scan external skill content once with verified span redaction'
+    commits:
+    - e7283a765
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: scan external skill content once with verified span redaction'
+    commits:
+    - e7283a765
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: e7283a765cffac9c08822b6546e4648952bfff19
+    short_sha: e7283a765
+    authored_at: '2026-09-15T16:12:55+00:00'
+    subject: 'fix: scan external skill content once with verified span redaction'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/scripts/benchmark_single_pass_safety.py
+    - backend/shared/python_utils/app_skill_helpers.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/shared/python_utils/structured_content_sanitization.py
+    - backend/tests/test_app_skill_output_safety.py
+    - backend/tests/test_app_skill_rest_context.py
+    - backend/tests/test_external_result_sanitizer_batching.py
+    - backend/tests/test_single_pass_output_safety.py
+    - backend/tests/test_structured_content_sanitization.py
+    - docs/architecture/privacy/prompt-injection.md
+    - docs/plans/single-pass-external-safety/plan.yml
+    - frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
+    - scripts/audit_app_skill_output_safety.py
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/features/app-skills/web-search/examples.yml
+    - specifications/features/app-skills/web-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+llm_summary:
+  overview: OpenMates focused on AI safety infrastructure, specifically refining how external skill content is sanitized and
+    redacted to protect user privacy.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates is developing a single-pass scanner for external AI skill content that utilizes verified span redaction
+      to improve privacy handling.
+    evidence:
+      commits:
+      - e7283a765
+    release_status: dev_only
+  internal_progress:
+  - text: New benchmarks and audit scripts were introduced to verify the performance of the single-pass safety mechanism for
+      AI skills.
+    evidence:
+      commits:
+      - e7283a765
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: AI skill content sanitization and redaction improvements.
+      evidence:
+        commits:
+        - e7283a765
+      reason: This update is classified as dev_only and has not been merged into the main release branch.
+    rationale: The only activity recorded is a developer-focused update to AI safety infrastructure which is not yet ready
+      for public communication.
+  social_video_recommendations: []
+  quality_notes:
+  - The update includes architectural documentation and specifications for prompt-injection mitigation and web-search safety.
+  validation_warnings: []

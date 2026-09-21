@@ -124,18 +124,18 @@ def test_assignment_type_and_identity_combinations_are_validated() -> None:
         assignee_identity="openmates",
         assignee_hash=None,
     ))
-    opencode = user_tasks.UserTaskCreateRequest(**task_payload(
+    codex = user_tasks.UserTaskCreateRequest(**task_payload(
         primary_chat_id=None,
         assignee_type="external_ai",
-        assignee_identity="opencode",
+        assignee_identity="codex",
         assignee_hash=None,
-        external_chat_provider="opencode",
+        external_chat_provider="codex",
         external_chat_lookup_hash="c" * 64,
         encrypted_external_chat_id="cipher-session-id",
     ))
 
     assert openmates.assignee_identity == "openmates"
-    assert opencode.assignee_identity == "opencode"
+    assert codex.assignee_identity == "codex"
 
     with pytest.raises(ValidationError):
         user_tasks.UserTaskCreateRequest(**task_payload(
@@ -147,7 +147,7 @@ def test_assignment_type_and_identity_combinations_are_validated() -> None:
     with pytest.raises(ValidationError):
         user_tasks.UserTaskCreateRequest(**task_payload(
             assignee_type="user",
-            assignee_identity="opencode",
+            assignee_identity="codex",
         ))
 
 
@@ -161,16 +161,16 @@ async def test_create_task_persists_named_external_ai_identity() -> None:
     await methods.create_task("user-1", task_payload(
         primary_chat_id=None,
         assignee_type="external_ai",
-        assignee_identity="opencode",
+        assignee_identity="codex",
         assignee_hash=None,
-        external_chat_provider="opencode",
+        external_chat_provider="codex",
         external_chat_lookup_hash="c" * 64,
         encrypted_external_chat_id="cipher-session-id",
     ))
 
     _collection, record = directus.create_item.await_args_list[0].args
     assert record["assignee_type"] == "external_ai"
-    assert record["assignee_identity"] == "opencode"
+    assert record["assignee_identity"] == "codex"
     assert record["assignee_hash"] is None
 
 
@@ -199,7 +199,7 @@ async def test_create_external_chat_task_persists_only_encrypted_context_and_bli
     methods = UserTaskMethods(with_lock_cache(directus))
     await methods.create_task("user-1", task_payload(
         primary_chat_id=None,
-        external_chat_provider="opencode",
+        external_chat_provider="codex",
         external_chat_lookup_hash=external_lookup_hash,
         encrypted_external_chat_id="cipher-session-id",
         encrypted_external_chat_title="cipher-session-title",
@@ -208,7 +208,7 @@ async def test_create_external_chat_task_persists_only_encrypted_context_and_bli
     _collection, record = directus.create_item.await_args.args
     assert record["primary_chat_id"] is None
     assert record["hashed_primary_chat_id"] is None
-    assert record["external_chat_provider"] == "opencode"
+    assert record["external_chat_provider"] == "codex"
     assert record["external_chat_lookup_hash"] == external_lookup_hash
     assert record["encrypted_external_chat_id"] == "cipher-session-id"
     assert record["encrypted_external_chat_title"] == "cipher-session-title"
@@ -223,7 +223,7 @@ async def test_create_task_rejects_native_and_external_chat_context_together() -
 
     with pytest.raises(ValueError, match="native or external chat"):
         await methods.create_task("user-1", task_payload(
-            external_chat_provider="opencode",
+            external_chat_provider="codex",
             external_chat_lookup_hash="c" * 64,
             encrypted_external_chat_id="cipher-session-id",
         ))
@@ -238,12 +238,12 @@ async def test_list_tasks_filters_external_chat_provider_and_blind_index() -> No
 
     await methods.list_tasks(
         "user-1",
-        external_chat_provider="opencode",
+        external_chat_provider="codex",
         external_chat_lookup_hash="c" * 64,
     )
 
     filter_terms = directus.get_items.await_args.kwargs["params"]["filter"]["_and"]
-    assert {"external_chat_provider": {"_eq": "opencode"}} in filter_terms
+    assert {"external_chat_provider": {"_eq": "codex"}} in filter_terms
     assert {"external_chat_lookup_hash": {"_eq": "c" * 64}} in filter_terms
 
 
@@ -263,7 +263,7 @@ async def test_update_task_rejects_incomplete_or_native_external_chat_context() 
     existing = {
         "id": "task-row",
         **task_payload(primary_chat_id=None),
-        "external_chat_provider": "opencode",
+        "external_chat_provider": "codex",
         "external_chat_lookup_hash": "c" * 64,
         "encrypted_external_chat_id": "cipher-session-id",
     }
@@ -317,7 +317,7 @@ async def test_list_route_returns_bad_request_for_partial_external_chat_filter(m
         await user_tasks.list_user_tasks(
             request,
             SimpleNamespace(),
-            external_chat_provider="opencode",
+            external_chat_provider="codex",
             service=service,
             workflow_projection_service=SimpleNamespace(),
         )
@@ -334,7 +334,7 @@ async def test_external_chat_task_allows_master_wrapper_but_rejects_chat_wrapper
         primary_chat_id=None,
         linked_project_ids=[],
         encrypted_linked_project_ids=None,
-        external_chat_provider="opencode",
+        external_chat_provider="codex",
         external_chat_lookup_hash="c" * 64,
         encrypted_external_chat_id="cipher-session-id",
     )
@@ -373,7 +373,7 @@ async def test_update_task_requires_release_before_switching_external_to_native(
     existing = {
         "id": "task-row",
         **task_payload(primary_chat_id=None),
-        "external_chat_provider": "opencode",
+        "external_chat_provider": "codex",
         "external_chat_lookup_hash": "c" * 64,
         "encrypted_external_chat_id": "cipher-session-id",
         "encrypted_external_chat_title": "cipher-session-title",
@@ -1225,8 +1225,8 @@ async def test_start_ai_staging_failure_moves_task_to_visible_blocked_state() ->
 
 
 # contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated,tasks.external-chat.encrypted-context
-@pytest.mark.parametrize("provider", ["codex", "opencode"])
-def test_codex_task_provider_and_legacy_context_keep_typed_encryption(provider: str) -> None:
+def test_codex_task_provider_keeps_typed_encryption() -> None:
+    provider = "codex"
     request = user_tasks.UserTaskCreateRequest(**task_payload(
         primary_chat_id=None, assignee_type="external_ai", assignee_identity=provider,
         assignee_hash=None, external_chat_provider=provider,
@@ -1270,21 +1270,20 @@ def test_task_creator_requires_explicit_validated_cli_declaration(headers, expec
 
 # contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
 @pytest.mark.parametrize("headers", [
-    {"X-OpenMates-Task-Creator": "opencode", "X-OpenMates-Task-Actor": "assignee", "X-OpenMates-Client": "cli"},
     {"X-OpenMates-Task-Creator": "codex", "X-OpenMates-Task-Actor": "assignee", "X-OpenMates-Client": "web"},
     {"X-OpenMates-Task-Creator": "codex", "X-OpenMates-Client": "cli"},
 ])
-def test_task_creator_rejects_legacy_browser_and_implicit_actor(headers):
+def test_task_creator_rejects_browser_and_implicit_actor(headers):
     with pytest.raises(HTTPException):
         user_tasks._task_external_actor(SimpleNamespace(headers=headers))
 
 
 # contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
 @pytest.mark.asyncio
-async def test_legacy_creation_never_grants_codex_eligibility():
-    directus = SimpleNamespace(get_items=AsyncMock(side_effect=[[], [{"actor_identity": "opencode"}]]))
+async def test_codex_creation_grants_codex_eligibility():
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[{"actor_identity": "codex"}]))
     methods = UserTaskMethods(directus)
-    assert await methods.eligible_external_ai("user-1") == ["opencode"]
+    assert await methods.eligible_external_ai("user-1") == ["codex"]
     for call in directus.get_items.await_args_list:
         params = call.kwargs["params"]
         assert params["filter[hashed_user_id][_eq]"] == hash_id("user-1")
@@ -1309,43 +1308,6 @@ async def test_creator_headers_cannot_replace_paired_session_auth(monkeypatch):
     assert error.value.status_code == 403
     paired.assert_awaited_once()
     service.create_task.assert_not_awaited()
-
-
-# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
-@pytest.mark.asyncio
-async def test_legacy_external_assignment_switch_requires_codex_creator(monkeypatch):
-    monkeypatch.setattr(user_tasks, "_current_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
-    monkeypatch.setattr(user_tasks, "_require_task_team_role", AsyncMock())
-    methods = SimpleNamespace(get_task=AsyncMock(return_value={"assignee_type":"external_ai", "assignee_identity":"opencode"}),
-        eligible_external_ai=AsyncMock(return_value=["opencode"]))
-    service = SimpleNamespace(task_methods=methods, update_task=AsyncMock())
-    body = user_tasks.UserTaskUpdateRequest(version=1, updated_at=2, assignee_type="external_ai", assignee_identity="codex")
-    with pytest.raises(HTTPException) as error:
-        await user_tasks.update_user_task("task-1", SimpleNamespace(), SimpleNamespace(), body, team_id=None, service=service, history_service=SimpleNamespace())
-    assert error.value.status_code == 403
-    service.update_task.assert_not_awaited()
-
-
-# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
-@pytest.mark.asyncio
-@pytest.mark.parametrize("operation", ["create", "update"])
-async def test_encrypted_ask_cannot_bypass_codex_eligibility(monkeypatch, operation):
-    monkeypatch.setattr(user_tasks, "_current_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
-    methods = SimpleNamespace(
-        get_task=AsyncMock(return_value={"assignee_type": "external_ai", "assignee_identity": "opencode"}),
-        eligible_external_ai=AsyncMock(return_value=["opencode"]),
-    )
-    service = SimpleNamespace(task_methods=methods, create_task=AsyncMock(), update_task=AsyncMock())
-    if operation == "create":
-        payload = {"encrypted_create": task_payload(assignee_type="external_ai", assignee_identity="codex", assignee_hash=None)}
-    else:
-        payload = {"encrypted_update": {"task_id": "task-1", "patch": {"version": 1, "updated_at": 2, "assignee_type": "external_ai", "assignee_identity": "codex"}}}
-    body = user_tasks.UserTaskAskRequest(instruction="Apply the encrypted task change", **payload)
-    with pytest.raises(HTTPException) as error:
-        await user_tasks.ask_user_tasks(SimpleNamespace(), SimpleNamespace(), body, service=service)
-    assert error.value.status_code == 403
-    service.create_task.assert_not_awaited()
-    service.update_task.assert_not_awaited()
 
 
 @pytest.mark.asyncio

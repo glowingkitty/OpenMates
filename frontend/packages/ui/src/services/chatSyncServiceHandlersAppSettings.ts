@@ -2015,6 +2015,7 @@ interface WorkflowChatDeliverySummary {
   created_at: number;
   expires_at: number;
   claim_generation: number;
+  claim_expires_at?: number;
 }
 
 interface WorkflowChatDeliveriesAvailablePayload {
@@ -2022,6 +2023,11 @@ interface WorkflowChatDeliveriesAvailablePayload {
 }
 
 interface WorkflowChatDeliveryClaimedPayload extends WorkflowChatDeliverySummary {
+  workflow_id?: string;
+  run_id?: string;
+  client_persisted?: boolean;
+  existing_chat?: {encrypted_chat_key:string;encrypted_title?:string;encrypted_category?:string;messages_v?:number;title_v?:number;created_at?:number} | null;
+  embeds?: Array<{embed_id:string;content_type:string;content:Record<string,unknown>}>;
   title: string;
   message: string;
   claim_token: string;
@@ -2053,7 +2059,13 @@ export async function handleWorkflowChatDeliveriesAvailableImpl(
   if (deliveries.length === 0) return;
   const { webSocketService } = await import("./websocketService");
   for (const delivery of deliveries) {
-    if (!delivery.delivery_id || delivery.status !== "delivery_pending") continue;
+    if (!delivery.delivery_id || !["delivery_pending", "claimed"].includes(delivery.status)) continue;
+    if (delivery.status === "claimed" && (delivery.claim_expires_at || 0) * 1000 > Date.now()) {
+      setTimeout(() => { void webSocketService.sendMessage("workflow_chat_delivery_claim", {
+        delivery_id: delivery.delivery_id, request_id: `workflow-delivery-${delivery.delivery_id}`,
+      }); }, (delivery.claim_expires_at || 0) * 1000 - Date.now() + 1000);
+      continue;
+    }
     await webSocketService.sendMessage("workflow_chat_delivery_claim", {
       delivery_id: delivery.delivery_id,
       request_id: `workflow-delivery-${delivery.delivery_id}`,
@@ -2065,6 +2077,10 @@ export async function handleWorkflowChatDeliveryClaimedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: WorkflowChatDeliveryClaimedPayload,
 ): Promise<void> {
+  if (payload.workflow_id) {
+    await handleRunLinkedWorkflowDelivery(serviceInstance, payload);
+    return;
+  }
   const { delivery_id, chat_id, message_id, title, message } = payload;
   if (!delivery_id || !chat_id || !message_id || !title || !message) {
     console.warn("[ChatSyncService:WorkflowDelivery] Invalid claimed payload", payload);
@@ -2176,6 +2192,115 @@ export async function handleWorkflowChatDeliveryClaimedImpl(
     );
   } catch (error) {
     console.error("[ChatSyncService:WorkflowDelivery] Failed to process claimed delivery", error);
+  }
+}
+
+async function handleRunLinkedWorkflowDelivery(
+  serviceInstance: ChatSynchronizationService,
+  payload: WorkflowChatDeliveryClaimedPayload,
+): Promise<void> {
+  const { chat_id, message_id, title, message } = payload;
+  if (payload.client_persisted) {
+    // The server already committed the winning client ciphertext atomically.
+    // Reconnect recovery only acknowledges; normal encrypted sync hydrates it.
+    await sendWorkflowChatDeliveryAck(payload);
+    return;
+  }
+  try {
+    let existingChat = await chatDB.getChat(chat_id);
+    if (payload.existing_chat) {
+      const canonical = payload.existing_chat;
+      const { decryptChatKeyWithMasterKey } = await import("./encryption/MetadataEncryptor");
+      const canonicalKey = canonical.encrypted_chat_key ? await decryptChatKeyWithMasterKey(canonical.encrypted_chat_key) : null;
+      const activeKey = canonical.encrypted_chat_key ? await chatKeyManager.receiveKeyFromServer(chat_id, canonical.encrypted_chat_key) : null;
+      if (!canonicalKey || !activeKey || canonicalKey.length !== activeKey.length || canonicalKey.some((byte,index)=>byte !== activeKey[index])) {
+        throw new Error("Existing workflow chat key requires sync recovery");
+      }
+      existingChat = {...existingChat, ...canonical, chat_id} as import("../types/chat").Chat;
+      await chatDB.updateChat(existingChat);
+    }
+    const createdAt = payload.created_at || Math.floor(Date.now() / 1000);
+    if (!existingChat) {
+      // ChatKeyManager's persister updates an existing local row. Establish only
+      // routing/version metadata first so its wrapped key is durable before the
+      // unchanged write guard validates it and any content is encrypted.
+      existingChat = {
+        chat_id, created_at: createdAt, updated_at: createdAt,
+        messages_v: 0, title_v: 0, last_edited_overall_timestamp: createdAt,
+        unread_count: 0,
+      } as import("../types/chat").Chat;
+      await chatDB.updateChat(existingChat);
+    }
+    const { chatKey, encryptedChatKey } = await chatKeyManager.createAndPersistKeyLocked(chat_id);
+    if (!(await ensureChatKeySafeForWrite(chat_id, chatKey, "workflow delivery"))) {
+      throw new Error("Workflow chat key is not ready for encryption");
+    }
+    const encryptedTitle = existingChat?.encrypted_title || await encryptWithChatKey(title, chatKey);
+    const encryptedCategory = existingChat?.encrypted_category || await encryptWithChatKey("openmates_official", chatKey);
+    const encryptedContent = await encryptWithChatKey(message, chatKey);
+    if (!encryptedTitle || !encryptedCategory || !encryptedContent || !encryptedChatKey) throw new Error("Workflow encryption unavailable");
+    const { deriveEmbedKeyFromChatKey, encryptWithEmbedKey, wrapEmbedKeyWithMasterKey, wrapEmbedKeyWithChatKey } = await import("./encryption/MetadataEncryptor");
+    const { computeSHA256 } = await import("../message_parsing/utils");
+    const { encode } = await import("@toon-format/toon");
+    const { embedStore } = await import("./embedStore");
+    const { userProfile } = await import("../stores/userProfile");
+    const ownerId = get(userProfile).user_id;
+    if (!ownerId) throw new Error("Workflow owner session unavailable");
+    const hashedOwner = await computeSHA256(ownerId);
+    const hashedChat = await computeSHA256(chat_id);
+    const encryptedEmbeds = [];
+    const localEmbeds = [];
+    for (const embed of payload.embeds || []) {
+      const key = await deriveEmbedKeyFromChatKey(chatKey, embed.embed_id);
+      const content = encode({ ...embed.content, type: embed.content_type });
+      const encrypted_content = await encryptWithEmbedKey(content, key);
+      const encrypted_type = await encryptWithEmbedKey(embed.content_type, key);
+      const preview = String(embed.content.title || embed.content.name || "Workflow result");
+      const encrypted_text_preview = await encryptWithEmbedKey(preview, key);
+      const master = await wrapEmbedKeyWithMasterKey(key);
+      const chat = await wrapEmbedKeyWithChatKey(key, chatKey);
+      if (!master || !chat) throw new Error("Workflow embed key wrapping unavailable");
+      const hashedEmbed = await computeSHA256(embed.embed_id);
+      const keys = [
+        { key_type: "master" as const, encrypted_embed_key: master, hashed_chat_id: null },
+        { key_type: "chat" as const, encrypted_embed_key: chat, hashed_chat_id: hashedChat },
+      ];
+      encryptedEmbeds.push({embed_id:embed.embed_id,encrypted_content,encrypted_type,encrypted_text_preview,
+        embed_keys:keys.map(({key_type,encrypted_embed_key})=>({key_type,encrypted_embed_key}))});
+      localEmbeds.push({embed,content,encrypted_content,encrypted_type,encrypted_text_preview,
+        keys:keys.map(k=>({...k,hashed_embed_id:hashedEmbed,hashed_user_id:hashedOwner,created_at:createdAt}))});
+    }
+    const messagesVersion = Number(existingChat?.messages_v || 0) + 1;
+    // One fenced server transaction stores only normal client ciphertext for the
+    // chat, message and selected embeds. Never send a normal chat key or plaintext.
+    await sendWorkflowChatDeliveryPersist(payload, {
+      encrypted_title: encryptedTitle, encrypted_category: encryptedCategory,
+      encrypted_chat_key: encryptedChatKey, created_at: createdAt,
+      messages_v: messagesVersion, title_v: existingChat?.title_v || 1,
+    }, {role:"assistant",encrypted_content:encryptedContent,created_at:createdAt,embeds:encryptedEmbeds});
+    const chat = { ...existingChat, chat_id, encrypted_title:encryptedTitle,
+      encrypted_category:encryptedCategory, encrypted_chat_key:encryptedChatKey,
+      created_at:existingChat?.created_at || createdAt,updated_at:createdAt,messages_v:messagesVersion,
+      title_v:existingChat?.title_v || 1,last_edited_overall_timestamp:createdAt,
+      unread_count:Number(existingChat?.unread_count || 0)+1,category:"openmates_official" };
+    await chatDB.updateChat(chat as import("../types/chat").Chat);
+    for (const item of localEmbeds) {
+      await embedStore.storeEmbedKeys(item.keys);
+      await embedStore.putEncrypted(`embed:${item.embed.embed_id}`, {
+        embed_id:item.embed.embed_id,encrypted_content:item.encrypted_content,
+        encrypted_type:item.encrypted_type,encrypted_text_preview:item.encrypted_text_preview,
+        hashed_chat_id:hashedChat,hashed_user_id:hashedOwner,status:"finished",encryption_mode:"client",
+      }, item.embed.content_type as import("../message_parsing/types").EmbedType, item.content);
+    }
+    const workflowMessage = {message_id,chat_id,role:"assistant" as const,content:message,
+      created_at:createdAt,status:"synced" as const,encrypted_content:encryptedContent,
+      category:"openmates_official",encrypted_category:encryptedCategory};
+    await chatDB.saveMessage(workflowMessage);
+    await sendWorkflowChatDeliveryAck(payload);
+    serviceInstance.dispatchEvent(new CustomEvent("chatUpdated", {detail:{chat_id,chat,
+      newMessage:workflowMessage,type:"workflow_chat_delivery",messagesUpdated:true}}));
+  } catch (error) {
+    console.error("[WorkflowDelivery] Encrypted delivery could not complete", error);
   }
 }
 

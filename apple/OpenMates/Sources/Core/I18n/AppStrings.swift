@@ -33,7 +33,9 @@ enum AppStrings {
     static var confirm: String { L("common.confirm") }
     static var edit: String { L("common.edit") }
     static var add: String { L("common.add") }
-    static var remove: String { L("common.remove") }
+    // The shared web catalog defines this action under sessions; common.remove
+    // does not exist and previously exposed the raw key on attachment buttons.
+    static var remove: String { L("settings.sessions.remove") }
     static var enabled: String { L("common.enabled") }
     static var disabled: String { L("common.disabled") }
     static var on: String { L("common.on") }

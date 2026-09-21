@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from typing import Dict, Any
 
@@ -35,7 +36,7 @@ async def handle_delete_message(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("delete_message", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -131,6 +132,21 @@ async def handle_delete_message(
             except Exception as cache_error:
                 logger.error(f"Error removing message {message_id} from cache: {cache_error}", exc_info=True)
                 # Continue even if cache removal fails - Directus deletion is more important
+
+            # The compact routing ledger is rebuilt from the remaining canonical
+            # history on the next turn. Dropping it avoids retaining a deleted turn.
+            try:
+                from backend.apps.ai.processing.routing_ledger import delete_skill_ledger
+                await delete_skill_ledger(
+                    cache_service,
+                    hashlib.sha256(user_id.encode()).hexdigest(),
+                    chat_id,
+                )
+            except Exception as ledger_error:
+                logger.warning(
+                    "Failed to invalidate routing ledger after message deletion: %s",
+                    ledger_error.__class__.__name__,
+                )
 
             # 2b. Remove associated embeds from cache (if any)
             if embed_ids_to_delete:

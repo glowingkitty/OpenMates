@@ -39,7 +39,7 @@ Usage Settings - View usage statistics and export usage data
     interface UsageEntry {
         id: string;
         type: string;
-        source?: string; // "chat", "api_key", or "direct"
+        source?: string; // "chat", "api_key", "direct", "workflow", or "workflow_test"
         app_id?: string; // Cleartext - always available for new entries
         skill_id?: string; // Cleartext - always available for new entries
         model_used?: string;
@@ -104,12 +104,14 @@ Usage Settings - View usage statistics and export usage data
 
     // Daily overview item interface (returned from API)
     interface DailyOverviewItem {
-        type: 'chat' | 'api_key';
+        type: 'chat' | 'api_key' | 'workflow' | 'workflow_test';
         chat_id: string | null;
         api_key_hash: string | null;
+        app_id?: string | null;
+        skill_id?: string | null;
         total_credits: number;
         entry_count: number;
-        updated_at: string | null;
+        updated_at: string | number | null;
         // Chat metadata enrichment from backend (encrypted, client decrypts)
         encrypted_title?: string | null;
         encrypted_category?: string | null;
@@ -1340,6 +1342,19 @@ Usage Settings - View usage statistics and export usage data
         }
     }
 
+    function getWorkflowAppName(appId: string | null | undefined): string {
+        if (!appId) return $text('settings.usage.workflow_app_activity');
+        const app = appsMetadata[appId];
+        if (!app?.name_translation_key) return $text('settings.usage.workflow_app_activity');
+        return $text(app.name_translation_key);
+    }
+
+    function getWorkflowSkillName(appId: string | null | undefined, skillId: string | null | undefined): string | null {
+        if (!appId || !skillId) return null;
+        const translationKey = getSkillTranslationKey(appId, skillId);
+        return translationKey ? $text(translationKey) : null;
+    }
+
     /**
      * Shorten a decrypted API key prefix for display so users can identify keys without leaking full values.
      */
@@ -2025,6 +2040,24 @@ Usage Settings - View usage statistics and export usage data
                                     overviewSelectedChatId = item.chat_id;
                                     await fetchChatEntries(item.chat_id!);
                                 }}
+                            />
+                        {:else if item.type === 'workflow' || item.type === 'workflow_test'}
+                            {@const workflowAppName = getWorkflowAppName(item.app_id)}
+                            {@const workflowSkillName = getWorkflowSkillName(item.app_id, item.skill_id)}
+                            {@const workflowContextLabel = item.type === 'workflow'
+                                ? $text('settings.usage.workflow_run')
+                                : $text('settings.usage.workflow_test')}
+
+                            <SettingsItem
+                                type="quickaction"
+                                icon={item.app_id && appsMetadata[item.app_id] ? getAppIconName(item.app_id) : 'workflow'}
+                                iconBackground="none"
+                                title={workflowAppName}
+                                subtitleBottom={workflowSkillName
+                                    ? `${workflowContextLabel} · ${workflowSkillName}`
+                                    : workflowContextLabel}
+                                creditsDisplay={formatCredits(item.total_credits)}
+                                data-testid="usage-overview-workflow-row"
                             />
                         {/if}
                         <!-- api_key items are intentionally excluded from the overview tab -->

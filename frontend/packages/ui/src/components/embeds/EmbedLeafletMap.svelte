@@ -21,6 +21,7 @@
 
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
+  import { text } from '../../i18n/translations';
   import mapsMarkerIconSvg from '../../../static/icons/maps.svg?raw';
   import { isDarkThemeActive, watchDarkThemeActive } from '../../utils/themeDetection';
 
@@ -375,10 +376,12 @@
 
   let mapInitializing = false;
   let mapDestroyed = false;
+  let mapLoadFailed = $state(false);
 
   async function initLeafletMap() {
     if (!mapContainer || mapInitializing || leafletMap || mapDestroyed) return;
     mapInitializing = true;
+    mapLoadFailed = false;
 
     try {
       const L = (await import('leaflet')).default;
@@ -431,6 +434,8 @@
 
     } catch (err) {
       console.error('[EmbedLeafletMap] Failed to init Leaflet map:', err);
+      disposeLeafletMap();
+      if (!mapDestroyed) mapLoadFailed = true;
     } finally {
       mapInitializing = false;
     }
@@ -441,8 +446,9 @@
     if (mapContainer) untrack(() => { void initLeafletMap(); });
   });
 
-  onDestroy(() => {
-    mapDestroyed = true;
+  // Initialization can fail after Leaflet has claimed the container. Dispose
+  // partial state as well as completed maps so a retry can reuse the element.
+  function disposeLeafletMap() {
     if (mapResizeObserver) {
       mapResizeObserver.disconnect();
       mapResizeObserver = null;
@@ -468,6 +474,11 @@
     tilesLoaded = false;
     lastFitGeometrySignature = '';
     lastLayerSignature = '';
+  }
+
+  onDestroy(() => {
+    mapDestroyed = true;
+    disposeLeafletMap();
   });
 
   $effect(() => {
@@ -485,15 +496,54 @@
   });
 </script>
 
+<div class="embed-leaflet-map-shell" style="height: {height}; min-height: {minHeight};">
 <div
   class="embed-leaflet-map"
   data-testid="embed-leaflet-map"
   data-tiles-loaded={tilesLoaded ? 'true' : 'false'}
+  data-map-ready={leafletReady ? 'true' : 'false'}
   style="height: {height}; min-height: {minHeight};"
   bind:this={mapContainer}
 ></div>
+{#if mapLoadFailed}
+  <div class="map-load-error" role="alert" data-testid="embed-map-load-error">
+    <p>{$text('common.detail_load_error', { values: { item: $text('apps.maps') } })}</p>
+    <button type="button" onclick={() => void initLeafletMap()} data-testid="embed-map-retry">
+      {$text('common.retry')}
+    </button>
+  </div>
+{/if}
+</div>
 
 <style>
+  .embed-leaflet-map-shell {
+    position: relative;
+    width: 100%;
+  }
+
+  .map-load-error {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+    z-index: 1;
+  }
+
+  .map-load-error button {
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    font: inherit;
+    color: var(--color-font-primary);
+    background: var(--color-grey-0);
+    border: 1px solid var(--color-grey-30);
+    border-radius: 0.5rem;
+  }
+
   .embed-leaflet-map {
     width: 100%;
     isolation: isolate;

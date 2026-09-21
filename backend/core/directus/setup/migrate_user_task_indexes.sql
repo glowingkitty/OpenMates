@@ -3,14 +3,15 @@
 -- key wrappers grow. All statements are idempotent for Directus setup reruns.
 
 UPDATE user_tasks
-SET assignee_type = CASE
-        WHEN external_chat_provider = 'opencode' THEN 'external_ai'
-        ELSE 'openmates'
-    END,
-    assignee_identity = CASE
-        WHEN external_chat_provider = 'opencode' THEN 'opencode'
-        ELSE 'openmates'
-    END,
+SET assignee_type = 'external_ai',
+    assignee_identity = 'codex',
+    assignee_hash = NULL
+WHERE assignee_type = 'ai'
+  AND external_chat_provider = 'codex';
+
+UPDATE user_tasks
+SET assignee_type = 'openmates',
+    assignee_identity = 'openmates',
     assignee_hash = NULL
 WHERE assignee_type = 'ai';
 

@@ -526,7 +526,7 @@ def test_proof_video_publish_uploads_response_media_without_discord(
             stdout = json.dumps(
                 {
                     "expires_in": 172800,
-                    "key": "opencode-responses/proof.mp4",
+                    "key": "review-responses/proof.mp4",
                     "sha256": "sha256:" + hashlib.sha256(b"video").hexdigest(),
                     "snippets": {
                         "html": "<video controls><source src=\"https://example.invalid/proof.mp4\"></video>",

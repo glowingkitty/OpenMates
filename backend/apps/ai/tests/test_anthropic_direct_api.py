@@ -8,6 +8,7 @@
 
 import asyncio
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from typing import List
 from unittest.mock import MagicMock
 
@@ -73,3 +74,114 @@ def test_adaptive_thinking_models_omit_deprecated_temperature(model_id, expected
         assert "temperature" not in request_kwargs
 
     asyncio.run(run())
+
+
+@pytest.mark.skipif(
+    not HAS_ANTHROPIC_DIRECT_API,
+    reason="Anthropic direct API dependencies not installed",
+)
+def test_stream_accumulates_indexed_tool_json_and_yields_each_tool_once():
+    """Anthropic streams tool arguments after an empty tool-use start block."""
+
+    events = [
+        SimpleNamespace(
+            type="content_block_delta",
+            index=9,
+            delta=SimpleNamespace(type="text_delta", text="Checking "),
+        ),
+        SimpleNamespace(
+            type="content_block_start",
+            index=0,
+            content_block=SimpleNamespace(
+                type="tool_use", id="tool-weather", name="weather", input={}
+            ),
+        ),
+        SimpleNamespace(
+            type="content_block_delta",
+            index=0,
+            delta=SimpleNamespace(type="input_json_delta", partial_json='{"location":"Lon'),
+        ),
+        SimpleNamespace(
+            type="content_block_delta",
+            index=0,
+            delta=SimpleNamespace(type="input_json_delta", partial_json='don"}'),
+        ),
+        SimpleNamespace(type="content_block_stop", index=0),
+        SimpleNamespace(
+            type="content_block_start",
+            index=1,
+            content_block=SimpleNamespace(
+                type="tool_use", id="tool-time", name="time", input={}
+            ),
+        ),
+        SimpleNamespace(
+            type="content_block_delta",
+            index=1,
+            delta=SimpleNamespace(type="input_json_delta", partial_json='{"utc_offset":"+01:00"}'),
+        ),
+        SimpleNamespace(type="content_block_stop", index=1),
+    ]
+
+    async def run():
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = events
+        stream = await invoke_direct_api(
+            task_id="test-streamed-tool-json",
+            model_id="claude-sonnet-5",
+            messages=[{"role": "user", "content": "Weather and time in London"}],
+            anthropic_client=mock_client,
+            stream=True,
+        )
+        return [item async for item in stream]
+
+    output = asyncio.run(run())
+    tool_calls = [item for item in output if hasattr(item, "tool_call_id")]
+
+    assert output[0] == "Checking "
+    assert [call.tool_call_id for call in tool_calls] == ["tool-weather", "tool-time"]
+    assert [call.function_arguments_parsed for call in tool_calls] == [
+        {"location": "London"},
+        {"utc_offset": "+01:00"},
+    ]
+    assert [call.function_arguments_raw for call in tool_calls] == [
+        '{"location":"London"}',
+        '{"utc_offset":"+01:00"}',
+    ]
+    assert output[-1].total_tokens >= output[-1].output_tokens > 0
+
+
+@pytest.mark.skipif(
+    not HAS_ANTHROPIC_DIRECT_API,
+    reason="Anthropic direct API dependencies not installed",
+)
+def test_streamed_tool_with_malformed_json_fails_visibly():
+    events = [
+        SimpleNamespace(
+            type="content_block_start",
+            index=3,
+            content_block=SimpleNamespace(
+                type="tool_use", id="tool-weather", name="weather", input={}
+            ),
+        ),
+        SimpleNamespace(
+            type="content_block_delta",
+            index=3,
+            delta=SimpleNamespace(type="input_json_delta", partial_json='{"location":'),
+        ),
+        SimpleNamespace(type="content_block_stop", index=3),
+    ]
+
+    async def run():
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = events
+        stream = await invoke_direct_api(
+            task_id="test-malformed-streamed-tool-json",
+            model_id="claude-sonnet-5",
+            messages=[{"role": "user", "content": "Weather in London"}],
+            anthropic_client=mock_client,
+            stream=True,
+        )
+        return [item async for item in stream]
+
+    with pytest.raises(IOError, match="emitted invalid JSON arguments"):
+        asyncio.run(run())

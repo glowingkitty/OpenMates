@@ -66,9 +66,9 @@ Pair-auth login via magic link + PIN remains the default login path. `openmates 
 
 Named authentication profiles use `--profile <name>` or `OPENMATES_PROFILE=<name>`
 and store credentials under `~/.openmates/profiles/<name>/`. Logging into the
-default profile does not renew a named profile. OpenCode's trusted task bridge
-uses `opencode-personal`; its recovery command is
-`OPENMATES_PROFILE=opencode-personal openmates login --api-url https://api.dev.openmates.org`.
+default profile does not renew a named profile. Codex's trusted task bridge
+uses `codex-personal`; its recovery command is
+`OPENMATES_PROFILE=codex-personal openmates login --api-url https://api.dev.openmates.org`.
 The trusted-account guard rejects attempts to select another profile.
 
 Session validation and WebSocket token refresh acquire a per-profile process

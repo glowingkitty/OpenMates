@@ -22,6 +22,29 @@ struct PasswordLoginView: View {
     let onAnotherAccount: () -> Void
     let onAccountRecovery: () -> Void
 
+    var body: some View {
+        PasswordLoginForm(email: email, tfaEnabled: tfaEnabled,
+            onRecoveryKey: onRecoveryKey, onAnotherAccount: onAnotherAccount,
+            onAccountRecovery: onAccountRecovery, login: { password, code, codeType in
+                try await authManager.loginWithPassword(email: email, password: password,
+                    userEmailSalt: userEmailSalt, tfaCode: code, codeType: codeType,
+                    stayLoggedIn: stayLoggedIn)
+            })
+    }
+}
+
+// Required callback preserves the existing password/OTP/backup state machine.
+// The live wrapper is the only place that accesses AuthManager or credentials.
+struct PasswordLoginForm: View {
+    enum InitialStep { case password, otp }
+    let email: String
+    let tfaEnabled: Bool
+    let onRecoveryKey: () -> Void
+    let onAnotherAccount: () -> Void
+    let onAccountRecovery: () -> Void
+    let login: @MainActor (String, String?, String?) async throws -> Void
+    var initialStep: InitialStep = .password
+
     @State private var password = ""
     @State private var tfaCode = ""
     @State private var showTfaField = false
@@ -93,6 +116,7 @@ struct PasswordLoginView: View {
 
                 if let errorMessage {
                     Text(errorMessage)
+                        .accessibilityIdentifier("password-login-error")
                         .font(.omXs)
                         .foregroundStyle(Color.error)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -119,6 +143,7 @@ struct PasswordLoginView: View {
                 .padding(.top, .spacing3)
         }
         .onAppear {
+            if initialStep == .otp { showTfaField = true }
             focusedField = .password
         }
     }
@@ -126,6 +151,7 @@ struct PasswordLoginView: View {
     private var loginOptionsContainer: some View {
         VStack(alignment: .leading, spacing: .spacing4) {
             loginOption(icon: "user", title: AppStrings.loginWithAnotherAccount, action: onAnotherAccount)
+                .accessibilityIdentifier("login-another-account")
 
             if showTfaField {
                 loginOption(
@@ -136,9 +162,11 @@ struct PasswordLoginView: View {
                     tfaCode = ""
                     focusedField = .tfa
                 }
+                .accessibilityIdentifier("login-code-mode")
             }
 
             loginOption(icon: "warning", title: AppStrings.loginWithRecoveryKey, action: onRecoveryKey)
+                .accessibilityIdentifier("login-recovery-key")
 
             Rectangle()
                 .fill(Color.grey30)
@@ -147,6 +175,7 @@ struct PasswordLoginView: View {
                 .padding(.bottom, .spacing2)
 
             loginOption(icon: "warning", title: AppStrings.cantLogin, action: onAccountRecovery)
+                .accessibilityIdentifier("login-account-recovery")
         }
         .fixedSize(horizontal: true, vertical: false)
         .frame(maxWidth: .infinity, alignment: .center)
@@ -169,20 +198,14 @@ struct PasswordLoginView: View {
     }
 
     private func performLogin() {
-        guard !password.isEmpty else { return }
+        guard isFormValid, !isLoading else { return }
         isLoading = true
         errorMessage = nil
 
         Task {
             do {
-                try await authManager.loginWithPassword(
-                    email: email,
-                    password: password,
-                    userEmailSalt: userEmailSalt,
-                    tfaCode: showTfaField ? tfaCode : nil,
-                    codeType: showTfaField ? (isBackupMode ? "backup" : "otp") : nil,
-                    stayLoggedIn: stayLoggedIn
-                )
+                try await login(password, showTfaField ? tfaCode : nil,
+                    showTfaField ? (isBackupMode ? "backup" : "otp") : nil)
             } catch AuthError.tfaRequired {
                 NativeDiagnostics.info("phase=passwordLogin.revealTFA", category: "auth")
                 revealTfaField(passwordError: nil)
@@ -216,12 +239,7 @@ struct PasswordLoginView: View {
     }
 
     private func sanitizeTfaCode(_ rawValue: String) {
-        let filtered: String
-        if isBackupMode {
-            filtered = String(rawValue.uppercased().filter { $0.isLetter || $0.isNumber }.prefix(32))
-        } else {
-            filtered = String(rawValue.filter { $0.isNumber }.prefix(6))
-        }
+        let filtered = PasswordLoginInputPolicy.sanitizedCode(rawValue, backup: isBackupMode)
         if filtered != rawValue {
             tfaCode = filtered
         }

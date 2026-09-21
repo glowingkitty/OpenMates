@@ -5,10 +5,147 @@
 
 import XCTest
 import CoreFoundation
+import SwiftData
 @testable import OpenMates
 
 @MainActor
 final class ChatSyncParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative,chat-navigation.open.local-first-coherent
+    func testChatMergeKeepsDraftDeletionFenceThroughLatePageAndPersistenceCopies() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        func wire(_ fields: [String: Any]) throws -> Chat {
+            var row: [String: Any] = ["id": "chat-1", "created_at": "2026-01-01T00:00:00Z"]
+            row.merge(fields) { _, incoming in incoming }
+            return try decoder.decode(Chat.self, from: JSONSerialization.data(withJSONObject: row))
+        }
+        let store = ChatStore()
+        store.upsertChat(try wire(["draft_v": 7, "messages_v": 2, "encrypted_draft_md": "cipher-seven"]))
+        store.upsertChat(try wire(["draft_v": 4, "encrypted_draft_md": "older-cipher"]))
+        XCTAssertEqual(store.chat(for: "chat-1")?.draftV, 7)
+        store.upsertChat(try wire(["draft_v": 0, "cleared_draft_v": 8,
+                                   "encrypted_draft_md": NSNull()]))
+        store.upsertChat(try wire(["draft_v": 7, "encrypted_draft_md": "late-cipher"]))
+        store.updateLastVisibleMessage(chatId: "chat-1", messageId: "last")
+        store.advanceMessagesVersion(chatId: "chat-1", to: 4)
+        let cleared = try XCTUnwrap(store.chat(for: "chat-1"))
+        XCTAssertEqual(cleared.draftV, 0)
+        XCTAssertEqual(cleared.hasNonEmptyDraft, false)
+        XCTAssertEqual(cleared.clearedDraftV, 8)
+        let persisted = PersistedChat(from: cleared).toChat()
+        XCTAssertEqual(persisted.clearedDraftV, 8)
+        XCTAssertEqual(persisted.hasNonEmptyDraft, false)
+        store.upsertChat(try wire(["draft_v": 9, "encrypted_draft_md": "fresh-cipher"]))
+        XCTAssertEqual(store.chat(for: "chat-1")?.draftV, 9)
+        XCTAssertEqual(store.chat(for: "chat-1")?.hasNonEmptyDraft, true)
+        store.upsertChat(try wire(["draft_v": 0, "cleared_draft_v": 8, "encrypted_draft_md": NSNull()]))
+        XCTAssertEqual(store.chat(for: "chat-1")?.draftV, 9)
+        XCTAssertEqual(store.chat(for: "chat-1")?.hasNonEmptyDraft, true)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testFinalStreamAppendKeepsMatchingPendingCiphertextAndThinkingMetadata() {
+        let store = ChatStore()
+        let persisted = Message(id: "reply", chatId: "chat-1", role: .assistant,
+                                content: "A complete response", encryptedContent: "local-ciphertext",
+                                createdAt: "2026-01-01T00:00:01Z", updatedAt: nil,
+                                appId: "ai", isStreaming: false, embedRefs: nil,
+                                modelName: "fixture-model", encryptedModelName: "encrypted-model",
+                                thinkingContent: "Fixture reasoning", encryptedThinkingContent: "encrypted-thinking")
+        let lateStream = Message(id: persisted.id, chatId: persisted.chatId, role: .assistant,
+                                 content: persisted.content, encryptedContent: nil,
+                                 createdAt: persisted.createdAt, updatedAt: nil,
+                                 appId: nil, isStreaming: false, embedRefs: nil)
+        store.setPendingAssistantRecoveryLookup { _ in ["reply"] }
+        store.appendMessage(persisted, to: "chat-1")
+        store.appendMessage(lateStream, to: "chat-1")
+        let result = store.messages(for: "chat-1").first
+        XCTAssertEqual(result?.encryptedContent, "local-ciphertext")
+        XCTAssertEqual(result?.thinkingContent, "Fixture reasoning")
+        XCTAssertEqual(result?.encryptedThinkingContent, "encrypted-thinking")
+        XCTAssertEqual(result?.modelName, "fixture-model")
+        XCTAssertEqual(store.messages(for: "chat-1").count, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testPendingReplyNeverAttachesPriorCiphertextToChangedPlaintext() {
+        let store = ChatStore()
+        let persisted = makeMessage(id: "reply", createdAt: "2026-01-01T00:00:01Z",
+                                    role: .assistant, encryptedContent: "previous-ciphertext")
+        var changed = makeMessage(id: "reply", createdAt: persisted.createdAt, role: .assistant)
+        changed.content = "Updated terminal content"
+        store.setPendingAssistantRecoveryLookup { _ in ["reply"] }
+        store.appendMessage(persisted, to: "chat-1")
+        store.appendMessage(changed, to: "chat-1")
+        XCTAssertEqual(store.messages(for: "chat-1").first?.content, "Updated terminal content")
+        XCTAssertNil(store.messages(for: "chat-1").first?.encryptedContent)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testOrdinaryAppendDoesNotTreatOldCiphertextAsPendingRecovery() {
+        let store = ChatStore()
+        let persisted = makeMessage(id: "reply", createdAt: "2026-01-01T00:00:01Z",
+                                    role: .assistant, encryptedContent: "previous-ciphertext")
+        let replacement = makeMessage(id: "reply", createdAt: persisted.createdAt, role: .assistant)
+        store.appendMessage(persisted, to: "chat-1")
+        store.appendMessage(replacement, to: "chat-1")
+        XCTAssertNil(store.messages(for: "chat-1").first?.encryptedContent)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testSyncRetainsOnlyPendingAssistantRepliesUntilTheirServerCommit() {
+        let store = ChatStore()
+        let user = makeMessage(id: "user", createdAt: "2026-01-01T00:00:00Z")
+        let pending = makeMessage(id: "pending", createdAt: "2026-01-01T00:00:02Z", role: .assistant)
+        let deleted = makeMessage(id: "deleted", createdAt: "2026-01-01T00:00:01Z", role: .assistant)
+        store.setMessages(for: "chat-1", messages: [user, deleted, pending])
+        var pendingIds: Set<String> = ["pending"]
+        store.setPendingAssistantRecoveryLookup { $0 == "chat-1" ? pendingIds : [] }
+
+        store.applySyncedContent(messagesByChat: ["chat-1": [user]], embedsByChat: [:])
+        XCTAssertEqual(store.messages(for: "chat-1").map(\.id), ["user", "pending"])
+
+        pendingIds.removeAll()
+        store.applySyncedContent(messagesByChat: ["chat-1": [user]], embedsByChat: [:])
+        XCTAssertEqual(store.messages(for: "chat-1").map(\.id), ["user"], "Completed or discarded jobs must not pin absent history forever")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testServerCiphertextReplacesPendingReplyWithoutDuplicatingIt() {
+        let store = ChatStore()
+        let pending = makeMessage(id: "reply", createdAt: "2026-01-01T00:00:01Z", role: .assistant)
+        let committed = makeMessage(id: "reply", createdAt: pending.createdAt, role: .assistant,
+                                    encryptedContent: "server-ciphertext")
+        store.setMessages(for: "chat-1", messages: [pending])
+        store.setPendingAssistantRecoveryLookup { _ in ["reply"] }
+        store.applySyncedContent(messagesByChat: ["chat-1": [committed]], embedsByChat: [:])
+        XCTAssertEqual(store.messages(for: "chat-1").count, 1)
+        XCTAssertEqual(store.messages(for: "chat-1").first?.encryptedContent, "server-ciphertext")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testPendingRecoveryCannotRetainUserRowsOrRowsFromAnotherChat() {
+        let store = ChatStore()
+        let user = makeMessage(id: "user", createdAt: "2026-01-01T00:00:00Z")
+        let foreign = makeMessage(id: "foreign", createdAt: "2026-01-01T00:00:01Z", role: .assistant, chatId: "chat-2")
+        store.setMessages(for: "chat-1", messages: [user, foreign])
+        store.setPendingAssistantRecoveryLookup { _ in ["user", "foreign"] }
+        store.applySyncedContent(messagesByChat: ["chat-1": []], embedsByChat: [:])
+        XCTAssertTrue(store.messages(for: "chat-1").isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testSyncPreservingPendingReplyDoesNotAdvanceAdvertisedMessageVersion() {
+        let store = ChatStore()
+        store.upsertChat(makeChat(id: "chat-1", title: "Fixture"))
+        let before = store.makeSyncClientState(clientSuggestionsCount: 0).clientChatVersions
+        store.setMessages(for: "chat-1", messages: [makeMessage(id: "reply", createdAt: "2026-01-01T00:00:01Z", role: .assistant)])
+        store.setPendingAssistantRecoveryLookup { _ in ["reply"] }
+        store.applySyncedContent(messagesByChat: ["chat-1": []], embedsByChat: [:])
+        XCTAssertEqual(store.makeSyncClientState(clientSuggestionsCount: 0).clientChatVersions, before)
+        XCTAssertEqual(store.messages(for: "chat-1").map(\.id), ["reply"])
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testSearchMetadataExpansionIncludesOlderEncryptedTitlesWithoutReplacingLiveRows() {
         let live = makeChat(id: "loaded", title: "Current decrypted title")
@@ -171,6 +308,87 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(merged?.isHiddenCandidate, true)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chat-navigation.open.local-first-coherent
+    func testContinuationUsesActualWireDraftPresenceInsteadOfVersion() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        func decoded(_ id: String, encryptedDraft: Any, version: Int, timestamp: Int) throws -> Chat {
+            try decoder.decode(Chat.self, from: JSONSerialization.data(withJSONObject: [
+                "id": id, "title": id, "created_at": 1, "updated_at": timestamp,
+                "last_edited_overall_timestamp": timestamp, "draft_v": version,
+                "encrypted_draft_md": encryptedDraft
+            ]))
+        }
+        let cleared = try decoded("cleared", encryptedDraft: NSNull(), version: 9, timestamp: 30)
+        let empty = try decoded("empty", encryptedDraft: "", version: 4, timestamp: 20)
+        let actual = try decoded("actual", encryptedDraft: "encrypted-body", version: 0, timestamp: 10)
+        XCTAssertEqual(WelcomeScreenState.recentChats(from: [cleared, empty, actual], excluding: nil).map(\.id),
+                       ["actual", "cleared", "empty"])
+        XCTAssertEqual(PersistedChat(from: actual).toChat().hasNonEmptyDraft, true)
+        XCTAssertEqual(PersistedChat(from: cleared).toChat().hasNonEmptyDraft, false)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testMetadataUpdateDoesNotInventMessageRecencyAndEqualTiesIgnoreSidebarOrder() throws {
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let onlyMetadata = try decoder.decode(Chat.self, from: Data(#"{"id":"metadata-only","title":"Metadata","created_at":1,"updated_at":9999999999}"#.utf8))
+        XCTAssertNil(onlyMetadata.lastMessageAt, "Editing metadata must not become a message timestamp")
+        let a = makeChat(id: "a", title: "A")
+        let z = makeChat(id: "z", title: "Z")
+        let store = ChatStore()
+        store.upsertChats([a, z, onlyMetadata], serverSortOrder: ["a", "z"])
+        XCTAssertEqual(WelcomeScreenState.recentChats(from: store.chats, excluding: nil).map(\.id), ["z", "a", "metadata-only"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative,chat-navigation.open.local-first-coherent
+    func testDraftPresenceSurvivesPartialMetadataAndClearsOnActualDelete() {
+        let store = ChatStore()
+        store.upsertChat(makeChat(id: "draft", title: "Draft", draftV: 7, hasNonEmptyDraft: true))
+        store.upsertChat(makeChat(id: "draft", title: "Metadata", draftV: 7))
+        XCTAssertEqual(store.chat(for: "draft")?.hasNonEmptyDraft, true)
+        store.advanceMessagesVersion(chatId: "draft", to: 3)
+        store.updateLastVisibleMessage(chatId: "draft", messageId: "message")
+        XCTAssertEqual(store.chat(for: "draft")?.hasNonEmptyDraft, true)
+        store.updateDraftVersion(chatId: "draft", draftVersion: 0)
+        XCTAssertEqual(store.chat(for: "draft")?.hasNonEmptyDraft, false)
+        store.updateDraftVersion(chatId: "draft", draftVersion: 1, hasNonEmptyDraft: true)
+        XCTAssertEqual(store.chat(for: "draft")?.hasNonEmptyDraft, true)
+        store.upsertChat(makeChat(id: "draft", title: "Deleted", draftV: 8, hasNonEmptyDraft: false))
+        XCTAssertEqual(store.chat(for: "draft")?.hasNonEmptyDraft, false)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
+    func testContinuationCapKeepsViewedChatFirstWithoutResortingOtherChatsByOpening() {
+        let older = makeChat(id: "viewed", title: "Viewed", lastMessageAt: "2025-01-01T00:00:00Z")
+        let recent = (0..<15).map { makeChat(id: String(format: "recent-%02d", $0), title: "Recent") }
+        let chats = recent + [older]
+        let resume = WelcomeScreenState.resumeChat(from: chats, lastOpened: older.id)
+        let other = WelcomeScreenState.recentChats(from: chats, excluding: resume?.id, activeChatId: "recent-14")
+        XCTAssertEqual(resume?.id, older.id)
+        XCTAssertEqual(other.count, 9)
+        XCTAssertEqual(other.first?.id, "recent-13")
+        XCTAssertFalse(other.contains { $0.id == older.id || $0.id == "recent-14" })
+        XCTAssertEqual(WelcomeScreenState.recentChats(from: chats, excluding: nil).count, 10)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent,chats.local-state.precedence
+    func testColdStartupIncludesOlderPinnedDraftAndUnpinnedDraftMetadataBeyondRecentPage() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("ContinuationPolicyTests", schema: schema, isStoredInMemoryOnly: true)
+        let store = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        let recent = (0..<40).map { makeChat(id: "recent-\($0)", title: "Recent", lastMessageAt: "2026-09-12T00:00:00Z") }
+        let pinnedRecent = (0..<30).map { makeChat(id: "pinned-\($0)", title: "Pinned", lastMessageAt: "2026-01-01T00:00:00Z", isPinned: true) }
+        let pinnedDraft = makeChat(id: "older-pinned-draft", title: "Pinned draft", lastMessageAt: "2025-01-01T00:00:00Z", isPinned: true, draftV: 3, hasNonEmptyDraft: true)
+        let draft = makeChat(id: "older-draft", title: "Draft", lastMessageAt: "2025-01-02T00:00:00Z", draftV: 2, hasNonEmptyDraft: true)
+        store.persistChats(recent + pinnedRecent + [pinnedDraft, draft])
+        let loaded = store.loadStartupChats(lastOpenedChatId: nil, limit: 20)
+        XCTAssertTrue(loaded.contains { $0.id == pinnedDraft.id })
+        XCTAssertTrue(loaded.contains { $0.id == draft.id })
+        XCTAssertLessThanOrEqual(loaded.count, 80, "Four metadata groups remain bounded; no transcript is loaded")
+        XCTAssertEqual(WelcomeScreenState.recentChats(from: loaded, excluding: nil).first?.id, pinnedDraft.id)
+        XCTAssertTrue(store.loadMessages(chatId: pinnedDraft.id).isEmpty)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
     func testWelcomeResumeAndRecentChatsExcludeHiddenCandidates() {
         let visible = makeChat(id: "visible-chat", title: "Visible", lastMessageAt: "2026-01-02T00:00:00Z")
@@ -191,7 +409,7 @@ final class ChatSyncParityTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
     func testContinuationMatchesPinnedDraftRecentOrderAndSkipsSubChats() {
         let recent = makeChat(id: "recent", title: "Recent", lastMessageAt: "2026-03-01T00:00:00Z")
-        let draft = makeChat(id: "draft", title: nil, messagesV: 0, draftV: 2)
+        let draft = makeChat(id: "draft", title: nil, messagesV: 0, draftV: 2, hasNonEmptyDraft: true)
         let pinned = makeChat(id: "pinned", title: "Pinned", isPinned: true)
         let child = makeChat(id: "child", title: "Child", parentId: "recent", isSubChat: true)
         let incognito = makeChat(id: "incognito-private", title: "Private")
@@ -355,7 +573,8 @@ final class ChatSyncParityTests: XCTestCase {
         isHiddenCandidate: Bool? = nil,
         isPinned: Bool = false,
         draftV: Int? = nil,
-        encryptedTitle: String? = nil
+        encryptedTitle: String? = nil,
+        hasNonEmptyDraft: Bool? = nil
     ) -> Chat {
         Chat(
             id: id,
@@ -376,17 +595,19 @@ final class ChatSyncParityTests: XCTestCase {
             isSubChat: isSubChat,
             encryptedActiveFocusId: encryptedActiveFocusId,
             isHidden: isHidden,
-            isHiddenCandidate: isHiddenCandidate
+            isHiddenCandidate: isHiddenCandidate,
+            hasNonEmptyDraft: hasNonEmptyDraft
         )
     }
 
-    private func makeMessage(id: String, createdAt: String) -> Message {
+    private func makeMessage(id: String, createdAt: String, role: MessageRole = .user,
+                             chatId: String = "chat-1", encryptedContent: String? = nil) -> Message {
         Message(
             id: id,
-            chatId: "chat-1",
-            role: .user,
+            chatId: chatId,
+            role: role,
             content: id,
-            encryptedContent: nil,
+            encryptedContent: encryptedContent,
             createdAt: createdAt,
             updatedAt: nil,
             appId: nil,

@@ -12,11 +12,12 @@ import inspect
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
+from backend.apps.ai.assistant_speech.projection import speech_fallback_variants
 from backend.apps.ai.assistant_speech.streaming import _speech_source_identity
 
 MAX_SEGMENTS_PER_REQUEST = 20
 MAX_SPEAKABLE_TEXT_LENGTH = 2_000
-SAFE_RESULT_FIELDS = ("segment_id", "sequence", "status", "generated_asset_id", "duration_seconds", "error", "retryable", "kind")
+SAFE_RESULT_FIELDS = ("segment_id", "sequence", "request_sequence", "status", "generated_asset_id", "duration_seconds", "error", "retryable", "kind")
 ASSISTANT_SPEECH_REDELIVERABLE_STATUSES = {"ready"}
 ASSISTANT_SPEECH_INELIGIBLE_STATUSES = {"cancelled", "deleted", "invalidated"}
 HISTORICAL_SPEECH_VOICE_PROFILE = {"key": "george", "version": 1}
@@ -189,15 +190,8 @@ async def handle_assistant_speech_event(
 
     sequence_offsets: dict[tuple[str, str, int], int] = {}
 
-    async def find_canonical_segment(
-        segment: Mapping[str, object],
-        *,
-        chat_id: object,
-        assistant_message_id: object,
-    ) -> Mapping[str, object] | None:
-        text = str(segment.get("speakable_text") or "").strip()
-        source_hash = _speech_source_identity(text)
-        offset_key = (str(chat_id), str(assistant_message_id), int(segment["source_version"]))
+    async def sequence_offset_for(*, chat_id: object, assistant_message_id: object, source_version: int) -> int:
+        offset_key = (str(chat_id), str(assistant_message_id), source_version)
         if offset_key not in sequence_offsets:
             prelude_rows = await directus_service.get_items(
                 "assistant_speech_segments",
@@ -205,7 +199,7 @@ async def handle_assistant_speech_event(
                     "filter[user_id][_eq]": user_id,
                     "filter[chat_id][_eq]": chat_id,
                     "filter[assistant_message_id][_eq]": assistant_message_id,
-                    "filter[source_version][_eq]": segment["source_version"],
+                    "filter[source_version][_eq]": source_version,
                     "filter[sequence][_eq]": 0,
                     "filter[kind][_eq]": "app_use_announcement",
                     "limit": 1,
@@ -213,22 +207,86 @@ async def handle_assistant_speech_event(
                 no_cache=True,
             )
             sequence_offsets[offset_key] = 1 if prelude_rows else 0
-        sequence_offset = sequence_offsets[offset_key]
-        rows = await directus_service.get_items(
-            "assistant_speech_segments",
-            params={
-                "filter[user_id][_eq]": user_id,
-                "filter[chat_id][_eq]": chat_id,
-                "filter[assistant_message_id][_eq]": assistant_message_id,
-                "filter[source_version][_eq]": segment["source_version"],
-                "filter[sequence][_eq]": int(segment["sequence"]) + sequence_offset,
-                "filter[kind][_eq]": segment["kind"],
-                "filter[source_hash][_eq]": source_hash,
-                "limit": 1,
-            },
-            no_cache=True,
+        return sequence_offsets[offset_key]
+
+    async def find_canonical_segment(
+        segment: Mapping[str, object],
+        *,
+        chat_id: object,
+        assistant_message_id: object,
+        excluded_segment_ids: set[str] | None = None,
+    ) -> tuple[Mapping[str, object], str] | None:
+        text = str(segment.get("speakable_text") or "").strip()
+        source_version = int(segment["source_version"])
+        request_sequence = int(segment.get("request_sequence", segment["sequence"]))
+        sequence_offset = await sequence_offset_for(
+            chat_id=chat_id,
+            assistant_message_id=assistant_message_id,
+            source_version=source_version,
         )
-        return rows[0] if rows else None
+        base_filters = {
+            "filter[user_id][_eq]": user_id,
+            "filter[chat_id][_eq]": chat_id,
+            "filter[assistant_message_id][_eq]": assistant_message_id,
+            "filter[source_version][_eq]": source_version,
+            "filter[kind][_eq]": segment["kind"],
+        }
+        excluded = excluded_segment_ids or set()
+
+        def eligible(row: Mapping[str, object]) -> bool:
+            return (
+                str(row.get("segment_id") or "") not in excluded
+                and str(row.get("status") or "") not in ASSISTANT_SPEECH_INELIGIBLE_STATUSES
+            )
+
+        async def exact_match(candidate_text: str) -> Mapping[str, object] | None:
+            rows = await directus_service.get_items(
+                "assistant_speech_segments",
+                params={
+                    **base_filters,
+                    "filter[source_hash][_eq]": _speech_source_identity(candidate_text),
+                    "filter[sequence][_eq]": request_sequence + sequence_offset,
+                    "limit": 1,
+                },
+                no_cache=True,
+            )
+            return next((row for row in rows if eligible(row)), None)
+
+        async def identity_match(candidate_text: str) -> Mapping[str, object] | None:
+            rows = await directus_service.get_items(
+                "assistant_speech_segments",
+                params={
+                    **base_filters,
+                    "filter[source_hash][_eq]": _speech_source_identity(candidate_text),
+                    "sort": "sequence",
+                    "limit": MAX_SEGMENTS_PER_REQUEST,
+                },
+                no_cache=True,
+            )
+            return next((row for row in rows if eligible(row)), None)
+
+        row = await exact_match(text)
+        if row:
+            return row, text
+
+        # Older projections could deduplicate repeated semantic summaries and
+        # shift every later sequence. Content identity remains canonical within
+        # this owner/message/version scope, so replay may safely recover it.
+        row = await identity_match(text)
+        if row:
+            return row, text
+
+        if str(segment["kind"]) in {"embed_summary", "code_summary", "table_summary"}:
+            variants = tuple(candidate for candidate in speech_fallback_variants(text) if candidate != text)
+            for candidate_text in variants:
+                row = await exact_match(candidate_text)
+                if row:
+                    return row, candidate_text
+            for candidate_text in variants:
+                row = await identity_match(candidate_text)
+                if row:
+                    return row, candidate_text
+        return None
 
     async def get_user_vault_key_id() -> str | None:
         vault_key_id = await cache_service.get_user_vault_key_id(user_id)
@@ -245,17 +303,18 @@ async def handle_assistant_speech_event(
         text = str(segment.get("speakable_text") or "")
         if not text:
             return False
-        existing = await find_canonical_segment(
+        match = await find_canonical_segment(
             segment,
             chat_id=kwargs["chat_id"],
             assistant_message_id=kwargs["assistant_message_id"],
         )
+        existing, canonical_text = match if match else (None, text)
         if existing and str(existing.get("status") or "") in ASSISTANT_SPEECH_REDELIVERABLE_STATUSES:
             return True
         try:
             await ensure_audio_credit_headroom(
                 user_id=user_id,
-                estimated_credits=calculate_assistant_response_speech_credits(submitted_characters=len(text)),
+                estimated_credits=calculate_assistant_response_speech_credits(submitted_characters=len(canonical_text)),
                 operation_name="assistant response speech",
                 log_prefix="[assistant-speech]",
             )
@@ -272,25 +331,33 @@ async def handle_assistant_speech_event(
         safe_results: list[dict[str, object]] = []
         normalized: list[dict[str, object]] = []
         historical_by_version: dict[int, list[dict[str, object]]] = {}
+        matched_segment_ids: set[str] = set()
         for segment in segments:
             if not isinstance(segment, Mapping):
                 continue
             text = str(segment.get("speakable_text") or "").strip()
             source_hash = _speech_source_identity(text)
-            row = await find_canonical_segment(
+            match = await find_canonical_segment(
                 segment,
                 chat_id=kwargs["chat_id"],
                 assistant_message_id=kwargs["assistant_message_id"],
+                excluded_segment_ids=matched_segment_ids,
             )
-            if row is None:
+            if match is None:
                 source_version = int(segment["source_version"])
-                sequence = int(segment["sequence"])
+                request_sequence = int(segment["sequence"])
+                sequence = request_sequence + await sequence_offset_for(
+                    chat_id=kwargs["chat_id"],
+                    assistant_message_id=kwargs["assistant_message_id"],
+                    source_version=source_version,
+                )
                 historical_by_version.setdefault(source_version, []).append({
                     "segment_id": hashlib.sha256(
                         f"{kwargs['chat_id']}:{kwargs['assistant_message_id']}:{source_version}:{sequence}:{source_hash}".encode(),
                     ).hexdigest(),
                     "source_version": source_version,
                     "sequence": sequence,
+                    "request_sequence": request_sequence,
                     "kind": str(segment["kind"]),
                     "source_hash": source_hash,
                     "speakable_text": text,
@@ -298,19 +365,22 @@ async def handle_assistant_speech_event(
                     "voice_profile_version": HISTORICAL_SPEECH_VOICE_PROFILE["version"],
                 })
                 continue
+            row, canonical_text = match
+            source_hash = _speech_source_identity(canonical_text)
+            matched_segment_ids.add(str(row["segment_id"]))
+            request_sequence = int(segment["sequence"])
             status = str(row.get("status") or "")
             if status in ASSISTANT_SPEECH_REDELIVERABLE_STATUSES or (status == "error" and not row.get("retryable")):
-                safe_results.append(_safe_result(row))
-                continue
-            if status in ASSISTANT_SPEECH_INELIGIBLE_STATUSES:
+                safe_results.append(_safe_result({**row, "request_sequence": request_sequence}))
                 continue
             normalized.append({
                 "segment_id": str(row["segment_id"]),
                 "source_version": int(row["source_version"]),
                 "sequence": int(row["sequence"]),
+                "request_sequence": request_sequence,
                 "kind": str(row["kind"]),
                 "source_hash": source_hash,
-                "speakable_text": text,
+                "speakable_text": canonical_text,
                 "voice_profile_key": str(row["voice_profile_key"]),
                 "voice_profile_version": int(row["voice_profile_version"]),
             })
@@ -334,24 +404,40 @@ async def handle_assistant_speech_event(
             normalized.extend(segment for segment in historical_segments if segment["segment_id"] in dispatch_ids)
             for segment in historical_segments:
                 if segment["segment_id"] in dispatch_ids:
+                    matched_segment_ids.add(str(segment["segment_id"]))
                     continue
-                row = await find_canonical_segment(
+                match = await find_canonical_segment(
                     segment,
                     chat_id=kwargs["chat_id"],
                     assistant_message_id=kwargs["assistant_message_id"],
+                    excluded_segment_ids=matched_segment_ids,
                 )
-                if row:
-                    safe_results.append(_safe_result(row))
+                if match:
+                    row, _canonical_text = match
+                    matched_segment_ids.add(str(row["segment_id"]))
+                    safe_results.append(_safe_result({**row, "request_sequence": segment["request_sequence"]}))
+                else:
+                    safe_results.append({
+                        "segment_id": segment["segment_id"],
+                        "sequence": segment["sequence"],
+                        "request_sequence": segment["request_sequence"],
+                        "kind": segment["kind"],
+                        "status": "error",
+                        "error": "Speech is temporarily unavailable.",
+                        "retryable": False,
+                    })
         user_vault_key_id = await get_user_vault_key_id() if normalized else None
         for segment in normalized:
             if not user_vault_key_id:
-                safe_results.append({"segment_id": segment["segment_id"], "status": "error", "error": "Speech is temporarily unavailable.", "retryable": True})
+                safe_results.append({"segment_id": segment["segment_id"], "sequence": segment["sequence"], "request_sequence": segment["request_sequence"], "kind": segment["kind"], "status": "error", "error": "Speech is temporarily unavailable.", "retryable": True})
                 continue
-            app.send_task("apps.audio.tasks.assistant_speech_segment", kwargs={"arguments": {**segment, "user_id": user_id, "user_vault_key_id": user_vault_key_id, "chat_id": kwargs["chat_id"], "assistant_message_id": kwargs["assistant_message_id"]}}, queue="app_music")
+            worker_segment = {key: value for key, value in segment.items() if key != "request_sequence"}
+            app.send_task("apps.audio.tasks.assistant_speech_segment", kwargs={"arguments": {**worker_segment, "user_id": user_id, "user_vault_key_id": user_vault_key_id, "chat_id": kwargs["chat_id"], "assistant_message_id": kwargs["assistant_message_id"]}}, queue="app_music")
         queued = (
             {
                 "segment_id": segment["segment_id"],
                 "sequence": segment["sequence"],
+                "request_sequence": segment["request_sequence"],
                 "kind": segment["kind"],
                 "status": "queued",
             }

@@ -13,10 +13,8 @@ checks only Vercel statuses for that exact commit. Timeouts/failures never mean 
 
 Deployment protocol 3 serializes preparation and gates through a host admission
 lock, followed by the existing short push lock. External pushes can still advance
-dev; retries stop after three preparations. A tiny `.opencode/deploy-protocol-version`
-marker also contains 3, solely to stop already-running old worktrees from deploying
-with protocol 2. It contains no executable integration and can be removed once all
-old worktrees are gone. New code reads `.codex/deploy-protocol-version`.
+dev; retries stop after three preparations. Current tooling reads
+`.codex/deploy-protocol-version`.
 
 `response_media.py` replaces the editor-named upload helper. Existing S3 bucket
 names and keys remain stable so retained receipts and media keep working; the

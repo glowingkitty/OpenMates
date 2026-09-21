@@ -13,9 +13,11 @@ from pathlib import Path
 import re
 
 try:
-    from scripts.ci_source import git, source_path, fingerprint, MAX_CHANGED_BYTES
+    from scripts.ci_source import git, git_bytes, source_path, fingerprint, MAX_CHANGED_BYTES
+    from scripts.ci_candidate import load as load_candidate
 except ModuleNotFoundError:
-    from ci_source import git, source_path, fingerprint, MAX_CHANGED_BYTES
+    from ci_source import git, git_bytes, source_path, fingerprint, MAX_CHANGED_BYTES
+    from ci_candidate import load as load_candidate
 
 
 def source_identity(root: Path, paths: list[str]) -> dict:
@@ -33,9 +35,11 @@ def validate(root: Path, session: str, candidate: str, base: str, selected: list
             raise RuntimeError("Reviewed deployment requires full candidate and base SHAs")
     if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", session):
         raise RuntimeError("Invalid reviewed deployment session")
-    retained = f"refs/remotes/origin/codex/ci/{session}/{candidate}"
-    if git(root, "rev-parse", retained) != candidate:
+    retained = load_candidate(root, candidate, required=True)
+    if retained["session"] != session:
         raise RuntimeError("Reviewed candidate is not retained for this session")
+    if retained["base"] != base:
+        raise RuntimeError("Reviewed candidate must have exactly the reviewed base as parent")
     parents = git(root, "show", "-s", "--format=%P", candidate).split()
     if parents != [base]:
         raise RuntimeError("Reviewed candidate must have exactly the reviewed base as parent")
@@ -48,9 +52,11 @@ def validate(root: Path, session: str, candidate: str, base: str, selected: list
     entries = git(root, "ls-tree", "-r", candidate, "--", *paths).splitlines()
     if any(entry.startswith(("120000 ", "160000 ")) for entry in entries):
         raise RuntimeError("Reviewed deployment cannot introduce symlinks or submodules")
-    patch = git(root, "diff", "--binary", "--no-renames", base, candidate, "--", *paths)
-    if len(patch.encode()) > MAX_CHANGED_BYTES:
+    patch = git_bytes(root, "diff", "--binary", "--no-renames", base, candidate, "--", *paths)
+    if len(patch) > MAX_CHANGED_BYTES:
         raise RuntimeError("Reviewed deployment exceeds the source publication limit")
+    if hashlib.sha256(patch).hexdigest() != retained["patch_sha256"]:
+        raise RuntimeError("Reviewed candidate patch differs from the retained artifact")
     deletions = {}
     for line in git(root, "diff", "--no-renames", "--numstat", base, candidate).splitlines():
         _, removed, path = line.split("\t", 2)
@@ -59,7 +65,7 @@ def validate(root: Path, session: str, candidate: str, base: str, selected: list
         "candidate": candidate,
         "base": base,
         "paths": paths,
-        "patch_id": hashlib.sha256(patch.encode()).hexdigest(),
+        "patch_id": hashlib.sha256(patch).hexdigest(),
         "deletions": deletions,
         "source_identity": source_identity(root, paths),
     }

@@ -82,7 +82,7 @@ class UserTaskService:
             raise UserTaskNotFoundError("Task not found")
         actor_mode = options.pop("actor_mode", "user")
         if actor_mode == "assignee":
-            if task.get("assignee_type") != "external_ai" or task.get("assignee_identity") not in {"codex", "opencode"}:
+            if task.get("assignee_type") != "external_ai" or task.get("assignee_identity") != "codex":
                 raise PermissionError("Task does not have an external-AI assignee")
             payload = {**payload, "actor_identity": task["assignee_identity"]}
             options.update(actor_type="external_ai", actor_hash=None, actor_display_name=None, actor_profile_image_url=None)

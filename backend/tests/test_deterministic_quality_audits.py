@@ -4,6 +4,7 @@
 # These tests exercise pure audit functions with temporary fixtures so they do
 # not depend on the current dirty worktree or staged git state.
 # Architecture context: scripts/code_quality_guard.py
+# contract-test-file: infrastructure
 
 import sys
 from pathlib import Path
@@ -15,7 +16,6 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import audit_app_provider_contracts  # noqa: E402
-import audit_opencode_automation_budget  # noqa: E402
 import audit_playwright_determinism  # noqa: E402
 import audit_sensitive_logging  # noqa: E402
 import code_quality_guard  # noqa: E402
@@ -227,43 +227,6 @@ def test_webhook_key_generation_uses_web_crypto() -> None:
 
     assert "crypto.getRandomValues" in function_body
     assert "Math.random" not in function_body
-
-
-def test_opencode_budget_audit_blocks_unbounded_permission_skip(tmp_path, monkeypatch) -> None:
-    """Permission-skipping OpenCode automation needs budget and approval controls."""
-
-    script = tmp_path / "scripts" / "unsafe.py"
-    script.parent.mkdir(parents=True)
-    script.write_text(
-        "import subprocess\n"
-        "subprocess.run(['opencode', 'run', '--dangerously-skip-permissions', 'fix auth'])\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(audit_opencode_automation_budget, "REPO_ROOT", tmp_path)
-
-    issues = audit_opencode_automation_budget.audit_paths([script])
-
-    assert any("timeout" in issue.message for issue in issues)
-    assert any("human-approval" in issue.message for issue in issues)
-
-
-def test_opencode_budget_audit_accepts_bounded_auto_fix_prompt(tmp_path, monkeypatch) -> None:
-    """Prompts with no-subagent and verification rules pass the prompt audit."""
-
-    prompts_root = tmp_path / "scripts" / "prompts"
-    prompts_root.mkdir(parents=True)
-    prompt = prompts_root / "auto-fix.md"
-    prompt.write_text(
-        "# Auto-fix\n"
-        "Do not start subagents.\n"
-        "Run no verification yourself; the controller handles verification.\n"
-        "If auth or privacy changes are needed, set requires_human_approval.\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(audit_opencode_automation_budget, "REPO_ROOT", tmp_path)
-    monkeypatch.setattr(audit_opencode_automation_budget, "PROMPTS_ROOT", prompts_root)
-
-    assert audit_opencode_automation_budget.audit_paths([prompt]) == []
 
 
 def test_code_quality_guard_runs_new_domain_audits(monkeypatch) -> None:

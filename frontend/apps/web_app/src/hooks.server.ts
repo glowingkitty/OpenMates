@@ -8,7 +8,8 @@ import type { Handle } from '@sveltejs/kit';
 const SEO_ROUTE_PREFIXES = ['/example', '/intro', '/legal', '/events', '/announcements', '/tips'];
 
 function isSeoRoute(pathname: string): boolean {
-	return SEO_ROUTE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+	return SEO_ROUTE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+		|| /^\/(?:de\/)?(?:news|blog|social)(?:\/|$)/.test(pathname);
 }
 
 function stripDefaultSeoTags(html: string): string {

@@ -54,7 +54,7 @@ from backend.apps.ai.utils.embeds_map_view import (
     should_include_embeds_results_view_instruction,
     should_include_embeds_map_view_hint,
 )
-from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
+from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
@@ -111,6 +111,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     task_tool_skill_id,
     task_tool_name_variants,
 )
+from backend.apps.ai.processing.model_usage_tracker import ModelUsageTracker
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     has_transcribed_web_audio_recording,
@@ -150,6 +151,7 @@ from backend.apps.ai.processing.skill_executor import (
 )
 # Import billing utilities
 from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
+from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
 
 
 logger = logging.getLogger(__name__)
@@ -908,6 +910,23 @@ def _hash_skill_arguments(app_id: str, skill_id: str, arguments: Dict[str, Any])
     return hashlib.md5(hash_input.encode()).hexdigest()
 
 
+def _has_explicit_skill_error(result: Any) -> bool:
+    """Return whether a skill result wrapper explicitly reports failure."""
+    if isinstance(result, list):
+        return any(_has_explicit_skill_error(item) for item in result)
+    if not isinstance(result, dict):
+        return False
+    if result.get("status") in ("error", "cancelled") or bool(result.get("error")):
+        return True
+    nested_results = result.get("results")
+    return isinstance(nested_results, list) and _has_explicit_skill_error(nested_results)
+
+
+def _should_cache_skill_call_for_dedup(results: Any) -> bool:
+    """Cache non-empty successful wrappers, including valid zero-hit results."""
+    return bool(results) and not _has_explicit_skill_error(results)
+
+
 def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
     """
     Flatten nested objects into primitive fields for TOON tabular format encoding.
@@ -1241,6 +1260,26 @@ async def _publish_skill_status(
     if request_data.is_external:
         logger.debug(f"[Task ID: {task_id}] External request detected. Skipping skill status publish for Web App.")
         return
+
+    # Update the routing ledger independently from WebSocket delivery. The helper
+    # retains identity/outcome/count only and never stores preview contents.
+    try:
+        from backend.apps.ai.processing.routing_ledger import record_skill_event
+
+        await record_skill_event(
+            cache_service,
+            request_data,
+            task_id=task_id,
+            app_id=app_id,
+            skill_id=skill_id,
+            status=status,
+            preview_data=preview_data,
+        )
+    except Exception as ledger_error:
+        logger.warning(
+            f"[Task ID: {task_id}] Failed to update content-free routing ledger: "
+            f"{ledger_error.__class__.__name__}"
+        )
     
     try:
         # Construct the skill status payload matching frontend expectations
@@ -2043,6 +2082,7 @@ async def _charge_skill_credits(
     parsed_args: Dict[str, Any],
     log_prefix: str,
     grouped_results: Optional[List[Dict[str, Any]]] = None,
+    provider_result_data: Any = None,
     directus_service: Optional[DirectusService] = None,
     reserved_operation_ids: Optional[List[str]] = None,
 ) -> None:
@@ -2054,6 +2094,8 @@ async def _charge_skill_credits(
         grouped_results: Optional grouped results from multi-request skills.
             Each group has {"id": ..., "results": [...], "error": "..."}.
             Used to count only successful requests for billing (failed requests are not charged).
+        provider_result_data: Original top-level execution response retained for
+            provider attribution before results are flattened for model inference.
     """
     charged_operation_ids: set[str] = set()
     anonymous_settlement_failed = False
@@ -2189,13 +2231,16 @@ async def _charge_skill_credits(
         resolved_model_used = skill_def.full_model_reference  # e.g., "bfl/flux-schnell" or None
         
         # Determine provider_id for info lookup
-        info_provider_id = None
-        if skill_def.full_model_reference and "/" in skill_def.full_model_reference:
-            info_provider_id = skill_def.full_model_reference.split("/", 1)[0]
-        elif skill_def.providers and len(skill_def.providers) > 0:
-            # Re-use the same name-to-ID mapping as the pricing lookup.
-            pname = skill_def.providers[0].name
-            info_provider_id = pname.lower().replace(" ", "_")
+        info_provider_id = resolve_skill_usage_provider_id(
+            app_id,
+            skill_id,
+            skill_def,
+            provider_result_data if provider_result_data is not None else results,
+        )
+        if info_provider_id:
+            # Preserve compatibility for legacy human-readable provider refs.
+            pname = info_provider_id
+            info_provider_id = info_provider_id.lower().replace(" ", "_")
             if pname == "Google" and app_id == "maps":
                 info_provider_id = "google_maps"
             elif pname in ("Brave", "Brave Search"):
@@ -2844,9 +2889,9 @@ async def handle_main_processing(
             logger.warning(f"{log_prefix} relevant_app_skills is None (should be list or empty list). Treating as empty list.")
             preselected_skills = set()
 
-    # HARDENING: Merge always_include_skills into preselected_skills — but NOT when the user
-    # explicitly requested specific skills via @skill:app:skill_id. In that case we use only
-    # the user's selection and add a mandatory instruction to use those tools.
+    # HARDENING: Merge always_include_skills into preselected_skills unless the user
+    # explicitly requested a specific tool/search surface. In that case use only the
+    # user's selection and add a mandatory instruction to call it.
     user_requested_skills_only = getattr(preprocessing_results, "user_requested_skills_only", False)
     override_skills = getattr(user_overrides, "skills", None)
     task_app_skill_mentions = task_app_skill_ids_from_user_override_skills(override_skills)
@@ -2882,9 +2927,12 @@ async def handle_main_processing(
     # Some skills naturally pair together — when the system prompt instructs the
     # LLM to consider a companion skill, it must also be in the allowed tool set.
     # Without this the LLM follows the instruction, calls the companion, and the
-    # hallucination guard rejects it → zero response.
+    # hallucination guard rejects it → zero response. Explicit requests stay exact.
     if preselected_skills:
-        expanded_preselected_skills = expand_companion_skills(preselected_skills)
+        expanded_preselected_skills = expand_companion_skills(
+            preselected_skills,
+            exact_request=user_requested_skills_only,
+        )
         companions_to_add = expanded_preselected_skills - preselected_skills
         if companions_to_add:
             logger.info(
@@ -3382,7 +3430,7 @@ async def handle_main_processing(
     # Whether the user explicitly specified this focus mode via @focus:app:id mention
     user_requested_focus_only = getattr(preprocessing_results, 'user_requested_focus_only', False)
     
-    if relevant_focus_modes and not has_active_focus_mode:
+    if relevant_focus_modes and not has_active_focus_mode and not user_requested_skills_only:
         # Build enum and descriptions for activate_focus_mode tool
         focus_mode_descriptions = []
         for focus_id in relevant_focus_modes:
@@ -3443,7 +3491,7 @@ async def handle_main_processing(
         available_tools_for_llm.append(activate_tool)
         logger.info(f"{log_prefix} Added activate_focus_mode tool with {len(relevant_focus_modes)} available focus mode(s): {relevant_focus_modes}")
     
-    if has_active_focus_mode:
+    if has_active_focus_mode and not user_requested_skills_only:
         # Add deactivate tool when a focus mode is active
         deactivate_tool = {
             "type": "function",
@@ -3967,9 +4015,8 @@ async def handle_main_processing(
     # tool use (i.e., total iterations minus 1).  A value of 0 means no tool calls
     # were made (single LLM call, baseline behaviour).  This is stored in the usage
     # entry so users can see it in Settings → Usage detail view.
-    cumulative_input_tokens: int = 0
-    cumulative_output_tokens: int = 0
     tool_inference_iterations: int = 0  # Number of extra LLM calls caused by tool use
+    model_usage_tracker = ModelUsageTracker()
 
     # === SKILL CALL BUDGET TRACKING ===
     # Track total skill calls across all iterations to prevent runaway research loops.
@@ -4031,6 +4078,7 @@ async def handle_main_processing(
                 f"{log_prefix} [SUB_CHAT] Requiring start_sub_chats for active Deep research."
             )
         
+        iteration_tools = available_tools_for_llm if not force_no_tools else None
         # Build system prompt for this iteration
         # Inject budget warning if we've exceeded the soft limit
         iteration_system_prompt = full_system_prompt
@@ -4090,7 +4138,7 @@ async def handle_main_processing(
                     model_id=current_model_id,
                     system_prompt=iteration_system_prompt,
                     message_history=current_message_history,
-                    tools=available_tools_for_llm if not force_no_tools else None,
+                    tools=iteration_tools,
                     requested_output_token_limit=current_output_token_limit,
                     request_data=request_data,
                     directus_service=directus_service,
@@ -4109,7 +4157,7 @@ async def handle_main_processing(
                     model_id=current_model_id,
                     system_prompt=iteration_system_prompt,
                     message_history=current_message_history,
-                    tools=available_tools_for_llm if not force_no_tools else None,
+                    tools=iteration_tools,
                     output_token_limit=current_output_token_limit,
                     request_data=request_data,
                     directus_service=directus_service,
@@ -4121,7 +4169,7 @@ async def handle_main_processing(
                     model_id=current_model_id,  # Use current_model_id from fallback list
                     temperature=preprocessing_results.llm_response_temp,
                     secrets_manager=secrets_manager,
-                    tools=available_tools_for_llm if not force_no_tools else None,
+                    tools=iteration_tools,
                     tool_choice=current_tool_choice,
                     max_tokens=current_output_token_limit,
                 )
@@ -4152,6 +4200,7 @@ async def handle_main_processing(
                         f"All models failed. Tried: {models_to_try}. Last error: {last_model_error}"
                     ) from model_error
 
+        protocol_guard = ToolProtocolGuard()
         current_turn_text_buffer = []
         tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall]] = []
         # Hallucinated tool calls that must round-trip through the history as
@@ -4181,18 +4230,27 @@ async def handle_main_processing(
         # When set, the outer loop will attempt the next model in the fallback list.
         _stream_all_servers_failed = False
         _stream_all_servers_error: Optional[AllServersFailedError] = None
+        iteration_usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = None
+        iteration_input_tokens = 0
+        iteration_output_tokens = 0
         try:
           with ai_phase_span("main.iteration"):
-           async for chunk in observe_ai_stream(
-               aggregate_paragraphs(llm_stream),
+           # Observe raw provider delivery before paragraph aggregation so
+           # ai.ttft_ms/ai.first_text_ms are not inflated by presentation
+           # buffering. The downstream paragraph contract remains unchanged.
+           observed_llm_stream = observe_ai_stream(
+               llm_stream,
                "provider",
                provider_purpose="main",
-           ):
+           )
+           async for chunk in protocol_guard.filter(observed_llm_stream):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
-                usage = chunk
-                # Accumulate token counts from every LLM call in this turn.
-                # Each tool-use iteration re-sends the full history plus tool results,
-                # so all iterations contribute real API costs that must be billed.
+                iteration_usage = chunk
+                # Keep the final usage object local until the stream completes so
+                # a failed attempt cannot become the recorded successful model.
+                # Provider-reported tokens are still accumulated immediately:
+                # once reported, that incurred usage remains billable even if a
+                # later stream event triggers fallback.
                 _iter_input = 0
                 _iter_output = 0
                 if isinstance(chunk, MistralUsage):
@@ -4207,12 +4265,22 @@ async def handle_main_processing(
                 elif isinstance(chunk, OpenAIUsageMetadata):
                     _iter_input = chunk.input_tokens or 0
                     _iter_output = chunk.output_tokens or 0
-                cumulative_input_tokens += _iter_input
-                cumulative_output_tokens += _iter_output
+                iteration_input_tokens += _iter_input
+                iteration_output_tokens += _iter_output
+                usage_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
+                if usage_model_id:
+                    model_usage_tracker.record_reported_usage(
+                        model_id=usage_model_id,
+                        input_tokens=_iter_input,
+                        output_tokens=_iter_output,
+                        user_input_tokens=chunk.user_input_tokens,
+                        system_prompt_tokens=chunk.system_prompt_tokens,
+                    )
                 logger.debug(
-                    f"{log_prefix} [CUMULATIVE_TOKENS] Iteration {iteration + 1}: "
+                    f"{log_prefix} [ITERATION_TOKENS] Iteration {iteration + 1}: "
                     f"+{_iter_input} input, +{_iter_output} output tokens. "
-                    f"Running totals: {cumulative_input_tokens} in / {cumulative_output_tokens} out"
+                    f"Billed totals: {model_usage_tracker.total_input_tokens} in / "
+                    f"{model_usage_tracker.total_output_tokens} out"
                 )
                 continue
             if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall)):
@@ -4235,7 +4303,9 @@ async def handle_main_processing(
                 canonical_name = explicit_task_app_skill_tool_name(raw_function_name, task_app_skill_mentions)
                 normalized_from_explicit_task_app = canonical_name != _canonicalize_tool_name(raw_function_name)
                 is_sub_chat_violation = (canonical_name == "start-sub-chats" and chat_depth >= 2)
-                if canonical_name not in allowed_tool_names or is_sub_chat_violation:
+                if (
+                    canonical_name not in allowed_tool_names or is_sub_chat_violation
+                ):
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else INVALID_TOOL_RESULT_REASON
                     raw_arguments_log = "" if _is_task_tool_like(canonical_name) or _is_task_tool_like(raw_function_name) else f"Raw arguments: {chunk.function_arguments_raw[:500]}"
                     logger.warning(
@@ -4748,7 +4818,27 @@ async def handle_main_processing(
                 yield STANDARDIZED_USER_ERROR_MESSAGE
                 break
 
+        if iteration_usage is not None:
+            usage = iteration_usage
+            successful_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
+            if successful_model_id:
+                model_usage_tracker.mark_successful_model(successful_model_id)
+            logger.debug(
+                f"{log_prefix} [CUMULATIVE_TOKENS] Successful model for iteration: "
+                f"'{successful_model_id}' ({iteration_input_tokens} input / "
+                f"{iteration_output_tokens} output tokens)."
+            )
+
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
+
+        if protocol_guard.detected:
+            logger.warning(
+                "%s [TOOL_PROTOCOL_GUARD] Suppressed model-generated tool protocol; native_calls=%s",
+                log_prefix, len(tool_calls_for_this_turn),
+            )
+            if not tool_calls_for_this_turn:
+                yield STANDARDIZED_USER_ERROR_MESSAGE
+                break
 
         if not tool_calls_for_this_turn:
             task_queue_result = await evaluate_task_queue_post_turn(
@@ -5862,7 +5952,7 @@ async def handle_main_processing(
                                     model_id=current_model_id,
                                     system_prompt=iteration_system_prompt,
                                     message_history=current_message_history,
-                                    tools=available_tools_for_llm if not force_no_tools else None,
+                                    tools=iteration_tools,
                                     output_token_limit=_orchestrated_ai_output_token_limit(
                                         current_model_id,
                                         request_data.orchestration_id,
@@ -5933,7 +6023,7 @@ async def handle_main_processing(
                                     model_id=current_model_id,
                                     system_prompt=iteration_system_prompt,
                                     message_history=current_message_history,
-                                    tools=available_tools_for_llm if not force_no_tools else None,
+                                    tools=iteration_tools,
                                     output_token_limit=_orchestrated_ai_output_token_limit(
                                         current_model_id,
                                         request_data.orchestration_id,
@@ -6026,7 +6116,7 @@ async def handle_main_processing(
                                 model_id=current_model_id,
                                 system_prompt=iteration_system_prompt,
                                 message_history=current_message_history,
-                                tools=available_tools_for_llm if not force_no_tools else None,
+                                tools=iteration_tools,
                                 output_token_limit=_orchestrated_ai_output_token_limit(
                                     current_model_id,
                                     request_data.orchestration_id,
@@ -6572,7 +6662,7 @@ async def handle_main_processing(
                     # This prevents duplicate side effects (e.g., multiple reminders) when LLMs
                     # repeatedly call the same tool across iterations.
                     # Only record if we got valid results (not cancelled, not error).
-                    if results:
+                    if _should_cache_skill_call_for_dedup(results):
                         embed_id_for_dedup = placeholder_embed_data.get("embed_id") if placeholder_embed_data else None
                         completed_skill_calls[call_hash] = {
                             "embed_id": embed_id_for_dedup,
@@ -6837,6 +6927,7 @@ async def handle_main_processing(
                 response_ignore_fields: Optional[List[str]] = None
                 first_response: Optional[Dict[str, Any]] = None  # Initialize to avoid UnboundLocalError
                 grouped_results: Optional[List[Dict[str, Any]]] = None  # Preserve grouping for embed creation
+                provider_result_data = results  # Preserve trusted response wrappers before LLM flattening.
                 
                 # Detect multimodal content block results from view skills (e.g., images.view).
                 # These return [[{"type": "text", ...}, {"type": "image_url", ...}]] — a list
@@ -7288,6 +7379,7 @@ async def handle_main_processing(
                         parsed_args=parsed_args,
                         log_prefix=log_prefix,
                         grouped_results=grouped_results,
+                        provider_result_data=provider_result_data,
                         directus_service=directus_service,
                         reserved_operation_ids=reserved_skill_operation_ids,
                     )
@@ -8309,15 +8401,11 @@ async def handle_main_processing(
         # A future FAQ link can explain why input_tokens may be higher than expected:
         # each tool result is injected back into the context, making the next call's
         # input larger.  See docs/billing.md (TODO: create) for the full explanation.
-        yield {
-            "__cumulative_llm_usage__": True,
-            "total_input_tokens": cumulative_input_tokens,
-            "total_output_tokens": cumulative_output_tokens,
-            "tool_inference_iterations": tool_inference_iterations,
-        }
+        yield model_usage_tracker.sentinel(tool_inference_iterations=tool_inference_iterations)
         logger.info(
             f"{log_prefix} [CUMULATIVE_TOKENS] Final totals: "
-            f"{cumulative_input_tokens} input tokens, {cumulative_output_tokens} output tokens, "
+            f"{model_usage_tracker.total_input_tokens} input tokens, "
+            f"{model_usage_tracker.total_output_tokens} output tokens, "
             f"{tool_inference_iterations} tool inference iteration(s)."
         )
         yield usage

@@ -7,7 +7,7 @@
 //          .category-circle { width:28px; height:28px; border-radius:50%;
 //            box-shadow:0 2px 4px rgba(0,0,0,.1); border:2px solid var(--color-background) }
 //          .chat-title { font-size:var(--font-size-p); font-weight:500 }
-//          .chat-time  { font-size:14px; color:var(--color-font-tertiary) }
+//          Ordinary titled chats have no timestamp/status line; drafts use status-message.
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -16,7 +16,11 @@ import SwiftUI
 
 struct ChatListRow: View {
     let chat: Chat
-    @ObservedObject private var draftService = DraftService.shared
+    let suppliedDraftPreview: String?
+
+    init(chat: Chat, suppliedDraftPreview: String? = nil) {
+        self.chat = chat; self.suppliedDraftPreview = suppliedDraftPreview
+    }
 
     private struct PublicIconDescriptor {
         let icon: String
@@ -77,7 +81,7 @@ struct ChatListRow: View {
 
     private var draftPreview: String? {
         guard (chat.draftV ?? 0) > 0 else { return nil }
-        let preview = draftService.draftPreview(chatId: chat.id)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let preview = suppliedDraftPreview?.trimmingCharacters(in: .whitespacesAndNewlines)
         return preview?.isEmpty == false ? preview : nil
     }
 
@@ -90,7 +94,7 @@ struct ChatListRow: View {
     }
 
     var body: some View {
-        HStack(spacing: .spacing4) {
+        HStack(spacing: 16) {
             if isSubChatRow {
                 Rectangle()
                     .fill(Color.grey40)
@@ -137,38 +141,34 @@ struct ChatListRow: View {
                     .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)
             }
 
-            VStack(alignment: .leading, spacing: .spacing1) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(titleForDisplay)
                     .font(.omP)
                     .fontWeight(.medium)
                     .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 2)
 
                 if let preview = draftPreview, preview != titleForDisplay {
                     Text(preview)
                         .font(.omXs)
                         .foregroundStyle(Color.fontTertiary)
                         .lineLimit(1)
-                // Hide timestamps for demo/example/legal chats (static content)
-                } else if let date = chat.lastMessageDate, !chat.id.hasPrefix("demo-"),
-                   !chat.id.hasPrefix("example-"), !chat.id.hasPrefix("legal-"),
-                   !chat.id.hasPrefix("announcements-") {
-                    Text(date, style: .relative)
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontTertiary)
-                }
-            }
 
-            Spacer()
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading)
 
             if chat.isPinned == true {
                 Icon("pin", size: 12)
                     .foregroundStyle(Color.fontTertiary)
             }
         }
-        .padding(.vertical, .spacing4)
-        .padding(.leading, isSubChatRow ? .spacing10 : .spacing6)
-        .padding(.trailing, .spacing6)
+        .padding(.vertical, 12)
+        .padding(.leading, isSubChatRow ? 40 : 16)
+        .padding(.trailing, 16)
+        // The full row, including spacing around title and draft, opens
+        // the chat. Text-only hit regions dropped valid search-result taps.
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(isSubChatRow ? "sub-chat-item" : "chat-item-wrapper")
         .accessibilityValue(accessibilityValue)

@@ -1,0 +1,376 @@
+schema_version: 2
+id: public-news-blog
+title: Public news, blog, and social archive
+status: implementing
+goal: >-
+  It’s time to create separate news and blog pages as well as the fullscreen
+  views / separate pages for product releases/updates, social media posts and blog posts.
+
+scope:
+  in:
+    - Replace announcement demo-chat presentation with the supplied News, Blog, Press release / Update, Blog post, and Social post designs.
+    - English and German public pages, indexable article URLs, matching fullscreen views, responsive layouts, and accessible controls.
+    - News and blog sidebars show their respective publications newest first, never the reader's chats.
+    - Markdown and metadata authored in the separate private marketing repository; sanitized public feed consumed by OpenMates.
+    - Automatically archive successfully published official OpenMates Buffer posts and backfill available official-channel history.
+    - Direct Hetzner S3 media delivery initially, permanent publication assets, optimized images/videos, and independently verified read-only public access.
+    - Search, related posts, metadata-selected featured articles, feature links, press kits, and email subscriptions for news/press using existing infrastructure.
+    - Fixture-driven UI previews and explicit user confirmation of desktop/mobile layouts before implementing publishing, storage, Buffer or other product integration logic.
+    - Preserve old announcement URLs, chat deep links, and sent newsletter destinations during migration.
+  out:
+    - Sharing controls, personal/founder Buffer channels, external-article summary pages, and social-platform publishing from the website.
+    - Narration, browser push subscriptions, readership-based ranking, and the release-information OpenMates skill.
+    - Blog email notifications, blog subscription controls, and blog-specific newsletter categories or delivery automation.
+    - Admin content editor, automatic cross-posting to Medium, additional launch languages, and native Apple UI implementation.
+    - CDN deployment and splitting the application onto app.openmates.org.
+    - Production infrastructure changes and production rollout.
+
+design_reference:
+  supplied_exports: [news.jpg, news.pdf, blog.jpg, blog.pdf, pressrelease.jpg, pressrelease.pdf, blogpost.jpg, blogpost.pdf, socialpost.jpg, socialpost.pdf]
+  figma_file_key: PzgE78TVxG0eWuEeO6o8ve
+  figma_version: "2401268937291808059"
+  target_nodes:
+    - {name: News, node_id: "6033:61104"}
+    - {name: Blog, node_id: "6049:61275"}
+    - {name: Press release / Update, node_id: "6035:61877"}
+    - {name: Blog post, node_id: "6049:61587"}
+    - {name: Social post, node_id: "6056:92099"}
+  scope: >-
+    Directional layout reference for hierarchy, content grouping, card rhythm,
+    blue feature header and newsroom framing. OpenMates tokens and current
+    component conventions govern implementation details. The supplied desktop
+    exports are the visual evidence because no mobile frames are present.
+  evidence:
+    reference_exports: /tmp/codex-remote-attachments/01a0bed6-baf9-75b1-bffa-43ca9e893084/4E5AF9C3-F474-4E71-B451-2BE05D79965C/
+    rendered_previews: test-results/figma/public-news-blog/
+  accepted_changes:
+    - Replace the pictured chat sidebar with chronological news or blog navigation.
+    - External press coverage opens its original article in a new tab with noopener protection.
+    - Omit sharing, blog subscription controls and deferred features; show metadata-selected featured blog posts instead of a misleading trending label.
+  implementation_notes:
+    - Resolve exact available Figma nodes before UI implementation; retain supplied exports as the reviewed references.
+    - Mobile layouts are not drawn in the exports. Responsive cards, horizontal social rows and collapsible publication navigation are proposals to show in previews, not approved behavior.
+    - Detail-page audio starts on explicit play; browser-blocked audible autoplay falls back to the poster/play button.
+    - Muted header previews and five-second hover previews respect reduced motion and data-saving preferences; touch uses explicit play.
+    - Single media links render one item; adjacent standalone image/video links, including blank-line separation, form one ordered slideshow. Prose ends the group.
+    - Include mixed image/video groups, Markdown images and bare media URLs; do not reinterpret ordinary links, inline links, or fenced code as media.
+
+ui_confirmation_gate:
+  requested_by: User explicitly requested UI confirmation before logic implementation to avoid overtesting unapproved responsive behavior.
+  first_deliverable: Reusable presentation components and fixture-driven /dev/preview pages for News, Blog, Press release / Update, Blog post and Social post.
+  fixtures: Use representative public/synthetic English and German text, long titles, populated/empty lists, landscape/portrait media and mixed-media slideshows; no live feed, Buffer, email or S3 operations.
+  allowed_before_confirmation: Minimal fixture types, presentation components, local preview interactions and bounded render/layout checks needed to make the design review usable.
+  held_until_confirmation: Production content contracts/parsers, publisher/feed/cache implementation, S3 provisioning/media pipelines, Buffer sync/backfill, newsletter wiring, migration and broad product/integration testing.
+  responsive_review: Present a phone and desktop layout plus a representative intermediate-width view; explicitly highlight sidebar collapse, card stacking, media sizing, horizontal scrolling and article/fullscreen navigation.
+  delivery: Provide exact clickable /dev/preview URLs with named fixture variants, plus representative phone/desktop screenshots. Use chrome=0 for component captures. Label unconnected controls as preview-only in the review notes.
+  minimal_verification: Run one bounded account-free component-preview check for render errors, obvious clipping/overflow and essential navigation/play controls. Reuse its evidence; do not build an exhaustive viewport/state matrix before design approval.
+  publication: Use isolated candidate CI for the focused preview check, then a scoped dev preview deployment when implementation is authorized so the user can inspect the exact revision interactively.
+  stop: Present the concrete previews and wait for explicit UI confirmation. Elapsed time, automated screenshot checks and approval of this written plan are not UI approval.
+  iteration: Apply requested visual changes and repeat only affected preview checks. Ask about ambiguous design choices rather than iterating speculative responsive layouts or expanding tests.
+  after_confirmation: Record the approved preview revision and accepted responsive behavior, then implement real logic using the same components. Reopen review only for material visual changes to that approved design.
+
+architecture:
+  authoring:
+    source: Separate private openmates-marketing repository.
+    layout: Extend campaigns/<campaign>/ with release, blog, and social entries containing localized Markdown and metadata; standalone publications are supported.
+    metadata: Stable content ID, type, slug, locale variants, title, summary, author, publication/update times, feature links, related IDs, featured order, media references, and press-kit assets.
+    media_manifest: Stable asset IDs, hashes, MIME types, dimensions, duration, posters, responsive renditions, alt text, captions/transcripts, and public URLs.
+    separation: Article publication, Buffer scheduling, and newsletter delivery have independent state; article edits never send email or repost social content.
+  publication:
+    format: Versioned JSON index plus immutable per-item content revisions and asset manifests; explicit public-field allowlist.
+    process: Validate and prepare all assets, upload complete content revision, verify references, then switch the small current-revision manifest under a publisher lock.
+    exclusions: Never export draft/embargoed copy, private notes, local paths, raw Buffer responses, account identifiers, author email fields, credentials, or recipient data.
+    recovery: Preserve previous published revisions for rollback; retry uploads idempotently and never expose a partially uploaded revision.
+    previews: Keep unpublished content in private preview storage; a noindex tag alone is not a confidentiality boundary.
+  consumption:
+    server: SvelteKit server loads a configured HTTPS feed, validates its schema, and renders full article/index HTML without Buffer access or S3 credentials.
+    cache: Start with five-minute index revalidation and immutable revision caching; refresh related indexes, sidebars, sitemap and search together.
+    failures: Serve bounded last-known-good data where available; use 503 on an unavailable uncached feed and 404 only for a confirmed missing article. Honor explicit removal records on the next refresh.
+    security: Allowlist feed/media origins and asset formats, bound downloads, sanitize Markdown/URLs and JSON-LD, and block private-network redirects in importers.
+    open_source: Ship generic schemas, renderer, synthetic fixtures and configurable feed/media base URLs; no private repository checkout or publishing key required for builds.
+    maintainer_docs: Add a short pointer to the optional sibling marketing workspace; detailed operational instructions stay private. Honor its AGENTS.md when working there.
+  routes:
+    english: [/news, /news/<slug>, /blog, /blog/<slug>, /social/<slug>]
+    german: [/de/news, /de/news/<slug>, /de/blog, /de/blog/<slug>, /de/social/<slug>]
+    canonical: One canonical URL per publication and available language, shared by direct and in-app navigation; no duplicate indexable modal URLs.
+    translations: Reciprocal hreflang only for existing translations. Missing German content links to labeled English content without a duplicate German URL.
+    social_navigation: Preserve news/blog entry context; direct social visits default to news navigation. Browser Back restores origin and scroll position.
+    discovery: Crawlable paginated archives and normal links, semantic headings, author/date information, per-page descriptions, social preview metadata, breadcrumbs, and sitemap lastmod from actual edits.
+    structured_data: Article/BlogPosting and appropriate social/video metadata reflecting visible content; no promises of search ranking or AI citation.
+    media_seo: Expose meaningful article/post text, image descriptions, captions and available video transcripts; do not depend on social embeds for content.
+  email_subscriptions:
+    news_press: Retain subscription entry points on news and release/update pages, reusing existing confirmed-subscriber/category/opt-out behavior.
+    blog: No blog email signup UI or blog-triggered notification delivery in this release.
+    delivery: Preserve the existing newsletter campaign workflow; publishing a news article does not automatically broadcast an email.
+
+storage_and_delivery:
+  initial_delivery: Browser requests HTTPS objects directly from the provider bucket hostname; no CDN or application proxy for video bytes.
+  isolation:
+    - Use a dedicated publication bucket/project, separate from application/user-data and temporary Buffer/review storage.
+    - Public policy grants only object reads for the published namespace; no anonymous listing, uploads, deletes, ACL/policy changes, or version enumeration.
+    - Keep drafts and raw/private media out of that public namespace entirely; obscurity of filenames is not access control.
+    - Hetzner credentials are project-wide by default. Prefer a publisher key in a separate credentials project with an explicit policy granting only required publication object actions.
+    - Keep bucket administration credentials outside normal publishing jobs; no admin key in Vercel, frontend, public feed, or open-source configuration.
+    - Avoid existing startup ACL/lifecycle reconciliation overriding the custom publication policy; provision/manage this bucket explicitly.
+  lifecycle: No expiry for published assets. Preserve stable hashed keys, retain a private backup of approved masters, and use explicit unpublish/removal rather than temporary-media cleanup.
+  headers: Correct MIME types, immutable long-lived caching for hashed assets, short caching for current manifests, CORS for required read origins/headers, and downloadable attachment headers for press kits.
+  cors_boundary: CORS controls browser access, not authorization; prove access policy with anonymous HTTP requests independently of CORS.
+  prepared_media:
+    - Responsive AVIF/WebP images with fallback, explicit dimensions, optimized social preview images and posters.
+    - Fast-start H.264/AAC MP4 playback and downloads; short compressed silent teaser derivatives for card/header previews.
+    - Pre-generated adaptive HLS renditions for longer release videos; retain MP4 fallback and verify Range-based seeking and CORS in supported browsers.
+    - Captions/transcripts where available, lazy-loaded below-fold media, no background download of entire videos for previews, and accessible slideshow controls.
+    - Strip unnecessary private metadata from publication copies; keep approved originals separate.
+  direct_delivery_trial: Measure start time, stalls, errors and transferred bytes on desktop/mobile and representative EU/non-EU connections using bounded concurrency and optimized assets.
+  cdn_trigger: Reconsider a CDN only if measured startup/stall rates, regional latency, sustained errors or forecast audience volume make direct delivery inadequate; keep asset-base configuration replaceable.
+
+buffer_archive:
+  eligibility: Explicit allowlist of official OpenMates channels only; publish after Buffer reports sent, never for drafts, scheduled or failed posts.
+  new_posts: Extend existing Buffer tooling and private ledger with stable campaign/content/asset references; keep prepared media permanently before passing its URL to Buffer.
+  synchronization: Run every 15 minutes initially with pagination, rate-limit backoff, overlap/reconciliation for delayed links or edits, idempotent per-post keys and last-success receipts.
+  grouping: Prefer explicit campaign/social content IDs across platforms. During backfill use conservative text/media matching; flag uncertain merges and keep distinct posts separate.
+  original_links: Store each verified platform permalink; retry missing links and omit unavailable platform buttons without fabricating URLs.
+  language: Preserve original language and text; connect authored translations when available. Do not silently translate historical posts or publish false language variants.
+  backfill:
+    - Inventory every accessible sent-post page for official channels, combining API history with the existing private ledger; do not stop at the CLI's default display limit.
+    - Preserve real publication dates; recover assets from campaign originals or existing owned storage first, then copy retrievable Buffer/platform media to permanent storage.
+    - Report totals by channel, coverage dates, duplicates, unavailable media/links and history gaps; Buffer retention does not guarantee complete lifetime history.
+    - Produce a private dry-run preview, then publish the confirmed backfill through the same sanitized export path; never reschedule or repost historical content.
+    - Retain useful text/original links when media cannot be recovered, with a deliberate no-media presentation rather than broken thumbnails or silent third-party hotlinking.
+  removal: Explicit editorial hide/unpublish overrides survive resync; a transient API omission never deletes the archive. Reconcile verified removals without exposing draft revisions.
+
+implementation_sequence:
+  - outcome: Review and approve fixture-driven desktop/mobile UI.
+    work: Build the five presentation previews and minimal fixture interactions, run the bounded preview check, deliver interactive dev URLs and screenshots, and wait for explicit user confirmation under ui_confirmation_gate.
+    ownership: OpenMates presentation components, colocated preview fixtures and focused preview evidence only.
+  - outcome: Define content contract, migration map and privacy boundaries after UI confirmation.
+    work: Map agreed behavior and approved UI to a compact publication Specification with examples; reuse newsletter privacy/category contracts. Define public schema and legacy redirects.
+    ownership: OpenMates schema/docs/tests and private marketing authoring contract.
+  - outcome: Prepare permanent media and prove direct S3 isolation.
+    work: Add media preparation, explicit publication storage policy/provisioning, asset manifests and read-only delivery checks before uploading historical assets.
+    ownership: Private marketing media/publishing tools; generic OpenMates media consumers.
+  - outcome: Publish atomic public content revisions.
+    work: Extend campaign Markdown export, media grouping, locale handling and preview; add validated feed reader, consistent caches and configurable source URLs.
+    ownership: Private marketing publisher and OpenMates server content module.
+  - outcome: Connect approved news/blog UI to real content and actions.
+    work: Reuse approved preview components for server-rendered routes, chronological sidebars, search, crawlable pagination, featured cards, press coverage links, related posts and press-kit downloads. Wire email forms on news/press only.
+    ownership: OpenMates Svelte UI, routes, translations and focused browser coverage.
+  - outcome: Connect official Buffer publication sync and historical backfill.
+    work: Extend private ledger/API importer, channel allowlist, grouping and media recovery; run dry-run inventory and import through the validated feed publisher.
+    ownership: Private marketing Buffer/sync tooling; synthetic integration fixtures in OpenMates only.
+  - outcome: Migrate announcements, prove SEO and release safely.
+    work: Import registered announcements, update new email destinations, map old paths/hash chat IDs, replace announcement chat entry points, verify dev, then prepare production rollout and rollback.
+    ownership: OpenMates announcement/chat URL integration, sitemap/head hooks, newsletter links and tests.
+
+required_verification:
+  - Before UI confirmation, run only the bounded preview checks described in ui_confirmation_gate and necessary focused compile/lint checks. All remaining checks below occur after UI confirmation and relevant implementation.
+  - Local schema/export/parser tests cover media adjacency, blank lines, mixed media, code fences, missing translations, duplicate IDs, malicious URLs/HTML, and accidental private-field export.
+  - Feed tests prove atomic publication, interrupted uploads, invalid feed rejection, cache consistency, last-known-good fallback, unpublish and rollback.
+  - Buffer tests cover all pagination pages, official-only filtering, non-sent exclusion, retry/idempotency, grouping, missing media and permalinks, preserved dates, and backfill without posting side effects.
+  - Isolated storage checks prove anonymous GET/HEAD and Range playback succeed, while listing/PUT/DELETE/policy operations and reads of synthetic private canaries fail; publisher credentials cannot access application buckets.
+  - Start policy tests against disposable S3 in CI; then perform bounded provider-specific verification in a dedicated test bucket before publication, since emulation cannot prove Hetzner policy behavior.
+  - Component previews and focused isolated GitHub browser CI cover supplied layouts, mobile navigation, keyboard/focus, slideshow playback, reduced motion, search, paging, fullscreen/direct visits and Back behavior.
+  - Browser/no-JavaScript checks prove article text, canonical/hreflang/JSON-LD, sitemap entries, social previews and redirects; drafts stay absent and dev stays noindex.
+  - Focused newsletter tests verify news/press signup, consent, confirmation, category choices and unsubscribes remain intact; blog pages offer no email signup and no blog publication, article edit or social sync sends email.
+  - Deployed dev smoke verifies actual article/media loading and the direct-delivery trial; record recoverable and unrecoverable backfill counts before production activation.
+  - After relevant checks pass, repeat or broaden only for changed behavior, a concrete failure or an unresolved risk; do not rerun successful suites to generate extra media or speculate about unapproved UI variants.
+
+migration_and_rollout:
+  - Keep the old publisher compatible while introducing the new feed; importing an announcement must preserve its dates and must not reset sent-state or trigger delivery.
+  - Use permanent server redirects from each /announcements/<slug> to its new /news/<slug>; route legacy hash chat links client-side because fragments never reach the server.
+  - Preserve /tips behavior unless an explicit content migration is defined; do not absorb unrelated examples or intro pages into this change.
+  - Replace legacy sidebar/demo-chat sources after destinations and redirects pass verification; retain a small compatibility map for historical links.
+  - Use an isolated candidate/deployed dev feed first. Production activation remains a separate explicit action after review of the concrete implementation and backfill evidence.
+  - Roll back by restoring the previous complete feed revision and compatible application revision; do not delete historical media during rollout.
+
+open_decisions: []
+
+scenarios:
+  - id: S-1
+    title: Review the fixture-driven newsroom before product integration
+    given:
+      - The five supplied Figma exports define the intended News, Blog, release, blog-post, and social-post hierarchy.
+      - Responsive behavior has not yet been approved by the user.
+    when:
+      - The reviewer opens the English or German NewsroomSurface variants through /dev/preview at laptop or phone width.
+    then:
+      - Each requested surface renders from synthetic fixtures without live feed, Buffer, email, or S3 access.
+      - Search and grouped-media slideshow controls work without page-level horizontal overflow.
+      - The reviewer can accept or revise the desktop and proposed responsive layouts before production logic begins.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The five fixture-driven newsroom views render and their essential search, slideshow, desktop navigation, and compact navigation behavior complete without page-level horizontal overflow at the reviewed laptop and phone sizes.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-NEWSROOM-PREVIEW]
+  - id: AC-2
+    scenario: S-1
+    text: The user explicitly confirms or revises the concrete newsroom previews before production routes, publishing, storage, Buffer, migration, or email logic is implemented.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: user_confirmation
+    verification_ids: [T-NEWSROOM-UI-APPROVAL]
+
+tests:
+  - id: T-NEWSROOM-PREVIEW
+    type: playwright
+    file: frontend/apps/web_app/tests/components/newsroom-surface.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session 27fc --spec components/newsroom-surface.spec.ts --mode component
+    target: github-isolated://localhost:5173/dev/preview/newsroom/NewsroomSurface
+    execution_environment: isolated_github_ci
+    covers: [AC-1]
+    assertions:
+      - News, Blog, release, blog-post, and social-post variants mount from their preview fixtures.
+      - Search filtering and release slideshow navigation work.
+      - Desktop and phone layouts do not create page-level horizontal overflow.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: waived
+        reason: This is an approval preview rather than an approved product semantic contract.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: Isolated component CI with web-laptop and web-phone proof profiles.
+        run_id: 35523214981, 35523040463
+        subject_commit: 82a0ebc099767a0eae341f80da453397f6a90823
+        timestamp: "2026-09-20T16:38:00Z"
+        summary: One focused preview spec passed at 1440x900 and 390x844 across all five variants and essential interactions.
+  - id: T-NEWSROOM-UI-APPROVAL
+    type: manual
+    covers: [AC-2]
+    assertions:
+      - The user reviews the deployed desktop and phone previews.
+      - Requested visual revisions are applied before the user explicitly approves the direction.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: waived
+        reason: User design approval has no meaningful red-phase automation.
+    green_phase:
+      required: true
+      expected: user_confirmation
+      evidence:
+        status: passed
+        timestamp: "2026-09-21T12:00:00Z"
+        summary: The user approved implementation after reviewing and correcting the deployed publication previews.
+
+tasks:
+  - id: TASK-1
+    title: Deliver the newsroom UI previews for confirmation
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1]
+      acceptance_criteria: [AC-1, AC-2]
+    expected_files:
+      - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
+      - frontend/packages/ui/src/components/newsroom/NewsroomSurface.preview.ts
+      - frontend/apps/web_app/tests/components/newsroom-surface.spec.ts
+    verification_ids: [T-NEWSROOM-PREVIEW, T-NEWSROOM-UI-APPROVAL]
+    dependencies: []
+    blockers: []
+    follow_up_tasks:
+      - Define the permanent publication Specification and implement the approved integration stages.
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/newsroom/
+        - frontend/apps/web_app/tests/components/newsroom-surface.spec.ts
+      shared_files:
+        - frontend/packages/ui/index.ts
+        - scripts/ci_coverage_manifest.json
+
+implementation_state:
+  subject_commit: 82a0ebc099767a0eae341f80da453397f6a90823
+
+approvals:
+  specification:
+    status: approved
+    id: feature.public-publications@1
+    fingerprint: 0f938809737584635550bc9fec4ebec72d793dcf94bf2b2c0453565152c269f0
+    approved_at: "2026-09-21T12:00:00Z"
+  plan:
+    status: approved
+    approved_at: "2026-09-20T14:00:00Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Deploy fixture-only component previews and require explicit UI confirmation before implementing product logic.
+    reason: The supplied designs do not define responsive behavior, and the user asked to review the concrete UI before broader implementation or testing.
+    decided_at: "2026-09-20T14:00:00Z"
+  - id: D-2
+    status: active
+    decision: Use the corrected shared publication UI for real bilingual routes and consume only allowlisted public manifest fields from marketing content.
+    reason: The user explicitly approved implementation after the interactive UI review and requested real announcement migration and Buffer-backed social content.
+    decided_at: "2026-09-21T12:00:00Z"
+  - id: D-3
+    status: active
+    decision: Store optimized posters with the Vercel application and store content-addressed videos and original images under a permanent Hetzner Object Storage publication prefix.
+    reason: The provider project is currently at its bucket quota, so the dev implementation uses an isolated permanent prefix in the existing media bucket. Anonymous listing remains forbidden, only exact objects are public, temporary lifecycle rules are prefix-scoped, and the browser receives no credentials. A separate bucket and prefix-scoped publisher credential remain the production infrastructure target when quota is available.
+    decided_at: "2026-09-21T13:45:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Build one reusable fixture-driven component and validate all five variants at laptop and phone sizes in isolated component CI.
+    outcome: succeeded
+    recorded_at: "2026-09-20T16:38:00Z"
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Verify and deploy the approved real publication routes, manifest parser, migrated announcements, and sanitized social backfill.
+  command: 'python3 scripts/sessions.py deploy --session 27fc --title "feat: publish news blog and social archives"'
+  expected_outcome: The real bilingual publication routes are available on app.dev.openmates.org with server-rendered SEO metadata and exact social permalinks.
+  blocker: null
+  last_verified_commit: da96f56a4c76109af7a35838fa404416f6316df9
+
+implementation_readiness:
+  - Confirm production storage project, region and least-privilege publisher credentials during infrastructure setup; never use existing application-wide keys as a shortcut.
+  - Audit actual Buffer history/media availability before claiming full backfill; use original files where temporary uploads have expired.
+  - Existing intro/release videos currently use api.video. Copy approved accessible source assets to the new store where available, preserving a documented existing-host fallback until migration succeeds.
+  - Preserve exact supplied design intent while treating placeholder articles and product claims as examples, not publication-ready content.
+  - Responsive behavior follows the corrected, user-reviewed component previews; reopen visual review only for a material layout change.
+  - OpenMates Tasks remains the work-status authority when the configured Project snapshot is available; this session currently has no linked Task.
+
+planning_validation:
+  yaml_and_goal_first_structure: passed
+  repository_validator: Strict execution records were added when the deploy gate required them for this approved implementation stage.
+  execution: Fixture-only preview implementation; no production routes, infrastructure mutations, Buffer imports, S3 operations, or newsletter sends performed.
+
+references:
+  source:
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - backend/core/api/app/services/newsletter_campaign_service.py
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/services/chatUrlService.ts
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - backend/core/api/app/services/s3/config.py
+  provider:
+    - https://docs.hetzner.com/storage/object-storage/faq/buckets-objects/
+    - https://docs.hetzner.com/storage/object-storage/faq/s3-credentials/
+    - https://docs.hetzner.com/storage/object-storage/howto-protect-objects/cors/
+    - https://docs.hetzner.com/storage/object-storage/faq/general/
+    - https://developers.buffer.com/examples/get-paginated-posts.html
+    - https://developers.google.com/search/docs/appearance/ai-features
+
+# 2026-09-21 UI correction: use supplied News/Social post exports as desktop
+# proportions. Reuse Header with a 64px publication layout, restore valid spacing
+# tokens, a 712px centered hero/body, 300x480 social media and compact post copy.
+# Mobile adapts with 24px body insets and stacked media/copy; responsive approval
+# was accepted after the requested corrections. Evidence: focused newsroom spec desktop and phone PNGs.
+# 2026-09-21 interaction correction: the publication header remains available
+# while its drawer is open and toggles the sidebar in both directions. Social
+# items expose one exact external permalink per published platform; the detail
+# view renders those as platform icons opening independently in new tabs.

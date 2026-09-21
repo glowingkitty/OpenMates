@@ -11,6 +11,47 @@ import XCTest
 
 @MainActor
 final class ChatHistoryRenderDocumentTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,pii.surface.semantic-parity
+    func testTranscriptDisplayProjectionRestoresSharedEmbedsOnceAndKeepsUserMappingPrecedence() {
+        let placeholder = "[PERSON_NAME_1]"
+        let old = PIIMapping(placeholder: placeholder, original: "Earlier synthetic name", type: "person_name")
+        let latest = PIIMapping(placeholder: placeholder, original: "Updated synthetic name", type: "person_name")
+        let ignored = PIIMapping(placeholder: placeholder, original: "Assistant mapping must not override", type: "person_name")
+        let source = EmbedRecord(id: "shared-source", type: "website", status: .finished,
+                                 data: .raw(["title": AnyCodable(placeholder)]),
+                                 parentEmbedId: nil, appId: "web", skillId: nil,
+                                 embedIds: nil, createdAt: nil)
+        let rows = (0..<120).map { index in
+            Message(id: "projection-row-\(index)", chatId: "projection-chat",
+                    role: index < 2 ? .user : .assistant, content: placeholder,
+                    encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+                    appId: nil, isStreaming: false,
+                    embedRefs: [EmbedRef(id: source.id, type: source.type, status: nil, data: nil)],
+                    piiMappings: [index == 0 ? old : (index == 1 ? latest : ignored)])
+        }
+        var restoredIds: [String] = []
+        let projection = ChatTranscriptDisplayProjection(messages: rows, embedRecords: [source.id: source],
+                                                        isPIIRevealed: true) { embed, mappings in
+            restoredIds.append(embed.id)
+            return PIIDetector.restorePII(in: embed, mappings: mappings)
+        }
+        XCTAssertEqual(projection.piiMappings, [latest])
+        for row in rows {
+            XCTAssertEqual(projection.embeds(for: row).first?.rawData?["title"]?.value as? String, latest.original)
+        }
+        XCTAssertEqual(restoredIds, [source.id], "120 row lookups must reuse the one restored shared embed")
+        XCTAssertEqual(source.rawData?["title"]?.value as? String, placeholder,
+                       "Revealing PII must not mutate the canonical stored record")
+
+        let hidden = ChatTranscriptDisplayProjection(messages: rows, embedRecords: [source.id: source],
+                                                    isPIIRevealed: false) { embed, _ in
+            XCTFail("Hidden mode must never restore embed content")
+            return embed
+        }
+        XCTAssertEqual(hidden.embeds(for: rows[0]).first?.rawData?["title"]?.value as? String, placeholder)
+        XCTAssertEqual(hidden.piiMappings, [latest], "Message rendering still receives the same mapping collection")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chat-navigation.open.local-first-coherent
     func testInlineFlowReusesMeasurementsAndPreservesWrapping() {
         var cache = InlineMarkdownFlowMeasurements(idealSizes: [

@@ -20,9 +20,8 @@ from backend.shared.python_utils.encrypted_slug_metadata import (
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
-EXTERNAL_CHAT_PROVIDERS = {"codex", "opencode"}
-# Retain legacy identity validation without ever treating it as a Codex thread.
-TASK_ASSIGNEE_IDENTITIES = {"openmates": {"openmates"}, "external_ai": {"codex", "opencode"}}
+EXTERNAL_CHAT_PROVIDERS = {"codex"}
+TASK_ASSIGNEE_IDENTITIES = {"openmates": {"openmates"}, "external_ai": {"codex"}}
 TASK_ASSIGNEE_TYPES = {"user", "openmates", "external_ai", "unassigned"}
 
 
@@ -283,13 +282,9 @@ class UserTaskMethods:
         self.directus_service = directus_service
 
     async def eligible_external_ai(self, user_id: str) -> list[str]:
-        """Derive eligibility only from owner-scoped creation receipts.
-
-        Legacy OpenCode receipts remain distinct; assignment/relinking cannot
-        produce Codex eligibility. Each provider query is bounded independently.
-        """
+        """Derive Codex eligibility only from owner-scoped creation receipts."""
         eligible = []
-        for provider in ("codex", "opencode"):
+        for provider in ("codex",):
             rows = await self.directus_service.get_items("user_task_activity", params={
                 "filter[hashed_user_id][_eq]": hash_id(user_id),
                 "filter[hashed_team_id][_null]": True,

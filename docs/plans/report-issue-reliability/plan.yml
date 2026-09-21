@@ -1,0 +1,265 @@
+schema_version: 2
+id: report-issue-reliability
+title: Report Issue Reliability And Submitted Summary
+status: implementing
+
+goal: >
+  Make the Report Issue confirmation useful by showing the submitted report
+  summary, repair broken report notifications, and prove that retained debug
+  logs plus shared-chat links (including the client-side encryption key) remain
+  usable through a real report submitted on the deployed web app.
+
+scope:
+  in:
+    - A localized confirmation summary for the sanitized title, user flow, expected behaviour, and actual behaviour.
+    - Reliable issue-report worker initialization that does not depend on unrelated billing services.
+    - Durable encrypted YAML retention for report-time diagnostics and privacy-filtered console logs, regardless of whether email notification is enabled.
+    - Current-chat sharing enabled by default with a clear opt-out that removes both the shared URL and rendered last-message HTML.
+    - Preservation of the complete encrypted shared-chat URL, including its fragment key, through report submission and encrypted storage.
+    - A fresh-browser check that the shared link captured by a report decrypts and opens the intended chat.
+    - Isolated CI followed by a deployed dev-web report submission and worker/data verification.
+  out:
+    - Production deployment or production data access.
+    - Redesigning the general notification, billing, or chat-sharing systems.
+    - Automatic creation of an OpenMates Task after report submission.
+    - Exposing report contents, chat keys, or decrypted diagnostics through a new public API.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep issue submission responsive and asynchronous; the confirmation page does not wait for email or YAML persistence.
+    reason: Notification and encrypted-artifact work should not turn a successful report into a slow or fragile synchronous request.
+    decided_at: '2026-09-21'
+  - id: D-2
+    status: active
+    decision: Initialize only the core, storage, and email services used by the issue-report worker.
+    reason: The failing CI worker aborted on an unavailable Invoice Ninja secret before it could persist diagnostics or send either email.
+    decided_at: '2026-09-21'
+  - id: D-3
+    status: active
+    decision: Retain a share-link fragment only in the existing encrypted issue field and encrypted YAML, never in logs or a new ordinary-client response.
+    reason: The fragment contains the client-side key needed to decrypt a deliberately shared chat and remains sensitive even after consent.
+    decided_at: '2026-09-21'
+  - id: D-4
+    status: active
+    decision: Validate the captured shared link by opening it in a fresh logged-out browser context.
+    reason: Checking only URL shape or database presence would not prove that the encryption blob can actually decrypt the intended chat.
+    decided_at: '2026-09-21'
+  - id: D-5
+    status: active
+    decision: Always run diagnostic persistence; treat email delivery as an independent optional notification step.
+    reason: Administrator reports previously discarded every diagnostic field when their default email toggle was off.
+    decided_at: '2026-09-21'
+  - id: D-6
+    status: active
+    decision: Include the active chat by default as explicit report-form consent, while making the toggle easy to disable and redacting visible chat text plus share keys from console logs.
+    reason: Reports need enough context to debug effectively without duplicating plaintext chat content or credentials into general-purpose logs.
+    decided_at: '2026-09-21'
+
+scenarios:
+  - id: S-1
+    title: Submitted report remains useful and actionable
+    given:
+      - A user has an active encrypted chat and opens Report Issue.
+    when:
+      - The user submits populated report fields with chat sharing and notifications enabled.
+    then:
+      - The confirmation summarizes the sanitized report and compact issue ID.
+      - The report worker retains encrypted diagnostics and delivers admin and reporter notification emails.
+      - The captured shared URL opens and decrypts the chat in a fresh logged-out browser context.
+  - id: S-2
+    title: Diagnostics persist without notification or chat consent
+    given:
+      - An administrator submits a report with email notifications disabled.
+    when:
+      - The active-chat sharing toggle remains enabled or is explicitly turned off.
+    then:
+      - The encrypted diagnostic YAML is retained even though no email is sent.
+      - Turning chat sharing off removes both the share URL and last-message HTML from the submitted payload.
+      - Privacy-filtered console logs contain neither visible message text nor share-link encryption keys.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The confirmation page displays a localized summary containing every populated structured report field and the compact issue ID.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-COMPONENT, T-E2E]
+  - id: AC-2
+    scenario: S-1
+    text: A non-admin report with notifications enabled reaches the admin email and reporter confirmation paths without requiring unrelated billing secrets.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-E2E, T-DEPLOYED]
+  - id: AC-3
+    scenario: S-1
+    text: The encrypted YAML contains the bounded report-time console-log snapshot and the issue record reports it as persisted.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-E2E, T-DEPLOYED]
+  - id: AC-4
+    scenario: S-1
+    text: A report submitted while a private chat is active includes a `/share/chat/<id>#key=<blob>` URL that opens and decrypts the intended chat in a fresh logged-out browser context.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-SHARE, T-DEPLOYED]
+  - id: AC-5
+    scenario: S-1
+    text: The changed behavior passes focused local checks and isolated GitHub coverage before one real report is verified on the deployed dev web app.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-COMPONENT, T-BACKEND, T-E2E, T-SHARE, T-DEPLOYED]
+  - id: AC-6
+    scenario: S-2
+    text: Disabling email notification does not skip encrypted diagnostic persistence, and processed becomes true only after the artifact is retained.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-E2E, T-DEPLOYED]
+  - id: AC-7
+    scenario: S-2
+    text: Disabling current-chat sharing sends neither a chat/embed URL nor last-message HTML; when enabled, logs redact visible message text and share-link key material.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-E2E, T-DEPLOYED]
+
+tests:
+  - id: T-COMPONENT
+    type: playwright
+    file: frontend/apps/web_app/tests/components/report-issue-confirmation.spec.ts
+    target: runner-local Vite component preview
+    execution_environment: isolated_github_ci
+    command: python3 scripts/ci_coordinator.py submit --session 73d9 --source SOURCE --mode e2e --spec frontend/apps/web_app/tests/components/report-issue-confirmation.spec.ts
+    covers: [AC-1, AC-5]
+    assertions:
+      - The confirmation summary is readable at phone and wider settings widths and copy feedback works.
+    red_phase: {required: false, expected: fail, evidence: {status: not_required, reason: Existing screenshot established the minimal confirmation state.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, run_id: '35597433891'}}
+  - id: T-BACKEND
+    type: pytest
+    file: backend/tests/test_issue_report_email_task.py
+    command: python3 -m pytest backend/tests/test_issue_report_email_task.py
+    covers: [AC-2, AC-3, AC-5, AC-6]
+    assertions:
+      - Issue-report task initialization loads only core, storage, and email dependencies, persists diagnostics when email is disabled, and marks a retried report processed only after upload succeeds.
+    red_phase: {required: false, expected: fail, evidence: {status: observed_in_ci, run_id: '35597750871'}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    target: isolated GitHub web and backend stack
+    execution_environment: isolated_github_ci
+    command: python3 scripts/ci_coordinator.py submit --session 73d9 --source SOURCE --mode e2e --spec frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    covers: [AC-1, AC-2, AC-3, AC-5, AC-6, AC-7]
+    assertions:
+      - A real disposable account submits a report to the genuine API, retains screenshot and YAML diagnostics, verifies privacy-filtered log payloads, and renders the submitted summary.
+    red_phase: {required: false, expected: fail, evidence: {status: failed, run_id: '35597750871', result: Invoice Ninja initialization aborted the report email task before YAML persistence.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-SHARE
+    type: playwright
+    file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    target: isolated GitHub API and AI-fixture worker stack
+    execution_environment: isolated_github_ci
+    command: python3 scripts/ci_coordinator.py submit --session 73d9 --source SOURCE --mode e2e --spec share-chat-flow.spec.ts
+    covers: [AC-4, AC-5]
+    assertions:
+      - The exact key-bearing link generated by the Report Issue form decrypts the consented message and search embed in a fresh logged-out browser context; turning sharing off omits both the URL and rendered message HTML.
+    red_phase: {required: false, expected: fail, evidence: {status: observed_in_issue, result: Issue 9DZ7V could decrypt the share blob but not any messages or embeds.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-DEPLOYED
+    type: manual
+    file: frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    target: https://dev.openmates.org
+    command: Scoped dev-web report submission and bounded worker/data checks after sessions.py deploy.
+    covers: [AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    assertions:
+      - The deployed dev app produces successful notification-worker evidence, retained encrypted diagnostics, and a fresh-context decryptable shared chat.
+    red_phase: {required: false, expected: fail, evidence: {status: not_required, reason: Isolated CI already captured the worker failure.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+
+verification:
+  required:
+    - python3 scripts/plan_validate.py docs/plans/report-issue-reliability/plan.yml
+    - Focused backend unit tests for issue-report service initialization and artifact/email sequencing.
+    - Isolated GitHub CI for report-issue-flow.spec.ts with a real disposable account and backend.
+    - Isolated component CI for report-issue-confirmation.spec.ts.
+    - A deployed dev-web report using a test account, followed by bounded verification of notification completion, encrypted YAML/log retention, and fresh-context shared-chat access.
+  privacy_security:
+    - Evidence must redact account email, full shared URL fragment, encryption keys, cookies, and decrypted report content.
+    - No new route may return a stored shared-chat URL or diagnostics to an ordinary client.
+    - Chat content is attached only through the default-on report consent toggle; disabling it omits both the encrypted shared link and rendered last-message HTML.
+    - General console-log retention must remove visible chat text and share-link key material even when chat context is consented for the report artifact.
+
+specification_impact:
+  existing_assertions:
+    - issue-reporting.submission.confirmed-and-durable
+    - issue-reporting.logs.authenticated-capture
+    - chat-share-settings.shared-link-open
+    - notifications.content.privacy-boundary
+  new_product_contract_required: false
+
+implementation_state:
+  subject_commit: f769a9c2951f68d0b8d27e290e7b28dc369bc3bd
+
+approvals:
+  specification:
+    status: not_required
+    reason: This repair and UI enrichment are covered by existing issue-reporting, sharing, and notification assertions.
+  plan:
+    status: approved
+    approved_at: '2026-09-21'
+    source: The user explicitly requested implementation, investigation, and deployed real-world validation.
+
+tasks:
+  - id: TASK-1
+    title: OpenMates Task 29dc2351-1726-475b-a454-b5e75ece02e2 owns reliability implementation and verification status.
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    expected_files:
+      - backend/core/api/app/tasks/email_tasks/issue_report_email_task.py
+      - backend/tests/test_issue_report_email_task.py
+      - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+      - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    verification_ids: [T-COMPONENT, T-BACKEND, T-E2E, T-SHARE, T-DEPLOYED]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      owner: session-73d9
+      files:
+        - backend/core/api/app/tasks/email_tasks/issue_report_email_task.py
+        - backend/tests/test_issue_report_email_task.py
+        - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+        - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+      shared_files: []
+
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: failed_as_expected
+    approach: Run the existing full Report Issue browser flow in isolated GitHub CI after adding summary coverage.
+    recorded_at: '2026-09-21'
+    result: The worker initialized unrelated billing services and aborted on missing Invoice Ninja configuration before YAML persistence or email delivery.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Run isolated GitHub backend and browser coverage, then deploy and exercise the same report path on dev.
+  command: python3 scripts/sessions.py ci-source --session 73d9
+  expected_outcome: The latest isolated source proves mandatory diagnostics, consent behavior, summary rendering, notification behavior, and fresh-context decryption before deployment.
+  last_verified_commit: f769a9c2951f68d0b8d27e290e7b28dc369bc3bd

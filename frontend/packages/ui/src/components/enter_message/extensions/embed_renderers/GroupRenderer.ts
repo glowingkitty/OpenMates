@@ -25,7 +25,7 @@ import {
   downloadCodeFilesAsZip,
   type CodeFileData,
 } from "../../../../services/zipExportService";
-import { mount, unmount, disposeEmbedTree } from "./mountedEmbedLifecycle";
+import { mount, unmount, disposeEmbedTree, onEmbedCleanup, isEmbedTargetDisposed } from "./mountedEmbedLifecycle";
 import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte";
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
@@ -112,6 +112,7 @@ import {
   proxyFavicon,
   proxyImage,
 } from "../../../../utils/imageProxy";
+import { searchResultImageUrl } from "../../../../utils/searchPreviewImages";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 import { get } from "svelte/store";
 import { text } from "@repo/ui";
@@ -1073,9 +1074,18 @@ export class GroupRenderer implements EmbedRenderer {
     groupWrapper: HTMLElement,
     scrollContainer: HTMLElement,
   ): void {
+    if (isEmbedTargetDisposed(scrollContainer)) return;
     if (!verticalWheelTargets.has(scrollContainer)) {
       scrollContainer.addEventListener("wheel", forwardGroupVerticalWheel, { passive: false });
       verticalWheelTargets.add(scrollContainer);
+      // Message removal must release the latest observer, including after an
+      // incremental group update replaced the original indicator callbacks.
+      onEmbedCleanup(scrollContainer, () => {
+        scrollIndicatorCleanups.get(scrollContainer)?.();
+        scrollIndicatorCleanups.delete(scrollContainer);
+        scrollContainer.removeEventListener("wheel", forwardGroupVerticalWheel);
+        verticalWheelTargets.delete(scrollContainer);
+      });
     }
     const explicitItems = Array.from(
       scrollContainer.querySelectorAll<HTMLElement>(".embed-group-item"),
@@ -3746,7 +3756,7 @@ export class GroupRenderer implements EmbedRenderer {
       decodedContent?.favicon ||
       item.favicon;
     const image =
-      decodedContent?.thumbnail_original || decodedContent?.image || item.image;
+      searchResultImageUrl(decodedContent) || searchResultImageUrl(item);
 
     // Determine status.
     // When embed data has been successfully decoded (e.g. metadata fetched by
@@ -3792,8 +3802,8 @@ export class GroupRenderer implements EmbedRenderer {
             decodedContent?.favicon,
           image:
             metadata?.image ||
-            decodedContent?.thumbnail_original ||
-            decodedContent?.image,
+            searchResultImageUrl(decodedContent) ||
+            searchResultImageUrl(item),
         };
 
         console.debug(
@@ -3933,7 +3943,7 @@ export class GroupRenderer implements EmbedRenderer {
       decodedContent?.favicon ||
       item.favicon;
     const image =
-      decodedContent?.thumbnail_original || decodedContent?.image || item.image;
+      searchResultImageUrl(decodedContent) || searchResultImageUrl(item);
 
     const hasMetadata = websiteTitle || websiteDescription;
 
@@ -3942,7 +3952,7 @@ export class GroupRenderer implements EmbedRenderer {
       const displayTitle = websiteTitle || new URL(websiteUrl).hostname;
       const displayDescription = websiteDescription || "";
       const faviconUrl = favicon || proxyFavicon(websiteUrl);
-      const imageUrl = image || proxyImage(websiteUrl);
+      const imageUrl = image ? proxyImage(image, MAX_WIDTH_PREVIEW_THUMBNAIL) : null;
 
       // Add click handler for fullscreen
       const embedId = item.contentRef?.replace("embed:", "") || "";
@@ -3966,8 +3976,7 @@ export class GroupRenderer implements EmbedRenderer {
           </div>
           <div class="embed-extended-preview">
             <div class="website-preview">
-              <img class="og-image" src="${imageUrl}" alt="Website preview" loading="lazy" 
-                  onerror="this.style.display='none'" />
+              ${imageUrl ? `<img class="og-image" src="${imageUrl}" alt="Website preview" loading="lazy" onerror="this.style.display='none'" />` : ""}
               <div class="og-description">${displayDescription}</div>
             </div>
           </div>

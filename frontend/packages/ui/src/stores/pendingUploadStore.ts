@@ -41,7 +41,7 @@ import type { TipTapDoc, TipTapNode } from "../message_parsing/types";
 export interface EmbedProgress {
   /** The embed's TipTap node attr id (= the local embed UUID) */
   embedId: string;
-  /** "uploading" | "transcribing" | "processing" | "finished" | "error" */
+  /** "uploading" | "transcribing" | "correcting" | "processing" | "finished" | "error" */
   status: string;
   /** Upload progress 0–100. Only meaningful for status === "uploading". */
   uploadPercent: number;
