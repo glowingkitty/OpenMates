@@ -10,8 +10,6 @@ from backend.apps.ai.llm_providers.types import StreamChunkType, UnifiedStreamCh
 from backend.apps.ai.utils.tool_protocol_guard import (
     ToolProtocolGuard,
     is_internal_tool_protocol,
-    recovery_search_tools,
-    required_fresh_search_tools,
 )
 
 @pytest.fixture(autouse=True)
@@ -98,30 +96,3 @@ def test_internal_protocol_signature_covers_result_envelopes_without_tool_field(
     assert is_internal_tool_protocol('toon', 'tool: news-search\ninput: example')
     assert is_internal_tool_protocol('tool_code', '{}')
     assert not is_internal_tool_protocol('toon', 'app_id: demo\nname: Example')
-
-
-# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,web-search.surface-parity
-def test_follow_up_recovery_requires_original_news_route_not_added_companions():
-    tools = [{'type': 'function', 'function': {'name': name}} for name in [
-        'news-search', 'web-search', 'images-search', 'mail-send', 'activate_focus_mode',
-    ]]
-    assert recovery_search_tools(tools, ['news-search']) == [tools[0]]
-    assert recovery_search_tools(tools, ['mail-send']) == []
-    assert recovery_search_tools(tools, []) == []
-    assert recovery_search_tools(tools[1:], ['news-search']) == []
-
-
-# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,web-search.surface-parity
-@pytest.mark.parametrize("fresh,calls,disabled,expected", [
-    (True, 0, False, True),
-    (False, 0, False, False),  # Summaries/comparisons may reuse existing results.
-    ("true", 0, False, False),  # Only a validated boolean enables enforcement.
-    (True, 1, False, False),  # Answer normally after retrieval.
-    (True, 0, True, False),  # Never override disabled tools or exhausted budgets.
-])
-def test_fresh_search_requires_original_route_only_until_first_call(fresh, calls, disabled, expected):
-    tools = [{"function": {"name": name}} for name in ["news-search", "web-search", "mail-send"]]
-    assert required_fresh_search_tools(
-        tools, ["news-search", "mail-send"], requires_fresh_search=fresh,
-        total_skill_calls=calls, tools_disabled=disabled,
-    ) == ([tools[0]] if expected else [])

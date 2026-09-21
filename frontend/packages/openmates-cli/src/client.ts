@@ -2340,6 +2340,21 @@ export interface BenchmarkHistoryMessage {
   category?: string | null;
 }
 
+export function buildInferenceHistoryMessage(
+  historyMessage: BenchmarkHistoryMessage,
+  chatId: string,
+): BenchmarkHistoryMessage {
+  return {
+    message_id: historyMessage.message_id,
+    chat_id: chatId,
+    role: historyMessage.role,
+    sender_name: historyMessage.sender_name ?? historyMessage.role,
+    content: historyMessage.content,
+    created_at: historyMessage.created_at,
+    category: historyMessage.role === "assistant" ? historyMessage.category : undefined,
+  };
+}
+
 /** Decrypted message for display */
 export interface DecryptedMessage {
   id: string;
@@ -6657,10 +6672,9 @@ export class OpenMatesClient {
       };
     }
     if (params.incognito) {
-      const providedHistory = (params.messageHistory ?? []).map((historyMessage) => ({
-        ...historyMessage,
-        chat_id: historyMessage.chat_id ?? chatId,
-      }));
+      const providedHistory = (params.messageHistory ?? []).map((historyMessage) =>
+        buildInferenceHistoryMessage(historyMessage, historyMessage.chat_id ?? chatId)
+      );
       messagePayload.message_history = [...providedHistory, {
         message_id: messageId,
         chat_id: chatId,
@@ -6670,14 +6684,9 @@ export class OpenMatesClient {
         created_at: createdAt,
       }];
     } else if (messageHistoryForRequest && messageHistoryForRequest.length > 0) {
-      messagePayload.message_history = messageHistoryForRequest.map((historyMessage) => ({
-        message_id: historyMessage.message_id,
-        chat_id: chatId,
-        role: historyMessage.role,
-        sender_name: historyMessage.sender_name ?? historyMessage.role,
-        content: historyMessage.content,
-        created_at: historyMessage.created_at,
-      }));
+      messagePayload.message_history = messageHistoryForRequest.map((historyMessage) =>
+        buildInferenceHistoryMessage(historyMessage, chatId)
+      );
     }
 
     if (params.preparedEmbeds && params.preparedEmbeds.length > 0) {

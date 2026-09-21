@@ -1,24 +1,51 @@
 """Regression coverage for same-topic news follow-up routing."""
 
-# ruff: noqa: E402
+import ast
+from pathlib import Path
+import re
+from typing import Any, Dict, List, Optional
 
-import sys
-import types
+import pytest
 
-from backend.tests.runtime_import_stubs import install_code_route_import_stubs
+from backend.apps.ai.processing.search_skill_reliability import expand_companion_skills
 
-install_code_route_import_stubs()
 
-llm_utils_stub = types.ModuleType("backend.apps.ai.utils.llm_utils")
-llm_utils_stub.call_preprocessing_llm = None
-llm_utils_stub.LLMPreprocessingCallResult = object
-sys.modules.setdefault("backend.apps.ai.utils.llm_utils", llm_utils_stub)
+def _load_routing_functions():
+    """Load pure routing logic without stubbing shared provider modules.
 
-from backend.apps.ai.processing.preprocessor import _news_follow_up_repeats_prior_topic
-from backend.apps.ai.processing.search_skill_reliability import (
-    expand_companion_skills,
-    require_first_explicit_skill_call,
-)
+    Importing the full preprocessor requires worker services. Compile the actual
+    function and constant definitions so these unit tests remain isolated from
+    other tests' provider mocks and never replace entries in sys.modules.
+    """
+    source = Path(__file__).resolve().parents[1] / "apps/ai/processing/preprocessor.py"
+    names = {
+        "_news_follow_up_repeats_prior_topic", "_normalize_topic_area",
+        "_normalize_task_area", "_resolve_category_from_topic_area",
+        "USER_ROLE", "TOPIC_CONTINUITY_STOP_WORDS", "ONBOARDING_SUPPORT_CATEGORY",
+        "SOFTWARE_DEVELOPMENT_CATEGORY", "SAME_TOPIC_SHIFT_VALUES",
+        "FOLLOW_UP_CONTINUITY_TOPIC_AREAS", "TOPIC_AREA_DESCRIPTIONS",
+        "TOPIC_AREA_TO_MATE_CATEGORY",
+    }
+    nodes = []
+    for node in ast.parse(source.read_text()).body:
+        if isinstance(node, ast.FunctionDef):
+            defined = {node.name}
+        elif isinstance(node, ast.Assign):
+            defined = {target.id for target in node.targets if isinstance(target, ast.Name)}
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            defined = {node.target.id}
+        else:
+            continue
+        if defined & names:
+            nodes.append(node)
+    namespace = {"re": re, "Any": Any, "Dict": Dict, "List": List, "Optional": Optional}
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), str(source), "exec"), namespace)
+    return namespace
+
+
+_routing = _load_routing_functions()
+_news_follow_up_repeats_prior_topic = _routing["_news_follow_up_repeats_prior_topic"]
+_resolve_category_from_topic_area = _routing["_resolve_category_from_topic_area"]
 
 
 def _message(role: str, content: str) -> dict[str, str]:
@@ -53,18 +80,24 @@ def test_explicit_news_search_does_not_add_companion_skills() -> None:
     assert expanded == {"news-search"}
 
 
-# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,web-search.surface-parity
-def test_explicit_news_search_requires_the_first_tool_call() -> None:
-    assert require_first_explicit_skill_call(
-        "auto",
-        user_requested_skills_only=True,
-        preselected_skills={"news-search"},
-        total_skill_calls=0,
-    ) == "required"
+# contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+@pytest.mark.parametrize("topic_area", [None, "news-search", "unknown_topic"])
+@pytest.mark.parametrize("topic_shift", ["same_topic", "unclear", "noticeable_shift"])
+def test_invalid_topic_keeps_last_valid_mate(topic_area, topic_shift):
+    assert _resolve_category_from_topic_area(
+        raw_topic_area=topic_area, raw_topic_shift=topic_shift,
+        previous_category="software_development",
+        available_category_ids={"software_development", "cooking_food"},
+    ) == "software_development"
 
-    assert require_first_explicit_skill_call(
-        "auto",
-        user_requested_skills_only=True,
-        preselected_skills={"news-search"},
-        total_skill_calls=1,
-    ) == "auto"
+
+# contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+@pytest.mark.parametrize("previous,shift", [
+    ("not_a_mate", "same_topic"), ("software_development", "noticeable_shift"),
+])
+def test_valid_new_topic_can_select_different_mate(previous, shift):
+    assert _resolve_category_from_topic_area(
+        raw_topic_area="cooking_food", raw_topic_shift=shift,
+        previous_category=previous,
+        available_category_ids={"software_development", "cooking_food"},
+    ) == "cooking_food"

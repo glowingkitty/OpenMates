@@ -65,6 +65,7 @@ const {
   MEMORY_TYPE_REGISTRY,
   buildAppSettingsMemoryRequestSystemMessage,
   buildAppSettingsMemoryResponseSystemMessage,
+	buildInferenceHistoryMessage,
   buildTaskEventSystemMessage,
   buildTaskUpdateJobPersistPayload,
   messageExplicitlyRequestsTasksAppSkill,
@@ -2751,6 +2752,38 @@ describe("CLI saved-chat recovery preflight", () => {
 });
 
 describe("CLI incognito chat payloads", () => {
+	// contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+	it("preserves only assistant categories in inference history", () => {
+		assert.deepEqual(
+			buildInferenceHistoryMessage({
+				message_id: "assistant-history",
+				role: "assistant",
+				sender_name: "Assistant",
+				content: "Earlier answer",
+				created_at: 101,
+				category: "news",
+			}, "chat-1"),
+			{
+				message_id: "assistant-history",
+				chat_id: "chat-1",
+				role: "assistant",
+				sender_name: "Assistant",
+				content: "Earlier answer",
+				created_at: 101,
+				category: "news",
+			},
+		);
+
+		assert.equal(buildInferenceHistoryMessage({
+			message_id: "user-history",
+			role: "user",
+			sender_name: "User",
+			content: "Earlier question",
+			created_at: 100,
+			category: "news",
+		}, "chat-1").category, undefined);
+	});
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("can include known Learning Mode context without changing incognito state", async () => {
     const captured: { messagePayload?: Record<string, unknown>; frameTypes: string[] } = {
@@ -2959,7 +2992,7 @@ describe("CLI incognito chat payloads", () => {
         incognito: true,
         messageHistory: [
           { message_id: "history-1", role: "user", sender_name: "User", content: "Earlier user", created_at: 100 },
-          { message_id: "history-2", role: "assistant", sender_name: "Assistant", content: "Earlier assistant", created_at: 101 },
+          { message_id: "history-2", role: "assistant", sender_name: "Assistant", content: "Earlier assistant", created_at: 101, category: "news" },
         ],
         precollectResponse: true,
       });
@@ -2968,6 +3001,7 @@ describe("CLI incognito chat payloads", () => {
       assert.equal(history?.length, 3);
       assert.equal(history?.[0]?.message_id, "history-1");
       assert.equal(history?.[1]?.message_id, "history-2");
+			assert.equal(history?.[1]?.category, "news");
       assert.equal(history?.[2]?.content, "Follow-up prompt");
       assert.equal(history?.[0]?.chat_id, captured.messagePayload?.chat_id);
       assert.equal(history?.[1]?.chat_id, captured.messagePayload?.chat_id);

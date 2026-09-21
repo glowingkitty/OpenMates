@@ -19,8 +19,9 @@ import {
 	buildTeamMessageTransport,
 	applyTeamPreflightScope,
   requireEmbedOwnerId,
-  isPreflightAcknowledgementTimeout,
+	isPreflightAcknowledgementTimeout,
   preflightExpectedMessagesVersion,
+	resolveHistoryCategoryForInference,
   shouldIncludePreflightChatMetadata,
   shouldSkipClientCodeBlockExtraction,
 } from "../sendersChatMessages";
@@ -135,4 +136,28 @@ describe("sendersChatMessages protocol fences", () => {
     expect(isPreflightAcknowledgementTimeout(new Error("preflight_mismatch"))).toBe(false);
     expect(isPreflightAcknowledgementTimeout("Encrypted chat preflight acknowledgement timed out.")).toBe(false);
   });
+
+	// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+	it("includes assistant categories in authorized inference history", async () => {
+		const incognitoMessage = {
+			...TEAM_MESSAGE,
+			role: "assistant" as const,
+			category: "news",
+		};
+		expect(await resolveHistoryCategoryForInference(incognitoMessage, true)).toBe("news");
+
+		const savedMessage = {
+			...incognitoMessage,
+			category: undefined,
+			encrypted_category: "encrypted-news",
+		};
+		expect(
+			await resolveHistoryCategoryForInference(
+				savedMessage,
+				false,
+				async (encryptedCategory) => encryptedCategory === "encrypted-news" ? "news" : null,
+			)
+		).toBe("news");
+		expect(await resolveHistoryCategoryForInference(TEAM_MESSAGE, true)).toBeUndefined();
+	});
 });

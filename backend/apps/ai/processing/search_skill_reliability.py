@@ -19,24 +19,6 @@ COMPANION_SKILLS: dict[str, list[str]] = {
 }
 
 
-def require_first_explicit_skill_call(
-    tool_choice: str,
-    *,
-    user_requested_skills_only: bool,
-    preselected_skills: set[str] | None,
-    total_skill_calls: int,
-) -> str:
-    """Require the first tool call when the user explicitly requested a skill."""
-    if (
-        tool_choice == "auto"
-        and user_requested_skills_only
-        and preselected_skills
-        and total_skill_calls == 0
-    ):
-        return "required"
-    return tool_choice
-
-
 def expand_companion_skills(
     preselected_skills: set[str],
     *,

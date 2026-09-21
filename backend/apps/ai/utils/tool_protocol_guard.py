@@ -1,4 +1,4 @@
-"""Keep model-imagined tool transport out of responses and recover native searches.
+"""Keep model-imagined tool transport out of responses.
 
 Only provider text passes through this guard. Backend-created embed references
 are emitted downstream and must never be interpreted as model tool attempts.
@@ -17,8 +17,6 @@ from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 _PROTOCOL_FENCE = re.compile(r"^```(toon|tool_code)(?:[^\n]*)\n", re.IGNORECASE)
 _APP_FIELD = re.compile(r"(?m)^\s*app_id\s*:")
 _SKILL_FIELD = re.compile(r"(?m)^\s*skill_id\s*:")
-# Recovery never enables writes or a tool omitted by preprocessing/the allow-list.
-RECOVERABLE_SEARCH_SKILLS = frozenset({"news-search", "web-search", "images-search"})
 
 
 def is_internal_tool_protocol(language: str, content: str) -> bool:
@@ -33,24 +31,6 @@ def is_internal_tool_protocol(language: str, content: str) -> bool:
         or "tool_code" in content
         or "tool:" in content.lower()
     )
-
-
-def recovery_search_tools(
-    tools: list[dict[str, Any]], selected_skills: list[str] | None
-) -> list[dict[str, Any]]:
-    """Return only originally selected, available, read-only search tools."""
-    permitted = set(selected_skills or []) & RECOVERABLE_SEARCH_SKILLS
-    return [tool for tool in tools if tool.get("function", {}).get("name") in permitted]
-
-
-def required_fresh_search_tools(
-    tools: list[dict[str, Any]], selected_skills: list[str] | None,
-    *, requires_fresh_search: bool, total_skill_calls: int, tools_disabled: bool,
-) -> list[dict[str, Any]]:
-    """Require fresh retrieval only before the first call, within existing budgets."""
-    if requires_fresh_search is not True or total_skill_calls or tools_disabled:
-        return []
-    return recovery_search_tools(tools, selected_skills)
 
 
 class ToolProtocolGuard:

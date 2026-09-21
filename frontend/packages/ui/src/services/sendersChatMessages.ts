@@ -200,6 +200,24 @@ export function isPreflightAcknowledgementTimeout(error: unknown): boolean {
 	return error instanceof Error && error.message === CHAT_PREFLIGHT_TIMEOUT_MESSAGE;
 }
 
+export async function resolveHistoryCategoryForInference(
+	message: Message,
+	isIncognito: boolean,
+	decryptCategory?: (encryptedCategory: string) => Promise<string | null>
+): Promise<string | undefined> {
+	if (message.role !== "assistant") return undefined;
+	if (typeof message.category === "string" && message.category.length > 0) {
+		return message.category;
+	}
+	if (isIncognito || !message.encrypted_category || !decryptCategory) return undefined;
+
+	try {
+		return (await decryptCategory(message.encrypted_category)) || undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 export function buildTeamMessageTransport(params: {
 	message: Message;
 	content: string;
@@ -1139,15 +1157,17 @@ export async function sendNewMessageImpl(
 
 	// For incognito chats, include full message history (no server-side caching)
 	if (isIncognitoChat && messageHistory.length > 0) {
-		payload.message_history = messageHistory.map(
-			(msg) =>
+		payload.message_history = await Promise.all(
+			messageHistory.map(async (msg) =>
 				({
 					message_id: msg.message_id,
 					role: msg.role,
 					content: getHistoryContentForServer(msg),
 					created_at: msg.created_at,
-					sender_name: msg.sender_name
+					sender_name: msg.sender_name,
+					category: await resolveHistoryCategoryForInference(msg, true)
 				}) as Message
+			)
 		);
 		console.debug(
 			`[ChatSyncService:Senders] Including full message history for incognito chat: ${messageHistory.length} messages`
@@ -1158,8 +1178,17 @@ export async function sendNewMessageImpl(
 	// original inference request. This lets the server rebuild a cold AI cache
 	// without asking the client to resend after preflight has committed the user row.
 	if (!isIncognitoChat && messageHistory.length > 0) {
-		payload.message_history = messageHistory.map(
-			(msg) =>
+		let historyChatKey: Uint8Array | null = null;
+		try {
+			historyChatKey = await chatKeyManager.getKey(message.chat_id);
+		} catch (error) {
+			console.warn(
+				"[ChatSyncService:Senders] Failed to load chat key for history categories:",
+				error
+			);
+		}
+		payload.message_history = await Promise.all(
+			messageHistory.map(async (msg) =>
 				({
 					message_id: msg.message_id,
 					chat_id: message.chat_id,
@@ -1171,8 +1200,16 @@ export async function sendNewMessageImpl(
 					encrypted_model_name: msg.encrypted_model_name,
 					encrypted_pii_mappings: msg.encrypted_pii_mappings,
 					created_at: msg.created_at,
-					sender_name: msg.sender_name
+					sender_name: msg.sender_name,
+					category: await resolveHistoryCategoryForInference(
+						msg,
+						false,
+						historyChatKey
+							? (encryptedCategory) => decryptWithChatKey(encryptedCategory, historyChatKey)
+							: undefined
+					)
 				}) as Message
+			)
 		);
 
 		console.info(

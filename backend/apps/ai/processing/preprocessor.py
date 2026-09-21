@@ -570,16 +570,17 @@ def _resolve_category_from_topic_area(
     ):
         return SOFTWARE_DEVELOPMENT_CATEGORY
 
-    topic_area = _normalize_topic_area(raw_topic_area)
-    if not topic_area:
-        return None
-
-    mapped_category = TOPIC_AREA_TO_MATE_CATEGORY.get(topic_area)
-    if not mapped_category or mapped_category not in available_category_ids:
-        return None
-
+    # A missing/malformed new classification must not erase a known mate.
+    # Only catalogue-backed categories are safe continuity candidates.
+    if previous_category not in available_category_ids:
+        previous_category = None
     topic_shift = raw_topic_shift if isinstance(raw_topic_shift, str) else "unclear"
     if previous_category and topic_shift in SAME_TOPIC_SHIFT_VALUES:
+        return previous_category
+
+    topic_area = _normalize_topic_area(raw_topic_area)
+    mapped_category = TOPIC_AREA_TO_MATE_CATEGORY.get(topic_area) if topic_area else None
+    if not mapped_category or mapped_category not in available_category_ids:
         return previous_category
 
     if previous_category and topic_area == "general_misc":
@@ -1283,7 +1284,6 @@ class PreprocessingResult(BaseModel):
     # When True, relevant_app_skills came from an explicit user tool/search request;
     # main processor must not dilute it with unrelated always-include skills.
     user_requested_skills_only: bool = Field(False, description="True if the user explicitly requested specific skills; require those skills and do not add always_include_skills.")
-    requires_fresh_search: bool = Field(False, description="Current request requires fresh read-only search results, including implicit follow-ups.")
     # When True, relevant_focus_modes came only from user @focus mentions.
     user_requested_focus_only: bool = Field(False, description="True if user explicitly specified focus mode(s) via @focus:app:focus_id.")
 
@@ -3582,7 +3582,6 @@ async def handle_preprocessing(
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         relevant_focus_modes=validated_relevant_focus_modes,  # Use validated relevant focus modes (filtered against available focus modes)
 
-        requires_fresh_search=llm_analysis_args.get("requires_fresh_search") is True,
         user_requested_skills_only=user_requested_skills_only,
         user_requested_focus_only=user_requested_focus_only,  # True when user specified @focus
         output_language=output_language_val,  # Detected language of user's request (ISO 639-1 code)
