@@ -750,11 +750,16 @@
                 // can correlate client-side events with the submitted report.
                 // Fire-and-forget: never block the confirmation navigation.
                 if (issueId && $authStore.isAuthenticated) {
+                    const { getWebSocketToken } = await import('../../utils/cookies');
+                    const wsToken = getWebSocketToken();
                     const logsText = logCollector.getLogsAsText(150);
                     void fetch(getApiEndpoint(apiEndpoints.settings.issueLogs), {
                         method: 'POST',
                         credentials: 'include',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(wsToken ? { 'X-WS-Token': wsToken } : {}),
+                        },
                         body: JSON.stringify({
                             issue_id: issueId,
                             logs_text: logsText,

@@ -56,6 +56,7 @@ test.describe('Chat Error Report Consent', () => {
 		let issuePostCount = 0;
 		let issueLogsPostCount = 0;
 		let issueLogsCookie = '';
+		let issueLogsWsToken = '';
 		let issueLogsPayload: Record<string, any> | null = null;
 		await page.route('**/v1/settings/issues', async (route: any) => {
 			issuePostCount += 1;
@@ -73,6 +74,7 @@ test.describe('Chat Error Report Consent', () => {
 		await page.route('**/v1/settings/issue-logs', async (route: any) => {
 			issueLogsPostCount += 1;
 			issueLogsCookie = route.request().headers().cookie ?? '';
+			issueLogsWsToken = route.request().headers()['x-ws-token'] ?? '';
 			issueLogsPayload = route.request().postDataJSON();
 			await route.fulfill({
 				status: 200,
@@ -135,9 +137,10 @@ test.describe('Chat Error Report Consent', () => {
 			message: 'compact issue logs should be forwarded after the user confirms the report',
 		}).toBe(1);
 		expect(
-			issueLogsCookie,
-			'cross-origin compact issue logs must include the authenticated browser session',
+			issueLogsCookie || issueLogsWsToken,
+			'cross-origin compact issue logs must include a cookie or Safari-compatible session token',
 		).not.toBe('');
+		expect(issueLogsWsToken, 'compact logs should include the Safari-compatible session token').not.toBe('');
 		expect(issueLogsPayload?.issue_id).toBe('OPE-E2E-CHAT-ERROR');
 		expect(typeof issueLogsPayload?.logs_text).toBe('string');
 		await takeStepScreenshot(page, '03-report-submitted');

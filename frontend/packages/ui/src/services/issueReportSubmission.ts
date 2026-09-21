@@ -19,6 +19,7 @@ import { hasPendingSends } from "../stores/pendingUploadStore";
 import { logCollector } from "./logCollector";
 import { userActionTracker } from "./userActionTracker";
 import { isPublicChat } from "../demo_chats/convertToChat";
+import { getWebSocketToken } from "../utils/cookies";
 
 type SubmitIssueReportOptions = {
   title: string;
@@ -155,10 +156,14 @@ export async function submitIssueReport(options: SubmitIssueReportOptions): Prom
   const issueId = data.issue_id || "";
   const shortIssueId = data.short_issue_id || "";
   if (issueId && get(authStore).isAuthenticated) {
+    const wsToken = getWebSocketToken();
     void fetch(getApiEndpoint(apiEndpoints.settings.issueLogs), {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(wsToken ? { "X-WS-Token": wsToken } : {}),
+      },
       body: JSON.stringify({
         issue_id: issueId,
         logs_text: logCollector.getLogsAsText(150),

@@ -320,6 +320,15 @@ async def handle_encrypted_chat_metadata(
             # we persist those messages. This allows cloning history into a new chat.
             # Detection: if it's a new chat (is_owner is false) and history is provided.
             history_messages = payload.get("message_history")
+            has_history_message = bool(
+                isinstance(history_messages, list)
+                and any(
+                    isinstance(history_message, dict)
+                    and history_message.get("message_id")
+                    and history_message.get("encrypted_content")
+                    for history_message in history_messages
+                )
+            )
             if not is_owner and history_messages and isinstance(history_messages, list):
                 logger.info(f"📜 History Injection: Persisting {len(history_messages)} messages for new chat {chat_id}")
                 for hist_msg in history_messages:
@@ -489,13 +498,22 @@ async def handle_encrypted_chat_metadata(
                 if created_at:
                     chat_update_fields["created_at"] = created_at
             
-                # Add version info for chat creation/update
-                # The metadata task will use these when creating the chat
-                # Use sensible defaults if not provided (current timestamp, messages_v=1 since we just got a message)
+                # Add version info for chat creation/update. A key-only write may
+                # create a chat shell before deferred audio upload completes. That
+                # shell must remain empty (`messages_v=0`, no last-message time),
+                # otherwise chat-recovery preflight treats the first real message's
+                # metadata as a forbidden update to an existing chat.
+                is_message_less_new_chat = (
+                    chat_metadata_from_db is None
+                    and not (message_id and encrypted_content)
+                    and not has_history_message
+                )
                 if not accepted_versions:
-                    chat_update_fields["messages_v"] = versions.get("messages_v", 1)  # At least 1 message exists
+                    default_messages_v = 0 if is_message_less_new_chat else 1
+                    chat_update_fields["messages_v"] = versions.get("messages_v", default_messages_v)
                 chat_update_fields["last_edited_overall_timestamp"] = versions.get("last_edited_overall_timestamp", created_at or now_ts)
-                chat_update_fields["last_message_timestamp"] = versions.get("last_edited_overall_timestamp", created_at or now_ts)
+                if not is_message_less_new_chat:
+                    chat_update_fields["last_message_timestamp"] = versions.get("last_edited_overall_timestamp", created_at or now_ts)
             
                 # The stored confirmation is a durability boundary used by logout
                 # and cross-device sync, so persist before acknowledging the client.

@@ -6,7 +6,7 @@ This module handles sending issue reports submitted by users (including non-auth
 to the server owner/admin email address.
 
 Architecture:
-- The main task (send_issue_report_email) sends the email first, then uploads YAML to S3.
+- The main task always uploads the encrypted YAML to S3, then optionally sends email.
 - If S3 upload fails, a separate retry task (retry_issue_report_s3_upload) is dispatched
   with exponential backoff. This decouples the user-facing email from the admin-tooling S3 upload.
 - The retry task has its own retry logic (up to 5 attempts with exponential backoff).
@@ -58,7 +58,8 @@ def send_issue_report_email(
     picked_element_html: Optional[str] = None,
     screenshot_presigned_url: Optional[str] = None,
     reported_by_user_id: Optional[str] = None,
-    trace_ids: Optional[list] = None
+    trace_ids: Optional[list] = None,
+    send_email_notification: bool = True,
 ) -> bool:
     """
     Celery task to send issue report email to server owner/admin.
@@ -118,6 +119,7 @@ def send_issue_report_email(
                 screenshot_presigned_url=screenshot_presigned_url,
                 reported_by_user_id=reported_by_user_id,
                 trace_ids=trace_ids,
+                send_email_notification=send_email_notification,
             )
         )
         if result:
@@ -460,7 +462,8 @@ async def _async_send_issue_report_email(
     picked_element_html: Optional[str] = None,
     screenshot_presigned_url: Optional[str] = None,
     reported_by_user_id: Optional[str] = None,
-    trace_ids: Optional[list] = None
+    trace_ids: Optional[list] = None,
+    send_email_notification: bool = True,
 ) -> bool:
     """
     Async implementation for sending issue report email.
@@ -493,12 +496,6 @@ async def _async_send_issue_report_email(
         logger.info("Initializing services for issue report email task...")
         await task.initialize_services()
         logger.info("Services initialized for issue report email task")
-        
-        # Verify email_template_service is available
-        if not hasattr(task, 'email_template_service') or task.email_template_service is None:
-            logger.error("email_template_service not available after initialization")
-            return False
-        logger.info("email_template_service is available")
         
         # SECURITY: Sanitize inputs before passing to email template
         # Note: Inputs should already be sanitized in the route handler, but we sanitize again here
@@ -705,6 +702,18 @@ async def _async_send_issue_report_email(
                 "No issue_id provided to email task - skipping S3 upload. "
                 "This means the Directus record creation likely failed in the API route."
             )
+
+        if not send_email_notification:
+            logger.info(
+                "Issue report archive stored; email notification disabled for issue %s",
+                issue_id,
+            )
+            return True
+
+        if not hasattr(task, 'email_template_service') or task.email_template_service is None:
+            logger.error("email_template_service not available after initialization")
+            return False
+        logger.info("email_template_service is available")
 
         # Process contact email if provided
         contact_email_formatted = contact_email if contact_email else "Not provided"
