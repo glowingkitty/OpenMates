@@ -17,7 +17,6 @@ import {
 import BusinessCompanyFinancialsEmbedFullscreen from '../components/embeds/business/BusinessCompanyFinancialsEmbedFullscreen.svelte';
 import Model3DResultEmbedFullscreen from '../components/embeds/models3d/Model3DResultEmbedFullscreen.svelte';
 import {
-	forcePageReload,
 	isChunkLoadError,
 	logChunkLoadError
 } from '../utils/chunkErrorHandler';
@@ -104,7 +103,12 @@ export async function loadFullscreenComponent(
 	const cached = fullscreenComponentPromises.get(key);
 	if (cached) return cached;
 
-	const promise = loadFullscreenComponentUncached(key);
+	const promise = loadFullscreenComponentUncached(key).then((component) => {
+		// Keep successful imports shared, but let closing and reopening the view
+		// retry a failed import instead of reusing a permanently cached null.
+		if (!component) fullscreenComponentPromises.delete(key);
+		return component;
+	});
 	fullscreenComponentPromises.set(key, promise);
 	return promise;
 }
@@ -131,7 +135,8 @@ async function loadFullscreenComponentUncached(
 	} catch (error) {
 		if (isChunkLoadError(error)) {
 			logChunkLoadError('embedFullscreenResolver', error);
-			forcePageReload();
+			// The fullscreen host already provides a close/retry error state.
+			// A failed lazy load must not navigate away from the current chat.
 			return null;
 		}
 		console.error(

@@ -115,6 +115,34 @@ describe("EmbedLeafletMap theme selection", () => {
     vi.clearAllMocks();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  it("disposes partial initialization and retries without remounting the map", async () => {
+    mockOsDarkMode(false);
+    leafletMocks.mapInstance.on.mockImplementationOnce(() => {
+      throw new Error("Map initialization interrupted");
+    });
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const component = mount(EmbedLeafletMap, {
+      target,
+      props: { center: { lat: 52.52, lon: 13.405 } },
+    });
+    await flushLeafletImport();
+    const container = target.querySelector('[data-testid="embed-leaflet-map"]');
+    expect(leafletMocks.mapInstance.remove).toHaveBeenCalledTimes(1);
+    expect(container?.getAttribute('data-map-ready')).toBe('false');
+    const retry = target.querySelector<HTMLButtonElement>('[data-testid="embed-map-retry"]');
+    expect(retry).not.toBeNull();
+    retry!.click();
+    await flushLeafletImport();
+    expect(leafletMocks.map).toHaveBeenCalledTimes(2);
+    expect(target.querySelector('[data-testid="embed-leaflet-map"]')).toBe(container);
+    expect(container?.getAttribute('data-map-ready')).toBe('true');
+    expect(target.querySelector('[data-testid="embed-map-load-error"]')).toBeNull();
+    unmount(component);
+    target.remove();
+  });
+
   // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it("uses manual light theme for tiles when the OS is dark", async () => {
     mockOsDarkMode(true);
