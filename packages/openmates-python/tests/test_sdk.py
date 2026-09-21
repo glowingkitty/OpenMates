@@ -888,10 +888,10 @@ def test_task_workspace_methods_match_npm_sdk_contract(monkeypatch):
         if request["method"] != "POST" or not request["url"].endswith("/v1/sdk/session")
     ] == [
         ("POST", "/v1/user-tasks"),
-        ("GET", f"/v1/user-tasks?status=todo&chat_id={CHAT_ID}&project_id={PROJECT_ID}"),
-        ("GET", "/v1/user-tasks"),
+        ("GET", f"/v1/user-tasks?limit=500&status=todo&chat_id={CHAT_ID}&project_id={PROJECT_ID}"),
+        ("GET", "/v1/user-tasks?limit=500"),
         ("PATCH", created_path),
-        ("GET", "/v1/user-tasks"),
+        ("GET", "/v1/user-tasks?limit=500"),
         ("POST", f"{created_path}/start-ai"),
     ]
     assert isinstance(requests[1]["json"].get("encrypted_title"), str)
