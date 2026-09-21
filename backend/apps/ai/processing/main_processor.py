@@ -2889,9 +2889,9 @@ async def handle_main_processing(
             logger.warning(f"{log_prefix} relevant_app_skills is None (should be list or empty list). Treating as empty list.")
             preselected_skills = set()
 
-    # HARDENING: Merge always_include_skills into preselected_skills — but NOT when the user
-    # explicitly requested specific skills via @skill:app:skill_id. In that case we use only
-    # the user's selection and add a mandatory instruction to use those tools.
+    # HARDENING: Merge always_include_skills into preselected_skills unless the user
+    # explicitly requested a specific tool/search surface. In that case use only the
+    # user's selection and add a mandatory instruction to call it.
     user_requested_skills_only = getattr(preprocessing_results, "user_requested_skills_only", False)
     override_skills = getattr(user_overrides, "skills", None)
     task_app_skill_mentions = task_app_skill_ids_from_user_override_skills(override_skills)
@@ -2927,9 +2927,12 @@ async def handle_main_processing(
     # Some skills naturally pair together — when the system prompt instructs the
     # LLM to consider a companion skill, it must also be in the allowed tool set.
     # Without this the LLM follows the instruction, calls the companion, and the
-    # hallucination guard rejects it → zero response.
+    # hallucination guard rejects it → zero response. Explicit requests stay exact.
     if preselected_skills:
-        expanded_preselected_skills = expand_companion_skills(preselected_skills)
+        expanded_preselected_skills = expand_companion_skills(
+            preselected_skills,
+            exact_request=user_requested_skills_only,
+        )
         companions_to_add = expanded_preselected_skills - preselected_skills
         if companions_to_add:
             logger.info(

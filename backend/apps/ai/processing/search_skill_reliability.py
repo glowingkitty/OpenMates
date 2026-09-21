@@ -19,7 +19,14 @@ COMPANION_SKILLS: dict[str, list[str]] = {
 }
 
 
-def expand_companion_skills(preselected_skills: set[str]) -> set[str]:
+def expand_companion_skills(
+    preselected_skills: set[str],
+    *,
+    exact_request: bool = False,
+) -> set[str]:
+    if exact_request:
+        return preselected_skills
+
     companions_to_add: set[str] = set()
     for trigger, companions in COMPANION_SKILLS.items():
         if trigger in preselected_skills:

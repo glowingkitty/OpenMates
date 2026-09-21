@@ -376,6 +376,32 @@ EXPLICIT_SKILL_DIRECTIVE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+EXPLICIT_NEWS_SEARCH_PATTERN = re.compile(
+    r"\b(?:search|find|look\s+up|lookup|get|show)\b[^.!?\n]{0,80}"
+    r"\b(?:recent|latest|current|today(?:'s)?)\b[^.!?\n]{0,32}"
+    r"\b(?:news\s+)?(?:articles?|headlines?|press\s+coverage|reporting)\b",
+    re.IGNORECASE,
+)
+NEGATED_SEARCH_PATTERN = re.compile(
+    r"\b(?:do\s+not|don't|dont|never)\s+(?:search|find|look\s+up|lookup|get|show)\b",
+    re.IGNORECASE,
+)
+TOPIC_CONTINUITY_STOP_WORDS = {
+    "about",
+    "article",
+    "articles",
+    "find",
+    "latest",
+    "look",
+    "news",
+    "recent",
+    "search",
+    "show",
+    "that",
+    "this",
+    "with",
+}
+
 
 def _latest_user_text_from_history(message_history: List[Any]) -> str:
     """Return the latest string user message from mixed dict/model history."""
@@ -424,6 +450,57 @@ def _resolve_explicit_skill_mentions_from_latest_user_text(
                 resolved_mentions.append(skill_id)
 
     return resolved_mentions
+
+
+def _resolve_explicit_natural_search_intent(
+    message_history: List[Any],
+    available_skill_ids: List[str],
+) -> List[str]:
+    """Resolve unambiguous natural-language requests for a search surface."""
+    latest_user_text = _latest_user_text_from_history(message_history)
+    if (
+        "news-search" not in available_skill_ids
+        or not latest_user_text
+        or NEGATED_SEARCH_PATTERN.search(latest_user_text)
+    ):
+        return []
+    if EXPLICIT_NEWS_SEARCH_PATTERN.search(latest_user_text):
+        return ["news-search"]
+    return []
+
+
+def _news_follow_up_repeats_prior_topic(message_history: List[Any]) -> bool:
+    """Return true when two consecutive news turns repeat a distinctive topic token."""
+    user_texts: List[str] = []
+    for msg in reversed(message_history or []):
+        if isinstance(msg, dict):
+            role = msg.get("role")
+            content = msg.get("content")
+        else:
+            role = getattr(msg, "role", None)
+            content = getattr(msg, "content", None)
+        if role == USER_ROLE and isinstance(content, str) and content.strip():
+            user_texts.append(content)
+            if len(user_texts) == 2:
+                break
+    if len(user_texts) < 2:
+        return False
+
+    news_surface_pattern = re.compile(
+        r"\b(?:news|articles?|headlines?|press\s+coverage|reporting)\b",
+        re.IGNORECASE,
+    )
+    if not all(news_surface_pattern.search(text) for text in user_texts):
+        return False
+
+    def _topic_tokens(text: str) -> set[str]:
+        return {
+            token
+            for token in re.findall(r"[a-z0-9]+", text.casefold())
+            if len(token) >= 4 and token not in TOPIC_CONTINUITY_STOP_WORDS
+        }
+
+    return bool(_topic_tokens(user_texts[0]) & _topic_tokens(user_texts[1]))
 
 
 def _build_topic_areas_list() -> List[str]:
@@ -1203,8 +1280,9 @@ class PreprocessingResult(BaseModel):
     raw_llm_response: Optional[Dict[str, Any]] = Field(None, description="Raw arguments from the LLM tool call.")
     error_message: Optional[str] = None
 
-    # When True, relevant_app_skills came only from user @skill mentions; main processor must not merge always_include_skills.
-    user_requested_skills_only: bool = Field(False, description="True if user explicitly specified skills via @skill:app:skill_id; skip LLM skill selection and do not add always_include_skills.")
+    # When True, relevant_app_skills came from an explicit user tool/search request;
+    # main processor must not dilute it with unrelated always-include skills.
+    user_requested_skills_only: bool = Field(False, description="True if the user explicitly requested specific skills; require those skills and do not add always_include_skills.")
     # When True, relevant_focus_modes came only from user @focus mentions.
     user_requested_focus_only: bool = Field(False, description="True if user explicitly specified focus mode(s) via @focus:app:focus_id.")
 
@@ -2670,9 +2748,18 @@ async def handle_preprocessing(
     # --- Derive mate category from topic_area ---
     # The LLM no longer owns mate category selection. It classifies the message into a
     # granular topic_area, and backend code maps that topic_area to the canonical mate category.
+    raw_topic_shift = llm_analysis_args.get("topic_shift")
+    if previous_category and _news_follow_up_repeats_prior_topic(request_data.message_history):
+        raw_topic_shift = "same_topic"
+        llm_analysis_args["topic_shift"] = raw_topic_shift
+        logger.info(
+            f"{log_prefix} TOPIC_ROUTING: Preserving previous category because the latest "
+            "two user turns repeat a distinctive topic token."
+        )
+
     validated_category = _resolve_category_from_topic_area(
         raw_topic_area=llm_analysis_args.get("topic_area"),
-        raw_topic_shift=llm_analysis_args.get("topic_shift"),
+        raw_topic_shift=raw_topic_shift,
         raw_task_area=llm_analysis_args.get("task_area"),
         previous_category=previous_category,
         available_category_ids=available_category_ids,
@@ -3051,6 +3138,10 @@ async def handle_preprocessing(
             request_data.message_history,
             available_skill_ids,
         )
+        natural_search_intents = _resolve_explicit_natural_search_intent(
+            request_data.message_history,
+            available_skill_ids,
+        )
         if explicit_skill_mentions:
             forced_mentions = [
                 skill_id
@@ -3063,6 +3154,14 @@ async def handle_preprocessing(
                     f"{log_prefix} [RULE_BASED] Forced {forced_mentions} into preselected skills: "
                     "latest user message explicitly requested known app skill identifier(s)."
                 )
+        if natural_search_intents:
+            user_requested_skills_only = True
+            validated_relevant_skills = natural_search_intents
+            logger.info(
+                f"{log_prefix} [RULE_BASED] Using only explicitly requested skills "
+                f"{natural_search_intents}: latest user message requested the corresponding "
+                "search or app skill."
+            )
 
     # --- User override: explicit @focus mentions ---
     # When the user specifies focus mode(s) via @focus:app_id:focus_id, use only those and skip LLM selection.
@@ -3482,7 +3581,7 @@ async def handle_preprocessing(
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         relevant_focus_modes=validated_relevant_focus_modes,  # Use validated relevant focus modes (filtered against available focus modes)
 
-        user_requested_skills_only=user_requested_skills_only,  # True when user specified @skill; main processor must not merge always_include_skills
+        user_requested_skills_only=user_requested_skills_only,
         user_requested_focus_only=user_requested_focus_only,  # True when user specified @focus
         output_language=output_language_val,  # Detected language of user's request (ISO 639-1 code)
         requires_advice_disclaimer=requires_disclaimer,  # Hardcoded disclaimer type to inject (or None if not needed)
