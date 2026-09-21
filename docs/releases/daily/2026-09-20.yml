@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-20'
-generated_at: '2026-09-21T00:20:18+00:00'
+generated_at: '2026-09-21T00:46:23+00:00'
 range:
   since: '2026-09-20T00:00:00+00:00'
   until: '2026-09-21T00:00:00+00:00'
@@ -1663,77 +1663,103 @@ sources:
     - specifications/generated/assertion-index.yml
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on refining the audio messaging experience and optimizing the web composer's responsiveness.
-    Significant internal work was also completed to isolate CI test environments and improve build performance.
+  overview: OpenMates focused on refining the audio messaging experience and optimizing composer performance. Significant
+    internal work was also completed to improve the reliability and speed of the automated testing infrastructure.
   released_changes: []
-  bug_fixes: []
-  unreleased_progress:
-  - text: Enhanced the audio messaging experience with Enter shortcuts for sending recordings and improved reliability for
-      narration and realtime transcription, including fixes for iOS Safari.
+  bug_fixes:
+  - text: Audio messaging reliability was improved, addressing issues with recording finalization, narration stability, and
+      session refreshing for live transcripts.
     evidence:
       commits:
-      - 4b635edc6
       - 0fb6d4df4
       - 69b3f777f
       - 0ba3c72b7
       - 0bc03b2ec
     release_status: dev_only
-  - text: Optimized the web composer to maintain responsive typing during search and ensured composer content is preserved
-      when activating drafts.
+  - text: A fix was implemented to ensure realtime audio authentication functions correctly on iOS Safari.
+    evidence:
+      commits:
+      - 0ba3c72b7
+    release_status: dev_only
+  - text: The composer now correctly preserves content when a draft is activated.
     evidence:
       commits:
       - 2c12b379f
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added the ability to send voice recordings using Enter shortcuts.
+    evidence:
+      commits:
+      - 4b635edc6
+    release_status: dev_only
+  - text: Work is underway to keep the composer responsive during heavy typing and search operations.
+    evidence:
+      commits:
       - 1e275438c
     release_status: dev_only
-  - text: Initial design previews for the newsroom surface were added to the project.
+  - text: Initial design previews for a public newsroom surface were introduced.
     evidence:
       commits:
       - dd86242f1
     release_status: dev_only
   internal_progress:
-  - text: The project implemented isolated browser specifications in CI and optimized schema restoration to significantly
-      accelerate test runs and improve build reliability.
+  - text: The CI pipeline was updated to isolate every browser specification and protect unpublished builds using private
+      transport.
     evidence:
       commits:
       - 0ad6de7ff
-      - 0ef0063dc
-      - 5d04b8cc7
-      - 0ace395a3
       - 6b2c0532c
       - bbadc2061
       - b591c7577
+    release_status: dev_only
+  - text: Infrastructure performance was optimized by decoupling schema production and streamlining the restoration of prepared
+      database schemas during testing.
+    evidence:
+      commits:
+      - 0ef0063dc
+      - 6a603b7e0
+      - 5d04b8cc7
       - f8a382e85
       - 79be0d3c6
-      - 6a603b7e0
+    release_status: dev_only
+  - text: Test coverage was expanded for live audio transcription and composer responsiveness proofs.
+    evidence:
+      commits:
+      - 850e2c91d
+      - ac0cbfe78
+      - 43dc492eb
+      - 03120c643
+      - ee2190926
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: Voice recording shortcuts for the web composer.
+    - text: Voice recording shortcuts for sending messages.
       evidence:
         commits:
         - 4b635edc6
-      reason: Feature is currently in development and not yet available in the main branch.
+      reason: This feature is currently in development and not yet available in the main release.
+    - text: Composer responsiveness and search performance improvements.
+      evidence:
+        commits:
+        - 1e275438c
+      reason: Performance optimizations are currently undergoing verification in the development branch.
     - text: Newsroom design previews.
       evidence:
         commits:
         - dd86242f1
-      reason: Initial design previews are for internal review and not yet released.
-    - text: Composer typing responsiveness improvements.
-      evidence:
-        commits:
-        - 1e275438c
-      reason: Performance optimizations are currently undergoing verification in development.
-    rationale: No changes were released to the main branch or marked as ready for public communication during this period.
+      reason: The newsroom feature is in an early design preview stage and is not yet public.
+    rationale: All updates from this period are currently restricted to the development branch and have not yet been merged
+      into the main release for public communication.
   social_video_recommendations:
-  - idea: A short demonstration of the new voice recording shortcuts and the improved typing responsiveness in the web composer.
+  - idea: Demonstrate the speed of sending voice messages using new keyboard shortcuts alongside live transcription.
     priority: medium
-    reason: These updates provide a tangible improvement to the core messaging user experience.
+    reason: Voice messaging is a high-utility feature with a clear visual and functional story.
     evidence:
       commits:
       - 4b635edc6
-      - 1e275438c
+      - 0bc03b2ec
   quality_notes:
-  - Extensive end-to-end and performance testing was added for audio transcription and composer responsiveness.
-  - Specific attention was given to iOS Safari compatibility for realtime audio sessions.
+  - Extensive testing was added to verify the end-to-end flow of live audio transcription.
+  - Focus on CI isolation ensures more deterministic test results for UI components.
   validation_warnings: []

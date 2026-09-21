@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-15'
-generated_at: '2026-09-16T00:20:20+00:00'
+generated_at: '2026-09-21T00:45:34+00:00'
 range:
   since: '2026-09-15T00:00:00+00:00'
   until: '2026-09-16T00:00:00+00:00'
@@ -297,20 +297,20 @@ sources:
     related_feature_ids:
     - app:ai
 llm_summary:
-  overview: OpenMates focused on AI safety and privacy infrastructure, specifically refining how external skill content is
-    scanned and redacted to prevent prompt injection.
+  overview: OpenMates focused on AI safety infrastructure, specifically refining how external skill content is sanitized and
+    redacted to protect user privacy.
   released_changes: []
   bug_fixes: []
   unreleased_progress:
-  - text: OpenMates is implementing a single-pass scanning system for external skill content, featuring verified span redaction
-      to protect against prompt injection and improve privacy.
+  - text: OpenMates is developing a single-pass scanner for external AI skill content that utilizes verified span redaction
+      to improve privacy handling.
     evidence:
       commits:
       - e7283a765
     release_status: dev_only
   internal_progress:
-  - text: New benchmarks and automated tests were implemented to verify the performance and reliability of the single-pass
-      safety scanner.
+  - text: New benchmarks and audit scripts were introduced to verify the performance of the single-pass safety mechanism for
+      AI skills.
     evidence:
       commits:
       - e7283a765
@@ -318,20 +318,14 @@ llm_summary:
   newsletter_recommendation:
     include: []
     exclude:
-    - text: AI safety and redaction improvements
+    - text: AI skill content sanitization and redaction improvements.
       evidence:
         commits:
         - e7283a765
-      reason: The update is currently in a dev-only state and has not been merged into the main branch.
-    rationale: The only update recorded today is in a dev-only state and is not yet ready for public communication.
-  social_video_recommendations:
-  - idea: 'A technical deep-dive into AI safety: How OpenMates redacts sensitive data from external skill results.'
-    priority: low
-    reason: While the work is significant for privacy, it is currently in a dev-only state and lacks a final user-facing interface
-      to showcase.
-    evidence:
-      commits:
-      - e7283a765
+      reason: This update is classified as dev_only and has not been merged into the main release branch.
+    rationale: The only activity recorded is a developer-focused update to AI safety infrastructure which is not yet ready
+      for public communication.
+  social_video_recommendations: []
   quality_notes:
-  - The update introduces significant architectural documentation and benchmarking for privacy-related features.
+  - The update includes architectural documentation and specifications for prompt-injection mitigation and web-search safety.
   validation_warnings: []

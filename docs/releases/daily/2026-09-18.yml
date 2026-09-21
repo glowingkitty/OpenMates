@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-18'
-generated_at: '2026-09-19T00:20:19+00:00'
+generated_at: '2026-09-21T00:45:59+00:00'
 range:
   since: '2026-09-18T00:00:00+00:00'
   until: '2026-09-19T00:00:00+00:00'
@@ -199,8 +199,8 @@ llm_summary:
   newsletter_recommendation:
     include: []
     exclude: []
-    rationale: No changes were recorded for this period, so there are no items to recommend for the newsletter.
+    rationale: No updates or changes were recorded for this period, so there are no items to include in the newsletter.
   social_video_recommendations: []
   quality_notes:
-  - No development activity was observed during this period.
+  - No development activity was logged for this date.
   validation_warnings: []
