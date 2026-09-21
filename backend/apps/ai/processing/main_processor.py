@@ -32,6 +32,7 @@ from backend.apps.ai.processing.preprocessor import (
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
     normalize_string_query_request_items,
+    require_first_explicit_skill_call,
 )
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.shared.python_utils.learning_mode import (
@@ -3430,7 +3431,7 @@ async def handle_main_processing(
     # Whether the user explicitly specified this focus mode via @focus:app:id mention
     user_requested_focus_only = getattr(preprocessing_results, 'user_requested_focus_only', False)
     
-    if relevant_focus_modes and not has_active_focus_mode:
+    if relevant_focus_modes and not has_active_focus_mode and not user_requested_skills_only:
         # Build enum and descriptions for activate_focus_mode tool
         focus_mode_descriptions = []
         for focus_id in relevant_focus_modes:
@@ -3491,7 +3492,7 @@ async def handle_main_processing(
         available_tools_for_llm.append(activate_tool)
         logger.info(f"{log_prefix} Added activate_focus_mode tool with {len(relevant_focus_modes)} available focus mode(s): {relevant_focus_modes}")
     
-    if has_active_focus_mode:
+    if has_active_focus_mode and not user_requested_skills_only:
         # Add deactivate tool when a focus mode is active
         deactivate_tool = {
             "type": "function",
@@ -4073,6 +4074,16 @@ async def handle_main_processing(
             chat_depth=chat_depth,
             is_sub_chat_continuation=request_data.is_sub_chat_continuation,
         )
+        current_tool_choice = require_first_explicit_skill_call(
+            current_tool_choice,
+            user_requested_skills_only=user_requested_skills_only,
+            preselected_skills=preselected_skills,
+            total_skill_calls=total_skill_calls,
+        )
+        if current_tool_choice == "required" and user_requested_skills_only:
+            logger.info(
+                f"{log_prefix} [USER_SKILLS] Requiring the first explicitly requested skill call."
+            )
         if current_tool_choice == "required":
             logger.info(
                 f"{log_prefix} [SUB_CHAT] Requiring start_sub_chats for active Deep research."

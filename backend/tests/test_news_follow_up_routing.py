@@ -15,7 +15,10 @@ llm_utils_stub.LLMPreprocessingCallResult = object
 sys.modules.setdefault("backend.apps.ai.utils.llm_utils", llm_utils_stub)
 
 from backend.apps.ai.processing.preprocessor import _news_follow_up_repeats_prior_topic
-from backend.apps.ai.processing.search_skill_reliability import expand_companion_skills
+from backend.apps.ai.processing.search_skill_reliability import (
+    expand_companion_skills,
+    require_first_explicit_skill_call,
+)
 
 
 def _message(role: str, content: str) -> dict[str, str]:
@@ -48,3 +51,20 @@ def test_explicit_news_search_does_not_add_companion_skills() -> None:
     )
 
     assert expanded == {"news-search"}
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,web-search.surface-parity
+def test_explicit_news_search_requires_the_first_tool_call() -> None:
+    assert require_first_explicit_skill_call(
+        "auto",
+        user_requested_skills_only=True,
+        preselected_skills={"news-search"},
+        total_skill_calls=0,
+    ) == "required"
+
+    assert require_first_explicit_skill_call(
+        "auto",
+        user_requested_skills_only=True,
+        preselected_skills={"news-search"},
+        total_skill_calls=1,
+    ) == "auto"
