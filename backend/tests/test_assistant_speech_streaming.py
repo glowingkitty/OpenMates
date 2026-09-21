@@ -294,3 +294,34 @@ def test_detached_automatic_dispatch_reports_a_content_free_recoverable_status()
     asyncio.run(exercise())
 
     assert statuses == [{"type": "assistant_speech_status", "status": "error", "sequence": 0, "error": "Speech is temporarily unavailable."}]
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.projection.deterministic-semantic,assistant-speech.segmentation.immutable-source
+def test_german_news_fences_stay_atomic_and_preserve_every_following_paragraph() -> None:
+    import json
+
+    dispatched: list[dict[str, object]] = []
+    payload = json.dumps({"type": "app_skill_use", "app_id": "news", "skill_id": "search", "query": "private" * 500})
+    fence = f"```json\n\n{payload}\n\n```"
+    content = f"Einleitung.\n\n{fence}\n{fence}\n\nErster Absatz.\n\nZweiter Absatz."
+
+    async def dispatch(segment: dict[str, object]) -> None:
+        dispatched.append(segment)
+
+    async def exercise() -> None:
+        tracker = ImmutableSpeechBoundaryTracker(
+            metadata={"chat_id": "chat", "assistant_message_id": "message", "source_version": 1, "language": "de-DE"},
+            dispatch_speech=dispatch,
+        )
+        # Blank lines in unfinished tool JSON must not become immutable speech.
+        tracker.observe("Einleitung.\n\n```json\n\n" + payload + "\n\n")
+        await asyncio.sleep(0)
+        assert [item["speakable_text"] for item in dispatched] == ["Einleitung."]
+        tracker.observe(content, is_final=True)
+        await asyncio.sleep(0)
+
+    asyncio.run(exercise())
+    assert [item["speakable_text"] for item in dispatched] == [
+        "Einleitung.", "Ich habe die News-Suche verwendet.", "Erster Absatz.", "Zweiter Absatz.",
+    ]
+    assert [item["sequence"] for item in dispatched] == [0, 1, 2, 3]

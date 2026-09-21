@@ -96,6 +96,31 @@ test.describe.serial('Audio recording and assistant speech', () => {
 	test('sends one recording and controls the spoken response', async ({ page }: { page: any }, testInfo: any) => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		const log = createSignupLogger('audio-recording-and-speech');
+        // Keep only safe sequence/status metadata from the real replay exchange.
+        let requestedSpeechSequences: number[] = [];
+        let acceptedSpeechSegments: Array<{ request_sequence: number; status: string }> = [];
+        page.on('websocket', (socket: any) => {
+            socket.on('framesent', (event: { payload: string | Buffer }) => {
+                try {
+                    const frame = JSON.parse(String(event.payload));
+                    if (frame.type === 'assistant_speech' && frame.payload?.action === 'request') {
+                        requestedSpeechSequences = frame.payload.segments.map((segment: { sequence: number }) => segment.sequence);
+                        acceptedSpeechSegments = [];
+                    }
+                } catch { /* Ignore non-JSON transport frames. */ }
+            });
+            socket.on('framereceived', (event: { payload: string | Buffer }) => {
+                try {
+                    const frame = JSON.parse(String(event.payload));
+                    if (frame.type === 'assistant_speech_status' && frame.payload?.status === 'accepted') {
+                        acceptedSpeechSegments = frame.payload.segments.map((segment: { request_sequence: number; status: string }) => ({
+                            request_sequence: segment.request_sequence, status: segment.status,
+                        }));
+                    }
+                } catch { /* Ignore non-JSON transport frames. */ }
+            });
+        });
+
 		await archiveExistingScreenshots(log);
 		const screenshot = createStepScreenshotter(log);
 		const proof = IS_PROOF_CAPTURE
@@ -355,6 +380,12 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await reopenSpeakAction.focus();
 		await expect(reopenSpeakAction).toBeFocused();
 		await reopenSpeakAction.press('Enter');
+        await expect.poll(() => requestedSpeechSequences.length).toBeGreaterThanOrEqual(2);
+        await expect.poll(() => acceptedSpeechSegments.map((segment) => segment.request_sequence).sort((a, b) => a - b), {
+            timeout: 30_000,
+        }).toEqual(requestedSpeechSequences);
+        expect(acceptedSpeechSegments.every((segment) => segment.status !== 'error'), 'replay must retain all paragraphs after app summaries').toBe(true);
+
 		await expect(player).toBeVisible({ timeout: 30_000 });
 		await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'false');
 		await deleteActiveChat(page, log);

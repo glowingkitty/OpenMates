@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import hmac
 import logging
+import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 from backend.apps.ai.assistant_speech.projection import project_streaming_speech_segment
@@ -52,7 +53,7 @@ class ImmutableSpeechBoundaryTracker:
 
     def has_new_boundary(self, content: str) -> bool:
         """Return whether observing this snapshot will dispatch immutable speech."""
-        paragraphs = _project_bounded_paragraphs(_complete_paragraphs(content))
+        paragraphs = _project_bounded_paragraphs(_complete_paragraphs(content), str(self._metadata.get("language") or "en"))
         for index, (kind, paragraph) in enumerate(paragraphs):
             sequence = index + self._sequence_offset
             segment = self._segment(sequence, paragraph, kind=kind)
@@ -71,7 +72,7 @@ class ImmutableSpeechBoundaryTracker:
             if remainder:
                 paragraphs.append(remainder)
 
-        bounded_paragraphs = _project_bounded_paragraphs(paragraphs)
+        bounded_paragraphs = _project_bounded_paragraphs(paragraphs, str(self._metadata.get("language") or "en"))
         for index, (kind, paragraph) in enumerate(bounded_paragraphs):
             sequence = index + self._sequence_offset
             segment = self._segment(sequence, paragraph, kind=kind)
@@ -109,7 +110,7 @@ class ImmutableSpeechBoundaryTracker:
 
     def _segment(self, sequence: int, text: str, *, kind: str | None = None) -> dict[str, object]:
         if kind is None:
-            projected = project_streaming_speech_segment(text)
+            projected = project_streaming_speech_segment(text, str(self._metadata.get("language") or "en"))
             if projected is None:
                 return {}
             kind, speakable_text = projected
@@ -228,14 +229,28 @@ async def stream_text_with_speech_dispatch(
         yield event
 
 
+def _speech_blocks(content: str) -> tuple[list[str], str]:
+    """Keep fences atomic and hold unfinished prose/fences until immutable."""
+    blocks: list[str] = []
+    cursor = 0
+    for match in re.finditer(r"```[\s\S]*?```|\n\n+", content):
+        prefix = content[cursor:match.start()]
+        if "```" in prefix:  # A still-open fence can contain blank lines.
+            break
+        if prefix.strip():
+            blocks.append(prefix.strip())
+        if match.group().startswith("```"):
+            blocks.append(match.group())
+        cursor = match.end()
+    return blocks, content[cursor:].strip()
+
+
 def _complete_paragraphs(content: str) -> list[str]:
-    return [paragraph.strip() for paragraph in content.split("\n\n")[:-1] if paragraph.strip()]
+    return _speech_blocks(content)[0]
 
 
 def _final_paragraph(content: str, complete_paragraphs: list[str]) -> str:
-    consumed = "\n\n".join(complete_paragraphs)
-    remainder = content[len(consumed) :].lstrip("\n") if consumed else content
-    return remainder.strip()
+    return _speech_blocks(content)[1]
 
 
 def _split_automatic_paragraph(paragraph: str) -> list[str]:
@@ -255,22 +270,22 @@ def _split_automatic_paragraph(paragraph: str) -> list[str]:
     return chunks
 
 
-def _project_bounded_paragraphs(paragraphs: list[str]) -> list[tuple[str, str]]:
+def _project_bounded_paragraphs(paragraphs: list[str], language: str = "en") -> list[tuple[str, str]]:
     """Project paragraphs and collapse repeated non-prose announcements."""
     projected_segments: list[tuple[str, str]] = []
     semantic_summaries: set[tuple[str, str]] = set()
     for paragraph in paragraphs:
-        for chunk in _split_automatic_paragraph(paragraph):
-            projected = project_streaming_speech_segment(chunk)
-            if projected is None:
+        projected = project_streaming_speech_segment(paragraph, language)
+        if projected is None:
+            continue
+        kind, speakable_text = projected
+        identity = (kind, speakable_text)
+        if kind == "embed_summary":
+            if identity in semantic_summaries:
                 continue
-            kind, speakable_text = projected
-            identity = (kind, speakable_text)
-            if kind == "embed_summary" and speakable_text == "Search results are available.":
-                if identity in semantic_summaries:
-                    continue
-                semantic_summaries.add(identity)
-            projected_segments.append(identity)
+            semantic_summaries.add(identity)
+        for chunk in _split_automatic_paragraph(speakable_text):
+            projected_segments.append((kind, chunk))
     return projected_segments
 
 

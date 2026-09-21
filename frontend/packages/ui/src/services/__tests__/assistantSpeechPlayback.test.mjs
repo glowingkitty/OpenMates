@@ -165,3 +165,15 @@ test('recording completion primes and reuses one audio element for delayed playb
   assert.equal(playCount, 2);
   queue.stop();
 });
+
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.projection.deterministic-semantic
+test('German News searches are announced once before every following paragraph', () => {
+  const payload = JSON.stringify({ type: 'app_skill_use', app_id: 'news', skill_id: 'search', query: 'private'.repeat(500) });
+  const fence = '```json\n\n' + payload + '\n\n```';
+  const output = projectAssistantSpeech(`Einleitung.\n\n${fence}\n${fence}\n\nErster Absatz.\n\nZweiter Absatz.`, 'de-DE');
+  assert.deepEqual(output.map(({ speakableText }) => speakableText), [
+    'Einleitung.', 'Ich habe die News-Suche verwendet.', 'Erster Absatz.', 'Zweiter Absatz.',
+  ]);
+  assert.deepEqual(output.map(({ sequence }) => sequence), [0, 1, 2, 3]);
+});

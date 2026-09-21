@@ -385,6 +385,7 @@ async def test_event_request_returns_persisted_ready_segment_without_redelivery(
                     {
                         "segment_id": "segment-ready",
                         "sequence": 0,
+                        "request_sequence": 0,
                         "status": "ready",
                         "generated_asset_id": "asset-1",
                         "duration_seconds": 1.2,
@@ -615,12 +616,288 @@ async def test_event_request_requeues_retryable_error_when_plaintext_is_resuppli
             "payload": {
                 "status": "accepted",
                 "segments": [
-                    {"segment_id": "segment-retryable-error", "sequence": 1, "kind": "prose_paragraph", "status": "queued"},
-                    {"segment_id": "segment-retryable-error-2", "sequence": 2, "kind": "prose_paragraph", "status": "queued"},
+                    {"segment_id": "segment-retryable-error", "sequence": 1, "request_sequence": 0, "kind": "prose_paragraph", "status": "queued"},
+                    {"segment_id": "segment-retryable-error-2", "sequence": 2, "request_sequence": 1, "kind": "prose_paragraph", "status": "queued"},
                 ],
             },
         }
     ]
+    assert text not in repr(sent)
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.on-demand.generate-missing-only,assistant-speech.segmentation.immutable-source
+@pytest.mark.asyncio
+async def test_event_replay_falls_back_to_content_identity_after_repeated_search_dedup_shifts_prose(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("celery", reason="real event binder imports the Celery app")
+    from backend.apps.audio.tasks import common as audio_task_common
+    from backend.core.api.app.tasks import celery_config
+
+    canonical_search_text = "Search results are available."
+    requested_search_text = "Ich habe die News-Suche verwendet."
+    prose_text = "Later prose remains replayable."
+    rows = [
+        {"segment_id": "prelude", "source_version": 1, "sequence": 0, "kind": "app_use_announcement", "source_hash": "prelude", "status": "ready"},
+        {"segment_id": "search-1", "source_version": 1, "sequence": 1, "kind": "embed_summary", "source_hash": _speech_source_identity(canonical_search_text), "status": "ready", "generated_asset_id": "asset-search"},
+        {"segment_id": "search-2", "source_version": 1, "sequence": 2, "kind": "embed_summary", "source_hash": _speech_source_identity(canonical_search_text), "status": "ready", "generated_asset_id": "asset-search-2"},
+        {"segment_id": "prose", "source_version": 1, "sequence": 3, "kind": "prose_paragraph", "source_hash": _speech_source_identity(prose_text), "status": "ready", "generated_asset_id": "asset-prose"},
+    ]
+    for row in rows:
+        row.update({"user_id": "owner-1", "chat_id": "chat-1", "assistant_message_id": "message-1"})
+    sent: list[dict[str, object]] = []
+    dispatched: list[object] = []
+
+    class Manager:
+        async def send_personal_message(self, message, _user_id, _device_hash):
+            sent.append(message)
+
+    class RedisClient:
+        async def incrby(self, _key, amount):
+            return amount
+
+        async def expire(self, *_args):
+            return True
+
+    class Cache:
+        @property
+        def client(self):
+            async def connected_client():
+                return RedisClient()
+
+            return connected_client()
+
+        async def get_user_vault_key_id(self, _user_id):
+            return "vault-key-1"
+
+    class Chat:
+        async def check_chat_ownership(self, _chat_id, _user_id):
+            return True
+
+    class Directus:
+        chat = Chat()
+
+        async def get_items(self, collection, *, params, no_cache):
+            del no_cache
+            if collection == "messages":
+                return [{"role": "assistant"}]
+            if collection != "assistant_speech_segments":
+                return []
+            candidates = rows
+            for key, value in params.items():
+                if key.startswith("filter[") and key.endswith("][_eq]"):
+                    field = key.removeprefix("filter[").removesuffix("][_eq]")
+                    candidates = [row for row in candidates if row.get(field) == value]
+            candidates = sorted(candidates, key=lambda row: int(row["sequence"]))
+            return candidates[: int(params.get("limit", len(candidates)))]
+
+    async def credit_headroom(**_kwargs):
+        raise AssertionError("ready content-identity replay must not require credits")
+
+    monkeypatch.setattr(audio_task_common, "ensure_audio_credit_headroom", credit_headroom)
+    monkeypatch.setattr(celery_config.app, "send_task", lambda *args, **kwargs: dispatched.append((args, kwargs)), raising=False)
+
+    await handle_assistant_speech_event(
+        manager=Manager(), directus_service=Directus(), cache_service=Cache(), user_id="owner-1", device_fingerprint_hash="device-1",
+        payload={"action": "request", "chat_id": "chat-1", "assistant_message_id": "message-1", "segments": [
+            {"source_version": 1, "sequence": 0, "kind": "embed_summary", "source_hash": "client", "speakable_text": requested_search_text},
+            {"source_version": 1, "sequence": 1, "kind": "prose_paragraph", "source_hash": "client", "speakable_text": prose_text},
+        ]},
+    )
+
+    assert dispatched == []
+    assert sent[0]["payload"]["segments"] == [
+        {"segment_id": "search-1", "sequence": 1, "request_sequence": 0, "status": "ready", "generated_asset_id": "asset-search", "kind": "embed_summary"},
+        {"segment_id": "prose", "sequence": 3, "request_sequence": 1, "status": "ready", "generated_asset_id": "asset-prose", "kind": "prose_paragraph"},
+    ]
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.on-demand.generate-missing-only,assistant-speech.segmentation.immutable-source
+@pytest.mark.asyncio
+async def test_event_requeues_known_localized_summary_with_canonical_text_and_hash(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("celery", reason="real event binder imports the Celery app")
+    from backend.apps.audio import pricing
+    from backend.apps.audio.tasks import common as audio_task_common
+    from backend.core.api.app.tasks import celery_config
+
+    canonical_text = "I used the News Search skill."
+    requested_text = "Ich habe die News-Suche verwendet."
+    canonical_hash = _speech_source_identity(canonical_text)
+    row = {
+        "id": "row-1",
+        "segment_id": "news-summary",
+        "user_id": "owner-1",
+        "chat_id": "chat-1",
+        "assistant_message_id": "message-1",
+        "source_version": 1,
+        "sequence": 0,
+        "kind": "embed_summary",
+        "source_hash": canonical_hash,
+        "voice_profile_key": "warm_neutral",
+        "voice_profile_version": 1,
+        "status": "error",
+        "retryable": True,
+    }
+    sent: list[dict[str, object]] = []
+    dispatched: list[tuple[str, dict[str, object], str]] = []
+    estimated_characters: list[int] = []
+
+    class Manager:
+        async def send_personal_message(self, message, _user_id, _device_hash):
+            sent.append(message)
+
+    class RedisClient:
+        async def incrby(self, _key, amount):
+            return amount
+
+        async def expire(self, *_args):
+            return True
+
+    class Cache:
+        @property
+        def client(self):
+            async def connected_client():
+                return RedisClient()
+
+            return connected_client()
+
+        async def get_user_vault_key_id(self, _user_id):
+            return "vault-key-1"
+
+    class Chat:
+        async def check_chat_ownership(self, _chat_id, _user_id):
+            return True
+
+    class Directus:
+        chat = Chat()
+
+        async def get_items(self, collection, *, params, no_cache):
+            del no_cache
+            if collection == "messages":
+                return [{"role": "assistant"}]
+            if collection != "assistant_speech_segments":
+                return []
+            candidates = [row]
+            for key, value in params.items():
+                if key.startswith("filter[") and key.endswith("][_eq]"):
+                    field = key.removeprefix("filter[").removesuffix("][_eq]")
+                    candidates = [candidate for candidate in candidates if candidate.get(field) == value]
+            return candidates[: int(params.get("limit", len(candidates)))]
+
+    def calculate_credits(*, submitted_characters):
+        estimated_characters.append(submitted_characters)
+        return 1
+
+    async def credit_headroom(**_kwargs):
+        return None
+
+    monkeypatch.setattr(pricing, "calculate_assistant_response_speech_credits", calculate_credits)
+    monkeypatch.setattr(audio_task_common, "ensure_audio_credit_headroom", credit_headroom)
+    monkeypatch.setattr(celery_config.app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)), raising=False)
+
+    await handle_assistant_speech_event(
+        manager=Manager(), directus_service=Directus(), cache_service=Cache(), user_id="owner-1", device_fingerprint_hash="device-1",
+        payload={"action": "request", "chat_id": "chat-1", "assistant_message_id": "message-1", "segments": [
+            {"source_version": 1, "sequence": 0, "kind": "embed_summary", "source_hash": "client", "speakable_text": requested_text},
+        ]},
+    )
+
+    assert estimated_characters == [len(canonical_text)]
+    assert [task[0] for task in dispatched] == ["apps.audio.tasks.assistant_speech_segment"]
+    arguments = dispatched[0][1]["arguments"]
+    assert arguments["speakable_text"] == canonical_text
+    assert arguments["source_hash"] == canonical_hash
+    assert requested_text not in repr(dispatched)
+    assert sent[0]["payload"]["segments"] == [
+        {"segment_id": "news-summary", "sequence": 0, "request_sequence": 0, "kind": "embed_summary", "status": "queued"},
+    ]
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.failure.nonblocking-visible-resumable,assistant-speech.segmentation.immutable-source
+@pytest.mark.asyncio
+async def test_event_returns_visible_segment_error_when_sealed_manifest_rejects_missing_history(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("celery", reason="real event binder imports the Celery app")
+    from backend.apps.audio.tasks import common as audio_task_common
+    from backend.apps.audio.assistant_speech.persistence import manifest_id_for
+    from backend.core.api.app.tasks import celery_config
+
+    text = "Missing historical paragraph."
+    manifest = {
+        "id": "manifest-row",
+        "manifest_id": manifest_id_for(chat_id="chat-1", assistant_message_id="message-1", source_version=1, voice_key="george", voice_version=1),
+        "user_id": "owner-1",
+        "chat_id": "chat-1",
+        "assistant_message_id": "message-1",
+        "ordered_segment_ids": ["prelude"],
+        "sealed": True,
+        "execution_version": 1,
+    }
+    prelude = {"segment_id": "prelude", "user_id": "owner-1", "chat_id": "chat-1", "assistant_message_id": "message-1", "source_version": 1, "sequence": 0, "kind": "app_use_announcement", "source_hash": "prelude", "status": "ready"}
+    sent: list[dict[str, object]] = []
+    dispatched: list[tuple[str, dict[str, object], str]] = []
+
+    class Manager:
+        async def send_personal_message(self, message, _user_id, _device_hash):
+            sent.append(message)
+
+    class RedisClient:
+        async def incrby(self, _key, amount):
+            return amount
+
+        async def expire(self, *_args):
+            return True
+
+    class Cache:
+        @property
+        def client(self):
+            async def connected_client():
+                return RedisClient()
+
+            return connected_client()
+
+        async def get_user_vault_key_id(self, _user_id):
+            return "vault-key-1"
+
+    class Chat:
+        async def check_chat_ownership(self, _chat_id, _user_id):
+            return True
+
+    class Directus:
+        chat = Chat()
+
+        async def get_items(self, collection, *, params, no_cache):
+            del no_cache
+            if collection == "messages":
+                return [{"role": "assistant"}]
+            candidates = [manifest] if collection == "assistant_speech_manifests" else [prelude] if collection == "assistant_speech_segments" else []
+            for key, value in params.items():
+                if key.startswith("filter[") and key.endswith("][_eq]"):
+                    field = key.removeprefix("filter[").removesuffix("][_eq]")
+                    candidates = [row for row in candidates if row.get(field) == value]
+            return candidates[: int(params.get("limit", len(candidates)))]
+
+    async def credit_headroom(**_kwargs):
+        return None
+
+    monkeypatch.setattr(audio_task_common, "ensure_audio_credit_headroom", credit_headroom)
+    monkeypatch.setattr(celery_config.app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)), raising=False)
+
+    await handle_assistant_speech_event(
+        manager=Manager(), directus_service=Directus(), cache_service=Cache(), user_id="owner-1", device_fingerprint_hash="device-1",
+        payload={"action": "request", "chat_id": "chat-1", "assistant_message_id": "message-1", "segments": [
+            {"source_version": 1, "sequence": 0, "kind": "prose_paragraph", "source_hash": "client", "speakable_text": text},
+        ]},
+    )
+
+    result = sent[0]["payload"]["segments"][0]
+    assert result == {
+        "segment_id": result["segment_id"],
+        "sequence": 1,
+        "request_sequence": 0,
+        "status": "error",
+        "error": "Speech is temporarily unavailable.",
+        "retryable": False,
+        "kind": "prose_paragraph",
+    }
+    assert [task[0] for task in dispatched] == ["apps.audio.tasks.assistant_speech_billing"]
     assert text not in repr(sent)
 
 
