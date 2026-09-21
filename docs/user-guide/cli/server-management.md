@@ -224,7 +224,7 @@ openmates server update status --json
 openmates server update --force
 ```
 
-Image-mode installs refresh the runtime Compose template from the packaged CLI templates, update `OPENMATES_IMAGE_TAG`, create a rotating latest pre-update backup for data-bearing roles, run `docker compose pull`, restart selected services, wait for role-specific health checks, and then run the runtime-contract checklist. By default, version-pinned installs target the current CLI version tag, so update the CLI first when you want the newest released self-host images. Installs already using a channel tag keep that channel unless you pass a different target.
+Image-mode installs refresh the runtime Compose template, update `OPENMATES_IMAGE_TAG`, create a rotating latest pre-update backup for data-bearing roles, run `docker compose pull`, restart selected services, wait for role-specific health checks, and then run the runtime-contract checklist. Stable CLI releases install and update from the `stable` release channel by default. The CLI resolves that channel through GitHub's published release catalog and then pulls the exact version tag, which GitHub publishes only after the npm package, Python package, and every self-hosted image for one `main` commit have succeeded. `--image-tag` pins an exact artifact, while `--channel main` or `--channel dev` explicitly follows an unverified branch channel.
 
 Managed-clone source installs run `git pull --ff-only`, rebuild containers, restart, and run the same readiness and runtime-contract checks. Registered working-tree servers never pull or alter Git state: `update` builds the current checkout exactly as it exists. Automated `git stash` is not supported.
 

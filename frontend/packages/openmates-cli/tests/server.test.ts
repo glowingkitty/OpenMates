@@ -31,7 +31,7 @@ const LLM_PROVIDER_ENV_KEYS = new Set([
   "SECRET__TOGETHER__API_KEY",
 ]);
 const IMAGE_CHANNEL_TAGS = {
-  stable: "main",
+  stable: "stable",
   main: "main",
   dev: "dev",
 } as const;
@@ -99,6 +99,10 @@ import {
   validateRuntimeWebhookDestination,
 } from "../src/serverHealth.ts";
 import { renderSupportStartReminder } from "../src/support.ts";
+import {
+  resolveStableImageTag,
+  selectLatestStableReleaseTag,
+} from "../src/releaseChannel.ts";
 import { publishServerBackupArchive } from "../src/serverBackupArchive.ts";
 import {
   acquireServerUpdateLock,
@@ -206,7 +210,8 @@ function composeArgs(installPath: string, withOverrides: boolean, installMode?: 
 }
 
 function getDefaultImageTagForVersion(version: string): string {
-  return version ? `v${version}` : "dev";
+  if (!version) return "dev";
+  return /-(alpha|beta|rc)(\.|\d|$)/.test(version) ? `v${version}` : "stable";
 }
 
 function defaultTemplateRefForVersion(version: string): string {
@@ -214,6 +219,7 @@ function defaultTemplateRefForVersion(version: string): string {
 }
 
 function templateRefForImageTag(imageTag: string, packageVersion = ""): string {
+  if (imageTag === "stable") return "main";
   const channelTag = IMAGE_CHANNEL_TAGS[imageTag as keyof typeof IMAGE_CHANNEL_TAGS];
   if (channelTag) return channelTag;
   if (imageTag.startsWith("v")) return defaultTemplateRefForVersion(imageTag.slice(1));
@@ -224,8 +230,8 @@ function templateRefForImageTag(imageTag: string, packageVersion = ""): string {
 function resolveTargetImageTag(
   flags: Record<string, string | boolean>,
   currentTag: string,
-  packageVersion: string,
-): { tag: string; channel?: "dev" | "main" } {
+  _packageVersion: string,
+): { tag: string; channel?: "stable" | "dev" | "main" } {
   const imageTag = flags["image-tag"];
   const channel = flags.channel;
   if (imageTag === true) {
@@ -253,7 +259,7 @@ function resolveTargetImageTag(
 
   const installedChannel = IMAGE_CHANNEL_TAGS[currentTag as keyof typeof IMAGE_CHANNEL_TAGS];
   if (installedChannel) return { tag: installedChannel, channel: installedChannel };
-  return { tag: getDefaultImageTagForVersion(packageVersion) };
+  return { tag: "stable", channel: "stable" };
 }
 
 type FeatureOverrides = {
@@ -762,9 +768,33 @@ describe("feature override config", () => {
 });
 
 describe("image-mode update planning", () => {
-  it("updates default version-pinned installs to the current CLI version tag", () => {
+  it("installs stable CLI releases through the verified GitHub release channel", () => {
+    assert.equal(getDefaultImageTagForVersion("0.19.0"), "stable");
+    assert.equal(getDefaultImageTagForVersion("0.20.0-alpha.4"), "v0.20.0-alpha.4");
+    assert.equal(getDefaultImageTagForVersion(""), "dev");
+  });
+
+  it("selects the highest verified GitHub release instead of a draft or legacy alpha tag", () => {
+    assert.equal(selectLatestStableReleaseTag([
+      { tag_name: "v0.20.0", draft: true },
+      { tag_name: "v0.9.0-alpha", draft: false },
+      { tag_name: "v0.19.2", draft: false },
+      { tag_name: "v0.19.10", draft: false },
+      { tag_name: "v0.18.0", draft: false },
+    ]), "v0.19.10");
+  });
+
+  it("resolves the stable image tag from the published GitHub release catalog", async () => {
+    const fetcher = async () => new Response(JSON.stringify([
+      { tag_name: "v0.19.0", draft: false },
+    ]), { status: 200 });
+
+    assert.equal(await resolveStableImageTag(fetcher as typeof fetch), "v0.19.0");
+  });
+
+  it("updates version-pinned installs through the promoted stable channel", () => {
     const target = resolveTargetImageTag({}, "v0.13.0", "0.13.0");
-    assert.deepEqual(target, { tag: "v0.13.0" });
+    assert.deepEqual(target, { tag: "stable", channel: "stable" });
   });
 
   it("preserves installed channel tags when no explicit target is provided", () => {
@@ -772,9 +802,9 @@ describe("image-mode update planning", () => {
     assert.deepEqual(resolveTargetImageTag({}, "main", "0.13.0"), { tag: "main", channel: "main" });
   });
 
-  it("maps stable channel to the published main image tag", () => {
+  it("keeps stable as a release-resolution sentinel until GitHub is queried", () => {
     const target = resolveTargetImageTag({ channel: "stable" }, "v0.13.0", "0.13.0");
-    assert.deepEqual(target, { tag: "main", channel: "main" });
+    assert.deepEqual(target, { tag: "stable", channel: "stable" });
   });
 
   it("rejects ambiguous image tag and channel combinations", () => {

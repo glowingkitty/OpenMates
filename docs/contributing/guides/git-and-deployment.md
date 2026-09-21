@@ -297,9 +297,9 @@ EOF
 )"
 ```
 
-**Step 6 — Prepare a draft release**
+**Step 6 — Verify automated release publication**
 
-After the PR is created, immediately prepare a draft GitHub release (see "Creating Releases" section below). The draft release will be published after the PR is merged into `main`.
+After the PR is merged, `Publish GitHub Release` waits for the CLI, Python SDK, and self-host image workflows from the exact merge commit. It verifies package and image provenance, creates the version tag, and publishes the GitHub pre-release. The CLI treats that published release as the `stable` channel. Use the workflow's manual dispatch with the exact commit only to recover a missed automatic trigger.
 
 ---
 
@@ -307,7 +307,7 @@ After the PR is created, immediately prepare a draft GitHub release (see "Creati
 
 **IMPORTANT: Only create a release when the user explicitly asks for one**, OR as part of a PR workflow when the user asked to create a PR. Never create a release on your own initiative at other times.
 
-Releases are always created as **drafts** targeting `main` and marked as **pre-release** (while in alpha). They are published after the PR is merged.
+Releases are published automatically as **pre-releases** while the product is in alpha. Publication is fail-closed: all required workflows and artifacts must exist for the same `main` commit. Draft releases are optional editorial preparation; the automated publisher updates a matching draft or creates the release itself.
 
 ### Versioning Guidelines
 
@@ -424,11 +424,11 @@ EOF
 
 **Step 4 — Report back to the user**
 
-After creating the PR and the draft release, tell the user:
+After creating the PR, tell the user:
 
 - The PR URL
-- The draft release tag/URL
-- That the draft release should be **published after the PR is merged into `main`**
+- The exact artifact version that will be published
+- That GitHub publication will happen only after all required `main` artifact workflows succeed
 
 The user publishes the release manually after merging, or can ask you to publish it:
 

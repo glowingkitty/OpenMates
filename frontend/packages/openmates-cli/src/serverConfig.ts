@@ -41,8 +41,8 @@ export interface ServerConfig {
   openMatesCloudOverlayPath?: string;
   /** OpenMates image tag used by image-mode installs, e.g. v0.20.0. */
   imageTag?: string;
-  /** Image channel alias used by image-mode installs, e.g. dev or main. */
-  imageChannel?: "dev" | "main";
+  /** Image channel alias used by image-mode installs, e.g. stable, dev, or main. */
+  imageChannel?: "stable" | "dev" | "main";
   /** API URL regular CLI commands should default to for this self-host install. */
   apiUrl?: string;
   /** Web app URL used for pair-login and share links for this self-host install. */
