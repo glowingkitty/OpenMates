@@ -68,12 +68,18 @@ def ticket(root: Path) -> dict:
 def write_bundle(directory: Path, run_id: str = "123") -> tuple[dict, dict[str, bytes]]:
     content = {
         "web.tar.gz": b"web bytes",
+        "web-preview.tar.gz": b"web preview bytes",
         "translations.tar.gz": b"translation bytes",
         "cli.tar.gz": b"cli bytes",
         "images/api.tar": b"api image bytes",
     }
     artifacts = {}
-    for name in ("web.tar.gz", "translations.tar.gz", "cli.tar.gz"):
+    for name in (
+        "web.tar.gz",
+        "web-preview.tar.gz",
+        "translations.tar.gz",
+        "cli.tar.gz",
+    ):
         value = content[name]
         artifacts[name] = {
             "path": name,

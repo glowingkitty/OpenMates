@@ -48,6 +48,7 @@ SCHEMA_DIAGNOSTIC_PATH = "diagnostics/schema-restore.json"
 ALLOWED_PATHS = (
     MANIFEST_PATH,
     "web.tar.gz",
+    "web-preview.tar.gz",
     "translations.tar.gz",
     "cli.tar.gz",
     "images/api.tar",
@@ -657,7 +658,11 @@ def _manifest_references(manifest: Mapping[str, Any]) -> dict[str, dict[str, Any
         if total > MAX_TOTAL_BYTES:
             raise PreparationTransportError("Preparation manifest exceeds transport limits")
         references[relative] = {"sha256": digest, "size": size}
-    if not {"web.tar.gz", "translations.tar.gz"}.issubset(references):
+    if not {
+        "web.tar.gz",
+        "web-preview.tar.gz",
+        "translations.tar.gz",
+    }.issubset(references):
         raise PreparationTransportError("Preparation manifest is incomplete")
     return references
 
