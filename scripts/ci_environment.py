@@ -35,7 +35,7 @@ PREPARED_SCHEMA_ADMIN_PASSWORD = "openmates-ci-prepared-schema-admin-v1"
 # These values are part of the prepared-schema compatibility contract. Bump the
 # bundle format when the carrier contents change, and the restore semantics when
 # a consumer interprets or activates those contents differently.
-SCHEMA_BUNDLE_FORMAT = "openmates-postgres-plain-gzip-v2"
+SCHEMA_BUNDLE_FORMAT = "openmates-postgres-plain-gzip-v3"
 SCHEMA_RESTORE_SEMANTICS = "fresh-volume-directus-credential-rotation-v2"
 POSTGRES_IMAGE = (
     "postgres:13-alpine@sha256:"

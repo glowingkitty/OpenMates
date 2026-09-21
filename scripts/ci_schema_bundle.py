@@ -75,6 +75,12 @@ PG_DUMP_ARGS = (
     "openmates",
 )
 PG_DUMP_RESTRICT_GUARD = re.compile(br"^(\\(?:un)?restrict) [A-Za-z0-9]+$")
+PG_DUMP_TEXT_ARRAY_CAST = re.compile(
+    br"ANY \(\(ARRAY\[(?P<items>"
+    br"'(?:''|[^'])*'::character varying"
+    br"(?:, '(?:''|[^'])*'::character varying)*)"
+    br"\]\)::text\[\]\)"
+)
 
 
 SANITIZE_SQL = r"""
@@ -157,6 +163,20 @@ def compose(
     )
 
 
+def canonicalize_pg_dump_sql(line: bytes) -> bytes:
+    """Canonicalize one PostgreSQL round-trip rendering of partial indexes."""
+    if not line.startswith((b"CREATE INDEX ", b"CREATE UNIQUE INDEX ")):
+        return line
+
+    def element_casts(match: re.Match[bytes]) -> bytes:
+        items = match.group("items").split(b", ")
+        return b"ANY (ARRAY[" + b", ".join(
+            b"(" + item + b")::text" for item in items
+        ) + b"])"
+
+    return PG_DUMP_TEXT_ARRAY_CAST.sub(element_casts, line)
+
+
 def normalized_dump(dump: bytes) -> bytes:
     """Canonicalize random guards and unordered COPY rows without losing bytes."""
     lines = []
@@ -183,6 +203,7 @@ def normalized_dump(dump: bytes) -> bytes:
             # each plain-text dump. Preserve the meta-command while removing
             # only that presentation-only randomness from equivalence hashes.
             line = guard.group(1) + b" <generated-key>"
+        line = canonicalize_pg_dump_sql(line)
         lines.append(line)
         if line.startswith(b"COPY ") and line.endswith(b" FROM stdin;"):
             copy_rows = []

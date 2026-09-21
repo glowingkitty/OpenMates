@@ -77,6 +77,49 @@ def test_normalized_dump_ignores_only_pg_presentation_noise():
     assert b"\\restrict PayloadValue123" in bundle.normalized_dump(copy_data)
 
 
+def test_normalized_dump_equates_postgres_text_array_cast_round_trip():
+    original = (
+        b"CREATE INDEX due_idx ON public.jobs USING btree (state) "
+        b"WHERE ((state)::text = ANY ((ARRAY['pending'::character varying, "
+        b"'retry_scheduled'::character varying])::text[]));\n"
+    )
+    restored = (
+        b"CREATE INDEX due_idx ON public.jobs USING btree (state) "
+        b"WHERE ((state)::text = ANY (ARRAY[('pending'::character varying)::text, "
+        b"('retry_scheduled'::character varying)::text]));\n"
+    )
+    assert bundle.normalized_dump(original) == bundle.normalized_dump(restored)
+
+    three_values = original.replace(
+        b"'retry_scheduled'::character varying",
+        b"'in_progress'::character varying, 'retry_scheduled'::character varying",
+    )
+    three_values_restored = restored.replace(
+        b"('retry_scheduled'::character varying)::text",
+        b"('in_progress'::character varying)::text, "
+        b"('retry_scheduled'::character varying)::text",
+    )
+    assert bundle.normalized_dump(three_values) == bundle.normalized_dump(
+        three_values_restored
+    )
+
+
+def test_normalized_dump_keeps_meaningful_index_predicate_differences():
+    pending = (
+        b"CREATE INDEX due_idx ON public.jobs USING btree (state) "
+        b"WHERE ((state)::text = ANY ((ARRAY['pending'::character varying, "
+        b"'retry_scheduled'::character varying])::text[]));\n"
+    )
+    completed = pending.replace(b"'pending'", b"'completed'")
+    different_operator = pending.replace(b" = ANY ", b" <> ALL ")
+    assert bundle.normalized_dump(pending) != bundle.normalized_dump(completed)
+    assert bundle.normalized_dump(pending) != bundle.normalized_dump(
+        different_operator
+    )
+    select = b"SELECT ANY ((ARRAY['pending'::character varying])::text[]);\n"
+    assert bundle.normalized_dump(select) == select
+
+
 def test_normalized_dump_sorts_only_copy_rows_and_preserves_exact_payload_bytes():
     prefix = b"SET statement_timeout = 0;\nCOPY public.items (value) FROM stdin;\n"
     first = prefix + b"second\t \nfirst\t\t\nfirst\t\n\\.\nSELECT 1;\n"
