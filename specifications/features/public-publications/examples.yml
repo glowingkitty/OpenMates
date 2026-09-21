@@ -1,0 +1,83 @@
+schema_version: 1
+specification: feature.public-publications@1
+
+localized_routes:
+  - id: german-news-navigation
+    assertion_ids: [public-publications.routes.localized-archives]
+    given: A visitor opens the German news archive with several published releases and one external press report.
+    when: They open a release and then select the press report from the newest-first publication navigation.
+    then: The release has its own German detail page and recent-news navigation, while the press report opens the publisher's original URL in a new tab.
+  - id: blog-archive-and-detail
+    assertion_ids: [public-publications.routes.localized-archives]
+    given: One reviewed example blog post is published in English and German.
+    when: A logged-out visitor follows it from /blog to its stable detail URL.
+    then: Both pages render the localized post, and the blog navigation contains only recent blog posts ordered newest first.
+
+seo_discovery:
+  - id: localized-release-discovery
+    assertion_ids: [public-publications.seo.crawlable]
+    given: A release is published with English and German content, an image, and publication dates.
+    when: A crawler requests either localized detail URL without running client JavaScript.
+    then: It receives meaningful article HTML, unique metadata, a matching canonical URL, reciprocal language alternates, NewsArticle structured data, social preview metadata, and a dated sitemap or feed entry.
+  - id: social-post-discovery
+    assertion_ids: [public-publications.seo.crawlable]
+    given: An official OpenMates social post is published on several networks and archived as one public post.
+    when: A crawler requests the social detail URL.
+    then: The first-party text and owned media description are present in server HTML with SocialMediaPosting structured data and a canonical OpenMates URL.
+
+public_boundary:
+  - id: reviewed-manifest-only
+    assertion_ids: [public-publications.authoring.public-boundary]
+    given: A private marketing folder contains a published post, a draft, campaign notes, Buffer identifiers, and credentials used by maintainers.
+    when: The public publication manifest is generated and deployed.
+    then: It contains only the reviewed published fields and public asset references; the draft, notes, identifiers, credentials, and private author data are absent.
+
+media_grouping:
+  - id: adjacent-gallery
+    assertion_ids: [public-publications.content.media-groups]
+    given: A Markdown post contains an image URL, a blank line, another image URL, and then a paragraph.
+    when: The post is parsed.
+    then: The two images render in one ordered accessible gallery and the following paragraph renders as ordinary prose outside that gallery.
+  - id: prose-stops-gallery
+    assertion_ids: [public-publications.content.media-groups]
+    given: A video URL is followed by explanatory prose and then an ordinary linked image inside a list.
+    when: The post is parsed.
+    then: The video remains its own media group, and neither the prose nor the list link is absorbed into it.
+
+announcement_migration:
+  - id: released-versions-only
+    assertion_ids: [public-publications.news.released-announcements]
+    given: Existing announcement sources include released OpenMates versions, localized copy, legacy links, and preview fixtures with future dates.
+    when: The initial news manifest is generated.
+    then: Released announcements become localized stable news entries, legacy public links continue to resolve or redirect, and preview-only dates and unreleased claims are excluded.
+
+social_backfill:
+  - id: one-post-many-platforms
+    assertion_ids: [public-publications.social.official-backfill]
+    given: Buffer reports the same OpenMates announcement on Bluesky, Instagram, and Mastodon with an exact permalink for each channel and a shared video.
+    when: The read-only backfill runs.
+    then: One logical social detail page exposes three labelled platform icon links in new tabs and serves the reviewed durable video copy from OpenMates-controlled storage.
+  - id: reject-nonofficial-and-private-fields
+    assertion_ids: [public-publications.social.official-backfill]
+    given: The Buffer response also contains an unrelated account, internal account identifiers, private author data, and a temporary media URL.
+    when: The public record is produced.
+    then: The unrelated post and private fields are absent, and the temporary media URL is not published unless it has been copied and approved under the durable public media prefix.
+
+delivery_channels:
+  - id: blog-does-not-email
+    assertion_ids: [public-publications.delivery.explicit-channels]
+    given: A maintainer publishes or edits the example blog post.
+    when: The publication deployment completes.
+    then: The blog becomes public without sending email or scheduling any social post.
+  - id: release-email-is-deliberate
+    assertion_ids: [public-publications.delivery.explicit-channels]
+    given: A release is public and eligible for the existing news-and-updates newsletter category.
+    when: It is published or later corrected.
+    then: No email is sent unless a maintainer separately and explicitly selects that release for a newsletter campaign.
+
+media_delivery:
+  - id: anonymous-read-without-storage-control
+    assertion_ids: [public-publications.media.read-only-delivery]
+    given: A visitor loads a publication with media stored under the dedicated public newsroom prefix.
+    when: Their browser requests the asset directly from Hetzner S3.
+    then: The object can be read without credentials, while bucket listing, writes, deletes, unrelated prefixes, and publisher credentials remain unavailable to the browser.

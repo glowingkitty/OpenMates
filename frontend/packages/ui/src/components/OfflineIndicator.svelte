@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
   import { isOnline } from '../stores/networkStatusStore';
-  import { text } from '@repo/ui';
+  import { text } from '../i18n/translations';
   import { fade } from 'svelte/transition';
 </script>
 

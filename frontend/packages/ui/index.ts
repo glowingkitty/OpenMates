@@ -76,9 +76,13 @@ export { default as OfflineIndicator } from "./src/components/OfflineIndicator.s
 export { default as NewsroomSurface } from "./src/components/newsroom/NewsroomSurface.svelte";
 export type {
   NewsroomAction,
+  NewsroomArticleContent,
+  NewsroomHero,
   NewsroomItem,
+  NewsroomMediaSource,
   NewsroomSurfaceData,
   NewsroomView,
+  SocialPostLink,
 } from "./src/components/newsroom/types";
 // Removed Imprint, Privacy, Terms Svelte components - legal documents are now handled via chat system
 // See frontend/packages/ui/src/legal/ for legal chat document definitions

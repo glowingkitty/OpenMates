@@ -18,6 +18,7 @@
 >
   <NewsroomMedia
     label={`${item.title} social media preview`}
+    source={item.media}
     shape="portrait"
     showPlay={false}
   />

@@ -244,6 +244,7 @@
         "preview-error.spec.ts",
         "proof-audio-speech-example.spec.ts",
         "proof-video-architecture.spec.ts",
+        "public-publications.spec.ts",
         "report-issue-email-fallback.spec.ts",
         "search-parent-preview-stress.spec.ts",
         "seo-demo-chat.spec.ts",

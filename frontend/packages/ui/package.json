@@ -14,6 +14,10 @@
       "svelte": "./src/demo_chats/index.ts",
       "default": "./src/demo_chats/index.ts"
     },
+    "./i18n/setup": {
+      "types": "./src/i18n/setup.ts",
+      "default": "./src/i18n/setup.ts"
+    },
     "./src/demo_chats/resolveI18nServer": {
       "types": "./src/demo_chats/resolveI18nServer.ts",
       "default": "./src/demo_chats/resolveI18nServer.ts"
@@ -35,6 +39,10 @@
     "./config/api": {
       "types": "./src/config/api.ts",
       "default": "./src/config/api.ts"
+    },
+    "./config/meta": {
+      "types": "./src/config/meta.ts",
+      "default": "./src/config/meta.ts"
     },
     "./config/workspaceFeatureGates": {
       "types": "./src/config/workspaceFeatureGates.ts",

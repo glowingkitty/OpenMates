@@ -466,6 +466,13 @@ specifications:
     fingerprint: e53c1ac327993825e19716c865be2aff5f1e37dd8f79f1f01035d1113463ec4e
     required_applies_to:
     - gui.web
+  feature.public-publications:
+    version: 1
+    status: draft
+    path: features/public-publications
+    fingerprint: 0f938809737584635550bc9fec4ebec72d793dcf94bf2b2c0453565152c269f0
+    required_applies_to:
+    - gui.web
   feature.settings-ui:
     version: 1
     status: draft
@@ -5054,6 +5061,62 @@ assertions:
     specification_id: feature.public-example-chats
     type: parity
     fingerprint: ae35cf0b663890b935fa48d96ed86900b24309d13e5d586b0120aff5cb4bce79
+    required_applies_to:
+    - gui.web
+  public-publications.routes.localized-archives:
+    specification: feature.public-publications@1
+    specification_id: feature.public-publications
+    type: behavior
+    fingerprint: fa25baffc16245b2de49fbb7f67ba2d108627ec8575e4ca6eb51186ca6aa0971
+    required_applies_to:
+    - gui.web
+  public-publications.seo.crawlable:
+    specification: feature.public-publications@1
+    specification_id: feature.public-publications
+    type: behavior
+    fingerprint: 67ed7b0b3cd9bdafe6d2af102019b3e5f0e160140609128241e8b29b1a1a9f69
+    required_applies_to:
+    - gui.web
+  public-publications.authoring.public-boundary:
+    specification: feature.public-publications@1
+    specification_id: feature.public-publications
+    type: privacy
+    fingerprint: 8c98223b7a712c952649cd1af41e0637fffecc9dd11f15b23df358411e67054d
+    required_applies_to:
+    - gui.web
+  public-publications.content.media-groups:
+    specification: feature.public-publications@1
+    specification_id: feature.public-publications
+    type: behavior
+    fingerprint: 0132165be5e83166c09e15deecf018c96b4b3d9bc3a58717102178d86d50c9c7
+    required_applies_to:
+    - gui.web
+  public-publications.news.released-announcements:
+    specification: feature.public-publications@1
+    specification_id: feature.public-publications
+    type: behavior
+    fingerprint: e2f119f15113b1548243e96363b57ce0781301cd30ded3236660e4b5738b4e8c
+    required_applies_to:
+    - gui.web
+  public-publications.social.official-backfill:
+    specification: feature.public-publications@1
+    specification_id: feature.public-publications
+    type: privacy
+    fingerprint: 814b34dc51ea88a17c5b0fc04471c5cfeca6d4460badf67f6da0766f9d4b1c6d
+    required_applies_to:
+    - gui.web
+  public-publications.delivery.explicit-channels:
+    specification: feature.public-publications@1
+    specification_id: feature.public-publications
+    type: behavior
+    fingerprint: f283b2b670b7341edbae20de361095137aa0dddbdaea94690fdfd8f9aa9d551f
+    required_applies_to:
+    - gui.web
+  public-publications.media.read-only-delivery:
+    specification: feature.public-publications@1
+    specification_id: feature.public-publications
+    type: privacy
+    fingerprint: e4bd319743a14315cb0c9d7802a45482a97a34ec663c0a4f74eb81bd153d18ce
     required_applies_to:
     - gui.web
   settings-ui.shell.lifecycle-and-routing:

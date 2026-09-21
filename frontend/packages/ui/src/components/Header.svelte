@@ -10,7 +10,7 @@
   import { waitLocale } from "svelte-i18n";
   import { onMount } from "svelte";
   import { isMenuOpen } from "../stores/menuState";
-  import { text } from "@repo/ui";
+  import { text } from "../i18n/translations";
   import { isInSignupProcess, isLoggingOut } from "../stores/signupState"; // Import the signup state and logging out state
   import { panelState } from "../stores/panelStateStore"; // Import panel state store
   import {

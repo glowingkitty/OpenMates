@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import Header from "../Header.svelte";
   import NewsroomMedia from "./NewsroomMedia.svelte";
+  import PublicationHeader from "./PublicationHeader.svelte";
   import PublicationCard from "./PublicationCard.svelte";
   import PublicationHero from "./PublicationHero.svelte";
   import PublicationSidebar from "./PublicationSidebar.svelte";
@@ -69,7 +69,8 @@
   }
 
   function setSlide(next: number) {
-    activeSlide = (next + 3) % 3;
+    const count = selectedArticle.media?.length ?? 3;
+    activeSlide = (next + count) % count;
   }
 </script>
 
@@ -108,35 +109,49 @@
       >
     </header>
     <p class="article-intro">{article.intro}</p>
-    <p>{article.paragraphs[0]}</p>
-    <div class="slideshow" data-testid="newsroom-slideshow">
+    {#if article.bodyHtml}
+      <!-- Trusted server-rendered Markdown with raw HTML disabled. -->
+      <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+      <div class="article-markdown">{@html article.bodyHtml}</div>
+    {:else if article.paragraphs}
+      <p>{article.paragraphs[0]}</p>
+    {/if}
+    {#if article.media?.length || article.paragraphs}
+      <div class="slideshow" data-testid="newsroom-slideshow">
       <button
         type="button"
-        aria-label="Previous media"
+        aria-label={data.previousMediaLabel}
         onclick={() => setSlide(activeSlide - 1)}>‹</button
       >
       <div class="slide-frame">
-        <NewsroomMedia label={`Article media, slide ${activeSlide + 1}`} />
-        <span>{activeSlide + 1} / 3</span>
+        <NewsroomMedia
+          label={`${data.articleMediaLabel}, ${activeSlide + 1}`}
+          source={article.media?.[activeSlide]}
+          controls={article.media?.[activeSlide]?.type === "video"}
+        />
+        <span>{activeSlide + 1} / {article.media?.length ?? 3}</span>
       </div>
       <button
         type="button"
-        aria-label="Next media"
+        aria-label={data.nextMediaLabel}
         onclick={() => setSlide(activeSlide + 1)}>›</button
       >
-    </div>
-    <p>{article.paragraphs[1]}</p>
-    <NewsroomMedia label="Article example media" />
-    <p>{article.paragraphs[2]}</p>
-    <aside class="prompt-card">
-      <small>{article.promptTitle}</small>
-      <blockquote>{article.promptBody}</blockquote>
-      <button type="button">Copy</button>
-    </aside>
+      </div>
+    {/if}
+    {#if !article.bodyHtml && article.paragraphs}
+      <p>{article.paragraphs[1]}</p>
+        <NewsroomMedia label={data.articleMediaLabel} />
+      <p>{article.paragraphs[2]}</p>
+    {/if}
+    {#if article.promptTitle && article.promptBody}
+      <aside class="prompt-card">
+        <small>{article.promptTitle}</small>
+        <blockquote>{article.promptBody}</blockquote>
+        <button type="button">{data.copyLabel}</button>
+      </aside>
+    {/if}
     <p class="contact-line">
-      {isRelease
-        ? "For further questions, contact press@openmates.org"
-        : "Questions or feedback? marco@openmates.org"}
+      {isRelease ? data.releaseContactLabel : data.blogContactLabel}
     </p>
   </article>
 {/snippet}
@@ -159,14 +174,12 @@
   </div>
 
   <div class="main-panel">
-    <Header
-      context="webapp"
-      isLoggedIn={false}
-      publicationLabel={pageLabel}
+    <PublicationHeader
+      label={pageLabel}
       primaryCtaLabel={view === "release" ? data.tryItLabel : data.openAppLabel}
       onPrimaryCta={() => act(view === "release" ? "try-feature" : "open-app")}
       onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
-      isSidebarOpen={sidebarOpen}
+      {sidebarOpen}
     />
 
     <div class="publication-scroll">
@@ -175,7 +188,7 @@
           <button
             type="button"
             class="detail-close"
-            aria-label="Close social post"
+            aria-label={data.closeSocialLabel}
             onclick={() => act("open-item")}
           >
             <span class="clickable-icon icon_close" aria-hidden="true"></span>
@@ -186,9 +199,11 @@
           >
             <div class="social-detail-media">
               <NewsroomMedia
-                label="OpenMates social post media"
+                label={data.articleMediaLabel}
+                source={data.socialItems[0].media}
                 shape="portrait"
                 showPlay={false}
+                controls={data.socialItems[0].media?.type === "video"}
               />
             </div>
             <div class="social-detail-copy">
@@ -199,10 +214,10 @@
               </div>
               <h1 id="social-post-title">{data.socialItems[0].title}</h1>
               <p>
-                {data.socialItems[0].excerpt}
+                {data.socialItems[0].bodyText ?? data.socialItems[0].excerpt}
               </p>
               <time>{data.socialItems[0].publishedLabel}</time>
-              <nav class="platform-links" aria-label="Open original post">
+              <nav class="platform-links" aria-label={data.originalPostNavLabel}>
                 {#each data.socialItems[0].socialLinks ?? [] as link (link.platform)}
                   <a
                     href={link.href}
@@ -238,7 +253,7 @@
               onOpen={() =>
                 act(
                   "open-item",
-                  isBlogSurface ? data.blogItems[0].id : "workflow-automation",
+                  isBlogSurface ? data.blogItems[0].id : data.newsItems[0].id,
                 )}
               onClose={() => act("open-item")}
             />
@@ -295,11 +310,11 @@
                       />
                     {/each}
                   </div>
-                {:else}<p class="empty-state">No matching posts.</p>{/if}
+                {:else}<p class="empty-state">{data.emptyStateLabel}</p>{/if}
 
                 {#if !isBlogSurface}
                   <div class="center-actions">
-                    {@render actionButton("grid", "Show all", "open-item")}
+                    {@render actionButton("grid", data.showAllLabel, "open-item")}
                     {@render actionButton(
                       "announcement",
                       data.subscribeLabel,
@@ -356,7 +371,6 @@
             <div class="detail-column">
               {#if view === "release"}
                 <section class="release-summary">
-                  <button type="button">▶ Speak announcement</button>
                   <p>{selectedArticle.intro}</p>
                   <div class="summary-actions">
                     {@render actionButton(
@@ -585,11 +599,6 @@
     gap: var(--spacing-6);
     padding: 0;
   }
-  .release-summary > button {
-    all: unset;
-    cursor: pointer;
-    font-weight: 700;
-  }
   .release-summary p {
     width: min(100%, 34rem);
     margin: 0 auto;
@@ -609,6 +618,38 @@
   .article-body p {
     margin: 0;
     line-height: 1.75;
+  }
+  .article-markdown {
+    display: grid;
+    gap: var(--spacing-8);
+    min-width: 0;
+  }
+  .article-markdown :global(h1),
+  .article-markdown :global(h2),
+  .article-markdown :global(h3) {
+    margin: var(--spacing-6) 0 0;
+    line-height: 1.25;
+  }
+  .article-markdown :global(p),
+  .article-markdown :global(ul),
+  .article-markdown :global(ol) {
+    margin: 0;
+    line-height: 1.75;
+  }
+  .article-markdown :global(.publication-media-group) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+    gap: var(--spacing-5);
+    margin: var(--spacing-5) 0;
+  }
+  .article-markdown :global(.publication-media-group img),
+  .article-markdown :global(.publication-media-group video) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-height: 32rem;
+    object-fit: cover;
+    border-radius: var(--radius-4);
   }
   .article-intro {
     font-size: 1.15rem;

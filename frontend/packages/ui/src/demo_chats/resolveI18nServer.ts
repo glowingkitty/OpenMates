@@ -5,6 +5,14 @@
 // files (SSR), never from client-side code (it would bloat the bundle by ~400KB).
 
 import enLocale from "../i18n/locales/en.json";
+import deLocale from "../i18n/locales/de.json";
+
+export type ServerContentLocale = "en" | "de";
+
+const localeDocuments = {
+  en: enLocale,
+  de: deLocale,
+} as const;
 
 /**
  * Resolve an i18n key to English text for server-side SEO rendering.
@@ -20,9 +28,17 @@ export function resolveExampleChatI18nKey(key: string): string {
 
 /** Resolve any i18n key (demo_chats.*, example_chats.*, etc.) to English text. */
 export function resolveI18nKey(key: string): string {
+  return resolveI18nKeyForLocale(key, "en");
+}
+
+/** Resolve a key for the explicitly requested public-page locale. */
+export function resolveI18nKeyForLocale(
+  key: string,
+  locale: ServerContentLocale,
+): string {
   const parts = key.split(".");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let current: any = enLocale;
+  let current: any = localeDocuments[locale];
   for (const part of parts) {
     if (current == null || typeof current !== "object") return key;
     current = current[part];

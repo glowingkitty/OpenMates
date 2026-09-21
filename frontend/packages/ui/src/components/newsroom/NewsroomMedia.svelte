@@ -1,9 +1,13 @@
 <script lang="ts">
+  import type { NewsroomMediaSource } from "./types";
+
   interface Props {
     label: string;
     shape?: "landscape" | "portrait";
     showPlay?: boolean;
     compact?: boolean;
+    source?: NewsroomMediaSource;
+    controls?: boolean;
   }
 
   let {
@@ -11,6 +15,8 @@
     shape = "landscape",
     showPlay = true,
     compact = false,
+    source,
+    controls = false,
   }: Props = $props();
 </script>
 
@@ -18,9 +24,22 @@
   class:portrait={shape === "portrait"}
   class:compact
   class="newsroom-media"
-  role="img"
-  aria-label={label}
+  role={source ? undefined : "img"}
+  aria-label={source ? undefined : label}
 >
+  {#if source?.type === "image"}
+    <img src={source.posterUrl ?? source.url} alt={source.alt || label} loading="lazy" decoding="async" />
+  {:else if source?.type === "video"}
+    <video
+      src={source.url}
+      poster={source.posterUrl}
+      aria-label={source.alt || label}
+      {controls}
+      muted={!controls}
+      playsinline
+      preload="metadata"
+    ></video>
+  {/if}
   {#if showPlay}
     <span class="play-button" aria-hidden="true">
       <span></span>
@@ -51,6 +70,14 @@
 
   .newsroom-media.portrait {
     aspect-ratio: var(--publication-social-media-ratio, 5 / 8);
+  }
+
+  img,
+  video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .play-button {

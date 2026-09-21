@@ -1,0 +1,148 @@
+schema_version: 1
+id: feature.public-publications
+version: 1
+status: draft
+title: Public News, Blog, Press, and Social Publications
+summary: >
+  OpenMates publishes localized, crawlable news and blog archives with durable
+  detail pages, external press links, and first-party social-post records built
+  from reviewed marketing content without exposing private marketing operations.
+
+scope:
+  includes:
+    - Public English and German news and blog indexes and detail pages.
+    - Product release and update news migrated from released OpenMates announcements.
+    - External press coverage that links to the publisher's original article.
+    - Official OpenMates social posts imported from Buffer with per-platform permalinks.
+    - Markdown publication metadata, adjacent-media grouping, durable public media, SEO metadata, structured data, feeds, and sitemap discovery.
+    - News and press email eligibility through the existing newsletter system.
+  excludes:
+    - Sending or scheduling social posts from the public-publication pipeline.
+    - Automatically emailing blog posts.
+    - Republishing, quoting, or summarizing external press articles on OpenMates detail pages.
+    - Separating the authenticated app onto app.openmates.org.
+    - Exact responsive styling beyond preserving the approved publication component behavior and accessible navigation.
+
+models:
+  PublicPublication:
+    kind:
+      type: enum
+      values: [release, update, press, blog, social]
+      required: true
+    slug:
+      type: route_slug
+      required: true
+      constraints: {stable: true, unique_per_kind: true}
+    locale:
+      type: enum
+      values: [en, de]
+      required: true
+    metadata:
+      type: publication_metadata
+      required: true
+      constraints: {includes: [title, description, published_at, updated_at, canonical_url]}
+    content:
+      type: reviewed_markdown_or_external_link
+      required: true
+    status:
+      type: enum
+      values: [draft, published]
+      required: true
+
+  SocialSyndication:
+    logical_post_id:
+      type: stable_id
+      required: true
+    platform_links:
+      type: ordered_platform_permalink_array
+      required: true
+      constraints: {official_openmates_accounts_only: true, exact_public_urls: true}
+    media:
+      type: public_media_array
+      required: false
+      constraints: {prefer_owned_copy: true, social_platform_hotlinking: forbidden_when_owned_copy_exists}
+
+  MediaGroup:
+    items:
+      type: ordered_media_array
+      required: true
+      constraints: {types: [image, video], accessible_text_required: true}
+    source_markdown:
+      type: adjacent_standalone_urls
+      required: true
+      constraints: {blank_lines_allowed: true, interrupted_by_prose_link_or_code: true}
+
+  PublicPublicationManifest:
+    source:
+      type: reviewed_private_marketing_content
+      required: true
+    published_fields:
+      type: explicit_allowlist
+      required: true
+    deployment:
+      type: versioned_atomic_manifest
+      required: true
+    forbidden_fields:
+      type: string_array
+      required: true
+      constraints:
+        includes: [credentials, drafts, internal_notes, private_authors, buffer_account_ids, unpublished_campaign_data]
+
+assertions:
+  - id: public-publications.routes.localized-archives
+    type: behavior
+    must: Public /news and /blog indexes and their detail pages render without authentication in English and German, order entries newest first, use stable slugs, show recent same-kind entries in publication navigation, and make external press entries open their original publisher URL in a new tab instead of an OpenMates detail page.
+    depends_on: [models.PublicPublication, examples.localized_routes]
+  - id: public-publications.seo.crawlable
+    type: behavior
+    must: Every published news, blog, and first-party social detail page renders meaningful server HTML with unique title and description metadata, canonical and English/German alternate URLs, appropriate schema.org JSON-LD, Open Graph metadata, and a dated sitemap or feed entry so search engines and AI discovery systems can find the public content.
+    depends_on: [models.PublicPublication, examples.seo_discovery]
+  - id: public-publications.authoring.public-boundary
+    type: privacy
+    must: Authors may keep Markdown, media references, drafts, and operational metadata in the private marketing repository, while the public OpenMates build consumes only a reviewed, versioned, atomic allowlisted manifest and never exposes credentials, drafts, internal notes, private author data, Buffer account identifiers, or unpublished campaign data.
+    depends_on: [models.PublicPublicationManifest, examples.public_boundary]
+  - id: public-publications.content.media-groups
+    type: behavior
+    must: A run of standalone image or video links separated only by whitespace or blank lines becomes one ordered accessible media group, while prose, ordinary links, headings, lists, quotes, or code terminate the group and retain normal Markdown meaning.
+    depends_on: [models.MediaGroup, examples.media_grouping]
+  - id: public-publications.news.released-announcements
+    type: behavior
+    must: The initial news archive migrates existing released OpenMates version and product announcements into localized stable news entries, preserves or redirects published legacy entry points where they exist, and excludes unreleased claims or demo-only fixture dates.
+    depends_on: [models.PublicPublication, examples.announcement_migration]
+  - id: public-publications.social.official-backfill
+    type: privacy
+    must: A read-only Buffer import may backfill only posts from configured official OpenMates channels, combine matching platform publications into one logical post, expose each exact platform permalink as a separate accessible icon link that opens in a new tab, sanitize imported data through the public allowlist, and serve an owned durable media copy whenever one is available.
+    depends_on: [models.SocialSyndication, models.PublicPublicationManifest, examples.social_backfill]
+  - id: public-publications.delivery.explicit-channels
+    type: behavior
+    must: Publishing or editing public content never automatically sends email or creates social posts; released news and press may be deliberately selected for the existing news-and-updates email category, while blog publication has no email-notification path.
+    depends_on: [models.PublicPublication, examples.delivery_channels]
+  - id: public-publications.media.read-only-delivery
+    type: privacy
+    must: Public publication media may be served directly from a dedicated Hetzner S3 public prefix using anonymous object reads, while browser clients receive no write credentials or bucket-listing capability and publisher credentials are restricted to the publication prefix.
+    depends_on: [models.MediaGroup, examples.media_delivery]
+
+applies_to:
+  rest_api:
+    required: false
+    role: The first version is a statically published web manifest without a mutable public content API.
+  cli:
+    required: false
+    role: Import and publication scripts are maintainers' tooling rather than a user-facing CLI contract.
+  sdks:
+    required: false
+    role: SDKs do not expose public publication authoring in v1.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [localized_routes, seo_discovery, public_boundary, media_grouping, announcement_migration, social_backfill, delivery_channels, media_delivery]

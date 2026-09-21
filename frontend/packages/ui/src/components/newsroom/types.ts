@@ -10,17 +10,26 @@ export interface SocialPostLink {
   href: string;
 }
 
+export interface NewsroomMediaSource {
+  url: string;
+  type: 'image' | 'video';
+  alt: string;
+  posterUrl?: string;
+}
+
 export interface NewsroomItem {
   id: string;
   kind: NewsroomItemKind;
   eyebrow: string;
   title: string;
   excerpt: string;
+  bodyText?: string;
   publishedLabel: string;
   readTime?: string;
   author?: string;
   language?: string;
   socialLinks?: SocialPostLink[];
+  media?: NewsroomMediaSource;
   mediaShape: 'landscape' | 'portrait' | 'none';
 }
 
@@ -30,15 +39,18 @@ export interface NewsroomHero {
   title: string;
   meta: string;
   actionLabel: string;
+  media?: NewsroomMediaSource;
 }
 
 export interface NewsroomArticleContent {
   byline: string;
   publishedLabel: string;
   intro: string;
-  paragraphs: string[];
-  promptTitle: string;
-  promptBody: string;
+  paragraphs?: string[];
+  bodyHtml?: string;
+  media?: NewsroomMediaSource[];
+  promptTitle?: string;
+  promptBody?: string;
 }
 
 export interface NewsroomSurfaceData {
@@ -58,6 +70,16 @@ export interface NewsroomSurfaceData {
   pressInquiryLabel: string;
   subscribeLabel: string;
   followLabel: string;
+  emptyStateLabel: string;
+  showAllLabel: string;
+  copyLabel: string;
+  previousMediaLabel: string;
+  nextMediaLabel: string;
+  articleMediaLabel: string;
+  closeSocialLabel: string;
+  originalPostNavLabel: string;
+  releaseContactLabel: string;
+  blogContactLabel: string;
   heroNews: NewsroomHero;
   heroBlog: NewsroomHero;
   newsItems: NewsroomItem[];

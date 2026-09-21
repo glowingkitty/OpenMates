@@ -350,10 +350,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	let remainingEventsCount = $derived(Math.max(0, upcomingOpenMatesEvents.length - visibleEventLimit));
 
 	const DEFAULT_EXAMPLE_CHAT_LIMIT = 10;
-	const DEFAULT_ANNOUNCEMENT_CHAT_LIMIT = 3;
-
 	let visibleExampleChatLimit = $state(DEFAULT_EXAMPLE_CHAT_LIMIT);
-	let visibleAnnouncementChatLimit = $state(DEFAULT_ANNOUNCEMENT_CHAT_LIMIT);
 
 	function getHiddenPublicChatIds(): string[] {
 		return $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
@@ -445,28 +442,8 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 				group_key: 'examples' // Example chats go in "Examples" group
 			}));
 		
-		// 3. Announcement chats — the most recent Updates & Announcements
-		// newsletter issues, shown under an "Announcements" section so users can
-		// always jump back to the latest product update. Hidden (via
-		// hidden_demo_chats) works the same as for intro/legal chats.
-		const allVisibleAnnouncementChats = getActiveNewsletterChatsByKind('announcements')
-			.filter(chat => !hiddenIds.includes(chat.chat_id))
-			.slice()
-			.sort((a, b) => {
-				const at = Date.parse(a.metadata.publishedAt || a.metadata.lastUpdated || '') || 0;
-				const bt = Date.parse(b.metadata.publishedAt || b.metadata.lastUpdated || '') || 0;
-				return bt - at;
-			})
-			.slice(0, visibleAnnouncementChatLimit);
-		const announcementChats: ChatType[] = allVisibleAnnouncementChats
-			.map(demo => translateDemoChat(demo))
-			.map(demo => {
-				const chat = convertDemoChatToChat(demo);
-				chat.group_key = 'announcements';
-				return chat;
-			});
-
-		// 3b. Tips & Tricks chats — shown only when entries exist.
+		// 3. Tips & Tricks chats — shown only when entries exist. Product
+		// announcements now live on the public /news pages rather than in Chats.
 		const tipsAndTricksChats: ChatType[] = getActiveNewsletterChatsByKind('tips')
 			.filter(chat => !hiddenIds.includes(chat.chat_id))
 			.slice()
@@ -502,7 +479,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 				});
 		}
 		
-		return [...introChats, ...exampleChats, ...announcementChats, ...tipsAndTricksChats, ...legalChats];
+		return [...introChats, ...exampleChats, ...tipsAndTricksChats, ...legalChats];
 	})());
 
 	// Combine public chats (intro + example chats + legal) with real chats from IndexedDB
@@ -762,7 +739,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		
 		// 2. Then, add any remaining time groups (e.g., month groups) in their order
 		// CRITICAL: Include 'shared_by_others' in static groups - these are chats shared with user by others
-		const staticGroups = ['shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal'];
+		const staticGroups = ['shared_by_others', 'intro', 'examples', 'tips_and_tricks', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
 			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
@@ -785,7 +762,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	// STATIC_GROUP_KEYS are excluded from time-based grouping and from the phased-load limit.
 	// 'incognito' is listed first so it renders at the top of the sidebar (above user time-groups).
 	// 'shared_by_others' comes before intro/examples/legal since those are real user-shared chats.
-	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal'];
+	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'tips_and_tricks', 'legal'];
 
 	// Initial display limit: matches Phase 1a (10 recent + 1 last-opened).
 	// Only user chats count toward this limit — static chats (intro, examples, legal) are always shown.
@@ -864,16 +841,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		return Math.max(0, totalExampleChats - visibleExampleChatLimit);
 	})());
 
-	let remainingAnnouncementChatsCount = $derived((() => {
-		const hiddenIds = getHiddenPublicChatIds();
-		const totalAnnouncementChats = getActiveNewsletterChatsByKind('announcements')
-			.filter(chat => !hiddenIds.includes(chat.chat_id))
-			.length;
-		return Math.max(0, totalAnnouncementChats - visibleAnnouncementChatLimit);
-	})());
-
 	let showMoreExampleChatsVisible = $derived(remainingExampleChatsCount > 0);
-	let showMoreAnnouncementChatsVisible = $derived(remainingAnnouncementChatsCount > 0);
 
 	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
@@ -1479,10 +1447,6 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 	function handleShowMoreExampleChatsClick() {
 		visibleExampleChatLimit += DEFAULT_EXAMPLE_CHAT_LIMIT;
-	}
-
-	function handleShowMoreAnnouncementChatsClick() {
-		visibleAnnouncementChatLimit += DEFAULT_ANNOUNCEMENT_CHAT_LIMIT;
 	}
 
 	/**
@@ -4452,7 +4416,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				{/if}
 
 				<!-- 6. Static chat groups that appear after Events -->
-				{#each orderedStaticChatGroups.filter(([k]) => ['examples', 'announcements', 'tips_and_tricks', 'legal'].includes(k)) as [groupKey, groupItems] (groupKey)}
+				{#each orderedStaticChatGroups.filter(([k]) => ['examples', 'tips_and_tricks', 'legal'].includes(k)) as [groupKey, groupItems] (groupKey)}
 					{@render chatGroupSnippet(groupKey, groupItems)}
 					{#if groupKey === 'examples' && showMoreExampleChatsVisible}
 						<div class="load-more-container">
@@ -4462,17 +4426,6 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 								onclick={handleShowMoreExampleChatsClick}
 							>
 								{$text('chats.loadMore.button')}{#if remainingExampleChatsCount > 0}&nbsp;({remainingExampleChatsCount}){/if}
-							</button>
-						</div>
-					{/if}
-					{#if groupKey === 'announcements' && showMoreAnnouncementChatsVisible}
-						<div class="load-more-container">
-							<button
-								class="load-more-button"
-								data-testid="show-more-announcements"
-								onclick={handleShowMoreAnnouncementChatsClick}
-							>
-								{$text('chats.loadMore.button')}{#if remainingAnnouncementChatsCount > 0}&nbsp;({remainingAnnouncementChatsCount}){/if}
 							</button>
 						</div>
 					{/if}

@@ -23,7 +23,7 @@ scope:
     - Blog email notifications, blog subscription controls, and blog-specific newsletter categories or delivery automation.
     - Admin content editor, automatic cross-posting to Medium, additional launch languages, and native Apple UI implementation.
     - CDN deployment and splitting the application onto app.openmates.org.
-    - Production infrastructure changes, historical import execution, and product implementation during this planning assignment.
+    - Production infrastructure changes and production rollout.
 
 design_reference:
   supplied_exports: [news.jpg, news.pdf, blog.jpg, blog.pdf, pressrelease.jpg, pressrelease.pdf, blogpost.jpg, blogpost.pdf, socialpost.jpg, socialpost.pdf]
@@ -211,7 +211,7 @@ acceptance_criteria:
     scenario: S-1
     text: The user explicitly confirms or revises the concrete newsroom previews before production routes, publishing, storage, Buffer, migration, or email logic is implemented.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: user_confirmation
     verification_ids: [T-NEWSROOM-UI-APPROVAL]
@@ -260,14 +260,15 @@ tests:
       required: true
       expected: user_confirmation
       evidence:
-        status: pending
-        summary: Awaiting review of the deployed /dev/preview variants.
+        status: passed
+        timestamp: "2026-09-21T12:00:00Z"
+        summary: The user approved implementation after reviewing and correcting the deployed publication previews.
 
 tasks:
   - id: TASK-1
     title: Deliver the newsroom UI previews for confirmation
-    status: in_progress
-    phase: awaiting_approval
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1]
       acceptance_criteria: [AC-1, AC-2]
@@ -277,8 +278,7 @@ tasks:
       - frontend/apps/web_app/tests/components/newsroom-surface.spec.ts
     verification_ids: [T-NEWSROOM-PREVIEW, T-NEWSROOM-UI-APPROVAL]
     dependencies: []
-    blockers:
-      - Production logic waits for explicit user UI confirmation.
+    blockers: []
     follow_up_tasks:
       - Define the permanent publication Specification and implement the approved integration stages.
     ownership:
@@ -294,7 +294,10 @@ implementation_state:
 
 approvals:
   specification:
-    status: pending
+    status: approved
+    id: feature.public-publications@1
+    fingerprint: 0f938809737584635550bc9fec4ebec72d793dcf94bf2b2c0453565152c269f0
+    approved_at: "2026-09-21T12:00:00Z"
   plan:
     status: approved
     approved_at: "2026-09-20T14:00:00Z"
@@ -305,6 +308,16 @@ decisions:
     decision: Deploy fixture-only component previews and require explicit UI confirmation before implementing product logic.
     reason: The supplied designs do not define responsive behavior, and the user asked to review the concrete UI before broader implementation or testing.
     decided_at: "2026-09-20T14:00:00Z"
+  - id: D-2
+    status: active
+    decision: Use the corrected shared publication UI for real bilingual routes and consume only allowlisted public manifest fields from marketing content.
+    reason: The user explicitly approved implementation after the interactive UI review and requested real announcement migration and Buffer-backed social content.
+    decided_at: "2026-09-21T12:00:00Z"
+  - id: D-3
+    status: active
+    decision: Store optimized posters with the Vercel application and store content-addressed videos and original images under a permanent Hetzner Object Storage publication prefix.
+    reason: The provider project is currently at its bucket quota, so the dev implementation uses an isolated permanent prefix in the existing media bucket. Anonymous listing remains forbidden, only exact objects are public, temporary lifecycle rules are prefix-scoped, and the browser receives no credentials. A separate bucket and prefix-scoped publisher credential remain the production infrastructure target when quota is available.
+    decided_at: "2026-09-21T13:45:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -315,23 +328,19 @@ attempts:
 
 handoff:
   current_task_id: TASK-1
-  next_action: Deploy the verified fixture previews and ask the user to confirm or revise the UI.
-  command: 'python3 scripts/sessions.py deploy --session 27fc --title "feat: add newsroom design previews"'
-  expected_outcome: The exact tested revision is available through named /dev/preview variants on app.dev.openmates.org.
-  blocker:
-    reason: Production logic is intentionally gated on explicit UI confirmation.
-    requires_user_input: true
-    question: Do the desktop and proposed responsive newsroom previews look correct enough to use for the production routes and content pipeline?
-    next_action: Record the approved preview revision or apply the requested visual changes.
-  last_verified_commit: 82a0ebc099767a0eae341f80da453397f6a90823
+  next_action: Verify and deploy the approved real publication routes, manifest parser, migrated announcements, and sanitized social backfill.
+  command: 'python3 scripts/sessions.py deploy --session 27fc --title "feat: publish news blog and social archives"'
+  expected_outcome: The real bilingual publication routes are available on app.dev.openmates.org with server-rendered SEO metadata and exact social permalinks.
+  blocker: null
+  last_verified_commit: da96f56a4c76109af7a35838fa404416f6316df9
 
 implementation_readiness:
   - Confirm production storage project, region and least-privilege publisher credentials during infrastructure setup; never use existing application-wide keys as a shortcut.
   - Audit actual Buffer history/media availability before claiming full backfill; use original files where temporary uploads have expired.
   - Existing intro/release videos currently use api.video. Copy approved accessible source assets to the new store where available, preserving a documented existing-host fallback until migration succeeds.
   - Preserve exact supplied design intent while treating placeholder articles and product claims as examples, not publication-ready content.
-  - Responsive behavior remains subject to concrete UI preview confirmation; do not treat the provisional layout suggestions as accepted design.
-  - OpenMates Tasks owns implementation status/dependencies; create linked Tasks for the seven outcomes when engineering account access is restored, with all logic work dependent on UI confirmation. The planning host CLI is currently logged out.
+  - Responsive behavior follows the corrected, user-reviewed component previews; reopen visual review only for a material layout change.
+  - OpenMates Tasks remains the work-status authority when the configured Project snapshot is available; this session currently has no linked Task.
 
 planning_validation:
   yaml_and_goal_first_structure: passed
@@ -360,7 +369,7 @@ references:
 # proportions. Reuse Header with a 64px publication layout, restore valid spacing
 # tokens, a 712px centered hero/body, 300x480 social media and compact post copy.
 # Mobile adapts with 24px body insets and stacked media/copy; responsive approval
-# remains pending. Evidence: focused newsroom spec desktop and phone PNGs.
+# was accepted after the requested corrections. Evidence: focused newsroom spec desktop and phone PNGs.
 # 2026-09-21 interaction correction: the publication header remains available
 # while its drawer is open and toggles the sidebar in both directions. Social
 # items expose one exact external permalink per published platform; the detail

@@ -21,6 +21,7 @@
     <span class="card-media">
       <NewsroomMedia
         label={`${item.title} media preview`}
+        source={item.media}
         showPlay={item.kind !== "blog"}
         compact={variant !== "featured"}
       />

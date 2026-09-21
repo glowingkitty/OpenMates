@@ -43,7 +43,7 @@ export function isOnSemanticChatPath(): boolean {
  * Mappings:
  *   demo-*          → /intro/{slug}
  *   example-*       → /example/{slug}   (slug from ExampleChat.slug)
- *   announcements-* → /announcements/{slug}
+ *   announcements-* → /news/{slug}
  *   tips-*          → /tips/{slug}
  *   legal-*         → /legal/{slug}
  */
@@ -58,7 +58,7 @@ export function getSemanticUrlForChat(chatId: string): string | null {
 	}
 	if (chatId.startsWith('announcements-')) {
 		const chat = getNewsletterChatById(chatId);
-		return chat ? `/announcements/${chat.slug}` : null;
+		return chat ? `/news/${chat.slug}` : null;
 	}
 	if (chatId.startsWith('tips-')) {
 		const chat = getNewsletterChatById(chatId);
