@@ -112,7 +112,7 @@ def test_prepared_schema_rotates_bootstrap_password_and_verifies_contract(monkey
     assert {value for kind, value in calls if kind == "collection"} == {
         "invite_codes",
         "chats",
-        "users",
+        "directus_users",
     }
 
 

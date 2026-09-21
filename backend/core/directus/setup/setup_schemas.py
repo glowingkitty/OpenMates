@@ -308,7 +308,7 @@ def activate_prepared_schema():
     response.raise_for_status()
     token = login()
     verify_login_rejected(CI_PREPARED_SCHEMA_ADMIN_PASSWORD)
-    for collection_name in ('invite_codes', 'chats', 'users'):
+    for collection_name in ('invite_codes', 'chats', 'directus_users'):
         if not collection_exists(token, collection_name):
             raise RuntimeError(
                 f'Prepared schema is missing required collection {collection_name}'
