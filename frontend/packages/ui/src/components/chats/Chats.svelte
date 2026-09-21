@@ -348,6 +348,30 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		.sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime()));
 	let visibleOpenMatesEvents = $derived(upcomingOpenMatesEvents.slice(0, visibleEventLimit));
 	let remainingEventsCount = $derived(Math.max(0, upcomingOpenMatesEvents.length - visibleEventLimit));
+	let latestNewsItems = $derived((() => {
+		// Re-resolve translated release titles whenever the app language changes.
+		void $svelteLocaleStore;
+		void $text;
+		void _languageChangeTick;
+
+		return getActiveNewsletterChatsByKind('announcements')
+			.filter((chat) => chat.slug.startsWith('introducing-openmates-v') && Boolean(chat.metadata.publishedAt))
+			.slice()
+			.sort((a, b) => Date.parse(b.metadata.publishedAt || '') - Date.parse(a.metadata.publishedAt || ''))
+			.slice(0, 3)
+			.map((chat) => translateDemoChat(chat));
+	})());
+
+	function formatNewsDate(publishedAt: string | undefined): string {
+		if (!publishedAt) return '';
+		const date = new Date(publishedAt);
+		if (Number.isNaN(date.getTime())) return '';
+		return new Intl.DateTimeFormat($svelteLocaleStore || undefined, {
+			day: 'numeric',
+			month: 'short',
+			year: 'numeric'
+		}).format(date);
+	}
 
 	const DEFAULT_EXAMPLE_CHAT_LIMIT = 10;
 	let visibleExampleChatLimit = $state(DEFAULT_EXAMPLE_CHAT_LIMIT);
@@ -4415,7 +4439,32 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					</div>
 				{/if}
 
-				<!-- 6. Static chat groups that appear after Events -->
+				<!-- 6. The latest releases link to their canonical public news pages. -->
+				{#if latestNewsItems.length > 0}
+					<div class="chat-group latest-news-group" data-testid="latest-news-group">
+						<h2 class="group-title" data-testid="latest-news-title">{$text('chats.latest_news')}</h2>
+						{#each latestNewsItems as newsItem (newsItem.chat_id)}
+							<a
+								class="news-list-item"
+								data-testid="latest-news-item"
+								href={`/news/${newsItem.slug}`}
+								aria-label={`Open news: ${newsItem.title}`}
+							>
+								<span class="news-list-icon" aria-hidden="true">
+									<img src="/favicon.svg" alt="" />
+								</span>
+								<span class="news-list-body">
+									<span class="news-list-title">{newsItem.title}</span>
+									<time class="news-list-meta" datetime={newsItem.metadata.publishedAt}>
+										{formatNewsDate(newsItem.metadata.publishedAt)}
+									</time>
+								</span>
+							</a>
+						{/each}
+					</div>
+				{/if}
+
+				<!-- 7. Static chat groups that appear after Events and News -->
 				{#each orderedStaticChatGroups.filter(([k]) => ['examples', 'tips_and_tricks', 'legal'].includes(k)) as [groupKey, groupItems] (groupKey)}
 					{@render chatGroupSnippet(groupKey, groupItems)}
 					{#if groupKey === 'examples' && showMoreExampleChatsVisible}
@@ -4802,6 +4851,75 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+
+	.latest-news-group {
+		gap: var(--spacing-2);
+	}
+
+	.news-list-item {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-6);
+		box-sizing: border-box;
+		width: 100%;
+		padding: var(--spacing-5) 15px;
+		border-radius: var(--radius-3);
+		color: inherit;
+		text-decoration: none;
+		transition: background-color var(--duration-fast) var(--easing-default);
+	}
+
+	@media (hover: hover) {
+		.news-list-item:hover {
+			background-color: var(--color-grey-25);
+		}
+	}
+
+	.news-list-item:focus-visible {
+		outline: 2px solid var(--color-primary-focus);
+		outline-offset: 2px;
+		background-color: var(--color-grey-25);
+	}
+
+	.news-list-icon {
+		flex: 0 0 42px;
+		height: 42px;
+		border-radius: var(--radius-3);
+		display: grid;
+		place-items: center;
+		overflow: hidden;
+		box-shadow: var(--shadow-xs);
+	}
+
+	.news-list-icon img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.news-list-body {
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.news-list-title {
+		color: var(--color-text-primary);
+		font-size: 0.95rem;
+		font-weight: 600;
+		line-height: 1.25;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		overflow: hidden;
+	}
+
+	.news-list-meta {
+		color: var(--color-grey-60);
+		font-size: 0.8rem;
+	}
 
     /* Improve focus visibility */
     .chat-item:focus-visible {

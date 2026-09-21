@@ -1943,6 +1943,31 @@ loadMore.button:
   he: הצג עוד
   verified_by_human: []
 
+latest_news:
+  context: Heading above the three newest OpenMates product news links in the chat sidebar
+  en: Latest news
+  de: Neueste Meldungen
+  zh: 最新消息
+  es: Últimas noticias
+  fr: Dernières actualités
+  pt: Últimas notícias
+  ru: Последние новости
+  ja: 最新ニュース
+  ko: 최신 소식
+  it: Ultime notizie
+  tr: Son haberler
+  vi: Tin mới nhất
+  id: Berita terbaru
+  pl: Najnowsze wiadomości
+  nl: Laatste nieuws
+  ar: آخر الأخبار
+  hi: नवीनतम समाचार
+  th: ข่าวล่าสุด
+  cs: Nejnovější zprávy
+  sv: Senaste nytt
+  he: חדשות אחרונות
+  verified_by_human: []
+
 resume_last_chat.title:
   context: Title shown above the resume chat card prompting user to continue their last chat
   en: Continue where you left off
