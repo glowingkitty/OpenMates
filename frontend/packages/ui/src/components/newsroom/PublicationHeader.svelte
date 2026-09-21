@@ -78,7 +78,6 @@
   }
 
   .sidebar-toggle {
-    all: unset;
     display: block;
     width: 25px;
     height: 25px;

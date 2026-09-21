@@ -32315,7 +32315,7 @@ assertions:
       surface: gui.web
     - &id3786
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 55
+      line: 56
       name: renders localized archives and released announcement details in server
         HTML
       surface: gui.web
@@ -32348,7 +32348,7 @@ assertions:
       surface: gui.web
     - &id3789
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 55
+      line: 56
       name: renders localized archives and released announcement details in server
         HTML
       surface: gui.web
@@ -32433,13 +32433,13 @@ assertions:
     direct_tests:
     - &id3796
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 55
+      line: 56
       name: renders localized archives and released announcement details in server
         HTML
       surface: gui.web
     - &id3797
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 105
+      line: 106
       name: redirects a legacy announcement URL to its stable news URL
       surface: gui.web
     supporting_tests: []
@@ -32469,7 +32469,7 @@ assertions:
       surface: gui.web
     - &id3800
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 85
+      line: 86
       name: shows exact platform permalinks and owned media for an archived social
         post
       surface: gui.web
@@ -32510,7 +32510,7 @@ assertions:
       surface: gui.web
     - &id3803
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 85
+      line: 86
       name: shows exact platform permalinks and owned media for an archived social
         post
       surface: gui.web

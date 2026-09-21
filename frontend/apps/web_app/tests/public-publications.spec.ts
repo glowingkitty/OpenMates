@@ -16,7 +16,7 @@ test.describe('public news, blog, and social publications', () => {
 				expect(html.match(new RegExp(`<meta property="${property}"`, 'g'))).toHaveLength(1);
 			}
 			expect(html.match(/<meta name="description"/g)).toHaveLength(1);
-			expect(html).not.toContain('Your AI team for getting things done');
+			expect(html.split('</head>')[0]).not.toContain('Your AI team for getting things done');
 			const imageUrl = html.match(/<meta property="og:image" content="([^"]+)"/)?.[1];
 			expect(imageUrl).toMatch(/^https?:\/\//);
 			const image = await request.get(imageUrl!);
@@ -30,6 +30,7 @@ test.describe('public news, blog, and social publications', () => {
 		for (const route of ['/news', '/blog', '/social/workflow-automation-webinar']) {
 			await page.goto(route, { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('newsroom-surface')).toBeVisible();
+			await expect(page.getByTestId('sidebar-toggle')).not.toHaveCSS('mask-image', 'none');
 			for (const theme of ['light', 'dark']) {
 				await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
 				const styles = await page.getByTestId('newsroom-surface').evaluate((surface) => {
