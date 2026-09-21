@@ -24,8 +24,8 @@ from typing import Any, Mapping
 
 
 FORMAT_VERSION = 1
-BUNDLE_FORMAT = "openmates-ci-preparation-v1"
-PRODUCER_CONTRACT = "exact-source-web-cli-runtime-images-v1"
+BUNDLE_FORMAT = "openmates-ci-preparation-v2"
+PRODUCER_CONTRACT = "exact-source-web-preview-cli-runtime-images-v2"
 MANIFEST_NAME = "manifest.json"
 RECEIPT_NAME = "ci-artifacts.json"
 DEFAULT_MAX_IMAGE_BYTES = 4 * 1024**3
@@ -178,6 +178,13 @@ def create_bundle(
                 root / "frontend/apps/web_app/build", output_dir / "web.tar.gz"
             ),
             "destination": "frontend/apps/web_app/build",
+        },
+        "web_preview": {
+            **_archive_directory(
+                root / "frontend/apps/web_app/.svelte-kit/output",
+                output_dir / "web-preview.tar.gz",
+            ),
+            "destination": "frontend/apps/web_app/.svelte-kit/output",
         },
         "translations": {
             **_archive_directory(
@@ -445,7 +452,9 @@ def restore_bundle(
         return _fallback(
             root, source, calculated_key, reason, manifest_key=manifest_key
         )
-    required = ["web", "translations"] + (["cli"] if include_cli else [])
+    required = ["web", "web_preview", "translations"] + (
+        ["cli"] if include_cli else []
+    )
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, dict):
         return _fallback(root, source, calculated_key, "artifact_manifest_malformed")

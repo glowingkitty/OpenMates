@@ -307,6 +307,7 @@ def run(argv: list[str]) -> int:
                             args.proof_video_profile,
                             candidate,
                             source_root=canonical,
+                            prepared_builds=True,
                         )
                     )
                 else:

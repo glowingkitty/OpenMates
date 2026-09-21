@@ -297,12 +297,9 @@ def test_unpublished_candidate_shares_private_preparation(tmp_path, monkeypatch)
     }
     monkeypatch.setattr(
         "scripts.ci_coordinator.subprocess.check_output",
-        lambda command, **kw: (
-            "a" * 40
-            if command[:3] == ["git", "rev-parse", "refs/heads/dev"]
-            else '{"groups":{"uploads":{"specs":[]}}}'
-        ),
+        lambda *args, **kwargs: '{"groups":{"uploads":{"specs":[]}}}',
     )
+    monkeypatch.setattr("scripts.ci_coordinator.harness_commit", lambda _: "a" * 40)
     jobs = enqueue_submission(
         queue, "owner", "c" * 40, ["first.spec.ts", "second.spec.ts"], "e2e",
         candidate=candidate, source_root=tmp_path, prepared_builds=True,

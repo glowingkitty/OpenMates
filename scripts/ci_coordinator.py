@@ -39,6 +39,20 @@ def canonical_root(root: Path) -> Path:
     return (root / common).resolve().parent
 
 
+def harness_commit(root: Path) -> str:
+    """Resolve the deployed harness, with HEAD for isolated repository fixtures."""
+    for ref in ("refs/heads/dev^{commit}", "HEAD^{commit}"):
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", ref],
+            cwd=root,
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    raise ValueError("Could not resolve an immutable CI harness commit")
+
+
 class GitHubError(RuntimeError):
     def __init__(self, message: str, retry_at: float):
         super().__init__(message)
@@ -671,9 +685,7 @@ def enqueue_submission(
         include_upload = bool(upload_specs.intersection(selections))
         preparation = {
             "key": preparation_key(source, include_cli=include_cli, include_upload=include_upload),
-            "harness_commit": subprocess.check_output(
-                ["git", "rev-parse", "refs/heads/dev"], cwd=source_root, text=True
-            ).strip(),
+            "harness_commit": harness_commit(source_root),
             "cli": include_cli,
             "upload": include_upload,
         }
@@ -758,7 +770,11 @@ def main():
     submit.add_argument("--preview-url", action="append", default=[])
     submit.add_argument("--mode", choices=["component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
     submit.add_argument("--attempt", default="")
-    submit.add_argument("--prepared-builds", action="store_true", help="Opt into the unverified private prepared-build canary; ordinary E2Es use isolated cold setup")
+    submit.add_argument(
+        "--prepared-builds",
+        action="store_true",
+        help="Opt into the private prepared-build canary; ordinary E2Es use isolated cold setup",
+    )
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
     )

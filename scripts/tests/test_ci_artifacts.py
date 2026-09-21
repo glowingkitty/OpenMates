@@ -15,14 +15,17 @@ PRODUCER_RUN = "12345"
 
 def prepared_root(root: Path) -> None:
     web = root / "frontend/apps/web_app/build"
+    preview = root / "frontend/apps/web_app/.svelte-kit/output/server"
     cli = root / "frontend/packages/openmates-cli/dist"
     translations = root / "frontend/packages/ui/src/i18n/locales"
     web.mkdir(parents=True, exist_ok=True)
+    preview.mkdir(parents=True, exist_ok=True)
     cli.mkdir(parents=True, exist_ok=True)
     translations.mkdir(parents=True, exist_ok=True)
     (web / "index.html").write_text("prepared web")
     (web / "nested").mkdir(exist_ok=True)
     (web / "nested/app.js").write_text("prepared js")
+    (preview / "index.js").write_text("prepared preview server")
     (cli / "cli.js").write_text("prepared cli")
     (translations / "en.json").write_text('{"prepared":true}')
 
@@ -81,6 +84,10 @@ def test_restore_replaces_stale_outputs_and_verifies_exact_bytes(tmp_path):
     assert (
         consumer / "frontend/packages/openmates-cli/dist/cli.js"
     ).read_text() == "prepared cli"
+    assert (
+        consumer
+        / "frontend/apps/web_app/.svelte-kit/output/server/index.js"
+    ).read_text() == "prepared preview server"
     assert (
         consumer / "frontend/packages/ui/src/i18n/locales/en.json"
     ).read_text() == '{"prepared":true}'
