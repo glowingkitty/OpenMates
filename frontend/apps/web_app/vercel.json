@@ -9,7 +9,7 @@
 			"destination": "/"
 		},
 		{
-			"source": "/((?!_app|static|docs|status|announcements|tips|legal/|privacy|oauth/|s/|share/|favicon\\.ico|robots\\.txt|sitemap\\.xml|\\.well-known/apple-app-site-association).*)",
+			"source": "/((?!_app|static|docs|status|announcements|news|blog|social|de/news|de/blog|de/social|tips|legal/|privacy|oauth/|s/|share/|favicon\\.ico|robots\\.txt|sitemap\\.xml|\\.well-known/apple-app-site-association).*)",
 			"destination": "/"
 		}
 	],
