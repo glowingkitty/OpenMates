@@ -362,7 +362,7 @@ jobs:
           cp frontend/apps/web_app/svelte.config.docker.js frontend/apps/web_app/svelte.config.js
           node frontend/apps/web_app/scripts/process-docs.js
           pnpm --dir frontend/apps/web_app exec vite build
-          node frontend/apps/web_app/scripts/audit-example-seo.js
+          pnpm --dir frontend/apps/web_app exec node scripts/audit-example-seo.js
       - name: Build local CLI only when consumed
         if: >-
           inputs.prepare_cli == 'true' &&

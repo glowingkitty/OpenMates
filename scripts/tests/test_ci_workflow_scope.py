@@ -127,6 +127,20 @@ def test_preparation_never_uses_public_actions_artifact_transport() -> None:
     assert "ci-preparation-${{ inputs.preparation_key }}" not in workflow
 
 
+def test_preparation_runs_seo_audit_from_web_app_directory() -> None:
+    workflow = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+    web_step = workflow[
+        workflow.index("- name: Build local web app") :
+        workflow.index("- name: Build local CLI only when consumed")
+    ]
+    assert "pnpm --dir frontend/apps/web_app exec vite build" in web_step
+    assert (
+        "pnpm --dir frontend/apps/web_app exec node scripts/audit-example-seo.js"
+        in web_step
+    )
+    assert "node frontend/apps/web_app/scripts/audit-example-seo.js" not in web_step
+
+
 def test_result_artifact_upload_excludes_private_transport_and_build_data() -> None:
     workflow = (ROOT / ".github/workflows/isolated-tests.yml").read_text()
     results = workflow[
