@@ -167,13 +167,13 @@ models:
 
   - id: "gemini-3.8-flash"
     name: "Gemini 3.8 Flash"
-    description: "Latest Gemini Flash model for complex coding, agentic, multimodal, and long-context tasks. Explicit selection only pending real-world user feedback."
+    description: "Latest Gemini Flash model for simple, complex, and most-demanding automatic routing, with tier-specific reasoning levels, plus explicit selection."
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-09-02"
     capability_level: "high"
-    # Keep this opt-in until real-world user reports validate quality, cost, and latency.
-    allow_auto_select: false
+    # Default for automatically routed requests after real follow-up/tool-use validation.
+    allow_auto_select: true
     tier: "premium"
     external_ids:
       lmarena: "gemini-3.8-flash-high"

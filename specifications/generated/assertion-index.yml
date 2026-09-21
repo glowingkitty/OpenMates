@@ -8641,7 +8641,7 @@ assertions:
         - *id1012
     current_direct_proof: false
   ai-model-routing.tiers.conservative-three-way:
-    specification: feature.ai-model-routing@2
+    specification: feature.ai-model-routing@3
     fingerprint: 517eda4eb2523577439ab57b4dbd1a011d4190168e0bef99182bc21c0ac5c59f
     direct_tests:
     - &id1019
@@ -8659,8 +8659,8 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   ai-model-routing.preferences.exclusive-tier-defaults:
-    specification: feature.ai-model-routing@2
-    fingerprint: ca1780cc1ffd196f40882d131e75df1b30a36153dfa80c07076df32ce010da58
+    specification: feature.ai-model-routing@3
+    fingerprint: 703a7dc3c881d808505e2a75daffc13fe0ac3925cc2b37141020c2d6f306d0e2
     direct_tests:
     - &id1020
       path: backend/tests/test_ai_model_preferences.py
@@ -8691,8 +8691,8 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   ai-model-routing.catalog.capability-recommendation-variants:
-    specification: feature.ai-model-routing@2
-    fingerprint: 83cfb678a24c64ec958867e37dbae9d1d5e82309d885159f0a97aa4f29e9db69
+    specification: feature.ai-model-routing@3
+    fingerprint: 5bc34675b0292e6005cb071e80672e10e030a5f8d71b9c5207ebcb19c5c165b2
     direct_tests:
     - &id1029
       path: backend/tests/test_openai_compatible_api_contract.py
@@ -8807,8 +8807,8 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   ai-model-routing.catalog.public-read-only:
-    specification: feature.ai-model-routing@2
-    fingerprint: 196aa0e7005e9623d6cd9f62c079119564add93d5654a06040dd9ac96dc39bcd
+    specification: feature.ai-model-routing@3
+    fingerprint: 17680ddfbe234af079ecc36320cf84fdc0a516188f8dd5601d85ad27024acac8
     direct_tests:
     - &id1040
       path: backend/tests/test_openai_compatible_api_contract.py
@@ -8877,8 +8877,8 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   ai-model-routing.defaults.google-tier-profiles:
-    specification: feature.ai-model-routing@2
-    fingerprint: 65ef63f113d1ecda6ec3bf2571b20347a5b76e23d1b6ba4dfd1fa5b2971c6124
+    specification: feature.ai-model-routing@3
+    fingerprint: 7e791bb278e96efc91f7b87bd42f2b8b7fceb22db3a7bc8584556a6bfd3aad3f
     direct_tests:
     - &id1045
       path: backend/tests/test_ai_model_routing.py
@@ -8895,7 +8895,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   ai-model-routing.chat-selection.encrypted-user-chat-scope:
-    specification: feature.ai-model-routing@2
+    specification: feature.ai-model-routing@3
     fingerprint: 3b1fe8326b1e4fe38b2dd71db60adeb9cbbaadadaaedd92b1522fc1bc961098a
     direct_tests:
     - &id1071
@@ -9201,8 +9201,8 @@ assertions:
         - *id1083
     current_direct_proof: false
   ai-model-routing.precedence.chat-over-tier-over-auto:
-    specification: feature.ai-model-routing@2
-    fingerprint: 7ff7bb266bc14ccaa57f987e1ac381b6a7865eb352bf7306609573e807e3acd3
+    specification: feature.ai-model-routing@3
+    fingerprint: 6fd5fe43066bcbb5d0fd124cd5f32632ad3dcb2d1e749aadf27f4874bfe0bd90
     direct_tests:
     - &id1087
       path: backend/tests/test_ai_model_routing.py
@@ -9243,7 +9243,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   ai-model-routing.preprocessing.missing-output-recovery:
-    specification: feature.ai-model-routing@2
+    specification: feature.ai-model-routing@3
     fingerprint: a44b753e15ff0cad7d9f54ca1f40410b75a0912f251d01cfd798ec16f3d36527
     direct_tests: []
     supporting_tests:
@@ -9268,7 +9268,7 @@ assertions:
         - *id1092
     current_direct_proof: false
   ai-model-routing.composer.mention-to-exact-selection:
-    specification: feature.ai-model-routing@2
+    specification: feature.ai-model-routing@3
     fingerprint: 1588ae8feecbfe893795d7b358c3a58f30c824fde2baa790a137f770891ad24c
     direct_tests:
     - &id1094
@@ -9333,7 +9333,7 @@ assertions:
         - *id1099
     current_direct_proof: false
   ai-model-routing.unavailable.notify-reset-auto:
-    specification: feature.ai-model-routing@2
+    specification: feature.ai-model-routing@3
     fingerprint: e4b0ca6b9f2635f0f8e9ce522121e6530cc2f832194f8d2a7acc716f676fdb36
     direct_tests:
     - &id1100
@@ -9376,7 +9376,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   ai-model-routing.settings.hierarchy-canonical:
-    specification: feature.ai-model-routing@2
+    specification: feature.ai-model-routing@3
     fingerprint: df1f591c577d1c1c1d8cdfb2891e7c80ad770a5bfbaa2b9b360024d82a0355d2
     direct_tests:
     - &id1105
@@ -9434,7 +9434,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   ai-model-routing.composer.responsive-actions:
-    specification: feature.ai-model-routing@2
+    specification: feature.ai-model-routing@3
     fingerprint: cde79da48264deaf3f06d90a3d15e897b3f0aac4a69b42a91fe93b4cf23a84a6
     direct_tests:
     - &id1111
@@ -9478,8 +9478,8 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   ai-model-routing.surface.semantic-parity:
-    specification: feature.ai-model-routing@2
-    fingerprint: 920d8dab44ae04811a544a4cef34aaea0aed9b222a8fbc374baf90473096b355
+    specification: feature.ai-model-routing@3
+    fingerprint: 3d85614f857a9fded3e757175cdcba6973b2a4516e439d2c49feb4367e296235
     direct_tests:
     - &id1114
       path: backend/tests/test_openai_compatible_api_contract.py

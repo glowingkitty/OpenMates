@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.ai-model-routing@2
+specification: feature.ai-model-routing@3
 
 tier_classification:
   - id: simple-live-search
@@ -31,6 +31,15 @@ tier_preferences:
     given: {simple_preference: openai/gpt-5.6-luna, new_recommended_simple: another/model}
     expect: {simple_preference: openai/gpt-5.6-luna}
 
+default_profiles:
+  - id: automatic-tier-defaults
+    assertion_ids:
+      - ai-model-routing.defaults.google-tier-profiles
+      - ai-model-routing.precedence.chat-over-tier-over-auto
+    given: An authenticated user leaves all three request-tier model preferences on Auto and has not selected an exact model for this chat.
+    when: The preprocessor classifies a request as simple, complex, or most demanding.
+    then: The answer uses Gemini 3.8 Flash with LOW, MEDIUM, or HIGH thinking respectively; choosing another exact model in the chat or matching tier settings still overrides that default.
+
 catalog:
   - id: public-read-only-model-discovery
     given: {session: absent, api_key: absent}
@@ -40,9 +49,9 @@ catalog:
     given: {provider: Google, visible_tiers: [simple, complex, most_demanding]}
     expect:
       recommendations:
-        simple: google/gemini-3.5-flash-lite
-        complex: google/gemini-3.7-flash
-        most_demanding: google/gemini-3.7-flash-high
+        simple: google/gemini-3.8-flash
+        complex: google/gemini-3.8-flash
+        most_demanding: google/gemini-3.8-flash
       every_visible_model_has_capability: true
   - id: gemini-reasoning-variants
     given: {underlying_provider_model: gemini-3.7-flash}
