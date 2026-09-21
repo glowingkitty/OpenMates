@@ -345,15 +345,6 @@ def _compact_diff_value(current: Any, baseline: Any) -> str:
     return f'<div class="structured-diff"><span class="diff-delete"><b>-</b>{_compact_value(baseline)}</span><span class="diff-insert"><b>+</b>{_compact_value(current)}</span></div>'
 
 
-def requirement_examples(assertion: dict[str, Any], examples: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
-    """Resolve explicit case IDs or existing scoped example dependencies, never guess."""
-    groups = {value.removeprefix("examples.") for value in assertion.get("depends_on", [])
-              if isinstance(value, str) and value.startswith("examples.")}
-    return [(group, case) for group, cases in examples.items() if isinstance(cases, list)
-            for case in cases if isinstance(case, dict)
-            and (group in groups or assertion["id"] in case.get("assertion_ids", []))]
-
-
 def validate_requirement_example_coverage(
     bundle: specifications.SpecificationBundle, baseline_contract: dict[str, Any],
 ) -> None:
@@ -362,7 +353,7 @@ def validate_requirement_example_coverage(
     for assertion in bundle.specification.get("assertions", []):
         if assertion["id"] not in changed:
             continue
-        cases = requirement_examples(assertion, bundle.examples)
+        cases = readable_pdf.requirement_examples(assertion, bundle.examples)
         def readable(value: Any) -> bool:
             return (isinstance(value, str) and bool(value.strip())) or (
                 isinstance(value, dict) and isinstance(value.get("code"), str) and bool(value["code"].strip())
@@ -405,7 +396,7 @@ def _example_rows(current: Any, baseline: Any = MISSING, path: str = "") -> str:
 def _attach_requirement_examples(document: str, bundle: specifications.SpecificationBundle,
                                  baseline_examples: dict[str, Any]) -> str:
     for assertion in bundle.specification.get("assertions", []):
-        cases = requirement_examples(assertion, bundle.examples)
+        cases = readable_pdf.requirement_examples(assertion, bundle.examples)
         cards = []
         for group, case in cases:
             baseline = _item_map(baseline_examples.get(group)).get(str(case.get("id")), {})
@@ -636,7 +627,10 @@ def build_html(
     baseline_contract = baseline_contract or {}
     baseline_examples = baseline_examples or {}
     has_custom_presentation = isinstance(bundle.specification.get("presentation"), dict)
-    document = readable_pdf.build_html(readable_pdf.with_default_presentation(bundle))
+    document = readable_pdf.build_html(
+        readable_pdf.with_default_presentation(bundle),
+        include_requirement_examples=False,
+    )
     document = _annotate_readable_changes(document, bundle.specification, baseline_contract)
     document = _attach_requirement_examples(document, bundle, baseline_examples)
     change_summary = _change_summary(bundle, baseline_contract, baseline_examples, baseline_ref)
@@ -660,9 +654,6 @@ def build_html(
     )
     document = document.replace('<div class="utility-links">', f'<div class="utility-links">{navigation_additions}', 1)
     approval_css = """
-.requirement-examples { margin-top: 3mm; }
-.requirement-example { border-top: 1px solid #cbd5df; padding-top: 1mm; margin-top: 2mm; break-inside: avoid; }
-.requirement-example h5 { font-size: 9pt; margin: 1mm 0; }
 .requirement-example-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 1mm; font-size: 9pt; line-height: 1.4; padding: .4mm 0; overflow-wrap: anywhere; }
 .requirement-example-row strong { font-weight: 500; color: #52616f; }
 .diff-added { border-color: #239b56 !important; }
