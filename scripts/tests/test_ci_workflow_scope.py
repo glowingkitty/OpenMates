@@ -76,6 +76,8 @@ def test_preparation_uses_private_transport_and_preserves_component_bypass() -> 
     assert "--directory test-results/ci-preparation" in workflow
     assert "actions/download-artifact@v4" not in workflow
     assert "python3 ../tooling/scripts/ci_artifacts.py restore" in workflow
+    assert "ref: ${{ inputs.harness_commit || github.sha }}" in workflow
+    assert "CI_HARNESS_COMMIT: ${{ inputs.harness_commit || github.sha }}" in workflow
     assert '--manifest "${{ steps.artifacts.outputs.manifest }}"' in workflow
     assert "if: inputs.mode != 'prepare'" in workflow
     assert "inputs.mode == 'component' || inputs.mode == 'e2e'" in workflow

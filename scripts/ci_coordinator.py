@@ -122,6 +122,7 @@ class GitHub:
                     "proof_video_profile": job.get("proof_profile", ""),
                     **({
                         "preparation_key": job["preparation_key"],
+                        "harness_commit": job["preparation_harness_commit"],
                         "prepared_run_id": str(job.get("prepared_run_id") or ""),
                         "prepare_cli": "true" if job.get("prepare_cli") else "false",
                         "prepare_upload": "true" if job.get("prepare_upload") else "false",
@@ -180,6 +181,7 @@ class Queue:
                 "candidate_expires": "REAL NOT NULL DEFAULT 0",
                 "preparation_id": "TEXT NOT NULL DEFAULT ''",
                 "preparation_key": "TEXT NOT NULL DEFAULT ''",
+                "preparation_harness_commit": "TEXT NOT NULL DEFAULT ''",
                 "prepared_run_id": "INTEGER",
                 "prepare_cli": "INTEGER NOT NULL DEFAULT 0",
                 "prepare_upload": "INTEGER NOT NULL DEFAULT 0",
@@ -295,7 +297,13 @@ class Queue:
         identity = [owner, source, specs, mode, nonce, stable_candidate]
         preparation = preparation or {}
         if preparation:
-            if mode not in ("prepare", "e2e", "visual-smoke") or not re.fullmatch(r"[0-9a-f]{64}", preparation.get("key", "")):
+            if (
+                mode not in ("prepare", "e2e", "visual-smoke")
+                or not re.fullmatch(r"[0-9a-f]{64}", preparation.get("key", ""))
+                or not re.fullmatch(
+                    r"[0-9a-f]{40}", preparation.get("harness_commit", "")
+                )
+            ):
                 raise ValueError("Invalid preparation identity")
             identity.append(preparation)
         if proof_profile:
@@ -326,8 +334,15 @@ class Queue:
             )
             if preparation:
                 db.execute(
-                    "UPDATE jobs SET preparation_id=?,preparation_key=?,prepare_cli=?,prepare_upload=? WHERE id=? AND state='queued'",
-                    (preparation.get("id", ""), preparation["key"], bool(preparation.get("cli")), bool(preparation.get("upload")), key),
+                    "UPDATE jobs SET preparation_id=?,preparation_key=?,preparation_harness_commit=?,prepare_cli=?,prepare_upload=? WHERE id=? AND state='queued'",
+                    (
+                        preparation.get("id", ""),
+                        preparation["key"],
+                        preparation["harness_commit"],
+                        bool(preparation.get("cli")),
+                        bool(preparation.get("upload")),
+                        key,
+                    ),
                 )
             if candidate:
                 db.execute("UPDATE jobs SET candidate_patch_url=?,candidate_expires=? WHERE id=? AND state='queued'", (candidate_values["candidate_patch_url"], candidate_values["candidate_expires"], key))
@@ -656,6 +671,9 @@ def enqueue_submission(
         include_upload = bool(upload_specs.intersection(selections))
         preparation = {
             "key": preparation_key(source, include_cli=include_cli, include_upload=include_upload),
+            "harness_commit": subprocess.check_output(
+                ["git", "rev-parse", "refs/heads/dev"], cwd=source_root, text=True
+            ).strip(),
             "cli": include_cli,
             "upload": include_upload,
         }

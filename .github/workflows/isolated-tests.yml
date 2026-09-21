@@ -39,6 +39,10 @@ on:
         description: Exact immutable preparation identity supplied by the coordinator
         type: string
         default: ''
+      harness_commit:
+        description: Exact CI harness shared by a preparation producer and its consumers
+        type: string
+        default: ''
       prepared_run_id:
         description: Exact successful producer run; consumers never search by artifact name
         type: string
@@ -78,7 +82,7 @@ jobs:
       CI: 'true'
       OPENMATES_CI_ISOLATED: '1'
       OPENMATES_CI_SOURCE_ROOT: ${{ github.workspace }}/subject
-      CI_HARNESS_COMMIT: ${{ github.sha }}
+      CI_HARNESS_COMMIT: ${{ inputs.harness_commit || github.sha }}
       CI_PREPARATION_KEY: ${{ inputs.preparation_key }}
       CI_SPECS_JSON: ${{ inputs.specs_json }}
       PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile }}
@@ -100,7 +104,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.harness_commit || github.sha }}
           path: tooling
           sparse-checkout: scripts
           persist-credentials: false

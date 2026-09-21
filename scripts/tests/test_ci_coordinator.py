@@ -237,7 +237,13 @@ def test_preparation_dispatch_uses_private_capability_ticket(tmp_path, monkeypat
     import types
 
     queue = Queue(tmp_path / "queue.db")
-    job = queue.enqueue("owner", "a" * 40, [], "prepare", preparation={"key": "f" * 64})
+    job = queue.enqueue(
+        "owner",
+        "a" * 40,
+        [],
+        "prepare",
+        preparation={"key": "f" * 64, "harness_commit": "b" * 40},
+    )
     signed = []
     ticket = '{"private":"capability-not-for-status"}'
     def dispatch_ticket(root, request):
@@ -252,13 +258,20 @@ def test_preparation_dispatch_uses_private_capability_ticket(tmp_path, monkeypat
     github.dispatch(job)
     assert signed == [(tmp_path, job["id"])]
     assert requests[0]["inputs"]["preparation_transport"] == ticket
+    assert requests[0]["inputs"]["harness_commit"] == "b" * 40
     assert all("preparation_transport" not in row for row in queue.status())
 
 
 def test_private_transport_failure_is_before_intent_and_does_not_stop_queue(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
     queue = Queue(tmp_path / "queue.db")
-    producer = queue.enqueue("owner", "a" * 40, [], "prepare", preparation={"key": "f" * 64})
+    producer = queue.enqueue(
+        "owner",
+        "a" * 40,
+        [],
+        "prepare",
+        preparation={"key": "f" * 64, "harness_commit": "b" * 40},
+    )
     light = queue.enqueue("other", "b" * 40, ["components/x.spec.ts"], "component")
     remote = Remote()
     def prepare_dispatch(job):
@@ -282,7 +295,14 @@ def test_unpublished_candidate_shares_private_preparation(tmp_path, monkeypatch)
         "patch_url": "https://nbg1.your-objectstorage.com/private.patch?signature=test",
         "artifact_expires_at": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)).isoformat(),
     }
-    monkeypatch.setattr("scripts.ci_coordinator.subprocess.check_output", lambda *a, **kw: '{"groups":{"uploads":{"specs":[]}}}')
+    monkeypatch.setattr(
+        "scripts.ci_coordinator.subprocess.check_output",
+        lambda command, **kw: (
+            "a" * 40
+            if command[:3] == ["git", "rev-parse", "refs/heads/dev"]
+            else '{"groups":{"uploads":{"specs":[]}}}'
+        ),
+    )
     jobs = enqueue_submission(
         queue, "owner", "c" * 40, ["first.spec.ts", "second.spec.ts"], "e2e",
         candidate=candidate, source_root=tmp_path, prepared_builds=True,
@@ -349,7 +369,12 @@ def test_supersession_preserves_other_owners_scopes_and_running_jobs(tmp_path):
 def test_preparation_gates_consumers_and_records_exact_run(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
     queue = Queue(tmp_path / "queue.db")
-    preparation = {"key": "f" * 64, "cli": True, "upload": False}
+    preparation = {
+        "key": "f" * 64,
+        "harness_commit": "b" * 40,
+        "cli": True,
+        "upload": False,
+    }
     producer = queue.enqueue("owner", "a" * 40, [], "prepare", preparation=preparation)
     first = queue.enqueue("owner", "a" * 40, ["first.spec.ts"], preparation={**preparation, "id": producer["id"]})
     second = queue.enqueue("owner", "a" * 40, ["second.spec.ts"], preparation={**preparation, "id": producer["id"]})
@@ -366,7 +391,7 @@ def test_preparation_gates_consumers_and_records_exact_run(tmp_path, monkeypatch
 def test_failed_preparation_does_not_dispatch_or_credit_tests(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
     queue = Queue(tmp_path / "queue.db")
-    preparation = {"key": "f" * 64}
+    preparation = {"key": "f" * 64, "harness_commit": "b" * 40}
     producer = queue.enqueue("owner", "a" * 40, [], "prepare", preparation=preparation)
     child = queue.enqueue("owner", "a" * 40, ["x.spec.ts"], preparation={**preparation, "id": producer["id"]})
     remote = Remote()
@@ -388,7 +413,7 @@ def test_pytest_exact_nodes_are_not_browser_paths(tmp_path):
 
 def test_interleaved_submission_cannot_cancel_unattached_producer(tmp_path):
     queue = Queue(tmp_path / "queue.db")
-    preparation = {"key": "f" * 64}
+    preparation = {"key": "f" * 64, "harness_commit": "b" * 40}
     producer = queue.enqueue("owner", "a" * 40, [], "prepare", preparation=preparation)
     enqueue_submission(queue, "owner", "b" * 40, ["other.spec.ts"], "e2e")
     child = queue.enqueue("owner", "a" * 40, ["x.spec.ts"], preparation={**preparation, "id": producer["id"]})
