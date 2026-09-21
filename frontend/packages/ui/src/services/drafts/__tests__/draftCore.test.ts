@@ -150,6 +150,18 @@ describe('draftCore setCurrentChatContext', () => {
 });
 
 describe('shouldPreserveSameChatDraftRestore', () => {
+  it('preserves the editor when a same-chat snapshot is already displayed', () => {
+    expect(shouldPreserveSameChatDraftRestore('chat-1', 'saved text', 'saved text', {
+      currentChatId: 'chat-1',
+      currentUserDraftVersion: 1,
+      hasUnsavedChanges: false,
+      lastSavedContentMarkdown: 'saved text',
+      isSwitchingContext: false,
+      isSaveInProgress: false,
+      newlyCreatedChatIdToSelect: null,
+    })).toBe(true);
+  });
+
   it('preserves editor content changed after the incoming snapshot was saved', () => {
     expect(shouldPreserveSameChatDraftRestore('chat-1', '@', '@wiki:AlbertEin', {
       currentChatId: 'chat-1',

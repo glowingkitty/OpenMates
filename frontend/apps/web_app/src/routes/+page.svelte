@@ -1211,6 +1211,7 @@
 			isStaticPublicChatTarget(activeChatId) ||
 			isAnonymousChatId(activeChatId) ||
 			lastLoadedChatId === activeChatId ||
+			untrack(() => activeChatComponent.getCurrentChatId()) === activeChatId ||
 			authenticatedHashRecoveryChatId === activeChatId
 		) {
 			return;
@@ -1233,7 +1234,9 @@
 					return;
 				}
 
-				if (!chat || lastLoadedChatId === activeChatId) return;
+				// A local draft may have been adopted while the IndexedDB read was
+				// pending. Its live editor is already authoritative for this ID.
+				if (!chat || lastLoadedChatId === activeChatId || activeChatComponent.getCurrentChatId() === activeChatId) return;
 				console.debug(`[+page.svelte] Recovering authenticated active chat from hash/store: ${activeChatId}`);
 				activeChatComponent.loadChat(chat);
 				lastLoadedChatId = activeChatId;

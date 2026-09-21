@@ -6054,12 +6054,14 @@
                     return;
                 }
                 recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'applied' });
-                activeChatStore.setActiveChat(persistedChatId);
                 // The editor already owns the newest draft document. Loading the
                 // just-persisted shell back into it would replace the live TipTap
                 // state, interrupt the caret, and can discard typing that happened
                 // after the autosave snapshot was captured.
                 await loadChat(newChat, { preserveActiveComposer: true });
+                if (currentChat?.chat_id === persistedChatId && activeChatStore.get() !== persistedChatId) {
+                    activeChatStore.setActiveChat(persistedChatId);
+                }
                 temporaryChatId = null;
                 console.debug("[ActiveChat] Activated persisted draft-only chat:", persistedChatId);
             }
@@ -9299,8 +9301,48 @@
         }
     }
 
+    /** The page recovery path must not reopen a surface this component already owns. */
+    export function getCurrentChatId(): string | null {
+        return currentChat?.chat_id ?? null;
+    }
+
+    /**
+     * First persistence gives the live composer a durable identity; it is not
+     * navigation. Commit ownership before publishing the URL/store so recovery
+     * effects cannot reload the saved snapshot over the live editor.
+     */
+    function adoptPersistedDraft(chat: Chat): boolean {
+        if (!isPersistedDraftOnlyChat(chat)
+            || get(draftEditorUIState).currentChatId !== chat.chat_id
+            || !messageInputHasContent
+            || currentMessages.length > 0
+            || (currentChat && currentChat.chat_id !== chat.chat_id)) {
+            return false;
+        }
+
+        // Both the sidebar and the active surface can observe the persistence
+        // notification. Adoption is idempotent, including a delayed duplicate.
+        if (currentChat?.chat_id === chat.chat_id && activeChatStore.get() === chat.chat_id && !showWelcome) {
+            return true;
+        }
+
+        const generation = ++loadChatGeneration;
+        currentChat = chat;
+        temporaryChatId = null;
+        showWelcome = false;
+        chatLoadState = 'ready';
+        updateNavFromCache(chat.chat_id);
+        void applyPersistedDraftHeader(chat, 'local draft adoption', () =>
+            generation === loadChatGeneration && currentChat?.chat_id === chat.chat_id,
+        ).catch((error) => console.error('[ActiveChat] Could not render adopted draft header:', error));
+        activeChatStore.setActiveChat(chat.chat_id);
+        notifyBackendOfActiveChat();
+        return true;
+    }
+
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean }) {
+         if (options?.preserveActiveComposer && adoptPersistedDraft(chat)) return;
          // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
          // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
          // chatUpdated events can see the new currentChat but operate on the old currentMessages.
@@ -10674,6 +10716,10 @@
             await restoreDraftWithRetry();
         }
         
+        notifyBackendOfActiveChat();
+    }
+
+    function notifyBackendOfActiveChat() {
         // Notify backend about the active chat, but only if WebSocket is connected
         // CRITICAL: Don't send set_active_chat if user is in signup flow - this would overwrite last_opened
         // and cause the user to skip remaining signup steps
