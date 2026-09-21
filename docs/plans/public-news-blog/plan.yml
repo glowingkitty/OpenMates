@@ -355,3 +355,9 @@ references:
     - https://docs.hetzner.com/storage/object-storage/faq/general/
     - https://developers.buffer.com/examples/get-paginated-posts.html
     - https://developers.google.com/search/docs/appearance/ai-features
+
+# 2026-09-21 UI correction: use supplied News/Social post exports as desktop
+# proportions. Reuse Header with a 64px publication layout, restore valid spacing
+# tokens, a 712px centered hero/body, 300x480 social media and compact post copy.
+# Mobile adapts with 24px body insets and stacked media/copy; responsive approval
+# remains pending. Evidence: focused newsroom spec desktop and phone PNGs.

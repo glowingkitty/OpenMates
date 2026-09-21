@@ -127,7 +127,7 @@
   }
 
   .date-label {
-    padding: var(--spacing-7) var(--spacing-5) var(--spacing-3);
+    padding: var(--spacing-8) var(--spacing-5) var(--spacing-3);
     color: var(--color-font-secondary);
     font-size: var(--font-size-tiny);
     font-weight: 700;

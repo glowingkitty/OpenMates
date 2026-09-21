@@ -30,7 +30,6 @@
   <span class="card-copy">
     <span class="eyebrow">{item.eyebrow}</span>
     <strong>{item.title}</strong>
-    {#if variant === "featured"}<span class="excerpt">{item.excerpt}</span>{/if}
     <span class="meta"
       ><span>{item.publishedLabel}</span>{#if item.readTime}<span
           >{item.readTime}</span
@@ -47,7 +46,7 @@
     min-width: 0;
     overflow: hidden;
     border: 1px solid var(--color-grey-25);
-    border-radius: var(--radius-5);
+    border-radius: var(--radius-8);
     background: var(--color-grey-0);
     color: var(--color-font-primary);
     box-shadow: var(--shadow-md);
@@ -103,13 +102,13 @@
     display: grid;
     box-sizing: border-box;
     min-width: 0;
-    align-content: start;
+    grid-template-rows: auto 1fr auto;
     gap: var(--spacing-5);
     padding: var(--spacing-8);
   }
 
   .featured .card-copy {
-    align-content: center;
+    grid-template-rows: auto 1fr auto;
     padding: var(--spacing-10);
   }
 
@@ -120,18 +119,13 @@
   }
 
   strong {
-    font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+    align-self: center;
+    font-size: var(--font-size-h3-mobile);
     line-height: 1.24;
   }
 
   .featured strong {
-    font-size: clamp(1.35rem, 2.5vw, 2rem);
-  }
-
-  .excerpt {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-small);
-    line-height: 1.55;
+    font-size: var(--font-size-h2-mobile);
   }
 
   .meta {

@@ -9,9 +9,6 @@ import { expect, test } from '../helpers/cookie-audit';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createVideoProofRuntime, defineVideoProof } = require('../helpers/video-proof');
 
-const phone = Number(process.env.PLAYWRIGHT_VIDEO_WIDTH) === 390;
-const device = phone ? 'web-phone' : 'web-laptop';
-const width = phone ? '390' : '1180';
 
 const proofContract = defineVideoProof({
   id: 'newsroom-surface-design-review',
@@ -32,7 +29,7 @@ const proofContract = defineVideoProof({
   tutorial: { readingWordsPerSecond: 3, minimumHoldMs: 900, maximumHoldMs: 2200 },
 });
 
-function preview(variant?: string) {
+function preview(width: string, variant?: string) {
   return `/dev/preview/newsroom/NewsroomSurface?${new URLSearchParams({
     chrome: '0',
     theme: 'light',
@@ -41,63 +38,107 @@ function preview(variant?: string) {
   })}`;
 }
 
-// contract-test: tooling
-test('presents the UI-first newsroom layouts for approval', async ({ page }, testInfo) => {
-  test.setTimeout(60_000);
-  const proof = createVideoProofRuntime(proofContract, { device, attach: testInfo.attach.bind(testInfo) });
+for (const phone of [false, true]) {
+  const device = phone ? 'web-phone' : 'web-laptop';
+  const width = phone ? '390' : '1512';
+  // contract-test: tooling
+  test(`presents the UI-first newsroom layouts for approval (${device})`, async ({ page }, testInfo) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: Number(width), height: phone ? 844 : 1000 });
+    const proof = createVideoProofRuntime(proofContract, { device, attach: testInfo.attach.bind(testInfo) });
 
-  await page.goto(preview(), { waitUntil: 'networkidle' });
-  const root = page.getByTestId('newsroom-surface');
-  await expect(root).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Introducing: Workflow Automation' })).toBeVisible();
-  if (phone) {
-    await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
-    await page.getByTestId('sidebar-toggle').click();
-    await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
-    await page.getByRole('button', { name: 'Close Newsroom navigation' }).click();
-  } else {
-    await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
-  }
-  const featuredCard = page.getByTestId('newsroom-card-health-app-redesigned');
-  const standardCard = page.getByTestId('newsroom-card-new-code-skills');
-  await expect(featuredCard).toBeVisible();
-  await expect(standardCard).toBeVisible();
-  expect((await featuredCard.boundingBox())?.height).toBeGreaterThan(200);
-  expect((await standardCard.boundingBox())?.height).toBeGreaterThan(300);
-  await page.getByTestId('newsroom-search-toggle').click();
-  const search = page.getByTestId('newsroom-search-input');
-  await search.fill('Health');
-  await expect(featuredCard).toBeVisible();
-  await expect(page.getByTestId('newsroom-card-new-code-skills')).toHaveCount(0);
-  await proof.assert('newsroom-index', async () => {
-    expect(await root.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await page.goto(preview(width), { waitUntil: 'networkidle' });
+    const root = page.getByTestId('newsroom-surface');
+    await expect(root).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Introducing: Workflow Automation' })).toBeVisible();
+    if (phone) {
+      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
+      await page.getByTestId('sidebar-toggle').click();
+      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
+      await page.getByRole('button', { name: 'Close Newsroom navigation' }).click();
+    } else {
+      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
+    }
+    const featuredCard = page.getByTestId('newsroom-card-health-app-redesigned');
+    const standardCard = page.getByTestId('newsroom-card-new-code-skills');
+    await expect(featuredCard).toBeVisible();
+    await expect(standardCard).toBeVisible();
+    expect((await featuredCard.boundingBox())?.height).toBeGreaterThan(200);
+    expect((await standardCard.boundingBox())?.height).toBeGreaterThan(300);
+    const geometry = await root.evaluate((element) => {
+      const rect = (selector: string) => element.querySelector(selector)!.getBoundingClientRect();
+      const header = rect('.main-panel > header');
+      const cta = rect('[data-testid="header-login-signup-btn"]');
+      const hero = rect('.publication-hero');
+      const section = rect('.content-section');
+      const card = rect('.publication-card');
+      const panel = rect('.main-panel');
+      return { headerTop: header.top, headerHeight: header.height, ctaInset: panel.right - cta.right,
+        sectionGap: section.top - hero.bottom, cardInset: card.left - panel.left,
+        heroTop: hero.top, headerBottom: header.bottom };
+    });
+    expect(geometry.headerTop).toBe(0);
+    expect(geometry.headerHeight).toBeLessThanOrEqual(72);
+    expect(geometry.ctaInset).toBeGreaterThanOrEqual(16);
+    expect(geometry.ctaInset).toBeLessThanOrEqual(24);
+    expect(geometry.sectionGap).toBeGreaterThanOrEqual(40);
+    expect(geometry.cardInset).toBeGreaterThanOrEqual(24);
+    expect(geometry.heroTop).toBeGreaterThanOrEqual(geometry.headerBottom);
+    await testInfo.attach(`news-${device}`, { body: await page.screenshot(), contentType: 'image/png' });
+    if (phone) {
+      await root.locator('.publication-scroll').evaluate((element) => { element.scrollTop = 300; });
+      expect((await root.locator('.main-panel > header').boundingBox())!.y).toBe(0);
+      await testInfo.attach('news-phone-scrolled', { body: await page.screenshot(), contentType: 'image/png' });
+    }
+    await page.getByTestId('newsroom-search-toggle').click();
+    const search = page.getByTestId('newsroom-search-input');
+    await search.fill('Health');
+    await expect(featuredCard).toBeVisible();
+    await expect(page.getByTestId('newsroom-card-new-code-skills')).toHaveCount(0);
+    await proof.assert('newsroom-index', async () => {
+      expect(await root.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    });
+    await proof.checkpoint('index');
+    await page.waitForTimeout(proofContract.tutorial.minimumHoldMs);
+
+    for (const variant of ['Blog', 'Blog post']) {
+      await page.goto(preview(width, variant), { waitUntil: 'networkidle' });
+      await expect(page.getByTestId('newsroom-surface')).toHaveAttribute('data-view', variant === 'Blog' ? 'blog' : 'blog-post');
+      await testInfo.attach(`${variant}-${device}`, { body: await page.screenshot(), contentType: 'image/png' });
+    }
+
+    await page.goto(preview(width, 'Release'), { waitUntil: 'networkidle' });
+    await expect(page.getByText('Workflow Automation helps people').first()).toBeVisible();
+    await testInfo.attach(`release-${device}`, { body: await page.screenshot(), contentType: 'image/png' });
+    const slideshow = page.getByTestId('newsroom-slideshow');
+    await slideshow.getByRole('button', { name: 'Next media' }).click();
+    await expect(slideshow).toContainText('2 / 3');
+    await proof.assert('newsroom-article', async () => {
+      expect(await page.getByTestId('newsroom-surface').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    });
+    await proof.checkpoint('article');
+    await page.waitForTimeout(proofContract.tutorial.minimumHoldMs);
+
+    await page.goto(preview(width, 'Social post'), { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('newsroom-surface')).toHaveAttribute('data-view', 'social-post');
+    await expect(page.getByRole('button', { name: /View original post/ })).toBeVisible();
+    await proof.assert('newsroom-social', async () => {
+      expect(await page.getByTestId('newsroom-surface').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    });
+    const media = await root.locator('.social-detail-media').boundingBox();
+    expect(media!.height / media!.width).toBeCloseTo(1.6, 1);
+    const copy = await root.locator('.social-detail-copy').boundingBox();
+    if (phone) expect(copy!.y).toBeGreaterThanOrEqual(media!.y + media!.height + 20);
+    else expect(copy!.x).toBeGreaterThanOrEqual(media!.x + media!.width + 30);
+    const more = await root.locator('.more-posts').boundingBox();
+    expect(more!.y).toBeGreaterThanOrEqual(media!.y + media!.height + 40);
+    const textSize = await page.locator('#social-post-title').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    expect(textSize).toBe(16);
+    await root.locator('.publication-scroll').evaluate((element) => { element.scrollTop = 0; });
+    await testInfo.attach(`social-${device}`, { body: await page.screenshot(), contentType: 'image/png' });
+    await proof.checkpoint('social');
+    await page.waitForTimeout(proofContract.tutorial.minimumHoldMs);
+    await proof.attach();
   });
-  await proof.checkpoint('index');
-  await page.waitForTimeout(proofContract.tutorial.minimumHoldMs);
 
-  for (const variant of ['Blog', 'Blog post']) {
-    await page.goto(preview(variant), { waitUntil: 'networkidle' });
-    await expect(page.getByTestId('newsroom-surface')).toHaveAttribute('data-view', variant === 'Blog' ? 'blog' : 'blog-post');
-  }
-
-  await page.goto(preview('Release'), { waitUntil: 'networkidle' });
-  await expect(page.getByText('Workflow Automation helps people').first()).toBeVisible();
-  const slideshow = page.getByTestId('newsroom-slideshow');
-  await slideshow.getByRole('button', { name: 'Next media' }).click();
-  await expect(slideshow).toContainText('2 / 3');
-  await proof.assert('newsroom-article', async () => {
-    expect(await page.getByTestId('newsroom-surface').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
-  });
-  await proof.checkpoint('article');
-  await page.waitForTimeout(proofContract.tutorial.minimumHoldMs);
-
-  await page.goto(preview('Social post'), { waitUntil: 'networkidle' });
-  await expect(page.getByTestId('newsroom-surface')).toHaveAttribute('data-view', 'social-post');
-  await expect(page.getByRole('button', { name: /View original post/ })).toBeVisible();
-  await proof.assert('newsroom-social', async () => {
-    expect(await page.getByTestId('newsroom-surface').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
-  });
-  await proof.checkpoint('social');
-  await page.waitForTimeout(proofContract.tutorial.minimumHoldMs);
-  await proof.attach();
-});
+}

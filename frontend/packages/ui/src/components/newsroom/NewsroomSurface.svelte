@@ -199,8 +199,7 @@
               </div>
               <h1 id="social-post-title">{data.socialItems[0].title}</h1>
               <p>
-                {data.socialItems[0].excerpt} This archived copy remains readable
-                and searchable without loading media from a social platform.
+                {data.socialItems[0].excerpt}
               </p>
               <time>{data.socialItems[0].publishedLabel}</time>
               <button
@@ -387,12 +386,14 @@
     --publication-hero-block-size: 21rem;
     --publication-featured-card-min-height: 14rem;
     --publication-card-body-min-height: 10rem;
-    --publication-social-card-width: 15rem;
-    --publication-social-card-ratio: 3 / 4.7;
+    --publication-social-card-width: 15.5rem;
+    --publication-social-card-ratio: 5 / 8;
+    --publication-social-media-ratio: 5 / 8;
     box-sizing: border-box;
     display: grid;
     width: 100%;
-    min-height: max(56rem, 100dvh);
+    height: 100dvh;
+    min-height: 0;
     grid-template-columns: var(--publication-sidebar-width) minmax(0, 1fr);
     gap: var(--publication-shell-gap);
     overflow: hidden;
@@ -400,11 +401,15 @@
     color: var(--color-font-primary);
   }
 
-  /* Full-page previews should use the requested viewport width. The generic
-     capture harness reserves 32px on each side for isolated components. */
-  :global(.capture-mode) .newsroom-shell {
-    width: calc(100% + 4rem);
-    margin: -2rem;
+  /* Full-page fixtures fill the capture canvas; no negative margins or second
+     outer scrolling viewport, which displaced the header on mobile Safari. */
+  :global(.preview-page.capture-mode .preview-layout .preview-container:has(.newsroom-shell)) {
+    padding: 0;
+    align-items: flex-start;
+  }
+  :global(.capture-mode .preview-viewport:has(.newsroom-shell)),
+  :global(.capture-mode .component-mount:has(.newsroom-shell)) {
+    align-items: flex-start;
   }
 
   .sidebar-layer {
@@ -414,6 +419,10 @@
     top: 0;
   }
   .main-panel {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
     min-width: 0;
     overflow: hidden;
     border-radius: var(--radius-5) 0 0 var(--radius-5);
@@ -421,11 +430,12 @@
     box-shadow: var(--shadow-sm);
   }
   .publication-scroll {
-    height: calc(100dvh - 4.35rem);
+    min-height: 0;
     overflow: auto;
-    background: var(--color-grey-10);
+    background: var(--color-grey-20);
   }
   main {
+    box-sizing: border-box;
     min-height: 100%;
     padding-bottom: var(--spacing-20);
   }
@@ -443,18 +453,18 @@
     margin: 0 auto;
   }
   .content-section {
-    margin-top: var(--spacing-20);
+    margin-top: var(--spacing-24);
   }
   .section-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--spacing-8);
+    margin-bottom: var(--spacing-12);
   }
   .section-heading h2 {
     margin: 0;
-    font-size: var(--font-size-h2);
-    line-height: 1.15;
+    font-size: var(--font-size-h2-mobile);
+    line-height: 1.25;
   }
   .section-heading-with-actions {
     gap: var(--spacing-8);
@@ -462,7 +472,7 @@
   .section-actions {
     display: flex;
     align-items: center;
-    gap: var(--spacing-7);
+    gap: var(--spacing-8);
   }
 
   .utility-action,
@@ -502,7 +512,7 @@
   .publication-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--spacing-10);
+    gap: var(--spacing-16);
   }
   .compact-grid {
     align-items: start;
@@ -530,7 +540,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--spacing-7);
+    gap: var(--spacing-8);
     padding: var(--spacing-8);
     color: var(--color-font-secondary);
     font-size: var(--font-size-tiny);
@@ -541,14 +551,11 @@
     box-sizing: border-box;
     width: min(100%, 44rem);
     margin: var(--spacing-16) auto 0;
-    border-radius: var(--radius-5);
-    background: var(--color-grey-0);
-    box-shadow: var(--shadow-sm);
   }
   .release-summary {
     display: grid;
     gap: var(--spacing-6);
-    padding: var(--spacing-10);
+    padding: 0;
   }
   .release-summary > button {
     all: unset;
@@ -556,18 +563,20 @@
     font-weight: 700;
   }
   .release-summary p {
-    margin: 0;
+    width: min(100%, 34rem);
+    margin: 0 auto;
     line-height: 1.65;
   }
   .summary-actions {
     display: flex;
+    justify-content: center;
     flex-wrap: wrap;
     gap: var(--spacing-8);
   }
   .article-body {
     display: grid;
     gap: var(--spacing-10);
-    padding: var(--spacing-12);
+    padding: 0;
   }
   .article-body p {
     margin: 0;
@@ -636,7 +645,8 @@
     gap: var(--spacing-5);
     padding: var(--spacing-8);
     border-radius: var(--radius-4);
-    background: var(--color-grey-10);
+    background: var(--color-grey-0);
+    box-shadow: var(--shadow-sm);
   }
   .prompt-card blockquote {
     margin: 0;
@@ -658,10 +668,11 @@
   .social-detail-page {
     position: relative;
     box-sizing: border-box;
-    width: min(calc(100% - var(--spacing-10)), 72rem);
+    width: calc(100% - var(--spacing-10));
     margin: 0 auto;
-    padding: var(--spacing-14) var(--spacing-12);
-    background: var(--color-grey-10);
+    padding: var(--spacing-16) var(--spacing-12);
+    border-radius: var(--radius-8);
+    background: var(--color-grey-20);
   }
   .detail-close {
     all: unset;
@@ -685,26 +696,27 @@
   }
   .social-detail-grid {
     display: grid;
-    width: min(100%, 52rem);
-    grid-template-columns: minmax(15rem, 0.8fr) minmax(18rem, 1.2fr);
+    width: min(100%, var(--publication-content-max-width));
+    grid-template-columns: 18.75rem minmax(0, 1fr);
     align-items: center;
     gap: var(--spacing-16);
-    margin: 0 auto var(--spacing-20);
+    margin: 0 auto var(--spacing-32);
   }
   .social-detail-media {
-    width: min(100%, 19rem);
+    width: 100%;
   }
   .social-detail-media :global(.newsroom-media) {
-    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-8);
+    box-shadow: var(--shadow-md);
   }
   .social-detail-copy {
     display: grid;
-    gap: var(--spacing-7);
+    gap: var(--spacing-8);
   }
   .social-detail-copy h1 {
     margin: 0;
-    font-size: var(--font-size-h2);
-    line-height: 1.15;
+    font-size: var(--font-size-p);
+    line-height: 1.4;
   }
   .social-detail-copy p {
     margin: 0;
@@ -722,7 +734,9 @@
     font-weight: 700;
   }
   .more-posts {
-    padding-top: var(--spacing-14);
+    width: min(100%, var(--publication-content-max-width));
+    margin-inline: auto;
+    padding-top: var(--spacing-16);
     border-top: 1px solid var(--color-grey-30);
   }
 
@@ -751,10 +765,12 @@
       z-index: 10002;
       width: 100%;
       height: 100dvh;
+      visibility: hidden;
       transform: translateX(-100%);
       transition: transform var(--duration-normal) var(--easing-default);
     }
     .sidebar-layer.open {
+      visibility: visible;
       transform: translateX(0);
     }
     :global([dir="rtl"]) .sidebar-layer {
@@ -764,24 +780,24 @@
       transform: translateX(0);
     }
     .main-panel {
-      min-height: 100dvh;
+      min-height: 0;
       border-radius: 0;
     }
     .publication-scroll {
-      height: calc(100dvh - 4.35rem);
+      min-height: 0;
     }
     .hero-frame {
-      padding: 0;
+      padding: 0 var(--spacing-8);
     }
     .content-column,
     .detail-column {
       width: min(
-        calc(100% - 2 * var(--spacing-6)),
+        calc(100% - 2 * var(--spacing-12)),
         var(--publication-content-max-width)
       );
     }
     .content-section {
-      margin-top: var(--spacing-14);
+      margin-top: var(--spacing-20);
     }
     .section-heading h2 {
       font-size: var(--font-size-h2-mobile);
@@ -798,7 +814,7 @@
     }
     .publication-grid {
       grid-template-columns: 1fr;
-      gap: var(--spacing-8);
+      gap: var(--spacing-12);
     }
     .social-rail {
       margin-inline: calc(-1 * var(--spacing-6));
@@ -806,10 +822,6 @@
     }
     .follow-row {
       flex-wrap: wrap;
-    }
-    .article-body,
-    .release-summary {
-      padding: var(--spacing-8);
     }
     .slideshow {
       gap: var(--spacing-2);
@@ -819,7 +831,7 @@
     }
     .social-detail-page {
       width: 100%;
-      padding: var(--spacing-12) var(--spacing-6);
+      padding: var(--spacing-32) var(--spacing-12) var(--spacing-12);
     }
     .social-detail-grid {
       grid-template-columns: 1fr;
@@ -830,7 +842,7 @@
       margin: 0 auto;
     }
     .social-detail-copy h1 {
-      font-size: var(--font-size-h2-mobile);
+      font-size: var(--font-size-p);
     }
   }
 </style>

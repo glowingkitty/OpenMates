@@ -460,7 +460,11 @@
   }
 </script>
 
-<header bind:this={headerDiv} class:webapp={context === "webapp"}>
+<header
+  bind:this={headerDiv}
+  class:webapp={context === "webapp"}
+  class:publication={!!publicationLabel}
+>
   {#await waitLocale()}
     <div class="container">
       <!-- Minimal header content while loading -->
@@ -684,10 +688,11 @@
         {#if !docsMode}
           <div
             class="right-section"
-            class:hidden={context !== "webapp" ||
-              $authStore.isAuthenticated ||
-              $loginInterfaceOpen}
-            class:signup-cta-hidden={$introBannerVisible}
+            class:hidden={!publicationLabel &&
+              (context !== "webapp" ||
+                $authStore.isAuthenticated ||
+                $loginInterfaceOpen)}
+            class:signup-cta-hidden={!publicationLabel && $introBannerVisible}
           >
             {#if !publicationLabel}
               <a
@@ -702,7 +707,7 @@
             {/if}
             <button
               class="login-signup-button"
-              class:cta-hidden={$introBannerVisible}
+              class:cta-hidden={!publicationLabel && $introBannerVisible}
               data-testid="header-login-signup-btn"
               onclick={(e) => {
                 e.preventDefault();
@@ -1443,6 +1448,32 @@
 
     .workspace-select-shell {
       display: inline-flex;
+    }
+  }
+  /* Publications reuse the app header without reserving its profile-button slot. */
+  header.publication {
+    box-sizing: border-box;
+    position: relative;
+    inset: auto;
+    height: 4rem;
+    min-height: 4rem;
+    max-height: 4rem;
+    padding: var(--spacing-6) var(--spacing-10);
+    background: var(--color-grey-0);
+    z-index: 2;
+  }
+  .publication .right-section {
+    position: static;
+    margin: 0 0 0 auto;
+    transform: none;
+    flex-shrink: 0;
+  }
+  .publication nav {
+    gap: var(--spacing-8);
+  }
+  @media (max-width: 730px) {
+    header.publication {
+      padding-inline: var(--spacing-8);
     }
   }
 </style>

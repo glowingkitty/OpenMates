@@ -43,7 +43,7 @@
     aspect-ratio: var(--publication-social-card-ratio, 3 / 4.7);
     overflow: hidden;
     border: 1px solid var(--color-grey-25);
-    border-radius: var(--radius-5);
+    border-radius: var(--radius-8);
     background: var(--color-grey-0);
     box-shadow: var(--shadow-md);
     cursor: pointer;
@@ -68,7 +68,7 @@
     inset: auto 0 0;
     display: grid;
     gap: var(--spacing-4);
-    padding: var(--spacing-7);
+    padding: var(--spacing-8);
     background: linear-gradient(
       to top,
       color-mix(in srgb, var(--color-grey-0) 96%, transparent) 25%,

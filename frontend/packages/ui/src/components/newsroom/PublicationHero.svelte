@@ -22,20 +22,22 @@
     class="hero-arrow previous"
     aria-label="Previous featured publication">‹</button
   >
-  <div class="hero-copy">
-    {#if hero.kicker}<span class="kicker">{hero.kicker}</span>{/if}
-    <span class="eyebrow">{hero.eyebrow}</span>
-    <h1 id="newsroom-hero-title">{hero.title}</h1>
-    <time>{hero.meta}</time>
-    {#if !detail}
-      <button type="button" class="hero-action" onclick={onOpen}>
-        <span class="clickable-icon icon_search" aria-hidden="true"></span>
-        {hero.actionLabel}
-      </button>
-    {/if}
-  </div>
-  <div class="hero-media">
-    <NewsroomMedia label={`${hero.title} featured media`} />
+  <div class="hero-content">
+    <div class="hero-copy">
+      {#if hero.kicker}<span class="kicker">{hero.kicker}</span>{/if}
+      <span class="eyebrow">{hero.eyebrow}</span>
+      <h1 id="newsroom-hero-title">{hero.title}</h1>
+      <time>{hero.meta}</time>
+      {#if !detail}
+        <button type="button" class="hero-action" onclick={onOpen}>
+          <span class="clickable-icon icon_search" aria-hidden="true"></span>
+          {hero.actionLabel}
+        </button>
+      {/if}
+    </div>
+    <div class="hero-media">
+      <NewsroomMedia label={`${hero.title} featured media`} />
+    </div>
   </div>
   <button
     type="button"
@@ -57,40 +59,26 @@
 <style>
   .publication-hero {
     position: relative;
+    box-sizing: border-box;
     display: grid;
     min-height: var(--publication-hero-block-size, 21rem);
-    grid-template-columns: minmax(15rem, 0.9fr) minmax(20rem, 1.1fr);
     align-items: center;
-    gap: var(--spacing-14);
     overflow: hidden;
-    padding: var(--spacing-14) clamp(var(--spacing-14), 6vw, var(--spacing-24));
-    border-radius: 0 0 var(--radius-6) var(--radius-6);
-    background:
-      radial-gradient(
-        circle at 25% 15%,
-        rgba(255, 255, 255, 0.16),
-        transparent 34%
-      ),
-      linear-gradient(
-        135deg,
-        var(--color-primary-start),
-        var(--color-primary-end)
-      );
+    padding: var(--spacing-16) var(--spacing-20);
+    border-radius: var(--radius-8);
+    background: var(--gradient-primary);
     color: #fff;
     box-shadow: var(--shadow-xl);
     isolation: isolate;
   }
 
-  .publication-hero::after {
-    position: absolute;
-    inset: auto -7rem -10rem auto;
-    width: 30rem;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
-    content: "";
-    filter: blur(1.5rem);
-    z-index: -1;
+  .hero-content {
+    display: grid;
+    grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--spacing-16);
+    width: min(100%, var(--publication-content-max-width, 44.5rem));
+    margin: 0 auto;
   }
 
   .hero-copy {
@@ -117,7 +105,7 @@
     max-width: 15ch;
     margin: 0;
     color: inherit;
-    font-size: clamp(1.8rem, 3vw, 2.55rem);
+    font-size: var(--font-size-h2-mobile);
     line-height: 1.1;
     text-wrap: balance;
   }
@@ -146,13 +134,13 @@
 
   .hero-media {
     min-width: 0;
-    width: min(100%, 34rem);
+    width: 100%;
     justify-self: end;
   }
 
   .hero-media :global(.newsroom-media) {
     border: 1px solid rgba(255, 255, 255, 0.28);
-    border-radius: var(--radius-5);
+    border-radius: var(--radius-8);
     box-shadow: var(--shadow-lg);
   }
 
@@ -200,9 +188,12 @@
   @media (max-width: 730px) {
     .publication-hero {
       min-height: 0;
+      padding: var(--spacing-12);
+    }
+
+    .hero-content {
       grid-template-columns: 1fr;
-      gap: var(--spacing-8);
-      padding: var(--spacing-10) var(--spacing-8) var(--spacing-12);
+      gap: var(--spacing-12);
     }
 
     .hero-copy {
@@ -214,7 +205,7 @@
     }
 
     h1 {
-      font-size: clamp(1.75rem, 9vw, 2.45rem);
+      font-size: var(--font-size-h2);
     }
 
     .hero-arrow {

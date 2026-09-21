@@ -50,7 +50,7 @@
   }
 
   .newsroom-media.portrait {
-    aspect-ratio: var(--publication-social-media-ratio, 4 / 5);
+    aspect-ratio: var(--publication-social-media-ratio, 5 / 8);
   }
 
   .play-button {
