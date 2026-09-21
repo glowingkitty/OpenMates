@@ -55,8 +55,14 @@ for (const phone of [false, true]) {
       await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
       await page.getByTestId('sidebar-toggle').click();
       await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
-      await page.getByRole('button', { name: 'Close Newsroom navigation' }).click();
+      await expect(page.getByTestId('sidebar-toggle')).toHaveAttribute('aria-expanded', 'true');
+      await page.getByTestId('sidebar-toggle').click();
+      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
     } else {
+      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
+      await page.getByTestId('sidebar-toggle').click();
+      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
+      await page.getByTestId('sidebar-toggle').click();
       await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
     }
     const featuredCard = page.getByTestId('newsroom-card-health-app-redesigned');
@@ -121,7 +127,20 @@ for (const phone of [false, true]) {
 
     await page.goto(preview(width, 'Social post'), { waitUntil: 'networkidle' });
     await expect(page.getByTestId('newsroom-surface')).toHaveAttribute('data-view', 'social-post');
-    await expect(page.getByRole('button', { name: /View original post/ })).toBeVisible();
+    await expect(page.getByText('View original post')).toHaveCount(0);
+    const platformLinks = page.getByRole('navigation', { name: 'Open original post' }).getByRole('link');
+    await expect(platformLinks).toHaveCount(3);
+    const expectedPlatforms = [
+      ['bluesky', /bsky\.app\/profile\/.+\/post\//],
+      ['instagram', /instagram\.com\/(?:openmates_official\/p|reel)\//],
+      ['mastodon', /mastodon\.social\/@OpenMates\//],
+    ] as const;
+    for (const [platform, href] of expectedPlatforms) {
+      const link = page.getByTestId(`social-platform-link-${platform}`);
+      await expect(link).toHaveAttribute('href', href);
+      await expect(link).toHaveAttribute('target', '_blank');
+      await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
     await proof.assert('newsroom-social', async () => {
       expect(await page.getByTestId('newsroom-surface').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     });

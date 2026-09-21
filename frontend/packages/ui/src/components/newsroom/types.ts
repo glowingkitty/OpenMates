@@ -2,6 +2,14 @@ export type NewsroomView = 'news' | 'blog' | 'release' | 'blog-post' | 'social-p
 
 export type NewsroomItemKind = 'release' | 'update' | 'blog' | 'social' | 'coverage';
 
+export type SocialPostPlatform = 'bluesky' | 'instagram' | 'mastodon';
+
+export interface SocialPostLink {
+  platform: SocialPostPlatform;
+  label: string;
+  href: string;
+}
+
 export interface NewsroomItem {
   id: string;
   kind: NewsroomItemKind;
@@ -12,6 +20,7 @@ export interface NewsroomItem {
   readTime?: string;
   author?: string;
   language?: string;
+  socialLinks?: SocialPostLink[];
   mediaShape: 'landscape' | 'portrait' | 'none';
 }
 
@@ -49,7 +58,6 @@ export interface NewsroomSurfaceData {
   pressInquiryLabel: string;
   subscribeLabel: string;
   followLabel: string;
-  viewOriginalLabel: string;
   heroNews: NewsroomHero;
   heroBlog: NewsroomHero;
   newsItems: NewsroomItem[];
@@ -67,7 +75,6 @@ export interface NewsroomAction {
     | 'try-feature'
     | 'press-kit'
     | 'press-inquiry'
-    | 'subscribe-news'
-    | 'open-social';
+    | 'subscribe-news';
   itemId?: string;
 }

@@ -17,7 +17,6 @@ const en: NewsroomSurfaceData = {
   pressInquiryLabel: 'Press inquiries',
   subscribeLabel: 'Subscribe to news',
   followLabel: 'Follow us',
-  viewOriginalLabel: 'View original post',
   heroNews: {
     eyebrow: 'Release',
     title: 'Introducing: Workflow Automation',
@@ -144,6 +143,23 @@ const en: NewsroomSurfaceData = {
       excerpt: 'A short look at how recurring searches can become a calm, useful workflow.',
       publishedLabel: '10 minutes ago',
       author: 'OpenMates',
+      socialLinks: [
+        {
+          platform: 'bluesky',
+          label: 'Open this post on Bluesky',
+          href: 'https://bsky.app/profile/did:plc:bgflwrmldvtkddskwp6tynt4/post/3mvl6lyi6oy2w',
+        },
+        {
+          platform: 'instagram',
+          label: 'Open this post on Instagram',
+          href: 'https://www.instagram.com/reel/DdURL81mGUs/',
+        },
+        {
+          platform: 'mastodon',
+          label: 'Open this post on Mastodon',
+          href: 'https://mastodon.social/@OpenMates/117276281024759413',
+        },
+      ],
       mediaShape: 'portrait',
     },
     {
@@ -154,6 +170,18 @@ const en: NewsroomSurfaceData = {
       excerpt: 'A quick walkthrough of the new Projects workspace.',
       publishedLabel: 'Yesterday',
       author: 'OpenMates',
+      socialLinks: [
+        {
+          platform: 'bluesky',
+          label: 'Open this post on Bluesky',
+          href: 'https://bsky.app/profile/openmates.bsky.social/post/3projects',
+        },
+        {
+          platform: 'instagram',
+          label: 'Open this post on Instagram',
+          href: 'https://www.instagram.com/openmates_official/p/projects-social/',
+        },
+      ],
       mediaShape: 'portrait',
     },
     {
@@ -164,6 +192,18 @@ const en: NewsroomSurfaceData = {
       excerpt: 'The choices we make when handling personal context and files.',
       publishedLabel: 'September 16, 2026',
       author: 'OpenMates',
+      socialLinks: [
+        {
+          platform: 'bluesky',
+          label: 'Open this post on Bluesky',
+          href: 'https://bsky.app/profile/openmates.bsky.social/post/3privacy',
+        },
+        {
+          platform: 'mastodon',
+          label: 'Open this post on Mastodon',
+          href: 'https://mastodon.social/@OpenMates/456',
+        },
+      ],
       mediaShape: 'portrait',
     },
   ],
@@ -222,7 +262,6 @@ const de: NewsroomSurfaceData = {
   pressInquiryLabel: 'Presseanfragen',
   subscribeLabel: 'News abonnieren',
   followLabel: 'Folge uns',
-  viewOriginalLabel: 'Originalbeitrag öffnen',
   heroNews: {
     eyebrow: 'Release',
     title: 'Neu: Workflow-Automatisierung',

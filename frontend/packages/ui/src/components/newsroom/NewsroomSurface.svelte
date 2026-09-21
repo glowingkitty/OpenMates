@@ -64,7 +64,7 @@
   }
 
   function openItem(item: NewsroomItem) {
-    act(item.kind === "coverage" ? "open-social" : "open-item", item.id);
+    act("open-item", item.id);
     if (window.matchMedia("(max-width: 730px)").matches) sidebarOpen = false;
   }
 
@@ -202,12 +202,26 @@
                 {data.socialItems[0].excerpt}
               </p>
               <time>{data.socialItems[0].publishedLabel}</time>
-              <button
-                type="button"
-                class="original-link"
-                onclick={() => act("open-social", data.socialItems[0].id)}
-                >{data.viewOriginalLabel} ↗</button
-              >
+              <nav class="platform-links" aria-label="Open original post">
+                {#each data.socialItems[0].socialLinks ?? [] as link (link.platform)}
+                  <a
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={link.label}
+                    data-testid={`social-platform-link-${link.platform}`}
+                    class="platform-link"
+                  >
+                    <span
+                      class:icon-bluesky={link.platform === "bluesky"}
+                      class:icon-instagram={link.platform === "instagram"}
+                      class:icon-mastodon={link.platform === "mastodon"}
+                      class="platform-icon"
+                      aria-hidden="true"
+                    ></span>
+                  </a>
+                {/each}
+              </nav>
             </div>
           </section>
           <section class="content-section more-posts">
@@ -399,6 +413,11 @@
     overflow: hidden;
     background: var(--color-grey-20);
     color: var(--color-font-primary);
+    transition: grid-template-columns var(--duration-normal) var(--easing-default);
+  }
+  .newsroom-shell:not(.sidebar-open) {
+    grid-template-columns: 0 minmax(0, 1fr);
+    gap: 0;
   }
 
   /* Full-page fixtures fill the capture canvas; no negative margins or second
@@ -417,6 +436,15 @@
     height: 100dvh;
     position: sticky;
     top: 0;
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition:
+      visibility var(--duration-normal) var(--easing-default),
+      transform var(--duration-normal) var(--easing-default);
+  }
+  .sidebar-layer.open {
+    visibility: visible;
+    transform: translateX(0);
   }
   .main-panel {
     display: grid;
@@ -726,12 +754,47 @@
     color: var(--color-font-secondary);
     font-size: var(--font-size-small);
   }
-  .original-link {
-    all: unset;
-    justify-self: start;
-    cursor: pointer;
+  .platform-links {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-6);
+  }
+  .platform-link {
+    display: grid;
+    width: 2rem;
+    aspect-ratio: 1;
+    place-items: center;
+    border-radius: var(--radius-full);
+    color: var(--color-font-secondary);
+    transition:
+      color var(--duration-fast) var(--easing-default),
+      background-color var(--duration-fast) var(--easing-default);
+  }
+  .platform-link:hover,
+  .platform-link:focus-visible {
+    background: var(--color-grey-25);
     color: var(--color-primary-start);
-    font-weight: 700;
+  }
+  .platform-link:focus-visible {
+    outline: 0.125rem solid var(--color-button-primary);
+    outline-offset: 0.125rem;
+  }
+  .platform-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    background-color: currentColor;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
+  }
+  .platform-icon.icon-bluesky {
+    mask-image: var(--icon-url-bluesky);
+  }
+  .platform-icon.icon-instagram {
+    mask-image: var(--icon-url-instagram);
+  }
+  .platform-icon.icon-mastodon {
+    mask-image: var(--icon-url-mastodon);
   }
   .more-posts {
     width: min(100%, var(--publication-content-max-width));
@@ -761,10 +824,10 @@
     }
     .sidebar-layer {
       position: fixed;
-      inset: 0;
-      z-index: 10002;
+      inset: 4rem 0 0;
+      z-index: 1;
       width: 100%;
-      height: 100dvh;
+      height: calc(100dvh - 4rem);
       visibility: hidden;
       transform: translateX(-100%);
       transition: transform var(--duration-normal) var(--easing-default);
@@ -780,8 +843,13 @@
       transform: translateX(0);
     }
     .main-panel {
+      position: relative;
+      z-index: 0;
       min-height: 0;
       border-radius: 0;
+    }
+    .main-panel :global(header.publication) {
+      z-index: 2;
     }
     .publication-scroll {
       min-height: 0;

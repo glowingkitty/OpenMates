@@ -361,3 +361,7 @@ references:
 # tokens, a 712px centered hero/body, 300x480 social media and compact post copy.
 # Mobile adapts with 24px body insets and stacked media/copy; responsive approval
 # remains pending. Evidence: focused newsroom spec desktop and phone PNGs.
+# 2026-09-21 interaction correction: the publication header remains available
+# while its drawer is open and toggles the sidebar in both directions. Social
+# items expose one exact external permalink per published platform; the detail
+# view renders those as platform icons opening independently in new tabs.

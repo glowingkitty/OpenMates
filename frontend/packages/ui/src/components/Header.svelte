@@ -484,20 +484,23 @@
           <!-- In webapp mode: hide when login interface is open, during signup, or when chats panel is open -->
           <div
             class="menu-button-container"
-            class:hidden={hasControlledSidebar
-              ? isSidebarOpen
-              : (docsMode && isSidebarOpen) ||
+            class:hidden={!hasControlledSidebar &&
+              ((docsMode && isSidebarOpen) ||
                 (!docsMode &&
                   (context !== "webapp" ||
                     $isInSignupProcess ||
                     $loginInterfaceOpen ||
-                    $panelState.isActivityHistoryOpen))}
+                    $panelState.isActivityHistoryOpen)))}
           >
             <button
-              class="clickable-icon icon_menu"
+              class="clickable-icon"
+              class:icon_menu={!hasControlledSidebar || !isSidebarOpen}
+              class:icon_close={hasControlledSidebar && isSidebarOpen}
               data-testid="sidebar-toggle"
               onclick={onToggleSidebar ?? panelState.toggleChats}
-              aria-label={$text("header.toggle_menu")}
+              aria-label={hasControlledSidebar && isSidebarOpen
+                ? `Close ${publicationLabel ?? "publication"} navigation`
+                : $text("header.toggle_menu")}
               aria-expanded={hasControlledSidebar
                 ? isSidebarOpen
                 : $panelState.isActivityHistoryOpen}
