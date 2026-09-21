@@ -2,8 +2,8 @@
     SettingsReportIssueConfirmation Component
 
     Shown as a sub-page of "Report Issue" immediately after a successful submission.
-    Displays a clear success message and the copyable issue ID so the user can
-    reference it when following up.
+    Displays a clear success message, a summary of the user-authored report, and
+    the copyable issue ID so the user can reference it when following up.
 
     The issue ID is read once from submittedIssueIdStore (via get()) at mount time.
     Written by SettingsReportIssue on success; overwritten on the next submission.
@@ -15,8 +15,18 @@
     import { createEventDispatcher } from 'svelte';
     import { get } from 'svelte/store';
     import { text } from '@repo/ui';
-    import { SettingsButton } from './elements';
-    import { submittedIssueIdStore, submittedShortIssueIdStore } from '../../stores/reportIssueStore';
+    import {
+        SettingsButton,
+        SettingsCard,
+        SettingsDetailRow,
+        SettingsPageContainer,
+        SettingsSectionHeading,
+    } from './elements';
+    import {
+        submittedIssueIdStore,
+        submittedReportSummaryStore,
+        submittedShortIssueIdStore,
+    } from '../../stores/reportIssueStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
 
     const dispatch = createEventDispatcher();
@@ -33,6 +43,7 @@
      * get() captures the value once at creation time — immune to re-mounts.
      */
     const issueId = get(submittedShortIssueIdStore) || get(submittedIssueIdStore);
+    const reportSummary = get(submittedReportSummaryStore);
 
     /** True for 2 seconds after the user copies the issue ID. */
     let issueIdCopied = $state(false);
@@ -70,6 +81,43 @@
     <p class="confirmation-body">
         {$text('settings.report_issue.confirmation_body')}
     </p>
+
+    {#if reportSummary}
+        <SettingsPageContainer maxWidth="narrow">
+            <SettingsSectionHeading
+                title={$text('settings.report_issue.confirmation_summary_title')}
+                icon="document"
+            />
+            <SettingsCard
+                padding="sm"
+                ariaLabel={$text('settings.report_issue.confirmation_summary_title')}
+                dataTestid="report-issue-summary"
+            >
+                <SettingsDetailRow
+                    label={$text('settings.report_issue.title_label')}
+                    value={reportSummary.title}
+                />
+                {#if reportSummary.userFlow}
+                    <SettingsDetailRow
+                        label={$text('settings.report_issue.user_flow_label')}
+                        value={reportSummary.userFlow}
+                    />
+                {/if}
+                {#if reportSummary.expectedBehaviour}
+                    <SettingsDetailRow
+                        label={$text('settings.report_issue.expected_behaviour_label')}
+                        value={reportSummary.expectedBehaviour}
+                    />
+                {/if}
+                {#if reportSummary.actualBehaviour}
+                    <SettingsDetailRow
+                        label={$text('settings.report_issue.actual_behaviour_label')}
+                        value={reportSummary.actualBehaviour}
+                    />
+                {/if}
+            </SettingsCard>
+        </SettingsPageContainer>
+    {/if}
 
     <!-- Issue ID -->
     {#if issueId}

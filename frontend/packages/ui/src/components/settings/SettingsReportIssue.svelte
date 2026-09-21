@@ -19,7 +19,7 @@
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
     import { userActionTracker } from '../../services/userActionTracker';
-    import { reportIssueStore, submittedIssueIdStore, submittedShortIssueIdStore, reportIssueFormDraftStore } from '../../stores/reportIssueStore';
+    import { reportIssueStore, submittedIssueIdStore, submittedShortIssueIdStore, submittedReportSummaryStore, reportIssueFormDraftStore } from '../../stores/reportIssueStore';
     import { inspectChat } from '../../services/debugUtils';
     import { authStore } from '../../stores/authStore';
     import { getEmailDecryptedWithMasterKey } from '../../services/cryptoService';
@@ -27,6 +27,7 @@
     import { hasPendingSends } from '../../stores/pendingUploadStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
     import { userProfile } from '../../stores/userProfile';
+    import { ensureIssueReportContextIsShared, generateCurrentContextUrl } from '../../services/issueReportSubmission';
 
     const dispatch = createEventDispatcher();
 
@@ -50,12 +51,6 @@
      * Always included in the report for authenticated users so admins can follow up.
      */
     let authenticatedUserEmail = $state('');
-
-    /**
-     * Admin-only: whether to create a Linear issue for this report.
-     * Defaults to false so admins can be selective about what goes to Linear.
-     */
-    let addToLinear = $state(false);
 
     /**
      * Admin-only: whether to send email notifications for this report.
@@ -173,68 +168,9 @@
         }
         
         try {
-            // Check for active embed first
-            const activeEmbedId = $activeEmbedStore;
-            if (activeEmbedId) {
-                hasActiveChatOrEmbed = true;
-                console.debug('[SettingsReportIssue] Auto-generating share URL for embed:', activeEmbedId);
-                try {
-                    const { generateEmbedShareKeyBlob } = await import('../../services/embedShareEncryption');
-                    const encryptedBlob = await generateEmbedShareKeyBlob(activeEmbedId, 0, undefined);
-                    const baseUrl = window.location.origin;
-                    chatOrEmbedUrl = `${baseUrl}/share/embed/${activeEmbedId}#key=${encryptedBlob}`;
-                    console.debug('[SettingsReportIssue] Auto-generated embed share URL');
-                    return;
-                } catch (error) {
-                    console.warn('[SettingsReportIssue] Failed to generate embed share URL:', error);
-                    // Continue to check for chat
-                }
-            }
-            
-            // Check for active chat
-            const activeChatId = $activeChatStore;
-            if (activeChatId) {
-                hasActiveChatOrEmbed = true;
-                console.debug('[SettingsReportIssue] Auto-generating share URL for chat:', activeChatId);
-                
-                // For public chats, use simple format
-                if (isPublicChat(activeChatId)) {
-                    const baseUrl = window.location.origin;
-                    chatOrEmbedUrl = `${baseUrl}/#chat-id=${activeChatId}`;
-                    console.debug('[SettingsReportIssue] Auto-generated public chat share URL');
-                    return;
-                }
-                
-                // For private chats, generate encrypted share link
-                try {
-                    const { chatKeyManager } = await import('../../services/encryption/ChatKeyManager');
-                    let chatKey = chatKeyManager.getKeySync(activeChatId);
-                    if (!chatKey) {
-                        chatKey = await chatKeyManager.getKey(activeChatId);
-                    }
-                    
-                    if (chatKey) {
-                        // Convert chat key to base64 if needed
-                        const chatKeyBase64 = chatKey instanceof Uint8Array 
-                            ? btoa(String.fromCharCode(...chatKey))
-                            : chatKey;
-                        
-                        const { generateShareKeyBlob } = await import('../../services/shareEncryption');
-                        const encryptedBlob = await generateShareKeyBlob(
-                            activeChatId,
-                            chatKeyBase64,
-                            0, // No expiration
-                            undefined // No password
-                        );
-                        
-                        const baseUrl = window.location.origin;
-                        chatOrEmbedUrl = `${baseUrl}/share/chat/${activeChatId}#key=${encryptedBlob}`;
-                        console.debug('[SettingsReportIssue] Auto-generated chat share URL');
-                    }
-                } catch (error) {
-                    console.warn('[SettingsReportIssue] Failed to generate chat share URL:', error);
-                }
-            }
+            hasActiveChatOrEmbed = Boolean($activeEmbedStore || $activeChatStore);
+            const generatedUrl = await generateCurrentContextUrl();
+            if (generatedUrl) chatOrEmbedUrl = generatedUrl;
         } catch (error) {
             console.error('[SettingsReportIssue] Error auto-generating share URL:', error);
         }
@@ -430,6 +366,21 @@
         }
     }
 
+    function collectVisibleChatMessageTexts(): string[] {
+        return Array.from(document.querySelectorAll('[data-message-id]'))
+            .flatMap((message) => {
+                const renderedBodies = Array.from(
+                    message.querySelectorAll('.read-only-message .ProseMirror, .chat-message-text .ProseMirror')
+                )
+                    .map((body) => body.textContent?.trim() ?? '')
+                    .filter(Boolean);
+                return renderedBodies.length > 0
+                    ? renderedBodies
+                    : [message.textContent?.trim() ?? ''];
+            })
+            .filter((message) => message.length >= 3);
+    }
+
     /**
      * Collect the outerHTML of the currently active chat entry in the sidebar
      * (the `.chat-item.active` element rendered by Chat.svelte inside Chats.svelte).
@@ -551,21 +502,33 @@
 
             // Compose the three structured fields into a single formatted description.
             // Only include sections that have content; send null if everything is empty.
+            const sanitizedUserFlow = userFlow.trim()
+                ? sanitizeTextInput(normalizeIssueReportText(userFlow))
+                : '';
+            const sanitizedExpectedBehaviour = expectedBehaviour.trim()
+                ? sanitizeTextInput(normalizeIssueReportText(expectedBehaviour))
+                : '';
+            const sanitizedActualBehaviour = actualBehaviour.trim()
+                ? sanitizeTextInput(normalizeIssueReportText(actualBehaviour))
+                : '';
             const descriptionParts: string[] = [];
-            if (userFlow.trim()) {
-                descriptionParts.push(`## What did you do?\n${sanitizeTextInput(normalizeIssueReportText(userFlow))}`);
+            if (sanitizedUserFlow) {
+                descriptionParts.push(`## What did you do?\n${sanitizedUserFlow}`);
             }
-            if (expectedBehaviour.trim()) {
-                descriptionParts.push(`## Expected behaviour\n${sanitizeTextInput(normalizeIssueReportText(expectedBehaviour))}`);
+            if (sanitizedExpectedBehaviour) {
+                descriptionParts.push(`## Expected behaviour\n${sanitizedExpectedBehaviour}`);
             }
-            if (actualBehaviour.trim()) {
-                descriptionParts.push(`## Actual behaviour\n${sanitizeTextInput(normalizeIssueReportText(actualBehaviour))}`);
+            if (sanitizedActualBehaviour) {
+                descriptionParts.push(`## Actual behaviour\n${sanitizedActualBehaviour}`);
             }
             const sanitizedDescription = descriptionParts.length > 0
                 ? descriptionParts.join('\n\n')
                 : null;
             // Only include the share URL if the toggle is enabled and a URL was generated
             const sanitizedUrl = (shareChatEnabled && chatOrEmbedUrl.trim()) ? chatOrEmbedUrl.trim() : null;
+            if (sanitizedUrl) {
+                await ensureIssueReportContextIsShared(sanitizedUrl);
+            }
             // For authenticated users: always include their account email so admins can follow up.
             // For guest users: use the manually entered email (optional input field).
             const sanitizedEmail = $authStore.isAuthenticated
@@ -583,7 +546,8 @@
             // Pydantic limit is 50 KB (see IssueReportRequest.console_logs in
             // backend/core/api/app/routes/settings.py); submitting 500 entries
             // regressed prod with a 422 validation error.
-            const consoleLogs = logCollector.getLogsAsText(100);
+            const visibleChatMessages = collectVisibleChatMessageTexts();
+            const consoleLogs = logCollector.getIssueReportLogsAsText(100, visibleChatMessages);
             
             // Collect IndexedDB inspection report for active chat (if any)
             // This contains only metadata (timestamps, versions, encrypted content lengths)
@@ -592,7 +556,9 @@
             
             // Collect rendered HTML of the last user message and assistant response
             // This helps debugging rendering issues and seeing exactly what the user saw
-            const lastMessagesHtml = collectLastMessagesHtml();
+            const lastMessagesHtml = (shareChatEnabled && sanitizedUrl)
+                ? collectLastMessagesHtml()
+                : null;
 
             // Collect the outerHTML of the active chat entry in the sidebar.
             // Captures the chat's visible state (title, typing indicator, category icon, etc.)
@@ -655,9 +621,6 @@
                     // Recent OTel trace IDs for issue-to-trace correlation.
                     // Empty array if tracing is not active.
                     trace_ids: recentTraceIds,
-                    // Admin-only: whether to create a Linear issue (default false for admin).
-                    // Non-admin reports always create Linear issues (server-side default).
-                    add_to_linear: isAdminUser ? addToLinear : true,
                     // Admin-only: whether to send email notifications (default false for admin).
                     // Non-admin reports always send emails (server-side default).
                     send_email_notification: isAdminUser ? sendEmailNotification : true,
@@ -723,7 +686,6 @@
                 contactEmail = '';
                 issueType = 'bug_report';
                 // Reset admin toggles back to defaults (off)
-                addToLinear = false;
                 sendEmailNotification = false;
                 titleError = '';
                 emailError = '';
@@ -745,6 +707,12 @@
                 // can read it without prop drilling through the settings router.
                 submittedIssueIdStore.set(issueId);
                 submittedShortIssueIdStore.set(shortIssueId || issueId);
+                submittedReportSummaryStore.set({
+                    title: sanitizedTitle,
+                    userFlow: sanitizedUserFlow,
+                    expectedBehaviour: sanitizedExpectedBehaviour,
+                    actualBehaviour: sanitizedActualBehaviour,
+                });
 
                 // Push console logs to OpenObserve tagged with the issue ID so admins
                 // can correlate client-side events with the submitted report.
@@ -752,7 +720,7 @@
                 if (issueId && $authStore.isAuthenticated) {
                     const { getWebSocketToken } = await import('../../utils/cookies');
                     const wsToken = getWebSocketToken();
-                    const logsText = logCollector.getLogsAsText(150);
+                    const logsText = logCollector.getIssueReportLogsAsText(150, visibleChatMessages);
                     void fetch(getApiEndpoint(apiEndpoints.settings.issueLogs), {
                         method: 'POST',
                         credentials: 'include',
@@ -1096,7 +1064,6 @@
             shareChatEnabled,
             chatOrEmbedUrl,
             contactEmail,
-            addToLinear,
             sendEmailNotification,
             pickedElementHtml,
             screenshotDataUrl
@@ -1577,7 +1544,6 @@
             shareChatEnabled = draft.shareChatEnabled;
             chatOrEmbedUrl = draft.chatOrEmbedUrl;
             contactEmail = draft.contactEmail;
-            if (draft.addToLinear !== undefined) addToLinear = draft.addToLinear;
             if (draft.sendEmailNotification !== undefined) sendEmailNotification = draft.sendEmailNotification;
             pickedElementHtml = draft.pickedElementHtml;
             screenshotDataUrl = draft.screenshotDataUrl;
@@ -1742,21 +1708,8 @@
             </div>
         {/if}
 
-        <!-- Admin-only toggles for Linear issue creation and email notification -->
+        <!-- Admin-only email notification toggle. Diagnostic retention always runs. -->
         {#if isAdminUser}
-            <div class="toggle-group" data-testid="admin-add-to-linear">
-                <div class="toggle-row">
-                    <label for="add-to-linear-toggle">{$text('settings.report_issue.add_to_linear_label')}</label>
-                    <Toggle
-                        id="add-to-linear-toggle"
-                        bind:checked={addToLinear}
-                        disabled={isSubmitting}
-                        ariaLabel={$text('settings.report_issue.add_to_linear_label')}
-                    />
-                </div>
-                <p class="input-hint">{$text('settings.report_issue.add_to_linear_hint')}</p>
-            </div>
-
             <div class="toggle-group" data-testid="admin-send-email-notification">
                 <div class="toggle-row">
                     <label for="send-email-toggle">{$text('settings.report_issue.send_email_notification_label')}</label>

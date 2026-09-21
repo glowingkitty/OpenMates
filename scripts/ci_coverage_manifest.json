@@ -208,6 +208,7 @@
         "components/mindmap-fullscreen.spec.ts",
         "components/map-load-recovery.spec.ts",
         "components/newsroom-surface.spec.ts",
+        "components/report-issue-confirmation.spec.ts",
         "components/embed-workspace.spec.ts",
         "components/panel-responsiveness.spec.ts",
         "composer-model-routing.spec.ts",

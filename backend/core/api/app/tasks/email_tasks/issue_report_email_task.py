@@ -19,6 +19,8 @@ from typing import Any, Dict, Optional
 # Import the Celery app and Base Task
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
+from backend.core.api.app.services.email_template import EmailTemplateService
+from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.utils.issue_report_text import normalize_issue_report_trace_ids
 
 # Import necessary services and utilities
@@ -35,9 +37,28 @@ event_logger.addFilter(sensitive_filter)
 S3_UPLOAD_MAX_RETRIES = 5
 
 
-@app.task(name='app.tasks.email_tasks.issue_report_email_task.send_issue_report_email', base=BaseServiceTask, bind=True)
+class IssueReportServiceTask(BaseServiceTask):
+    """Initialize only the services used by issue-report delivery and retention."""
+
+    async def initialize_services(self) -> None:
+        await self.initialize_core_services()
+
+        if self._s3_service is None:
+            self._s3_service = S3UploadService(
+                secrets_manager=self._secrets_manager,
+                directus_service=self._directus_service,
+            )
+            await self._s3_service.initialize()
+
+        if self._email_template_service is None:
+            self._email_template_service = EmailTemplateService(
+                secrets_manager=self._secrets_manager,
+            )
+
+
+@app.task(name='app.tasks.email_tasks.issue_report_email_task.send_issue_report_email', base=IssueReportServiceTask, bind=True)
 def send_issue_report_email(
-    self: BaseServiceTask,
+    self: IssueReportServiceTask,
     admin_email: str,
     issue_id: Optional[str] = None,
     issue_title: str = "",
@@ -144,13 +165,13 @@ def send_issue_report_email(
 
 @app.task(
     name='app.tasks.email_tasks.issue_report_email_task.retry_issue_report_s3_upload',
-    base=BaseServiceTask,
+    base=IssueReportServiceTask,
     bind=True,
     max_retries=S3_UPLOAD_MAX_RETRIES,
     default_retry_delay=30,  # Initial delay of 30 seconds
 )
 def retry_issue_report_s3_upload(
-    self: BaseServiceTask,
+    self: IssueReportServiceTask,
     issue_id: str,
     yaml_content: str,
 ) -> bool:
@@ -238,6 +259,15 @@ async def _async_upload_issue_yaml_to_s3(
             {"encrypted_issue_report_yaml_s3_key": encrypted_yaml_s3_key}
         )
         logger.info(f"[S3_RETRY] Updated issue {issue_id} with encrypted YAML S3 key")
+
+        # A retry is only complete once the issue status reflects that the
+        # encrypted diagnostic artifact is durably available.
+        await task.directus_service.update_item(
+            "issues",
+            issue_id,
+            {"processed": True},
+        )
+        logger.info(f"[S3_RETRY] Marked issue report {issue_id} as processed")
         return True
 
     finally:
@@ -497,6 +527,17 @@ async def _async_send_issue_report_email(
         await task.initialize_services()
         logger.info("Services initialized for issue report email task")
         
+        # Email is optional, but durable diagnostic retention is not. Only
+        # require the email service when notifications were explicitly enabled.
+        if send_email_notification and (
+            not hasattr(task, 'email_template_service')
+            or task.email_template_service is None
+        ):
+            logger.error("email_template_service not available after initialization")
+            return False
+        if send_email_notification:
+            logger.info("email_template_service is available")
+
         # SECURITY: Sanitize inputs before passing to email template
         # Note: Inputs should already be sanitized in the route handler, but we sanitize again here
         # as a defense-in-depth measure. The data is sanitized before template rendering.
@@ -638,6 +679,7 @@ async def _async_send_issue_report_email(
         # If the upload fails, dispatch a dedicated retry task with exponential backoff
         # so the email can still be sent immediately (user-facing) while S3 upload retries
         # independently (admin tooling).
+        diagnostic_yaml_persisted = False
         if issue_id:
             try:
                 # Encrypt the YAML content
@@ -670,6 +712,7 @@ async def _async_send_issue_report_email(
                     {"encrypted_issue_report_yaml_s3_key": encrypted_yaml_s3_key}
                 )
                 logger.info(f"Updated issue {issue_id} with encrypted YAML S3 key")
+                diagnostic_yaml_persisted = True
             except Exception as e:
                 logger.error(
                     f"Failed to upload issue report YAML to S3 for issue {issue_id}: {str(e)}. "
@@ -704,16 +747,31 @@ async def _async_send_issue_report_email(
             )
 
         if not send_email_notification:
-            logger.info(
-                "Issue report archive stored; email notification disabled for issue %s",
-                issue_id,
-            )
-            return True
+            if diagnostic_yaml_persisted:
+                logger.info(
+                    "Issue report diagnostics persisted; email notifications disabled "
+                    f"for issue {issue_id or 'unknown'}"
+                )
+                try:
+                    await task.directus_service.update_item(
+                        "issues",
+                        issue_id,
+                        {"processed": True},
+                    )
+                    logger.info(f"Marked issue report {issue_id} as processed")
+                except Exception as processed_error:
+                    logger.error(
+                        f"Issue report diagnostics completed but processed status could not be stored for {issue_id}: "
+                        f"{str(processed_error)}",
+                        exc_info=True,
+                    )
+                return True
 
-        if not hasattr(task, 'email_template_service') or task.email_template_service is None:
-            logger.error("email_template_service not available after initialization")
+            logger.warning(
+                "Issue report email notifications are disabled and diagnostic "
+                f"persistence is pending retry for issue {issue_id or 'unknown'}"
+            )
             return False
-        logger.info("email_template_service is available")
 
         # Process contact email if provided
         contact_email_formatted = contact_email if contact_email else "Not provided"
@@ -805,6 +863,26 @@ async def _async_send_issue_report_email(
                 )
         else:
             logger.info("No contact email provided - skipping issue report confirmation email to reporter")
+
+        if issue_id and diagnostic_yaml_persisted:
+            try:
+                await task.directus_service.update_item(
+                    "issues",
+                    issue_id,
+                    {"processed": True},
+                )
+                logger.info(f"Marked issue report {issue_id} as processed")
+            except Exception as processed_error:
+                logger.error(
+                    f"Issue report notifications completed but processed status could not be stored for {issue_id}: "
+                    f"{str(processed_error)}",
+                    exc_info=True,
+                )
+        elif issue_id:
+            logger.info(
+                f"Issue report {issue_id} remains unprocessed until its diagnostic "
+                "upload retry succeeds"
+            )
         
         return True
         

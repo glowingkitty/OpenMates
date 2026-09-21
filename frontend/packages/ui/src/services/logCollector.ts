@@ -44,6 +44,10 @@ const MAX_MESSAGE_LENGTH = 1000;
  */
 const CONTENT_SANITIZE_PATTERNS: Array<[RegExp, string]> = [
 	[/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL-REDACTED]'],
+	[/#key:\s*\[REDACTED\]/gi, '#key=[SHARE-KEY-REDACTED]'],
+	[/#key=[^&\s"'<>]+/gi, '#key=[SHARE-KEY-REDACTED]'],
+	[/chat_encryption_key:\s*\[REDACTED\]/gi, 'chat_encryption_key=[REDACTED]'],
+	[/chat_encryption_key(?:=|%3D)[^&\s"'<>]+/gi, 'chat_encryption_key=[REDACTED]'],
 	[/[A-Za-z0-9+/=]{50,}/g, '[BASE64-REDACTED]'],
 	[/"[^"]{100,}"/g, '"[LONG-STRING-REDACTED]"'],
 	[/'[^']{100,}'/g, "'[LONG-STRING-REDACTED]'"],
@@ -369,6 +373,27 @@ class LogCollectorService {
     };
 
     return merged.map(formatLog).join("\n");
+  }
+
+  /**
+   * Format logs for issue-report retention with the stricter content scrubber.
+   * Visible chat messages are supplied by the report form and removed even if
+   * another component accidentally wrote their plaintext to console output.
+   */
+  public getIssueReportLogsAsText(
+    count: number = 500,
+    visibleChatMessages: string[] = [],
+  ): string {
+    let result = this.sanitizeContent(this.getLogsAsText(count));
+    const messages = [...new Set(visibleChatMessages)]
+      .map((message) => message.trim())
+      .filter((message) => message.length >= 3)
+      .sort((left, right) => right.length - left.length);
+
+    for (const message of messages) {
+      result = result.split(message).join("[CHAT-CONTENT-REDACTED]");
+    }
+    return result;
   }
 
   /**

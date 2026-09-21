@@ -21,6 +21,23 @@ export const submittedIssueIdStore = writable<string>("");
 export const submittedShortIssueIdStore = writable<string>("");
 
 /**
+ * User-authored fields from the most recently submitted report.
+ *
+ * The confirmation page reads this snapshot after the form resets. Internal
+ * diagnostics, contact details, and shared URLs are intentionally excluded so
+ * the summary stays focused on the report content the user entered.
+ */
+export interface SubmittedReportSummary {
+  title: string;
+  userFlow: string;
+  expectedBehaviour: string;
+  actualBehaviour: string;
+}
+
+export const submittedReportSummaryStore =
+  writable<SubmittedReportSummary | null>(null);
+
+/**
  * In-progress draft of the Report Issue form.
  *
  * Because CurrentSettingsPage.svelte destroys and re-creates the
@@ -46,8 +63,6 @@ export interface ReportIssueFormDraft {
   shareChatEnabled: boolean;
   chatOrEmbedUrl: string;
   contactEmail: string;
-  /** Admin-only: whether to create a Linear issue for this report. */
-  addToLinear?: boolean;
   /** Admin-only: whether to send email notifications for this report. */
   sendEmailNotification?: boolean;
   pickedElementHtml: string | null;

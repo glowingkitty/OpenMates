@@ -69,13 +69,31 @@ async function getVerticalCenterDistanceToViewport(page: any, locator: any): Pro
 	});
 }
 
+async function navigateToReportIssue(page: any): Promise<void> {
+	const settingsToggle = page.locator('#settings-menu-toggle');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	if (await settingsMenu.isVisible().catch(() => false)) {
+		await settingsToggle.click();
+		await expect(settingsMenu).toHaveCount(0, { timeout: 10000 });
+	}
+	await settingsToggle.click();
+	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	await settingsMenu
+		.getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i })
+		.first()
+		.click();
+	await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 10000 });
+}
+
 // ─── Test ────────────────────────────────────────────────────────────────────
 
-// contract-test: direct surface=gui.web assertions=chat-share-settings.generated-link-controls
+// contract-test: direct surface=gui.web assertions=chat-share-settings.generated-link-controls,chat-share-settings.shared-link-open
 test('creates and shares a chat link with QR code and fallback link', async ({
-	page
+	page,
+	browser
 }: {
 	page: any;
+	browser: any;
 }) => {
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
@@ -100,10 +118,11 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	// ── Step 2: Start new chat ────────────────────────────────────────────
 	await startNewChat(page, logCheckpoint);
 
-	// ── Step 3: Send a plain deterministic chat message ────────────────────
+	// ── Step 3: Send a deterministic chat with a real search embed ─────────
+	const sharedChatMarker = "Search on the web for 'Berlin weather'";
 	await sendMessage(
 		page,
-		withMockMarker('What is the capital of France?', 'chat_flow_capital'),
+		withMockMarker(sharedChatMarker, 'share_embed_flow'),
 		logCheckpoint,
 		takeStepScreenshot,
 		'share-chat'
@@ -112,6 +131,9 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	// ── Step 4: Wait for AI response ───────────────────────────────────────
 	logCheckpoint('Waiting for assistant response...');
 	await waitForAssistantMessage(page, { which: 'last', logCheckpoint });
+	await expect(
+		page.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]').first()
+	).toBeVisible({ timeout: 45000 });
 	await expect(page.getByTestId('chat-header-title')).not.toContainText(/processing|untitled/i, { timeout: 30000 });
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 	const chatIdMatch = page.url().match(/chat-id=([a-zA-Z0-9-]+)/);
@@ -173,6 +195,94 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	expect(sharedMessages.messages?.length ?? 0).toBeGreaterThan(0);
 	expect(sharedMessages.messages?.some((message: any) => String(message.message_id || '').startsWith('dummy-'))).toBe(false);
 	logCheckpoint('Generated chat share link, QR code, and revealed URL verified in browser automation.');
+
+	// ── Step 6: Generate a report-context link from the Report Issue form ──
+	// Storage and worker delivery are covered by report-issue-flow.spec.ts in
+	// the isolated object-storage profile. This AI-fixture profile keeps the
+	// report endpoint local to the browser so it can prove that the exact link
+	// produced by the report form decrypts both messages and embeds.
+	const reportPayloads: Array<Record<string, unknown>> = [];
+	await page.route('**/v1/settings/issues', async (route: any) => {
+		if (route.request().method() !== 'POST') {
+			await route.continue();
+			return;
+		}
+		reportPayloads.push(route.request().postDataJSON());
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				message: 'Issue report submitted successfully',
+				issue_id: '00000000-0000-4000-8000-000000000001',
+				short_issue_id: 'ABCDE',
+				screenshot_uploaded: false,
+			}),
+		});
+	});
+	await navigateToReportIssue(page);
+	await expect(page.locator('#share-chat-toggle')).toBeChecked();
+	await page.getByTestId('report-issue-title').fill('Shared chat decryption verification');
+	await page.evaluate((marker: string) => {
+		console.warn(
+			'[ReportIssueRedactionProbe]',
+			marker,
+			'https://app.example/share/chat/example#key=secret-report-share-key-material',
+		);
+	}, sharedChatMarker);
+	const reportMetadataResponsePromise = page.waitForResponse(
+		(response: any) =>
+			response.url().includes('/v1/share/chat/metadata') &&
+			response.request().method() === 'POST',
+		{ timeout: 30000 }
+	);
+	await page.getByTestId('report-issue-submit').click();
+	const reportMetadataResponse = await reportMetadataResponsePromise;
+	expect(reportMetadataResponse.ok()).toBe(true);
+	await expect(page.getByTestId('report-issue-confirmation')).toBeVisible({ timeout: 10000 });
+	expect(reportPayloads).toHaveLength(1);
+	const reportPayload = reportPayloads[0];
+	const reportShareUrl = String(reportPayload.chat_or_embed_url ?? '');
+	expect(reportShareUrl).toContain(`/share/chat/${activeChatId}#key=`);
+	expect(String(reportPayload.last_messages_html ?? '')).toContain(sharedChatMarker);
+	expect(String(reportPayload.console_logs ?? '')).not.toContain(sharedChatMarker);
+	expect(String(reportPayload.console_logs ?? '')).not.toContain('secret-report-share-key-material');
+	expect(String(reportPayload.console_logs ?? '')).toContain('[CHAT-CONTENT-REDACTED]');
+	expect(String(reportPayload.console_logs ?? '')).toContain('[SHARE-KEY-REDACTED]');
+
+	const viewerContext = await browser.newContext();
+	try {
+		const viewerPage = await viewerContext.newPage();
+		await viewerPage.goto(reportShareUrl, { waitUntil: 'domcontentloaded' });
+		await expect(viewerPage).toHaveURL(new RegExp(`#chat-id=${activeChatId}(?:&|$)`), {
+			timeout: 45000,
+		});
+		await expect(
+			viewerPage.getByTestId('message-user').filter({ hasText: sharedChatMarker }),
+		).toBeVisible({ timeout: 45000 });
+		await expect(viewerPage.getByText('[Content decryption failed]')).toHaveCount(0);
+		await expect(
+			viewerPage.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]').first(),
+		).toBeVisible({ timeout: 45000 });
+		await expect(viewerPage.getByTestId('embed-error-banner')).toHaveCount(0);
+		logCheckpoint('Report-generated share link decrypted messages and embeds in a fresh browser.');
+	} finally {
+		await viewerContext.close();
+	}
+
+	// ── Step 7: Explicit opt-out omits every plaintext/chat-link field ────
+	await page.getByTestId('report-issue-submit-another').click();
+	const shareChatToggle = page.locator('#share-chat-toggle');
+	await expect(shareChatToggle).toBeChecked();
+	await shareChatToggle.uncheck();
+	await expect(shareChatToggle).not.toBeChecked();
+	await page.getByTestId('report-issue-title').fill('Report without shared chat context');
+	await page.getByTestId('report-issue-submit').click();
+	await expect(page.getByTestId('report-issue-confirmation')).toBeVisible({ timeout: 10000 });
+	expect(reportPayloads).toHaveLength(2);
+	expect(reportPayloads[1].chat_or_embed_url).toBeNull();
+	expect(reportPayloads[1].last_messages_html).toBeNull();
+	logCheckpoint('Report opt-out omitted both the shared URL and rendered message HTML.');
 
 	logCheckpoint('Share chat flow test completed successfully.');
 });
