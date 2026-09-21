@@ -654,9 +654,9 @@ def enqueue_submission(
     supersede: bool = True,
     prepared_builds: bool = False,
 ) -> list[dict]:
-    """Split E2Es; enable private shared preparation only for explicit canaries."""
+    """Split E2Es and optionally attach exact private shared preparation."""
     if prepared_builds and (source_root is None or mode not in ("e2e", "visual-smoke")):
-        raise ValueError("Prepared-build canaries require an E2E/visual source root")
+        raise ValueError("Prepared builds require an E2E/visual source root")
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
     if mode in ("component", "e2e") and not selections:
         raise ValueError("Browser requests require explicit specs")
@@ -668,10 +668,8 @@ def enqueue_submission(
     preparation = None
     # Public Actions artifacts must never carry unpublished build output.
     # GitHub.dispatch issues private-bucket capabilities before any preparation.
-    # Keep ordinary tests on the existing isolated cold path until the schema
-    # restore and two-consumer reuse canary is green. Do not make unfinished
-    # preparation a mandatory dependency of every E2E or silently credit a failed
-    # preparation run as successful coverage.
+    # Preparation failure is a hard dependency failure; never silently credit a
+    # consumer that did not run as successful coverage.
     if prepared_builds:
         try:
             from scripts.ci_artifacts import preparation_key
@@ -772,8 +770,9 @@ def main():
     submit.add_argument("--attempt", default="")
     submit.add_argument(
         "--prepared-builds",
-        action="store_true",
-        help="Opt into the private prepared-build canary; ordinary E2Es use isolated cold setup",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Reuse exact private prepared builds (default); use --no-prepared-builds for a cold-path diagnostic",
     )
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""

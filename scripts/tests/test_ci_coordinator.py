@@ -326,7 +326,7 @@ def test_prepared_canary_rejects_component_mode(tmp_path):
     import pytest
 
     queue = Queue(tmp_path / "queue.db")
-    with pytest.raises(ValueError, match="Prepared-build canaries"):
+    with pytest.raises(ValueError, match="Prepared builds"):
         enqueue_submission(
             queue, "owner", "a" * 40, ["components/one.spec.ts"], "component",
             source_root=tmp_path, prepared_builds=True,

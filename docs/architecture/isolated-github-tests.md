@@ -1,6 +1,6 @@
 # Isolated GitHub application tests
 
-Implementation status: core profiles are admitted; unsupported profiles remain held. Fair admission is active. Shared preparation is implemented but opt-in only (`submit --prepared-builds`) pending successful schema-restore and two-consumer proof; ordinary E2Es retain independent cold setup. Live evidence is tracked in `docs/plans/isolated-github-tests/efficiency-verification-2026-09-20.md`. A component pass does not certify a full application journey.
+Implementation status: core profiles are admitted; unsupported profiles remain held. Fair admission is active. Shared exact-source preparation is the default for E2E and visual-smoke submissions after successful schema-restore and two-consumer proof. `submit --no-prepared-builds` retains the independent cold path for diagnostics. Live evidence is tracked in `docs/plans/isolated-github-tests/efficiency-verification-2026-09-20.md`. A component pass does not certify a full application journey.
 
 ## Execution and ownership
 
@@ -97,10 +97,9 @@ flowchart LR
   C --> R
 ```
 
-Opted-in E2E canaries (`submit --prepared-builds`) attach to one preparation for
-the exact source and capabilities. This is not yet the default: the schema
-restore equivalence check has failed, and ordinary submissions must not depend
-on that unverified optimization.
+E2E and visual-smoke submissions attach to one preparation for the exact source,
+harness and capabilities by default. `submit --no-prepared-builds` is available
+for a deliberate cold-path diagnostic.
 Consumers download only that successful producer run's artifact;
 they verify the manifest, source/tree, harness, build contract and content hashes.
 Published compatible images use immutable digests. Cache misses build once and

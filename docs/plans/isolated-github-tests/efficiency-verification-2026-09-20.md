@@ -96,14 +96,23 @@ and two-consumer reuse are still unverified. Its only public result artifact
 contained `ci-environment.json` and `ci-runtime-images.json`, with no preparation
 bundle or Docker build record.
 
-At closeout, shared preparation is an explicit `ci_coordinator.py submit
---prepared-builds` canary, not the default. Ordinary E2E and visual-smoke requests
-use the existing independent cold-setup path, so this unverified optimization
-does not block other debugging work. This is a safety rollback, not a completed
-E2E speedup. Private failure diagnostics are implemented and unit-tested, but no
-additional full rebuild was launched after the user requested a prompt finish.
-The next R2 step is one opted-in diagnostic run, inspect the private SQL report,
-then a targeted fix and two-consumer proof before enabling shared preparation.
+The September 21 follow-up completed R2. The schema mismatch was an equivalent
+PostgreSQL partial-index text-array rendering; narrow index-line normalization
+now passes two fresh restore consumers. Run `35595601411` produced the complete
+private v2 web/preview/CLI bundle in 4m49s of runner time while reusing all
+backend/schema images. Runs `35596093422` and `35596097182` then consumed that
+same exact source and pinned harness in parallel. Both skipped UI generation,
+web build, CLI build and every Docker build; both started separate containers,
+databases and accounts; both selected tests passed with zero skipped, unexpected
+or flaky tests. Consumer runner time was 4m42s and 4m40s. The first batch's
+request-to-completion time was about 10m59s including a 6m07s preparation wait;
+later tests on the same exact source reuse the successful producer directly.
+
+Shared preparation is now the default for coordinator and dispatch-wrapper E2E
+requests. `--no-prepared-builds` retains an explicit cold diagnostic path. The
+schema-normalization error reported by older chats came from pre-fix harness run
+`35523274307`; it is not a product-test failure and is superseded by the green
+v3 restore and two-consumer evidence above.
 
 ## Debugging workflow trial
 
