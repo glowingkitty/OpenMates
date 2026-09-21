@@ -51,24 +51,26 @@ for (const phone of [false, true]) {
     const root = page.getByTestId('newsroom-surface');
     await expect(root).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Introducing: Workflow Automation' })).toBeVisible();
-    if (phone) {
-      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
-      await page.getByTestId('sidebar-toggle').click();
-      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
-      await expect(page.getByTestId('sidebar-toggle')).toHaveAttribute('aria-expanded', 'true');
-      await page.getByTestId('sidebar-toggle').click();
-      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
-    } else {
-      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
-      await page.getByTestId('sidebar-toggle').click();
-      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
-      await page.getByTestId('sidebar-toggle').click();
-      await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
-    }
+    await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
+    await page.getByTestId('sidebar-toggle').click();
+    await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
+    await expect(page.getByTestId('sidebar-toggle')).toHaveAttribute('aria-expanded', 'true');
+    await page.getByTestId('sidebar-search').click();
+    await expect(page.getByTestId('sidebar-search-input')).toBeFocused();
+    await page.getByTestId('sidebar-search-input').fill('Health');
+    await expect(page.getByRole('complementary', { name: 'Newsroom archive' }).getByText('The Health app, redesigned')).toBeVisible();
+    await expect(page.getByRole('complementary', { name: 'Newsroom archive' }).getByText('New skills for the Code app')).toHaveCount(0);
+    await page.getByTestId('sidebar-toggle').click();
+    await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
     const featuredCard = page.getByTestId('newsroom-card-health-app-redesigned');
     const standardCard = page.getByTestId('newsroom-card-new-code-skills');
     await expect(featuredCard).toBeVisible();
     await expect(standardCard).toBeVisible();
+    await expect(page.getByTestId('newsroom-card-introducing-teams')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Show more' }).click();
+    await expect(page.getByTestId('newsroom-card-introducing-teams')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Show more' })).toHaveCount(0);
+    await root.locator('.publication-scroll').evaluate((element) => { element.scrollTop = 0; });
     expect((await featuredCard.boundingBox())?.height).toBeGreaterThan(200);
     expect((await standardCard.boundingBox())?.height).toBeGreaterThan(300);
     const geometry = await root.evaluate((element) => {
@@ -101,6 +103,10 @@ for (const phone of [false, true]) {
     await search.fill('Health');
     await expect(featuredCard).toBeVisible();
     await expect(page.getByTestId('newsroom-card-new-code-skills')).toHaveCount(0);
+    await search.fill('appointments');
+    await expect(page.getByTestId('newsroom-card-workflow-social')).toBeVisible();
+    await expect(featuredCard).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Press coverage' })).toHaveCount(0);
     await proof.assert('newsroom-index', async () => {
       expect(await root.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     });
@@ -110,6 +116,13 @@ for (const phone of [false, true]) {
     for (const variant of ['Blog', 'Blog post']) {
       await page.goto(preview(width, variant), { waitUntil: 'networkidle' });
       await expect(page.getByTestId('newsroom-surface')).toHaveAttribute('data-view', variant === 'Blog' ? 'blog' : 'blog-post');
+      if (variant === 'Blog post') {
+        await expect(page.getByText('Marco', { exact: true })).toBeVisible();
+        await expect(page.getByText('Creator of OpenMates.', { exact: true })).toBeVisible();
+        await expect(page.locator('.article-body')).toHaveCSS('user-select', 'text');
+        await expect(page.locator('.article-byline img.avatar')).toHaveAttribute('src', '/favicon.svg');
+        await expect(page.getByRole('heading', { name: 'More from OpenMates' })).toHaveCount(0);
+      }
       await testInfo.attach(`${variant}-${device}`, { body: await page.screenshot(), contentType: 'image/png' });
     }
 

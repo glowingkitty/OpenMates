@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import type { NewsroomItem } from "./types";
 
   interface Props {
@@ -10,12 +11,41 @@
   }
 
   let { label, latestLabel, items, onOpen, onClose }: Props = $props();
+  let searchOpen = $state(false);
+  let searchTerm = $state("");
+  let searchInput = $state<HTMLInputElement>();
+  const filteredItems = $derived.by(() => {
+    const query = searchTerm.trim().toLocaleLowerCase();
+    if (!query) return items;
+    return items.filter((item) =>
+      `${item.title} ${item.excerpt} ${item.eyebrow}`
+        .toLocaleLowerCase()
+        .includes(query),
+    );
+  });
+
+  async function toggleSearch() {
+    searchOpen = !searchOpen;
+    if (!searchOpen) {
+      searchTerm = "";
+      return;
+    }
+    await tick();
+    searchInput?.focus();
+  }
 </script>
 
 <aside class="publication-sidebar" aria-label={`${label} archive`}>
   <header>
-    <button type="button" class="sidebar-search" aria-label={`Search ${label}`}>
-      <span class="clickable-icon icon_search" aria-hidden="true"></span>
+    <button
+      type="button"
+      class="sidebar-search"
+      aria-label={`Search ${label}`}
+      data-testid="sidebar-search"
+      aria-expanded={searchOpen}
+      onclick={toggleSearch}
+    >
+      <span class={`clickable-icon icon_${searchOpen ? "close" : "search"}`} aria-hidden="true"></span>
     </button>
     <button
       type="button"
@@ -30,9 +60,20 @@
   <div class="sidebar-title">
     <strong>{label}</strong><span>{latestLabel}</span>
   </div>
+  {#if searchOpen}
+    <input
+      class="sidebar-search-input"
+      data-testid="sidebar-search-input"
+      type="search"
+      placeholder={`Search ${label}`}
+      aria-label={`Search ${label}`}
+      bind:this={searchInput}
+      bind:value={searchTerm}
+    />
+  {/if}
   <nav>
     <span class="date-label">Today</span>
-    {#each items.slice(0, 3) as item, index (item.id)}
+    {#each filteredItems.slice(0, 3) as item, index (item.id)}
       <button
         class:active={index === 0}
         type="button"
@@ -52,7 +93,7 @@
       </button>
     {/each}
     <span class="date-label">Earlier</span>
-    {#each items.slice(3) as item (item.id)}
+    {#each filteredItems.slice(3) as item (item.id)}
       <button type="button" onclick={() => onOpen(item)}>
         <span class="item-icon" aria-hidden="true"
           >{item.kind === "blog"
@@ -119,6 +160,24 @@
     font-size: var(--font-size-tiny);
   }
 
+  .sidebar-search-input {
+    box-sizing: border-box;
+    width: calc(100% - 2 * var(--spacing-10));
+    min-height: 2.5rem;
+    margin: 0 var(--spacing-10) var(--spacing-4);
+    padding: 0 var(--spacing-5);
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-full);
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
+    font: inherit;
+  }
+
+  .sidebar-search-input:focus-visible {
+    outline: 0.125rem solid var(--color-primary-start);
+    outline-offset: 0.125rem;
+  }
+
   nav {
     display: grid;
     min-height: 0;
@@ -180,9 +239,4 @@
     font-size: var(--font-size-tiny);
   }
 
-  @media (min-width: 731px) {
-    .sidebar-close {
-      display: none;
-    }
-  }
 </style>

@@ -27,6 +27,12 @@ const RELEASE_SLUGS = new Set([
 	'introducing-openmates-v011'
 ]);
 
+const RELEASE_FALLBACK_MEDIA: NewsroomMediaSource = {
+	type: 'image',
+	url: '/publications/openmates-ui-fallback.png',
+	alt: 'OpenMates web app showing the daily inspiration interface'
+};
+
 interface LocalizedCopy {
 	title: string;
 	description: string;
@@ -106,7 +112,13 @@ function newsRecords(locale: ServerContentLocale): PublicationRecord[] {
 						posterUrl: thumbnailUrl,
 						alt: `${resolveI18nKeyForLocale(chat.title, locale)} video`
 					}
-					: undefined
+					: thumbnailUrl
+						? {
+							type: 'image' as const,
+							url: thumbnailUrl,
+							alt: `${resolveI18nKeyForLocale(chat.title, locale)} screenshot`
+						}
+						: RELEASE_FALLBACK_MEDIA
 			};
 		})
 		.sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
@@ -188,7 +200,7 @@ function toHero(record: PublicationRecord, locale: PublicPublicationLocale): New
 function toArticle(record: PublicationRecord, locale: PublicPublicationLocale): NewsroomArticleContent {
 	return {
 		byline: record.kind === 'blog'
-			? (locale === 'de' ? 'Von OpenMates' : 'Written by OpenMates')
+			? (locale === 'de' ? 'Marco\nGründer von OpenMates.' : 'Marco\nCreator of OpenMates.')
 			: (locale === 'de' ? 'OpenMates Newsroom · Berlin' : 'OpenMates newsroom · Berlin, Germany'),
 		publishedLabel: formatDate(record.publishedAt, locale),
 		intro: record.copy.description,
@@ -206,10 +218,10 @@ const EMPTY_ARTICLE: NewsroomArticleContent = {
 function labels(locale: PublicPublicationLocale) {
 	return locale === 'de'
 		? {
-			brand: 'OpenMates', newsLabel: 'Newsroom', blogLabel: 'Blog', openAppLabel: 'Web-App öffnen', tryItLabel: 'Ausprobieren', searchLabel: 'Suchen', latestNewsLabel: 'Neueste Meldungen', latestBlogLabel: 'Neueste Blogbeiträge', socialLabel: 'Social Media', coverageLabel: 'Pressestimmen', morePostsLabel: 'Weitere Beiträge', relatedLabel: 'Mehr von OpenMates', pressKitLabel: 'Pressemappe herunterladen', pressInquiryLabel: 'Presseanfragen', subscribeLabel: 'News abonnieren', followLabel: 'Folge uns', emptyStateLabel: 'Keine passenden Beiträge.', showAllLabel: 'Alle anzeigen', copyLabel: 'Kopieren', previousMediaLabel: 'Vorheriges Medium', nextMediaLabel: 'Nächstes Medium', articleMediaLabel: 'Artikelmedium', closeSocialLabel: 'Social-Media-Beitrag schließen', originalPostNavLabel: 'Originalbeitrag öffnen', releaseContactLabel: 'Für weitere Fragen: press@openmates.org', blogContactLabel: 'Fragen oder Feedback? marco@openmates.org'
+			brand: 'OpenMates', newsLabel: 'Newsroom', blogLabel: 'Blog', openAppLabel: 'Web-App öffnen', tryItLabel: 'Ausprobieren', searchLabel: 'Suchen', latestNewsLabel: 'Neueste Meldungen', latestBlogLabel: 'Neueste Blogbeiträge', socialLabel: 'Social Media', coverageLabel: 'Pressestimmen', morePostsLabel: 'Weitere Beiträge', moreBlogPostsLabel: 'Weitere Blogbeiträge', pressKitLabel: 'Pressemappe herunterladen', pressInquiryLabel: 'Presseanfragen', subscribeLabel: 'News abonnieren', followLabel: 'Folge uns', emptyStateLabel: 'Keine passenden Beiträge.', showMoreLabel: 'Mehr anzeigen', copyLabel: 'Kopieren', previousMediaLabel: 'Vorheriges Medium', nextMediaLabel: 'Nächstes Medium', articleMediaLabel: 'Artikelmedium', closeSocialLabel: 'Social-Media-Beitrag schließen', originalPostNavLabel: 'Originalbeitrag öffnen', releaseContactLabel: 'Für weitere Fragen: press@openmates.org', blogContactLabel: 'Fragen oder Feedback? marco@openmates.org'
 		}
 		: {
-			brand: 'OpenMates', newsLabel: 'Newsroom', blogLabel: 'Blog', openAppLabel: 'Open web app', tryItLabel: 'Try it out', searchLabel: 'Search', latestNewsLabel: 'Latest news', latestBlogLabel: 'Latest blog posts', socialLabel: 'Social media', coverageLabel: 'Press coverage', morePostsLabel: 'More posts', relatedLabel: 'More from OpenMates', pressKitLabel: 'Download press kit', pressInquiryLabel: 'Press inquiries', subscribeLabel: 'Subscribe to news', followLabel: 'Follow us', emptyStateLabel: 'No matching posts.', showAllLabel: 'Show all', copyLabel: 'Copy', previousMediaLabel: 'Previous media', nextMediaLabel: 'Next media', articleMediaLabel: 'Article media', closeSocialLabel: 'Close social post', originalPostNavLabel: 'Open original post', releaseContactLabel: 'For further questions, contact press@openmates.org', blogContactLabel: 'Questions or feedback? marco@openmates.org'
+			brand: 'OpenMates', newsLabel: 'Newsroom', blogLabel: 'Blog', openAppLabel: 'Open web app', tryItLabel: 'Try it out', searchLabel: 'Search', latestNewsLabel: 'Latest news', latestBlogLabel: 'Latest blog posts', socialLabel: 'Social media', coverageLabel: 'Press coverage', morePostsLabel: 'More posts', moreBlogPostsLabel: 'More blog posts', pressKitLabel: 'Download press kit', pressInquiryLabel: 'Press inquiries', subscribeLabel: 'Subscribe to news', followLabel: 'Follow us', emptyStateLabel: 'No matching posts.', showMoreLabel: 'Show more', copyLabel: 'Copy', previousMediaLabel: 'Previous media', nextMediaLabel: 'Next media', articleMediaLabel: 'Article media', closeSocialLabel: 'Close social post', originalPostNavLabel: 'Open original post', releaseContactLabel: 'For further questions, contact press@openmates.org', blogContactLabel: 'Questions or feedback? marco@openmates.org'
 		};
 }
 
@@ -304,7 +316,9 @@ export function loadPublicationPage(args: {
 			datePublished: selected.publishedAt,
 			dateModified: selected.updatedAt,
 			inLanguage: locale,
-			author: { '@type': 'Organization', name: 'OpenMates', url: url.origin },
+			author: selected.kind === 'blog'
+				? { '@type': 'Person', name: 'Marco', url: `${url.origin}/intro/who-develops-openmates` }
+				: { '@type': 'Organization', name: 'OpenMates', url: url.origin },
 			publisher: { '@type': 'Organization', name: 'OpenMates', url: url.origin },
 			mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
 			articleBody: selected.copy.bodyMarkdown,

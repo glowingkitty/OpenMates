@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { tick } from "svelte";
   import NewsroomMedia from "./NewsroomMedia.svelte";
   import PublicationHeader from "./PublicationHeader.svelte";
   import PublicationCard from "./PublicationCard.svelte";
@@ -25,8 +25,11 @@
 
   let searchOpen = $state(false);
   let searchTerm = $state("");
+  let searchInput = $state<HTMLInputElement>();
   let activeSlide = $state(0);
-  let sidebarOpen = $state(true);
+  let sidebarOpen = $state(false);
+  let visiblePrimaryCount = $state(3);
+  let visibleRelatedCount = $state(2);
 
   const isBlogSurface = $derived(view === "blog" || view === "blog-post");
   const isIndex = $derived(view === "news" || view === "blog");
@@ -35,9 +38,6 @@
   );
   const pageLabel = $derived(isBlogSurface ? data.blogLabel : data.newsLabel);
   const hero = $derived(isBlogSurface ? data.heroBlog : data.heroNews);
-  const primaryItems = $derived(
-    isBlogSurface ? data.blogItems : data.newsItems,
-  );
   const selectedArticle = $derived(
     view === "blog-post" ? data.blogArticle : data.releaseArticle,
   );
@@ -45,19 +45,59 @@
     isBlogSurface ? data.latestBlogLabel : data.latestNewsLabel,
   );
 
-  const filteredPrimaryItems = $derived.by(() => {
-    const query = searchTerm.trim().toLocaleLowerCase(locale);
-    if (!query) return primaryItems;
-    return primaryItems.filter((item) =>
-      `${item.eyebrow} ${item.title} ${item.excerpt}`
-        .toLocaleLowerCase(locale)
-        .includes(query),
-    );
-  });
+  const normalizedQuery = $derived(searchTerm.trim().toLocaleLowerCase(locale));
+  const matchesSearch = (item: NewsroomItem) =>
+    !normalizedQuery ||
+    `${item.eyebrow} ${item.title} ${item.excerpt} ${item.bodyText ?? ""} ${item.author ?? ""}`
+      .toLocaleLowerCase(locale)
+      .includes(normalizedQuery);
+  const filteredNewsItems = $derived(data.newsItems.filter(matchesSearch));
+  const filteredBlogItems = $derived(data.blogItems.filter(matchesSearch));
+  const filteredSocialItems = $derived(data.socialItems.filter(matchesSearch));
+  const filteredCoverageItems = $derived(data.coverageItems.filter(matchesSearch));
+  const filteredPrimaryItems = $derived.by(() =>
+    isBlogSurface ? filteredBlogItems : filteredNewsItems,
+  );
+  const visiblePrimaryItems = $derived(
+    filteredPrimaryItems.slice(0, visiblePrimaryCount),
+  );
+  const hasSearchResults = $derived(
+    filteredNewsItems.length +
+      filteredBlogItems.length +
+      filteredSocialItems.length +
+      filteredCoverageItems.length >
+      0,
+  );
+  const relatedItems = $derived(
+    view === "release" ? data.newsItems.slice(1) : data.blogItems.slice(1),
+  );
+  const visibleRelatedItems = $derived(
+    relatedItems.slice(0, visibleRelatedCount),
+  );
 
-  onMount(() => {
-    sidebarOpen = window.matchMedia("(min-width: 731px)").matches;
-  });
+  async function showSearch() {
+    searchOpen = true;
+    sidebarOpen = false;
+    await tick();
+    searchInput?.focus();
+  }
+
+  async function toggleSearch() {
+    if (searchOpen) {
+      searchOpen = false;
+      searchTerm = "";
+      return;
+    }
+    await showSearch();
+  }
+
+  function showMorePrimary() {
+    visiblePrimaryCount += 2;
+  }
+
+  function showMoreRelated() {
+    visibleRelatedCount += 2;
+  }
 
   function act(type: NewsroomAction["type"], itemId?: string) {
     onAction({ type, itemId });
@@ -102,11 +142,14 @@
 {#snippet articleBody(article: NewsroomArticleContent, isRelease: boolean)}
   <article class="article-body">
     <header class="article-byline">
-      <span class="avatar" aria-hidden="true">OM</span>
-      <span
-        ><strong>{article.byline}</strong><small>{article.publishedLabel}</small
-        ></span
-      >
+      <img class="avatar" src="/favicon.svg" alt="" aria-hidden="true" />
+      <span>
+        <strong>{article.byline.split("\n")[0]}</strong>
+        {#if article.byline.split("\n")[1]}
+          <span class="author-role">{article.byline.split("\n")[1]}</span>
+        {/if}
+        <small>{article.publishedLabel}</small>
+      </span>
     </header>
     <p class="article-intro">{article.intro}</p>
     {#if article.bodyHtml}
@@ -208,7 +251,7 @@
             </div>
             <div class="social-detail-copy">
               <div class="author-row">
-                <span class="avatar" aria-hidden="true">OM</span><strong
+                <img class="avatar" src="/favicon.svg" alt="" aria-hidden="true" /><strong
                   >OpenMates</strong
                 >
               </div>
@@ -265,19 +308,13 @@
                 <div class="section-heading section-heading-with-actions">
                   <h2>{latestLabel}</h2>
                   <div class="section-actions">
-                    <div class:open={searchOpen} class="search-control">
-                      {#if searchOpen}<input
-                          data-testid="newsroom-search-input"
-                          type="search"
-                          placeholder={data.searchLabel}
-                          bind:value={searchTerm}
-                        />{/if}
+                    <div class="search-control">
                       <button
                         data-testid="newsroom-search-toggle"
                         type="button"
                         aria-label={data.searchLabel}
                         aria-expanded={searchOpen}
-                        onclick={() => (searchOpen = !searchOpen)}
+                        onclick={toggleSearch}
                       >
                         <span
                           class={`clickable-icon icon_${searchOpen ? "close" : "search"}`}
@@ -299,10 +336,22 @@
                     {/if}
                   </div>
                 </div>
+                {#if searchOpen}
+                  <div class="search-field-row">
+                    <input
+                      data-testid="newsroom-search-input"
+                      type="search"
+                      placeholder={data.searchLabel}
+                      aria-label={data.searchLabel}
+                      bind:this={searchInput}
+                      bind:value={searchTerm}
+                    />
+                  </div>
+                {/if}
 
                 {#if filteredPrimaryItems.length}
                   <div class="publication-grid">
-                    {#each filteredPrimaryItems as item, index (item.id)}
+                    {#each visiblePrimaryItems as item, index (item.id)}
                       <PublicationCard
                         {item}
                         variant={index === 0 ? "featured" : "standard"}
@@ -310,61 +359,76 @@
                       />
                     {/each}
                   </div>
-                {:else}<p class="empty-state">{data.emptyStateLabel}</p>{/if}
+                {:else if !hasSearchResults}<p class="empty-state">{data.emptyStateLabel}</p>{/if}
 
-                {#if !isBlogSurface}
+                {#if filteredPrimaryItems.length > visiblePrimaryCount || !isBlogSurface}
                   <div class="center-actions">
-                    {@render actionButton("grid", data.showAllLabel, "open-item")}
-                    {@render actionButton(
-                      "announcement",
-                      data.subscribeLabel,
-                      "subscribe-news",
-                    )}
+                    {#if filteredPrimaryItems.length > visiblePrimaryCount}
+                      <button type="button" class="utility-action" onclick={showMorePrimary}>
+                        <span class="clickable-icon icon_grid" aria-hidden="true"></span>
+                        <span>{data.showMoreLabel}</span>
+                      </button>
+                    {/if}
+                    {#if !isBlogSurface}
+                      {@render actionButton(
+                        "announcement",
+                        data.subscribeLabel,
+                        "subscribe-news",
+                      )}
+                    {/if}
                   </div>
                 {/if}
               </section>
 
-              <section class="content-section">
-                {@render sectionTitle(data.socialLabel)}
-                {@render socialRail()}
-                <div class="follow-row">
-                  <span>{data.followLabel}:</span><strong>Instagram</strong
-                  ><strong>Mastodon</strong><strong>LinkedIn</strong>
-                </div>
-              </section>
+              {#if filteredSocialItems.length}
+                <section class="content-section">
+                  {@render sectionTitle(data.socialLabel)}
+                  {@render socialRail(filteredSocialItems)}
+                  <div class="follow-row">
+                    <span>{data.followLabel}:</span><strong>Instagram</strong
+                    ><strong>Mastodon</strong><strong>LinkedIn</strong>
+                  </div>
+                </section>
+              {/if}
 
               {#if isBlogSurface}
-                <section class="content-section">
-                  {@render sectionTitle(data.latestNewsLabel)}
-                  <div class="publication-grid compact-grid">
-                    {#each data.newsItems.slice(0, 3) as item, index (item.id)}<PublicationCard
-                        {item}
-                        variant={index === 0 ? "featured" : "compact"}
-                        onOpen={openItem}
-                      />{/each}
-                  </div>
-                </section>
+                {#if filteredNewsItems.length}
+                  <section class="content-section">
+                    {@render sectionTitle(data.latestNewsLabel)}
+                    <div class="publication-grid compact-grid">
+                      {#each filteredNewsItems.slice(0, 3) as item, index (item.id)}<PublicationCard
+                          {item}
+                          variant={index === 0 ? "featured" : "compact"}
+                          onOpen={openItem}
+                        />{/each}
+                    </div>
+                  </section>
+                {/if}
               {:else}
-                <section class="content-section">
-                  {@render sectionTitle(data.coverageLabel)}
-                  <div class="publication-grid compact-grid">
-                    {#each data.coverageItems as item (item.id)}<PublicationCard
-                        {item}
-                        variant="compact"
-                        onOpen={openItem}
-                      />{/each}
-                  </div>
-                </section>
-                <section class="content-section">
-                  {@render sectionTitle(data.latestBlogLabel)}
-                  <div class="publication-grid compact-grid">
-                    {#each data.blogItems.slice(0, 2) as item (item.id)}<PublicationCard
-                        {item}
-                        variant="compact"
-                        onOpen={openItem}
-                      />{/each}
-                  </div>
-                </section>
+                {#if filteredCoverageItems.length}
+                  <section class="content-section">
+                    {@render sectionTitle(data.coverageLabel)}
+                    <div class="publication-grid compact-grid">
+                      {#each filteredCoverageItems as item (item.id)}<PublicationCard
+                          {item}
+                          variant="compact"
+                          onOpen={openItem}
+                        />{/each}
+                    </div>
+                  </section>
+                {/if}
+                {#if filteredBlogItems.length}
+                  <section class="content-section">
+                    {@render sectionTitle(data.latestBlogLabel)}
+                    <div class="publication-grid compact-grid">
+                      {#each filteredBlogItems.slice(0, 2) as item (item.id)}<PublicationCard
+                          {item}
+                          variant="compact"
+                          onOpen={openItem}
+                        />{/each}
+                    </div>
+                  </section>
+                {/if}
               {/if}
             </div>
           {:else}
@@ -386,18 +450,28 @@
                 </section>
               {/if}
               {@render articleBody(selectedArticle, view === "release")}
-              <section class="content-section related-section">
-                {@render sectionTitle(
-                  view === "release" ? data.latestNewsLabel : data.relatedLabel,
-                )}
-                <div class="publication-grid compact-grid">
-                  {#each view === "release" ? data.newsItems.slice(1, 3) : data.blogItems.slice(1, 3) as item (item.id)}<PublicationCard
-                      {item}
-                      variant="compact"
-                      onOpen={openItem}
-                    />{/each}
-                </div>
-              </section>
+              {#if relatedItems.length}
+                <section class="content-section related-section">
+                  {@render sectionTitle(
+                    view === "release" ? data.latestNewsLabel : data.moreBlogPostsLabel,
+                  )}
+                  <div class="publication-grid compact-grid">
+                    {#each visibleRelatedItems as item (item.id)}<PublicationCard
+                        {item}
+                        variant="compact"
+                        onOpen={openItem}
+                      />{/each}
+                  </div>
+                  {#if relatedItems.length > visibleRelatedCount}
+                    <div class="center-actions">
+                      <button type="button" class="utility-action" onclick={showMoreRelated}>
+                        <span class="clickable-icon icon_grid" aria-hidden="true"></span>
+                        <span>{data.showMoreLabel}</span>
+                      </button>
+                    </div>
+                  {/if}
+                </section>
+              {/if}
             </div>
           {/if}
         </main>
@@ -540,16 +614,25 @@
     display: flex;
     align-items: center;
   }
-  .search-control input {
+  .search-field-row {
+    display: flex;
+    justify-content: flex-end;
+    margin: calc(-1 * var(--spacing-6)) 0 var(--spacing-12);
+  }
+  .search-field-row input {
     box-sizing: border-box;
-    width: 12rem;
+    width: min(100%, 24rem);
     min-height: 2.5rem;
-    margin-right: var(--spacing-3);
     padding: 0 var(--spacing-5);
     border: 1px solid var(--color-grey-30);
     border-radius: var(--radius-full);
     background: var(--color-grey-0);
+    color: var(--color-font-primary);
     font: inherit;
+  }
+  .search-field-row input:focus-visible {
+    outline: 0.125rem solid var(--color-primary-start);
+    outline-offset: 0.125rem;
   }
   .publication-grid {
     display: grid;
@@ -614,6 +697,16 @@
     display: grid;
     gap: var(--spacing-10);
     padding: 0;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+  .article-body :global(*) {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
   }
   .article-body p {
     margin: 0;
@@ -668,16 +761,17 @@
   .article-byline small {
     color: var(--color-font-secondary);
   }
+  .author-role {
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-small);
+  }
   .avatar {
-    display: grid;
     width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 2.75rem;
+    object-fit: cover;
     aspect-ratio: 1;
-    place-items: center;
     border-radius: 50%;
-    background: var(--color-primary);
-    color: #fff;
-    font-size: var(--font-size-tiny);
-    font-weight: 800;
   }
   .slideshow {
     display: grid;
@@ -781,6 +875,8 @@
   .social-detail-copy {
     display: grid;
     gap: var(--spacing-8);
+    user-select: text;
+    -webkit-user-select: text;
   }
   .social-detail-copy h1 {
     margin: 0;
@@ -918,8 +1014,12 @@
     .search-control button span:last-child {
       display: none;
     }
-    .search-control input {
-      width: min(56vw, 13rem);
+    .search-field-row {
+      justify-content: stretch;
+      margin-top: calc(-1 * var(--spacing-5));
+    }
+    .search-field-row input {
+      width: 100%;
     }
     .publication-grid {
       grid-template-columns: 1fr;

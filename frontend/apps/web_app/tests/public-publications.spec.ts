@@ -52,6 +52,27 @@ test.describe('public news, blog, and social publications', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives
+	test('keeps the archive closed initially and searches every publication section', async ({ page }) => {
+		await page.goto('/news', { waitUntil: 'domcontentloaded' });
+		await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
+		await page.getByTestId('sidebar-toggle').click();
+		await page.getByTestId('sidebar-search').click();
+		const sidebarSearch = page.getByTestId('sidebar-search-input');
+		await expect(sidebarSearch).toBeFocused();
+		await sidebarSearch.fill('v0.11');
+		await expect(page.getByRole('complementary', { name: 'Newsroom archive' }).getByText(/v0.11/)).toBeVisible();
+		await page.getByTestId('sidebar-toggle').click();
+		await page.getByTestId('newsroom-search-toggle').click();
+		const search = page.getByTestId('newsroom-search-input');
+		await expect(search).toBeFocused();
+		await search.fill('privacy');
+		await expect(page.getByRole('heading', { name: 'Social media' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Press coverage' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Latest blog posts' })).toBeVisible();
+		await expect(page.getByTestId('newsroom-card-news-introducing-openmates-v011')).toHaveCount(0);
+	});
+
 	// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives,public-publications.seo.crawlable,public-publications.news.released-announcements
 	test('renders localized archives and released announcement details in server HTML', async ({ request }) => {
 		const news = await request.get('/news');
@@ -59,6 +80,8 @@ test.describe('public news, blog, and social publications', () => {
 		const newsHtml = await news.text();
 		expect(newsHtml).toContain('data-testid="newsroom-surface"');
 		expect(newsHtml).toContain('v0.11');
+		expect(newsHtml).toContain('/publications/openmates-ui-fallback.png');
+		expect(newsHtml).not.toContain('Show all');
 		expect(newsHtml).toContain('rel="canonical"');
 		expect(newsHtml).toContain('hreflang="de"');
 		expect(newsHtml).toContain('"@type":"CollectionPage"');
@@ -74,6 +97,9 @@ test.describe('public news, blog, and social publications', () => {
 		const blogHtml = await germanBlog.text();
 		expect(blogHtml).toContain('Datenschutz sollte KI nützlicher machen');
 		expect(blogHtml).toContain('"@type":"BlogPosting"');
+		expect(blogHtml).toContain('Marco');
+		expect(blogHtml).toContain('Gründer von OpenMates.');
+		expect(blogHtml).not.toContain('Mehr von OpenMates');
 
 		const sitemap = await request.get('/sitemap.xml');
 		const sitemapXml = await sitemap.text();

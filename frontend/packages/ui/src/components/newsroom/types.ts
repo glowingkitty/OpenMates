@@ -65,13 +65,13 @@ export interface NewsroomSurfaceData {
   socialLabel: string;
   coverageLabel: string;
   morePostsLabel: string;
-  relatedLabel: string;
+  moreBlogPostsLabel: string;
   pressKitLabel: string;
   pressInquiryLabel: string;
   subscribeLabel: string;
   followLabel: string;
   emptyStateLabel: string;
-  showAllLabel: string;
+  showMoreLabel: string;
   copyLabel: string;
   previousMediaLabel: string;
   nextMediaLabel: string;

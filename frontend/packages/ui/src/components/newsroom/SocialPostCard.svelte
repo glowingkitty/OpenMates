@@ -24,7 +24,7 @@
   />
   <span class="social-overlay">
     <span class="author-row"
-      ><span class="avatar" aria-hidden="true">OM</span><strong
+      ><img class="avatar" src="/favicon.svg" alt="" aria-hidden="true" /><strong
         >{item.author ?? item.eyebrow}</strong
       ></span
     >
@@ -88,15 +88,12 @@
   }
 
   .avatar {
-    display: grid;
     width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 2.25rem;
+    object-fit: cover;
     aspect-ratio: 1;
-    place-items: center;
     border-radius: 50%;
-    background: var(--color-primary);
-    color: #fff;
-    font-size: 0.65rem;
-    font-weight: 800;
   }
 
   .post-title {
