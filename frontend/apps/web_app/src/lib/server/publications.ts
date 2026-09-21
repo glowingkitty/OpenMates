@@ -287,8 +287,13 @@ export function loadPublicationPage(args: {
 		? (locale === 'de' ? 'Einblicke in den Aufbau nützlicher, datenschutzfreundlicher KI-Werkzeuge.' : 'Ideas and lessons from building useful, privacy-focused AI tools.')
 		: (locale === 'de' ? 'Produkt-Releases, Updates, Pressestimmen und offizielle OpenMates-Beiträge.' : 'Product releases, updates, press coverage, and official OpenMates posts.'));
 	const indexRecords = section === 'blog' ? blogRecords(locale) : newsRecords(locale);
-	const selectedImage = selected?.media?.posterUrl
-		?? (selected?.media?.type === 'image' ? selected.media.url : null);
+	const previewRecord = selected ?? indexRecords[0];
+	const titleCardSlugs = new Set(['privacy-as-a-product-feature', 'introducing-openmates-v011']);
+	const selectedImage = previewRecord?.media?.posterUrl
+		?? (previewRecord?.media?.type === 'image' ? previewRecord.media.url : null)
+		?? (previewRecord && titleCardSlugs.has(previewRecord.slug)
+			? `/publications/previews/${previewRecord.slug}-${locale}.jpg`
+			: '/images/og-image.jpg');
 	const selectedImageUrl = selectedImage ? new URL(selectedImage, url.origin).href : null;
 	const jsonLd = selected
 		? {

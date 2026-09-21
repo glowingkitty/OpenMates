@@ -1,6 +1,30 @@
 import { expect, test } from './helpers/cookie-audit';
 
 test.describe('public news, blog, and social publications', () => {
+	// contract-test: direct surface=gui.web assertions=public-publications.seo.crawlable
+	test('sends one article preview with a reachable image to crawlers', async ({ request }) => {
+		for (const path of [
+			'/news/introducing-openmates-v011',
+			'/blog/privacy-as-a-product-feature',
+			'/de/blog/privacy-as-a-product-feature',
+			'/social/workflow-automation-webinar'
+		]) {
+			const response = await request.get(path);
+			expect(response.status()).toBe(200);
+			const html = await response.text();
+			for (const property of ['og:title', 'og:description', 'og:image', 'og:url']) {
+				expect(html.match(new RegExp(`<meta property="${property}"`, 'g'))).toHaveLength(1);
+			}
+			expect(html.match(/<meta name="description"/g)).toHaveLength(1);
+			expect(html).not.toContain('Your AI team for getting things done');
+			const imageUrl = html.match(/<meta property="og:image" content="([^"]+)"/)?.[1];
+			expect(imageUrl).toMatch(/^https?:\/\//);
+			const image = await request.get(imageUrl!);
+			expect(image.status()).toBe(200);
+			expect(image.headers()['content-type']).toMatch(/^image\//);
+		}
+	});
+
 	// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives
 	test('loads publication design tokens on direct visits in light and dark themes', async ({ page }) => {
 		for (const route of ['/news', '/blog', '/social/workflow-automation-webinar']) {
