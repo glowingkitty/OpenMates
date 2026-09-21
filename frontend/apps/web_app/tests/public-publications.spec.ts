@@ -1,6 +1,32 @@
 import { expect, test } from './helpers/cookie-audit';
 
 test.describe('public news, blog, and social publications', () => {
+	// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives
+	test('loads publication design tokens on direct visits in light and dark themes', async ({ page }) => {
+		for (const route of ['/news', '/blog', '/social/workflow-automation-webinar']) {
+			await page.goto(route, { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('newsroom-surface')).toBeVisible();
+			for (const theme of ['light', 'dark']) {
+				await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
+				const styles = await page.getByTestId('newsroom-surface').evaluate((surface) => {
+					const style = getComputedStyle(surface);
+					return {
+						spacing: style.getPropertyValue('--spacing-8').trim(),
+						font: style.getPropertyValue('--font-size-small').trim(),
+						foreground: style.getPropertyValue('--color-font-primary').trim(),
+						background: style.getPropertyValue('--color-grey-0').trim(),
+						gradient: style.getPropertyValue('--gradient-primary').trim()
+					};
+				});
+				for (const value of Object.values(styles)) expect(value).not.toBe('');
+				if (route !== '/social/workflow-automation-webinar') {
+					await expect(page.locator('.publication-hero')).not.toHaveCSS('background-image', 'none');
+					await expect(page.locator('.publication-hero')).not.toHaveCSS('padding-left', '0px');
+				}
+			}
+		}
+	});
+
 	// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives,public-publications.seo.crawlable,public-publications.news.released-announcements
 	test('renders localized archives and released announcement details in server HTML', async ({ request }) => {
 		const news = await request.get('/news');
