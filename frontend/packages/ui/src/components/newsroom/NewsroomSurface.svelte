@@ -400,6 +400,13 @@
     color: var(--color-font-primary);
   }
 
+  /* Full-page previews should use the requested viewport width. The generic
+     capture harness reserves 32px on each side for isolated components. */
+  :global(.capture-mode) .newsroom-shell {
+    width: calc(100% + 4rem);
+    margin: -2rem;
+  }
+
   .sidebar-layer {
     min-width: 0;
     height: 100dvh;
