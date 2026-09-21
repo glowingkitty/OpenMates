@@ -24,8 +24,8 @@ import sys
 import uuid
 
 
-BUCKET_NAME = "openmates-review-media"
-DEV_BUCKET_NAME = "dev-openmates-review-media"
+BUCKET_NAME = "openmates-opencode-response-media"
+DEV_BUCKET_NAME = "dev-openmates-opencode-response-media"
 BUCKET_KEY = "review_media"
 LIFECYCLE_DAYS = 2
 DEFAULT_EXPIRES_SECONDS = 48 * 60 * 60

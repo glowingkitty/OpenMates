@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 2
+version: 3
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -59,9 +59,9 @@ models:
       type: provider_specific_defaults
       required: true
       constraints:
-        simple: {model: google/gemini-3.5-flash-lite, thinking_level: LOW}
-        complex: {model: google/gemini-3.7-flash, thinking_level: MEDIUM}
-        most_demanding: {model: google/gemini-3.7-flash-high, thinking_level: HIGH}
+        simple: {model: google/gemini-3.8-flash, thinking_level: LOW}
+        complex: {model: google/gemini-3.8-flash, thinking_level: MEDIUM}
+        most_demanding: {model: google/gemini-3.8-flash, thinking_level: HIGH}
 
   ModelCatalogEntry:
     identity:
@@ -235,8 +235,8 @@ assertions:
     depends_on: [models.PublicModelCatalog, examples.catalog]
   - id: ai-model-routing.defaults.google-tier-profiles
     type: behavior
-    must: The initial automatic defaults use Gemini 3.5 Flash-Lite with Google LOW thinking for simple, Gemini 3.7 Flash with Google MEDIUM thinking for complex, and the distinct Gemini 3.7 Flash (High) variant with Google HIGH thinking for most-demanding requests, without exposing those thinking levels as a universal user control.
-    depends_on: [models.TierModelPreference.default_profiles, models.ModelCatalogEntry.provider_reasoning, examples.catalog]
+    must: The initial automatic defaults use Gemini 3.8 Flash with Google LOW thinking for simple, MEDIUM thinking for complex, and HIGH thinking for most-demanding requests, without exposing those thinking levels as a universal user control; exact chat selections and exact per-tier user preferences still take precedence.
+    depends_on: [models.TierModelPreference.default_profiles, models.ModelCatalogEntry.provider_reasoning, examples.default_profiles]
   - id: ai-model-routing.chat-selection.encrypted-user-chat-scope
     type: privacy
     must: An exact composer model choice or Auto is stored per authenticated user and chat, is client-side encrypted before durable sync, converges across that user's devices, is restored before the composer presents its selection, and never changes another chat participant's selection.

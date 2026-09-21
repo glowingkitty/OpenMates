@@ -31,8 +31,8 @@ get_allowed_origins = s3_config.get_allowed_origins
 def test_review_media_bucket_is_private_and_short_lived() -> None:
     bucket = BUCKETS["review_media"]
 
-    assert bucket["name"] == "openmates-review-media"
-    assert bucket["dev_name"] == "dev-openmates-review-media"
+    assert bucket["name"] == "openmates-opencode-response-media"
+    assert bucket["dev_name"] == "dev-openmates-opencode-response-media"
     assert bucket["access"] == "private"
     assert bucket["lifecycle_policy"] == 2
     assert bucket["cache_control"] == "private, max-age=172800"
@@ -41,8 +41,8 @@ def test_review_media_bucket_is_private_and_short_lived() -> None:
 
 
 def test_review_media_bucket_gets_cors_for_web_chat() -> None:
-    assert "openmates-review-media" in CORS_ENABLED_BUCKETS
-    assert "dev-openmates-review-media" in CORS_ENABLED_BUCKETS
+    assert "openmates-opencode-response-media" in CORS_ENABLED_BUCKETS
+    assert "dev-openmates-opencode-response-media" in CORS_ENABLED_BUCKETS
 
     dev_origins = get_allowed_origins("development")
 

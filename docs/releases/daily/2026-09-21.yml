@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-21'
-generated_at: '2026-09-21T16:57:08+00:00'
+generated_at: '2026-09-21T19:34:46+00:00'
 range:
   since: 24 hours ago
   until: null
@@ -9,19 +9,19 @@ range:
   to_ref: HEAD
   assume_released: false
 summary:
-  total_commits: 30
+  total_commits: 35
   section_counts:
-    features: 2
-    bug_fixes: 27
+    features: 3
+    bug_fixes: 29
     improvements: 1
-    docs: 0
+    docs: 1
     tests: 0
-    infrastructure: 0
+    infrastructure: 1
     internal: 0
     other: 0
-  newsletter_ready_items: 0
-  user_facing_items: 21
-  dev_only_items: 30
+  newsletter_ready_items: 21
+  user_facing_items: 23
+  dev_only_items: 4
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -169,6 +169,41 @@ feature_availability:
     recommendations.
 sections:
   features:
+  - title: 'feat: use Gemini 3.8 Flash for automatic routing'
+    section: features
+    commits:
+    - d88d76bf6
+    authored_at: '2026-09-21T17:43:03+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/model_routing.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/providers/google.yml
+    - backend/tests/test_ai_model_routing.py
+    - backend/tests/test_model_selection.py
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'feat: publish news blog and social archives'
     section: features
     commits:
@@ -222,16 +257,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: align newsroom previews with Figma shell'
     section: features
     commits:
@@ -246,6 +281,42 @@ sections:
     - frontend/packages/ui/src/components/newsroom/PublicationHero.svelte
     - frontend/packages/ui/src/components/newsroom/PublicationSidebar.svelte
     - frontend/packages/ui/src/components/newsroom/SocialPostCard.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: preserve review media bucket compatibility'
+    section: bug_fixes
+    commits:
+    - 99c6ab220
+    authored_at: '2026-09-21T18:57:47+00:00'
+    changed_paths:
+    - backend/core/api/app/services/s3/config.py
+    - backend/tests/test_review_media_bucket.py
+    - scripts/response_media.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: unblock Python SDK release'
+    section: bug_fixes
+    commits:
+    - c313a92d2
+    authored_at: '2026-09-21T17:55:59+00:00'
+    changed_paths:
+    - packages/openmates-python/tests/test_sdk.py
     release_status: dev_only
     communication_status: dev_only
     newsletter_ready: false
@@ -253,10 +324,9 @@ sections:
     related_features: []
     feature_metadata_changed: false
     rationale:
-    - classified as new features from commit subject/path rules
+    - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - commit is not reachable from main, so it is not newsletter-ready
-  bug_fixes:
   - title: 'fix: deactivate placeholder blog post'
     section: bug_fixes
     commits:
@@ -270,16 +340,16 @@ sections:
     - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
     - frontend/packages/ui/src/components/newsroom/types.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: adopt saved drafts without reloading the composer'
     section: bug_fixes
     commits:
@@ -292,16 +362,16 @@ sections:
     - frontend/packages/ui/src/services/drafts/__tests__/draftCore.test.ts
     - frontend/packages/ui/src/services/drafts/draftCore.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: restore latest news to chat sidebar'
     section: bug_fixes
     commits:
@@ -312,16 +382,16 @@ sections:
     - frontend/packages/ui/src/components/chats/Chats.svelte
     - frontend/packages/ui/src/i18n/sources/chats.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve optional app skills and follow-up mate identity'
     section: bug_fixes
     commits:
@@ -342,9 +412,9 @@ sections:
     - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
     - frontend/packages/ui/src/services/sendersChatMessages.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -359,7 +429,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: align publication UI with approved designs'
     section: bug_fixes
     commits:
@@ -377,16 +447,16 @@ sections:
     - frontend/packages/ui/src/components/newsroom/fixtures.ts
     - frontend/packages/ui/src/components/newsroom/types.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: execute fresh search follow-ups and suppress fabricated tool results'
     section: bug_fixes
     commits:
@@ -402,9 +472,9 @@ sections:
     - backend/tests/test_tool_protocol_guard.py
     - frontend/apps/web_app/tests/skill-news-search.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -419,7 +489,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: isolate issue report storage initialization'
     section: bug_fixes
     commits:
@@ -428,7 +498,7 @@ sections:
     changed_paths:
     - backend/core/api/app/tasks/email_tasks/issue_report_email_task.py
     - backend/tests/test_issue_report_email_task.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -436,7 +506,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve publication sidebar icon masks'
     section: bug_fixes
     commits:
@@ -446,16 +516,16 @@ sections:
     - frontend/apps/web_app/tests/public-publications.spec.ts
     - frontend/packages/ui/src/components/newsroom/PublicationHeader.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: provide article-specific publication link previews'
     section: bug_fixes
     commits:
@@ -471,16 +541,16 @@ sections:
     - frontend/apps/web_app/tests/public-publications.spec.ts
     - scripts/generate_publication_posters.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: load design tokens for standalone publication pages'
     section: bug_fixes
     commits:
@@ -490,16 +560,16 @@ sections:
     - frontend/apps/web_app/tests/public-publications.spec.ts
     - frontend/packages/ui/src/styles/theme.css
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: make issue reports durable and actionable'
     section: bug_fixes
     commits:
@@ -524,16 +594,16 @@ sections:
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: serve publication routes on Vercel'
     section: bug_fixes
     commits:
@@ -541,16 +611,16 @@ sections:
     authored_at: '2026-09-21T14:41:00+00:00'
     changed_paths:
     - frontend/apps/web_app/vercel.json
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: require explicit news search calls'
     section: bug_fixes
     commits:
@@ -561,9 +631,9 @@ sections:
     - backend/apps/ai/processing/search_skill_reliability.py
     - backend/tests/test_news_follow_up_routing.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -578,7 +648,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: include examples in readable specification PDFs'
     section: bug_fixes
     commits:
@@ -588,7 +658,7 @@ sections:
     - scripts/specification_approval_pdf.py
     - scripts/specification_readable_pdf.py
     - scripts/tests/test_specification_readable_pdf.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -596,7 +666,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve explicit news follow-ups'
     section: bug_fixes
     commits:
@@ -609,9 +679,9 @@ sections:
     - backend/tests/test_news_follow_up_routing.py
     - backend/tests/test_preprocessor_skill_resolver.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -626,7 +696,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: recover iPad audio sends and issue diagnostics'
     section: bug_fixes
     commits:
@@ -645,16 +715,16 @@ sections:
     - frontend/packages/ui/src/services/issueReportSubmission.ts
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: localize and preserve assistant speech replay'
     section: bug_fixes
     commits:
@@ -672,9 +742,9 @@ sections:
     - frontend/packages/ui/src/services/__tests__/assistantSpeechPlayback.test.mjs
     - frontend/packages/ui/src/services/assistantSpeechController.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -689,7 +759,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: recover map loading without reloading the app'
     section: bug_fixes
     commits:
@@ -704,16 +774,16 @@ sections:
     - frontend/packages/ui/src/services/embedFullscreenResolver.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: toggle newsroom sidebar and link social posts'
     section: bug_fixes
     commits:
@@ -726,16 +796,16 @@ sections:
     - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
     - frontend/packages/ui/src/components/newsroom/fixtures.ts
     - frontend/packages/ui/src/components/newsroom/types.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: allow prepared web preview transfer'
     section: bug_fixes
     commits:
@@ -744,7 +814,7 @@ sections:
     changed_paths:
     - scripts/ci_preparation_transport.py
     - scripts/tests/test_ci_preparation_transport.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -752,7 +822,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: correct newsroom spacing and publication layouts'
     section: bug_fixes
     commits:
@@ -768,16 +838,16 @@ sections:
     - frontend/packages/ui/src/components/newsroom/PublicationHero.svelte
     - frontend/packages/ui/src/components/newsroom/PublicationSidebar.svelte
     - frontend/packages/ui/src/components/newsroom/SocialPostCard.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: restore complete prepared web runtime'
     section: bug_fixes
     commits:
@@ -789,7 +859,7 @@ sections:
     - scripts/ci_dispatch.py
     - scripts/tests/test_ci_artifacts.py
     - scripts/tests/test_ci_coordinator.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -797,7 +867,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: pin prepared CI harness across consumers'
     section: bug_fixes
     commits:
@@ -808,7 +878,7 @@ sections:
     - scripts/ci_coordinator.py
     - scripts/tests/test_ci_coordinator.py
     - scripts/tests/test_ci_workflow_scope.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -816,7 +886,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: render newsroom previews at requested width'
     section: bug_fixes
     commits:
@@ -824,16 +894,16 @@ sections:
     authored_at: '2026-09-21T11:10:14+00:00'
     changed_paths:
     - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: verify prepared Directus system collection'
     section: bug_fixes
     commits:
@@ -842,7 +912,7 @@ sections:
     changed_paths:
     - backend/core/directus/setup/setup_schemas.py
     - backend/tests/test_setup_schemas.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -850,7 +920,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: run prepared web audit from app directory'
     section: bug_fixes
     commits:
@@ -859,7 +929,7 @@ sections:
     changed_paths:
     - .github/workflows/isolated-tests.yml
     - scripts/tests/test_ci_workflow_scope.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -867,7 +937,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: canonicalize equivalent prepared-schema predicates'
     section: bug_fixes
     commits:
@@ -878,7 +948,7 @@ sections:
     - scripts/ci_schema_bundle.py
     - scripts/ci_schema_image.Dockerfile
     - scripts/tests/test_ci_schema_bundle.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -886,7 +956,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements:
   - title: 'perf(ci): enable verified prepared builds by default'
     section: improvements
@@ -898,7 +968,7 @@ sections:
     - docs/plans/isolated-github-tests/efficiency-verification-2026-09-20.md
     - scripts/ci_coordinator.py
     - scripts/tests/test_ci_coordinator.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -906,125 +976,74 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  docs: []
+    - commit is reachable from main
+  docs:
+  - title: 'docs: refresh daily release intelligence'
+    section: docs
+    commits:
+    - efeb976fe
+    authored_at: '2026-09-21T16:58:02+00:00'
+    changed_paths:
+    - docs/releases/daily/2026-09-21.md
+    - docs/releases/daily/2026-09-21.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
   tests: []
-  infrastructure: []
+  infrastructure:
+  - title: 'ci: install PyMuPDF for approval PDF tests'
+    section: infrastructure
+    commits:
+    - e203b95cb
+    authored_at: '2026-09-21T19:01:56+00:00'
+    changed_paths:
+    - .github/workflows/specification-approval-pdf.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   internal: []
   other: []
 unreleased_progress:
   dev_only:
-  - title: 'fix: deactivate placeholder blog post'
+  - title: 'ci: install PyMuPDF for approval PDF tests'
     commits:
-    - c474e9920
-    section: bug_fixes
+    - e203b95cb
+    section: infrastructure
     release_status: dev_only
-    communication_status: dev_only
+    communication_status: not_user_facing
     related_features: []
-  - title: 'fix: adopt saved drafts without reloading the composer'
+  - title: 'fix: preserve review media bucket compatibility'
     commits:
-    - 980044f9a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: restore latest news to chat sidebar'
-    commits:
-    - bf8d9e272
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: preserve optional app skills and follow-up mate identity'
-    commits:
-    - 136c6b50f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: align publication UI with approved designs'
-    commits:
-    - 55b6375c9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: execute fresh search follow-ups and suppress fabricated tool results'
-    commits:
-    - 63af30199
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: isolate issue report storage initialization'
-    commits:
-    - 4192ea708
+    - 99c6ab220
     section: bug_fixes
     release_status: dev_only
     communication_status: not_user_facing
     related_features: []
-  - title: 'fix: preserve publication sidebar icon masks'
+  - title: 'fix: unblock Python SDK release'
     commits:
-    - d847d459d
+    - c313a92d2
     section: bug_fixes
     release_status: dev_only
     communication_status: dev_only
     related_features: []
-  - title: 'fix: provide article-specific publication link previews'
+  - title: 'feat: use Gemini 3.8 Flash for automatic routing'
     commits:
-    - 8908b6f2a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: load design tokens for standalone publication pages'
-    commits:
-    - b298e4654
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: make issue reports durable and actionable'
-    commits:
-    - f2fbe5fbb
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: serve publication routes on Vercel'
-    commits:
-    - a92cd14cd
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: publish news blog and social archives'
-    commits:
-    - c6c58de28
+    - d88d76bf6
     section: features
     release_status: dev_only
     communication_status: dev_only
-    related_features: []
-  - title: 'fix: require explicit news search calls'
-    commits:
-    - e596775e9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
     related_features:
     - id: app:ai
       kind: app
@@ -1033,174 +1052,58 @@ unreleased_progress:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-  - title: 'fix: include examples in readable specification PDFs'
-    commits:
-    - a080af6be
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve explicit news follow-ups'
-    commits:
-    - 4304ca60e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: recover iPad audio sends and issue diagnostics'
-    commits:
-    - 75227036b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: localize and preserve assistant speech replay'
-    commits:
-    - 592da074d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: recover map loading without reloading the app'
-    commits:
-    - 185a03088
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: toggle newsroom sidebar and link social posts'
-    commits:
-    - da96f56a4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf(ci): enable verified prepared builds by default'
-    commits:
-    - b3c8c3880
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: allow prepared web preview transfer'
-    commits:
-    - f769a9c29
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: correct newsroom spacing and publication layouts'
-    commits:
-    - cea68f51a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: restore complete prepared web runtime'
-    commits:
-    - cf102512f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: pin prepared CI harness across consumers'
-    commits:
-    - b4e6745b9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: render newsroom previews at requested width'
-    commits:
-    - b84ca457c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: align newsroom previews with Figma shell'
-    commits:
-    - fda913a70
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: verify prepared Directus system collection'
-    commits:
-    - 34fe7cfed
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: run prepared web audit from app directory'
-    commits:
-    - 900be1a35
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: canonicalize equivalent prepared-schema predicates'
-    commits:
-    - 734f4d17c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
   unknown_release_status: []
   feature_metadata_changed:
+  - title: 'feat: use Gemini 3.8 Flash for automatic routing'
+    commits:
+    - d88d76bf6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
   - title: 'fix: recover iPad audio sends and issue diagnostics'
     commits:
     - 75227036b
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
 marketing_candidates:
-  newsletter: []
-  social_or_video:
+  newsletter:
   - title: 'fix: deactivate placeholder blog post'
     commits:
     - c474e9920
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: adopt saved drafts without reloading the composer'
     commits:
     - 980044f9a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: restore latest news to chat sidebar'
     commits:
     - bf8d9e272
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: preserve optional app skills and follow-up mate identity'
     commits:
     - 136c6b50f
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1209,21 +1112,19 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: align publication UI with approved designs'
     commits:
     - 55b6375c9
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: execute fresh search follow-ups and suppress fabricated tool results'
     commits:
     - 63af30199
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1232,61 +1133,54 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: preserve publication sidebar icon masks'
     commits:
     - d847d459d
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: provide article-specific publication link previews'
     commits:
     - 8908b6f2a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: load design tokens for standalone publication pages'
     commits:
     - b298e4654
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: make issue reports durable and actionable'
     commits:
     - f2fbe5fbb
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: serve publication routes on Vercel'
     commits:
     - a92cd14cd
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat: publish news blog and social archives'
     commits:
     - c6c58de28
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: require explicit news search calls'
     commits:
     - e596775e9
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1295,13 +1189,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: preserve explicit news follow-ups'
     commits:
     - 4304ca60e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1310,19 +1203,75 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: recover iPad audio sends and issue diagnostics'
     commits:
     - 75227036b
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: localize and preserve assistant speech replay'
     commits:
     - 592da074d
     section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: recover map loading without reloading the app'
+    commits:
+    - 185a03088
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: toggle newsroom sidebar and link social posts'
+    commits:
+    - da96f56a4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct newsroom spacing and publication layouts'
+    commits:
+    - cea68f51a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render newsroom previews at requested width'
+    commits:
+    - b84ca457c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: align newsroom previews with Figma shell'
+    commits:
+    - fda913a70
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: unblock Python SDK release'
+    commits:
+    - c313a92d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: use Gemini 3.8 Flash for automatic routing'
+    commits:
+    - d88d76bf6
+    section: features
     release_status: dev_only
     communication_status: dev_only
     related_features:
@@ -1334,46 +1283,209 @@ marketing_candidates:
       parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
+  - title: 'fix: deactivate placeholder blog post'
+    commits:
+    - c474e9920
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: adopt saved drafts without reloading the composer'
+    commits:
+    - 980044f9a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore latest news to chat sidebar'
+    commits:
+    - bf8d9e272
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve optional app skills and follow-up mate identity'
+    commits:
+    - 136c6b50f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: align publication UI with approved designs'
+    commits:
+    - 55b6375c9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: execute fresh search follow-ups and suppress fabricated tool results'
+    commits:
+    - 63af30199
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: preserve publication sidebar icon masks'
+    commits:
+    - d847d459d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: provide article-specific publication link previews'
+    commits:
+    - 8908b6f2a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: load design tokens for standalone publication pages'
+    commits:
+    - b298e4654
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: make issue reports durable and actionable'
+    commits:
+    - f2fbe5fbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: serve publication routes on Vercel'
+    commits:
+    - a92cd14cd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: publish news blog and social archives'
+    commits:
+    - c6c58de28
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: require explicit news search calls'
+    commits:
+    - e596775e9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: preserve explicit news follow-ups'
+    commits:
+    - 4304ca60e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: recover iPad audio sends and issue diagnostics'
+    commits:
+    - 75227036b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: localize and preserve assistant speech replay'
+    commits:
+    - 592da074d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
   - title: 'fix: recover map loading without reloading the app'
     commits:
     - 185a03088
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: toggle newsroom sidebar and link social posts'
     commits:
     - da96f56a4
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: correct newsroom spacing and publication layouts'
     commits:
     - cea68f51a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: render newsroom previews at requested width'
     commits:
     - b84ca457c
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: align newsroom previews with Figma shell'
     commits:
     - fda913a70
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -1381,11 +1493,70 @@ risks:
   - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
 sources:
   commits:
+  - sha: e203b95cbad4566c77c21b91bb347d869331bafa
+    short_sha: e203b95cb
+    authored_at: '2026-09-21T19:01:56+00:00'
+    subject: 'ci: install PyMuPDF for approval PDF tests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/specification-approval-pdf.yml
+    related_feature_ids: []
+  - sha: 99c6ab220c1772718b6a41e42ccf2d2d523a9001
+    short_sha: 99c6ab220
+    authored_at: '2026-09-21T18:57:47+00:00'
+    subject: 'fix: preserve review media bucket compatibility'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/s3/config.py
+    - backend/tests/test_review_media_bucket.py
+    - scripts/response_media.py
+    related_feature_ids: []
+  - sha: c313a92d2174c177c7d38b462c5765052348aa89
+    short_sha: c313a92d2
+    authored_at: '2026-09-21T17:55:59+00:00'
+    subject: 'fix: unblock Python SDK release'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - packages/openmates-python/tests/test_sdk.py
+    related_feature_ids: []
+  - sha: d88d76bf6da363a0e3fda910352daf1ee703070b
+    short_sha: d88d76bf6
+    authored_at: '2026-09-21T17:43:03+00:00'
+    subject: 'feat: use Gemini 3.8 Flash for automatic routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/model_routing.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/providers/google.yml
+    - backend/tests/test_ai_model_routing.py
+    - backend/tests/test_model_selection.py
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: efeb976feb6519baf94b11974958fd5e0af98de7
+    short_sha: efeb976fe
+    authored_at: '2026-09-21T16:58:02+00:00'
+    subject: 'docs: refresh daily release intelligence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/releases/daily/2026-09-21.md
+    - docs/releases/daily/2026-09-21.yml
+    related_feature_ids: []
   - sha: c474e9920a40cee6b6e452da756f6f40ba86a0a1
     short_sha: c474e9920
     authored_at: '2026-09-21T16:56:35+00:00'
     subject: 'fix: deactivate placeholder blog post'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/src/lib/publications/publicationManifest.v1.json
@@ -1400,7 +1571,7 @@ sources:
     short_sha: 980044f9a
     authored_at: '2026-09-21T16:52:59+00:00'
     subject: 'fix: adopt saved drafts without reloading the composer'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/src/routes/+page.svelte
@@ -1414,7 +1585,7 @@ sources:
     short_sha: bf8d9e272
     authored_at: '2026-09-21T16:48:35+00:00'
     subject: 'fix: restore latest news to chat sidebar'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/openmates-events.spec.ts
@@ -1426,7 +1597,7 @@ sources:
     short_sha: 136c6b50f
     authored_at: '2026-09-21T16:44:42+00:00'
     subject: 'fix: preserve optional app skills and follow-up mate identity'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/base_instructions.yml
@@ -1449,7 +1620,7 @@ sources:
     short_sha: 55b6375c9
     authored_at: '2026-09-21T16:33:21+00:00'
     subject: 'fix: align publication UI with approved designs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/src/lib/publications/publicationManifest.v1.json
@@ -1468,7 +1639,7 @@ sources:
     short_sha: 63af30199
     authored_at: '2026-09-21T16:02:41+00:00'
     subject: 'fix: execute fresh search follow-ups and suppress fabricated tool results'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/base_instructions.yml
@@ -1486,7 +1657,7 @@ sources:
     short_sha: 4192ea708
     authored_at: '2026-09-21T15:08:45+00:00'
     subject: 'fix: isolate issue report storage initialization'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/tasks/email_tasks/issue_report_email_task.py
@@ -1496,7 +1667,7 @@ sources:
     short_sha: d847d459d
     authored_at: '2026-09-21T15:06:24+00:00'
     subject: 'fix: preserve publication sidebar icon masks'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/public-publications.spec.ts
@@ -1507,7 +1678,7 @@ sources:
     short_sha: 8908b6f2a
     authored_at: '2026-09-21T14:57:50+00:00'
     subject: 'fix: provide article-specific publication link previews'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/src/hooks.server.ts
@@ -1524,7 +1695,7 @@ sources:
     short_sha: b298e4654
     authored_at: '2026-09-21T14:55:12+00:00'
     subject: 'fix: load design tokens for standalone publication pages'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/public-publications.spec.ts
@@ -1535,7 +1706,7 @@ sources:
     short_sha: f2fbe5fbb
     authored_at: '2026-09-21T14:53:20+00:00'
     subject: 'fix: make issue reports durable and actionable'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/settings.py
@@ -1561,7 +1732,7 @@ sources:
     short_sha: a92cd14cd
     authored_at: '2026-09-21T14:41:00+00:00'
     subject: 'fix: serve publication routes on Vercel'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/vercel.json
@@ -1570,7 +1741,7 @@ sources:
     short_sha: c6c58de28
     authored_at: '2026-09-21T14:35:23+00:00'
     subject: 'feat: publish news blog and social archives'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/public-news-blog/plan.yml
@@ -1625,7 +1796,7 @@ sources:
     short_sha: e596775e9
     authored_at: '2026-09-21T14:13:56+00:00'
     subject: 'fix: require explicit news search calls'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -1638,7 +1809,7 @@ sources:
     short_sha: a080af6be
     authored_at: '2026-09-21T14:10:02+00:00'
     subject: 'fix: include examples in readable specification PDFs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/specification_approval_pdf.py
@@ -1649,7 +1820,7 @@ sources:
     short_sha: 4304ca60e
     authored_at: '2026-09-21T13:58:48+00:00'
     subject: 'fix: preserve explicit news follow-ups'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -1664,7 +1835,7 @@ sources:
     short_sha: 75227036b
     authored_at: '2026-09-21T12:27:51+00:00'
     subject: 'fix: recover iPad audio sends and issue diagnostics'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
@@ -1684,7 +1855,7 @@ sources:
     short_sha: 592da074d
     authored_at: '2026-09-21T12:24:41+00:00'
     subject: 'fix: localize and preserve assistant speech replay'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/assistant_speech/projection.py
@@ -1704,7 +1875,7 @@ sources:
     short_sha: 185a03088
     authored_at: '2026-09-21T12:18:37+00:00'
     subject: 'fix: recover map loading without reloading the app'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/map-load-recovery.spec.ts
@@ -1720,7 +1891,7 @@ sources:
     short_sha: da96f56a4
     authored_at: '2026-09-21T12:00:21+00:00'
     subject: 'fix: toggle newsroom sidebar and link social posts'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/public-news-blog/plan.yml
@@ -1734,7 +1905,7 @@ sources:
     short_sha: b3c8c3880
     authored_at: '2026-09-21T11:57:17+00:00'
     subject: 'perf(ci): enable verified prepared builds by default'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/isolated-github-tests.md
@@ -1746,7 +1917,7 @@ sources:
     short_sha: f769a9c29
     authored_at: '2026-09-21T11:42:45+00:00'
     subject: 'fix: allow prepared web preview transfer'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_preparation_transport.py
@@ -1756,7 +1927,7 @@ sources:
     short_sha: cea68f51a
     authored_at: '2026-09-21T11:39:17+00:00'
     subject: 'fix: correct newsroom spacing and publication layouts'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/public-news-blog/plan.yml
@@ -1773,7 +1944,7 @@ sources:
     short_sha: cf102512f
     authored_at: '2026-09-21T11:34:23+00:00'
     subject: 'fix: restore complete prepared web runtime'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_artifacts.py
@@ -1786,7 +1957,7 @@ sources:
     short_sha: b4e6745b9
     authored_at: '2026-09-21T11:19:29+00:00'
     subject: 'fix: pin prepared CI harness across consumers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -1798,7 +1969,7 @@ sources:
     short_sha: b84ca457c
     authored_at: '2026-09-21T11:10:14+00:00'
     subject: 'fix: render newsroom previews at requested width'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
@@ -1807,7 +1978,7 @@ sources:
     short_sha: fda913a70
     authored_at: '2026-09-21T11:01:01+00:00'
     subject: 'feat: align newsroom previews with Figma shell'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/newsroom-surface.spec.ts
@@ -1823,7 +1994,7 @@ sources:
     short_sha: 34fe7cfed
     authored_at: '2026-09-21T10:57:50+00:00'
     subject: 'fix: verify prepared Directus system collection'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/directus/setup/setup_schemas.py
@@ -1833,7 +2004,7 @@ sources:
     short_sha: 900be1a35
     authored_at: '2026-09-21T10:47:00+00:00'
     subject: 'fix: run prepared web audit from app directory'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -1843,7 +2014,7 @@ sources:
     short_sha: 734f4d17c
     authored_at: '2026-09-21T10:33:47+00:00'
     subject: 'fix: canonicalize equivalent prepared-schema predicates'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_environment.py
@@ -1852,114 +2023,174 @@ sources:
     - scripts/tests/test_ci_schema_bundle.py
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on the foundational development of a public newsroom and publication system, alongside significant
-    reliability improvements for AI-driven news search and issue reporting. While these features are not yet live, the update
-    establishes the UI architecture for social archives and blog posts, and refines the AI's ability to handle explicit tool
-    follow-ups.
-  released_changes: []
-  bug_fixes: []
-  unreleased_progress:
-  - text: Development of the public newsroom continues, including work on article-specific link previews, Vercel route serving,
-      and UI alignment with Figma designs.
+  overview: OpenMates launched a public newsroom and social archive, enabling users to browse announcements and event history
+    directly. The update also significantly improved the reliability of AI search skills, message drafting, and issue reporting.
+  released_changes:
+  - text: The project launched a public newsroom and social archive, featuring event galleries and announcement blogs.
     evidence:
       commits:
       - c6c58de28
+    release_status: released_main
+  - text: The newsroom interface was updated to align with design specifications, including improved sidebar navigation and
+      social post linking.
+    evidence:
+      commits:
       - fda913a70
-      - c474e9920
-      - 55b6375c9
-      - d847d459d
-      - 8908b6f2a
-      - b298e4654
-      - a92cd14cd
       - da96f56a4
-      - cea68f51a
-      - b84ca457c
-    release_status: dev_only
-  - text: AI search capabilities are being refined to suppress fabricated results and ensure that explicit news follow-up
-      requests are correctly routed and preserved.
+    release_status: released_main
+  - text: The message composer now adopts saved drafts without requiring a page reload.
+    evidence:
+      commits:
+      - 980044f9a
+    release_status: released_main
+  - text: Map embeds now recover from loading errors without requiring a full application refresh.
+    evidence:
+      commits:
+      - 185a03088
+    release_status: released_main
+  - text: The chat sidebar now correctly displays the latest news and project events.
+    evidence:
+      commits:
+      - bf8d9e272
+    release_status: released_main
+  bug_fixes:
+  - text: AI search skills were refined to require explicit calls and suppress fabricated results, ensuring more reliable
+      follow-up responses.
     evidence:
       commits:
       - 136c6b50f
       - 63af30199
       - e596775e9
       - 4304ca60e
+    release_status: released_main
+  - text: Assistant speech replay was localized and stabilized to prevent playback failures.
+    evidence:
+      commits:
       - 592da074d
-    release_status: dev_only
-  - text: Issue reporting is being made more durable with improved storage initialization and better diagnostic recovery for
-      iPad audio sends.
+    release_status: released_main
+  - text: Issue reporting was made more durable with improved diagnostic collection and authenticated submission flows.
     evidence:
       commits:
       - f2fbe5fbb
       - 75227036b
-      - 4192ea708
-    release_status: dev_only
-  - text: UI improvements in progress include the ability to adopt saved drafts without reloading the composer and restoring
-      news visibility in the chat sidebar.
+    release_status: released_main
+  - text: The newsroom UI received several polish fixes, including corrected spacing, icon masking, article-specific link
+      previews, and Vercel routing support.
     evidence:
       commits:
-      - 980044f9a
-      - bf8d9e272
-      - 185a03088
+      - 55b6375c9
+      - d847d459d
+      - 8908b6f2a
+      - b298e4654
+      - cea68f51a
+      - b84ca457c
+      - c474e9920
+      - a92cd14cd
+    release_status: released_main
+  unreleased_progress:
+  - text: Work is underway to integrate Gemini 3.8 Flash for automatic AI model routing.
+    evidence:
+      commits:
+      - d88d76bf6
+    release_status: dev_only
+  - text: The Python SDK is being prepared for release with updated test coverage.
+    evidence:
+      commits:
+      - c313a92d2
+    release_status: dev_only
+  - text: Infrastructure updates include new PDF testing dependencies and media bucket compatibility adjustments.
+    evidence:
+      commits:
+      - e203b95cb
+      - 99c6ab220
     release_status: dev_only
   internal_progress:
-  - text: The CI pipeline now defaults to verified prepared builds and includes improved schema canonicalization and artifact
-      transport for web audits.
+  - text: CI build efficiency was improved by enabling verified prepared builds by default.
     evidence:
       commits:
       - b3c8c3880
+    release_status: released_main
+  - text: Internal updates addressed CI artifact transport, schema verification, workflow scoping, and daily release intelligence
+      documentation.
+    evidence:
+      commits:
       - f769a9c29
       - cf102512f
       - b4e6745b9
-      - 34fe7cfed
       - 900be1a35
       - 734f4d17c
-    release_status: dev_only
-  - text: Specification PDF generation now includes examples in the readable output.
-    evidence:
-      commits:
+      - 34fe7cfed
+      - 4192ea708
       - a080af6be
-    release_status: dev_only
+      - efeb976fe
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: Public Newsroom and Publication System
+    include:
+    - text: Launch of the public newsroom and social archive
       evidence:
         commits:
         - c6c58de28
-        - fda913a70
-        - c474e9920
-        - 55b6375c9
-        - d847d459d
-        - 8908b6f2a
-        - b298e4654
-        - a92cd14cd
-        - da96f56a4
-        - cea68f51a
-        - b84ca457c
-      reason: The public newsroom and publication system are currently in development and not yet released to the main branch.
-    - text: AI News Search and Speech Reliability Improvements
+      reason: This is a major new public-facing feature for community engagement.
+    - text: Newsroom UI alignment and social post linking
       evidence:
         commits:
-        - 136c6b50f
-        - 63af30199
-        - e596775e9
-        - 4304ca60e
+        - fda913a70
+        - da96f56a4
+      reason: These updates provide a polished, design-aligned interface for the new newsroom.
+    - text: Seamless draft adoption in the message composer
+      evidence:
+        commits:
+        - 980044f9a
+      reason: This improves the core message composition experience by preventing unnecessary reloads.
+    - text: Durable and actionable issue reporting
+      evidence:
+        commits:
+        - f2fbe5fbb
+      reason: This enhances the reliability of user feedback and troubleshooting.
+    - text: Map loading recovery without app reloads
+      evidence:
+        commits:
+        - 185a03088
+      reason: This fix improves the stability of map embeds within the application.
+    - text: Localized assistant speech replay stability
+      evidence:
+        commits:
         - 592da074d
-      reason: AI search reliability and speech replay fixes are currently in development.
-    rationale: No items from this period have been released to the main branch with a status ready for public communication.
-      All work is currently categorized as development progress.
+      reason: This stabilizes a key AI interaction feature.
+    - text: Restoration of latest news to the chat sidebar
+      evidence:
+        commits:
+        - bf8d9e272
+      reason: This restores visibility of project updates within the chat interface.
+    exclude:
+    - text: Gemini 3.8 Flash automatic routing
+      evidence:
+        commits:
+        - d88d76bf6
+      reason: This feature is currently dev_only and not yet released to the main branch.
+    - text: Python SDK release unblocking
+      evidence:
+        commits:
+        - c313a92d2
+      reason: This fix is currently dev_only and related to an unreleased SDK.
+    - text: Infrastructure and media bucket compatibility updates
+      evidence:
+        commits:
+        - e203b95cb
+        - 99c6ab220
+      reason: These items are dev_only infrastructure and internal storage adjustments.
+    rationale: The launch of the public newsroom and social archive is a significant milestone for transparency and community
+      engagement. These changes, combined with critical UX improvements to drafts, maps, and AI reliability, represent a substantial
+      update to the OpenMates ecosystem.
   social_video_recommendations:
-  - idea: A sneak peek of the upcoming OpenMates Newsroom.
-    priority: medium
-    reason: The newsroom features a clean, publication-style layout for social archives and blog posts that is visually distinct
-      from the chat interface.
+  - idea: A walkthrough of the new OpenMates Newsroom and Social Archive.
+    priority: High
+    reason: This is a highly visual, public-facing feature that showcases the project's history and community events.
     evidence:
       commits:
       - c6c58de28
       - fda913a70
   quality_notes:
-  - Significant effort was directed toward aligning the newsroom UI with design specifications, including sidebar behavior
-    and responsive previews.
-  - AI reliability work focused on suppressing fabricated tool results and ensuring explicit news search calls are preserved
-    during multi-turn interactions.
+  - The update is heavily focused on the public newsroom launch and refining the reliability of AI skills.
+  - Significant work was performed on CI infrastructure to optimize build times and verification.
   validation_warnings: []

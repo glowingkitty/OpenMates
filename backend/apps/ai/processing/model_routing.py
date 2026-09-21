@@ -27,15 +27,15 @@ AUTO_CHAT_MODEL_PREFERENCE = "auto"
 
 DEFAULT_TIER_MODEL_PROFILES: dict[RequestTier, dict[str, str]] = {
     SIMPLE_TIER: {
-        "model": "google/gemini-3.5-flash-lite",
+        "model": "google/gemini-3.8-flash",
         "thinking_level": "LOW",
     },
     COMPLEX_TIER: {
-        "model": "google/gemini-3.7-flash",
+        "model": "google/gemini-3.8-flash",
         "thinking_level": "MEDIUM",
     },
     MOST_DEMANDING_TIER: {
-        "model": "google/gemini-3.7-flash-high",
+        "model": "google/gemini-3.8-flash",
         "thinking_level": "HIGH",
     },
 }

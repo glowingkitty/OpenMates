@@ -52,8 +52,8 @@ CORS_ENABLED_BUCKETS = [
     'dev-openmates-invoices',
     'openmates-test-recordings',
     'dev-openmates-test-recordings',
-    'openmates-review-media',
-    'dev-openmates-review-media',
+    'openmates-opencode-response-media',
+    'dev-openmates-opencode-response-media',
     'openmates-public-examples',
     'dev-openmates-public-examples',
 ]
@@ -224,8 +224,11 @@ BUCKETS = {
     # URL in Markdown. The bucket stays private and expires objects after two
     # days so URLs are bounded bearer tokens rather than permanent public assets.
     'review_media': {
-        'name': 'openmates-review-media',
-        'dev_name': 'dev-openmates-review-media',
+        # Keep the existing physical buckets after the OpenCode-to-agent naming
+        # migration. Renaming these values would require provisioning new buckets
+        # and makes every shared S3 service initialization fail in the meantime.
+        'name': 'openmates-opencode-response-media',
+        'dev_name': 'dev-openmates-opencode-response-media',
         'allowed_types': [
             'image/jpeg',
             'image/png',

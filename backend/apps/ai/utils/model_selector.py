@@ -15,6 +15,8 @@ from dataclasses import dataclass
 
 import yaml
 
+from backend.apps.ai.processing.model_routing import default_profile_for_tier
+
 logger = logging.getLogger(__name__)
 
 # Provider YAML files containing model configs with allow_auto_select settings
@@ -339,45 +341,50 @@ class ModelSelector:
                 return f"{provider_id}/{model_id}"
             return None
 
-        if ranked_models:
-            if prefer_economical:
-                # Find best economical model that's in our rankings
-                for model_entry in ranked_models:
-                    model_id = model_entry.get("model_id")
-                    if model_id and model_id in ECONOMICAL_MODELS:
-                        primary_model_id = model_id
-                        primary_full_id = _build_full_model_id(model_entry)
-                        reasons.append(f"Selected economical model: {primary_full_id}")
-                        break
+        # Product validation owns the automatic default for each request tier.
+        # Rankings still provide fallback choices, and exact user preferences
+        # bypass this selector before it is called.
+        configured_model = default_profile_for_tier(complexity)["model"]
+        configured_provider, configured_model_id = configured_model.split("/", 1)
+        available_set = set(available_model_ids or [])
+        configured_default_is_eligible = (
+            configured_provider not in (excluded_provider_ids or set())
+            and (
+                not available_set
+                or configured_model in available_set
+                or configured_model_id in available_set
+            )
+        )
 
-                # If no economical model in rankings, just use the top ranked
+        if ranked_models or configured_default_is_eligible:
+            if configured_default_is_eligible:
+                primary_model_id = configured_model_id
+                primary_full_id = configured_model
+                reasons.append(f"Selected configured {complexity} default: {primary_full_id}")
+
+            if not primary_model_id:
+                if prefer_economical:
+                    for model_entry in ranked_models:
+                        model_id = model_entry.get("model_id")
+                        if model_id and model_id in ECONOMICAL_MODELS:
+                            primary_model_id = model_id
+                            primary_full_id = _build_full_model_id(model_entry)
+                            reasons.append(f"Selected economical model: {primary_full_id}")
+                            break
+
+                elif prefer_premium:
+                    for model_entry in ranked_models:
+                        model_id = model_entry.get("model_id")
+                        if model_id and model_id in PREMIUM_MODELS:
+                            primary_model_id = model_id
+                            primary_full_id = _build_full_model_id(model_entry)
+                            reasons.append(f"Selected premium model: {primary_full_id}")
+                            break
+
                 if not primary_model_id and ranked_models:
                     primary_model_id = ranked_models[0].get("model_id")
                     primary_full_id = _build_full_model_id(ranked_models[0])
-                    reasons.append(f"Selected top-ranked model (no economical match): {primary_full_id}")
-
-            elif prefer_premium:
-                # Find best premium model that's in our rankings
-                for model_entry in ranked_models:
-                    model_id = model_entry.get("model_id")
-                    if model_id and model_id in PREMIUM_MODELS:
-                        primary_model_id = model_id
-                        primary_full_id = _build_full_model_id(model_entry)
-                        reasons.append(f"Selected premium model: {primary_full_id}")
-                        break
-
-                # If no premium model in rankings, just use the top ranked
-                if not primary_model_id and ranked_models:
-                    primary_model_id = ranked_models[0].get("model_id")
-                    primary_full_id = _build_full_model_id(ranked_models[0])
-                    reasons.append(f"Selected top-ranked model (no premium match): {primary_full_id}")
-
-            else:
-                # Default: use top ranked model
-                if ranked_models:
-                    primary_model_id = ranked_models[0].get("model_id")
-                    primary_full_id = _build_full_model_id(ranked_models[0])
-                    reasons.append(f"Selected top-ranked model: {primary_full_id}")
+                    reasons.append(f"Selected top-ranked fallback model: {primary_full_id}")
 
             # Select secondary model (different from primary)
             for model_entry in ranked_models:

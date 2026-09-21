@@ -104,7 +104,7 @@
       "undici": "7.29.0"
     }
   },
-  "version": "0.18.0",
+  "version": "0.19.0",
   "description": "[![OpenMates header image](./docs/images/openmates_header.png)](https://openmates.org)",
   "main": "index.js",
   "directories": {

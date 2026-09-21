@@ -129,8 +129,8 @@ def mock_leaderboard_data() -> Dict[str, Any]:
 class TestModelSelector:
     """Tests for the ModelSelector class."""
 
-    def test_gemini_3_8_is_available_as_explicit_model_only(self):
-        """Gemini 3.8 is catalogued without entering automatic selection."""
+    def test_gemini_3_8_is_available_for_automatic_and_explicit_selection(self):
+        """Gemini 3.8 is catalogued for both automatic and explicit selection."""
         provider_path = Path(__file__).parents[1] / "providers" / "google.yml"
         provider_config = yaml.safe_load(provider_path.read_text())
         model = next(
@@ -139,7 +139,7 @@ class TestModelSelector:
         )
 
         assert model["for_app_skill"] == "ai.ask"
-        assert model["allow_auto_select"] is False
+        assert model["allow_auto_select"] is True
         assert model["tier"] == "premium"
         assert model["pricing"]["tokens"] == {
             "input": {"per_credit_unit": 450},
@@ -173,7 +173,7 @@ class TestModelSelector:
         selector = model_selector.ModelSelector(leaderboard_data=mock_leaderboard_data)
         result = selector.select_models(task_area="general", complexity="complex")
 
-        assert result.primary_model_id == "google/gemini-3.7-flash"
+        assert result.primary_model_id == "google/gemini-3.8-flash"
 
     def test_select_models_simple_task_prefers_economical(self, mock_leaderboard_data, monkeypatch):
         """Simple tasks should prefer economical models."""
@@ -191,7 +191,25 @@ class TestModelSelector:
         selector = model_selector.ModelSelector(leaderboard_data=mock_leaderboard_data)
         result = selector.select_models(task_area="general", complexity="simple")
 
-        assert result.primary_model_id == "google/gemini-3.5-flash-lite"
+        assert result.primary_model_id == "google/gemini-3.8-flash"
+
+    def test_select_models_most_demanding_uses_gemini_3_8(self, mock_leaderboard_data, monkeypatch):
+        """Most-demanding automatic routing uses the configured Gemini 3.8 default."""
+        from backend.apps.ai.utils import model_selector
+
+        monkeypatch.setattr(
+            model_selector,
+            "_auto_select_cache",
+            {
+                model["model_id"]: True
+                for model in mock_leaderboard_data["rankings"]
+            },
+        )
+
+        selector = model_selector.ModelSelector(leaderboard_data=mock_leaderboard_data)
+        result = selector.select_models(task_area="general", complexity="most_demanding")
+
+        assert result.primary_model_id == "google/gemini-3.8-flash"
 
     def test_select_models_excludes_cn_when_china_related(self, mock_leaderboard_data):
         """When china_related=True, CN models should be excluded."""
@@ -237,16 +255,15 @@ class TestModelSelector:
         # Should prefer premium despite simple task
         assert "premium" in result.selection_reason.lower() or "unhappy" in result.selection_reason.lower()
 
-    def test_select_models_returns_fallback_when_no_data(self):
-        """When no leaderboard data, should return default fallback."""
-        from backend.apps.ai.utils.model_selector import ModelSelector, DEFAULT_FALLBACK_MODEL
+    def test_select_models_returns_configured_default_when_no_data(self):
+        """Leaderboard outages do not replace the configured automatic default."""
+        from backend.apps.ai.utils.model_selector import ModelSelector
 
         selector = ModelSelector(leaderboard_data=None)
         result = selector.select_models(task_area="general", complexity="complex")
 
-        # Should fall back to default model
-        assert result.primary_model_id == DEFAULT_FALLBACK_MODEL
-        assert "default" in result.selection_reason.lower()
+        assert result.primary_model_id == "google/gemini-3.8-flash"
+        assert "configured complex default" in result.selection_reason.lower()
 
     def test_get_model_ids_list_no_duplicates(self, mock_leaderboard_data):
         """get_model_ids_list should return unique models in order."""
@@ -499,19 +516,18 @@ class TestEdgeCases:
     """Test edge cases and error handling."""
 
     def test_model_selector_with_empty_rankings(self):
-        """Should handle empty rankings gracefully."""
-        from backend.apps.ai.utils.model_selector import ModelSelector, DEFAULT_FALLBACK_MODEL
+        """Empty rankings still use the configured automatic default."""
+        from backend.apps.ai.utils.model_selector import ModelSelector
 
         empty_data = {"rankings": [], "unranked": []}
         selector = ModelSelector(leaderboard_data=empty_data)
         result = selector.select_models(task_area="general", complexity="complex")
 
-        # Should fall back to default
-        assert result.primary_model_id == DEFAULT_FALLBACK_MODEL
+        assert result.primary_model_id == "google/gemini-3.8-flash"
 
     def test_model_selector_with_all_cn_models_filtered(self):
         """When all ranked models are CN and china_related=True."""
-        from backend.apps.ai.utils.model_selector import ModelSelector, DEFAULT_FALLBACK_MODEL
+        from backend.apps.ai.utils.model_selector import ModelSelector
 
         # All models are CN
         cn_only_data = {
@@ -528,8 +544,8 @@ class TestEdgeCases:
             china_related=True  # Filter out CN
         )
 
-        # All CN models filtered, should use fallback
-        assert result.primary_model_id == DEFAULT_FALLBACK_MODEL
+        # The configured US model remains eligible after ranked CN models are filtered.
+        assert result.primary_model_id == "google/gemini-3.8-flash"
 
     def test_override_parser_with_special_characters(self):
         """Should handle special characters in message."""

@@ -61,15 +61,15 @@ def test_routing_uses_approved_google_profiles_for_all_three_auto_tiers() -> Non
 
     assert profiles == {
         "simple": {
-            "model": "google/gemini-3.5-flash-lite",
+            "model": "google/gemini-3.8-flash",
             "thinking_level": "LOW",
         },
         "complex": {
-            "model": "google/gemini-3.7-flash",
+            "model": "google/gemini-3.8-flash",
             "thinking_level": "MEDIUM",
         },
         "most_demanding": {
-            "model": "google/gemini-3.7-flash-high",
+            "model": "google/gemini-3.8-flash",
             "thinking_level": "HIGH",
         },
     }

@@ -42,7 +42,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install focused dependencies
-        run: pip install pillow playwright pytest pyyaml
+        run: pip install pillow playwright pymupdf==1.27.1 pytest pyyaml
       - name: Install Chromium
         run: python3 -m playwright install --with-deps chromium
       - name: Verify approval PDF workflow
