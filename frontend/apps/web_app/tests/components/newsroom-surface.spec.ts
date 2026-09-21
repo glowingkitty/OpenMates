@@ -51,15 +51,23 @@ test('presents the UI-first newsroom layouts for approval', async ({ page }, tes
   await expect(root).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Introducing: Workflow Automation' })).toBeVisible();
   if (phone) {
-    await expect(page.getByRole('navigation', { name: 'Newsroom recent publications' })).toBeVisible();
     await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
+    await page.getByTestId('sidebar-toggle').click();
+    await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
+    await page.getByRole('button', { name: 'Close Newsroom navigation' }).click();
   } else {
     await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeVisible();
   }
+  const featuredCard = page.getByTestId('newsroom-card-health-app-redesigned');
+  const standardCard = page.getByTestId('newsroom-card-new-code-skills');
+  await expect(featuredCard).toBeVisible();
+  await expect(standardCard).toBeVisible();
+  expect((await featuredCard.boundingBox())?.height).toBeGreaterThan(200);
+  expect((await standardCard.boundingBox())?.height).toBeGreaterThan(300);
   await page.getByTestId('newsroom-search-toggle').click();
   const search = page.getByTestId('newsroom-search-input');
   await search.fill('Health');
-  await expect(page.getByTestId('newsroom-card-health-app-redesigned')).toBeVisible();
+  await expect(featuredCard).toBeVisible();
   await expect(page.getByTestId('newsroom-card-new-code-skills')).toHaveCount(0);
   await proof.assert('newsroom-index', async () => {
     expect(await root.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
