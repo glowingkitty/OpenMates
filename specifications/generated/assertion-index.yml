@@ -32380,17 +32380,17 @@ assertions:
     direct_tests:
     - &id3795
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 29
+      line: 27
       name: loads publication design tokens on direct visits in light and dark themes
       surface: gui.web
     - &id3796
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 56
+      line: 54
       name: keeps the archive closed initially and searches every publication section
       surface: gui.web
     - &id3797
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 77
+      line: 75
       name: renders localized archives and released announcement details in server
         HTML
       surface: gui.web
@@ -32425,7 +32425,7 @@ assertions:
       surface: gui.web
     - &id3800
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 77
+      line: 75
       name: renders localized archives and released announcement details in server
         HTML
       surface: gui.web
@@ -32510,13 +32510,13 @@ assertions:
     direct_tests:
     - &id3807
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 77
+      line: 75
       name: renders localized archives and released announcement details in server
         HTML
       surface: gui.web
     - &id3808
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 132
+      line: 129
       name: redirects a legacy announcement URL to its stable news URL
       surface: gui.web
     supporting_tests: []
@@ -32546,7 +32546,7 @@ assertions:
       surface: gui.web
     - &id3811
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 112
+      line: 109
       name: shows exact platform permalinks and owned media for an archived social
         post
       surface: gui.web
@@ -32587,7 +32587,7 @@ assertions:
       surface: gui.web
     - &id3814
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 112
+      line: 109
       name: shows exact platform permalinks and owned media for an archived social
         post
       surface: gui.web

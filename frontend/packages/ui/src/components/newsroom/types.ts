@@ -81,7 +81,7 @@ export interface NewsroomSurfaceData {
   releaseContactLabel: string;
   blogContactLabel: string;
   heroNews: NewsroomHero;
-  heroBlog: NewsroomHero;
+  heroBlog: NewsroomHero | null;
   newsItems: NewsroomItem[];
   blogItems: NewsroomItem[];
   socialItems: NewsroomItem[];

@@ -8,7 +8,7 @@ describe('public publication manifest', () => {
 		const manifest = parsePublicPublicationManifest(rawManifest);
 		const social = manifest.publications.filter((entry) => entry.kind === 'social');
 		expect(manifest.schemaVersion).toBe(1);
-		expect(manifest.publications.some((entry) => entry.kind === 'blog')).toBe(true);
+		expect(manifest.publications.some((entry) => entry.kind === 'blog')).toBe(false);
 		expect(social).toHaveLength(4);
 		expect(social.every((entry) => entry.media?.url.startsWith('https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/'))).toBe(true);
 		expect(social.every((entry) => entry.media?.posterUrl?.startsWith('/publications/social/'))).toBe(true);

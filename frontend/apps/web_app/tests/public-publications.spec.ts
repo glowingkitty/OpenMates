@@ -5,8 +5,6 @@ test.describe('public news, blog, and social publications', () => {
 	test('sends one article preview with a reachable image to crawlers', async ({ request }) => {
 		for (const path of [
 			'/news/introducing-openmates-v011',
-			'/blog/privacy-as-a-product-feature',
-			'/de/blog/privacy-as-a-product-feature',
 			'/social/workflow-automation-webinar'
 		]) {
 			const response = await request.get(path);
@@ -92,19 +90,18 @@ test.describe('public news, blog, and social publications', () => {
 		expect(releaseHtml).toContain('"@type":"NewsArticle"');
 		expect(releaseHtml).toContain('Code execution');
 
-		const germanBlog = await request.get('/de/blog/privacy-as-a-product-feature');
-		expect(germanBlog.status()).toBe(200);
-		const blogHtml = await germanBlog.text();
-		expect(blogHtml).toContain('Datenschutz sollte KI nützlicher machen');
-		expect(blogHtml).toContain('"@type":"BlogPosting"');
-		expect(blogHtml).toContain('Marco');
-		expect(blogHtml).toContain('Gründer von OpenMates.');
-		expect(blogHtml).not.toContain('Mehr von OpenMates');
+		for (const blogPostPath of [
+			'/blog/privacy-as-a-product-feature',
+			'/de/blog/privacy-as-a-product-feature'
+		]) {
+			const blogPost = await request.get(blogPostPath);
+			expect(blogPost.status()).toBe(404);
+		}
 
 		const sitemap = await request.get('/sitemap.xml');
 		const sitemapXml = await sitemap.text();
 		expect(sitemapXml).toContain('/news/introducing-openmates-v011');
-		expect(sitemapXml).toContain('/de/blog/privacy-as-a-product-feature');
+		expect(sitemapXml).not.toContain('/blog/privacy-as-a-product-feature');
 		expect(sitemapXml).toContain('/social/workflow-automation-webinar');
 	});
 

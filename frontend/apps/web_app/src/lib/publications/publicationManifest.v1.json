@@ -1,28 +1,8 @@
 {
   "schemaVersion": 1,
-  "revision": "2026-09-21-initial-publication-backfill",
+  "revision": "2026-09-21-social-publication-backfill",
   "generatedAt": "2026-09-21T18:00:00.000Z",
   "publications": [
-    {
-      "id": "blog-privacy-as-product-feature",
-      "slug": "privacy-as-a-product-feature",
-      "kind": "blog",
-      "publishedAt": "2026-09-21T09:00:00.000Z",
-      "updatedAt": "2026-09-21T09:00:00.000Z",
-      "author": "Marco",
-      "locales": {
-        "en": {
-          "title": "Privacy should make AI more useful, not harder to use",
-          "description": "How OpenMates turns privacy decisions into practical product features for everyday AI work.",
-          "bodyMarkdown": "OpenMates starts from a simple idea: people should be able to use capable AI tools without handing over more personal information than the task requires.\n\n## Privacy belongs in the product\n\nPrivacy cannot depend on every person reading a long policy or remembering a complicated checklist. The interface should help by default. OpenMates encrypts chats on the user’s device, replaces sensitive details with placeholders before requests are sent, and asks before remembered context is shared with a model.\n\nThese choices are useful beyond compliance. Clear controls make it easier to understand which information an AI system needs, which provider will process it, and what remains on the device.\n\n## Choice matters too\n\nDifferent tasks benefit from different models and specialist tools. OpenMates keeps those choices visible so people can use strong models and app skills without being locked into a single provider’s ecosystem.\n\n## What we are building next\n\nThe next steps are clearer explanations, better local controls, and more useful workflows that can operate with the smallest practical amount of personal context. We will keep publishing what changes and why so these decisions remain open to scrutiny."
-        },
-        "de": {
-          "title": "Datenschutz sollte KI nützlicher machen – nicht schwieriger",
-          "description": "Wie OpenMates Datenschutzentscheidungen in praktische Produktfunktionen für den KI-Alltag übersetzt.",
-          "bodyMarkdown": "OpenMates folgt einer einfachen Idee: Menschen sollten leistungsfähige KI-Werkzeuge nutzen können, ohne mehr persönliche Informationen preiszugeben, als eine Aufgabe tatsächlich benötigt.\n\n## Datenschutz gehört ins Produkt\n\nDatenschutz darf nicht davon abhängen, dass jede Person lange Richtlinien liest oder sich an komplizierte Checklisten erinnert. Die Oberfläche sollte standardmäßig helfen. OpenMates verschlüsselt Chats auf dem Gerät, ersetzt sensible Angaben vor dem Versand durch Platzhalter und fragt nach, bevor gespeicherter Kontext mit einem Modell geteilt wird.\n\nDiese Entscheidungen sind über die reine Einhaltung von Regeln hinaus nützlich. Klare Kontrollen machen verständlicher, welche Informationen ein KI-System benötigt, welcher Anbieter sie verarbeitet und was auf dem Gerät bleibt.\n\n## Auswahl ist ebenfalls wichtig\n\nUnterschiedliche Aufgaben profitieren von unterschiedlichen Modellen und spezialisierten Werkzeugen. OpenMates hält diese Auswahl sichtbar, damit Menschen leistungsfähige Modelle und App-Skills nutzen können, ohne an das Ökosystem eines einzelnen Anbieters gebunden zu sein.\n\n## Was wir als Nächstes bauen\n\nAls Nächstes arbeiten wir an klareren Erklärungen, besseren lokalen Kontrollen und nützlicheren Workflows, die mit möglichst wenig persönlichem Kontext auskommen. Wir werden weiterhin veröffentlichen, was sich ändert und warum, damit diese Entscheidungen nachvollziehbar bleiben."
-        }
-      }
-    },
     {
       "id": "social-ai-builders-berlin",
       "slug": "agentic-coding-ai-builders-berlin",

@@ -289,18 +289,20 @@
         </main>
       {:else}
         <main>
-          <div class="hero-frame">
-            <PublicationHero
-              {hero}
-              detail={!isIndex}
-              onOpen={() =>
-                act(
-                  "open-item",
-                  isBlogSurface ? data.blogItems[0].id : data.newsItems[0].id,
-                )}
-              onClose={() => act("open-item")}
-            />
-          </div>
+          {#if hero}
+            <div class="hero-frame">
+              <PublicationHero
+                {hero}
+                detail={!isIndex}
+                onOpen={() =>
+                  act(
+                    "open-item",
+                    isBlogSurface ? data.blogItems[0].id : data.newsItems[0].id,
+                  )}
+                onClose={() => act("open-item")}
+              />
+            </div>
+          {/if}
 
           {#if isIndex}
             <div class="content-column">

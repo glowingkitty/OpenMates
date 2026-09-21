@@ -264,7 +264,9 @@ function buildSurface(
 		surface: {
 			...labels(locale),
 			heroNews: toHero(selected?.kind === 'release' ? selected : news[0], locale),
-			heroBlog: toHero(selected?.kind === 'blog' ? selected : blogs[0], locale),
+			heroBlog: blogs.length > 0
+				? toHero(selected?.kind === 'blog' ? selected : blogs[0], locale)
+				: null,
 			newsItems: activeNews.map((record) => toItem(record, locale)),
 			blogItems: activeBlogs.map((record) => toItem(record, locale)),
 			socialItems: orderedSocial.map((record) => toItem(record, locale)),
