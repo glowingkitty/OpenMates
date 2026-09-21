@@ -55,7 +55,9 @@ from backend.apps.ai.utils.embeds_map_view import (
     should_include_embeds_results_view_instruction,
     should_include_embeds_map_view_hint,
 )
-from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
+from backend.apps.ai.utils.tool_protocol_guard import (
+    ToolProtocolGuard, recovery_search_tools, required_fresh_search_tools,
+)
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
@@ -4026,6 +4028,8 @@ async def handle_main_processing(
     streaming_skill_count = 0  # Mirrors total_skill_calls during streaming to suppress over-budget placeholders
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
+    protocol_recovery_attempted = False
+    protocol_recovery_tools: Optional[List[Dict[str, Any]]] = None
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     task_queue_guard_retries = 0
     empty_post_tool_recovery_attempted = False
@@ -4041,6 +4045,17 @@ async def handle_main_processing(
     for iteration in range(MAX_TOOL_CALL_ITERATIONS):
         logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}, total_skill_calls={total_skill_calls}")
         
+        fresh_search_tools = required_fresh_search_tools(
+            available_tools_for_llm, preprocessing_results.relevant_app_skills,
+            requires_fresh_search=getattr(preprocessing_results, "requires_fresh_search", False),
+            total_skill_calls=total_skill_calls,
+            tools_disabled=force_no_tools or force_deep_research_delegation,
+        )
+        if (protocol_recovery_tools or fresh_search_tools) and iteration >= MAX_TOOL_CALL_ITERATIONS - 1:
+            logger.error("%s [TOOL_PROTOCOL_RECOVERY] No iteration remains for search and answer", log_prefix)
+            yield STANDARDIZED_USER_ERROR_MESSAGE
+            break
+
         # === LAST ITERATION SAFETY CHECK ===
         # If we're on the last iteration, always force no tools to ensure we get an answer.
         # This acts as a safety net in case the budget limits weren't reached.
@@ -4089,9 +4104,27 @@ async def handle_main_processing(
                 f"{log_prefix} [SUB_CHAT] Requiring start_sub_chats for active Deep research."
             )
         
+        iteration_tools = available_tools_for_llm if not force_no_tools else None
+        recovering_tool_protocol = bool(protocol_recovery_tools) and not force_no_tools
+        if recovering_tool_protocol or fresh_search_tools:
+            iteration_tools = protocol_recovery_tools if recovering_tool_protocol else fresh_search_tools
+            current_tool_choice = "required"
+            logger.info("%s [REQUIRED_SEARCH] Requiring the originally selected native search", log_prefix)
+
+        recovery_allowed_names = {
+            _canonicalize_tool_name(tool["function"]["name"])
+            for tool in (iteration_tools or [])
+        } if (recovering_tool_protocol or fresh_search_tools) else None
+
         # Build system prompt for this iteration
         # Inject budget warning if we've exceeded the soft limit
         iteration_system_prompt = full_system_prompt
+        if recovering_tool_protocol:
+            iteration_system_prompt += (
+                "\nThe previous attempt emitted internal tool data without executing a tool. "
+                "Call an available search function now for the latest user request. "
+                "Never simulate a call or result as text; use only the actual returned results."
+            )
         if budget_warning_injected:
             if follow_up_suggestions_enabled:
                 budget_guidance = (
@@ -4148,7 +4181,7 @@ async def handle_main_processing(
                     model_id=current_model_id,
                     system_prompt=iteration_system_prompt,
                     message_history=current_message_history,
-                    tools=available_tools_for_llm if not force_no_tools else None,
+                    tools=iteration_tools,
                     requested_output_token_limit=current_output_token_limit,
                     request_data=request_data,
                     directus_service=directus_service,
@@ -4167,7 +4200,7 @@ async def handle_main_processing(
                     model_id=current_model_id,
                     system_prompt=iteration_system_prompt,
                     message_history=current_message_history,
-                    tools=available_tools_for_llm if not force_no_tools else None,
+                    tools=iteration_tools,
                     output_token_limit=current_output_token_limit,
                     request_data=request_data,
                     directus_service=directus_service,
@@ -4179,7 +4212,7 @@ async def handle_main_processing(
                     model_id=current_model_id,  # Use current_model_id from fallback list
                     temperature=preprocessing_results.llm_response_temp,
                     secrets_manager=secrets_manager,
-                    tools=available_tools_for_llm if not force_no_tools else None,
+                    tools=iteration_tools,
                     tool_choice=current_tool_choice,
                     max_tokens=current_output_token_limit,
                 )
@@ -4210,6 +4243,7 @@ async def handle_main_processing(
                         f"All models failed. Tried: {models_to_try}. Last error: {last_model_error}"
                     ) from model_error
 
+        protocol_guard = ToolProtocolGuard()
         current_turn_text_buffer = []
         tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall]] = []
         # Hallucinated tool calls that must round-trip through the history as
@@ -4252,7 +4286,7 @@ async def handle_main_processing(
                "provider",
                provider_purpose="main",
            )
-           async for chunk in aggregate_paragraphs(observed_llm_stream):
+           async for chunk in protocol_guard.filter(observed_llm_stream):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 iteration_usage = chunk
                 # Keep the final usage object local until the stream completes so
@@ -4312,7 +4346,10 @@ async def handle_main_processing(
                 canonical_name = explicit_task_app_skill_tool_name(raw_function_name, task_app_skill_mentions)
                 normalized_from_explicit_task_app = canonical_name != _canonicalize_tool_name(raw_function_name)
                 is_sub_chat_violation = (canonical_name == "start-sub-chats" and chat_depth >= 2)
-                if canonical_name not in allowed_tool_names or is_sub_chat_violation:
+                if (
+                    canonical_name not in allowed_tool_names or is_sub_chat_violation
+                    or (recovery_allowed_names is not None and canonical_name not in recovery_allowed_names)
+                ):
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else INVALID_TOOL_RESULT_REASON
                     raw_arguments_log = "" if _is_task_tool_like(canonical_name) or _is_task_tool_like(raw_function_name) else f"Raw arguments: {chunk.function_arguments_raw[:500]}"
                     logger.warning(
@@ -4776,7 +4813,7 @@ async def handle_main_processing(
                 # CRITICAL: Always yield text chunks immediately, even when tool calls are pending
                 # This ensures paragraph-by-paragraph streaming works correctly
                 # Tool calls will be executed after the LLM finishes its turn, but text should stream immediately
-                if chunk:
+                if chunk and not ((recovering_tool_protocol or fresh_search_tools) and not tool_calls_for_this_turn):
                     llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk)
                     yield chunk
                     # Also buffer for message history (needed for tool execution context)
@@ -4825,6 +4862,11 @@ async def handle_main_processing(
                 yield STANDARDIZED_USER_ERROR_MESSAGE
                 break
 
+        # Retain the required search across provider/server fallback; consume the
+        # recovery only once an inference stream actually completes.
+        if recovering_tool_protocol:
+            protocol_recovery_tools = None
+
         if iteration_usage is not None:
             usage = iteration_usage
             successful_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
@@ -4837,6 +4879,33 @@ async def handle_main_processing(
             )
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
+
+        if protocol_guard.detected:
+            logger.warning(
+                "%s [TOOL_PROTOCOL_RECOVERY] Suppressed model-generated tool protocol; native_calls=%s",
+                log_prefix, len(tool_calls_for_this_turn),
+            )
+            if not tool_calls_for_this_turn:
+                candidates = recovery_search_tools(
+                    available_tools_for_llm, preprocessing_results.relevant_app_skills
+                )
+                if (
+                    candidates and not force_no_tools and total_skill_calls == 0
+                    and not protocol_recovery_attempted
+                    and iteration < MAX_TOOL_CALL_ITERATIONS - 2
+                ):
+                    protocol_recovery_attempted = True
+                    tool_inference_iterations += 1
+                    protocol_recovery_tools = candidates
+                    logger.info("%s [TOOL_PROTOCOL_RECOVERY] Retrying once with selected search required", log_prefix)
+                    continue
+                yield STANDARDIZED_USER_ERROR_MESSAGE
+                break
+
+        if (recovering_tool_protocol or fresh_search_tools) and not tool_calls_for_this_turn:
+            logger.error("%s [TOOL_PROTOCOL_RECOVERY] Required native search was not returned", log_prefix)
+            yield STANDARDIZED_USER_ERROR_MESSAGE
+            break
 
         if not tool_calls_for_this_turn:
             task_queue_result = await evaluate_task_queue_post_turn(
@@ -5950,7 +6019,7 @@ async def handle_main_processing(
                                     model_id=current_model_id,
                                     system_prompt=iteration_system_prompt,
                                     message_history=current_message_history,
-                                    tools=available_tools_for_llm if not force_no_tools else None,
+                                    tools=iteration_tools,
                                     output_token_limit=_orchestrated_ai_output_token_limit(
                                         current_model_id,
                                         request_data.orchestration_id,
@@ -6021,7 +6090,7 @@ async def handle_main_processing(
                                     model_id=current_model_id,
                                     system_prompt=iteration_system_prompt,
                                     message_history=current_message_history,
-                                    tools=available_tools_for_llm if not force_no_tools else None,
+                                    tools=iteration_tools,
                                     output_token_limit=_orchestrated_ai_output_token_limit(
                                         current_model_id,
                                         request_data.orchestration_id,
@@ -6114,7 +6183,7 @@ async def handle_main_processing(
                                 model_id=current_model_id,
                                 system_prompt=iteration_system_prompt,
                                 message_history=current_message_history,
-                                tools=available_tools_for_llm if not force_no_tools else None,
+                                tools=iteration_tools,
                                 output_token_limit=_orchestrated_ai_output_token_limit(
                                     current_model_id,
                                     request_data.orchestration_id,

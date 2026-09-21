@@ -127,9 +127,10 @@ preprocess_request_tool:
       - Select every skill that could materially help, but never invent an ID. Use web-search
         for broad retrieval, videos-search for useful demonstrations, and images-search for
         explicit image requests or visual/physical subjects (not abstract/code/data tasks).
-        For short same-intent follow-ups, reuse the relevant prior skill based on recent
-        messages and the activity ledger. Select URL read/transcript skills only when the
-        user asks to understand that URL.
+        Select URL read/transcript skills only when asked to understand that URL.
+      - Set requires_fresh_search for new results or entity/filter/time follow-ups
+        ("und OpenAI?"); reuse the prior skill using history/ledger. False for
+        summarizing, comparing or explaining existing results.
       - Select a focus only when its hint clearly matches; return [] for normal mode.
       - Select embedded previews only when structured rendering would help: code, math,
         email, document, music, website, image, or another supported type.
@@ -184,6 +185,9 @@ preprocess_request_tool:
           description: "Potentially relevant IDs from the skill catalogue above; otherwise []."
           items:
             type: "string"
+        requires_fresh_search:
+          type: "boolean"
+          description: "New search results are needed."
         relevant_focus_modes:
           type: "array"
           description: "Relevant IDs from the focus catalogue above; otherwise []."
@@ -229,6 +233,7 @@ preprocess_request_tool:
         - "enable_subchats"
         - "load_app_settings_and_memories"
         - "relevant_app_skills"
+        - "requires_fresh_search"
         - "relevant_focus_modes"
         - "relevant_embedded_previews"
 

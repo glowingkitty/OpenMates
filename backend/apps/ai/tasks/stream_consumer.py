@@ -45,6 +45,7 @@ from backend.apps.ai.utils.embed_display_text import (
     escape_markdown_link_label as _escape_markdown_link_label,
     is_bad_embed_display_text as _is_bad_embed_display_text,
 )
+from backend.apps.ai.utils.tool_protocol_guard import is_internal_tool_protocol
 from backend.apps.ai.utils.app_skill_json_cleanup import (
     canonicalize_app_skill_json_blocks,
     strip_failed_app_skill_json_blocks,
@@ -5032,7 +5033,7 @@ async def _consume_main_processing_stream(
     
     # Track if the current multi-chunk code block has language 'toon' and needs content-based
     # validation at closing fence. 'toon' blocks can be either:
-    # a) Fake tool calls (contain "tool:", "tool_code", or '"tool":' patterns) → filter out
+    # a) Internal tool calls/results (including app_id + skill_id) → filter out
     # b) Real code that the LLM mislabelled as 'toon' (e.g. YAML, Python) → deliver to user
     # We defer the decision until the closing fence when we have the full content.
     toon_pending_validation = False
@@ -5889,8 +5890,8 @@ async def _consume_main_processing_stream(
                         
                         # Pattern 2: Code block with language "toon" containing nested tool structure
                         if current_code_language and current_code_language.lower() == 'toon':
-                            # Check if content looks like a tool call (nested structure with 'tool:' or 'tool_code')
-                            if '"tool":' in code_content or 'tool_code' in code_content or 'tool:' in code_content.lower():
+                            # Check internal tool-call and app-result envelopes.
+                            if is_internal_tool_protocol("toon", code_content):
                                 is_fake_tool_call = True
                                 fake_tool_name = 'nested_toon_tool'
                                 logger.warning(
@@ -7350,7 +7351,7 @@ async def _consume_main_processing_stream(
                         # HARDENING: Check if this was a suspicious code block (fake tool call)
                         # 'tool_code' is ALWAYS a fake tool call.
                         # 'toon' needs content-based validation: only filter if it contains
-                        # tool call patterns ('"tool":', 'tool_code', 'tool:').
+                        # tool-call or internal app-result envelopes.
                         # If 'toon' block has real code content, treat it as a normal code block.
                         is_tool_code_language = current_code_language and current_code_language.lower() == 'tool_code'
                         
@@ -7358,9 +7359,7 @@ async def _consume_main_processing_stream(
                         # actually contains tool call patterns (matching the single-chunk check)
                         is_toon_fake_tool = False
                         if toon_pending_validation and current_code_language and current_code_language.lower() == 'toon':
-                            if ('"tool":' in current_code_content
-                                    or 'tool_code' in current_code_content
-                                    or 'tool:' in current_code_content.lower()):
+                            if is_internal_tool_protocol("toon", current_code_content):
                                 is_toon_fake_tool = True
                                 logger.warning(
                                     f"{log_prefix} [TOON_VALIDATED_AS_FAKE] Toon block content contains "
