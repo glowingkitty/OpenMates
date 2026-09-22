@@ -245,11 +245,12 @@
                     {$text('enter_message.buy_credits')}
                 </button>
             {:else if canSendMessage && !forceUnauthenticatedCta}
-                <button type="button" class="send-button" data-testid="composer-send-button" data-action="send-message" onclick={handleSendMessageClick} aria-label={$text('enter_message.send')} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
+                <!-- Keep the composer expanded between pointer-down and click, including during autosave. -->
+                <button type="button" class="send-button" data-testid="composer-send-button" data-preserve-composer-focus="true" data-action="send-message" onclick={handleSendMessageClick} aria-label={$text('enter_message.send')} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
                     {$text('enter_message.send')}
                 </button>
             {:else}
-                <button type="button" class="send-button" data-action="sign-up-to-send" onclick={handleSignUpClick} aria-label={unauthenticatedCtaLabel} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
+                <button type="button" class="send-button" data-preserve-composer-focus="true" data-action="sign-up-to-send" onclick={handleSignUpClick} aria-label={unauthenticatedCtaLabel} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
                     {unauthenticatedCtaLabel}
                 </button>
             {/if}

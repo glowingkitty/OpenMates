@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-export {};
+import type { Page, TestInfo } from '@playwright/test';
 
 /**
  * Stop-new-chat draft restoration regression.
@@ -20,6 +20,7 @@ const {
 const {
 	deleteActiveChat,
 	dismissSecurityReminderIfPresent,
+	fillMessageEditor,
 	loginToTestAccount,
 	startNewChat
 } = require('./helpers/chat-test-helpers');
@@ -528,5 +529,101 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 				await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'cleanup-late-draft').catch(() => undefined);
 			}
 		}
+	}
+});
+
+// Exercise physical Send clicks using this suite's configured AI fixture runtime.
+test.describe('first draft Send continuity', () => {
+	let sendDiagnostics: string[] = [];
+	test.beforeEach(async ({ page }: { page: Page }) => {
+		sendDiagnostics = [];
+		page.on('console', (entry) => {
+			if (/handleSend|MessageInput|Preflight|ChatSyncService:Senders/.test(entry.text()) || entry.type() === 'error') {
+				sendDiagnostics.push(`${entry.type()}: ${entry.text()}`);
+				if (sendDiagnostics.length > 250) sendDiagnostics.shift();
+			}
+		});
+		page.on('pageerror', (error) => sendDiagnostics.push(`pageerror: ${error.message}`));
+	});
+	test.afterEach(async ({ page }: { page: Page }, testInfo: TestInfo) => {
+		const state = await page.evaluate(() => {
+			const probe = window as typeof window & {
+				__openmatesLastSendDebug?: unknown;
+				__openmatesLastPreflightDebug?: unknown;
+			};
+			return { send: probe.__openmatesLastSendDebug, preflight: probe.__openmatesLastPreflightDebug };
+		}).catch(() => null);
+		await testInfo.attach('send-diagnostics', {
+			body: JSON.stringify({ state, logs: sendDiagnostics }, null, 2), contentType: 'application/json'
+		});
+	});
+
+	for (const sidebarOpen of [false, true]) {
+		// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.drafts.preview-persistence,drafts.draft-only.lifecycle
+		test(`sends once across first draft activation with sidebar ${sidebarOpen ? 'open' : 'closed'}`, async ({ page }: { page: Page }, testInfo: TestInfo) => {
+			test.setTimeout(90000);
+			await page.setViewportSize({ width: 1280, height: 900 });
+			await loginToTestAccount(page, () => undefined, async () => undefined, { waitForEditor: true });
+			await startNewChat(page);
+			const toggle = page.getByTestId('sidebar-toggle');
+			if ((await toggle.getAttribute('aria-expanded') === 'true') !== sidebarOpen) await toggle.click();
+
+			await page.evaluate(() => {
+				const pause = (window as typeof window & {
+					__openmatesE2EPauseNextDraftSelection?: () => void;
+				}).__openmatesE2EPauseNextDraftSelection;
+				if (!pause) throw new Error('Draft activation pause hook is unavailable');
+				pause();
+			});
+			const message = 'What is the capital of Germany?';
+			const editor = page.getByTestId('message-editor');
+			await fillMessageEditor(page, editor, withMockMarker(message, 'chat_flow_capital'));
+			await expect.poll(() => page.evaluate(() =>
+				(window as typeof window & {
+					__openmatesE2EDraftSelectionTrace?: Array<{ result: string }>;
+				}).__openmatesE2EDraftSelectionTrace?.some((entry) => entry.result === 'paused') ?? false
+			)).toBe(true);
+
+			const send = page.getByTestId('composer-send-button');
+			await send.hover();
+			const pressedButton = await send.elementHandle();
+			let draftChatId: string | null = null;
+			await page.mouse.down();
+			try {
+				await page.evaluate(() => {
+					const release = (window as typeof window & {
+						__openmatesE2EReleaseDraftSelection?: () => void;
+					}).__openmatesE2EReleaseDraftSelection;
+					if (!release) throw new Error('Draft activation release hook is unavailable');
+					release();
+				});
+				await expect(page.getByTestId('draft-chat-badge')).toBeVisible();
+				draftChatId = await page.getByTestId('active-chat-container').getAttribute('data-current-chat-id');
+				// Cross the blur timer AND outgoing action-row transition while pressed.
+				await page.waitForTimeout(450);
+				await expect(editor).toBeVisible();
+				await expect(send).toBeFocused();
+				expect(await pressedButton!.evaluate((button) =>
+					button.isConnected && !button.closest('[inert]')
+				)).toBe(true);
+			} finally {
+				// Release at the original physical coordinates: locator.click retries
+				// would conceal a moved or replaced button and a lost first click.
+				await page.mouse.up();
+			}
+			expect(draftChatId).toBeTruthy();
+			await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', draftChatId!);
+			await expect(page.getByTestId('message-user')).toHaveCount(1);
+			await expect(page.getByTestId('message-user')).toContainText(message);
+			await expect(page.getByTestId('message-assistant').last()).toContainText('Berlin', { timeout: 30000 });
+			await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0);
+			await testInfo.attach('first-draft-send', { body: await page.screenshot(), contentType: 'image/png' });
+
+			// Confirm the same chat contains exactly one durable send after reloading.
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', draftChatId!);
+			await expect(page.getByTestId('message-user')).toHaveCount(1);
+			await expect(page.getByTestId('message-user')).toContainText(message);
+		});
 	}
 });
