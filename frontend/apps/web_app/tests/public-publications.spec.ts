@@ -33,13 +33,35 @@ test.describe('public news, blog, and social publications', () => {
 		const images = article.locator('img');
 		await expect(images).toHaveCount(15);
 		await expect(article.getByRole('link', { name: 'Projects are now a conversation with Claude' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=5qt_aGyAsKk');
+		await expect(article.getByRole('link', { name: 'Projects are now a conversation with Claude' })).toHaveAttribute('target', '_blank');
+		await expect(article.getByRole('link', { name: 'Projects are now a conversation with Claude' })).toHaveAttribute('rel', 'noopener noreferrer');
 		await expect(images.first()).toHaveAttribute('src', /^\/publications\/blog\//);
 		await expect(images.first().locator('..')).toHaveAttribute('href', /^https:\/\/openmates-buffer-media\.nbg1\.your-objectstorage\.com\/publications\/blog\//);
+		await expect(images.first().locator('..')).toHaveAttribute('target', '_blank');
+		await expect(images.first().locator('..')).toHaveAttribute('rel', 'noopener noreferrer');
+		await expect(page.locator('.publication-hero .play-button')).toHaveCount(0);
+		await expect(page.getByTestId('newsroom-slideshow')).toHaveCount(0);
+		const authorLink = page.getByRole('link', { name: "Open Marco's LinkedIn profile" });
+		await expect(authorLink).toHaveAttribute('href', 'https://www.linkedin.com/in/marco0/');
+		await expect(authorLink).toHaveAttribute('target', '_blank');
+		await expect(authorLink.locator('img')).toHaveAttribute('src', '/publications/authors/marco.jpg');
+		await expect(page.getByRole('heading', { name: 'Latest news' })).toBeVisible();
+		await expect(page.locator('.publication-header .logo-link')).toHaveAttribute('href', '/blog');
 		await expect.poll(() => images.first().evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
 		const size = await images.first().evaluate((image) => image.getBoundingClientRect().toJSON());
 		expect(size.width / size.height).toBeCloseTo(16 / 9, 1);
 		expect(size.right).toBeLessThanOrEqual(390);
 		await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	});
+
+	// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives,public-publications.seo.crawlable
+	test('renders the translated German blog at its localized canonical route', async ({ page }) => {
+		await page.goto('/de/blog/better-guardrails-for-agentic-coding');
+		await expect(page.getByRole('heading', { level: 1, name: 'Nicht im Blindflug: Bessere Leitplanken für agentisches Programmieren' })).toBeVisible();
+		await expect(page.getByText('Marco', { exact: true })).toBeVisible();
+		await expect(page.getByText('Gründer von OpenMates.', { exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Neueste Meldungen' })).toBeVisible();
+		await expect(page.locator('.publication-header .logo-link')).toHaveAttribute('href', '/de/blog');
 	});
 
 
@@ -67,6 +89,7 @@ test.describe('public news, blog, and social publications', () => {
 					await expect(page.locator('.publication-hero')).not.toHaveCSS('padding-left', '0px');
 				}
 			}
+			await expect(page.locator('.publication-header .logo-link')).toHaveAttribute('href', route === '/blog' ? '/blog' : '/news');
 		}
 	});
 

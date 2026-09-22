@@ -24,6 +24,7 @@
 import type { RequestHandler } from './$types';
 import { getAllExampleChatData, getAllActiveNewsletterChats, newsletterKindFromChatId, LEGAL_CHATS, getAllOpenMatesEvents } from '@repo/ui';
 import { getPublicationSitemapEntries } from '$lib/server/publications';
+import { isOfficialOpenMatesPublicationHost } from '$lib/server/publicationHosting';
 
 export const prerender = false; // SSR so the sitemap always reflects the current build
 
@@ -121,7 +122,9 @@ export const GET: RequestHandler = async ({ url }) => {
 		})
 		.filter((u): u is string => u !== null);
 
-	const publicationUrls = getPublicationSitemapEntries().map((entry) => `  <url>
+	const publicationUrls = (isOfficialOpenMatesPublicationHost(hostname)
+		? getPublicationSitemapEntries()
+		: []).map((entry) => `  <url>
     <loc>${siteOrigin}${entry.path}</loc>
     <xhtml:link rel="alternate" hreflang="${entry.locale}" href="${siteOrigin}${entry.path}" />
     <xhtml:link rel="alternate" hreflang="${entry.locale === 'en' ? 'de' : 'en'}" href="${siteOrigin}${entry.alternatePath}" />

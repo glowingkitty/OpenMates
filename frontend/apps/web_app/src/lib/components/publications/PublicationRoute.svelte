@@ -70,4 +70,10 @@
 	{@html `<script type="application/ld+json">${data.jsonLd}<` + `/script>`}
 </svelte:head>
 
-<NewsroomSurface view={data.view} locale={data.locale} data={data.surface} onAction={handleAction} />
+<NewsroomSurface
+	view={data.view}
+	locale={data.locale}
+	indexHref={data.indexUrl}
+	data={data.surface}
+	onAction={handleAction}
+/>

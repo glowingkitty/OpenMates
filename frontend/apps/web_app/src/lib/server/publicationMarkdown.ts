@@ -1,6 +1,17 @@
 import MarkdownIt from 'markdown-it';
 
 const markdown = new MarkdownIt({ html: false, linkify: true, breaks: false });
+const defaultLinkOpen = markdown.renderer.rules.link_open
+	?? ((tokens, index, options, _environment, renderer) => renderer.renderToken(tokens, index, options));
+
+markdown.renderer.rules.link_open = (tokens, index, options, environment, renderer) => {
+	const href = tokens[index].attrGet('href');
+	if (href && /^https?:\/\//i.test(href)) {
+		tokens[index].attrSet('target', '_blank');
+		tokens[index].attrSet('rel', 'noopener noreferrer');
+	}
+	return defaultLinkOpen(tokens, index, options, environment, renderer);
+};
 const MEDIA_URL = /^https:\/\/[^\s<>()]+\.(?:avif|gif|jpe?g|png|webp|mp4|m4v|webm)(?:\?[^\s<>()]*)?$/i;
 const MARKDOWN_IMAGE = /^!\[([^\]]*)\]\((https:\/\/[^\s)]+)\)$/i;
 

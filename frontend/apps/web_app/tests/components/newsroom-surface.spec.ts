@@ -122,6 +122,11 @@ for (const phone of [false, true]) {
         await expect(page.locator('.article-body')).toHaveCSS('user-select', 'text');
         await expect(page.locator('.article-byline img.avatar')).toHaveAttribute('src', '/favicon.svg');
         await expect(page.getByRole('heading', { name: 'More from OpenMates' })).toHaveCount(0);
+        await expect(page.getByRole('heading', { name: 'More blog posts' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Latest news' })).toBeVisible();
+        await expect(page.getByTestId('newsroom-slideshow')).toHaveCount(0);
+        await expect(page.locator('.publication-hero .play-button')).toHaveCount(0);
+        await expect(page.locator('.publication-header .logo-link')).toHaveAttribute('href', '/blog');
       }
       await testInfo.attach(`${variant}-${device}`, { body: await page.screenshot(), contentType: 'image/png' });
     }

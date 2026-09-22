@@ -36,7 +36,11 @@
       {/if}
     </div>
     <div class="hero-media">
-      <NewsroomMedia label={`${hero.title} featured media`} source={hero.media} />
+      <NewsroomMedia
+        label={`${hero.title} featured media`}
+        source={hero.media}
+        showPlay={hero.media?.type === "video"}
+      />
     </div>
   </div>
   <button

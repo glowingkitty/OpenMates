@@ -19,6 +19,7 @@ import type {
 	PublicationSitemapEntry
 } from '$lib/publications/types';
 import { renderPublicationMarkdown } from './publicationMarkdown';
+import { isOfficialOpenMatesPublicationHost } from './publicationHosting';
 import { publicPublicationManifest } from './publicationManifest';
 
 const RELEASE_SLUGS = new Set([
@@ -206,10 +207,16 @@ function toHero(record: PublicationRecord, locale: PublicPublicationLocale): New
 }
 
 function toArticle(record: PublicationRecord, locale: PublicPublicationLocale): NewsroomArticleContent {
+	const isBlog = record.kind === 'blog';
 	return {
-		byline: record.kind === 'blog'
+		byline: isBlog
 			? (locale === 'de' ? 'Marco\nGründer von OpenMates.' : 'Marco\nCreator of OpenMates.')
 			: (locale === 'de' ? 'OpenMates Newsroom · Berlin' : 'OpenMates newsroom · Berlin, Germany'),
+		authorImageUrl: isBlog ? '/publications/authors/marco.jpg' : undefined,
+		authorUrl: isBlog ? 'https://www.linkedin.com/in/marco0/' : undefined,
+		authorLinkLabel: isBlog
+			? (locale === 'de' ? 'Marcos LinkedIn-Profil öffnen' : "Open Marco's LinkedIn profile")
+			: undefined,
 		publishedLabel: formatDate(record.publishedAt, locale),
 		intro: record.copy.description,
 		bodyHtml: renderPublicationMarkdown(record.copy.bodyMarkdown),
@@ -296,6 +303,7 @@ export function loadPublicationPage(args: {
 	url: URL;
 }): PublicPublicationPageData {
 	const { locale, section, slug, url } = args;
+	if (!isOfficialOpenMatesPublicationHost(url.hostname)) error(404, 'Publication not found');
 	if (section === 'social' && !slug) error(404, 'Social archive entries require a post slug');
 	const { surface, selected, linksById } = buildSurface(locale, section, slug);
 	const path = publicationPath(locale, section, slug ?? undefined);
@@ -327,7 +335,12 @@ export function loadPublicationPage(args: {
 			dateModified: selected.updatedAt,
 			inLanguage: locale,
 			author: selected.kind === 'blog'
-				? { '@type': 'Person', name: 'Marco', url: `${url.origin}/intro/who-develops-openmates` }
+				? {
+					'@type': 'Person',
+					name: 'Marco',
+					url: 'https://www.linkedin.com/in/marco0/',
+					image: `${url.origin}/publications/authors/marco.jpg`
+				}
 				: { '@type': 'Organization', name: 'OpenMates', url: url.origin },
 			publisher: { '@type': 'Organization', name: 'OpenMates', url: url.origin },
 			mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },

@@ -44,6 +44,9 @@ export interface NewsroomHero {
 
 export interface NewsroomArticleContent {
   byline: string;
+  authorImageUrl?: string;
+  authorUrl?: string;
+  authorLinkLabel?: string;
   publishedLabel: string;
   intro: string;
   paragraphs?: string[];
