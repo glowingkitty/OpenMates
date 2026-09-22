@@ -3,7 +3,6 @@
 	import '@repo/ui/src/styles/theme.css';
 	import '@repo/ui/src/styles/fonts.css';
 	import '@repo/ui/src/styles/icons.css';
-	import '@repo/ui/src/styles/icon-urls.generated.css';
 
 	let { children } = $props();
 </script>
@@ -13,3 +12,10 @@
 </svelte:head>
 
 {@render children()}
+
+<style>
+	:global(body) {
+		opacity: 1;
+		animation: none;
+	}
+</style>

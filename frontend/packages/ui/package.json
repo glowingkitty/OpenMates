@@ -14,6 +14,11 @@
       "svelte": "./src/demo_chats/index.ts",
       "default": "./src/demo_chats/index.ts"
     },
+    "./demo_chats/newsletters": {
+      "types": "./src/demo_chats/newsletterChatStore.ts",
+      "svelte": "./src/demo_chats/newsletterChatStore.ts",
+      "default": "./src/demo_chats/newsletterChatStore.ts"
+    },
     "./i18n/setup": {
       "types": "./src/i18n/setup.ts",
       "default": "./src/i18n/setup.ts"

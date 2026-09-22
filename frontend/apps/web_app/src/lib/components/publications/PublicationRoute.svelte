@@ -74,6 +74,7 @@
 	view={data.view}
 	locale={data.locale}
 	indexHref={data.indexUrl}
+	navigationKey={data.canonicalUrl}
 	data={data.surface}
 	onAction={handleAction}
 />

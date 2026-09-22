@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { getActiveNewsletterChatsByKind } from '@repo/ui/demo_chats';
+import { getActiveNewsletterChatsByKind } from '@repo/ui/demo_chats/newsletters';
 import type {
 	NewsroomArticleContent,
 	NewsroomHero,
@@ -30,7 +30,7 @@ const RELEASE_SLUGS = new Set([
 
 const RELEASE_FALLBACK_MEDIA: NewsroomMediaSource = {
 	type: 'image',
-	url: '/publications/openmates-ui-fallback.png',
+	url: '/publications/openmates-ui-fallback.webp',
 	alt: 'OpenMates web app showing the daily inspiration interface'
 };
 

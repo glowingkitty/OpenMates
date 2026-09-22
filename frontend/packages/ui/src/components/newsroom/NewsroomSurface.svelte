@@ -18,11 +18,12 @@
     view: NewsroomView;
     locale: "en" | "de";
     indexHref: string;
+    navigationKey: string;
     data: NewsroomSurfaceData;
     onAction: (action: NewsroomAction) => void;
   }
 
-  let { view, locale, indexHref, data, onAction }: Props = $props();
+  let { view, locale, indexHref, navigationKey, data, onAction }: Props = $props();
 
   let searchOpen = $state(false);
   let searchTerm = $state("");
@@ -31,6 +32,15 @@
   let sidebarOpen = $state(false);
   let visiblePrimaryCount = $state(3);
   let visibleRelatedCount = $state(2);
+  let publicationScroll = $state<HTMLElement>();
+
+  $effect(() => {
+    if (!navigationKey) return;
+    void tick().then(() => {
+      publicationScroll?.scrollTo({ top: 0, left: 0 });
+      window.scrollTo({ top: 0, left: 0 });
+    });
+  });
 
   const isBlogSurface = $derived(view === "blog" || view === "blog-post");
   const isIndex = $derived(view === "news" || view === "blog");
@@ -44,6 +54,15 @@
   );
   const latestLabel = $derived(
     isBlogSurface ? data.latestBlogLabel : data.latestNewsLabel,
+  );
+  const contactLabel = $derived(
+    view === "release" ? data.releaseContactLabel : data.blogContactLabel,
+  );
+  const contactEmail = $derived(
+    contactLabel.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)?.[0] ?? "",
+  );
+  const contactPrompt = $derived(
+    contactEmail ? contactLabel.replace(contactEmail, "").trim() : contactLabel,
   );
 
   const normalizedQuery = $derived(searchTerm.trim().toLocaleLowerCase(locale));
@@ -221,7 +240,10 @@
       </aside>
     {/if}
     <p class="contact-line">
-      {isRelease ? data.releaseContactLabel : data.blogContactLabel}
+      <span>{contactPrompt}</span>
+      {#if contactEmail}
+        <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+      {/if}
     </p>
   </article>
 {/snippet}
@@ -253,7 +275,7 @@
       {sidebarOpen}
     />
 
-    <div class="publication-scroll">
+    <div class="publication-scroll" bind:this={publicationScroll}>
       {#if view === "social-post"}
         <main class="social-detail-page">
           <button
@@ -887,9 +909,15 @@
     justify-self: end;
   }
   .contact-line {
+    display: grid;
+    gap: var(--spacing-2);
     color: var(--color-primary-start);
     font-weight: 700;
     text-align: center;
+  }
+  .contact-line a {
+    color: inherit;
+    font-weight: inherit;
   }
   .related-section {
     padding-top: var(--spacing-12);
@@ -993,13 +1021,13 @@
     mask-size: contain;
   }
   .platform-icon.icon-bluesky {
-    mask-image: var(--icon-url-bluesky);
+    mask-image: url("@openmates/ui/static/icons/bluesky.svg");
   }
   .platform-icon.icon-instagram {
-    mask-image: var(--icon-url-instagram);
+    mask-image: url("@openmates/ui/static/icons/instagram.svg");
   }
   .platform-icon.icon-mastodon {
-    mask-image: var(--icon-url-mastodon);
+    mask-image: url("@openmates/ui/static/icons/mastodon.svg");
   }
   .more-posts {
     width: min(100%, var(--publication-content-max-width));
