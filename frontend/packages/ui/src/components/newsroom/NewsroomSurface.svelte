@@ -737,6 +737,14 @@
     gap: var(--spacing-5);
     margin: var(--spacing-5) 0;
   }
+  /* Linked editorial illustrations keep their full canvas at every viewport. */
+  .article-markdown :global(p img) {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-4);
+  }
   .article-markdown :global(.publication-media-group img),
   .article-markdown :global(.publication-media-group video) {
     display: block;

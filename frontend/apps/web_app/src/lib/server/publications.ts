@@ -151,6 +151,14 @@ function coverageRecords(locale: PublicPublicationLocale): PublicationRecord[] {
 	}];
 }
 
+function readingTimeLabel(record: PublicationRecord, locale: PublicPublicationLocale): string {
+	const prose = record.copy.bodyMarkdown
+		.replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+		.replace(/\]\([^)]*\)/g, ']');
+	const minutes = Math.max(1, Math.ceil(prose.trim().split(/\s+/).length / 220));
+	return locale === 'de' ? `${minutes} Min. Lesezeit` : `${minutes} min read`;
+}
+
 function toItem(record: PublicationRecord, locale: PublicPublicationLocale): NewsroomItem {
 	const kind = record.kind === 'release' ? 'release' : record.kind;
 	const eyebrow = record.kind === 'release'
@@ -168,7 +176,7 @@ function toItem(record: PublicationRecord, locale: PublicPublicationLocale): New
 		excerpt: record.copy.description,
 		bodyText: record.kind === 'social' ? record.copy.bodyMarkdown : undefined,
 		publishedLabel: formatDate(record.publishedAt, locale),
-		readTime: record.kind === 'blog' ? (locale === 'de' ? '4 Min. Lesezeit' : '4 min read') : undefined,
+		readTime: record.kind === 'blog' ? readingTimeLabel(record, locale) : undefined,
 		author: record.author,
 		language: record.kind === 'coverage' ? (locale === 'de' ? 'Deutsch' : 'German') : undefined,
 		socialLinks: record.socialLinks?.map((link) => ({
@@ -188,7 +196,7 @@ function toHero(record: PublicationRecord, locale: PublicPublicationLocale): New
 		kicker: record.kind === 'blog' ? (locale === 'de' ? 'Empfohlen' : 'Featured') : undefined,
 		title: record.copy.title,
 		meta: record.kind === 'blog'
-			? `${formatDate(record.publishedAt, locale)} · ${locale === 'de' ? '4 Min. Lesezeit' : '4 min read'}`
+			? `${formatDate(record.publishedAt, locale)} · ${readingTimeLabel(record, locale)}`
 			: formatDate(record.publishedAt, locale),
 		actionLabel: record.kind === 'blog'
 			? (locale === 'de' ? 'Blogbeitrag lesen' : 'Read the blog post')

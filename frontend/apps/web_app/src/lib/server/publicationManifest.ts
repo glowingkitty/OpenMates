@@ -78,7 +78,7 @@ function isoDate(value: unknown, label: string): string {
 
 function safeUrl(value: unknown, label: string, hosts: Set<string>): string {
 	const input = requiredString(value, label);
-	if (label.includes('.media.') && /^\/publications\/social\/[a-z0-9][a-z0-9.-]+$/i.test(input)) {
+	if (label.includes('.media.') && /^\/publications\/(?:social|blog)\/[a-z0-9][a-z0-9.-]+$/i.test(input)) {
 		return input;
 	}
 	const parsed = new URL(input);

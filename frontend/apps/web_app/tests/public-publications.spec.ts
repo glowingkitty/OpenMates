@@ -5,6 +5,7 @@ test.describe('public news, blog, and social publications', () => {
 	test('sends one article preview with a reachable image to crawlers', async ({ request }) => {
 		for (const path of [
 			'/news/introducing-openmates-v011',
+			'/blog/better-guardrails-for-agentic-coding',
 			'/social/workflow-automation-webinar'
 		]) {
 			const response = await request.get(path);
@@ -22,6 +23,25 @@ test.describe('public news, blog, and social publications', () => {
 			expect(image.headers()['content-type']).toMatch(/^image\//);
 		}
 	});
+
+	// contract-test: direct surface=gui.web assertions=public-publications.content.media-groups,public-publications.seo.crawlable
+	test('renders the illustrated blog without cropping or overflowing on mobile', async ({ page }) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.goto('/blog/better-guardrails-for-agentic-coding');
+		await expect(page.getByRole('heading', { level: 1, name: 'Don’t fly blind: Better guardrails for agentic coding' })).toBeVisible();
+		const article = page.locator('.article-markdown');
+		const images = article.locator('img');
+		await expect(images).toHaveCount(15);
+		await expect(article.getByRole('link', { name: 'Projects are now a conversation with Claude' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=5qt_aGyAsKk');
+		await expect(images.first()).toHaveAttribute('src', /^\/publications\/blog\//);
+		await expect(images.first().locator('..')).toHaveAttribute('href', /^https:\/\/openmates-buffer-media\.nbg1\.your-objectstorage\.com\/publications\/blog\//);
+		await expect.poll(() => images.first().evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+		const size = await images.first().evaluate((image) => image.getBoundingClientRect().toJSON());
+		expect(size.width / size.height).toBeCloseTo(16 / 9, 1);
+		expect(size.right).toBeLessThanOrEqual(390);
+		await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	});
+
 
 	// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives
 	test('loads publication design tokens on direct visits in light and dark themes', async ({ page }) => {
