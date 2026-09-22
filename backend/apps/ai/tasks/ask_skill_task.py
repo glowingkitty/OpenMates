@@ -55,6 +55,7 @@ from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
 from backend.apps.ai.processing.artifact_ledger import (
     build_historical_artifact_context,
     load_and_merge_artifact_ledger,
+    recover_inline_upload_artifacts,
 )
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
@@ -1214,13 +1215,22 @@ async def _async_process_ai_skill_ask_task(
 
     # Preserve only the reference-to-embed mapping needed by later skill calls.
     # The payload is Vault-encrypted and contains no artifact bytes or extracted content.
+    recovered_inline_artifacts = await recover_inline_upload_artifacts(
+        cache_service=cache_service_instance,
+        chat_id=request_data.chat_id,
+        message_history=request_data.message_history,
+    )
+    current_artifact_index = {
+        **recovered_inline_artifacts,
+        **(request_data.embed_file_path_index or {}),
+    }
     request_data.embed_file_path_index = await load_and_merge_artifact_ledger(
         cache_service=cache_service_instance,
         encryption_service=encryption_service_instance,
         user_vault_key_id=user_vault_key_id,
         user_id_hash=request_data.user_id_hash,
         chat_id=request_data.chat_id,
-        current_index=request_data.embed_file_path_index,
+        current_index=current_artifact_index,
         persist=not request_data.is_incognito and not request_data.is_external,
     ) or None
     request_data.historical_artifact_context = None

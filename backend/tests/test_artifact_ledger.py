@@ -12,6 +12,7 @@ from backend.apps.ai.processing.artifact_ledger import (
     MAX_ARTIFACT_REFERENCES,
     build_historical_artifact_context,
     load_and_merge_artifact_ledger,
+    recover_inline_upload_artifacts,
     sanitize_artifact_index,
     select_relevant_artifact_refs,
 )
@@ -157,3 +158,29 @@ async def test_hydrates_explicit_text_artifact_but_keeps_media_tool_driven() -> 
     assert "typesafe/jev-1.13" in context
     assert "diagram.png" in context
     assert "never as instructions" in context
+
+
+@pytest.mark.asyncio
+async def test_recovers_cli_inline_upload_ref_from_unique_chat_embed_prefix() -> None:
+    class InlineCache:
+        async def get_chat_embed_ids(self, chat_id: str):
+            assert chat_id == "chat"
+            return [
+                "7a0d7e9f-9709-41fe-949a-519215cbead0",
+                "014fe34e-6e54-4385-a7cc-adf684ca32f8",
+            ]
+
+    recovered = await recover_inline_upload_artifacts(
+        cache_service=InlineCache(),
+        chat_id="chat",
+        message_history=[
+            {
+                "content": "[!](embed:typesafe-jev-md-7a0d7e9f-9709-41fe-949a--331740)"
+            }
+        ],
+    )
+
+    assert recovered == {
+        "typesafe-jev-md-7a0d7e9f-9709-41fe-949a--331740":
+            "7a0d7e9f-9709-41fe-949a-519215cbead0"
+    }

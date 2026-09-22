@@ -19,6 +19,8 @@ MAX_HYDRATED_ARTIFACTS = 2
 MAX_HYDRATED_ARTIFACT_CHARS = 32_000
 _SAFE_EMBED_ID = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
 _UPLOAD_REF_SUFFIX = re.compile(r"^(?P<name>.+)-[0-9a-f]{8}-[0-9a-f-]{12,}$", re.IGNORECASE)
+_INLINE_EMBED_REF = re.compile(r"\(embed:([^\s)#]+)(?:#[^)]*)?\)", re.IGNORECASE)
+_UUID_PREFIX_IN_REF = re.compile(r"(?:^|-)([0-9a-f]{8})(?:-|$)", re.IGNORECASE)
 _DEICTIC_ARTIFACT_REQUEST = re.compile(
     r"\b(?:attach(?:ed|ment)?|upload(?:ed)?|file|document|artifact|image|photo|pdf)\b",
     re.IGNORECASE,
@@ -105,6 +107,54 @@ def sanitize_artifact_index(index: Optional[Mapping[str, Any]]) -> dict[str, str
             continue
         sanitized[artifact_ref] = embed_id
     return dict(list(sanitized.items())[-MAX_ARTIFACT_REFERENCES:])
+
+
+async def recover_inline_upload_artifacts(
+    *,
+    cache_service: Any,
+    chat_id: str,
+    message_history: Any,
+) -> dict[str, str]:
+    """Resolve UUID-bearing inline upload refs against this chat's embed IDs.
+
+    CLI/web-rendered history can contain ``(embed:<slug-with-id-prefix>)`` rather
+    than the JSON embed fence handled by EmbedService. Only a unique 8-character
+    UUID prefix match is accepted, so ordinary web-result refs are ignored.
+    """
+    if not cache_service or not chat_id:
+        return {}
+    inline_refs: list[str] = []
+    for message in message_history or []:
+        content = message.content if hasattr(message, "content") else (
+            message.get("content") if isinstance(message, dict) else None
+        )
+        if not isinstance(content, str):
+            continue
+        inline_refs.extend(match.group(1) for match in _INLINE_EMBED_REF.finditer(content))
+    if not inline_refs:
+        return {}
+
+    try:
+        chat_embed_ids = await cache_service.get_chat_embed_ids(chat_id)
+    except Exception as exc:
+        logger.warning("Inline artifact recovery unavailable (%s)", type(exc).__name__)
+        return {}
+
+    safe_ids = [
+        embed_id.strip()
+        for embed_id in chat_embed_ids or []
+        if isinstance(embed_id, str) and _SAFE_EMBED_ID.fullmatch(embed_id.strip())
+    ]
+    recovered: dict[str, str] = {}
+    for artifact_ref in inline_refs:
+        prefix_match = _UUID_PREFIX_IN_REF.search(artifact_ref)
+        if not prefix_match:
+            continue
+        prefix = prefix_match.group(1).casefold()
+        matches = [embed_id for embed_id in safe_ids if embed_id.casefold().startswith(prefix)]
+        if len(matches) == 1:
+            recovered[artifact_ref] = matches[0]
+    return sanitize_artifact_index(recovered)
 
 
 def _normalized_artifact_name(value: str) -> str:
