@@ -65,6 +65,7 @@ const mocks = vi.hoisted(() => ({
   decryptChatKeyWithMasterKey: vi.fn(),
   encryptChatKeyWithMasterKey: vi.fn(),
   flushPendingSystemMessagesForChat: vi.fn(),
+  persistAssistantSpeechPreferenceIntent: vi.fn(),
 }));
 
 vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
@@ -87,6 +88,9 @@ vi.mock("../encryption/MetadataEncryptor", () => ({
 }));
 vi.mock("../chatSyncServiceHandlersAppSettings", () => ({
   flushPendingSystemMessagesForChat: mocks.flushPendingSystemMessagesForChat,
+}));
+vi.mock("../assistantSpeechPreference", () => ({
+  persistAssistantSpeechPreferenceIntent: mocks.persistAssistantSpeechPreferenceIntent,
 }));
 vi.mock("../chatSyncServiceHandlersAI", () => ({
   flushPendingFinalizedEmbedsForChat: vi.fn(),
@@ -119,13 +123,14 @@ function setWindowHash(hash: string): void {
 }
 
 describe("handleChatMessageConfirmedImpl", () => {
-  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,assistant-speech.preference.chat-scoped-default-off,chats.persistence.client-encrypted
   it("invalidates the optimistic sidebar message after confirmation", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     mocks.chatDB.updateMessageStatus.mockResolvedValue(undefined);
     mocks.chatDB.getMessage.mockResolvedValue({ message_id: "message-1", chat_id: "chat-1", status: "synced" });
     mocks.chatDB.getChat.mockResolvedValue({ chat_id: "chat-1", messages_v: 1 });
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
+    mocks.persistAssistantSpeechPreferenceIntent.mockResolvedValue(undefined);
 
     await handleChatMessageConfirmedImpl(service, {
       chat_id: "chat-1",
@@ -136,6 +141,7 @@ describe("handleChatMessageConfirmedImpl", () => {
 
     expect(mocks.chatDB.updateMessageStatus).toHaveBeenCalledWith("message-1", "synced");
     expect(mocks.chatListCache.invalidateLastMessage).toHaveBeenCalledWith("chat-1");
+    expect(mocks.persistAssistantSpeechPreferenceIntent).toHaveBeenCalledWith("chat-1");
   });
 });
 

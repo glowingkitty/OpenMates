@@ -92,17 +92,24 @@ test.use({
 test.describe.serial('Audio recording and assistant speech', () => {
 	test.setTimeout(900_000);
 
-	// contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,assistant-speech.preference.voice-recording-visible-activation,assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds,assistant-speech.execution.app-skill-progressive,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.autoplay-recovery-visible,message-input.embeds.gated-send,chats.local-state.precedence,chats.message.identity-idempotent
+	// contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,assistant-speech.preference.voice-recording-visible-activation,assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds,assistant-speech.execution.app-skill-progressive,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.autoplay-recovery-visible,message-input.embeds.gated-send,chats.local-state.precedence,chats.message.identity-idempotent,chats.persistence.client-encrypted
 	test('sends one recording and controls the spoken response', async ({ page }: { page: any }, testInfo: any) => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		const log = createSignupLogger('audio-recording-and-speech');
         // Keep only safe sequence/status metadata from the real replay exchange.
         let requestedSpeechSequences: number[] = [];
         let acceptedSpeechSegments: Array<{ request_sequence: number; status: string }> = [];
+		const sentChatProtocolEvents: Array<{ type: string; chatId?: string }> = [];
         page.on('websocket', (socket: any) => {
             socket.on('framesent', (event: { payload: string | Buffer }) => {
                 try {
                     const frame = JSON.parse(String(event.payload));
+					if (frame.type === 'chat_turn_preflight' || frame.type === 'encrypted_chat_metadata') {
+						sentChatProtocolEvents.push({
+							type: frame.type,
+							chatId: typeof frame.payload?.chat_id === 'string' ? frame.payload.chat_id : undefined
+						});
+					}
                     if (frame.type === 'assistant_speech' && frame.payload?.action === 'request') {
                         requestedSpeechSequences = frame.payload.segments.map((segment: { sequence: number }) => segment.sequence);
                         acceptedSpeechSegments = [];
@@ -281,6 +288,11 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		expect(speakBox!.x + speakBox!.width).toBeLessThanOrEqual(messageBox!.x + messageBox!.width);
 		const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
 		expect(chatId, 'voice-first chat should become durable after its first message').toBeTruthy();
+		const voiceChatProtocolEvents = sentChatProtocolEvents.filter((event) => event.chatId === chatId);
+		const preflightIndex = voiceChatProtocolEvents.findIndex((event) => event.type === 'chat_turn_preflight');
+		const firstMetadataIndex = voiceChatProtocolEvents.findIndex((event) => event.type === 'encrypted_chat_metadata');
+		expect(preflightIndex, JSON.stringify(voiceChatProtocolEvents)).toBeGreaterThanOrEqual(0);
+		expect(firstMetadataIndex, JSON.stringify(voiceChatProtocolEvents)).toBeGreaterThan(preflightIndex);
 		const initialHeaderTitle = page.getByTestId('chat-header-title');
 		await expect(initialHeaderTitle).toBeVisible({ timeout: 30_000 });
 		await expect(initialHeaderTitle).not.toContainText(/untitled|creating new chat/i);

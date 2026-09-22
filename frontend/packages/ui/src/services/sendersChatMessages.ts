@@ -956,7 +956,16 @@ export async function sendNewMessageImpl(
 	}
 	keyMgmtSpan.end();
 	let autoSpeakResponseForRequest = false;
-	if (!isIncognitoChat && chat && hasAssistantSpeechPreferenceIntent(message.chat_id) && !chat.encrypted_auto_speak_response) {
+	if (
+		!isIncognitoChat &&
+		chat &&
+		hasAssistantSpeechPreferenceIntent(message.chat_id) &&
+		!chat.encrypted_auto_speak_response &&
+		// New-chat preflight atomically creates the first server metadata. Persisting
+		// this preference first would make the preflight fail as existing metadata.
+		// chat_message_confirmed persists the retained local intent afterward.
+		!includePreflightChatMetadata
+	) {
 		await setAssistantSpeechPreference(message.chat_id, true);
 	}
 	if (!isIncognitoChat && (chat?.encrypted_auto_speak_response || hasAssistantSpeechPreferenceIntent(message.chat_id))) {
