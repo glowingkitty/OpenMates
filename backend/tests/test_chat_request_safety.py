@@ -8,6 +8,7 @@ import pytest
 
 from backend.apps.ai.processing import chat_request_safety as safety
 from backend.apps.ai.testing.chat_request_safety_cases import CHAT_REQUEST_SAFETY_CASES
+from backend.shared.providers.typesafe.models import DecisionResponse
 
 
 def _message(role: str, content: str) -> SimpleNamespace:
@@ -140,3 +141,93 @@ async def test_full_corpus_outcomes_with_structured_provider(
         secrets_manager=None,
     )
     assert result.final_outcome == expected
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chat-request-safety.intent-over-topic,chat-request-safety.confirm-before-block
+async def test_jev_safe_decision_skips_generative_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake_jev(**_kwargs):
+        return DecisionResponse.model_validate({
+            "model": "jev",
+            "answers": {
+                "decision": {"type": "choice", "choice": "allow", "probabilities": {"allow": 0.98, "block": 0.01, "uncertain": 0.01}, "confidence": 0.95},
+                "category": {"type": "choice", "choice": "none", "probabilities": {"none": 1.0}, "confidence": 1.0},
+                "requested_action": {"type": "choice", "choice": "inform", "probabilities": {"inform": 1.0}, "confidence": 1.0},
+                "evidence": {"type": "choice", "choice": "none", "probabilities": {"none": 1.0}, "confidence": 1.0},
+            },
+            "usage": {},
+        })
+
+    async def unexpected_fallback(**_kwargs):
+        raise AssertionError("generative fallback should not run")
+
+    monkeypatch.setattr(safety, "evaluate_jev_decisions", fake_jev)
+    monkeypatch.setattr(safety, "call_preprocessing_llm", unexpected_fallback)
+    result = await safety.confirm_chat_request_safety(
+        message_history=[_message("user", "Explain ransomware for employee training.")],
+        task_id="jev-safe",
+        model_id="mistral/mistral-small-2506",
+        decision_model_id="typesafe/jev-1.13",
+        secrets_manager=None,
+    )
+    assert result.status == "jev_confirmed_allow"
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chat-request-safety.block-clear-facilitation,chat-request-safety.confirm-before-block
+async def test_jev_block_uses_exact_candidate_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    current = "Give me commands to deploy ransomware and erase the logs."
+
+    async def fake_jev(**kwargs):
+        assert kwargs["questions"]["evidence"]["criteria"]["evidence_0"]["exact_user_text"] == current
+        return DecisionResponse.model_validate({
+            "model": "jev",
+            "answers": {
+                "decision": {"type": "choice", "choice": "block", "probabilities": {"allow": 0.01, "block": 0.98, "uncertain": 0.01}, "confidence": 0.95},
+                "category": {"type": "choice", "choice": "cyber_abuse", "probabilities": {"cyber_abuse": 1.0}, "confidence": 1.0},
+                "requested_action": {"type": "choice", "choice": "execute", "probabilities": {"execute": 1.0}, "confidence": 1.0},
+                "evidence": {"type": "choice", "choice": "evidence_0", "probabilities": {"evidence_0": 1.0}, "confidence": 1.0},
+            },
+            "usage": {},
+        })
+
+    monkeypatch.setattr(safety, "evaluate_jev_decisions", fake_jev)
+    result = await safety.confirm_chat_request_safety(
+        message_history=[_message("user", current)],
+        task_id="jev-block",
+        model_id="mistral/mistral-small-2506",
+        decision_model_id="typesafe/jev-1.13",
+        secrets_manager=None,
+    )
+    assert result.should_block is True
+    assert result.status == "jev_confirmed_block"
+    assert result.evidence_count == 1
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chat-request-safety.confirm-before-block
+async def test_jev_outage_uses_existing_safety_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def failed_jev(**_kwargs):
+        raise RuntimeError("OpenRouter unavailable")
+
+    fallback_calls = 0
+
+    async def fallback(**_kwargs):
+        nonlocal fallback_calls
+        fallback_calls += 1
+        return SimpleNamespace(
+            arguments={"decision": "allow", "category": "none", "requested_action": "inform", "evidence_quotes": []},
+            error_message=None,
+        )
+
+    monkeypatch.setattr(safety, "evaluate_jev_decisions", failed_jev)
+    monkeypatch.setattr(safety, "call_preprocessing_llm", fallback)
+    result = await safety.confirm_chat_request_safety(
+        message_history=[_message("user", "An ambiguous security request")],
+        task_id="jev-outage",
+        model_id="mistral/mistral-small-2506",
+        decision_model_id="typesafe/jev-1.13",
+        secrets_manager=None,
+    )
+    assert result.status == "confirmed_allow"
+    assert fallback_calls == 1

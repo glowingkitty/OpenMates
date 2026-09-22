@@ -349,6 +349,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	let visibleOpenMatesEvents = $derived(upcomingOpenMatesEvents.slice(0, visibleEventLimit));
 	let remainingEventsCount = $derived(Math.max(0, upcomingOpenMatesEvents.length - visibleEventLimit));
 	let latestNewsItems = $derived((() => {
+		if ($isSelfHosted) return [];
 		// Re-resolve translated release titles whenever the app language changes.
 		void $svelteLocaleStore;
 		void $text;

@@ -99,17 +99,26 @@ External content processed by app skills (websites, emails, code, PDFs, video tr
 
 **Process:** Detect and decode hidden ASCII content (logged as security alert), remove all invisible characters, normalize Unicode to NFC form.
 
-### Layer 1: LLM-Based Prompt Injection Detection (Semantic-Level)
+### Layer 1: Jev-first Prompt Injection Detection (Semantic-Level)
 
-[`content_sanitization.py`](../../backend/apps/ai/processing/content_sanitization.py) runs a specialized LLM to detect malicious instructions in visible text from app skill results.
+[`content_sanitization.py`](../../backend/apps/ai/processing/content_sanitization.py) first runs a Jev yes/no decision over visible text from app-skill results. A low-risk result passes content unchanged; a high-confidence attack blocks the chunk. The middle confidence band and every Jev outage or invalid response use GPT-OSS Safeguard, because exact-span redaction requires generated evidence that Jev cannot return.
 
 **Model configuration:**
-- **Main backend**: `openai/gpt-oss-safeguard-20b` via Groq (primary) with OpenRouter fallback. Configured in [`app.yml`](../../backend/apps/ai/app.yml) as `content_sanitization_model`.
+- **Main backend primary**: `typesafe/jev-1.13` via OpenRouter, configured as `prompt_injection_decision_model`.
+- **Main backend ambiguity/outage fallback**: `openai/gpt-oss-safeguard-20b` via Groq with OpenRouter server fallback, configured as `content_sanitization_model`.
 - **Preview server**: `llama-3.3-70b-versatile` via Groq. Configured in [`config.py`](../../backend/preview/app/config.py).
 
 **Detection system prompt and thresholds** are defined in [`prompt_injection_detection.yml`](../../backend/apps/ai/prompt_injection_detection.yml).
 
-**Scoring and actions:**
+**Jev confidence bands:**
+
+| Jev probability | Action |
+| --- | --- |
+| <= 0.20 | Pass ASCII-cleaned content without a GPT call |
+| >= 0.90 | Block the chunk without a GPT call |
+| 0.20-0.90 or Jev failure | Run GPT-OSS Safeguard for exact-span analysis |
+
+**GPT fallback scoring and actions:**
 
 | Score | Action |
 |-------|--------|
@@ -120,7 +129,7 @@ External content processed by app skills (websites, emails, code, PDFs, video tr
 
 **Text chunking**: Long text outputs are split into 50,000-token chunks, processed separately, then combined. [`content_sanitization.py`](../../backend/apps/ai/processing/content_sanitization.py) implements word-boundary-aware splitting via `_split_text_into_chunks()`.
 
-**Execution order**: ASCII smuggling runs FIRST on external content, then LLM detection runs as the LAST step before app skill endpoints return data to main processing.
+**Execution order**: ASCII smuggling runs first, Jev evaluates the cleaned text, and GPT-OSS runs only for ambiguity or recovery. Semantic detection remains the last trust-boundary step before external data reaches main processing.
 
 ### App-Skill Output Dispatch Boundary
 
@@ -201,7 +210,7 @@ For direct REST API, npm package, pip package, and CLI app-skill access, users c
 
 ## Edge Cases
 
-- **Safeguard API outage**: App-skill external-data outputs remain available after ASCII cleanup, with the semantic failure logged as unscanned. This availability tradeoff can pass undetected injections; downstream authorization must not depend on a successful semantic verdict.
+- **Jev outage**: GPT-OSS Safeguard runs independently. If both semantic providers fail, the existing entry-point-specific fail-open/fail-closed behavior remains unchanged; downstream authorization must never depend on a successful semantic verdict.
 - **False positives**: Content discussing AI systems or prompt engineering may trigger moderate scores (5.0-6.9). The review threshold allows these through with targeted string replacement rather than full blocking.
 - **Cached preview metadata**: Sanitization happens at fetch time. Cached metadata is already sanitized.
 

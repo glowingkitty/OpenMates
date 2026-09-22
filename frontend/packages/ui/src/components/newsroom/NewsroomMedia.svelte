@@ -40,7 +40,7 @@
       preload="metadata"
     ></video>
   {/if}
-  {#if showPlay}
+  {#if showPlay && source?.type === "video"}
     <span class="play-button" aria-hidden="true">
       <span></span>
     </span>

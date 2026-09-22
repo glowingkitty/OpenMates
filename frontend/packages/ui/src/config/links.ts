@@ -163,6 +163,7 @@ export const privacyPolicyLinks = {
   anthropic: "https://www.anthropic.com/legal/privacy",
   openai: "https://openai.com/policies/privacy-policy",
   openrouter: "https://openrouter.ai/privacy",
+  typesafe: "https://typesafe.ai/legal/privacy-policy", // verified 2026-09-22
   cerebras: "https://www.cerebras.ai/privacy-policy",
   google: "https://policies.google.com/privacy",
   googleVertexMaas: "https://cloud.google.com/terms/cloud-privacy-notice",

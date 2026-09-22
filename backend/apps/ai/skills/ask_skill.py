@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 # --- Configuration Models for AskSkill (from backend.core.api.app.yml) ---
 class SkillDefaultLLMsConfig(BaseModel):
     preprocessing_model: str
+    decision_model: Optional[str] = None
     request_safety_model: Optional[str] = None
+    prompt_injection_decision_model: Optional[str] = None
+    content_sanitization_model: Optional[str] = None
+    chat_import_sanitization_model: Optional[str] = None
     # Note: preprocessing_fallbacks are now resolved automatically from provider config (e.g., mistral.yml)
     # No need to configure them in app.yml anymore - they're derived from the servers list in provider YAML files
     main_processing_simple: str
@@ -107,6 +111,7 @@ class AskSkillRequest(BaseModel):
     # so skills like images-view can resolve a file_path argument back to the actual embed UUID
     # for Redis cache lookup — keeping UUIDs invisible to the LLM entirely.
     embed_file_path_index: Optional[Dict[str, str]] = Field(default=None, description="Maps embed_ref filename → embed_id UUID for server-side skill resolution.")
+    historical_artifact_context: Optional[str] = Field(default=None, description="Bounded just-in-time context for explicitly requested historical artifacts. Never persisted in the artifact ledger.")
     has_image_upload_embed: bool = Field(default=False, description="True when the current turn includes an uploaded image embed.")
     
     # Sub-chat orchestration fields

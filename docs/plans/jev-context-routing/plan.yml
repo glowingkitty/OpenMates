@@ -1,0 +1,237 @@
+schema_version: 2
+id: jev-context-routing
+title: Jev Routing Context And Model-Aware Long-Chat Continuity
+status: verified
+
+goal: >
+  Use Jev for bounded, reliable routing without constraining the main model to
+  Jev's context window, while preserving trustworthy conversation summaries,
+  model-specific context capacity, and references to older chat artifacts across
+  compression with existing generative and provider fallbacks intact.
+
+scope:
+  in:
+    - Pass the validated current chat summary to Jev as bounded conversation data, never as instructions.
+    - Compute main-model history and compression budgets from configured model context, prompt/tool overhead, expected output, and a safety reserve.
+    - Preserve a content-free artifact reference ledger across compression and merge it into later inference requests.
+    - Keep Jev's message projection independently bounded rather than compressing the whole chat at 32k.
+    - Preserve existing generative, compression, and provider fallbacks.
+    - Add focused backend tests and relevant long-chat product coverage.
+  out:
+    - Sending image bytes or document contents to Jev.
+    - Making Jev a text-generation model or charging users for preprocessing.
+    - Changing client-visible credit pricing.
+    - Removing the existing Groq or generative safety fallback.
+
+scenarios:
+  - id: S-1
+    title: Bounded Jev routing retains older conversation signal
+    given: [A long chat has a fresh trusted chat summary and recent messages.]
+    when: [Jev preprocessing evaluates the latest request.]
+    then:
+      - Jev receives recent messages and a separately typed bounded summary.
+      - Summary text is labeled conversation data and never becomes an instruction.
+      - Jev failure still invokes the existing generative fallback.
+  - id: S-2
+    title: Main-model capacity governs long-chat context
+    given: [The selected main model has configured context and output limits.]
+    when: [OpenMates prepares or compresses its history.]
+    then:
+      - The history budget subtracts actual system and tool overhead, expected output, and a safety reserve.
+      - Jev's smaller input bound does not force whole-chat compression.
+  - id: S-3
+    title: Older artifact references survive compression
+    given: [A chat contains uploaded artifacts whose source messages become compressed.]
+    when: [The user later refers to one of those artifacts.]
+    then:
+      - A content-free encrypted ledger restores the artifact reference mapping.
+      - Artifact bytes and extracted contents are not stored in the ledger or sent to Jev.
+      - Ledger failure is non-fatal.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Jev receives at most a bounded summary field explicitly labeled as conversation data, with existing fallback preserved.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND]
+  - id: AC-2
+    scenario: S-2
+    text: Main history truncation and compression derive their budgets from the selected model context with explicit overhead and reserves.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND]
+  - id: AC-3
+    scenario: S-3
+    text: Old artifact references remain resolvable after compression without storing artifact contents in the ledger.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-CLI-LONG-CHAT, T-LONG-CHAT]
+
+tests:
+  - id: T-BACKEND
+    type: pytest
+    file: backend/tests
+    command: python3 -m pytest backend/tests/test_preprocessor_jev.py backend/tests/test_model_context_budget.py backend/tests/test_artifact_ledger.py
+    assertions:
+      - Jev summary projection is typed and bounded.
+      - Context budgets follow selected model configuration.
+      - Artifact mappings survive compression without content persistence.
+    covers: [AC-1, AC-2, AC-3]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-09-22T11:27:00Z"
+        reason: The focused tests were added with the implementation; the retained real CLI run supplied the pre-fix artifact-recall failure instead.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-jev-context-20260922
+        subject_commit: 6f8eb0a60eec2f200d5adda3e322da9649d2131b
+        timestamp: "2026-09-22T11:27:00Z"
+        command: python3 -m pytest backend/tests/test_preprocessor_jev.py backend/tests/test_model_context_budget.py backend/tests/test_artifact_ledger.py
+        result: 9 focused tests passed; deploy pytest and lint gates also passed.
+  - id: T-CLI-LONG-CHAT
+    type: manual
+    file: backend/apps/ai/processing/artifact_ledger.py
+    command: openmates chats send --chat d10c5bdd <artifact-recall-prompt> --json --no-task-update-jobs
+    target: api.dev.openmates.org
+    execution_environment: real_openmates_cli
+    assertions:
+      - Gemini 3.8 Flash continues a real saved chat after two encrypted compression checkpoints.
+      - A Markdown upload from the compressed portion is reopened through the content-free ledger.
+      - The exact model identifier and fallback rule are recovered without web search.
+    covers: [AC-3]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: failed
+        run_id: d10c5bdd-pre-fix-artifact-recall
+        timestamp: "2026-09-22T11:03:23Z"
+        reason: The pre-fix content-free ledger did not ingest CLI inline upload refs.
+        result: The model retained the filename but could not access the compressed Markdown artifact.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: d10c5bdd-27add5b0
+        subject_commit: 6f8eb0a60eec2f200d5adda3e322da9649d2131b
+        timestamp: "2026-09-22T11:27:02Z"
+        reason: Required real-product validation for artifact continuity after compression.
+        result: Gemini 3.8 Flash returned typesafe/jev-1.13 and the documented independent fallback rule in 22.08 seconds.
+  - id: T-LONG-CHAT
+    type: playwright
+    file: frontend/apps/web_app/tests/long-chat-history.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --spec frontend/apps/web_app/tests/long-chat-history.spec.ts
+    target: app.dev.openmates.org
+    execution_environment: isolated_github_ci
+    assertions: [Long-chat compression remains transparent to the active chat.]
+    covers: [AC-3]
+    red_phase:
+      required: false
+      expected: existing_coverage
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "35721970841"
+        subject_commit: 6f8eb0a60eec2f200d5adda3e322da9649d2131b
+        timestamp: "2026-09-22T11:39:00Z"
+        target: github-isolated://localhost:5173/
+        deployment_reference: github-actions:35721970841
+        command: python3 scripts/ci_coordinator.py wait ff097f6cf24127a75775fa705f85c86625f899f5fc1c60fa6186c02c66bb4c77 --timeout 1800 --json
+        result: 1 passed, 0 skipped, 0 unexpected, 0 flaky; cleanup verified.
+
+tasks:
+  - id: TASK-1
+    title: Implement and verify Jev context, model budgets, and artifact continuity
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3]
+    expected_files:
+      - backend/apps/ai/processing/jev_preprocessing.py
+      - backend/apps/ai/processing/chat_compressor.py
+      - backend/apps/ai/processing/main_processor.py
+      - backend/apps/ai/tasks/ask_skill_task.py
+      - backend/tests
+    verification_ids: [T-BACKEND, T-CLI-LONG-CHAT, T-LONG-CHAT]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [backend/apps/ai, backend/tests]
+      shared_files: []
+
+implementation_state:
+  subject_commit: 6f8eb0a60eec2f200d5adda3e322da9649d2131b
+
+approvals:
+  specification:
+    status: not_required
+    reason: These changes implement existing approved privacy, fallback, and long-chat behavior without changing the user-facing contract.
+  plan:
+    status: approved
+    approved_at: "2026-09-22T00:00:00Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Treat the chat summary as typed conversation data in Jev state, separate from questions and policy.
+    reason: This adds older-chat routing signal without allowing summary text to become model instructions.
+    decided_at: "2026-09-22T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Derive the main history budget from selected-model configuration and actual prompt/tool estimates.
+    reason: A global history cap wastes larger contexts and can overflow smaller ones after non-history overhead.
+    decided_at: "2026-09-22T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Persist only encrypted artifact reference metadata across compression.
+    reason: Stable references are needed after raw turns are compacted, while filenames and identifiers still require privacy protection.
+    decided_at: "2026-09-22T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Keep Jev input bounded locally and leave whole-chat compression governed by the selected main model.
+    reason: Jev's routing context must not become the limiting context window for answer generation.
+    decided_at: "2026-09-22T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Map the four approved recommendations to existing preprocessing, compression, and embed-resolution paths.
+    outcome: succeeded
+    recorded_at: "2026-09-22T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Run a real CLI chat through two compression checkpoints and recall an early Markdown upload.
+    outcome: failed_as_expected
+    recorded_at: "2026-09-22T11:03:23Z"
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Recover UUID-bearing inline upload refs from chat embed IDs, persist them in the ledger, and rerun the same recall.
+    outcome: succeeded
+    recorded_at: "2026-09-22T11:27:02Z"
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Complete; no further work in the approved four-item scope is pending.
+  command: python3 scripts/plan_verify.py docs/plans/jev-context-routing/plan.yml --phase complete --json
+  expected_outcome: The plan verifier reports complete with focused backend, real CLI, and isolated browser evidence.
+  last_verified_commit: 6f8eb0a60eec2f200d5adda3e322da9649d2131b
+  blocker: null

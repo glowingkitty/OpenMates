@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { getActiveNewsletterChatsByKind } from '@repo/ui/demo_chats';
+import { getActiveNewsletterChatsByKind } from '@repo/ui/demo_chats/newsletters';
 import type {
 	NewsroomArticleContent,
 	NewsroomHero,
@@ -19,6 +19,7 @@ import type {
 	PublicationSitemapEntry
 } from '$lib/publications/types';
 import { renderPublicationMarkdown } from './publicationMarkdown';
+import { isOfficialOpenMatesPublicationHost } from './publicationHosting';
 import { publicPublicationManifest } from './publicationManifest';
 
 const RELEASE_SLUGS = new Set([
@@ -29,7 +30,7 @@ const RELEASE_SLUGS = new Set([
 
 const RELEASE_FALLBACK_MEDIA: NewsroomMediaSource = {
 	type: 'image',
-	url: '/publications/openmates-ui-fallback.png',
+	url: '/publications/openmates-ui-fallback.webp',
 	alt: 'OpenMates web app showing the daily inspiration interface'
 };
 
@@ -151,6 +152,14 @@ function coverageRecords(locale: PublicPublicationLocale): PublicationRecord[] {
 	}];
 }
 
+function readingTimeLabel(record: PublicationRecord, locale: PublicPublicationLocale): string {
+	const prose = record.copy.bodyMarkdown
+		.replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+		.replace(/\]\([^)]*\)/g, ']');
+	const minutes = Math.max(1, Math.ceil(prose.trim().split(/\s+/).length / 220));
+	return locale === 'de' ? `${minutes} Min. Lesezeit` : `${minutes} min read`;
+}
+
 function toItem(record: PublicationRecord, locale: PublicPublicationLocale): NewsroomItem {
 	const kind = record.kind === 'release' ? 'release' : record.kind;
 	const eyebrow = record.kind === 'release'
@@ -168,7 +177,7 @@ function toItem(record: PublicationRecord, locale: PublicPublicationLocale): New
 		excerpt: record.copy.description,
 		bodyText: record.kind === 'social' ? record.copy.bodyMarkdown : undefined,
 		publishedLabel: formatDate(record.publishedAt, locale),
-		readTime: record.kind === 'blog' ? (locale === 'de' ? '4 Min. Lesezeit' : '4 min read') : undefined,
+		readTime: record.kind === 'blog' ? readingTimeLabel(record, locale) : undefined,
 		author: record.author,
 		language: record.kind === 'coverage' ? (locale === 'de' ? 'Deutsch' : 'German') : undefined,
 		socialLinks: record.socialLinks?.map((link) => ({
@@ -188,7 +197,7 @@ function toHero(record: PublicationRecord, locale: PublicPublicationLocale): New
 		kicker: record.kind === 'blog' ? (locale === 'de' ? 'Empfohlen' : 'Featured') : undefined,
 		title: record.copy.title,
 		meta: record.kind === 'blog'
-			? `${formatDate(record.publishedAt, locale)} · ${locale === 'de' ? '4 Min. Lesezeit' : '4 min read'}`
+			? `${formatDate(record.publishedAt, locale)} · ${readingTimeLabel(record, locale)}`
 			: formatDate(record.publishedAt, locale),
 		actionLabel: record.kind === 'blog'
 			? (locale === 'de' ? 'Blogbeitrag lesen' : 'Read the blog post')
@@ -198,10 +207,16 @@ function toHero(record: PublicationRecord, locale: PublicPublicationLocale): New
 }
 
 function toArticle(record: PublicationRecord, locale: PublicPublicationLocale): NewsroomArticleContent {
+	const isBlog = record.kind === 'blog';
 	return {
-		byline: record.kind === 'blog'
+		byline: isBlog
 			? (locale === 'de' ? 'Marco\nGründer von OpenMates.' : 'Marco\nCreator of OpenMates.')
 			: (locale === 'de' ? 'OpenMates Newsroom · Berlin' : 'OpenMates newsroom · Berlin, Germany'),
+		authorImageUrl: isBlog ? '/publications/authors/marco.jpg' : undefined,
+		authorUrl: isBlog ? 'https://www.linkedin.com/in/marco0/' : undefined,
+		authorLinkLabel: isBlog
+			? (locale === 'de' ? 'Marcos LinkedIn-Profil öffnen' : "Open Marco's LinkedIn profile")
+			: undefined,
 		publishedLabel: formatDate(record.publishedAt, locale),
 		intro: record.copy.description,
 		bodyHtml: renderPublicationMarkdown(record.copy.bodyMarkdown),
@@ -288,6 +303,7 @@ export function loadPublicationPage(args: {
 	url: URL;
 }): PublicPublicationPageData {
 	const { locale, section, slug, url } = args;
+	if (!isOfficialOpenMatesPublicationHost(url.hostname)) error(404, 'Publication not found');
 	if (section === 'social' && !slug) error(404, 'Social archive entries require a post slug');
 	const { surface, selected, linksById } = buildSurface(locale, section, slug);
 	const path = publicationPath(locale, section, slug ?? undefined);
@@ -319,7 +335,12 @@ export function loadPublicationPage(args: {
 			dateModified: selected.updatedAt,
 			inLanguage: locale,
 			author: selected.kind === 'blog'
-				? { '@type': 'Person', name: 'Marco', url: `${url.origin}/intro/who-develops-openmates` }
+				? {
+					'@type': 'Person',
+					name: 'Marco',
+					url: 'https://www.linkedin.com/in/marco0/',
+					image: `${url.origin}/publications/authors/marco.jpg`
+				}
 				: { '@type': 'Organization', name: 'OpenMates', url: url.origin },
 			publisher: { '@type': 'Organization', name: 'OpenMates', url: url.origin },
 			mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },

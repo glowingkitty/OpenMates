@@ -7,6 +7,10 @@ function props(view: NewsroomView, locale: 'en' | 'de' = 'en') {
   return {
     view,
     locale,
+    indexHref: locale === 'de'
+      ? (view === 'blog' || view === 'blog-post' ? '/de/blog' : '/de/news')
+      : (view === 'blog' || view === 'blog-post' ? '/blog' : '/news'),
+    navigationKey: `${locale}:${view}`,
     data: newsroomFixtures[locale],
     onAction: logAction,
   };

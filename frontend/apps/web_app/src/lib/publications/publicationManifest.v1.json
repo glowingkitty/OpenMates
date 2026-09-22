@@ -1,149 +1,175 @@
 {
-  "schemaVersion": 1,
-  "revision": "2026-09-21-social-publication-backfill",
-  "generatedAt": "2026-09-21T18:00:00.000Z",
-  "publications": [
-    {
-      "id": "social-ai-builders-berlin",
-      "slug": "agentic-coding-ai-builders-berlin",
-      "kind": "social",
-      "publishedAt": "2026-09-16T17:41:00.072Z",
-      "updatedAt": "2026-09-16T17:41:00.072Z",
-      "author": "OpenMates",
-      "locales": {
-        "en": {
-          "title": "A more effective agentic coding workflow",
-          "description": "OpenMates at AI Builders Berlin: a better view of what coding agents are working on.",
-          "bodyMarkdown": "Chances are, your agentic coding workflow could be a lot more effective and efficient, and benefit from a better view of what your agents are working on. Join the talk at AI Builders Berlin and learn more: https://luma.com/ber-sep22"
-        }
-      },
-      "media": {
-        "type": "video",
-        "url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/f78ca80db5072b29-agentic-coding-ai-builders-berlin.mp4",
-        "alt": "Announcement video for the OpenMates talk at AI Builders Berlin",
-        "posterUrl": "/publications/social/agentic-coding-ai-builders-berlin.jpg"
-      },
-      "socialLinks": [
-        {
-          "platform": "instagram",
-          "label": "Open this post on Instagram",
-          "href": "https://www.instagram.com/reel/DdW1-2QkWfd/"
-        }
-      ]
-    },
-    {
-      "id": "social-workflow-automation",
-      "slug": "workflow-automation-webinar",
-      "kind": "social",
-      "publishedAt": "2026-09-15T17:47:13.082Z",
-      "updatedAt": "2026-09-15T17:47:13.082Z",
-      "author": "OpenMates",
-      "locales": {
-        "en": {
-          "title": "What if you did not have to constantly search?",
-          "description": "A free OpenMates webinar about recurring searches and privacy-preserving workflow automation.",
-          "bodyMarkdown": "What if you did not need to constantly check for new apartments or doctor appointments? What if events you care about were sent to you every week? And what if you did not need to give up your privacy for any of that? Sign up for the free webinar on workflow automation in OpenMates: https://luma.com/fql7sc2a"
-        }
-      },
-      "media": {
-        "type": "video",
-        "url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/46b4c44c713821cb-workflow-automation-webinar.mp4",
-        "alt": "OpenMates workflow automation webinar announcement",
-        "posterUrl": "/publications/social/workflow-automation-webinar.jpg"
-      },
-      "socialLinks": [
-        {
-          "platform": "bluesky",
-          "label": "Open this post on Bluesky",
-          "href": "https://bsky.app/profile/did:plc:bgflwrmldvtkddskwp6tynt4/post/3mvl6lyi6oy2w"
-        },
-        {
-          "platform": "instagram",
-          "label": "Open this post on Instagram",
-          "href": "https://www.instagram.com/reel/DdURL81mGUs/"
-        },
-        {
-          "platform": "mastodon",
-          "label": "Open this post on Mastodon",
-          "href": "https://mastodon.social/@OpenMates/117276281024759413"
-        }
-      ]
-    },
-    {
-      "id": "social-september-events",
-      "slug": "september-openmates-events",
-      "kind": "social",
-      "publishedAt": "2026-09-08T18:58:42.344Z",
-      "updatedAt": "2026-09-08T18:58:42.344Z",
-      "author": "OpenMates",
-      "locales": {
-        "en": {
-          "title": "Three September events for builders and the OpenMates community",
-          "description": "AI Builders Berlin, the OpenMates Berlin Meetup, and the online Community Hour.",
-          "bodyMarkdown": "Events incoming! Agentic coding can be empowering and frustrating. Join OpenMates at AI Builders Berlin, the Berlin Meetup, and the online Community Hour. Event details: https://luma.com/openmates"
-        }
-      },
-      "media": {
-        "type": "video",
-        "url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/ab9b5123ff633146-september-openmates-events.mp4",
-        "alt": "Video announcing three OpenMates events in September",
-        "posterUrl": "/publications/social/september-openmates-events.jpg"
-      },
-      "socialLinks": [
-        {
-          "platform": "bluesky",
-          "label": "Open this post on Bluesky",
-          "href": "https://bsky.app/profile/did:plc:bgflwrmldvtkddskwp6tynt4/post/3muzpdebq6i2g"
-        },
-        {
-          "platform": "instagram",
-          "label": "Open this post on Instagram",
-          "href": "https://www.instagram.com/reel/DdCYlILAu3U/"
-        },
-        {
-          "platform": "mastodon",
-          "label": "Open this post on Mastodon",
-          "href": "https://mastodon.social/@OpenMates/117236950994849090"
-        }
-      ]
-    },
-    {
-      "id": "social-berlin-meetup",
-      "slug": "openmates-berlin-meetup-august",
-      "kind": "social",
-      "publishedAt": "2026-08-24T18:12:13.855Z",
-      "updatedAt": "2026-08-24T18:12:13.855Z",
-      "author": "OpenMates",
-      "locales": {
-        "en": {
-          "title": "Another OpenMates meetup in Berlin",
-          "description": "Meet people interested in practical, privacy-focused alternatives to big-tech AI products.",
-          "bodyMarkdown": "It is time for another OpenMates meetup in Berlin. Learn how to move away from big-tech AI chatbots and agents, make better use of OpenMates, and shape further development with feedback and ideas."
-        }
-      },
-      "media": {
-        "type": "image",
-        "url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/d0392fe54ef2368b-openmates-berlin-meetup-august.png",
-        "alt": "OpenMates Berlin meetup announcement",
-        "posterUrl": "/publications/social/openmates-berlin-meetup-august.jpg"
-      },
-      "socialLinks": [
-        {
-          "platform": "bluesky",
-          "label": "Open this post on Bluesky",
-          "href": "https://bsky.app/profile/did:plc:bgflwrmldvtkddskwp6tynt4/post/3mttvqatoxr2e"
-        },
-        {
-          "platform": "instagram",
-          "label": "Open this post on Instagram",
-          "href": "https://www.instagram.com/p/DcbrWwRnYLo/"
-        },
-        {
-          "platform": "mastodon",
-          "label": "Open this post on Mastodon",
-          "href": "https://mastodon.social/@OpenMates/117151834150594976"
-        }
-      ]
-    }
-  ]
+	"schemaVersion": 1,
+	"revision": "2026-09-22-blog-guardrails-r2",
+	"generatedAt": "2026-09-22T12:57:28Z",
+	"publications": [
+		{
+			"id": "blog-better-guardrails-for-agentic-coding",
+			"slug": "better-guardrails-for-agentic-coding",
+			"kind": "blog",
+			"publishedAt": "2026-09-22T12:19:04Z",
+			"updatedAt": "2026-09-22T12:57:28Z",
+			"author": "Marco",
+			"locales": {
+				"en": {
+					"title": "Don’t fly blind: Better guardrails for agentic coding",
+					"description": "Lessons from building OpenMates: clearer instructions, isolated environments, specifications, visual testing, plans, and tasks for a better agentic coding workflow.",
+					"bodyMarkdown": "Had moments of frustration with agentic coding in the past months? Yeah... me too.\n\nThere is something particularly frustrating about a tool that can do so much, yet still needs repeated reminders, misses an obvious design detail, or gets in the way of another agent working on the same project. The potential is right there. So is the time spent sorting out what went wrong.\n\nMy background is in UX and UI design, with software development becoming part of my work around nine years ago. Once DALL·E 2 came out, I started experimenting with generative AI, followed by working with AI coding tools in 2023. And for the past two years, my main project has been OpenMates.org - with an open-source web app, CLI, SDKs, as well as native Apple apps (which are still in development).\n\nBuilding across those surfaces has made one thing clear: existing agent harnesses—the tools around the AI model that let it read files, run commands, and edit code—still only scratch the surface of how good they could be.\n\n## Four things that keep getting in the way\n\n### Heavy multitasking is still awkward\n\nOpen one chat to implement a feature, another to investigate a bug, and a third to explore an idea. Before long, six or ten conversations are running, each with a slightly different understanding of the project.\n\nThis is where tools like OpenCode and Claude Code have felt least comfortable in my workflow. Worktrees help agents work on separate copies of the code, but the surrounding infrastructure can still be shared. Two agents may restart the same Docker containers. One may deploy to Vercel while another is checking the previous deployment.\n\nThe files are separate; the environment is not. Keeping track of which agent is testing which version quickly becomes a job of its own.\n\n[![Overlapping conversations about features, bugs, research, and new ideas.](/publications/blog/guardrails-multi-tasking-50acd227ab4d.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/d415bd0abc88abb9-multi_tasking.png)\n\n*Several useful conversations can become difficult to coordinate.*\n\n### Vibe coding has limits\n\nVibe coding is great for trying something out. A small feature, a prototype, an idea that might not survive the afternoon—sometimes a prompt and a few iterations are exactly what is needed.\n\nA complex product asks more of the process. What should happen when a request fails? Which information may leave the device? How should the same feature behave on a phone? Which parts are deliberately out of scope?\n\nWithout an agreed specification, those decisions tend to happen during implementation, often without the person building the product noticing. A result can look convincing and still fail the requirements that matter most.\n\n[![A winding route between two markers, with the words Vibe coding isn’t enough.](/publications/blog/guardrails-no-enforced-spec-driven-dev-73ada2aee84e.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/1714a83d3c04126e-no_enforced_spec_driven_dev.png)\n\n*For complex work, the destination needs to be explicit.*\n\n### Intelligence cannot replace missing context\n\nA model cannot reliably implement a Figma design it has never seen. Give it access to the design through an API, or at least an exported PDF, and it has something concrete to work from. Leave it with a vague description and much of the result will be guesswork.\n\nThe same applies after the code is written. An agent needs access to a browser and screenshots of the rendered page to see whether the interface actually looks right. Console and network information help explain why it does not.\n\nIt sounds obvious. Yet a surprising amount of agentic coding still happens with that feedback missing. A more intelligent model does not make an invisible interface visible.\n\n[![A figure with a cane between the Figma and Firefox icons.](/publications/blog/guardrails-blind-folded-1aa08a250bc6.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/5bb254d101b6d31e-blind_folded.png)\n\n*Give the agent both the design and a way to inspect the result.*\n\n### The interface asks too much of the person using it\n\nComing from UX and UI design, this is the part that bothers me most. While there has been some progress, too much of the experience still feels like engineering functionality with usability as an afterthought.\n\nClaude’s [Projects are now a conversation with Claude](https://www.youtube.com/watch?v=5qt_aGyAsKk) video is a good example of that. Of how all the big tech companies keep pushing products with confusing and badly designed user interfaces - and in the case of the video then also often produce videos which are just confusing everyone. As a side note: its odd to me how the video animations can be so beautiful, yet the actual content and story it shows is utterly confusing and badly designed - what a contrast. And as the comment section shows: I haven't been the only one who didn't get the video, far from it.\n\n[![Claude’s Projects video preview alongside three viewer comments expressing confusion or frustration.](/publications/blog/guardrails-user-experience-afterthought-25dbce916879.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/07aa5bcc4de5b8f2-user_experience_afterthought.png)\n\n*The demo and selected viewer reactions. They illustrate the confusion, rather than represent every viewer’s experience.*\n\nThe daily wall of text in AI agent responses is another good example for bad out of the box UX. Long responses ask you to read, remember, compare, and extract the decision yourself. Run several chats at once and that burden multiplies.\n\nThere are reasons why we invented and use diagrams, mind maps, questionnaires, and graphical interfaces. A wireframe can make a layout decision obvious. A diagram can reveal a dependency that disappears inside three paragraphs. Better presentation helps people understand the work and catch mistakes.\n\n## What helps today: a custom workflow\n\nAfter plenty of frustration and conversations with other builders, the following approach is the foundation I would recommend and which can be used across Claude Code, Codex, OpenCode and other agentic coding tools.\n\n### 1. Clear instructions and separate skills\n\nStart by checking the instructions your agents already receive. Do they contradict each other? Does one file require an action that another forbids? Are old rules still hanging around after the workflow has changed?\n\nKeep the main instructions concise. Put detailed, task-specific procedures into separate files and skills, so an agent can load them when needed. An AGENTS.md file becomes harder to maintain when every new lesson adds another paragraph to it.\n\n[![One large AGENTS.md document becomes a smaller document accompanied by separate skills.](/publications/blog/guardrails-agent-instructions-56d50eac2a7a.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/0a1f263465edef63-agent_instructions.png)\n\n*Keep the essentials in the main instructions and load detailed procedures when needed.*\n\nIt is also worth looking back at recurring work. If the same procedure has been explained across several chats during the past week, ask an agent to propose a reusable skill from it. Review the result before making it part of the workflow.\n\n### 2. Ask for a useful way to see the work\n\nWhen a decision is visual or structural, ask for a visual or structural explanation.\n\n[![Icons for diagrams, mind maps, questionnaires, and wireframes.](/publications/blog/guardrails-no-wall-of-text-24979aba6493.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/05e82964d9967246-no_wall_of_text.png)\n\n*Choose the format that makes the decision easier.*\n\nUse a mind map to explore an idea, a diagram to understand how parts connect, and a questionnaire to work through unresolved choices. Before implementing a new interface, ask for a wireframe. Even an ASCII drawing can be enough to notice that a button is in the wrong place or that the intended flow has been misunderstood.\n\n[![An ASCII wireframe of the OpenMates interface, showing navigation, an inspiration card, recent chats, and the message input.](/publications/blog/guardrails-no-wall-of-text-asci-31040bc6c31b.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/6ca0e1924952c42d-no_wall_of_text_asci.png)\n\n*A rough wireframe can expose a layout misunderstanding before implementation.*\n\nThe useful question is: what would make this easier to understand and decide? That should determine the format of the response. After all, the bottle neck isn't the AIs ability to output information, but our ability to properly understand complex systems and ideas and communicate effectively with AI.  \n\n### 3. Enforce important rules with hooks\n\n“Please follow this rule” is a fragile foundation for something that must happen consistently.\n\nHooks let the surrounding software check an action and intervene at a defined point. For example, a deployment command can verify that required checks passed before allowing the deployment to proceed. Or pushing git commits could be prohibited and require first running a bunch of deterministic checks to ensure changes didn't break existing processing flows.\n\n[![A crossed-out request to follow the rules points toward a hook icon.](/publications/blog/guardrails-hardcoded-enforcement-c794e790afb2.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/3386197e4a134324-hardcoded_enforcement.png)\n\n*A check at the point of action is more dependable than another reminder.*\n\nThe distinction matters: an instruction depends on the model remembering and following it. A deterministic check can enforce a condition even when the model forgets. Choose conditions that can be checked reliably, and make failures explain what needs to change. Otherwise, the guardrail becomes another source of frustration.\n\n### 4. Separate the environments, too\n\nUse worktrees for source isolation, then deal with the runtime.\n\nFor a web app, each test run can start its own backend and frontend containers with the code being tested. Running these jobs through GitHub CI (or other CI tools) allows them to work independently of the development server or laptop where the agent chats are running.\n\nThat removes a whole category of confusion: another chat restarting a container should not invalidate a test halfway through. The result should belong to the code under investigation.\n\n[![Git worktrees alongside an independent test environment represented by Docker and source-code icons.](/publications/blog/guardrails-isolated-runtimes-6d25d444ff9c.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/de72263e0cd09f9a-separate_environments.png)\n\n*Separate source files and separate runtimes solve different parts of the problem.*\n\n### 5. Give complex work a specification\n\nIt does not matter how smart a model is if it does not know what your requirements are.\n\nStart by brainstorming. Write a mind map before asking for implementation, then have the agent help uncover the gaps. One useful prompt i can highly recommend for this and many other scenarios:\n\n> Before proposing a specification, ask five clarifying questions, one at a time. Wait for each answer. Include a recommendation and a concrete example with every question.\n\nThe point is to surface decisions while changing them is still cheap and to ensure the AI is getting all the concrete context it needs and you both are on the same page of what must be build and how. This can help with complex features, UI designs, and even marketing or communication guidelines.\n\nOnce the intent is clearer, turn it into a specification with three things you can review.\n\n**Requirements that describe actual behavior**\n\nKeep each requirement understandable, with a short description and natural-language examples.\n\nConsider the Workflows feature in OpenMates. “Users can create workflows” leaves a lot unanswered. A more useful requirement distinguishes saving an incomplete draft from running it.\n\nFor example:\n\n> A user creates an empty workflow and saves it. Saving succeeds. When the user tries to run it, the interface explains which steps are missing, and no run starts.\n\nThere is now something specific to implement and verify. The [OpenMates Workflows Specification](https://github.com/glowingkitty/OpenMates/blob/dev/specifications/features/workflows/specification.yml) contains the underlying requirements, including execution readiness and the distinction between manual runs and scheduled automation. It is a real project example, with its own complexity and history.\n\n[![A rendered Workflows requirement explains when drafts can be saved or run, with Given, When, Then examples.](/publications/blog/guardrails-spec-driven-dev-requirements-dadbfef5ecef.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/ade2bd5b3abac2b8-spec_driven_dev_requirements.png)\n\n*The Workflows requirement distinguishes saving a draft from being ready to run.*\n\n**Tests planned before implementation**\n\nAgree on what would prove that the feature works. Describe the tests in natural language first, so their meaning can be checked without reading test code.\n\nFor the workflow example, the sequence could be: create an empty draft, save it, try to run it, check the explanation, and confirm that no execution was created.\n\nThe working order is:\n\n1. Let the agent describe the tests in natural language.\n2. You, the human, confirm or correct them.\n3. Let the agent write the tests.\n4. Let the agent implement the feature.\n5. Let the agent run the tests and debug until the expected behavior is satisfied.\n\nFor UI work, begin with component tests. A dedicated preview page that renders one component, or a small group of related elements, makes problems much easier to isolate. The same idea works for web and native interfaces. Get those pieces right before moving on to longer end-to-end tests.\n\nMake the result visible, too. Screenshots and recordings should appear alongside progress or failure reports, where they can be inspected by you and the agents directly. A Playwright recording or a recording of a CLI interaction can reveal a misunderstanding that a green status alone never would. For UI changes, review the appearance early, before investing heavily in broader testing.\n\n[![A sequence from planning to an isolated OpenMates input component, followed by screenshot and video evidence.](/publications/blog/guardrails-spec-driven-dev-tests-1-56d1d0cc4937.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/c9c3768700110966-spec_driven_dev_tests_1.png)\n\n*Review components early, then show what the checks actually exercised.*\n\n**A specification that is comfortable to read**\n\nA YAML file can be useful to software and agents. Human review benefits from a readable document.\n\nAsk for a PDF containing the requirements, examples, diagrams, and wireframes. Read it, correct it, and confirm the specification before implementation begins. This is the moment to discover that the agent has understood a different product.\n\n### 6. Build a plan from the current state to the specification\n\nOnce the destination is clear, the next question is how to reach it from the code that already exists.\n\nA plan should identify assumptions that need research, link to the relevant tests, and divide the work into tasks. The assumptions deserve particular attention. Asking an agent to double-check its plan often reveals that it misunderstood part of the existing architecture or has outdated information requiring more web research first.\n\nAn assumption about where data is encrypted, for example, can change the entire implementation approach. It needs evidence from the code before dependent work begins.\n\n[![Three columns show a corrected encryption assumption, links to tests, and implementation tasks.](/publications/blog/guardrails-plans-0881cb7385b7.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/aa781faded3ef2ec-plans.png)\n\n*A useful plan connects checked assumptions, relevant tests, and concrete tasks.*\n\nThe [OpenMates Workflows implementation Plan](https://github.com/glowingkitty/OpenMates/blob/dev/docs/plans/workflows-v1/plan.yml) provides a companion example to the Specification. Its assumptions, tasks, and verification sections show how a substantial feature gets broken down. It is a large, evolving document; the useful lesson is the relationship between those parts, rather than the amount of documentation.\n\n### 7. Let agents see each other’s tasks and findings\n\nTasks make the individual pieces of work visible: research an existing implementation, build a component, investigate a failure.\n\nGive each task a clear outcome, and make its status available across chats. Agents should be able to record findings that affect other work. A discovery about an existing service, a limitation, or a changed assumption should not remain buried in the one conversation that found it.\n\nThis matters especially with several agents running at once. Shared task context can reveal overlapping work early and reduce the chance that two chats independently solve the same problem—or make incompatible changes.\n\n[![A task overview, an illustrative shared finding, and two task cards meeting.](/publications/blog/guardrails-tasks-dc637341b627.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/a7c9166424ff22e0-tasks.png)\n\n*Make findings visible across tasks so other agents can act on them.*\n\n## This should become easier out of the box\n\nA custom setup can improve the experience considerably. But it also takes an unreasonable amount of work.\n\nPeople should be able to start with a capable, understandable workflow and only have to adapt a few details to their project. Spending weeks assembling instructions, hooks, previews, tests, and coordination scripts should not be the entry price for dependable agentic coding.\n\nThat frustration about existing agentic coding tools and AI chatbots is a huge part of my motivation behind building OpenMates.\n\nToday, OpenMates brings AI models and specialist apps together for practical tasks such as finding doctor appointments, apartments, and events - in seconds. Results can be explored inside the interface, alongside tools for files, travel, and other everyday needs. Privacy and freedom from ecosystem lock-in are central to the product direction.\n\n[![OpenMates branding above its interface, with a daily inspiration card and recent conversations.](/publications/blog/guardrails-openmates-e17aa34261b6.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/c120df9c5284c321-openmates.png)\n\n*OpenMates brings practical tools and their results into one interface.*\n\nBut the ambition goes much further: to make it a powerful environment for agentic coding and other complex work, with specifications, plans, tasks, enforcement, and automation designed into the experience. Projects, Tasks, and Workflows are part of that direction. The interface needs to make the process understandable and manageable.\n\n[![Interface concepts for a Project, an in-progress Task, and a scheduled weather Workflow.](/publications/blog/guardrails-next-updates-d28614921211.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/ed5b9936d7b5366c-next_updates.png)\n\n*The direction for Projects, Tasks, and Workflows: make ongoing work easier to see and manage.*\n\nOpenMates is still a single-person project. I want that to change, with more people helping shape both the tools and how they feel to use.\n\nThere is also an open question worth discussing: when is quick vibe coding enough, when does a full specification pay off, and what should sit between those extremes? Adding complexity to every small change would miss the point. The process should help at the level of complexity the work actually has.\n\nIf these are problems you are working through too, join an upcoming Berlin meetup or online Community Hour through the [OpenMates event calendar](https://luma.com/openmates). You can also try [OpenMates.org](https://openmates.org), or explore the code and self-hosting options on [GitHub](https://github.com/glowingkitty/OpenMates)."
+				},
+				"de": {
+					"title": "Nicht im Blindflug: Bessere Leitplanken für agentisches Programmieren",
+					"description": "Erfahrungen aus der Entwicklung von OpenMates: klarere Anweisungen, isolierte Umgebungen, Spezifikationen, visuelle Tests, Pläne und Aufgaben für einen besseren agentischen Entwicklungsprozess.",
+					"bodyMarkdown": "Gab es in den vergangenen Monaten frustrierende Momente beim agentischen Programmieren? Ja ... bei mir auch.\n\nEs ist besonders frustrierend, wenn ein Werkzeug so viel leisten kann, aber trotzdem immer wieder an dieselben Dinge erinnert werden muss, ein offensichtliches Designdetail übersieht oder einem anderen Agenten in die Quere kommt, der am selben Projekt arbeitet. Das Potenzial ist offensichtlich. Genauso wie die Zeit, die dafür draufgeht, herauszufinden, was schiefgelaufen ist.\n\nMein Hintergrund liegt im UX- und UI-Design; Softwareentwicklung kam vor etwa neun Jahren als Teil meiner Arbeit dazu. Als DALL·E 2 erschien, begann ich mit generativer KI zu experimentieren, 2023 dann mit KI-Programmierwerkzeugen. Seit zwei Jahren ist OpenMates.org mein Hauptprojekt – mit einer quelloffenen Web-App, einer CLI, SDKs sowie nativen Apple-Apps, die sich noch in Entwicklung befinden.\n\nDie Arbeit an all diesen Oberflächen hat eines deutlich gemacht: Die bestehenden Agent-Harnesses – also die Werkzeuge rund um das KI-Modell, die Dateien lesen, Befehle ausführen und Code bearbeiten – kratzen noch immer nur an der Oberfläche dessen, wie gut sie sein könnten.\n\n## Vier Dinge, die immer wieder im Weg stehen\n\n### Intensives Multitasking ist noch immer umständlich\n\nEin Chat implementiert eine Funktion, ein anderer untersucht einen Fehler und ein dritter erkundet eine Idee. Kurz darauf laufen sechs oder zehn Unterhaltungen gleichzeitig, jede mit einem etwas anderen Verständnis des Projekts.\n\nGenau hier fühlen sich Werkzeuge wie OpenCode und Claude Code in meinem Arbeitsablauf am wenigsten angenehm an. Worktrees helfen Agenten, an getrennten Kopien des Codes zu arbeiten, doch die umgebende Infrastruktur kann weiterhin gemeinsam genutzt werden. Zwei Agenten starten womöglich dieselben Docker-Container neu. Einer deployt auf Vercel, während ein anderer noch das vorherige Deployment prüft.\n\nDie Dateien sind getrennt, die Umgebung ist es nicht. Nachzuverfolgen, welcher Agent gerade welche Version testet, wird schnell zu einer eigenen Aufgabe.\n\n[![Sich überlagernde Unterhaltungen über Funktionen, Fehler, Recherche und neue Ideen.](/publications/blog/guardrails-multi-tasking-50acd227ab4d.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/d415bd0abc88abb9-multi_tasking.png)\n\n*Mehrere nützliche Unterhaltungen lassen sich schnell nur noch schwer koordinieren.*\n\n### Vibe Coding hat Grenzen\n\nVibe Coding eignet sich hervorragend, um etwas auszuprobieren. Eine kleine Funktion, ein Prototyp, eine Idee, die den Nachmittag vielleicht nicht überlebt – manchmal sind ein Prompt und ein paar Iterationen genau das Richtige.\n\nEin komplexes Produkt verlangt dem Prozess mehr ab. Was soll passieren, wenn eine Anfrage fehlschlägt? Welche Informationen dürfen das Gerät verlassen? Wie soll sich dieselbe Funktion auf einem Smartphone verhalten? Welche Teile sind bewusst nicht Teil des Umfangs?\n\nOhne eine vereinbarte Spezifikation fallen diese Entscheidungen meist während der Implementierung, oft ohne dass die Person, die das Produkt entwickelt, es bemerkt. Ein Ergebnis kann überzeugend aussehen und trotzdem an den Anforderungen scheitern, auf die es am meisten ankommt.\n\n[![Eine gewundene Route zwischen zwei Markierungen mit den Worten „Vibe coding isn’t enough“.](/publications/blog/guardrails-no-enforced-spec-driven-dev-73ada2aee84e.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/1714a83d3c04126e-no_enforced_spec_driven_dev.png)\n\n*Bei komplexer Arbeit muss das Ziel ausdrücklich feststehen.*\n\n### Intelligenz kann fehlenden Kontext nicht ersetzen\n\nEin Modell kann kein Figma-Design zuverlässig umsetzen, das es nie gesehen hat. Gib ihm über eine API Zugriff auf das Design oder zumindest ein exportiertes PDF, und es hat eine konkrete Grundlage. Bleibt ihm nur eine vage Beschreibung, ist ein großer Teil des Ergebnisses geraten.\n\nDasselbe gilt, nachdem der Code geschrieben wurde. Ein Agent braucht Zugriff auf einen Browser und Screenshots der gerenderten Seite, um zu sehen, ob die Oberfläche tatsächlich richtig aussieht. Konsolen- und Netzwerkinformationen helfen zu erklären, warum sie es nicht tut.\n\nDas klingt selbstverständlich. Trotzdem findet erstaunlich viel agentisches Programmieren ohne diese Rückkopplung statt. Ein intelligenteres Modell macht eine unsichtbare Oberfläche nicht sichtbar.\n\n[![Eine Figur mit Stock zwischen den Symbolen von Figma und Firefox.](/publications/blog/guardrails-blind-folded-1aa08a250bc6.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/5bb254d101b6d31e-blind_folded.png)\n\n*Gib dem Agenten sowohl das Design als auch eine Möglichkeit, das Ergebnis zu prüfen.*\n\n### Die Oberfläche verlangt der nutzenden Person zu viel ab\n\nMit meinem Hintergrund im UX- und UI-Design stört mich dieser Teil am meisten. Trotz einiger Fortschritte fühlt sich zu viel der Erfahrung noch immer so an, als käme zuerst die technische Funktion und Benutzerfreundlichkeit erst im Nachhinein.\n\nClaudes Video [Projects are now a conversation with Claude](https://www.youtube.com/watch?v=5qt_aGyAsKk) ist dafür ein gutes Beispiel. Es zeigt, wie große Technologieunternehmen weiterhin Produkte mit verwirrenden und schlecht gestalteten Oberflächen veröffentlichen – und dazu häufig Videos produzieren, die alle nur noch mehr verwirren. Nebenbei bemerkt: Ich finde es eigenartig, wie schön die Animationen sein können, während Inhalt und Geschichte gleichzeitig vollkommen verwirrend und schlecht gestaltet sind. Was für ein Kontrast. Und wie der Kommentarbereich zeigt, war ich bei Weitem nicht der Einzige, der das Video nicht verstanden hat.\n\n[![Vorschau von Claudes Projects-Video neben drei Kommentaren, die Verwirrung oder Frust ausdrücken.](/publications/blog/guardrails-user-experience-afterthought-25dbce916879.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/07aa5bcc4de5b8f2-user_experience_afterthought.png)\n\n*Die Demo und ausgewählte Reaktionen aus den Kommentaren. Sie veranschaulichen die Verwirrung, ohne für alle Zuschauerinnen und Zuschauer zu sprechen.*\n\nDie tägliche Textwand in Antworten von KI-Agenten ist ein weiteres Beispiel für schlechte Benutzerfreundlichkeit ab Werk. Lange Antworten verlangen, dass du selbst liest, erinnerst, vergleichst und die Entscheidung herausarbeitest. Wenn mehrere Chats gleichzeitig laufen, vervielfacht sich diese Belastung.\n\nEs gibt Gründe dafür, dass wir Diagramme, Mindmaps, Fragebögen und grafische Oberflächen erfunden haben und verwenden. Ein Wireframe kann eine Layoutentscheidung offensichtlich machen. Ein Diagramm kann eine Abhängigkeit sichtbar machen, die in drei Absätzen untergeht. Eine bessere Darstellung hilft Menschen, die Arbeit zu verstehen und Fehler zu erkennen.\n\n## Was heute hilft: ein eigener Arbeitsablauf\n\nNach reichlich Frust und Gesprächen mit anderen Entwicklern ist der folgende Ansatz die Grundlage, die ich empfehlen würde und die sich mit Claude Code, Codex, OpenCode und anderen agentischen Programmierwerkzeugen verwenden lässt.\n\n### 1. Klare Anweisungen und getrennte Skills\n\nPrüfe zuerst die Anweisungen, die deine Agenten bereits erhalten. Widersprechen sie einander? Verlangt eine Datei etwas, das eine andere verbietet? Sind alte Regeln noch vorhanden, obwohl sich der Arbeitsablauf längst geändert hat?\n\nHalte die Hauptanweisungen kurz. Lagere detaillierte, aufgabenspezifische Abläufe in getrennte Dateien und Skills aus, damit ein Agent sie bei Bedarf laden kann. Eine AGENTS.md wird immer schwerer zu pflegen, wenn jede neue Erkenntnis einen weiteren Absatz hinzufügt.\n\n[![Aus einem großen AGENTS.md-Dokument wird ein kleineres Dokument, ergänzt um getrennte Skills.](/publications/blog/guardrails-agent-instructions-56d50eac2a7a.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/0a1f263465edef63-agent_instructions.png)\n\n*Die Grundlagen gehören in die Hauptanweisungen; detaillierte Abläufe werden bei Bedarf geladen.*\n\nEs lohnt sich außerdem, wiederkehrende Arbeit rückblickend zu betrachten. Wenn derselbe Ablauf in der vergangenen Woche in mehreren Chats erklärt wurde, bitte einen Agenten, daraus einen wiederverwendbaren Skill vorzuschlagen. Prüfe das Ergebnis, bevor es Teil des Arbeitsablaufs wird.\n\n### 2. Bitte um eine hilfreiche Darstellung der Arbeit\n\nWenn eine Entscheidung visuell oder strukturell ist, bitte um eine visuelle oder strukturelle Erklärung.\n\n[![Symbole für Diagramme, Mindmaps, Fragebögen und Wireframes.](/publications/blog/guardrails-no-wall-of-text-24979aba6493.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/05e82964d9967246-no_wall_of_text.png)\n\n*Wähle das Format, das die Entscheidung leichter macht.*\n\nNutze eine Mindmap, um eine Idee zu erkunden, ein Diagramm, um Zusammenhänge zu verstehen, und einen Fragebogen, um offene Entscheidungen systematisch zu klären. Bitte vor der Implementierung einer neuen Oberfläche um ein Wireframe. Selbst eine ASCII-Zeichnung kann ausreichen, um zu bemerken, dass ein Button an der falschen Stelle sitzt oder der beabsichtigte Ablauf missverstanden wurde.\n\n[![Ein ASCII-Wireframe der OpenMates-Oberfläche mit Navigation, Inspirationskarte, letzten Chats und Nachrichteneingabe.](/publications/blog/guardrails-no-wall-of-text-asci-31040bc6c31b.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/6ca0e1924952c42d-no_wall_of_text_asci.png)\n\n*Ein grobes Wireframe kann ein Missverständnis beim Layout noch vor der Implementierung sichtbar machen.*\n\nDie nützliche Frage lautet: Was würde dies leichter verständlich und entscheidbar machen? Danach sollte sich das Format der Antwort richten. Denn der Engpass ist nicht die Fähigkeit der KI, Informationen auszugeben, sondern unsere Fähigkeit, komplexe Systeme und Ideen richtig zu verstehen und wirksam mit KI zu kommunizieren.\n\n### 3. Wichtige Regeln mit Hooks durchsetzen\n\n„Bitte halte dich an diese Regel“ ist ein fragiles Fundament für etwas, das zuverlässig passieren muss.\n\nHooks ermöglichen es der umgebenden Software, eine Aktion zu prüfen und an einem festgelegten Punkt einzugreifen. Ein Deployment-Befehl kann beispielsweise kontrollieren, ob die erforderlichen Prüfungen erfolgreich waren, bevor das Deployment fortgesetzt werden darf. Oder das Pushen von Git-Commits kann gesperrt werden, bis eine Reihe deterministischer Prüfungen bestätigt hat, dass bestehende Verarbeitungsabläufe nicht beschädigt wurden.\n\n[![Eine durchgestrichene Bitte, den Regeln zu folgen, zeigt auf ein Hook-Symbol.](/publications/blog/guardrails-hardcoded-enforcement-c794e790afb2.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/3386197e4a134324-hardcoded_enforcement.png)\n\n*Eine Prüfung im Moment der Aktion ist verlässlicher als eine weitere Erinnerung.*\n\nDer Unterschied ist entscheidend: Eine Anweisung hängt davon ab, dass das Modell sich erinnert und ihr folgt. Eine deterministische Prüfung kann eine Bedingung auch dann durchsetzen, wenn das Modell sie vergisst. Wähle Bedingungen, die sich zuverlässig prüfen lassen, und sorge dafür, dass Fehler erklären, was geändert werden muss. Sonst wird die Leitplanke selbst zu einer weiteren Quelle von Frust.\n\n### 4. Trenne auch die Umgebungen\n\nNutze Worktrees zur Trennung des Quellcodes und kümmere dich anschließend um die Laufzeitumgebung.\n\nBei einer Web-App kann jeder Testlauf eigene Backend- und Frontend-Container mit genau dem getesteten Code starten. Werden diese Jobs über GitHub CI oder andere CI-Werkzeuge ausgeführt, können sie unabhängig vom Entwicklungsserver oder Laptop laufen, auf dem die Agenten-Chats aktiv sind.\n\nDamit verschwindet eine ganze Kategorie von Verwirrung: Der Neustart eines Containers durch einen anderen Chat sollte keinen Test mitten im Lauf ungültig machen. Das Ergebnis muss eindeutig zu dem untersuchten Code gehören.\n\n[![Git-Worktrees neben einer unabhängigen Testumgebung, dargestellt durch Docker- und Quellcode-Symbole.](/publications/blog/guardrails-isolated-runtimes-6d25d444ff9c.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/de72263e0cd09f9a-separate_environments.png)\n\n*Getrennte Quelldateien und getrennte Laufzeitumgebungen lösen unterschiedliche Teile des Problems.*\n\n### 5. Gib komplexer Arbeit eine Spezifikation\n\nEs spielt keine Rolle, wie intelligent ein Modell ist, wenn es deine Anforderungen nicht kennt.\n\nBeginne mit einem Brainstorming. Erstelle eine Mindmap, bevor du um die Implementierung bittest, und lass dir anschließend vom Agenten helfen, die Lücken aufzudecken. Ein nützlicher Prompt, den ich dafür und für viele andere Situationen sehr empfehlen kann:\n\n> Stelle vor dem Vorschlag einer Spezifikation fünf klärende Fragen, jeweils eine nach der anderen. Warte jede Antwort ab. Gib zu jeder Frage eine Empfehlung und ein konkretes Beispiel.\n\nZiel ist es, Entscheidungen sichtbar zu machen, solange Änderungen noch günstig sind, sicherzustellen, dass die KI den nötigen konkreten Kontext erhält, und ein gemeinsames Verständnis davon herzustellen, was wie gebaut werden soll. Das kann bei komplexen Funktionen, UI-Designs und sogar bei Marketing- oder Kommunikationsrichtlinien helfen.\n\nSobald die Absicht klarer ist, wird daraus eine Spezifikation mit drei Dingen, die du prüfen kannst.\n\n**Anforderungen, die tatsächliches Verhalten beschreiben**\n\nHalte jede Anforderung verständlich, mit einer kurzen Beschreibung und Beispielen in natürlicher Sprache.\n\nBetrachte die Workflows-Funktion in OpenMates. „Nutzer können Workflows erstellen“ lässt viele Fragen offen. Eine nützlichere Anforderung unterscheidet zwischen dem Speichern eines unvollständigen Entwurfs und seiner Ausführung.\n\nZum Beispiel:\n\n> Eine Nutzerin erstellt einen leeren Workflow und speichert ihn. Das Speichern gelingt. Als sie versucht, ihn auszuführen, erklärt die Oberfläche, welche Schritte fehlen, und es wird kein Lauf gestartet.\n\nDamit gibt es etwas Konkretes, das implementiert und überprüft werden kann. Die [OpenMates-Workflows-Spezifikation](https://github.com/glowingkitty/OpenMates/blob/dev/specifications/features/workflows/specification.yml) enthält die zugrunde liegenden Anforderungen, einschließlich der Ausführungsbereitschaft und der Unterscheidung zwischen manuellen Läufen und geplanter Automatisierung. Sie ist ein echtes Projektbeispiel mit eigener Komplexität und Geschichte.\n\n[![Eine gerenderte Workflows-Anforderung erklärt anhand von Given-When-Then-Beispielen, wann Entwürfe gespeichert oder ausgeführt werden können.](/publications/blog/guardrails-spec-driven-dev-requirements-dadbfef5ecef.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/ade2bd5b3abac2b8-spec_driven_dev_requirements.png)\n\n*Die Workflows-Anforderung unterscheidet zwischen dem Speichern eines Entwurfs und seiner Ausführungsbereitschaft.*\n\n**Vor der Implementierung geplante Tests**\n\nEinige dich darauf, was beweisen würde, dass die Funktion funktioniert. Beschreibe die Tests zuerst in natürlicher Sprache, damit ihre Bedeutung geprüft werden kann, ohne Testcode lesen zu müssen.\n\nBeim Workflow-Beispiel könnte die Abfolge lauten: einen leeren Entwurf erstellen, ihn speichern, seine Ausführung versuchen, die Erklärung prüfen und bestätigen, dass keine Ausführung angelegt wurde.\n\nDie Arbeitsreihenfolge lautet:\n\n1. Lass den Agenten die Tests in natürlicher Sprache beschreiben.\n2. Du als Mensch bestätigst oder korrigierst sie.\n3. Lass den Agenten die Tests schreiben.\n4. Lass den Agenten die Funktion implementieren.\n5. Lass den Agenten die Tests ausführen und debuggen, bis das erwartete Verhalten erfüllt ist.\n\nBeginne bei UI-Arbeit mit Komponententests. Eine eigene Vorschauseite, die eine Komponente oder eine kleine Gruppe zusammengehöriger Elemente rendert, macht Probleme deutlich leichter isolierbar. Dasselbe Prinzip funktioniert für Web- und native Oberflächen. Bring diese Teile in Ordnung, bevor du in längere End-to-End-Tests investierst.\n\nMach auch das Ergebnis sichtbar. Screenshots und Aufzeichnungen sollten neben Fortschritts- oder Fehlerberichten erscheinen, sodass du und die Agenten sie direkt prüfen können. Eine Playwright-Aufzeichnung oder die Aufzeichnung einer CLI-Interaktion kann ein Missverständnis zeigen, das ein grüner Status allein nie offenlegen würde. Prüfe bei UI-Änderungen früh das Erscheinungsbild, bevor du viel Zeit in breitere Tests investierst.\n\n[![Eine Abfolge von der Planung zu einer isolierten OpenMates-Eingabekomponente, gefolgt von Screenshot- und Videonachweisen.](/publications/blog/guardrails-spec-driven-dev-tests-1-56d1d0cc4937.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/c9c3768700110966-spec_driven_dev_tests_1.png)\n\n*Prüfe Komponenten früh und zeige anschließend, was die Prüfungen tatsächlich ausgeführt haben.*\n\n**Eine Spezifikation, die sich angenehm lesen lässt**\n\nEine YAML-Datei kann für Software und Agenten nützlich sein. Menschen profitieren bei der Prüfung von einem gut lesbaren Dokument.\n\nBitte um ein PDF mit Anforderungen, Beispielen, Diagrammen und Wireframes. Lies es, korrigiere es und bestätige die Spezifikation, bevor die Implementierung beginnt. Das ist der richtige Moment, um zu erkennen, dass der Agent ein anderes Produkt verstanden hat.\n\n### 6. Erstelle einen Plan vom aktuellen Stand bis zur Spezifikation\n\nSobald das Ziel klar ist, stellt sich die Frage, wie es ausgehend vom vorhandenen Code erreicht werden kann.\n\nEin Plan sollte Annahmen nennen, die recherchiert werden müssen, auf relevante Tests verweisen und die Arbeit in Aufgaben aufteilen. Die Annahmen verdienen besondere Aufmerksamkeit. Wenn ein Agent seinen Plan noch einmal überprüft, zeigt sich oft, dass er einen Teil der vorhandenen Architektur missverstanden hat oder dass veraltete Informationen zunächst weitere Webrecherche erfordern.\n\nEine Annahme darüber, wo Daten verschlüsselt werden, kann beispielsweise den gesamten Implementierungsansatz verändern. Dafür braucht es Belege aus dem Code, bevor abhängige Arbeit beginnt.\n\n[![Drei Spalten zeigen eine korrigierte Annahme zur Verschlüsselung, Links zu Tests und Implementierungsaufgaben.](/publications/blog/guardrails-plans-0881cb7385b7.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/aa781faded3ef2ec-plans.png)\n\n*Ein nützlicher Plan verbindet geprüfte Annahmen, relevante Tests und konkrete Aufgaben.*\n\nDer [OpenMates-Implementierungsplan für Workflows](https://github.com/glowingkitty/OpenMates/blob/dev/docs/plans/workflows-v1/plan.yml) ist das passende Gegenstück zur Spezifikation. Seine Annahmen, Aufgaben und Prüfbereiche zeigen, wie eine umfangreiche Funktion aufgeteilt wird. Es ist ein großes, fortlaufend weiterentwickeltes Dokument; die hilfreiche Erkenntnis liegt in der Beziehung zwischen diesen Teilen, nicht in der Menge der Dokumentation.\n\n### 7. Lass Agenten die Aufgaben und Erkenntnisse der anderen sehen\n\nAufgaben machen die einzelnen Arbeitsschritte sichtbar: eine bestehende Implementierung recherchieren, eine Komponente bauen oder einen Fehler untersuchen.\n\nGib jeder Aufgabe ein klares Ergebnis und mache ihren Status über Chats hinweg verfügbar. Agenten sollten Erkenntnisse festhalten können, die andere Arbeit beeinflussen. Eine Entdeckung über einen vorhandenen Dienst, eine Einschränkung oder eine geänderte Annahme sollte nicht in der einen Unterhaltung verborgen bleiben, in der sie gefunden wurde.\n\nDas ist besonders wichtig, wenn mehrere Agenten gleichzeitig arbeiten. Gemeinsamer Aufgabenkontext kann Überschneidungen früh sichtbar machen und das Risiko verringern, dass zwei Chats unabhängig dasselbe Problem lösen – oder unvereinbare Änderungen vornehmen.\n\n[![Eine Aufgabenübersicht, eine beispielhafte gemeinsame Erkenntnis und zwei zusammentreffende Aufgabenkarten.](/publications/blog/guardrails-tasks-dc637341b627.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/a7c9166424ff22e0-tasks.png)\n\n*Mach Erkenntnisse über Aufgaben hinweg sichtbar, damit andere Agenten darauf reagieren können.*\n\n## Das sollte von Haus aus einfacher sein\n\nEin eigener Aufbau kann die Erfahrung erheblich verbessern. Er verlangt aber auch unverhältnismäßig viel Arbeit.\n\nMenschen sollten mit einem leistungsfähigen, verständlichen Arbeitsablauf beginnen können und nur wenige Details an ihr Projekt anpassen müssen. Wochen mit dem Zusammenstellen von Anweisungen, Hooks, Vorschauen, Tests und Koordinationsskripten sollten nicht der Eintrittspreis für verlässliches agentisches Programmieren sein.\n\nDieser Frust über bestehende agentische Programmierwerkzeuge und KI-Chatbots ist ein großer Teil meiner Motivation, OpenMates zu entwickeln.\n\nHeute bringt OpenMates KI-Modelle und spezialisierte Apps für praktische Aufgaben zusammen, etwa um Arzttermine, Wohnungen und Veranstaltungen zu finden – innerhalb von Sekunden. Ergebnisse lassen sich direkt in der Oberfläche erkunden, neben Werkzeugen für Dateien, Reisen und weitere alltägliche Aufgaben. Datenschutz und Unabhängigkeit von einzelnen Ökosystemen stehen im Zentrum der Produktentwicklung.\n\n[![OpenMates-Branding über der Oberfläche mit einer täglichen Inspirationskarte und letzten Unterhaltungen.](/publications/blog/guardrails-openmates-e17aa34261b6.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/c120df9c5284c321-openmates.png)\n\n*OpenMates bringt praktische Werkzeuge und ihre Ergebnisse in einer Oberfläche zusammen.*\n\nDoch die Ambition reicht deutlich weiter: OpenMates soll eine leistungsfähige Umgebung für agentisches Programmieren und andere komplexe Arbeit werden, in der Spezifikationen, Pläne, Aufgaben, Durchsetzung und Automatisierung von Anfang an Teil der Erfahrung sind. Projects, Tasks und Workflows gehören zu dieser Richtung. Die Oberfläche muss den Prozess verständlich und handhabbar machen.\n\n[![Oberflächenkonzepte für ein Project, eine laufende Task und einen geplanten Wetter-Workflow.](/publications/blog/guardrails-next-updates-d28614921211.webp)](https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/ed5b9936d7b5366c-next_updates.png)\n\n*Die Richtung für Projects, Tasks und Workflows: laufende Arbeit leichter sichtbar und handhabbar machen.*\n\nOpenMates ist weiterhin ein Ein-Personen-Projekt. Ich möchte, dass sich das ändert und mehr Menschen dabei helfen, sowohl die Werkzeuge als auch ihre Nutzungserfahrung zu gestalten.\n\nEine offene Frage lohnt ebenfalls die Diskussion: Wann reicht schnelles Vibe Coding aus, wann zahlt sich eine vollständige Spezifikation aus, und was sollte zwischen diesen Extremen liegen? Jede kleine Änderung mit zusätzlicher Komplexität zu belasten, würde das Ziel verfehlen. Der Prozess sollte auf der Komplexitätsstufe helfen, die die jeweilige Arbeit tatsächlich hat.\n\nWenn du ebenfalls an diesen Problemen arbeitest, komm zu einem der nächsten Berliner Meetups oder zu einer Online Community Hour über den [OpenMates-Veranstaltungskalender](https://luma.com/openmates). Du kannst außerdem [OpenMates.org](https://openmates.org) ausprobieren oder auf [GitHub](https://github.com/glowingkitty/OpenMates) den Code und die Möglichkeiten zum Self-Hosting erkunden."
+				}
+			},
+			"media": {
+				"type": "image",
+				"url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/blog/better-guardrails-for-agentic-coding/5bb254d101b6d31e-blind_folded.png",
+				"posterUrl": "/publications/blog/guardrails-blind-folded-1aa08a250bc6.webp",
+				"alt": "A figure between Figma and a browser: coding agents need access to designs and rendered results."
+			}
+		},
+		{
+			"id": "social-ai-builders-berlin",
+			"slug": "agentic-coding-ai-builders-berlin",
+			"kind": "social",
+			"publishedAt": "2026-09-16T17:41:00.072Z",
+			"updatedAt": "2026-09-16T17:41:00.072Z",
+			"author": "OpenMates",
+			"locales": {
+				"en": {
+					"title": "A more effective agentic coding workflow",
+					"description": "OpenMates at AI Builders Berlin: a better view of what coding agents are working on.",
+					"bodyMarkdown": "Chances are, your agentic coding workflow could be a lot more effective and efficient, and benefit from a better view of what your agents are working on. Join the talk at AI Builders Berlin and learn more: https://luma.com/ber-sep22"
+				}
+			},
+			"media": {
+				"type": "video",
+				"url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/f78ca80db5072b29-agentic-coding-ai-builders-berlin.mp4",
+				"alt": "Announcement video for the OpenMates talk at AI Builders Berlin",
+				"posterUrl": "/publications/social/agentic-coding-ai-builders-berlin.jpg"
+			},
+			"socialLinks": [
+				{
+					"platform": "instagram",
+					"label": "Open this post on Instagram",
+					"href": "https://www.instagram.com/reel/DdW1-2QkWfd/"
+				}
+			]
+		},
+		{
+			"id": "social-workflow-automation",
+			"slug": "workflow-automation-webinar",
+			"kind": "social",
+			"publishedAt": "2026-09-15T17:47:13.082Z",
+			"updatedAt": "2026-09-15T17:47:13.082Z",
+			"author": "OpenMates",
+			"locales": {
+				"en": {
+					"title": "What if you did not have to constantly search?",
+					"description": "A free OpenMates webinar about recurring searches and privacy-preserving workflow automation.",
+					"bodyMarkdown": "What if you did not need to constantly check for new apartments or doctor appointments? What if events you care about were sent to you every week? And what if you did not need to give up your privacy for any of that? Sign up for the free webinar on workflow automation in OpenMates: https://luma.com/fql7sc2a"
+				}
+			},
+			"media": {
+				"type": "video",
+				"url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/46b4c44c713821cb-workflow-automation-webinar.mp4",
+				"alt": "OpenMates workflow automation webinar announcement",
+				"posterUrl": "/publications/social/workflow-automation-webinar.jpg"
+			},
+			"socialLinks": [
+				{
+					"platform": "bluesky",
+					"label": "Open this post on Bluesky",
+					"href": "https://bsky.app/profile/did:plc:bgflwrmldvtkddskwp6tynt4/post/3mvl6lyi6oy2w"
+				},
+				{
+					"platform": "instagram",
+					"label": "Open this post on Instagram",
+					"href": "https://www.instagram.com/reel/DdURL81mGUs/"
+				},
+				{
+					"platform": "mastodon",
+					"label": "Open this post on Mastodon",
+					"href": "https://mastodon.social/@OpenMates/117276281024759413"
+				}
+			]
+		},
+		{
+			"id": "social-september-events",
+			"slug": "september-openmates-events",
+			"kind": "social",
+			"publishedAt": "2026-09-08T18:58:42.344Z",
+			"updatedAt": "2026-09-08T18:58:42.344Z",
+			"author": "OpenMates",
+			"locales": {
+				"en": {
+					"title": "Three September events for builders and the OpenMates community",
+					"description": "AI Builders Berlin, the OpenMates Berlin Meetup, and the online Community Hour.",
+					"bodyMarkdown": "Events incoming! Agentic coding can be empowering and frustrating. Join OpenMates at AI Builders Berlin, the Berlin Meetup, and the online Community Hour. Event details: https://luma.com/openmates"
+				}
+			},
+			"media": {
+				"type": "video",
+				"url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/ab9b5123ff633146-september-openmates-events.mp4",
+				"alt": "Video announcing three OpenMates events in September",
+				"posterUrl": "/publications/social/september-openmates-events.jpg"
+			},
+			"socialLinks": [
+				{
+					"platform": "bluesky",
+					"label": "Open this post on Bluesky",
+					"href": "https://bsky.app/profile/did:plc:bgflwrmldvtkddskwp6tynt4/post/3muzpdebq6i2g"
+				},
+				{
+					"platform": "instagram",
+					"label": "Open this post on Instagram",
+					"href": "https://www.instagram.com/reel/DdCYlILAu3U/"
+				},
+				{
+					"platform": "mastodon",
+					"label": "Open this post on Mastodon",
+					"href": "https://mastodon.social/@OpenMates/117236950994849090"
+				}
+			]
+		},
+		{
+			"id": "social-berlin-meetup",
+			"slug": "openmates-berlin-meetup-august",
+			"kind": "social",
+			"publishedAt": "2026-08-24T18:12:13.855Z",
+			"updatedAt": "2026-08-24T18:12:13.855Z",
+			"author": "OpenMates",
+			"locales": {
+				"en": {
+					"title": "Another OpenMates meetup in Berlin",
+					"description": "Meet people interested in practical, privacy-focused alternatives to big-tech AI products.",
+					"bodyMarkdown": "It is time for another OpenMates meetup in Berlin. Learn how to move away from big-tech AI chatbots and agents, make better use of OpenMates, and shape further development with feedback and ideas."
+				}
+			},
+			"media": {
+				"type": "image",
+				"url": "https://openmates-buffer-media.nbg1.your-objectstorage.com/publications/social/d0392fe54ef2368b-openmates-berlin-meetup-august.png",
+				"alt": "OpenMates Berlin meetup announcement",
+				"posterUrl": "/publications/social/openmates-berlin-meetup-august.jpg"
+			},
+			"socialLinks": [
+				{
+					"platform": "bluesky",
+					"label": "Open this post on Bluesky",
+					"href": "https://bsky.app/profile/did:plc:bgflwrmldvtkddskwp6tynt4/post/3mttvqatoxr2e"
+				},
+				{
+					"platform": "instagram",
+					"label": "Open this post on Instagram",
+					"href": "https://www.instagram.com/p/DcbrWwRnYLo/"
+				},
+				{
+					"platform": "mastodon",
+					"label": "Open this post on Mastodon",
+					"href": "https://mastodon.social/@OpenMates/117151834150594976"
+				}
+			]
+		}
+	]
 }

@@ -103,6 +103,19 @@ async def _tombstone_sdk_deleted_chat(
         if delete_embed_cache:
             await delete_embed_cache(chat_id)
 
+        try:
+            from backend.apps.ai.processing.artifact_ledger import delete_artifact_ledger
+            from backend.apps.ai.processing.routing_ledger import delete_skill_ledger
+            user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+            await delete_skill_ledger(cache_service, user_id_hash, chat_id)
+            await delete_artifact_ledger(cache_service, user_id_hash, chat_id)
+        except Exception as ledger_error:
+            logger.warning(
+                "SDK chat deletion could not invalidate AI metadata ledgers for chat %s: %s",
+                chat_id,
+                ledger_error.__class__.__name__,
+            )
+
         connection_manager = getattr(request.app.state, "connection_manager", None)
         if connection_manager:
             await connection_manager.broadcast_to_user(

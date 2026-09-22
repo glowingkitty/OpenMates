@@ -17,11 +17,13 @@
   interface Props {
     view: NewsroomView;
     locale: "en" | "de";
+    indexHref: string;
+    navigationKey: string;
     data: NewsroomSurfaceData;
     onAction: (action: NewsroomAction) => void;
   }
 
-  let { view, locale, data, onAction }: Props = $props();
+  let { view, locale, indexHref, navigationKey, data, onAction }: Props = $props();
 
   let searchOpen = $state(false);
   let searchTerm = $state("");
@@ -30,6 +32,15 @@
   let sidebarOpen = $state(false);
   let visiblePrimaryCount = $state(3);
   let visibleRelatedCount = $state(2);
+  let publicationScroll = $state<HTMLElement>();
+
+  $effect(() => {
+    if (!navigationKey) return;
+    void tick().then(() => {
+      publicationScroll?.scrollTo({ top: 0, left: 0 });
+      window.scrollTo({ top: 0, left: 0 });
+    });
+  });
 
   const isBlogSurface = $derived(view === "blog" || view === "blog-post");
   const isIndex = $derived(view === "news" || view === "blog");
@@ -43,6 +54,15 @@
   );
   const latestLabel = $derived(
     isBlogSurface ? data.latestBlogLabel : data.latestNewsLabel,
+  );
+  const contactLabel = $derived(
+    view === "release" ? data.releaseContactLabel : data.blogContactLabel,
+  );
+  const contactEmail = $derived(
+    contactLabel.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)?.[0] ?? "",
+  );
+  const contactPrompt = $derived(
+    contactEmail ? contactLabel.replace(contactEmail, "").trim() : contactLabel,
   );
 
   const normalizedQuery = $derived(searchTerm.trim().toLocaleLowerCase(locale));
@@ -142,11 +162,37 @@
 {#snippet articleBody(article: NewsroomArticleContent, isRelease: boolean)}
   <article class="article-body">
     <header class="article-byline">
-      <img class="avatar" src="/favicon.svg" alt="" aria-hidden="true" />
+      {#if article.authorUrl}
+        <a
+          class="avatar-link"
+          href={article.authorUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={article.authorLinkLabel}
+        >
+          <img class="avatar" src={article.authorImageUrl ?? "/favicon.svg"} alt="" />
+        </a>
+      {:else}
+        <img class="avatar" src={article.authorImageUrl ?? "/favicon.svg"} alt="" aria-hidden="true" />
+      {/if}
       <span>
-        <strong>{article.byline.split("\n")[0]}</strong>
-        {#if article.byline.split("\n")[1]}
-          <span class="author-role">{article.byline.split("\n")[1]}</span>
+        {#if article.authorUrl}
+          <a
+            class="author-link"
+            href={article.authorUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <strong>{article.byline.split("\n")[0]}</strong>
+            {#if article.byline.split("\n")[1]}
+              <span class="author-role">{article.byline.split("\n")[1]}</span>
+            {/if}
+          </a>
+        {:else}
+          <strong>{article.byline.split("\n")[0]}</strong>
+          {#if article.byline.split("\n")[1]}
+            <span class="author-role">{article.byline.split("\n")[1]}</span>
+          {/if}
         {/if}
         <small>{article.publishedLabel}</small>
       </span>
@@ -159,7 +205,7 @@
     {:else if article.paragraphs}
       <p>{article.paragraphs[0]}</p>
     {/if}
-    {#if article.media?.length || article.paragraphs}
+    {#if isRelease && !article.bodyHtml && (article.media?.length || article.paragraphs)}
       <div class="slideshow" data-testid="newsroom-slideshow">
       <button
         type="button"
@@ -194,7 +240,10 @@
       </aside>
     {/if}
     <p class="contact-line">
-      {isRelease ? data.releaseContactLabel : data.blogContactLabel}
+      <span>{contactPrompt}</span>
+      {#if contactEmail}
+        <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+      {/if}
     </p>
   </article>
 {/snippet}
@@ -219,13 +268,14 @@
   <div class="main-panel">
     <PublicationHeader
       label={pageLabel}
+      homeHref={indexHref}
       primaryCtaLabel={view === "release" ? data.tryItLabel : data.openAppLabel}
       onPrimaryCta={() => act(view === "release" ? "try-feature" : "open-app")}
       onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
       {sidebarOpen}
     />
 
-    <div class="publication-scroll">
+    <div class="publication-scroll" bind:this={publicationScroll}>
       {#if view === "social-post"}
         <main class="social-detail-page">
           <button
@@ -472,6 +522,18 @@
                       </button>
                     </div>
                   {/if}
+                </section>
+              {/if}
+              {#if view === "blog-post" && data.newsItems.length}
+                <section class="content-section related-section">
+                  {@render sectionTitle(data.latestNewsLabel)}
+                  <div class="publication-grid compact-grid">
+                    {#each data.newsItems.slice(0, 3) as item, index (item.id)}<PublicationCard
+                        {item}
+                        variant={index === 0 ? "featured" : "compact"}
+                        onOpen={openItem}
+                      />{/each}
+                  </div>
                 </section>
               {/if}
             </div>
@@ -737,6 +799,14 @@
     gap: var(--spacing-5);
     margin: var(--spacing-5) 0;
   }
+  /* Linked editorial illustrations keep their full canvas at every viewport. */
+  .article-markdown :global(p img) {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-4);
+  }
   .article-markdown :global(.publication-media-group img),
   .article-markdown :global(.publication-media-group video) {
     display: block;
@@ -762,6 +832,24 @@
   }
   .article-byline small {
     color: var(--color-font-secondary);
+  }
+  .avatar-link,
+  .author-link {
+    color: inherit;
+    text-decoration: none;
+  }
+  .avatar-link {
+    display: flex;
+    border-radius: 50%;
+  }
+  .author-link {
+    display: grid;
+    gap: var(--spacing-1);
+  }
+  .avatar-link:focus-visible,
+  .author-link:focus-visible {
+    outline: 2px solid var(--color-interactive-primary);
+    outline-offset: 3px;
   }
   .author-role {
     color: var(--color-font-secondary);
@@ -821,9 +909,15 @@
     justify-self: end;
   }
   .contact-line {
+    display: grid;
+    gap: var(--spacing-2);
     color: var(--color-primary-start);
     font-weight: 700;
     text-align: center;
+  }
+  .contact-line a {
+    color: inherit;
+    font-weight: inherit;
   }
   .related-section {
     padding-top: var(--spacing-12);
@@ -927,13 +1021,13 @@
     mask-size: contain;
   }
   .platform-icon.icon-bluesky {
-    mask-image: var(--icon-url-bluesky);
+    mask-image: url("@openmates/ui/static/icons/bluesky.svg");
   }
   .platform-icon.icon-instagram {
-    mask-image: var(--icon-url-instagram);
+    mask-image: url("@openmates/ui/static/icons/instagram.svg");
   }
   .platform-icon.icon-mastodon {
-    mask-image: var(--icon-url-mastodon);
+    mask-image: url("@openmates/ui/static/icons/mastodon.svg");
   }
   .more-posts {
     width: min(100%, var(--publication-content-max-width));

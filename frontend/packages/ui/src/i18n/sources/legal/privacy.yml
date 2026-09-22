@@ -6405,6 +6405,55 @@ providers.ai_models.openrouter.description:
   ru: OpenRouter используется как агрегатор маршрутизации для нескольких сторонних моделей, включая модели, размещенные на Cerebras. OpenRouter видит твои сообщения в чате с замененными на стороне клиента персональными данными и пересылает их хосту соответствующей модели.
   he: "OpenRouter משמש כאגרגטור ניתוב עבור מספר מודלים של צד שלישי, כולל מודלים המארחים על ידי Cerebras. OpenRouter רואה את הודעות הצ'אט שלך עם ממלאי מקום ל-PII שהוחלפו בצד הלקוח ומעבירה אותן למארח המודל הבסיסי."
   verified_by_human: []
+providers.ai_models.typesafe.heading:
+  context: Heading for TypeSafe Jev decision-model provider entry
+  en: TypeSafe Jev (via OpenRouter)
+  de: TypeSafe Jev (über OpenRouter)
+  zh: TypeSafe Jev（通过 OpenRouter）
+  es: TypeSafe Jev (a través de OpenRouter)
+  pt: TypeSafe Jev (através do OpenRouter)
+  ja: TypeSafe Jev（OpenRouter経由）
+  ko: TypeSafe Jev (OpenRouter 경유)
+  it: TypeSafe Jev (tramite OpenRouter)
+  tr: TypeSafe Jev (OpenRouter aracılığıyla)
+  vi: TypeSafe Jev (qua OpenRouter)
+  id: TypeSafe Jev (melalui OpenRouter)
+  pl: TypeSafe Jev (przez OpenRouter)
+  nl: TypeSafe Jev (via OpenRouter)
+  hi: TypeSafe Jev (OpenRouter के माध्यम से)
+  th: TypeSafe Jev (ผ่าน OpenRouter)
+  sv: TypeSafe Jev (via OpenRouter)
+  fr: TypeSafe Jev (via OpenRouter)
+  ar: TypeSafe Jev (عبر OpenRouter)
+  cs: TypeSafe Jev (přes OpenRouter)
+  ru: TypeSafe Jev (через OpenRouter)
+  he: TypeSafe Jev (דרך OpenRouter)
+  verified_by_human: []
+providers.ai_models.typesafe.description:
+  context: TypeSafe Jev usage and data disclosure
+  en: >-
+    TypeSafe Jev receives bounded recent chat context and candidate metadata through OpenRouter to make internal routing, model-tier, skill, focus-mode, language, and safety decisions. It also checks external text for prompt injection. OpenMates does not send user identifiers, and Jev returns typed decisions rather than generated chat text.
+  de: TypeSafe Jev erhält über OpenRouter begrenzten aktuellen Chat-Kontext und Kandidaten-Metadaten, um interne Entscheidungen zu Routing, Modellstufe, Skills, Fokusmodi, Sprache und Sicherheit zu treffen. Es prüft außerdem externe Texte auf Prompt-Injection. OpenMates übermittelt keine Benutzerkennungen, und Jev gibt typisierte Entscheidungen statt generiertem Chat-Text zurück.
+  zh: TypeSafe Jev 通过 OpenRouter 接收有限的近期聊天上下文和候选元数据，用于内部路由、模型级别、技能、专注模式、语言和安全决策。它还会检查外部文本中的提示注入。OpenMates 不会发送用户标识符，Jev 返回的是类型化决策，而不是生成的聊天文本。
+  es: TypeSafe Jev recibe a través de OpenRouter un contexto reciente limitado del chat y metadatos de candidatos para tomar decisiones internas de enrutamiento, nivel de modelo, habilidades, modos de enfoque, idioma y seguridad. También comprueba texto externo para detectar inyección de instrucciones. OpenMates no envía identificadores de usuario y Jev devuelve decisiones tipadas, no texto de chat generado.
+  pt: O TypeSafe Jev recebe através do OpenRouter um contexto recente limitado da conversa e metadados de candidatos para decisões internas de encaminhamento, nível do modelo, competências, modos de foco, idioma e segurança. Também verifica texto externo quanto a injeção de instruções. O OpenMates não envia identificadores de utilizador e o Jev devolve decisões tipadas, não texto de conversa gerado.
+  ja: TypeSafe Jev は、内部のルーティング、モデル階層、スキル、フォーカスモード、言語、安全性の判断を行うため、OpenRouter 経由で限定された最近のチャット文脈と候補メタデータを受け取ります。外部テキストのプロンプトインジェクションも検査します。OpenMates はユーザー識別子を送信せず、Jev は生成チャット文章ではなく型付き判断を返します。
+  ko: TypeSafe Jev는 내부 라우팅, 모델 등급, 스킬, 포커스 모드, 언어 및 안전 결정을 위해 OpenRouter를 통해 제한된 최근 채팅 문맥과 후보 메타데이터를 받습니다. 외부 텍스트의 프롬프트 인젝션도 검사합니다. OpenMates는 사용자 식별자를 보내지 않으며 Jev는 생성된 채팅 텍스트가 아닌 형식화된 결정을 반환합니다.
+  it: TypeSafe Jev riceve tramite OpenRouter un contesto recente limitato della chat e metadati dei candidati per decisioni interne su routing, livello del modello, skill, modalità focus, lingua e sicurezza. Controlla anche il testo esterno per rilevare prompt injection. OpenMates non invia identificatori utente e Jev restituisce decisioni tipizzate, non testo di chat generato.
+  tr: TypeSafe Jev, dahili yönlendirme, model katmanı, beceri, odak modu, dil ve güvenlik kararları için OpenRouter üzerinden sınırlı yakın sohbet bağlamı ve aday meta verileri alır. Harici metinleri komut enjeksiyonuna karşı da denetler. OpenMates kullanıcı tanımlayıcıları göndermez ve Jev oluşturulmuş sohbet metni yerine türlendirilmiş kararlar döndürür.
+  vi: TypeSafe Jev nhận ngữ cảnh trò chuyện gần đây có giới hạn và siêu dữ liệu ứng viên qua OpenRouter để đưa ra các quyết định nội bộ về định tuyến, cấp mô hình, kỹ năng, chế độ tập trung, ngôn ngữ và an toàn. Dịch vụ cũng kiểm tra văn bản bên ngoài để phát hiện prompt injection. OpenMates không gửi mã định danh người dùng và Jev trả về quyết định có kiểu thay vì văn bản trò chuyện được tạo.
+  id: TypeSafe Jev menerima konteks chat terbaru yang dibatasi dan metadata kandidat melalui OpenRouter untuk keputusan internal tentang perutean, tingkat model, skill, mode fokus, bahasa, dan keamanan. Layanan ini juga memeriksa teks eksternal untuk prompt injection. OpenMates tidak mengirim pengenal pengguna dan Jev mengembalikan keputusan bertipe, bukan teks chat buatan.
+  pl: TypeSafe Jev otrzymuje przez OpenRouter ograniczony kontekst ostatniego czatu i metadane kandydatów, aby podejmować wewnętrzne decyzje dotyczące routingu, poziomu modelu, umiejętności, trybów skupienia, języka i bezpieczeństwa. Sprawdza też zewnętrzny tekst pod kątem prompt injection. OpenMates nie wysyła identyfikatorów użytkowników, a Jev zwraca typowane decyzje zamiast generowanego tekstu czatu.
+  nl: TypeSafe Jev ontvangt via OpenRouter beperkte recente chatcontext en kandidaatmetadata voor interne beslissingen over routing, modelniveau, skills, focusmodi, taal en veiligheid. Het controleert ook externe tekst op promptinjectie. OpenMates stuurt geen gebruikersidentificatoren en Jev retourneert getypeerde beslissingen in plaats van gegenereerde chattekst.
+  hi: TypeSafe Jev आंतरिक रूटिंग, मॉडल स्तर, स्किल, फोकस मोड, भाषा और सुरक्षा निर्णयों के लिए OpenRouter के माध्यम से सीमित हालिया चैट संदर्भ और उम्मीदवार मेटाडेटा प्राप्त करता है। यह बाहरी टेक्स्ट में प्रॉम्प्ट इंजेक्शन की भी जाँच करता है। OpenMates उपयोगकर्ता पहचानकर्ता नहीं भेजता और Jev जनरेट किए गए चैट टेक्स्ट के बजाय टाइप किए गए निर्णय लौटाता है।
+  th: TypeSafe Jev รับบริบทแชทล่าสุดแบบจำกัดและข้อมูลเมตาของตัวเลือกผ่าน OpenRouter เพื่อใช้ตัดสินใจภายในเกี่ยวกับการกำหนดเส้นทาง ระดับโมเดล สกิล โหมดโฟกัส ภาษา และความปลอดภัย รวมทั้งตรวจข้อความภายนอกเพื่อหาการแทรกคำสั่ง OpenMates ไม่ส่งตัวระบุผู้ใช้ และ Jev ส่งคืนการตัดสินใจแบบมีชนิดแทนข้อความแชทที่สร้างขึ้น
+  sv: TypeSafe Jev tar emot begränsad aktuell chattkontext och kandidatmetadata via OpenRouter för interna beslut om routning, modellnivå, färdigheter, fokuslägen, språk och säkerhet. Tjänsten kontrollerar även extern text för promptinjektion. OpenMates skickar inga användaridentifierare och Jev returnerar typade beslut i stället för genererad chatttext.
+  fr: TypeSafe Jev reçoit via OpenRouter un contexte récent limité de la conversation et des métadonnées de candidats afin de prendre des décisions internes de routage, de niveau de modèle, de compétences, de modes de concentration, de langue et de sécurité. Il vérifie aussi les textes externes pour détecter les injections de prompt. OpenMates n'envoie aucun identifiant utilisateur et Jev renvoie des décisions typées plutôt que du texte de chat généré.
+  ar: يتلقى TypeSafe Jev عبر OpenRouter سياقاً محدوداً من المحادثة الحديثة وبيانات وصفية للخيارات لاتخاذ قرارات داخلية بشأن التوجيه ومستوى النموذج والمهارات وأوضاع التركيز واللغة والسلامة. كما يفحص النصوص الخارجية بحثاً عن حقن الأوامر. لا ترسل OpenMates معرّفات المستخدمين، ويعيد Jev قرارات منظّمة بدلاً من نص دردشة مولّد.
+  cs: TypeSafe Jev přijímá přes OpenRouter omezený kontext nedávné konverzace a metadata kandidátů pro interní rozhodování o směrování, úrovni modelu, dovednostech, režimech soustředění, jazyku a bezpečnosti. Kontroluje také externí text na prompt injection. OpenMates neposílá identifikátory uživatelů a Jev vrací typovaná rozhodnutí místo generovaného textu chatu.
+  ru: TypeSafe Jev получает через OpenRouter ограниченный контекст недавнего чата и метаданные кандидатов для внутренних решений о маршрутизации, уровне модели, навыках, режимах фокусировки, языке и безопасности. Он также проверяет внешний текст на prompt injection. OpenMates не передаёт идентификаторы пользователей, а Jev возвращает типизированные решения, а не сгенерированный текст чата.
+  he: TypeSafe Jev מקבל דרך OpenRouter הקשר מוגבל מהשיחה האחרונה ומטא-נתונים של מועמדים לצורך החלטות פנימיות על ניתוב, רמת מודל, מיומנויות, מצבי מיקוד, שפה ובטיחות. הוא גם בודק טקסט חיצוני להזרקת הנחיות. OpenMates אינו שולח מזהי משתמשים, ו-Jev מחזיר החלטות מובנות במקום טקסט צ'אט שנוצר.
+  verified_by_human: []
 providers.ai_models.cerebras.heading:
   context: Heading for Cerebras provider entry
   en: Cerebras (US, via OpenRouter)

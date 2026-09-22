@@ -4,6 +4,8 @@ The handler owns the user decision about whether project-referenced embeds are
 kept or removed when a chat is manually deleted.
 """
 
+# contract-test-file: infrastructure
+
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -42,6 +44,7 @@ class _CacheService:
         self.remove_chat_from_ids_versions = AsyncMock(return_value=True)
         self.delete_chat_app_settings_memories = AsyncMock(return_value=0)
         self.delete_chat_embed_cache = AsyncMock(return_value=0)
+        self.delete = AsyncMock(return_value=True)
 
     @property
     def client(self):
@@ -96,3 +99,4 @@ async def test_delete_chat_handler_forwards_remove_project_embeds(monkeypatch) -
 
     queue_delete_chat_task.assert_called_once_with("user-1", "chat-1", True)
     cache_service.mark_chat_deleted.assert_awaited_once_with("chat-1")
+    assert cache_service.delete.await_count == 2

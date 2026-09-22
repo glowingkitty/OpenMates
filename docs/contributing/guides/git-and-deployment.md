@@ -297,9 +297,9 @@ EOF
 )"
 ```
 
-**Step 6 — Prepare a draft release**
+**Step 6 — Verify automated release publication**
 
-After the PR is created, immediately prepare a draft GitHub release (see "Creating Releases" section below). The draft release will be published after the PR is merged into `main`.
+After the PR is merged, `Publish GitHub Release` waits for the CLI, Python SDK, and self-host image workflows from the exact merge commit. It verifies package and image provenance, creates the version tag, and publishes the GitHub pre-release. The CLI treats that published release as the `stable` channel. Use the workflow's manual dispatch with the exact commit only to recover a missed automatic trigger.
 
 ---
 
@@ -307,14 +307,14 @@ After the PR is created, immediately prepare a draft GitHub release (see "Creati
 
 **IMPORTANT: Only create a release when the user explicitly asks for one**, OR as part of a PR workflow when the user asked to create a PR. Never create a release on your own initiative at other times.
 
-Releases are always created as **drafts** targeting `main` and marked as **pre-release** (while in alpha). They are published after the PR is merged.
+Releases are published automatically as **pre-releases** while the product is in alpha. Publication is fail-closed: all required workflows and artifacts must exist for the same `main` commit. Draft releases are optional editorial preparation; the automated publisher updates a matching draft or creates the release itself.
 
 ### Versioning Guidelines
 
 OpenMates separates the **user-facing product line** from exact artifact versions:
 
-- Product UI and marketing copy show `vMAJOR.MINOR`, for example `v0.19`.
-- npm, PyPI, GHCR images, and GitHub release tags use exact SemVer/PEP 440 versions, for example `0.19.0-alpha.1`, `0.19.0a1`, or `v0.19.0-alpha.1` while in alpha.
+- Product UI and marketing copy show `vMAJOR.MINOR`, for example `v0.20`.
+- npm, PyPI, GHCR images, and GitHub release tags use exact SemVer/PEP 440 versions, for example `0.20.0-alpha.1`, `0.20.0a1`, or `v0.20.0-alpha.1` while in alpha.
 - `shared/config/product_version.json` is the source of truth: `userFacing` stores the product line, and `cli.stableBase` / `python.stableBase` store the fixed artifact base for that line.
 
 Artifact releases use semantic versioning in the format `vMAJOR.MINOR.PATCH-phase`:
@@ -325,12 +325,12 @@ Artifact releases use semantic versioning in the format `vMAJOR.MINOR.PATCH-phas
 | Beta   | `v1.0.0-beta`  | Core features complete; usable for a wider audience; known bugs being fixed             |
 | Stable | `v1.0.0`       | Production-ready; all major user flows work reliably                                    |
 
-**Current phase:** Alpha — the app currently shows **v0.19** as the user-facing product line. Dev artifacts publish on a fixed alpha train such as `0.19.0-alpha.N` for npm/GHCR and `0.19.0aN` for PyPI. The next minor product line is `v0.19`.
+**Current phase:** Alpha — the app currently shows **v0.20** as the user-facing product line. Dev artifacts publish on a fixed alpha train such as `0.20.0-alpha.N` for npm/GHCR and `0.20.0aN` for PyPI. The next minor product line is `v0.20`.
 
 **How to bump the version:**
 
-- **Alpha artifact** (`v0.19.0-alpha.0` → `v0.19.0-alpha.1`): additional dev publishes inside the same product line
-- **Minor product line** (`v0.19` → `v0.19`): new features added or significant changes
+- **Alpha artifact** (`v0.20.0-alpha.0` → `v0.20.0-alpha.1`): additional dev publishes inside the same product line
+- **Minor product line** (`v0.20` → `v0.20`): new features added or significant changes
 - **Major / phase change** (`v0.x-alpha` → `v1.0.0-beta`): when core user flows are stable and the app is ready for a broader audience — **always confirm with the user before doing this**
 
 **How to determine the next version:**
@@ -346,10 +346,10 @@ git tag --sort=-v:refname | head -5
 Inspect the commits going into the PR and decide:
 
 - Mostly `fix:` commits → stay in the current product line; dev package/image workflows publish the next alpha artifact automatically
-- Any `feat:` commits → consider a new minor product line (e.g. `v0.19` → `v0.19`)
+- Any `feat:` commits → consider a new minor product line (e.g. `v0.20` → `v0.20`)
 - Major milestone reached → consult the user before bumping major or changing phase
 
-**Note:** Run `python3 scripts/bump_alpha_version_line.py --minor <X>` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.19`, while `cli.stableBase` / `python.stableBase` define the fixed artifact base, e.g. `0.19.0`. Dev publishes prereleases on that fixed train (`0.19.0-alpha.0`, then `0.19.0-alpha.1` for npm/GHCR; `0.19.0a0`, then `0.19.0a1` for PyPI). Main publishes the configured stable base (`0.19.0`) and skips if that exact version is already published. After the stable base exists on PyPI, bump the product minor line before publishing more Python prereleases because PEP 440 alpha versions sort below the stable base. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
+**Note:** Run `python3 scripts/bump_alpha_version_line.py --minor <X>` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.20`, while `cli.stableBase` / `python.stableBase` define the fixed artifact base, e.g. `0.20.0`. Dev publishes prereleases on that fixed train (`0.20.0-alpha.0`, then `0.20.0-alpha.1` for npm/GHCR; `0.20.0a0`, then `0.20.0a1` for PyPI). Main publishes the configured stable base (`0.20.0`) and skips if that exact version is already published. After the stable base exists on PyPI, bump the product minor line before publishing more Python prereleases because PEP 440 alpha versions sort below the stable base. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
 
 ### Release Workflow
 
@@ -424,11 +424,11 @@ EOF
 
 **Step 4 — Report back to the user**
 
-After creating the PR and the draft release, tell the user:
+After creating the PR, tell the user:
 
 - The PR URL
-- The draft release tag/URL
-- That the draft release should be **published after the PR is merged into `main`**
+- The exact artifact version that will be published
+- That GitHub publication will happen only after all required `main` artifact workflows succeed
 
 The user publishes the release manually after merging, or can ask you to publish it:
 

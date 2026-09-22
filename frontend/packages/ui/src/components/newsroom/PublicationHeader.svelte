@@ -1,6 +1,7 @@
 <script lang="ts">
   interface Props {
     label: string;
+    homeHref: string;
     primaryCtaLabel: string;
     sidebarOpen: boolean;
     onToggleSidebar: () => void;
@@ -9,6 +10,7 @@
 
   let {
     label,
+    homeHref,
     primaryCtaLabel,
     sidebarOpen,
     onToggleSidebar,
@@ -31,7 +33,7 @@
         aria-expanded={sidebarOpen}
       ></button>
 
-      <a class="logo-link" href="/" aria-label="OpenMates home">
+      <a class="logo-link" href={homeHref} aria-label={`${label} home`}>
         <strong><mark>Open</mark><span>Mates</span></strong>
         <span class="mobile-logo-icon" aria-hidden="true"></span>
         <small>{label}</small>

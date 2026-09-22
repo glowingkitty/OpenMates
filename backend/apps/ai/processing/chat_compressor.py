@@ -10,6 +10,7 @@
 # Architecture context: See docs/architecture/chat-compression.md for design rationale.
 # Tests: backend/tests/test_chat_compressor.py
 
+import json
 import logging
 import os
 import time
@@ -26,6 +27,15 @@ logger = logging.getLogger(__name__)
 # plus estimated system prompt overhead exceeds this, older messages are summarized.
 # All models in the system have >= 128k context, so 100k leaves comfortable headroom.
 DEFAULT_COMPRESSION_TRIGGER_THRESHOLD = 100_000  # tokens (estimated)
+
+# Conservative fallback only for models whose provider metadata is unavailable.
+# Normal requests derive their limit from the selected model's provider config.
+FALLBACK_MODEL_CONTEXT_TOKENS = 128_000
+# Product policy for ordinary inference, independent of advertised provider capacity.
+MAX_INFERENCE_CONTEXT_TOKENS = 200_000
+DEFAULT_EXPECTED_OUTPUT_TOKENS = 16_000
+CONTEXT_SAFETY_RESERVE_TOKENS = 8_000
+MINIMUM_HISTORY_BUDGET_TOKENS = 8_000
 
 # Token budget for the "recent window" — the most recent messages kept in full
 # after compression. Uses the same logic as truncation: walk backwards from newest,
@@ -70,6 +80,68 @@ class CompressionResult(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     error: Optional[str] = None
+
+
+def model_context_window(model_id: str, config_manager: Any) -> int:
+    """Return the configured context window for a provider-qualified model."""
+    if not isinstance(model_id, str) or "/" not in model_id or config_manager is None:
+        return FALLBACK_MODEL_CONTEXT_TOKENS
+    provider_id, model_suffix = model_id.split("/", 1)
+    model_config = config_manager.get_model_pricing(provider_id, model_suffix) or {}
+    costs = model_config.get("costs") or {}
+    for cost_key in ("input_per_million_token", "output_per_million_token"):
+        value = (costs.get(cost_key) or {}).get("max_context")
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            return value
+    return FALLBACK_MODEL_CONTEXT_TOKENS
+
+
+def expected_output_reserve(model_id: str, config_manager: Any) -> int:
+    """Estimate ordinary answer output without reserving pathological provider maxima."""
+    if isinstance(model_id, str) and "/" in model_id and config_manager is not None:
+        provider_id, model_suffix = model_id.split("/", 1)
+        model_config = config_manager.get_model_pricing(provider_id, model_suffix) or {}
+        configured = (model_config.get("features") or {}).get("max_output_tokens")
+        if isinstance(configured, int) and not isinstance(configured, bool) and configured > 0:
+            return min(configured, DEFAULT_EXPECTED_OUTPUT_TOKENS)
+    return DEFAULT_EXPECTED_OUTPUT_TOKENS
+
+
+def estimate_prompt_and_tools_tokens(system_prompt: str, tools: Optional[List[Dict[str, Any]]]) -> int:
+    """Estimate non-history input using the same conservative character ratio."""
+    serialized_tools = json.dumps(tools or [], default=str, separators=(",", ":"))
+    return max(1, int((len(system_prompt or "") + len(serialized_tools)) / AVG_CHARS_PER_TOKEN))
+
+
+def model_compression_threshold(
+    model_id: str, config_manager: Any, *, threshold_override: Optional[int] = None
+) -> int:
+    """Return total-input threshold at which selected-model compression should run."""
+    context = min(model_context_window(model_id, config_manager), MAX_INFERENCE_CONTEXT_TOKENS)
+    output_reserve = expected_output_reserve(model_id, config_manager)
+    threshold = max(
+        MINIMUM_HISTORY_BUDGET_TOKENS + ESTIMATED_SYSTEM_PROMPT_OVERHEAD,
+        context - output_reserve - CONTEXT_SAFETY_RESERVE_TOKENS,
+    )
+    # Admin test overrides may trigger earlier compression, never bypass the cap.
+    return min(threshold, threshold_override) if threshold_override is not None else threshold
+
+
+def model_history_token_budget(
+    model_id: str,
+    config_manager: Any,
+    *,
+    system_prompt: str,
+    tools: Optional[List[Dict[str, Any]]],
+) -> int:
+    """Budget history after actual prompt/tools plus output and safety reserves."""
+    return max(
+        MINIMUM_HISTORY_BUDGET_TOKENS,
+        min(model_context_window(model_id, config_manager), MAX_INFERENCE_CONTEXT_TOKENS)
+        - estimate_prompt_and_tools_tokens(system_prompt, tools)
+        - expected_output_reserve(model_id, config_manager)
+        - CONTEXT_SAFETY_RESERVE_TOKENS,
+    )
 
 
 def _response_token_usage(response: Any) -> Tuple[int, int]:
@@ -311,6 +383,8 @@ def _build_compression_prompt(
         "- Include a 'Key Decisions' section listing decisions and their reasoning\n"
         "- Include a 'Referenced Artifacts' section listing code files, documents, "
         "  web searches, and other embeds that were used — only list what actually exists\n"
+        "- Preserve each artifact's exact embed_ref or filename verbatim in that section so "
+        "  a later tool call can resolve it; never invent, normalize, or shorten the reference\n"
         "- Do NOT list categories of artifacts that were not present (e.g., do not write "
         "  'Documents: None uploaded' — simply omit the category)\n"
         "- Write in the same language the conversation is in\n"

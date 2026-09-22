@@ -5,11 +5,12 @@
   interface Props {
     hero: NewsroomHero;
     detail?: boolean;
+    showNavigation?: boolean;
     onOpen: () => void;
     onClose?: () => void;
   }
 
-  let { hero, detail = false, onOpen, onClose }: Props = $props();
+  let { hero, detail = false, showNavigation = false, onOpen, onClose }: Props = $props();
 </script>
 
 <section
@@ -17,11 +18,21 @@
   class="publication-hero"
   aria-labelledby="newsroom-hero-title"
 >
-  <button
-    type="button"
-    class="hero-arrow previous"
-    aria-label="Previous featured publication">‹</button
-  >
+  {#if !detail}
+    <button
+      type="button"
+      class="hero-link"
+      aria-label={hero.actionLabel}
+      onclick={onOpen}
+    ></button>
+  {/if}
+  {#if showNavigation}
+    <button
+      type="button"
+      class="hero-arrow previous"
+      aria-label="Previous featured publication">‹</button
+    >
+  {/if}
   <div class="hero-content">
     <div class="hero-copy">
       {#if hero.kicker}<span class="kicker">{hero.kicker}</span>{/if}
@@ -29,21 +40,24 @@
       <h1 id="newsroom-hero-title">{hero.title}</h1>
       <time>{hero.meta}</time>
       {#if !detail}
-        <button type="button" class="hero-action" onclick={onOpen}>
-          <span class="clickable-icon icon_search" aria-hidden="true"></span>
-          {hero.actionLabel}
-        </button>
+        <span class="hero-action">{hero.actionLabel}</span>
       {/if}
     </div>
     <div class="hero-media">
-      <NewsroomMedia label={`${hero.title} featured media`} source={hero.media} />
+      <NewsroomMedia
+        label={`${hero.title} featured media`}
+        source={hero.media}
+        showPlay={hero.media?.type === "video"}
+      />
     </div>
   </div>
-  <button
-    type="button"
-    class="hero-arrow next"
-    aria-label="Next featured publication">›</button
-  >
+  {#if showNavigation}
+    <button
+      type="button"
+      class="hero-arrow next"
+      aria-label="Next featured publication">›</button
+    >
+  {/if}
   {#if detail && onClose}
     <button
       type="button"
@@ -73,6 +87,8 @@
   }
 
   .hero-content {
+    position: relative;
+    z-index: 1;
     display: grid;
     grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
     align-items: center;
@@ -117,19 +133,25 @@
   }
 
   .hero-action {
-    all: unset;
     display: inline-flex;
     align-items: center;
-    gap: var(--spacing-4);
     margin-top: var(--spacing-5);
-    cursor: pointer;
+    font-size: var(--font-size-small);
     font-weight: 750;
   }
 
-  .hero-action :global(.clickable-icon) {
-    width: 1.35rem;
-    height: 1.35rem;
-    background-color: currentColor;
+  .hero-link {
+    all: unset;
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    cursor: pointer;
+  }
+
+  .hero-link:focus-visible {
+    border-radius: inherit;
+    outline: 0.1875rem solid rgba(255, 255, 255, 0.9);
+    outline-offset: -0.375rem;
   }
 
   .hero-media {
@@ -151,6 +173,7 @@
     display: grid;
     place-items: center;
     cursor: pointer;
+    z-index: 3;
   }
 
   .hero-arrow {

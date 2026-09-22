@@ -7503,6 +7503,8 @@ export class OpenMatesClient {
             chatSummary: resp.chatSummary,
             chatTags: resp.chatTags,
             updatedChatTitle: resp.updatedChatTitle,
+            sourceTitleVersion: resp.sourceTitleVersion,
+            sourceMetadataVersion: resp.sourceMetadataVersion,
             encryptedChatKey,
           });
           await persistCompressionCheckpoints(resp.compressionCheckpoints);
@@ -8069,6 +8071,8 @@ export class OpenMatesClient {
     chatSummary: string | null;
     chatTags: string[];
     updatedChatTitle: string | null;
+    sourceTitleVersion: number | null;
+    sourceMetadataVersion: number | null;
     encryptedChatKey: string | null;
   }): Promise<void> {
     const encryptedFollowUps = params.followUpSuggestions.length > 0
@@ -8092,6 +8096,13 @@ export class OpenMatesClient {
     const encryptedUpdatedTitle = params.updatedChatTitle
       ? await encryptWithAesGcmCombined(params.updatedChatTitle, params.chatKeyBytes)
       : "";
+    const nextTitleVersion = encryptedUpdatedTitle
+      ? Math.max(params.sourceTitleVersion ?? 0, 0) + 1
+      : Math.max(params.sourceTitleVersion ?? 0, 0);
+    const nextMetadataVersion = Math.max(
+      params.sourceMetadataVersion ?? 0,
+      nextTitleVersion,
+    );
 
     if (!encryptedFollowUps && encryptedNewChatSuggestions.length === 0 && !encryptedChatSummary && !encryptedChatTags && !encryptedUpdatedTitle) return;
 
@@ -8104,6 +8115,10 @@ export class OpenMatesClient {
       encrypted_chat_tags: encryptedChatTags,
       encrypted_title: encryptedUpdatedTitle,
       encrypted_chat_key: params.encryptedChatKey ?? "",
+      versions: {
+        title_v: nextTitleVersion,
+        metadata_v: nextMetadataVersion,
+      },
     });
     await params.ws.waitForMessage(
       "post_processing_metadata_stored",

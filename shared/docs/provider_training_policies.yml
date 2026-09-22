@@ -81,6 +81,21 @@ providers:
     action_required: none
     last_verified: "2026-04-16T11:15:00Z"
 
+  typesafe:
+    status: no_training
+    provider_group: ai_models
+    policy_url: https://typesafe.ai/legal/privacy-policy
+    quote: >
+      We will not train or fine tune any artificial intelligence or machine
+      learning models on your prompts or other Input.
+    source_document: "TypeSafe Privacy Policy"
+    mechanism: Contractual prohibition for submitted input
+    notes: >
+      Jev is currently reached through OpenRouter. TypeSafe also offers zero
+      data retention separately for enterprise customers.
+    action_required: none
+    last_verified: "2026-09-22T00:00:00Z"
+
   mistral:
     status: no_training
     provider_group: ai_models

@@ -1,6 +1,6 @@
 {
   "name": "@repo/ui",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "type": "module",
   "module": "index.ts",
   "main": "index.ts",
@@ -13,6 +13,11 @@
       "types": "./src/demo_chats/index.ts",
       "svelte": "./src/demo_chats/index.ts",
       "default": "./src/demo_chats/index.ts"
+    },
+    "./demo_chats/newsletters": {
+      "types": "./src/demo_chats/newsletterChatStore.ts",
+      "svelte": "./src/demo_chats/newsletterChatStore.ts",
+      "default": "./src/demo_chats/newsletterChatStore.ts"
     },
     "./i18n/setup": {
       "types": "./src/i18n/setup.ts",

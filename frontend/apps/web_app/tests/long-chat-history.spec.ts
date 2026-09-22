@@ -151,6 +151,7 @@ async function readZipMetadata(download: any, outputPath: string): Promise<Recor
 	return JSON.parse(await metadataFile.async('string')) as Record<string, unknown>;
 }
 
+// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
 test('loads long compressed history explicitly and exports hydrated metadata', async ({
 	page
 }: {

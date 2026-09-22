@@ -1,27 +1,27 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-21'
-generated_at: '2026-09-21T19:34:46+00:00'
+generated_at: '2026-09-22T00:20:20+00:00'
 range:
-  since: 24 hours ago
-  until: null
+  since: '2026-09-21T00:00:00+00:00'
+  until: '2026-09-22T00:00:00+00:00'
   from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
-  total_commits: 35
+  total_commits: 37
   section_counts:
     features: 3
-    bug_fixes: 29
+    bug_fixes: 30
     improvements: 1
-    docs: 1
+    docs: 2
     tests: 0
     infrastructure: 1
     internal: 0
     other: 0
-  newsletter_ready_items: 21
-  user_facing_items: 23
-  dev_only_items: 4
+  newsletter_ready_items: 23
+  user_facing_items: 24
+  dev_only_items: 1
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -186,9 +186,9 @@ sections:
     - specifications/features/ai-model-routing/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -203,7 +203,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: publish news blog and social archives'
     section: features
     commits:
@@ -292,31 +292,22 @@ sections:
     - contains user-facing product paths
     - commit is reachable from main
   bug_fixes:
-  - title: 'fix: preserve review media bucket compatibility'
+  - title: 'fix: make stable releases authoritative'
     section: bug_fixes
     commits:
-    - 99c6ab220
-    authored_at: '2026-09-21T18:57:47+00:00'
+    - 27f8e88c7
+    authored_at: '2026-09-21T23:19:04+00:00'
     changed_paths:
-    - backend/core/api/app/services/s3/config.py
-    - backend/tests/test_review_media_bucket.py
-    - scripts/response_media.py
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: unblock Python SDK release'
-    section: bug_fixes
-    commits:
-    - c313a92d2
-    authored_at: '2026-09-21T17:55:59+00:00'
-    changed_paths:
-    - packages/openmates-python/tests/test_sdk.py
+    - .github/workflows/publish-github-release.yml
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/releaseChannel.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/publish_stable_github_release.py
+    - scripts/tests/test_publish_stable_github_release.py
+    - specifications/generated/assertion-index.yml
     release_status: dev_only
     communication_status: dev_only
     newsletter_ready: false
@@ -327,6 +318,41 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve review media bucket compatibility'
+    section: bug_fixes
+    commits:
+    - 99c6ab220
+    authored_at: '2026-09-21T18:57:47+00:00'
+    changed_paths:
+    - backend/core/api/app/services/s3/config.py
+    - backend/tests/test_review_media_bucket.py
+    - scripts/response_media.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: unblock Python SDK release'
+    section: bug_fixes
+    commits:
+    - c313a92d2
+    authored_at: '2026-09-21T17:55:59+00:00'
+    changed_paths:
+    - packages/openmates-python/tests/test_sdk.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
   - title: 'fix: deactivate placeholder blog post'
     section: bug_fixes
     commits:
@@ -978,6 +1004,23 @@ sections:
     - classified as improvements from commit subject/path rules
     - commit is reachable from main
   docs:
+  - title: 'docs: refresh release intelligence for v0.19'
+    section: docs
+    commits:
+    - e81b760a5
+    authored_at: '2026-09-21T19:36:22+00:00'
+    changed_paths:
+    - docs/releases/daily/2026-09-21.md
+    - docs/releases/daily/2026-09-21.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
   - title: 'docs: refresh daily release intelligence'
     section: docs
     commits:
@@ -1004,7 +1047,7 @@ sections:
     authored_at: '2026-09-21T19:01:56+00:00'
     changed_paths:
     - .github/workflows/specification-approval-pdf.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1012,54 +1055,26 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   internal: []
   other: []
 unreleased_progress:
   dev_only:
-  - title: 'ci: install PyMuPDF for approval PDF tests'
+  - title: 'fix: make stable releases authoritative'
     commits:
-    - e203b95cb
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve review media bucket compatibility'
-    commits:
-    - 99c6ab220
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: unblock Python SDK release'
-    commits:
-    - c313a92d2
+    - 27f8e88c7
     section: bug_fixes
     release_status: dev_only
     communication_status: dev_only
     related_features: []
-  - title: 'feat: use Gemini 3.8 Flash for automatic routing'
-    commits:
-    - d88d76bf6
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'feat: use Gemini 3.8 Flash for automatic routing'
     commits:
     - d88d76bf6
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1077,6 +1092,27 @@ unreleased_progress:
     related_features: []
 marketing_candidates:
   newsletter:
+  - title: 'fix: unblock Python SDK release'
+    commits:
+    - c313a92d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: use Gemini 3.8 Flash for automatic routing'
+    commits:
+    - d88d76bf6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
   - title: 'fix: deactivate placeholder blog post'
     commits:
     - c474e9920
@@ -1260,20 +1296,28 @@ marketing_candidates:
     communication_status: ready_for_public_communication
     related_features: []
   social_or_video:
-  - title: 'fix: unblock Python SDK release'
+  - title: 'fix: make stable releases authoritative'
     commits:
-    - c313a92d2
+    - 27f8e88c7
     section: bug_fixes
     release_status: dev_only
     communication_status: dev_only
     related_features: []
     newsletter_ready: false
+  - title: 'fix: unblock Python SDK release'
+    commits:
+    - c313a92d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
   - title: 'feat: use Gemini 3.8 Flash for automatic routing'
     commits:
     - d88d76bf6
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1282,7 +1326,7 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: deactivate placeholder blog post'
     commits:
     - c474e9920
@@ -1493,11 +1537,39 @@ risks:
   - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
 sources:
   commits:
+  - sha: 27f8e88c7db91b69da6e22eac2a738783716dc0f
+    short_sha: 27f8e88c7
+    authored_at: '2026-09-21T23:19:04+00:00'
+    subject: 'fix: make stable releases authoritative'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-github-release.yml
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/releaseChannel.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/publish_stable_github_release.py
+    - scripts/tests/test_publish_stable_github_release.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: e81b760a55e2075065e76f7fd0622ac078eb036b
+    short_sha: e81b760a5
+    authored_at: '2026-09-21T19:36:22+00:00'
+    subject: 'docs: refresh release intelligence for v0.19'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/releases/daily/2026-09-21.md
+    - docs/releases/daily/2026-09-21.yml
+    related_feature_ids: []
   - sha: e203b95cbad4566c77c21b91bb347d869331bafa
     short_sha: e203b95cb
     authored_at: '2026-09-21T19:01:56+00:00'
     subject: 'ci: install PyMuPDF for approval PDF tests'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/specification-approval-pdf.yml
@@ -1506,7 +1578,7 @@ sources:
     short_sha: 99c6ab220
     authored_at: '2026-09-21T18:57:47+00:00'
     subject: 'fix: preserve review media bucket compatibility'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/s3/config.py
@@ -1517,7 +1589,7 @@ sources:
     short_sha: c313a92d2
     authored_at: '2026-09-21T17:55:59+00:00'
     subject: 'fix: unblock Python SDK release'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-python/tests/test_sdk.py
@@ -1526,7 +1598,7 @@ sources:
     short_sha: d88d76bf6
     authored_at: '2026-09-21T17:43:03+00:00'
     subject: 'feat: use Gemini 3.8 Flash for automatic routing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/app.yml
@@ -2023,174 +2095,139 @@ sources:
     - scripts/tests/test_ci_schema_bundle.py
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates launched a public newsroom and social archive, enabling users to browse announcements and event history
-    directly. The update also significantly improved the reliability of AI search skills, message drafting, and issue reporting.
+  overview: OpenMates launched a public newsroom and social archive while upgrading its AI infrastructure with Gemini 3.8
+    Flash for automatic model routing. The update also focused heavily on application reliability, specifically regarding
+    issue reporting and AI skill execution.
   released_changes:
-  - text: The project launched a public newsroom and social archive, featuring event galleries and announcement blogs.
+  - text: OpenMates published a new public news blog and social archives, including a dedicated publication route and manifest
+      system.
     evidence:
       commits:
       - c6c58de28
     release_status: released_main
-  - text: The newsroom interface was updated to align with design specifications, including improved sidebar navigation and
-      social post linking.
+  - text: Gemini 3.8 Flash is now utilized for automatic AI model routing to improve processing efficiency.
+    evidence:
+      commits:
+      - d88d76bf6
+    release_status: released_main
+  - text: Newsroom previews were updated to align with the Figma shell design, including layout and header adjustments.
     evidence:
       commits:
       - fda913a70
-      - da96f56a4
-    release_status: released_main
-  - text: The message composer now adopts saved drafts without requiring a page reload.
-    evidence:
-      commits:
-      - 980044f9a
-    release_status: released_main
-  - text: Map embeds now recover from loading errors without requiring a full application refresh.
-    evidence:
-      commits:
-      - 185a03088
-    release_status: released_main
-  - text: The chat sidebar now correctly displays the latest news and project events.
-    evidence:
-      commits:
-      - bf8d9e272
     release_status: released_main
   bug_fixes:
-  - text: AI search skills were refined to require explicit calls and suppress fabricated results, ensuring more reliable
-      follow-up responses.
+  - text: AI skill reliability was improved by requiring explicit news search calls, preserving follow-up identities, and
+      suppressing fabricated tool results.
     evidence:
       commits:
-      - 136c6b50f
       - 63af30199
       - e596775e9
       - 4304ca60e
+      - 136c6b50f
     release_status: released_main
-  - text: Assistant speech replay was localized and stabilized to prevent playback failures.
-    evidence:
-      commits:
-      - 592da074d
-    release_status: released_main
-  - text: Issue reporting was made more durable with improved diagnostic collection and authenticated submission flows.
+  - text: Issue reporting was made more durable with improved diagnostics for iPad audio sends and authenticated report storage.
     evidence:
       commits:
       - f2fbe5fbb
       - 75227036b
     release_status: released_main
-  - text: The newsroom UI received several polish fixes, including corrected spacing, icon masking, article-specific link
-      previews, and Vercel routing support.
+  - text: The newsroom interface received extensive polish, including article-specific link previews, corrected sidebar icon
+      masks, and Vercel routing fixes.
     evidence:
       commits:
-      - 55b6375c9
-      - d847d459d
       - 8908b6f2a
+      - d847d459d
+      - a92cd14cd
       - b298e4654
       - cea68f51a
       - b84ca457c
+      - da96f56a4
+      - 55b6375c9
       - c474e9920
-      - a92cd14cd
     release_status: released_main
-  unreleased_progress:
-  - text: Work is underway to integrate Gemini 3.8 Flash for automatic AI model routing.
+  - text: User experience fixes restored latest news to the chat sidebar, enabled draft adoption without composer reloads,
+      and recovered map loading and assistant speech replay.
     evidence:
       commits:
-      - d88d76bf6
-    release_status: dev_only
-  - text: The Python SDK is being prepared for release with updated test coverage.
+      - bf8d9e272
+      - 980044f9a
+      - 185a03088
+      - 592da074d
+    release_status: released_main
+  - text: A blocking issue for the Python SDK release was resolved.
     evidence:
       commits:
       - c313a92d2
-    release_status: dev_only
-  - text: Infrastructure updates include new PDF testing dependencies and media bucket compatibility adjustments.
+    release_status: released_main
+  unreleased_progress:
+  - text: Work is underway to make stable releases authoritative within the CLI and deployment workflows.
     evidence:
       commits:
-      - e203b95cb
-      - 99c6ab220
+      - 27f8e88c7
     release_status: dev_only
   internal_progress:
-  - text: CI build efficiency was improved by enabling verified prepared builds by default.
+  - text: CI performance was optimized by enabling verified prepared builds by default and pinning the test harness across
+      consumers.
     evidence:
       commits:
       - b3c8c3880
-    release_status: released_main
-  - text: Internal updates addressed CI artifact transport, schema verification, workflow scoping, and daily release intelligence
-      documentation.
-    evidence:
-      commits:
-      - f769a9c29
       - cf102512f
       - b4e6745b9
       - 900be1a35
+      - f769a9c29
+    release_status: released_main
+  - text: Infrastructure updates included canonicalizing schema predicates and verifying Directus system collections.
+    evidence:
+      commits:
       - 734f4d17c
       - 34fe7cfed
-      - 4192ea708
-      - a080af6be
-      - efeb976fe
     release_status: released_main
   newsletter_recommendation:
     include:
-    - text: Launch of the public newsroom and social archive
+    - text: The launch of the public news blog and social archives.
       evidence:
         commits:
         - c6c58de28
-      reason: This is a major new public-facing feature for community engagement.
-    - text: Newsroom UI alignment and social post linking
-      evidence:
-        commits:
-        - fda913a70
-        - da96f56a4
-      reason: These updates provide a polished, design-aligned interface for the new newsroom.
-    - text: Seamless draft adoption in the message composer
-      evidence:
-        commits:
-        - 980044f9a
-      reason: This improves the core message composition experience by preventing unnecessary reloads.
-    - text: Durable and actionable issue reporting
-      evidence:
-        commits:
-        - f2fbe5fbb
-      reason: This enhances the reliability of user feedback and troubleshooting.
-    - text: Map loading recovery without app reloads
-      evidence:
-        commits:
-        - 185a03088
-      reason: This fix improves the stability of map embeds within the application.
-    - text: Localized assistant speech replay stability
-      evidence:
-        commits:
-        - 592da074d
-      reason: This stabilizes a key AI interaction feature.
-    - text: Restoration of latest news to the chat sidebar
-      evidence:
-        commits:
-        - bf8d9e272
-      reason: This restores visibility of project updates within the chat interface.
-    exclude:
-    - text: Gemini 3.8 Flash automatic routing
+      reason: Major user-facing feature launch for public communication.
+    - text: Integration of Gemini 3.8 Flash for automatic AI model routing.
       evidence:
         commits:
         - d88d76bf6
-      reason: This feature is currently dev_only and not yet released to the main branch.
-    - text: Python SDK release unblocking
+      reason: Significant AI capability upgrade ready for public announcement.
+    - text: Enhanced durability and actionability for user issue reports.
+      evidence:
+        commits:
+        - f2fbe5fbb
+      reason: Improves core application reliability and user support flow.
+    - text: Release of the unblocked Python SDK.
       evidence:
         commits:
         - c313a92d2
-      reason: This fix is currently dev_only and related to an unreleased SDK.
-    - text: Infrastructure and media bucket compatibility updates
+      reason: Relevant for developers using the OpenMates ecosystem.
+    exclude:
+    - text: Authoritative stable release logic for the CLI.
       evidence:
         commits:
-        - e203b95cb
-        - 99c6ab220
-      reason: These items are dev_only infrastructure and internal storage adjustments.
-    rationale: The launch of the public newsroom and social archive is a significant milestone for transparency and community
-      engagement. These changes, combined with critical UX improvements to drafts, maps, and AI reliability, represent a substantial
-      update to the OpenMates ecosystem.
+        - 27f8e88c7
+      reason: This item is marked as dev_only and is not reachable from the main branch.
+    rationale: The primary focus for public communication should be the new newsroom and the AI routing upgrades, as these
+      provide the most visible value to users and developers.
   social_video_recommendations:
-  - idea: A walkthrough of the new OpenMates Newsroom and Social Archive.
+  - idea: A walkthrough of the new OpenMates Newsroom and social archives.
     priority: High
-    reason: This is a highly visual, public-facing feature that showcases the project's history and community events.
+    reason: The newsroom is a visually distinct new feature that serves as a hub for project updates.
     evidence:
       commits:
       - c6c58de28
       - fda913a70
+  - idea: A technical demonstration of how Gemini 3.8 Flash handles automatic routing for different AI tasks.
+    priority: Medium
+    reason: Demonstrates the project's commitment to using state-of-the-art models for performance.
+    evidence:
+      commits:
+      - d88d76bf6
   quality_notes:
-  - The update is heavily focused on the public newsroom launch and refining the reliability of AI skills.
-  - Significant work was performed on CI infrastructure to optimize build times and verification.
+  - The release shows a strong emphasis on UI/UX consistency between the newsroom and design specifications.
+  - Significant effort was directed toward AI routing reliability and preventing tool result fabrication.
+  - CI infrastructure is being actively optimized for faster, more reliable builds.
   validation_warnings: []

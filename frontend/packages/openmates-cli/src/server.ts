@@ -99,6 +99,7 @@ import {
   selectExpectedServerApiUrl,
   type QuickServerTestOutcome,
 } from "./serverQuickTest.js";
+import { resolveStableImageTag } from "./releaseChannel.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -137,7 +138,7 @@ const ENV_BACKUP_PREFIX = ".env.openmates-backup-";
 const ENV_BACKUP_RETENTION_COUNT = 5;
 const BACKUP_FORMAT_VERSION = 2;
 const IMAGE_CHANNEL_TAGS = {
-  stable: MAIN_BRANCH,
+  stable: "stable",
   main: MAIN_BRANCH,
   dev: DEV_BRANCH,
 } as const;
@@ -653,7 +654,8 @@ function getPackageVersion(): string {
 }
 
 export function getDefaultImageTagForVersion(version: string): string {
-  return version ? `v${version}` : DEV_BRANCH;
+  if (!version) return DEV_BRANCH;
+  return /-(alpha|beta|rc)(\.|\d|$)/.test(version) ? `v${version}` : "stable";
 }
 
 function getDefaultImageTag(): string {
@@ -666,6 +668,7 @@ function defaultTemplateRefForVersion(version: string): string {
 }
 
 export function templateRefForImageTag(imageTag: string, packageVersion = ""): string {
+  if (imageTag === "stable") return MAIN_BRANCH;
   const channelTag = IMAGE_CHANNEL_TAGS[imageTag as keyof typeof IMAGE_CHANNEL_TAGS];
   if (channelTag) return channelTag;
   if (imageTag.startsWith("v")) return defaultTemplateRefForVersion(imageTag.slice(1));
@@ -676,8 +679,8 @@ export function templateRefForImageTag(imageTag: string, packageVersion = ""): s
 export function resolveTargetImageTag(
   flags: Record<string, string | boolean>,
   currentTag: string,
-  packageVersion: string,
-): { tag: string; channel?: "dev" | "main" } {
+  _packageVersion: string,
+): { tag: string; channel?: "stable" | "dev" | "main" } {
   const imageTag = flags["image-tag"];
   const channel = flags.channel;
   if (imageTag === true) {
@@ -707,7 +710,7 @@ export function resolveTargetImageTag(
 
   const installedChannel = IMAGE_CHANNEL_TAGS[currentTag as keyof typeof IMAGE_CHANNEL_TAGS];
   if (installedChannel) return { tag: installedChannel, channel: installedChannel };
-  return { tag: getDefaultImageTagForVersion(packageVersion) };
+  return { tag: "stable", channel: "stable" };
 }
 
 function randomHex(bytes: number): string {
@@ -2204,7 +2207,8 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       console.error(`Copied ${envSource} to ${installPath}/.env`);
     }
 
-    const imageTag = typeof flags["image-tag"] === "string" ? flags["image-tag"] : getDefaultImageTag();
+    const requestedImageTag = typeof flags["image-tag"] === "string" ? flags["image-tag"] : getDefaultImageTag();
+    const imageTag = requestedImageTag === "stable" ? await resolveStableImageTag() : requestedImageTag;
     console.error(`Preparing OpenMates image-mode install at ${installPath}...`);
     await writeImageModeRuntimeFiles(installPath, imageTag, role);
     const overlay = writeDeploymentModeEnv(installPath, deploymentMode, requestedOverlayPath);
@@ -2227,6 +2231,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       deploymentMode,
       openMatesCloudOverlayPath: overlay.overlayPath ?? undefined,
       imageTag,
+      imageChannel: requestedImageTag === "stable" ? "stable" : undefined,
       ...cliUrls,
     });
     try {
@@ -2347,7 +2352,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
 async function installContinuousUpdateService(flags: Record<string, string | boolean>): Promise<void> {
   const config = loadServerConfig();
   const role = getServerRole(flags, config);
-  const channel = typeof flags.channel === "string" ? flags.channel : config?.imageChannel ?? "main";
+  const channel = typeof flags.channel === "string" ? flags.channel : config?.imageChannel ?? "stable";
   const window = typeof flags.window === "string" ? flags.window : "02:00-04:00 UTC";
   const plan = planContinuousUpdateService({ role, channel, window });
   const servicePath = join("/etc", "systemd", "system", plan.serviceName);
@@ -2763,7 +2768,10 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
 
   if (installMode === "image") {
     const currentTag = getImageTagFromEnv(installPath, config);
-    const target = resolveTargetImageTag(flags, currentTag, getPackageVersion());
+    const requestedTarget = resolveTargetImageTag(flags, currentTag, getPackageVersion());
+    const target = requestedTarget.channel === "stable"
+      ? { ...requestedTarget, tag: await resolveStableImageTag() }
+      : requestedTarget;
     const templateRef = templateRefForImageTag(target.tag, getPackageVersion());
     const sourceLinks = targetSourceLinks(target.tag, templateRef);
     const safetyPlan = planServerUpdate({ role, selectedServices, dryRun, skipBackup: flags["skip-backup"] === true, continuous: false, missingRequiredSecrets: missingOrUnverifiedSecrets });
