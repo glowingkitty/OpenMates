@@ -1,0 +1,266 @@
+schema_version: 2
+id: jev-decision-processing
+title: Jev Decision Processing With Resilient Fallbacks
+status: implementing
+goal: >
+  Use Jev through OpenRouter for bounded AI decisions so OpenMates can begin main
+  inference faster while preserving routing and safety through independent fallbacks.
+scope:
+  in:
+    - Add a typed OpenRouter Jev decision adapter ready for a later direct TypeSafe transport.
+    - Move reliable bounded preprocessing fields to Jev behind existing validation and guards.
+    - Fall back to current models on Jev outage, timeout, invalid data, size, or confidence failures.
+    - Start main inference before initial title text generation and create the title after the answer.
+    - Use Jev first for request safety and prompt-injection detection without weakening fail-closed behavior.
+    - Add provider docs, privacy disclosure, focused tests, and before/after benchmarks.
+  out:
+    - Exposing Jev as a selectable chat model.
+    - Removing existing fallback providers.
+    - Implementing the direct TypeSafe API now.
+    - Changing main-answer defaults or user credit pricing.
+implementation_state:
+  subject_commit: 4de94233d
+approvals:
+  specification:
+    status: not_required
+    reason: Existing routing recovery and external-content safety contracts cover this implementation-only change.
+  plan:
+    status: approved
+    approved_at: "2026-09-22T00:00:00Z"
+    reason: The user explicitly instructed implementation with Jev-first processing and independent fallbacks.
+decisions:
+  - id: D-1
+    status: active
+    decision: Jev is a decision provider, not a chat-completions model.
+    reason: Its API only returns Choice, Noul, and Score answers.
+    decided_at: "2026-09-22T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Every Jev production path retains an existing-model fallback.
+    reason: Routing and safety must not depend on one new provider or endpoint.
+    decided_at: "2026-09-22T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Generated text remains on generative providers.
+    reason: Titles, summaries, suggestions, translations, and free-form evidence are not Jev outputs.
+    decided_at: "2026-09-22T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Prompt-injection handling uses a fail-closed confidence-gated hybrid.
+    reason: High-confidence Jev detections can block directly while ambiguous decisions require GPT-OSS exact-span analysis.
+    decided_at: "2026-09-22T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Initial title generation completes after main inference starts.
+    reason: Title metadata is not required to select or start the answer model.
+    decided_at: "2026-09-22T00:00:00Z"
+scenarios:
+  - id: S-1
+    title: Jev performs bounded preprocessing
+    given:
+      - The chat request fits the Jev decision-state limit.
+      - OpenRouter returns valid Jev decisions.
+    when:
+      - OpenMates preprocesses the request.
+    then:
+      - Bounded routing, selection, language, and safety fields come from Jev.
+      - Existing validators and deterministic overrides run before main inference.
+  - id: S-2
+    title: Jev failure recovers independently
+    given:
+      - Jev is unavailable, invalid, timed out, oversized, or insufficiently confident.
+    when:
+      - Preprocessing or safety needs a result.
+    then:
+      - A configured non-Jev model supplies the result.
+      - The request remains usable without Jev recovery.
+  - id: S-3
+    title: Main inference starts before title generation
+    given:
+      - A new chat has no generated title.
+    when:
+      - Preprocessing succeeds.
+    then:
+      - Main inference starts without waiting for title text.
+      - Postprocessing later delivers the generated title.
+  - id: S-4
+    title: Safety remains fail closed
+    given:
+      - A request or external-content segment may be unsafe or prompt-injected.
+    when:
+      - Jev classifies the content.
+    then:
+      - Valid high-confidence bounded decisions are enforced.
+      - Ambiguous or failed decisions use the existing independent safety model.
+      - ASCII-smuggling checks and exact-span sanitization remain active.
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Jev handles bounded preprocessing fields through existing validation and deterministic guards.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-DECISIONS, T-PREPROCESSOR]
+  - id: AC-2
+    scenario: S-2
+    text: Transport, timeout, schema, size, and confidence failures invoke configured non-Jev fallbacks.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-DECISIONS, T-PREPROCESSOR, T-SAFETY]
+  - id: AC-3
+    scenario: S-3
+    text: Main inference does not wait for a new-chat title and an existing event later delivers it.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-TITLE]
+  - id: AC-4
+    scenario: S-4
+    text: Request safety uses Jev first and preserves exact evidence or uses the request-safety fallback.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-SAFETY]
+  - id: AC-5
+    scenario: S-4
+    text: Prompt-injection handling retains smuggling protection, Jev coverage, GPT-OSS ambiguity recovery, and fail-closed imports.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-SANITIZATION]
+  - id: AC-6
+    scenario: S-1
+    text: Documentation records the decision-only contract, limits, fallback behavior, and data handling.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: plan
+    verification_ids: [T-DOCS]
+  - id: AC-7
+    scenario: S-1
+    text: Benchmarks report accuracy and p50 and p95 latency for preprocessing and safety before and after.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-BENCHMARK]
+tests:
+  - id: T-DECISIONS
+    type: pytest
+    file: backend/tests/test_typesafe_decisions.py
+    command: python3 -m pytest backend/tests/test_typesafe_decisions.py
+    covers: [AC-1, AC-2]
+    assertions:
+      - Choice, Noul, and Score responses parse into typed decisions.
+      - Transient failures retry within a bounded timeout.
+      - Invalid and oversized requests fail without logging content or secrets.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PREPROCESSOR
+    type: pytest
+    file: backend/tests/test_preprocessor_jev.py
+    command: python3 -m pytest backend/tests/test_preprocessor_jev.py
+    covers: [AC-1, AC-2]
+    assertions:
+      - Valid decisions populate supported preprocessing fields.
+      - Jev failure uses the current preprocessing fallback.
+      - Selection arrays stay bounded to supplied candidates.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-TITLE
+    type: pytest
+    file: backend/tests/test_postprocessor.py
+    command: python3 -m pytest backend/tests/test_postprocessor.py
+    covers: [AC-3]
+    assertions:
+      - New-chat Jev preprocessing does not require title text.
+      - Postprocessing requests an initial title after main inference.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-SAFETY
+    type: pytest
+    file: backend/tests/test_chat_request_safety.py
+    command: python3 -m pytest backend/tests/test_chat_request_safety.py
+    covers: [AC-2, AC-4]
+    assertions:
+      - Safe requests continue without a second model.
+      - Jev blocks select exact evidence from request segments.
+      - Ambiguous and unavailable results use the fallback.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-SANITIZATION
+    type: pytest
+    file: backend/tests/test_content_sanitization.py
+    command: python3 -m pytest backend/tests/test_content_sanitization.py
+    covers: [AC-2, AC-5]
+    assertions:
+      - Low-risk decisions pass content unchanged.
+      - High-risk decisions block without GPT.
+      - Ambiguous or failed decisions retain GPT-OSS exact-span sanitization.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-DOCS
+    type: lint
+    file: docs/apis/typesafe-jev.md
+    command: python3 scripts/plan_validate.py docs/plans/jev-decision-processing/plan.yml
+    covers: [AC-6]
+    assertions:
+      - The executable plan validates.
+      - Provider docs record the decision-only API and fallback boundary.
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-BENCHMARK
+    type: manual
+    covers: [AC-7]
+    assertions:
+      - The retained corpus reports p50 and p95 latency.
+      - Accuracy regressions and fallback frequency are reported.
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+tasks:
+  - id: TASK-1
+    title: Implement and verify Jev decision processing
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    expected_files:
+      - backend/shared/providers/typesafe/
+      - backend/apps/ai/processing/
+      - backend/tests/
+      - docs/apis/typesafe-jev.md
+    verification_ids: [T-DECISIONS, T-PREPROCESSOR, T-TITLE, T-SAFETY, T-SANITIZATION, T-DOCS, T-BENCHMARK]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [backend/shared/providers/typesafe/, backend/apps/ai/, backend/tests/, docs/]
+      shared_files: []
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    outcome: planned
+    approach: Add the typed provider boundary, integrations, fallbacks, focused checks, and real-provider benchmarks.
+    recorded_at: "2026-09-22T00:00:00Z"
+handoff:
+  current_task_id: TASK-1
+  next_action: Implement the adapter and application integrations, then run focused checks and benchmarks.
+  command: python3 -m pytest backend/tests/test_typesafe_decisions.py
+  expected_outcome: Typed decisions pass tests and fallback paths remain green.
+  last_verified_commit: 4de94233d
+  blocker: null
+documentation_impact:
+  provider_api: {status: add, file: docs/apis/typesafe-jev.md}
+  architecture:
+    status: update
+    files: [docs/architecture/ai-model-selection.md, docs/architecture/privacy/prompt-injection.md]
+  privacy:
+    status: update
+    reason: TypeSafe receives bounded decision state as the OpenRouter upstream model host.

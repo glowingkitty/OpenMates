@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 # --- Configuration Models for AskSkill (from backend.core.api.app.yml) ---
 class SkillDefaultLLMsConfig(BaseModel):
     preprocessing_model: str
+    decision_model: Optional[str] = None
     request_safety_model: Optional[str] = None
+    prompt_injection_decision_model: Optional[str] = None
+    content_sanitization_model: Optional[str] = None
+    chat_import_sanitization_model: Optional[str] = None
     # Note: preprocessing_fallbacks are now resolved automatically from provider config (e.g., mistral.yml)
     # No need to configure them in app.yml anymore - they're derived from the servers list in provider YAML files
     main_processing_simple: str

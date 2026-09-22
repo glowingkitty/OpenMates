@@ -456,3 +456,75 @@ async def test_handle_postprocessing_removes_disabled_fields_from_tool_schema(mo
     assert "quick_tip_slug" not in required
     assert result.follow_up_request_suggestions == []
     assert result.quick_tip_slugs == []
+
+
+@pytest.mark.anyio
+async def test_new_chat_title_is_deferred_and_bounded_fields_use_jev(monkeypatch):
+    captured = {}
+
+    async def fake_jev(**_kwargs):
+        return {"harmful_response": 0.2, "top_recommended_apps_for_user": ["web"]}
+
+    async def fake_llm(**kwargs):
+        captured["tool"] = kwargs["tool_definition"]
+        captured["messages"] = kwargs["message_history"]
+        return LLMPreprocessingCallResult(arguments={
+            "follow_up_app_skill_suggestions": ["Search for another relevant source"],
+            "follow_up_general_suggestions": ["Explain the main tradeoffs more clearly"],
+            "new_chat_app_skill_suggestions": ["Find current reports about this topic"],
+            "new_chat_general_suggestions": ["Explore a related concept in depth"],
+            "chat_summary": "The user explored a useful topic.",
+            "chat_tags": ["topic"],
+            "share_cta_text": "Explore the result",
+            "updated_chat_title": "A Useful First Answer",
+            "daily_inspiration_topic_suggestions": ["learning systems", "clear explanations", "topic exploration"],
+            "quick_tip_slug": "",
+        })
+
+    async def fake_translate(**kwargs):
+        return {
+            "chat_summary": kwargs["chat_summary"],
+            "share_cta_text": kwargs["share_cta_text"],
+            "updated_chat_title": kwargs["updated_chat_title"],
+            "new_chat_suggestions": kwargs["new_chat_suggestions"],
+        }
+
+    monkeypatch.setattr("backend.apps.ai.processing.postprocessor._postprocessing_decisions_with_jev", fake_jev)
+    monkeypatch.setattr("backend.apps.ai.processing.postprocessor.call_preprocessing_llm", fake_llm)
+    monkeypatch.setattr("backend.apps.ai.processing.postprocessor.translate_postprocessing_metadata", fake_translate)
+
+    properties = {
+        "follow_up_app_skill_suggestions": {"type": "array"},
+        "follow_up_general_suggestions": {"type": "array"},
+        "new_chat_app_skill_suggestions": {"type": "array"},
+        "new_chat_general_suggestions": {"type": "array"},
+        "harmful_response": {"type": "number"},
+        "top_recommended_apps_for_user": {"type": "array"},
+        "updated_chat_title": {"type": "string"},
+    }
+    result = await handle_postprocessing(
+        task_id="deferred-title",
+        user_message="Explain the concept.",
+        assistant_response="Here is the explanation.",
+        chat_summary=None,
+        chat_tags=[],
+        message_history=[{"role": "user", "content": "Explain the concept."}],
+        base_instructions={"postprocess_response_tool": {"type": "function", "function": {
+            "name": "postprocess", "parameters": {
+                "type": "object", "properties": properties, "required": list(properties),
+            },
+        }}},
+        secrets_manager=None,
+        cache_service=None,
+        available_app_ids=["web", "ai"],
+        current_chat_title=None,
+        decision_model_id="typesafe/jev-1.13",
+    )
+
+    sent_properties = captured["tool"]["function"]["parameters"]["properties"]
+    assert "harmful_response" not in sent_properties
+    assert "top_recommended_apps_for_user" not in sent_properties
+    assert "Generate an updated_chat_title now" in captured["messages"][0]["content"]
+    assert result.updated_chat_title == "A Useful First Answer"
+    assert result.harmful_response == 0.2
+    assert result.top_recommended_apps_for_user == ["web"]

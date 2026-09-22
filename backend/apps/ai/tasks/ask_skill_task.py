@@ -1903,22 +1903,21 @@ async def _async_process_ai_skill_ask_task(
                 # Log the complete typing payload for debugging
                 logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}, server_region={server_region}")
             
-                # Only add title and icon_names if they were generated (new chat only)
-                # If chat already has a title, preprocessing skips generation of these fields
-                # CRITICAL: title and icon_names should ONLY be sent together (both or neither)
-                # This ensures metadata is only set once during the first message
-                if preprocessing_result.title and preprocessing_result.icon_names:
-                    # NEW CHAT ONLY - both title and icon_names must be present
-                    typing_payload_data["title"] = preprocessing_result.title
+                # Jev can choose bounded icon/category metadata before main inference,
+                # while the generated title intentionally arrives from postprocessing.
+                if preprocessing_result.icon_names:
                     typing_payload_data["icon_names"] = preprocessing_result.icon_names
                     logger.info(
-                        f"[Task ID: {task_id}] NEW CHAT: Including title and icon metadata in typing event "
-                        f"(title_length={len(preprocessing_result.title)}, icon_count={len(preprocessing_result.icon_names)})"
+                        f"[Task ID: {task_id}] NEW CHAT: Including icon metadata in typing event "
+                        f"(icon_count={len(preprocessing_result.icon_names)})"
                     )
-                elif preprocessing_result.title or preprocessing_result.icon_names:
-                    # VALIDATION ERROR: Both should be present or both should be absent
-                    logger.warning(f"[Task ID: {task_id}] INCONSISTENCY: title={bool(preprocessing_result.title)}, icon_names={bool(preprocessing_result.icon_names)}. Should be both present or both absent. Skipping metadata to avoid partial update.")
-                else:
+                if preprocessing_result.title:
+                    typing_payload_data["title"] = preprocessing_result.title
+                    logger.info(
+                        f"[Task ID: {task_id}] Including fallback-generated title in typing event "
+                        f"(title_length={len(preprocessing_result.title)})"
+                    )
+                if not preprocessing_result.title and not preprocessing_result.icon_names:
                     logger.debug(f"[Task ID: {task_id}] FOLLOW-UP MESSAGE: No title/icon_names generated (chat already has metadata)")
             
                 # CRITICAL: Skip WebSocket events for external requests (REST API)
@@ -2386,6 +2385,7 @@ async def _async_process_ai_skill_ask_task(
                     follow_up_suggestions_enabled=follow_up_suggestions_enabled,
                     quick_tips_enabled=quick_tips_enabled,
                     learning_mode_context=effective_learning_mode_context,
+                    decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
                 )
 
             if postprocessing_result and is_learning_mode_enabled(effective_learning_mode_context):

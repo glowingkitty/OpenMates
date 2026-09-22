@@ -24,6 +24,7 @@ from backend.apps.ai.processing.quick_tips import (
     sanitize_quick_tip_slug,
     select_hardcoded_quick_tip_slug,
 )
+from backend.apps.ai.processing.jev_decisions import evaluate_jev_decisions, noul_value, score_value
 from backend.apps.ai.processing.task_proposals import (
     TaskProposal,
     TaskUpdateProposal,
@@ -39,6 +40,63 @@ logger = logging.getLogger(__name__)
 
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
 POSTPROCESSING_MODEL_ID = "google/gemini-3.5-flash-lite"
+POSTPROCESSING_SAFETY_LEVELS = [
+    "Safe",
+    "Very low concern",
+    "Low concern",
+    "Some concern",
+    "Ambiguous",
+    "Moderate concern",
+    "Elevated concern",
+    "Clearly harmful",
+    "Highly harmful",
+    "Extreme harm",
+]
+
+
+async def _postprocessing_decisions_with_jev(
+    *,
+    model_id: str,
+    user_message: str,
+    assistant_response: str,
+    available_app_ids: List[str],
+    secrets_manager: SecretsManager,
+) -> Dict[str, Any]:
+    questions: Dict[str, Dict[str, Any]] = {
+        "harmful_response": {
+            "type": "score",
+            "instructions": "Rate whether the assistant response itself contains unsafe or materially harmful assistance.",
+            "criteria": POSTPROCESSING_SAFETY_LEVELS,
+        }
+    }
+    app_questions: Dict[str, str] = {}
+    for index, app_id in enumerate(available_app_ids):
+        question_id = f"app_{index}"
+        app_questions[question_id] = app_id
+        questions[question_id] = {
+            "type": "noul",
+            "instructions": {
+                "question": "Would this app be among the five most useful apps for the user based on this completed exchange?",
+                "app_id": app_id,
+            },
+        }
+    response = await evaluate_jev_decisions(
+        state={"user_message": user_message, "assistant_response": assistant_response},
+        questions=questions,
+        secrets_manager=secrets_manager,
+        model_id=model_id,
+    )
+    ranked_apps = sorted(
+        (
+            (noul_value(response, question_id), app_id)
+            for question_id, app_id in app_questions.items()
+        ),
+        reverse=True,
+    )
+    return {
+        "harmful_response": round(score_value(response, "harmful_response") * (10.0 / 9.0), 2),
+        "top_recommended_apps_for_user": [app_id for probability, app_id in ranked_apps if probability >= 0.70][:5],
+    }
 
 
 def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
@@ -227,6 +285,7 @@ async def handle_postprocessing(
     follow_up_suggestions_enabled: bool = True,
     quick_tips_enabled: bool = True,
     learning_mode_context: Optional[Dict[str, Any]] = None,
+    decision_model_id: Optional[str] = None,
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
@@ -273,6 +332,23 @@ async def handle_postprocessing(
         logger.info(f"[Task ID: {task_id}] [PostProcessor] Skipping post-processing for incognito chat - no suggestions will be generated")
         return None
 
+    jev_decisions: Optional[Dict[str, Any]] = None
+    if decision_model_id:
+        try:
+            jev_decisions = await _postprocessing_decisions_with_jev(
+                model_id=decision_model_id,
+                user_message=user_message,
+                assistant_response=assistant_response,
+                available_app_ids=available_app_ids,
+                secrets_manager=secrets_manager,
+            )
+            logger.info(f"[Task ID: {task_id}] [PostProcessor] Jev handled bounded response safety and app-ranking decisions")
+        except Exception as exc:
+            logger.warning(
+                f"[Task ID: {task_id}] [PostProcessor] Jev decisions unavailable; "
+                f"keeping generative fallback fields ({type(exc).__name__})"
+            )
+
     # Get the post-processing tool definition from base_instructions
     postprocess_tool = copy.deepcopy(base_instructions.get("postprocess_response_tool"))
     if not postprocess_tool:
@@ -281,6 +357,11 @@ async def handle_postprocessing(
     tool_parameters = postprocess_tool.get("function", {}).get("parameters", {})
     tool_properties = tool_parameters.get("properties", {})
     tool_required = tool_parameters.get("required", [])
+    if jev_decisions is not None:
+        for field in ("harmful_response", "top_recommended_apps_for_user"):
+            tool_properties.pop(field, None)
+            if field in tool_required:
+                tool_required.remove(field)
     if not follow_up_suggestions_enabled or is_sub_chat:
         for field in ("follow_up_app_skill_suggestions", "follow_up_general_suggestions"):
             tool_properties.pop(field, None)
@@ -361,7 +442,8 @@ async def handle_postprocessing(
     else:
         title_context = (
             "\n\nThis chat does not have a title yet (first message). "
-            "Do NOT generate an updated_chat_title — the title is generated separately during preprocessing."
+            "Generate an updated_chat_title now, after reading the completed first exchange. "
+            "Keep it concise (3-8 words) and write it in the user's system/UI language."
         )
 
     # Build language instruction for suggestion generation
@@ -491,7 +573,11 @@ async def handle_postprocessing(
         llm_result.arguments = {}
 
     # Parse the LLM response into PostProcessingResult
-    raw_top_recommended_apps = llm_result.arguments.get("top_recommended_apps_for_user", [])
+    raw_top_recommended_apps = (
+        jev_decisions["top_recommended_apps_for_user"]
+        if jev_decisions is not None
+        else llm_result.arguments.get("top_recommended_apps_for_user", [])
+    )
     
     # Validate and filter app IDs to ensure only real apps are included
     validated_app_ids = []
@@ -645,7 +731,11 @@ async def handle_postprocessing(
     result = PostProcessingResult(
         follow_up_request_suggestions=sanitized_follow_up,
         new_chat_request_suggestions=translated_new_chat_suggestions,
-        harmful_response=llm_result.arguments.get("harmful_response", 0.0),
+        harmful_response=(
+            jev_decisions["harmful_response"]
+            if jev_decisions is not None
+            else llm_result.arguments.get("harmful_response", 0.0)
+        ),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
         chat_tags=postproc_chat_tags,

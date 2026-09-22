@@ -47,6 +47,7 @@ from backend.apps.ai.processing.chat_request_safety import (
 from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
+from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev
 from backend.apps.ai.processing.model_routing import (
     MOST_DEMANDING_TIER,
     APPROVED_REQUEST_TIERS,
@@ -1877,8 +1878,8 @@ async def handle_preprocessing(
     # (message_history can be empty on first request when cache is used)
     is_first_message = not request_data.chat_has_title
 
-    # Safety, language and topic routing are mandatory on every turn. New chats
-    # additionally request their initial title/icons from this same foreground call.
+    # These fields remain required on the generative fallback schema. The healthy
+    # Jev path intentionally omits title text so main inference can start first.
     required_fields = [
         "topic_area",
         "topic_shift",
@@ -2237,17 +2238,50 @@ async def handle_preprocessing(
         "PREVIOUS_CATEGORY": previous_category or "none (first message or unknown)"
     }
 
-    logger.info(f"{log_prefix} Firing single preprocessing call (routing + safety + language).")
-    llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
-        task_id=f"{request_data.chat_id}_{request_data.message_id}",
-        model_id=preprocessing_model,
-        fallback_models=preprocessing_fallbacks,
-        message_history=sanitized_message_history,
-        tool_definition=tool_definition_for_llm,
-        secrets_manager=secrets_manager,
-        user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-        dynamic_context=dynamic_context,
-    )
+    decision_model = getattr(skill_config.default_llms, "decision_model", None)
+    llm_call_result: Optional[LLMPreprocessingCallResult] = None
+    if decision_model:
+        try:
+            logger.info(f"{log_prefix} Firing Jev bounded preprocessing decisions via {decision_model}.")
+            decision_arguments = await decide_preprocessing_with_jev(
+                model_id=decision_model,
+                secrets_manager=secrets_manager,
+                message_history=sanitized_message_history,
+                topic_areas=dynamic_context["TOPIC_AREAS_LIST"],
+                available_skills=available_skills_list,
+                available_focus_modes=available_focus_modes_list,
+                available_settings_and_memories=user_app_settings_and_memories_metadata,
+                recent_skill_activity=list(routing_ledger.prompt_rows),
+                previous_category=previous_category,
+                is_first_message=is_first_message,
+            )
+            llm_call_result = LLMPreprocessingCallResult(
+                arguments=decision_arguments,
+                raw_provider_response_summary={
+                    "model_id": decision_model,
+                    "provider": "openrouter",
+                    "purpose": "preprocess_decision",
+                    "generated_text": False,
+                },
+            )
+        except Exception as exc:
+            logger.warning(
+                f"{log_prefix} Jev preprocessing unavailable or unreliable; "
+                f"using independent preprocessing fallback ({type(exc).__name__})."
+            )
+
+    if llm_call_result is None:
+        logger.info(f"{log_prefix} Firing generative preprocessing fallback (routing + safety + language).")
+        llm_call_result = await call_preprocessing_llm(
+            task_id=f"{request_data.chat_id}_{request_data.message_id}",
+            model_id=preprocessing_model,
+            fallback_models=preprocessing_fallbacks,
+            message_history=sanitized_message_history,
+            tool_definition=tool_definition_for_llm,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
+            dynamic_context=dynamic_context,
+        )
 
     if llm_call_result.error_message or not llm_call_result.arguments:
         default_err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
@@ -2338,6 +2372,7 @@ async def handle_preprocessing(
             task_id=f"{request_data.chat_id}_{request_data.message_id}",
             model_id=request_safety_model,
             secrets_manager=secrets_manager,
+            decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
         )
         if confirmation.should_block:
             harmful_candidate = harmful_or_illegal_val >= float(HARM_THRESHOLD)

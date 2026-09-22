@@ -191,6 +191,7 @@ export function buildPrivacyPolicyContent(
     groq: "legal.privacy.providers.ai_models.groq.heading",
     cerebras: "legal.privacy.providers.ai_models.cerebras.heading",
     openrouter: "legal.privacy.providers.ai_models.openrouter.heading",
+    typesafe: "legal.privacy.providers.ai_models.typesafe.heading",
     fal: "legal.privacy.providers.image_generation.fal.heading",
     recraft: "legal.privacy.providers.image_generation.recraft.heading",
     hi3d: "legal.privacy.providers.model_generation.hi3d.heading",
@@ -274,6 +275,7 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.ai_models.anthropic", privacyPolicyLinks.anthropic);
   renderProvider("legal.privacy.providers.ai_models.openai", privacyPolicyLinks.openai);
   renderProvider("legal.privacy.providers.ai_models.openrouter", privacyPolicyLinks.openrouter);
+  renderProvider("legal.privacy.providers.ai_models.typesafe", privacyPolicyLinks.typesafe);
   renderProvider("legal.privacy.providers.ai_models.cerebras", privacyPolicyLinks.cerebras);
   renderProvider("legal.privacy.providers.ai_models.google_gemini", privacyPolicyLinks.google);
   renderProvider("legal.privacy.providers.ai_models.google_vertex_maas", privacyPolicyLinks.googleVertexMaas);

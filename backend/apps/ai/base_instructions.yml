@@ -3,10 +3,9 @@
 # It also defines the function call specifications for the preprocessing LLM.
 # Placeholders like {PLACEHOLDER_NAME} will be replaced by Python code at runtime.
 
-# Healthy-path preprocessing uses one foreground request for routing, safety,
-# language, model selection and (on a new chat) initial title/icon metadata.
-# fast_preprocess_request_tool remains temporarily as a rollback-compatible schema,
-# but runtime processing no longer invokes it.
+# Healthy-path preprocessing uses Jev for bounded routing, safety, language,
+# model selection, and new-chat icon metadata. Generated title text is deferred
+# until postprocessing; this schema remains the independent generative fallback.
 
 fast_preprocess_request_tool:
   type: "function"
@@ -312,14 +311,14 @@ postprocess_response_tool:
          - Only include apps that actually exist in the system
          - If no apps are clearly relevant, return an empty array
 
-      5. **updated_chat_title**: ONLY generate a new title if the conversation has **significantly** drifted from its original topic.
+      5. **updated_chat_title**: Generate the initial title after the first completed exchange, or update an existing title only if the conversation has **significantly** drifted.
          - The current chat title (if any) is provided in the system context.
          - Return an empty string if the current title still describes the chat reasonably well.
          - A title update is warranted when: the user switched to an entirely different topic, the scope expanded dramatically, or the original title was clearly wrong/vague.
          - A title update is NOT warranted for: minor topic extensions, follow-up questions on the same theme, or slight refinements of the original topic.
          - Keep the new title concise (3-8 words), descriptive, and specific to the conversation content.
          - Generate in the USER'S SYSTEM LANGUAGE (as specified in system message).
-         - For new chats (no current title provided): do NOT generate — title is handled by preprocessing.
+         - For new chats (no current title provided): always generate a concise initial title after reading the completed exchange.
 
       6. **chat_tags**: Generate up to 10 concise tags for search and categorization based on the completed conversation.
 
@@ -412,7 +411,7 @@ postprocess_response_tool:
           description: "Short call-to-open line for shared chat previews and OG images. Generate in the USER'S SYSTEM LANGUAGE. Max 12 words. Inviting, concrete, curiosity-driven, and useful. Not a summary. No emoji, no clickbait, and no generic phrases like 'Open this chat', 'Check this out', or 'View this conversation'."
         updated_chat_title:
           type: "string"
-          description: "A new chat title (3-8 words) ONLY if the conversation has significantly drifted from the current title. Return an empty string if the current title still fits. Generate in the USER'S SYSTEM LANGUAGE. Do NOT generate for new chats without a title — return empty string."
+          description: "A concise chat title (3-8 words) in the USER'S SYSTEM LANGUAGE. For a new chat without a title, always generate the initial title. For an existing title, return a replacement only after significant topic drift; otherwise return an empty string."
         daily_inspiration_topic_suggestions:
           type: "array"
           description: "3 concise topic/interest phrases (2-5 words each, in English) based on what the user discussed or showed curiosity about. Used to personalize daily inspiration content. Capture specific topics, not broad categories. Always generate exactly 3. Never include brand names, product names, app names, or commercial service names — capture the underlying non-commercial concept instead (e.g. 'knowledge graph note-taking' not 'Obsidian app', 'reusable rocket engineering' not 'SpaceX'). PROHIBITED: never generate topics about illegal drugs/substance abuse, explicit sexual content, graphic violence, self-harm, or weapons — find an adjacent educational angle or a different interest instead. NEVER extract political party names, political candidates, electoral campaigns, or partisan ideology — rephrase to the underlying policy or governance issue (e.g. 'universal healthcare economics' not any party's health plan). NEVER extract religious promotion topics — historical/cultural/architectural religious context is allowed, proselytizing or devotional framing is not."

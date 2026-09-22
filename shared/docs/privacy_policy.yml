@@ -371,8 +371,19 @@ provider_groups:
         location: US
         used_for:
           - routing LLM requests to Cerebras and other third-party model hosts
+          - routing bounded preprocessing and safety decisions to TypeSafe Jev
         data_shared:
           - Chat messages with PII placeholders substituted client-side
+          - Bounded recent-message context and candidate metadata needed for internal routing and safety decisions
+      typesafe:
+        privacy_policy: https://typesafe.ai/legal/privacy-policy
+        location: See provider privacy policy
+        used_for:
+          - bounded request routing, model-tier, skill, focus-mode, language, and metadata decisions via OpenRouter
+          - request-safety, response-safety, and prompt-injection classification via OpenRouter
+        data_shared:
+          - Bounded recent chat context with PII placeholders substituted client-side
+          - External text being checked for prompt injection, without OpenMates user identifiers
       cerebras:
         privacy_policy: https://www.cerebras.ai/privacy-policy
         location: US

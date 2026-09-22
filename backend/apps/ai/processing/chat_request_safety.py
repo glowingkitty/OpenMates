@@ -11,8 +11,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import logging
+import re
 from typing import Any, Optional
 
+from backend.apps.ai.processing.jev_decisions import choice_value, evaluate_jev_decisions
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 
@@ -34,6 +36,7 @@ NON_BLOCK_ACTIONS = {"inform", "analyze", "criticize", "defend", "reduce_harm", 
 MAX_CONTEXT_CHARS = 4_000
 MAX_EVIDENCE_QUOTES = 3
 MAX_EVIDENCE_QUOTE_CHARS = 500
+MAX_EVIDENCE_CANDIDATES = 80
 
 
 async def call_preprocessing_llm(**kwargs: Any) -> Any:
@@ -103,6 +106,104 @@ def build_request_safety_context(message_history: list[Any]) -> dict[str, str]:
     current = user_turns[-1] if user_turns else ""
     previous = user_turns[-2] if len(user_turns) > 1 else ""
     return {"previous_user_request": previous, "current_request": current}
+
+
+def _evidence_candidates(context: dict[str, str]) -> dict[str, str]:
+    """Create bounded exact spans Jev can select without generating text."""
+
+    candidates: dict[str, str] = {}
+    seen: set[str] = set()
+    for source_name in ("current_request", "previous_user_request"):
+        text = context.get(source_name, "")
+        if not text:
+            continue
+        pieces = re.split(r"(?<=[.!?])\s+|[\r\n]+", text)
+        for piece in pieces:
+            piece = piece.strip()
+            while piece:
+                candidate = piece[:MAX_EVIDENCE_QUOTE_CHARS]
+                if candidate not in seen and _quote_is_exact_user_evidence(candidate, context):
+                    candidates[f"evidence_{len(candidates)}"] = candidate
+                    seen.add(candidate)
+                    if len(candidates) >= MAX_EVIDENCE_CANDIDATES:
+                        return candidates
+                piece = piece[MAX_EVIDENCE_QUOTE_CHARS:].strip()
+    return candidates
+
+
+async def _confirm_with_jev(
+    *,
+    context: dict[str, str],
+    task_id: str,
+    model_id: str,
+    secrets_manager: Optional[SecretsManager],
+) -> Optional[RequestSafetyConfirmation]:
+    """Return a validated result, or None when the generative fallback is required."""
+
+    evidence = _evidence_candidates(context)
+    evidence_criteria = {"none": "No exact span proves a harmful requested action."}
+    evidence_criteria.update(
+        {key: {"exact_user_text": value} for key, value in evidence.items()}
+    )
+    questions = {
+        "decision": {
+            "type": "choice",
+            "instructions": REQUEST_SAFETY_POLICY + " Decide ALLOW, BLOCK, or UNCERTAIN.",
+            "criteria": {
+                "allow": "Informational, analytical, defensive, harm-reduction, fictional, benign, or otherwise allowed.",
+                "block": "Clearly requests material help for harmful or illegal action.",
+                "uncertain": "Intent or material assistance is genuinely ambiguous.",
+            },
+        },
+        "category": {
+            "type": "choice",
+            "instructions": "If and only if BLOCK, select the matching harm category; otherwise select none.",
+            "criteria": {"none": "Not blocked", **{value: value.replace("_", " ") for value in BLOCK_CATEGORIES}},
+        },
+        "requested_action": {
+            "type": "choice",
+            "instructions": "Select the action the user asks the assistant to perform.",
+            "criteria": {value: value.replace("_", " ") for value in sorted(BLOCK_ACTIONS | NON_BLOCK_ACTIONS)},
+        },
+        "evidence": {
+            "type": "choice",
+            "instructions": "For BLOCK select one exact candidate span proving the harmful requested action; otherwise select none.",
+            "criteria": evidence_criteria,
+        },
+    }
+    try:
+        response = await evaluate_jev_decisions(
+            state=context,
+            questions=questions,
+            secrets_manager=secrets_manager,
+            model_id=model_id,
+        )
+        decision = choice_value(response, "decision", min_confidence=0.2)
+        if decision == "uncertain":
+            return None
+        if decision == "allow":
+            return RequestSafetyConfirmation(False, "jev_confirmed_allow")
+
+        evidence_key = choice_value(response, "evidence")
+        arguments = {
+            "decision": "block",
+            "category": choice_value(response, "category"),
+            "requested_action": choice_value(response, "requested_action"),
+            "evidence_quotes": [evidence[evidence_key]] if evidence_key in evidence else [],
+        }
+        validated = validate_safety_confirmation(arguments, context)
+        if validated.status != "confirmed_block":
+            return None
+        return RequestSafetyConfirmation(
+            True,
+            "jev_confirmed_block",
+            category=validated.category,
+            requested_action=validated.requested_action,
+            evidence_count=validated.evidence_count,
+        )
+    except Exception as exc:
+        logger.warning("[%s] Jev request-safety decision unavailable; using fallback: %s", task_id, type(exc).__name__)
+        return None
 
 
 def needs_safety_confirmation(
@@ -207,13 +308,32 @@ async def confirm_chat_request_safety(
     task_id: str,
     model_id: str,
     secrets_manager: Optional[SecretsManager],
+    decision_model_id: Optional[str] = None,
 ) -> RequestSafetyConfirmation:
-    """Run deterministic minimal-context confirmation and allow on every failure."""
+    """Use Jev first, then the independent structured-output safety fallback."""
 
     context = build_request_safety_context(message_history)
     if not context["current_request"]:
         logger.warning("[%s] Request safety confirmation has no textual current request; allowing.", task_id)
         return RequestSafetyConfirmation(False, "missing_text_allow")
+
+    if decision_model_id:
+        jev_confirmation = await _confirm_with_jev(
+            context=context,
+            task_id=task_id,
+            model_id=decision_model_id,
+            secrets_manager=secrets_manager,
+        )
+        if jev_confirmation is not None:
+            logger.info(
+                "[%s] Jev request safety completed: status=%s category=%s action=%s evidence_count=%d",
+                task_id,
+                jev_confirmation.status,
+                jev_confirmation.category,
+                jev_confirmation.requested_action,
+                jev_confirmation.evidence_count,
+            )
+            return jev_confirmation
 
     try:
         result = await call_preprocessing_llm(

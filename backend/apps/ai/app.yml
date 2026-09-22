@@ -80,6 +80,9 @@ skills:
       # When true, uses intelligent auto-selection based on leaderboard rankings.
       enable_auto_model_selection: true
       default_llms:
+        # Jev handles bounded decisions through OpenRouter. Existing generative
+        # models remain independent fallbacks for availability and free-form text.
+        decision_model: typesafe/jev-1.13
         # Latency-sensitive routing primary. Recovery uses Mistral before the
         # alternate Vertex server so Google outages have independent recovery.
         preprocessing_model: google/gemini-3.5-flash-lite
@@ -89,6 +92,7 @@ skills:
         main_processing_complex: google/gemini-3.8-flash
         main_processing_complex_name: Gemini 3.8 Flash
         content_sanitization_model: openai/gpt-oss-safeguard-20b
+        prompt_injection_decision_model: typesafe/jev-1.13
         # Chat import uses the same model via Groq (primary), with OpenRouter as automatic fallback
         # when Groq hits its daily cap or returns the "json" tool-name quirk error (see llm_utils.py).
         chat_import_sanitization_model: openai/gpt-oss-safeguard-20b
