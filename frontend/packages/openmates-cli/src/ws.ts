@@ -766,6 +766,8 @@ export class OpenMatesWsClient {
     chatSummary: string | null;
     chatTags: string[];
     updatedChatTitle: string | null;
+    sourceTitleVersion: number | null;
+    sourceMetadataVersion: number | null;
     generatedTitle: string | null;
     generatedIcon: string | null;
     taskProposals: TaskProposalEvent[];
@@ -798,6 +800,8 @@ export class OpenMatesWsClient {
       let chatSummary: string | null = null;
       let chatTags: string[] = [];
       let updatedChatTitle: string | null = null;
+      let sourceTitleVersion: number | null = null;
+      let sourceMetadataVersion: number | null = null;
       let generatedTitle: string | null = null;
       let generatedIcon: string | null = null;
       let taskProposals: TaskProposalEvent[] = [];
@@ -913,6 +917,8 @@ export class OpenMatesWsClient {
             chatSummary,
             chatTags,
             updatedChatTitle,
+            sourceTitleVersion,
+            sourceMetadataVersion,
             generatedTitle,
             generatedIcon,
             taskProposals,
@@ -947,6 +953,8 @@ export class OpenMatesWsClient {
               chatSummary,
               chatTags,
               updatedChatTitle,
+              sourceTitleVersion,
+              sourceMetadataVersion,
               generatedTitle,
               generatedIcon,
               taskProposals,
@@ -977,6 +985,8 @@ export class OpenMatesWsClient {
           chatSummary,
           chatTags,
           updatedChatTitle,
+          sourceTitleVersion,
+          sourceMetadataVersion,
           generatedTitle,
           generatedIcon,
           taskProposals,
@@ -1347,6 +1357,12 @@ export class OpenMatesWsClient {
             if (typeof p.updated_chat_title === "string" && p.updated_chat_title.trim()) {
               updatedChatTitle = p.updated_chat_title.trim();
             }
+            if (typeof p.source_title_v === "number" && Number.isFinite(p.source_title_v)) {
+              sourceTitleVersion = p.source_title_v;
+            }
+            if (typeof p.source_metadata_v === "number" && Number.isFinite(p.source_metadata_v)) {
+              sourceMetadataVersion = p.source_metadata_v;
+            }
             taskProposals = parseTaskProposals(p.task_proposals);
             taskUpdateProposals = parseTaskUpdateProposals(p.task_update_proposals);
             // If AI response already done, resolve immediately with suggestions.
@@ -1384,6 +1400,8 @@ export class OpenMatesWsClient {
             chatSummary,
             chatTags,
             updatedChatTitle,
+            sourceTitleVersion,
+            sourceMetadataVersion,
             generatedTitle,
             generatedIcon,
             taskProposals,

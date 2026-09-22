@@ -27197,7 +27197,7 @@ assertions:
       surface: rest_api
     - &id3232
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2464
+      line: 2483
       name: 'lazily registers epoch-1 recovery material for an old saved chat (${restoredFocus
         ?? '
       surface: cli
@@ -27332,7 +27332,7 @@ assertions:
     supporting_tests:
     - &id3240
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2464
+      line: 2483
       name: 'lazily registers epoch-1 recovery material for an old saved chat (${restoredFocus
         ?? '
       surface: cli
@@ -43222,58 +43222,58 @@ assertions:
       surface: sdks.npm
     - &id5053
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2298
+      line: 2317
       name: 'persists terminal recovery embeds including missing children: ${missingChild}'
       surface: sdks.npm
     - &id5054
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2651
+      line: 2670
       name: returns after confirmation for saved team messages that do not mention
         OpenMates
       surface: sdks.npm
     - &id5055
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2756
+      line: 2775
       name: preserves only assistant categories in inference history
       surface: sdks.npm
     - &id5056
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2788
+      line: 2807
       name: can include known Learning Mode context without changing incognito state
       surface: sdks.npm
     - &id5057
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2868
+      line: 2887
       name: sends current message history with incognito messages
       surface: sdks.npm
     - &id5058
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2946
+      line: 2965
       name: prepends provided benchmark history before the current incognito message
       surface: sdks.npm
     - &id5059
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 3018
+      line: 3037
       name: encrypts child first-message metadata with the parent chat key
       surface: sdks.npm
     - &id5060
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 3060
+      line: 3079
       name: builds approval and cancellation payloads only from explicit decisions
       surface: sdks.npm
     - &id5061
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 3094
+      line: 3113
       name: forces a message refresh when cached metadata has no local messages
       surface: sdks.npm
     - &id5062
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 3105
+      line: 3124
       name: caps the cached messages version to the local message count
       surface: sdks.npm
     - &id5063
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 3116
+      line: 3135
       name: keeps the cached messages version when it matches the local message count
       surface: sdks.npm
     - &id5067

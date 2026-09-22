@@ -2037,6 +2037,7 @@ describe("CLI saved-chat recovery preflight", () => {
       preflightPayload?: Record<string, unknown>;
       persistPayload?: Record<string, unknown>;
       metadataPayload?: Record<string, unknown>;
+      postProcessingPayload?: Record<string, unknown>;
       frameTypes: string[];
       preflightAcknowledged: boolean;
       terminalSent: boolean;
@@ -2137,13 +2138,25 @@ describe("CLI saved-chat recovery preflight", () => {
               }));
               ws.send(JSON.stringify({
                 type: "post_processing_metadata",
-                payload: { chat_id: frame.payload.chat_id },
+                payload: {
+                  chat_id: frame.payload.chat_id,
+                  updated_chat_title: "Updated plumber title",
+                  source_title_v: 1,
+                  source_metadata_v: 1,
+                },
               }));
             }, 10);
           }
           if (frame.type === "encrypted_chat_metadata") {
             captured.metadataPayload = frame.payload;
             ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: frame.payload.chat_id } }));
+          }
+          if (frame.type === "update_post_processing_metadata") {
+            captured.postProcessingPayload = frame.payload;
+            ws.send(JSON.stringify({
+              type: "post_processing_metadata_stored",
+              payload: { chat_id: frame.payload.chat_id },
+            }));
           }
           if (frame.type === "recovery_job_claim") {
             assert.equal(frame.payload.job_id, recoveryJobId);
@@ -2259,6 +2272,12 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_title), chatKey), "Contact a plumber");
       assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_chat_category), chatKey), "general_knowledge");
       assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_icon), chatKey), "wrench");
+      assert.ok(captured.postProcessingPayload);
+      assert.equal(
+        await decryptWithAesGcmCombined(String(captured.postProcessingPayload.encrypted_title), chatKey),
+        "Updated plumber title",
+      );
+      assert.deepEqual(captured.postProcessingPayload.versions, { title_v: 2, metadata_v: 2 });
       assert.equal(captured.frameTypes.includes("ai_response_completed"), false);
       assert.equal(captured.frameTypes.includes("recovery_job_claim"), true);
       assert.equal(captured.frameTypes.includes("recovery_job_persist"), true);
