@@ -125,6 +125,11 @@ scrape_configs:
         target_label: "compose_project"
 
     pipeline_stages:
+      # Docker API targets already deliver the decoded application line. OpenObserve
+      # rejects the entire Loki batch when any such entry is empty.
+      - drop:
+          expression: '^\s*$'
+
       # 1. Access environment variable
       - template:
           source: server_env
