@@ -34,6 +34,7 @@ from backend.apps.ai.processing.search_skill_reliability import (
     normalize_string_query_request_items,
 )
 from backend.apps.ai.utils.mate_utils import MateConfig
+from backend.apps.ai.utils.main_processing_failure import main_processing_failure
 from backend.shared.python_utils.learning_mode import (
     AGE_GROUP_13_15,
     apply_learning_mode_policy_to_skill_result,
@@ -47,14 +48,17 @@ from backend.apps.ai.utils.llm_utils import (
     call_main_llm_stream,
     truncate_message_history_to_token_budget,
     AllServersFailedError,
-    STANDARDIZED_USER_ERROR_MESSAGE,
 )
 from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
     should_include_embeds_results_view_instruction,
     should_include_embeds_map_view_hint,
 )
-from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
+from backend.apps.ai.utils.tool_protocol_guard import (
+    ToolProtocolGuard,
+    ToolProtocolRecoveryState,
+    build_tool_protocol_continuation_messages,
+)
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
@@ -4044,6 +4048,8 @@ async def handle_main_processing(
     streaming_skill_count = 0  # Mirrors total_skill_calls during streaming to suppress over-budget placeholders
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
+    protocol_guard_recovery = ToolProtocolRecoveryState()
+    pending_protocol_recovery_messages: Optional[List[Dict[str, str]]] = None
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     task_queue_guard_retries = 0
     empty_post_tool_recovery_attempted = False
@@ -4161,6 +4167,18 @@ async def handle_main_processing(
                     current_message_history,
                     max_tokens=current_history_budget,
                 )
+                if (
+                    pending_protocol_recovery_messages is not None
+                    and current_message_history[-len(pending_protocol_recovery_messages):]
+                    != pending_protocol_recovery_messages
+                ):
+                    logger.error(
+                        "%s [TOOL_PROTOCOL_GUARD] Model-specific history truncation split "
+                        "the recovery assistant/instruction pair; refusing an orphaned continuation.",
+                        log_prefix,
+                    )
+                    yield main_processing_failure("protocol_guard")
+                    return
                 current_output_token_limit = _orchestrated_ai_output_token_limit(
                     current_model_id,
                     request_data.orchestration_id,
@@ -4793,8 +4811,7 @@ async def handle_main_processing(
                     if chunk.content:
                         llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk.content)
                         yield chunk.content
-                        if tool_calls_for_this_turn:
-                            current_turn_text_buffer.append(chunk.content)
+                        current_turn_text_buffer.append(chunk.content)
                 else:
                     logger.warning(f"{log_prefix} Unknown UnifiedStreamChunk type: {chunk.type}")
             elif isinstance(chunk, str):
@@ -4804,9 +4821,9 @@ async def handle_main_processing(
                 if chunk:
                     llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk)
                     yield chunk
-                    # Also buffer for message history (needed for tool execution context)
-                    if tool_calls_for_this_turn:
-                        current_turn_text_buffer.append(chunk)
+                    # Retain every safe, published chunk. Besides tool history, this
+                    # lets a guarded partial answer continue without replaying it.
+                    current_turn_text_buffer.append(chunk)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
         except AllServersFailedError as asf_err:
@@ -4847,8 +4864,10 @@ async def handle_main_processing(
                     f"{log_prefix} MODEL_FALLBACK: All {len(models_to_try)} models exhausted. "
                     f"Last error: {_stream_all_servers_error}"
                 )
-                yield STANDARDIZED_USER_ERROR_MESSAGE
+                yield main_processing_failure("provider_exhausted")
                 break
+
+        pending_protocol_recovery_messages = None
 
         if iteration_usage is not None:
             usage = iteration_usage
@@ -4863,13 +4882,43 @@ async def handle_main_processing(
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
 
+        protocol_recovery_action = protocol_guard_recovery.action(
+            detected=protocol_guard.detected,
+            native_call_count=len(tool_calls_for_this_turn),
+            safe_text=final_buffered_text_for_turn,
+            has_retry_iteration=iteration < MAX_TOOL_CALL_ITERATIONS - 1,
+        )
         if protocol_guard.detected:
             logger.warning(
-                "%s [TOOL_PROTOCOL_GUARD] Suppressed model-generated tool protocol; native_calls=%s",
-                log_prefix, len(tool_calls_for_this_turn),
+                "%s [TOOL_PROTOCOL_GUARD] Suppressed model-generated tool protocol; "
+                "native_calls=%s safe_text_chars=%s recovery_action=%s",
+                log_prefix,
+                len(tool_calls_for_this_turn),
+                len(final_buffered_text_for_turn),
+                protocol_recovery_action,
             )
-            if not tool_calls_for_this_turn:
-                yield STANDARDIZED_USER_ERROR_MESSAGE
+            if protocol_recovery_action == "retry":
+                pending_protocol_recovery_messages = build_tool_protocol_continuation_messages(
+                    final_buffered_text_for_turn
+                )
+                current_message_history.extend(pending_protocol_recovery_messages)
+                force_no_tools = True
+                logger.info(
+                    "%s [TOOL_PROTOCOL_GUARD] Continuing the preserved partial answer once "
+                    "with tools disabled.",
+                    log_prefix,
+                )
+                continue
+            if protocol_recovery_action == "failure":
+                logger.error(
+                    "%s [TOOL_PROTOCOL_GUARD] Continuation was unavailable or guarded again; "
+                    "preserving published safe text and marking the response failed.",
+                    log_prefix,
+                )
+                yield main_processing_failure("protocol_guard")
+                break
+            if protocol_recovery_action == "error":
+                yield main_processing_failure("protocol_guard")
                 break
 
         if not tool_calls_for_this_turn:
@@ -4969,7 +5018,7 @@ async def handle_main_processing(
                     f"{log_prefix} [POST_TOOL_RECOVERY] Forced tool continuation retry produced no answer. "
                     "Emitting the standardized user-facing error."
                 )
-                yield STANDARDIZED_USER_ERROR_MESSAGE
+                yield main_processing_failure("empty_post_tool_response")
                 break
             # Safety net: if the LLM emitted ONLY hallucinated tool calls (all
             # rejected) and produced no visible text, the user would see zero

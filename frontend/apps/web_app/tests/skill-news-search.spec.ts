@@ -174,6 +174,7 @@ test.describe('App: News / Skill: search', () => {
 		await expect(page.getByTestId('stop-processing-button')).toBeHidden({ timeout: 90_000 });
 		await expect(summary.locator('[data-testid="embed-preview"][data-skill-id="search"]')).toHaveCount(0);
 		await expect(summary).not.toContainText(/app_id:|skill_id:|```toon/);
+		await expect(summary).not.toContainText(/AI service encountered an error|try again in a moment/i);
 		await expect(summary.getByTestId('chat-mate-name')).toHaveText(originalMate);
 
 		await page.reload({ waitUntil: 'networkidle' });

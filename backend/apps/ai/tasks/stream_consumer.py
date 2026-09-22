@@ -38,6 +38,7 @@ from backend.apps.ai.processing.main_processor import handle_main_processing, IN
 from backend.apps.ai.sub_chat_orchestration import build_sequential_child_prompt, dispatch_sub_chat_task
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output, STANDARDIZED_USER_ERROR_MESSAGE
+from backend.apps.ai.utils.main_processing_failure import main_processing_failure_reason
 from backend.apps.ai.utils.embed_display_text import (
     EMBED_REF_SUFFIX_PATTERN as _EMBED_REF_SUFFIX_PATTERN,
     derive_display_text_from_embed_ref as _derive_display_text_from_embed_ref,
@@ -5025,6 +5026,7 @@ async def _consume_main_processing_stream(
     was_revoked_during_stream = False
     was_soft_limited_during_stream = False
     stream_exception: Optional[BaseException] = None
+    terminal_failure_reason: Optional[str] = None
     
     # Track if we filtered out fake tool calls (LLM attempted to use unavailable tools)
     # This is used at the end to show a generic fallback message if the response would be empty
@@ -5422,6 +5424,17 @@ async def _consume_main_processing_stream(
             if isinstance(chunk, dict) and "__debug_metadata__" in chunk:
                 debug_metadata = chunk
                 logger.debug(f"{log_prefix} Captured debug metadata (system_prompt: {chunk.get('system_prompt_char_count', 0)} chars, tools: {chunk.get('available_tools_count', 0)})")
+                continue
+
+            failure_reason = main_processing_failure_reason(chunk)
+            if failure_reason is not None:
+                terminal_failure_reason = failure_reason
+                debug_metadata["main_processing_failure_reason"] = failure_reason
+                logger.error(
+                    "%s Main processing ended with a classified terminal failure: reason=%s",
+                    log_prefix,
+                    failure_reason,
+                )
                 continue
 
             # Check for tool calls info marker (special dict at end of stream)
@@ -8564,6 +8577,20 @@ async def _consume_main_processing_stream(
             logger.error(f"{log_prefix} Error finalizing table embed at end-of-stream: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
+    terminal_failure_applies = (
+        terminal_failure_reason is not None
+        and not was_revoked_during_stream
+        and not was_soft_limited_during_stream
+    )
+    if terminal_failure_applies:
+        # The internal marker, rather than response text, is authoritative. Keep
+        # already-streamed safe prose, but add the generic retryable message at the
+        # presentation boundary without exposing provider details.
+        if aggregated_response.strip():
+            aggregated_response = f"{aggregated_response.rstrip()}\n\n{standardized_error_message}"
+        else:
+            aggregated_response = standardized_error_message
+        final_response_chunks = [aggregated_response]
     finalized_interactive_response = _finalize_interactive_question_protocol(aggregated_response)
     if finalized_interactive_response != aggregated_response:
         logger.warning(
@@ -9559,6 +9586,14 @@ async def _consume_main_processing_stream(
     elif was_soft_limited_during_stream:
         logger.info(f"{log_prefix} Finished consuming stream (INTERRUPTED BY SOFT LIMIT). {log_msg_suffix}")
         stream_error_message_for_log = "Stream consumption interrupted by soft time limit."
+    elif terminal_failure_reason is not None:
+        logger.error(
+            "%s Finished consuming stream (FAILED: %s). %s",
+            log_prefix,
+            terminal_failure_reason,
+            log_msg_suffix,
+        )
+        stream_error_message_for_log = f"Main processing failed: {terminal_failure_reason}."
     else:
         logger.info(f"{log_prefix} Finished consuming stream (COMPLETED). {log_msg_suffix}")
 
@@ -9578,9 +9613,9 @@ async def _consume_main_processing_stream(
     # Check for both old "[ERROR:" format and new standardized error message format
     is_old_format_error = aggregated_response.strip().startswith("[ERROR:")
     is_new_format_error = aggregated_response.strip() == standardized_error_message
-    is_error = is_old_format_error or is_new_format_error
+    is_error = terminal_failure_applies or is_old_format_error or is_new_format_error
     
-    is_server_error = (
+    is_server_error = terminal_failure_applies or (
         is_error and 
         (is_old_format_error and ("All servers failed" in aggregated_response or "All provider" in aggregated_response or "HTTP error" in aggregated_response)) or
         is_new_format_error  # New standardized format always indicates server error

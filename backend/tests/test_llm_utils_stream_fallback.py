@@ -9,11 +9,16 @@
 # Test refs: backend/apps/ai/utils/llm_utils.py, issue ef17cb0d-a1bd-4898-a27b-09ee2d2c8102.
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 
 try:
-    from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
+    from backend.apps.ai.llm_providers.google_client import (
+        GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY,
+        GoogleUsageMetadata,
+        _parse_streamed_google_tool_call,
+    )
     from backend.apps.ai.llm_providers.types import StreamChunkType, UnifiedStreamChunk
     from backend.apps.ai.utils import llm_utils
 except ImportError:
@@ -369,6 +374,105 @@ def test_call_main_llm_stream_skips_stripped_signature_retry_on_google_only_serv
     assert captured_messages[0][1]["tool_calls"][0]["thought_signature"] == "valid-until-google-rejects-it"
 
 
+def test_google_streamed_tool_call_records_signature_provider_affinity():
+    tool_call = _parse_streamed_google_tool_call(
+        SimpleNamespace(name="events-search", args={"location": "Berlin"}),
+        function_call_thought_signature=b"vertex-signature",
+        candidate_thought_signature=None,
+        signature_provider_id="google",
+    )
+
+    assert tool_call.thought_signature == "dmVydGV4LXNpZ25hdHVyZQ=="
+    assert tool_call.provider_transport_state == {
+        GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY: "google"
+    }
+
+
+def test_call_main_llm_stream_routes_signed_tool_continuation_to_origin_server(monkeypatch):
+    calls = []
+    captured_messages = []
+
+    async def google_vertex_provider(**kwargs):
+        calls.append("google")
+        captured_messages.append(kwargs["messages"])
+
+        async def _stream():
+            yield "Recovered on signature origin"
+
+        return _stream()
+
+    def fake_get_provider_client(provider_prefix):
+        if provider_prefix == "google_ai_studio":
+            raise AssertionError("AI Studio must not receive a Vertex thought signature")
+        if provider_prefix == "google":
+            return google_vertex_provider
+        raise AssertionError(f"Unexpected provider prefix: {provider_prefix}")
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", fake_get_provider_client)
+    monkeypatch.setattr(
+        llm_utils,
+        "resolve_default_server_from_provider_config",
+        lambda model_id: (
+            ("google_ai_studio", "google_ai_studio/gemini-3-flash-preview")
+            if model_id == "google/gemini-3-flash-preview"
+            else (None, None)
+        ),
+    )
+    monkeypatch.setattr(
+        llm_utils,
+        "resolve_fallback_servers_from_provider_config",
+        lambda model_id: ["google/gemini-3-flash-preview"]
+        if model_id == "google/gemini-3-flash-preview"
+        else [],
+    )
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model_id: True)
+
+    message_history = [
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "events-search-1",
+                    "type": "function",
+                    "function": {"name": "events-search", "arguments": "{}"},
+                    "thought_signature": "vertex-signature",
+                    "provider_transport_state": {
+                        GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY: "google"
+                    },
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "events-search-1",
+            "name": "events-search",
+            "content": "{}",
+        },
+    ]
+
+    async def consume_stream():
+        chunks = []
+        stream = llm_utils.call_main_llm_stream(
+            task_id="task-vertex-affinity",
+            model_id="google/gemini-3-flash-preview",
+            system_prompt="system",
+            message_history=message_history,
+            temperature=0.2,
+            tools=[{"type": "function", "function": {"name": "events-search", "parameters": {"type": "object"}}}],
+            tool_choice="auto",
+        )
+        async for chunk in stream:
+            chunks.append(chunk)
+        return chunks
+
+    chunks = asyncio.run(consume_stream())
+
+    assert chunks == ["Recovered on signature origin"]
+    assert calls == ["google"]
+    assert captured_messages[0][1]["tool_calls"][0]["thought_signature"] == "vertex-signature"
+
+
 def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fallback(monkeypatch):
     calls = []
     captured_messages_by_provider = {}
@@ -452,3 +556,4 @@ def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fa
         == "google-only-signature"
     )
     assert "thought_signature" not in captured_messages_by_provider["fallback"][1]["tool_calls"][0]
+    assert "provider_transport_state" not in captured_messages_by_provider["fallback"][1]["tool_calls"][0]

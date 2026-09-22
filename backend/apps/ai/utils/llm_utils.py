@@ -19,7 +19,11 @@ load_dotenv()
 
 # Import response types (these are shared types, not provider-specific)
 from backend.apps.ai.llm_providers.mistral_client import UnifiedMistralResponse as UnifiedMistralResponse
-from backend.apps.ai.llm_providers.google_client import UnifiedGoogleResponse, ParsedGoogleToolCall as ParsedGoogleToolCall
+from backend.apps.ai.llm_providers.google_client import (
+    GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY,
+    UnifiedGoogleResponse,
+    ParsedGoogleToolCall as ParsedGoogleToolCall,
+)
 from backend.apps.ai.llm_providers.anthropic_client import UnifiedAnthropicResponse
 from backend.apps.ai.llm_providers.bedrock_shared import UnifiedBedrockResponse  # noqa: F401
 from backend.apps.ai.llm_providers.openai_shared import (
@@ -1694,13 +1698,12 @@ async def call_main_llm_stream(
         return any(indicator in error_lower for indicator in retryable_indicators)
 
     def _is_thought_signature_error(error_message: Optional[str]) -> bool:
-        """Check if the error is the Gemini 'Thought signature is not valid' error.
+        """Check whether Gemini rejected replayed thought-signature state.
 
-        This error occurs when a multi-turn Gemini session times out and the
-        thought signatures captured during a previous streaming iteration become
-        stale. It arrives as a 400 status (normally non-retryable), but CAN be
-        recovered by stripping the stale thought_signature fields from the message
-        history and retrying the same provider.
+        Signatures can be invalid because they were replayed through a different
+        Google API surface or because the original provider no longer accepts
+        them. The 400 can still recover through a configured non-Google server,
+        which receives history with the Google-only signatures removed.
         """
         if not error_message:
             return False
@@ -1710,9 +1713,9 @@ async def call_main_llm_stream(
         """Return a copy of messages with all thought_signature fields removed.
 
         Gemini 3 thinking models attach a thought_signature to function call
-        parts so they can be validated in multi-turn sessions. When the session
-        times out the signatures become invalid. Stripping them lets the provider
-        treat the function calls as ordinary (non-thinking) history entries.
+        parts so native Google APIs can validate multi-turn sessions. Other
+        providers must receive ordinary tool history without this Google-only
+        signature or its API-surface affinity metadata.
         """
         stripped = []
         for msg in messages:
@@ -1722,6 +1725,12 @@ async def call_main_llm_stream(
                 for tc in msg_copy["tool_calls"]:
                     tc_copy = dict(tc)
                     tc_copy.pop("thought_signature", None)
+                    provider_state = tc_copy.get("provider_transport_state")
+                    if (
+                        isinstance(provider_state, dict)
+                        and GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY in provider_state
+                    ):
+                        tc_copy.pop("provider_transport_state", None)
                     cleaned_tool_calls.append(tc_copy)
                 msg_copy["tool_calls"] = cleaned_tool_calls
             stripped.append(msg_copy)
@@ -1733,6 +1742,35 @@ async def call_main_llm_stream(
     def _accepts_stripped_thought_signatures(server_model_id: str) -> bool:
         provider_prefix = _provider_prefix_from_server_model_id(server_model_id)
         return provider_prefix not in NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS
+
+    def _google_thought_signature_providers(messages: List[Dict[str, Any]]) -> set[str]:
+        providers: set[str] = set()
+        for message in messages:
+            tool_calls = message.get("tool_calls")
+            if not isinstance(tool_calls, list):
+                continue
+            for tool_call in tool_calls:
+                if not isinstance(tool_call, dict) or not tool_call.get("thought_signature"):
+                    continue
+                provider_state = tool_call.get("provider_transport_state")
+                if not isinstance(provider_state, dict):
+                    continue
+                provider_id = provider_state.get(GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY)
+                if provider_id in NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS:
+                    providers.add(provider_id)
+        return providers
+
+    signature_providers = _google_thought_signature_providers(llm_api_messages)
+
+    def _server_matches_google_thought_signatures(server_model_id: str) -> bool:
+        provider_prefix = _provider_prefix_from_server_model_id(server_model_id)
+        if provider_prefix not in NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS:
+            return True
+        # Untagged signatures predate affinity metadata. Preserve their legacy
+        # behavior; newly emitted signatures always identify their API surface.
+        if not signature_providers:
+            return True
+        return signature_providers == {provider_prefix}
 
     def _messages_for_server(server_model_id: str) -> List[Dict[str, Any]]:
         if _accepts_stripped_thought_signatures(server_model_id):
@@ -1758,11 +1796,10 @@ async def call_main_llm_stream(
         Yields paragraphs from the first server that succeeds; logs and
         continues to the next server on failure.
 
-        Architecture note: thought_signature errors are a Gemini-specific SDK
-        issue where multi-turn thinking sessions time out and the stale
-        signatures become invalid.  Stripping them turns the call into a
-        non-thinking history entry which OpenRouter accepts.  Trying AI Studio
-        or Vertex first is pointless because they reject stripped signatures.
+        Architecture note: thought_signature errors are specific to native
+        Gemini tool history. Stripping the signature turns the call into an
+        ordinary history entry which OpenRouter accepts. Trying AI Studio or
+        Vertex is not valid once the signature has been stripped.
         """
         # Re-order so OpenRouter entries come before other compatible servers.
         # Native Google servers reject stripped signatures, so do not retry them
@@ -1900,6 +1937,17 @@ async def call_main_llm_stream(
             parts = server_model_id.split("/", 1)
             server_provider_prefix = parts[0]
             server_actual_model_id = parts[1]
+
+        if not _server_matches_google_thought_signatures(server_model_id):
+            last_error = (
+                "Gemini thought signature provider mismatch: history requires "
+                f"{sorted(signature_providers)}, server is '{server_provider_prefix}'"
+            )
+            logger.warning(
+                f"{attempt_log_prefix} Skipping incompatible Google server because "
+                f"the in-flight tool history is bound to {sorted(signature_providers)}."
+            )
+            continue
         
         # Check health status from cache before attempting
         is_unhealthy = await _is_provider_unhealthy(server_provider_prefix)
@@ -2078,7 +2126,7 @@ async def call_main_llm_stream(
             logger.error(f"{attempt_log_prefix} Client or stream error: {e}", exc_info=True)
             last_error = error_msg
             
-            # Special case: Gemini "Thought signature is not valid" — stale signatures after a timeout.
+            # Special case: Gemini rejected its replayed thought-signature state.
             # Strip thought_signature fields from the message history and retry via shared helper.
             # This is a 400-class error so is_retryable_error() returns False, but stripping
             # the signatures turns it into a recoverable situation.
@@ -2126,7 +2174,7 @@ async def call_main_llm_stream(
             logger.error(f"{attempt_log_prefix} Unexpected error during main LLM stream: {e}", exc_info=True)
             last_error = error_msg
             
-            # Special case: Gemini "Thought signature is not valid" (same as ValueError block above)
+            # Special case: Gemini rejected its replayed thought-signature state.
             # Delegate to the shared helper which prefers OpenRouter first.
             if _is_thought_signature_error(error_msg) and not thought_signatures_stripped:
                 compatible_retry_servers = [

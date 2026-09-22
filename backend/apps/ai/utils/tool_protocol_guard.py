@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Any
 
 from backend.apps.ai.llm_providers.types import StreamChunkType, UnifiedStreamChunk
@@ -17,6 +18,53 @@ from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 _PROTOCOL_FENCE = re.compile(r"^```(toon|tool_code)(?:[^\n]*)\n", re.IGNORECASE)
 _APP_FIELD = re.compile(r"(?m)^\s*app_id\s*:")
 _SKILL_FIELD = re.compile(r"(?m)^\s*skill_id\s*:")
+
+TOOL_PROTOCOL_CONTINUATION_PROMPT = (
+    "Continue the preceding assistant response exactly where it stopped. "
+    "Do not repeat or summarize text that is already present. Return only the "
+    "remaining user-facing prose. Do not emit tool calls, tool-result envelopes, "
+    "TOON, or commentary about this continuation instruction. Do not invent or "
+    "rely on information from the suppressed tool text."
+)
+
+
+def build_tool_protocol_continuation_messages(safe_text: str) -> list[dict[str, str]]:
+    """Build provider history that continues, but does not replay, published text."""
+    if not safe_text.strip():
+        raise ValueError("safe_text is required for protocol continuation")
+    return [
+        {"role": "assistant", "content": safe_text},
+        {"role": "user", "content": TOOL_PROTOCOL_CONTINUATION_PROMPT},
+    ]
+
+
+@dataclass
+class ToolProtocolRecoveryState:
+    """Bound one safe text continuation after fabricated provider protocol."""
+
+    attempted: bool = False
+    preserved_safe_text: bool = False
+
+    def action(
+        self,
+        *,
+        detected: bool,
+        native_call_count: int,
+        safe_text: str,
+        has_retry_iteration: bool,
+    ) -> str:
+        """Return ignore, retry, failure, or error for a completed model turn."""
+        if not detected or native_call_count:
+            return "ignore"
+
+        has_safe_text = bool(safe_text.strip())
+        self.preserved_safe_text = self.preserved_safe_text or has_safe_text
+        if has_safe_text and not self.attempted and has_retry_iteration:
+            self.attempted = True
+            return "retry"
+        if self.preserved_safe_text:
+            return "failure"
+        return "error"
 
 
 def is_internal_tool_protocol(language: str, content: str) -> bool:

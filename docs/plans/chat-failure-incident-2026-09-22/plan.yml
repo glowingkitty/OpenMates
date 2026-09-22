@@ -1,0 +1,33 @@
+id: chat-failure-incident-2026-09-22
+title: Restore chat inference and incident reporting on dev and production
+status: implementing
+# Goal-first profile avoids duplicating the existing OpenMates Tasks ledger.
+profile: lightweight
+goal: >-
+  connect to prod sever via ssh to check if we need to apply any fixes to both dev
+  and prod server. (if needed, apply the docker images + quick hotfix, so we can
+  get prod server to run stable again).
+scope:
+  - Diagnose and repair the repeated dev QMCH2 protocol-guard response failure.
+  - Diagnose and repair production Gemini post-tool retry failure.
+  - Keep issue submission usable when optional context sharing fails.
+  - Restore dev OpenObserve and repair error-trace queries.
+  - Apply and verify scoped production configuration and backend fixes.
+decisions:
+  - User authorized dev and production fixes and the production image update.
+  - Preserve optional app-skill selection, encryption boundaries, and real tool results.
+  - Do not equate identical generic errors with an identical root cause.
+  - User explicitly requested real OpenMates CLI chats on dev before applying the production code hotfix.
+  - Production release baseline is PR 524 merge 9f3228ef9ac3e4061b8129a1f42e983925214900.
+  - Previous production image is sha-cd5feb7e8e83f225cc65dc398c447dbddd8c05fe.
+checks:
+  - Focused unit regressions for protocol recovery and Gemini retry/history handling.
+  - Issue reporting regression with failed optional context sharing.
+  - Relevant isolated GitHub CI product coverage before production hotfix; explicit live-dev validation requires scoped dev publication first.
+  - Real dev CLI Jev follow-up and events/images tool-loop chats, with backend outcome and provider-affinity logs checked before production hotfix.
+  - Fresh trace ingestion and a successful error-trace query.
+  - Production image identity and provider-free runtime health verification.
+evidence:
+  - Production image workflow 35740853568 succeeded for the release baseline.
+  - Matching production Vercel deployment dpl_HMzuGXsTs9CuxV1rB2S7eL4DLNZQ is Ready.
+  - Baseline update completed; core health passes; billing freshness and notification checks remain unresolved.

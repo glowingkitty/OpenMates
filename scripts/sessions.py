@@ -8346,6 +8346,29 @@ def _running_backend_mounts(checkout_root: Path) -> dict[str, dict[str, str]]:
     return mounted
 
 
+def _configured_backend_mount_services(checkout_root: Path) -> set[str]:
+    """Return Compose services that are expected to mount product backend code."""
+    rc, stdout, stderr = _run_cmd(
+        _docker_compose_command("config", "--format", "json", checkout_root=checkout_root),
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not inspect Docker Compose backend mounts: {stderr or stdout}")
+    try:
+        services = json.loads(stdout).get("services") or {}
+    except (AttributeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Could not inspect Docker Compose backend mounts: invalid JSON") from exc
+    return {
+        service
+        for service, config in services.items()
+        if isinstance(config, dict)
+        and any(
+            isinstance(volume, dict) and volume.get("target") == "/app/backend"
+            for volume in config.get("volumes", [])
+        )
+    }
+
+
 def _incoherent_docker_services(checkout_root: Path, backend_tree: str) -> set[str]:
     state = _load_product_runtime_state().get("services") or {}
     expected_source = str((checkout_root / "backend").resolve())
@@ -8380,10 +8403,12 @@ def _record_product_runtime_services(
     backend_tree: str,
 ) -> None:
     live = _running_backend_mounts(checkout_root)
+    backend_services = _configured_backend_mount_services(checkout_root)
+    provenance_services = sorted(set(services) & backend_services)
     expected_source = (checkout_root / "backend").resolve()
     invalid = [
         service
-        for service in services
+        for service in provenance_services
         if service not in live or Path(str(live[service].get("source") or "")).resolve() != expected_source
     ]
     if invalid:
@@ -8394,7 +8419,7 @@ def _record_product_runtime_services(
         fcntl.flock(lock_handle, fcntl.LOCK_EX)
         try:
             state = _load_product_runtime_state()
-            for service in services:
+            for service in provenance_services:
                 if service in live:
                     state["services"][service] = {
                         "commit": source_commit,
