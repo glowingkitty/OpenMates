@@ -2762,6 +2762,14 @@ async def handle_main_processing(
     prompt_parts = []
     now_utc = datetime.datetime.now(datetime.timezone.utc)
 
+    if request_data.historical_artifact_context:
+        prompt_parts.append(request_data.historical_artifact_context)
+        logger.info(
+            "%s Injected bounded historical artifact context (%d chars)",
+            log_prefix,
+            len(request_data.historical_artifact_context),
+        )
+
     # Resolve user's timezone — fall back to UTC if not set or unrecognised
     user_timezone = request_data.user_preferences.get("timezone") if request_data.user_preferences else None
     try:

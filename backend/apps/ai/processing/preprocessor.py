@@ -3313,6 +3313,11 @@ async def handle_preprocessing(
         has_pdf_embed = False
         has_video_embed = False
         has_website_embed = False
+        artifact_refs = (getattr(request_data, "embed_file_path_index", None) or {}).keys()
+        has_pdf_embed = any(
+            isinstance(artifact_ref, str) and artifact_ref.casefold().strip().endswith(".pdf")
+            for artifact_ref in artifact_refs
+        )
         for msg in request_data.message_history:
             content = msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else None)
             if not isinstance(content, str):

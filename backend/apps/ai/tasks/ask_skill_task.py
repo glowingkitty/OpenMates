@@ -52,7 +52,10 @@ from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
 from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
-from backend.apps.ai.processing.artifact_ledger import load_and_merge_artifact_ledger
+from backend.apps.ai.processing.artifact_ledger import (
+    build_historical_artifact_context,
+    load_and_merge_artifact_ledger,
+)
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
     PostProcessingResult,
@@ -1220,6 +1223,28 @@ async def _async_process_ai_skill_ask_task(
         current_index=request_data.embed_file_path_index,
         persist=not request_data.is_incognito and not request_data.is_external,
     ) or None
+    request_data.historical_artifact_context = None
+    if request_data.embed_file_path_index and user_vault_key_id:
+        try:
+            from backend.core.api.app.services.embed_service import EmbedService
+
+            request_data.historical_artifact_context = await build_historical_artifact_context(
+                embed_service=EmbedService(
+                    cache_service=cache_service_instance,
+                    directus_service=directus_service_instance,
+                    encryption_service=encryption_service_instance,
+                ),
+                user_vault_key_id=user_vault_key_id,
+                current_user_content=request_data.current_user_content,
+                artifact_index=request_data.embed_file_path_index,
+                log_prefix=f"[Task ID: {task_id}] ",
+            )
+        except Exception as exc:
+            logger.warning(
+                "[Task ID: %s] Historical artifact context unavailable; continuing (%s)",
+                task_id,
+                type(exc).__name__,
+            )
 
     # Parse app settings/memories metadata from client
     # CLIENT IS THE SOURCE OF TRUTH - only the client can decrypt this data

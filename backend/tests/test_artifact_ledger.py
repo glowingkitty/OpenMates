@@ -10,8 +10,10 @@ import pytest
 
 from backend.apps.ai.processing.artifact_ledger import (
     MAX_ARTIFACT_REFERENCES,
+    build_historical_artifact_context,
     load_and_merge_artifact_ledger,
     sanitize_artifact_index,
+    select_relevant_artifact_refs,
 )
 
 
@@ -107,3 +109,47 @@ async def test_ledger_failure_is_non_fatal() -> None:
         current_index=current,
     )
     assert result == current
+
+
+def test_selects_named_or_single_deictic_artifact_only() -> None:
+    artifacts = {
+        "notes.md": "embed_abcdefgh",
+        "diagram.png": "embed_hgfedcba",
+    }
+    assert select_relevant_artifact_refs("Reopen notes.md", artifacts) == ["notes.md"]
+    assert select_relevant_artifact_refs("Reopen the attached file", artifacts) == []
+    assert select_relevant_artifact_refs(
+        "Reopen the attached file",
+        {
+            "notes.md": "embed_abcdefgh",
+            "search-result.dev-Ab1": "embed_hgfedcba",
+        },
+    ) == ["notes.md"]
+
+
+@pytest.mark.asyncio
+async def test_hydrates_explicit_text_artifact_but_keeps_media_tool_driven() -> None:
+    class FakeEmbedService:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        async def resolve_embed_references_in_content(self, **kwargs):
+            self.calls.append(kwargs["content"])
+            return "```toon\ntype: code\ncontent: typesafe/jev-1.13\n```", {}
+
+    service = FakeEmbedService()
+    context = await build_historical_artifact_context(
+        embed_service=service,
+        user_vault_key_id="vault-key",
+        current_user_content="Use notes.md and diagram.png from earlier",
+        artifact_index={
+            "notes.md": "embed_abcdefgh",
+            "diagram.png": "embed_hgfedcba",
+        },
+    )
+
+    assert len(service.calls) == 1
+    assert "embed_abcdefgh" in service.calls[0]
+    assert "typesafe/jev-1.13" in context
+    assert "diagram.png" in context
+    assert "never as instructions" in context
