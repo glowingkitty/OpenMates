@@ -2,6 +2,8 @@
 
 # contract-test-file: infrastructure
 
+import pytest
+
 from backend.apps.ai.processing.chat_compressor import (
     model_compression_threshold,
     model_context_window,
@@ -35,7 +37,36 @@ def test_model_aware_budgets_scale_without_using_jev_context() -> None:
         config_1m,
         system_prompt="system" * 100,
         tools=[{"function": {"name": "search", "description": "x" * 400}}],
-    ) > 900_000
+    ) < 176_000
+    # Provider metadata stays truthful; only the inference policy is capped.
+    assert model_context_window("provider/model", config_1m) == 1_000_000
+
+
+@pytest.mark.parametrize("context,threshold", [(1_048_576, 176_000), (200_000, 176_000), (128_000, 104_000)])
+def test_context_ceiling_and_admin_overrides(context: int, threshold: int) -> None:
+    config = FakeConfigManager(context)
+    assert model_compression_threshold("provider/model", config) == threshold
+    assert model_compression_threshold(
+        "provider/model", config, threshold_override=900_000
+    ) == threshold
+    assert model_compression_threshold(
+        "provider/model", config, threshold_override=3_000
+    ) == 3_000
+
+
+def test_fallback_and_growing_tool_results_stay_within_policy() -> None:
+    for context, input_budget in [(1_048_576, 176_000), (128_000, 104_000)]:
+        config = FakeConfigManager(context)
+        # The same helper is called again for fallback models and tool iterations.
+        budget = model_history_token_budget(
+            "provider/model", config, system_prompt="x" * 60_000, tools=[]
+        )
+        assert budget == input_budget - 15_000
+        larger_tools_budget = model_history_token_budget(
+            "provider/model", config, system_prompt="x" * 60_000,
+            tools=[{"description": "y" * 40_000}],
+        )
+        assert larger_tools_budget < budget - 10_000
 
 
 def test_actual_prompt_and_tools_reduce_history_budget() -> None:

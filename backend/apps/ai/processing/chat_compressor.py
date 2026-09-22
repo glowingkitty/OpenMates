@@ -31,6 +31,8 @@ DEFAULT_COMPRESSION_TRIGGER_THRESHOLD = 100_000  # tokens (estimated)
 # Conservative fallback only for models whose provider metadata is unavailable.
 # Normal requests derive their limit from the selected model's provider config.
 FALLBACK_MODEL_CONTEXT_TOKENS = 128_000
+# Product policy for ordinary inference, independent of advertised provider capacity.
+MAX_INFERENCE_CONTEXT_TOKENS = 200_000
 DEFAULT_EXPECTED_OUTPUT_TOKENS = 16_000
 CONTEXT_SAFETY_RESERVE_TOKENS = 8_000
 MINIMUM_HISTORY_BUDGET_TOKENS = 8_000
@@ -111,14 +113,18 @@ def estimate_prompt_and_tools_tokens(system_prompt: str, tools: Optional[List[Di
     return max(1, int((len(system_prompt or "") + len(serialized_tools)) / AVG_CHARS_PER_TOKEN))
 
 
-def model_compression_threshold(model_id: str, config_manager: Any) -> int:
+def model_compression_threshold(
+    model_id: str, config_manager: Any, *, threshold_override: Optional[int] = None
+) -> int:
     """Return total-input threshold at which selected-model compression should run."""
-    context = model_context_window(model_id, config_manager)
+    context = min(model_context_window(model_id, config_manager), MAX_INFERENCE_CONTEXT_TOKENS)
     output_reserve = expected_output_reserve(model_id, config_manager)
-    return max(
+    threshold = max(
         MINIMUM_HISTORY_BUDGET_TOKENS + ESTIMATED_SYSTEM_PROMPT_OVERHEAD,
         context - output_reserve - CONTEXT_SAFETY_RESERVE_TOKENS,
     )
+    # Admin test overrides may trigger earlier compression, never bypass the cap.
+    return min(threshold, threshold_override) if threshold_override is not None else threshold
 
 
 def model_history_token_budget(
@@ -131,7 +137,7 @@ def model_history_token_budget(
     """Budget history after actual prompt/tools plus output and safety reserves."""
     return max(
         MINIMUM_HISTORY_BUDGET_TOKENS,
-        model_context_window(model_id, config_manager)
+        min(model_context_window(model_id, config_manager), MAX_INFERENCE_CONTEXT_TOKENS)
         - estimate_prompt_and_tools_tokens(system_prompt, tools)
         - expected_output_reserve(model_id, config_manager)
         - CONTEXT_SAFETY_RESERVE_TOKENS,

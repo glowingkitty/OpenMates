@@ -702,10 +702,11 @@ async def _compress_for_selected_model(
         }
         for msg in request_data.message_history
     ]
-    threshold = model_compression_threshold(selected_model_id, celery_config.config_manager)
     admin_threshold = await get_admin_compression_threshold(cache_service, request_data.user_id)
+    threshold = model_compression_threshold(
+        selected_model_id, celery_config.config_manager, threshold_override=admin_threshold
+    )
     if admin_threshold is not None:
-        threshold = admin_threshold
         logger.info("[Task ID: %s] Using admin compression threshold: %s tokens", task_id, threshold)
     if not should_compress(history, threshold):
         logger.info(
