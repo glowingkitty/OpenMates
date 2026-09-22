@@ -18,6 +18,7 @@ MAX_ARTIFACT_REF_CHARS = 512
 MAX_HYDRATED_ARTIFACTS = 2
 MAX_HYDRATED_ARTIFACT_CHARS = 32_000
 _SAFE_EMBED_ID = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
+_UPLOAD_REF_SUFFIX = re.compile(r"^(?P<name>.+)-[0-9a-f]{8}-[0-9a-f-]{12,}$", re.IGNORECASE)
 _DEICTIC_ARTIFACT_REQUEST = re.compile(
     r"\b(?:attach(?:ed|ment)?|upload(?:ed)?|file|document|artifact|image|photo|pdf)\b",
     re.IGNORECASE,
@@ -106,6 +107,28 @@ def sanitize_artifact_index(index: Optional[Mapping[str, Any]]) -> dict[str, str
     return dict(list(sanitized.items())[-MAX_ARTIFACT_REFERENCES:])
 
 
+def _normalized_artifact_name(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", value.casefold())
+
+
+def _artifact_ref_alias(artifact_ref: str) -> str:
+    match = _UPLOAD_REF_SUFFIX.fullmatch(artifact_ref)
+    return match.group("name") if match else artifact_ref
+
+
+def _looks_like_file_artifact(artifact_ref: str) -> bool:
+    if PurePath(artifact_ref).suffix.casefold() in _ARTIFACT_FILE_EXTENSIONS:
+        return True
+    return _UPLOAD_REF_SUFFIX.fullmatch(artifact_ref) is not None
+
+
+def _artifact_ref_matches_request(artifact_ref: str, request: str, normalized_request: str) -> bool:
+    if artifact_ref.casefold() in request:
+        return True
+    normalized_alias = _normalized_artifact_name(_artifact_ref_alias(artifact_ref))
+    return bool(normalized_alias and normalized_alias in normalized_request)
+
+
 def select_relevant_artifact_refs(
     current_user_content: Optional[str],
     artifact_index: Optional[Mapping[str, Any]],
@@ -116,14 +139,19 @@ def select_relevant_artifact_refs(
         return []
 
     request = current_user_content.casefold()
-    selected = [artifact_ref for artifact_ref in index if artifact_ref.casefold() in request]
+    normalized_request = _normalized_artifact_name(current_user_content)
+    selected = [
+        artifact_ref
+        for artifact_ref in index
+        if _artifact_ref_matches_request(artifact_ref, request, normalized_request)
+    ]
     if selected:
         return selected[-MAX_HYDRATED_ARTIFACTS:]
 
     file_refs = [
         artifact_ref
         for artifact_ref in index
-        if PurePath(artifact_ref).suffix.casefold() in _ARTIFACT_FILE_EXTENSIONS
+        if _looks_like_file_artifact(artifact_ref)
     ]
     if len(file_refs) == 1 and _DEICTIC_ARTIFACT_REQUEST.search(current_user_content):
         return file_refs
@@ -153,7 +181,7 @@ async def build_historical_artifact_context(
     inventory_refs = [
         artifact_ref
         for artifact_ref in index
-        if PurePath(artifact_ref).suffix.casefold() in _ARTIFACT_FILE_EXTENSIONS
+        if _looks_like_file_artifact(artifact_ref)
     ]
     if not inventory_refs:
         inventory_refs = selected

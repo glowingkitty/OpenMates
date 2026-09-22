@@ -125,6 +125,10 @@ def test_selects_named_or_single_deictic_artifact_only() -> None:
             "search-result.dev-Ab1": "embed_hgfedcba",
         },
     ) == ["notes.md"]
+    assert select_relevant_artifact_refs(
+        "Reopen typesafe-jev.md",
+        {"typesafe-jev-md-7a0d7e9f-9709-41fe-949a--331740": "embed_abcdefgh"},
+    ) == ["typesafe-jev-md-7a0d7e9f-9709-41fe-949a--331740"]
 
 
 @pytest.mark.asyncio
