@@ -177,11 +177,14 @@ async def handle_delete_chat(
             # Routing metadata must never block the primary chat deletion path.
             try:
                 from backend.apps.ai.processing.routing_ledger import delete_skill_ledger
+                from backend.apps.ai.processing.artifact_ledger import delete_artifact_ledger
+                user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
                 await delete_skill_ledger(
                     cache_service,
-                    hashlib.sha256(user_id.encode()).hexdigest(),
+                    user_id_hash,
                     chat_id,
                 )
+                await delete_artifact_ledger(cache_service, user_id_hash, chat_id)
             except Exception as ledger_error:
                 logger.warning(
                     "Failed to invalidate routing ledger after chat deletion: %s",

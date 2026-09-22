@@ -7,7 +7,7 @@ OpenMates uses `typesafe/jev-1.13` through OpenRouter for internal, bounded deci
 - Endpoint: `POST https://openrouter.ai/api/alpha/decisions`
 - Model: `typesafe/jev-1.13`
 - Authentication: existing OpenRouter key at `kv/data/providers/openrouter` / `api_key`, with `SECRET__OPENROUTER__API_KEY` as the self-hosted environment fallback
-- Request data: a bounded recent-message projection plus only the candidate catalogues required by the named decisions
+- Request data: a bounded recent-message projection, an optional fresh chat summary carried as a separate `conversation_summary` state object labeled conversation data (never instructions), and only the candidate catalogues required by the named decisions
 - Modalities: text or JSON-compatible structured state; no image, audio, video, or PDF input
 - OpenRouter context limit: 32,768 tokens. The client also enforces conservative serialized state and total-request bounds so an oversized call falls back before depending on provider rejection.
 - Price observed for OpenRouter: $0.042 per million input tokens and no output-token charge
@@ -24,6 +24,8 @@ The provider client lives in `backend/shared/providers/typesafe/`. Application c
 | Postprocessing | assistant-response safety score and bounded app ranking | existing Gemini postprocessor fields |
 
 Every Jev call is optional at the caller boundary. Transport errors, timeouts, malformed responses, missing answers, request-size limits, and task-specific confidence failures invoke a non-Jev path. The GPT-OSS sanitizer remains necessary because Jev cannot generate or quote arbitrary redaction spans.
+
+Jev's 32,768-token limit is local to decision processing. OpenMates does not compress or truncate the answer model's conversation to that limit. The Jev adapter keeps at most eight recent user/assistant messages with per-message bounds plus the optional 4,000-character fresh summary. The generative preprocessing fallback has its own independent history guard.
 
 ## Title timing
 

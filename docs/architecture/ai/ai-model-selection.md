@@ -109,7 +109,7 @@ Each LLM provider has a YAML config in [`backend/providers/`](../../backend/prov
    - `china_model_sensitive` (boolean, detected by LLM -- replaces old hardcoded keyword approach)
    - topic/language/safety scores and bounded skill, focus, memory, preview, and icon selections
 
-   If Jev is unavailable, malformed, oversized, or below a required confidence threshold, the existing Gemini structured-output preprocessing path runs with its own provider fallbacks. Jev is never selected as the main answer model. See [TypeSafe Jev decision API](../../apis/typesafe-jev.md).
+   A fresh client-authorized chat summary may accompany the bounded recent-message projection as a separate typed state field. It is sanitized, capped at 4,000 characters, and labeled conversation data rather than instructions. If Jev is unavailable, malformed, oversized, or below a required confidence threshold, the existing Gemini structured-output preprocessing path runs with its own provider fallbacks. Jev is never selected as the main answer model. See [TypeSafe Jev decision API](../../apis/typesafe-jev.md).
 
 3. **Model selection** ([`model_selector.py`](../../backend/apps/ai/utils/model_selector.py)):
    - Filters to models with `allow_auto_select: true`
@@ -122,6 +122,14 @@ Each LLM provider has a YAML config in [`backend/providers/`](../../backend/prov
    - Tries primary model first
    - On failure: tries secondary, then fallback
    - Each model may have multiple server providers (e.g., AWS Bedrock then direct API)
+   - Derives the usable history budget from that model's configured context window after subtracting the actual system/tool estimate, expected output, and a safety reserve
+   - Recomputes the budget before each tool iteration and provider fallback because prompts, tool results, and model context limits can change
+
+### Independent long-chat budgets
+
+Preprocessing and answer generation deliberately have different context boundaries. Jev sees only its bounded routing projection; the generative preprocessing fallback retains its own 120k safety guard. Chat compression runs after preprocessing has selected and billing has validated the actual main model. Its trigger is derived from that model's configured context window, expected output, and safety reserve, so a 32k Jev request never causes a 200k or 1M answer model to forget the rest of the chat.
+
+Compression summaries preserve exact artifact references. A separate Vault-encrypted, content-free artifact ledger retains only `embed_ref -> embed_id` metadata for the lifetime of the AI chat cache. It restores tool resolution after the source message has left active context, stores no pixels, file bytes, OCR text, transcripts, or skill output, and is invalidated with message/chat deletion. Missing cache or Vault access is non-fatal and falls back to references resolved in the current request.
 
 ### China-Sensitive Content Handling
 

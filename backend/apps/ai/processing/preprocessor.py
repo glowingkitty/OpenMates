@@ -1792,9 +1792,14 @@ async def handle_preprocessing(
     summary_is_fresh = bool(request_data.current_chat_summary) and summary_version is not None and (
         metadata_version is None or summary_version == metadata_version
     )
+    bounded_chat_summary = (
+        _sanitize_text_content(request_data.current_chat_summary, log_prefix=log_prefix)[:4000]
+        if summary_is_fresh and isinstance(request_data.current_chat_summary, str)
+        else None
+    )
     projection_source, used_bounded_projection = build_preprocessing_history_projection(
         request_data.message_history,
-        chat_summary=request_data.current_chat_summary if summary_is_fresh else None,
+        chat_summary=bounded_chat_summary,
         state_available=routing_ledger.available,
     )
     logger.info(
@@ -2252,6 +2257,7 @@ async def handle_preprocessing(
                 available_focus_modes=available_focus_modes_list,
                 available_settings_and_memories=user_app_settings_and_memories_metadata,
                 recent_skill_activity=list(routing_ledger.prompt_rows),
+                conversation_summary=bounded_chat_summary,
                 previous_category=previous_category,
                 is_first_message=is_first_message,
             )

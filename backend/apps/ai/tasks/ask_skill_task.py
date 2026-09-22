@@ -52,6 +52,7 @@ from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
 from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
+from backend.apps.ai.processing.artifact_ledger import load_and_merge_artifact_ledger
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
     PostProcessingResult,
@@ -84,7 +85,7 @@ from backend.apps.ai.processing.chat_compressor import (
     compress_chat_history,
     get_admin_compression_threshold,
     COMPRESSION_SUMMARY_CATEGORY,
-    DEFAULT_COMPRESSION_TRIGGER_THRESHOLD,
+    model_compression_threshold,
 )
 from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
@@ -673,6 +674,151 @@ async def _finalize_legacy_cutover_admission(
         await directus_service.close()
 
 
+async def _compress_for_selected_model(
+    *,
+    task_id: str,
+    request_data: AskSkillRequest,
+    selected_model_id: str,
+    cache_service: CacheService,
+    encryption_service: EncryptionService,
+    user_vault_key_id: str,
+    secrets_manager: SecretsManager,
+) -> bool:
+    """Compress once the actual main model is known; failures remain non-fatal."""
+    if not request_data.message_history or request_data.is_external:
+        return False
+
+    history = [
+        {
+            "role": msg.role,
+            "content": msg.content,
+            "created_at": msg.created_at,
+            "category": getattr(msg, "category", None),
+            "sender_name": getattr(msg, "sender_name", None),
+        }
+        for msg in request_data.message_history
+    ]
+    threshold = model_compression_threshold(selected_model_id, celery_config.config_manager)
+    admin_threshold = await get_admin_compression_threshold(cache_service, request_data.user_id)
+    if admin_threshold is not None:
+        threshold = admin_threshold
+        logger.info("[Task ID: %s] Using admin compression threshold: %s tokens", task_id, threshold)
+    if not should_compress(history, threshold):
+        logger.info(
+            "[Task ID: %s] Model-aware compression skipped for %s (threshold=%s)",
+            task_id,
+            selected_model_id,
+            threshold,
+        )
+        return False
+
+    channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
+    if request_data.user_id_hash:
+        await cache_service.publish_event(channel, {
+            "type": "chat_compression_started",
+            "event_for_client": "chat_compression_started",
+            "task_id": task_id,
+            "chat_id": request_data.chat_id,
+            "user_id_uuid": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+        })
+
+    with ai_phase_span("compression"):
+        result = await compress_chat_history(
+            message_history=history,
+            task_id=task_id,
+            secrets_manager=secrets_manager,
+            compression_threshold=threshold,
+        )
+    if not result.was_compressed or not result.summary_content:
+        if result.error and request_data.user_id_hash:
+            await cache_service.publish_event(channel, {
+                "type": "chat_compression_completed",
+                "event_for_client": "chat_compression_completed",
+                "task_id": task_id,
+                "chat_id": request_data.chat_id,
+                "user_id_uuid": request_data.user_id,
+                "user_id_hash": request_data.user_id_hash,
+                "error": result.error,
+            })
+        return False
+
+    summary_message_id = str(uuid.uuid4())
+    summary_timestamp = int(time.time())
+    encrypted_summary, _ = await encryption_service.encrypt_with_user_key(
+        result.summary_content,
+        user_vault_key_id,
+    )
+    summary_cache_message = MessageInCache(
+        id=summary_message_id,
+        chat_id=request_data.chat_id,
+        role="system",
+        category=COMPRESSION_SUMMARY_CATEGORY,
+        sender_name=None,
+        encrypted_content=encrypted_summary,
+        created_at=summary_timestamp,
+        status="sent",
+    )
+    cache_messages = [summary_cache_message.model_dump_json()]
+    compressed_history = [AIHistoryMessage(
+        content=result.summary_content,
+        role="system",
+        category=COMPRESSION_SUMMARY_CATEGORY,
+        created_at=summary_timestamp,
+    )]
+    for recent in result.recent_messages or []:
+        recent_content = recent.get("content", "")
+        encrypted_recent, _ = await encryption_service.encrypt_with_user_key(
+            recent_content,
+            user_vault_key_id,
+        )
+        cache_messages.append(MessageInCache(
+            id=f"recent_{uuid.uuid4().hex[:8]}",
+            chat_id=request_data.chat_id,
+            role=recent.get("role", "user"),
+            category=recent.get("category"),
+            sender_name=recent.get("sender_name"),
+            encrypted_content=encrypted_recent,
+            created_at=recent.get("created_at", summary_timestamp),
+            status="sent",
+        ).model_dump_json())
+        compressed_history.append(AIHistoryMessage(
+            content=recent_content,
+            role=recent.get("role", "user"),
+            category=recent.get("category"),
+            created_at=recent.get("created_at", summary_timestamp),
+        ))
+
+    await cache_service.set_ai_messages_history(
+        user_id=request_data.user_id,
+        chat_id=request_data.chat_id,
+        encrypted_messages_json_list=cache_messages,
+    )
+    request_data.message_history = compressed_history
+    logger.info(
+        "[Task ID: %s] Model-aware compression for %s replaced %s messages with %s context messages",
+        task_id,
+        selected_model_id,
+        len(history),
+        len(compressed_history),
+    )
+    if request_data.user_id_hash:
+        await cache_service.publish_event(channel, {
+            "type": "chat_compression_completed",
+            "event_for_client": "chat_compression_completed",
+            "task_id": task_id,
+            "chat_id": request_data.chat_id,
+            "user_id_uuid": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+            "compressed_message_count": result.compressed_message_count,
+            "summary_token_estimate": result.summary_token_estimate,
+            "compressed_up_to_timestamp": result.compressed_up_to_timestamp,
+            "summary_message_id": summary_message_id,
+            "summary_content": result.summary_content,
+        })
+    return True
+
+
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
@@ -1063,6 +1209,18 @@ async def _async_process_ai_skill_ask_task(
         logger.error(f"[Task ID: {task_id}] user_id is missing.")
         raise RuntimeError("user_id is missing.")
 
+    # Preserve only the reference-to-embed mapping needed by later skill calls.
+    # The payload is Vault-encrypted and contains no artifact bytes or extracted content.
+    request_data.embed_file_path_index = await load_and_merge_artifact_ledger(
+        cache_service=cache_service_instance,
+        encryption_service=encryption_service_instance,
+        user_vault_key_id=user_vault_key_id,
+        user_id_hash=request_data.user_id_hash,
+        chat_id=request_data.chat_id,
+        current_index=request_data.embed_file_path_index,
+        persist=not request_data.is_incognito and not request_data.is_external,
+    ) or None
+
     # Parse app settings/memories metadata from client
     # CLIENT IS THE SOURCE OF TRUTH - only the client can decrypt this data
     # Format from client: ["code-preferred_technologies", "travel-trips", ...]
@@ -1272,227 +1430,7 @@ async def _async_process_ai_skill_ask_task(
     else:
         # ═══ NORMAL FLOW: real compression + preprocessing + main processing ═══
 
-        # --- Step 0.5: Chat Compression (long chat history summarization) ---
-        # When the total token estimate of the message history exceeds the compression threshold,
-        # older messages are summarized into a structured summary. This runs BEFORE preprocessing
-        # because the worker already has SecretsManager for LLM API calls.
-        # Architecture context: See docs/architecture/chat-compression.md
         compression_performed = False
-        try:
-            if (
-                request_data.message_history
-                and cache_service_instance
-                and encryption_service_instance
-                and user_vault_key_id
-                and not request_data.is_external  # Skip compression for external API requests
-            ):
-                # Convert AIHistoryMessage objects to dicts for the compressor
-                message_dicts_for_compression = [
-                    {
-                        "role": msg.role,
-                        "content": msg.content,
-                        "created_at": msg.created_at,
-                        "category": getattr(msg, "category", None),
-                        "sender_name": getattr(msg, "sender_name", None),
-                    }
-                    for msg in request_data.message_history
-                ]
-
-                # Check for admin threshold override
-                compression_threshold = DEFAULT_COMPRESSION_TRIGGER_THRESHOLD
-                admin_threshold = await get_admin_compression_threshold(
-                    cache_service_instance, request_data.user_id
-                )
-                if admin_threshold is not None:
-                    compression_threshold = admin_threshold
-                    logger.info(
-                        f"[Task ID: {task_id}] Using admin compression threshold: "
-                        f"{compression_threshold} tokens"
-                    )
-
-                if should_compress(message_dicts_for_compression, compression_threshold):
-                    logger.info(
-                        f"[Task ID: {task_id}] Chat compression triggered for chat "
-                        f"{request_data.chat_id} ({len(message_dicts_for_compression)} messages)"
-                    )
-
-                    # Publish compression_started event to frontend
-                    if request_data.user_id_hash:
-                        compression_started_payload = {
-                            "type": "chat_compression_started",
-                            "event_for_client": "chat_compression_started",
-                            "task_id": task_id,
-                            "chat_id": request_data.chat_id,
-                            "user_id_uuid": request_data.user_id,
-                            "user_id_hash": request_data.user_id_hash,
-                        }
-                        compression_channel = (
-                            f"ai_typing_indicator_events::{request_data.user_id_hash}"
-                        )
-                        await cache_service_instance.publish_event(
-                            compression_channel, compression_started_payload
-                        )
-
-                    # Run compression
-                    with ai_phase_span("compression"):
-                        compression_result = await compress_chat_history(
-                            message_history=message_dicts_for_compression,
-                            task_id=task_id,
-                            secrets_manager=secrets_manager,
-                            compression_threshold=compression_threshold,
-                        )
-
-                    if compression_result.was_compressed and compression_result.summary_content:
-                        compression_performed = True
-                        logger.info(
-                            f"[Task ID: {task_id}] Compression succeeded: "
-                            f"{compression_result.compressed_message_count} messages compressed, "
-                            f"~{compression_result.summary_token_estimate} token summary"
-                        )
-
-                        # Create a summary system message in the AI cache
-                        import uuid as _uuid
-                        summary_message_id = str(_uuid.uuid4())
-                        summary_timestamp = int(time.time())
-
-                        # Vault-encrypt the summary content for AI cache storage
-                        encrypted_summary, _ = await encryption_service_instance.encrypt_with_user_key(
-                            compression_result.summary_content, user_vault_key_id
-                        )
-
-                        summary_cache_msg = MessageInCache(
-                            id=summary_message_id,
-                            chat_id=request_data.chat_id,
-                            role="system",
-                            category=COMPRESSION_SUMMARY_CATEGORY,
-                            sender_name=None,
-                            encrypted_content=encrypted_summary,
-                            created_at=summary_timestamp,
-                            status="sent",
-                        )
-
-                        # Replace the AI cache with: [summary_message] + [recent_messages]
-                        # First, build the new cache list
-                        new_cache_messages = [summary_cache_msg.model_dump_json()]
-
-                        # Re-encrypt and add the recent messages that were kept
-                        if compression_result.recent_messages:
-                            for recent_msg in compression_result.recent_messages:
-                                recent_content = recent_msg.get("content", "")
-                                encrypted_recent, _ = await encryption_service_instance.encrypt_with_user_key(
-                                    recent_content, user_vault_key_id
-                                )
-                                recent_cache_msg = MessageInCache(
-                                    id=f"recent_{_uuid.uuid4().hex[:8]}",
-                                    chat_id=request_data.chat_id,
-                                    role=recent_msg.get("role", "user"),
-                                    category=recent_msg.get("category"),
-                                    sender_name=recent_msg.get("sender_name"),
-                                    encrypted_content=encrypted_recent,
-                                    created_at=recent_msg.get("created_at", summary_timestamp),
-                                    status="sent",
-                                )
-                                new_cache_messages.append(recent_cache_msg.model_dump_json())
-
-                        # Overwrite the AI cache with the compressed history
-                        await cache_service_instance.set_ai_messages_history(
-                            user_id=request_data.user_id,
-                            chat_id=request_data.chat_id,
-                            encrypted_messages_json_list=new_cache_messages,
-                        )
-                        logger.info(
-                            f"[Task ID: {task_id}] AI cache updated: "
-                            f"{len(new_cache_messages)} messages (1 summary + "
-                            f"{len(new_cache_messages) - 1} recent)"
-                        )
-
-                        # Compression summaries are server-readable context for AI only.
-                        # Directus chat history is client-encrypted zero-knowledge storage,
-                        # so server-encrypted summaries must never be persisted there.
-
-                        # Update request_data.message_history with compressed version
-                        # so preprocessing and main processing use the compressed history
-                        compressed_history: list = []
-
-                        # Add compression summary as system message
-                        compressed_history.append(
-                            AIHistoryMessage(
-                                content=compression_result.summary_content,
-                                role="system",
-                                category=COMPRESSION_SUMMARY_CATEGORY,
-                                created_at=summary_timestamp,
-                            )
-                        )
-
-                        # Add recent messages kept in full
-                        if compression_result.recent_messages:
-                            for recent_msg in compression_result.recent_messages:
-                                compressed_history.append(
-                                    AIHistoryMessage(
-                                        content=recent_msg.get("content", ""),
-                                        role=recent_msg.get("role", "user"),
-                                        category=recent_msg.get("category"),
-                                        created_at=recent_msg.get("created_at", summary_timestamp),
-                                    )
-                                )
-
-                        request_data.message_history = compressed_history
-                        logger.info(
-                            f"[Task ID: {task_id}] message_history replaced: "
-                            f"{len(compressed_history)} messages "
-                            f"(was {len(message_dicts_for_compression)})"
-                        )
-
-                        # Publish compression_completed event to frontend
-                        if request_data.user_id_hash:
-                            compression_completed_payload = {
-                                "type": "chat_compression_completed",
-                                "event_for_client": "chat_compression_completed",
-                                "task_id": task_id,
-                                "chat_id": request_data.chat_id,
-                                "user_id_uuid": request_data.user_id,
-                                "user_id_hash": request_data.user_id_hash,
-                                "compressed_message_count": compression_result.compressed_message_count,
-                                "summary_token_estimate": compression_result.summary_token_estimate,
-                                "compressed_up_to_timestamp": compression_result.compressed_up_to_timestamp,
-                                "summary_message_id": summary_message_id,
-                                "summary_content": compression_result.summary_content,
-                            }
-                            await cache_service_instance.publish_event(
-                                compression_channel, compression_completed_payload
-                            )
-
-                    elif compression_result.error:
-                        logger.warning(
-                            f"[Task ID: {task_id}] Compression failed (non-fatal, proceeding "
-                            f"with full history): {compression_result.error}"
-                        )
-                        # Publish compression_completed with error so frontend can clear the indicator
-                        if request_data.user_id_hash:
-                            compression_error_payload = {
-                                "type": "chat_compression_completed",
-                                "event_for_client": "chat_compression_completed",
-                                "task_id": task_id,
-                                "chat_id": request_data.chat_id,
-                                "user_id_uuid": request_data.user_id,
-                                "user_id_hash": request_data.user_id_hash,
-                                "error": compression_result.error,
-                            }
-                            compression_channel = (
-                                f"ai_typing_indicator_events::{request_data.user_id_hash}"
-                            )
-                            await cache_service_instance.publish_event(
-                                compression_channel, compression_error_payload
-                            )
-        except Exception as e_compression:
-            logger.error(
-                f"[Task ID: {task_id}] Chat compression failed with exception (non-fatal, "
-                f"proceeding with full history): {e_compression}",
-                exc_info=True,
-            )
-            # Non-fatal: if compression fails, we proceed with the full history
-            # and rely on the existing truncation in main_processor.py
-
         # --- Step 1: Preprocessing ---
         # The synchronous wrapper (process_ai_skill_ask_task) will call self.update_state for PROGRESS.
         logger.info(f"[Task ID: {task_id}] Starting preprocessing step...")
@@ -1696,6 +1634,34 @@ async def _async_process_ai_skill_ask_task(
                 raise RuntimeError(f"Billing preflight failed: {billing_preflight_exc}")
         else:
             logger.info(f"[Task ID: {task_id}] Skipping billing preflight: preprocessing.can_proceed is False (reason: {getattr(preprocessing_result, 'rejection_reason', None)}).")
+
+        # Compress only after the exact answer model is known. Admin overrides still
+        # take precedence, and any compression/provider failure remains non-fatal.
+        if (
+            preprocessing_result
+            and preprocessing_result.can_proceed
+            and preprocessing_result.selected_main_llm_model_id
+            and cache_service_instance
+            and encryption_service_instance
+            and user_vault_key_id
+        ):
+            try:
+                compression_performed = await _compress_for_selected_model(
+                    task_id=task_id,
+                    request_data=request_data,
+                    selected_model_id=preprocessing_result.selected_main_llm_model_id,
+                    cache_service=cache_service_instance,
+                    encryption_service=encryption_service_instance,
+                    user_vault_key_id=user_vault_key_id,
+                    secrets_manager=secrets_manager,
+                )
+            except Exception as compression_error:
+                logger.error(
+                    "[Task ID: %s] Model-aware chat compression failed non-fatally: %s",
+                    task_id,
+                    compression_error,
+                    exc_info=True,
+                )
 
         # --- Handle Title and Mates Update (after preprocessing) ---
         # Note: We now handle title/mates updates for both successful and harmful content cases

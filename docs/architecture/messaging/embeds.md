@@ -106,6 +106,7 @@ sequenceDiagram
 
 ## Edge Cases
 
+- **Compressed source message:** the AI worker merges the current `embed_ref -> embed_id` index into a bounded Vault-encrypted artifact ledger before compression. Later turns can resolve the exact reference even after the raw source message leaves active AI context. The ledger contains identifiers only, follows the AI-cache TTL, is cleared on message/chat deletion, and never contains file bytes, extracted text, transcripts, pixels, or tool results.
 - **Skill cancellation:** individual skill cancel without stopping AI → `SkillCancelledException` in [skill_executor.py](../../backend/apps/ai/processing/skill_executor.py) → embed status `cancelled`
 - **Cache miss:** [embedResolver.ts](../../frontend/packages/ui/src/services/embedResolver.ts) fetches from Directus on miss — never terminal error
 - **Composite embeds:** `app_skill_use` contains `embed_ids` → child embeds loaded via `_load_and_cache_embeds_for_chats()` in [user_cache_tasks.py](../../backend/core/api/app/tasks/user_cache_tasks.py)

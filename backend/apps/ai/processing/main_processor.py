@@ -112,6 +112,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     task_tool_name_variants,
 )
 from backend.apps.ai.processing.model_usage_tracker import ModelUsageTracker
+from backend.apps.ai.processing.chat_compressor import model_history_token_budget
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     has_transcribed_web_audio_recording,
@@ -1187,7 +1188,6 @@ def _calendar_undo_available(skill_id: str) -> bool:
 
 
 DEFAULT_APP_INTERNAL_PORT = 8000
-APPROX_MAX_CONVERSATION_TOKENS = 120000
 AVG_CHARS_PER_TOKEN = 4
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
@@ -3747,12 +3747,23 @@ async def handle_main_processing(
 
     current_message_history: List[Dict[str, Any]] = [_llm_history_message(msg) for msg in request_data.message_history]
     
-    # Truncate message history to fit within the conversation token budget.
-    # This ensures the main LLM receives the most recent context within its context window,
-    # dropping oldest messages first when history exceeds the limit.
+    # Size the initial history for the selected answer model. Jev's independent
+    # bounded projection never participates in this calculation.
+    selected_history_budget = model_history_token_budget(
+        preprocessing_results.selected_main_llm_model_id,
+        config_manager,
+        system_prompt=full_system_prompt,
+        tools=available_tools_for_llm,
+    )
     current_message_history = truncate_message_history_to_token_budget(
         current_message_history,
-        max_tokens=APPROX_MAX_CONVERSATION_TOKENS,
+        max_tokens=selected_history_budget,
+    )
+    logger.info(
+        "%s Model-aware history budget for %s: %s tokens",
+        log_prefix,
+        preprocessing_results.selected_main_llm_model_id,
+        selected_history_budget,
     )
     
     # Track all tool calls for code block generation
@@ -4129,6 +4140,19 @@ async def handle_main_processing(
             try:
                 current_model_id = models_to_try[current_model_index]
                 model_fallback_attempts += 1
+                # Tool results and prompt additions grow between iterations, and a
+                # fallback model can have a different context window. Re-fit before
+                # every provider call while preserving the newest tool/user tail.
+                current_history_budget = model_history_token_budget(
+                    current_model_id,
+                    config_manager,
+                    system_prompt=iteration_system_prompt,
+                    tools=iteration_tools,
+                )
+                current_message_history = truncate_message_history_to_token_budget(
+                    current_message_history,
+                    max_tokens=current_history_budget,
+                )
                 current_output_token_limit = _orchestrated_ai_output_token_limit(
                     current_model_id,
                     request_data.orchestration_id,
