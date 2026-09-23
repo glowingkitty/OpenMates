@@ -60,6 +60,11 @@ import {
   saveAnonymousId,
 } from "./storage.js";
 import { loadServerConfig } from "./serverConfig.js";
+import { activateCliProjectFocus, registerCliProjectFileExecutor } from "./projectFileExecutor.js";
+import { registerRemoteCommandOriginClient, type DecryptedRemoteCommandEvent, type RemoteCommandReview, type RemoteCommandApprovalChoice } from "./remoteCommandClient.js";
+import type { ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
+import type { HostedProjectFileHead } from "../../ui/src/services/hostedProjectFileExecutor.js";
+export type { ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
 import {
   OpenMatesWsClient,
   WebSocketProtocolError,
@@ -739,7 +744,7 @@ export type UserTaskAssigneeType = "user" | "openmates" | "external_ai" | "unass
 export type UserTaskAssigneeIdentity = "openmates" | "codex";
 
 export type ProjectSourceType = "local_folder" | "local_git_repository" | "remote_folder" | "remote_git_repository";
-export type ProjectSourceCapability = "read" | "search" | "import" | "write_request";
+export type ProjectSourceCapability = "read" | "search" | "import" | "write_request" | "run_command";
 export type ProjectSourceStatus = "connected" | "offline" | "permission_required" | "revoked";
 
 export interface ProjectRecord {
@@ -788,12 +793,31 @@ export interface ProjectDetail {
   items: ProjectItemRecord[];
 }
 
+export interface ProjectSettingsRecord {
+  write_mode: "apply_and_show" | "always_ask" | null;
+  selection_required: boolean;
+  default_focus_id_hash: string | null;
+  encrypted_settings: string | null;
+  updated_at: number | null;
+}
+
+export interface ActiveProjectFocus {
+  active: true;
+  project_id: string;
+  focus_id: string;
+  team_id: string | null;
+  activated_at: number;
+}
+
 export interface ProjectRemoteAccessRequestInput {
   request_id: string;
   requesting_client_id: string;
-  operation: "list" | "search" | "read_text";
+  operation: "list" | "search" | "read_text" | "create_file" | "update_file";
   key_epoch: number;
   encrypted_envelope: string;
+  chat_id?: string;
+  operation_id?: string;
+  proposal_digest?: string;
 }
 
 export interface ProjectRemoteAccessRequestResult {
@@ -6360,6 +6384,11 @@ export class OpenMatesClient {
   async sendMessage(params: {
     message: string;
     chatId?: string;
+    /** Explicit user-selected Project; activates its focus after chat persistence. */
+    projectId?: string;
+    onProjectWriteApproval?: (request: ProjectWriteApprovalRequest) => boolean | Promise<boolean>;
+    onRemoteCommandReview?: (review: RemoteCommandReview) => RemoteCommandApprovalChoice | null | undefined | Promise<RemoteCommandApprovalChoice | null | undefined>;
+    onRemoteCommandEvent?: (event: DecryptedRemoteCommandEvent) => void | Promise<void>;
     /** Client-generated ID for a new chat, allowing cleanup after an uncertain send outcome. */
     newChatId?: string;
     slug?: string;
@@ -6447,6 +6476,9 @@ export class OpenMatesClient {
     if (params.newChatId && !CANONICAL_UUID_PATTERN.test(params.newChatId)) {
       throw new Error("newChatId must be a canonical UUID.");
     }
+    if (params.incognito && params.projectId) {
+      throw new Error("Project file execution requires a saved chat.");
+    }
     let chatId: string;
     if (params.newChatId) {
       chatId = params.newChatId;
@@ -6504,6 +6536,8 @@ export class OpenMatesClient {
     const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
     const { ws, ownerId } = await this.openWsClient({
       taskUpdateJobs: taskUpdateJobsEnabled,
+      projectFileJobs: !params.incognito,
+      remoteCommandJobs: !params.incognito,
     });
     if (!params.incognito && !ownerId) {
       ws.close();
@@ -6629,6 +6663,15 @@ export class OpenMatesClient {
     // ── Inference request ──
     // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
     const clientCapabilities = taskUpdateJobsEnabled ? ["task_update_jobs"] : [];
+    if (!params.incognito && chatKeyBytes) {
+      registerCliProjectFileExecutor({
+        client: this, ws, chatId, chatKey: chatKeyBytes,
+        requestApproval: params.onProjectWriteApproval,
+      });
+      clientCapabilities.push("project_file_jobs");
+      registerRemoteCommandOriginClient({ ws, client: this, chatId, onReview: params.onRemoteCommandReview, onEvent: params.onRemoteCommandEvent });
+      clientCapabilities.push("remote_command_jobs");
+    }
 
     const messagePayload: Record<string, unknown> = {
       chat_id: chatId,
@@ -6724,6 +6767,8 @@ export class OpenMatesClient {
       messagePayload.encrypted_embeds = encryptedEmbeds;
     }
 
+    let dispatchHandlersReady: () => void = () => {};
+    const handlersReady = new Promise<void>((resolve) => { dispatchHandlersReady = resolve; });
     let precollectedResponse = params.precollectResponse && params.incognito && shouldWaitForAi
       ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream, timeoutMs: params.responseTimeoutMs })
       : null;
@@ -6851,6 +6896,14 @@ export class OpenMatesClient {
         ws.close();
         throw new Error("Encrypted chat preflight acknowledgement omitted preflight_id.");
       }
+      if (params.projectId) {
+        try {
+          await activateCliProjectFocus(this, params.projectId, chatId, teamId);
+        } catch (error) {
+          ws.close();
+          throw error;
+        }
+      }
       Object.assign(messagePayload, {
         protocol_version: protocolVersion,
         preflight_id: ackPayload.preflight_id,
@@ -6859,11 +6912,15 @@ export class OpenMatesClient {
         terminalExpectedMessagesV = ackPayload.committed_messages_v;
       }
     }
-    if (params.precollectResponse && !params.incognito && shouldWaitForAi) {
+    if (!params.incognito && shouldWaitForAi) {
       precollectedResponse = ws.collectAiResponse(messageId, chatId, {
         onStream: params.onStream,
+        onSubChatEvent: async (event) => { await handlersReady; await handleSubChatEvent(event); },
+        onAppSettingsMemoriesRequest: async (event) => { await handlersReady; await handleAppSettingsMemoriesRequest(event); },
         timeoutMs: params.responseTimeoutMs,
         recoveryTurnId: savedTurnId,
+        projectWriteApprovalInteractive: Boolean(params.onProjectWriteApproval),
+        remoteCommandReviewInteractive: Boolean(params.onRemoteCommandReview),
       });
     }
     const confirmed = ws.waitForMessage(
@@ -7167,7 +7224,10 @@ export class OpenMatesClient {
       onStream: params.onStream,
       onSubChatEvent: handleSubChatEvent,
       onAppSettingsMemoriesRequest: handleAppSettingsMemoriesRequest,
+      projectWriteApprovalInteractive: Boolean(params.onProjectWriteApproval),
+      remoteCommandReviewInteractive: Boolean(params.onRemoteCommandReview),
     };
+    dispatchHandlersReady();
 
     if (!shouldWaitForAi) {
       ws.close();
@@ -9330,6 +9390,124 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  async getProjectSettings(projectId: string, options: TeamContextOptions = {}): Promise<ProjectSettingsRecord> {
+    this.requireSession();
+    const response = await this.http.get<{ settings: ProjectSettingsRecord }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/settings`, options),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.settings) throw this.projectRequestError("settings", response);
+    return response.data.settings;
+  }
+
+  async readEncryptedProjectFile(projectId: string, embedId: string, projectKey: Uint8Array, options: TeamContextOptions = {}): Promise<HostedProjectFileHead> {
+    this.requireSession();
+    const query = new URLSearchParams({ project_id: projectId });
+    const response = await this.http.get<{ embed: Record<string, unknown>; embed_keys: Array<Record<string, unknown>>; has_initial_history?: boolean }>(
+      this.appendTeamQuery(`/v1/embeds/${encodeURIComponent(embedId)}/encrypted?${query}`, options), this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.embed) throw this.projectRequestError("file read", response);
+    const { embed } = response.data;
+    const wrapper = response.data.embed_keys?.find((item) => item.key_type === "project" && typeof item.encrypted_embed_key === "string");
+    let key = wrapper ? await decryptBytesWithAesGcm(String(wrapper.encrypted_embed_key), projectKey) : null;
+    if (!key) {
+      // Older linked embeds may have only a chat/master wrapper. Resolve locally;
+      // the server still supplies only the current encrypted Project file head.
+      const cache = await this.ensureSynced();
+      key = await this.resolveEmbedKey(cache, this.getMasterKeyBytes(), embed, embedId, createHash("sha256").update(embedId).digest("hex"));
+    }
+    if (!key || typeof embed.encrypted_content !== "string") throw Object.assign(new Error("Project file key unavailable"), { code: "file_key_unavailable" });
+    const content = await decryptWithAesGcmCombined(embed.encrypted_content, key);
+    if (content === null) throw Object.assign(new Error("Project file decryption failed"), { code: "file_decryption_failed" });
+    const revision = Number(embed.version_number ?? 1);
+    if (!Number.isSafeInteger(revision) || revision < 1) throw new Error("Invalid Project file revision");
+    return { embedKey: key, content: parseEmbedContentObject(content), revision, hasInitialHistory: response.data.has_initial_history === true };
+  }
+
+  async getProjectFileRevisionReceipt(projectId: string, embedId: string, operationId: string, chatId: string, proposalDigest: string, options: TeamContextOptions = {}): Promise<Record<string, unknown> | null> {
+    this.requireSession();
+    const query = new URLSearchParams({ project_id: projectId, chat_id: chatId, proposal_digest: proposalDigest });
+    const response = await this.http.get<Record<string, unknown>>(
+      this.appendTeamQuery(`/v1/embeds/${encodeURIComponent(embedId)}/revision-receipts/${encodeURIComponent(operationId)}?${query}`, options), this.getCliRequestHeaders(),
+    );
+    if (response.status === 404) return null;
+    if (!response.ok) throw this.projectRequestError("file receipt lookup", response);
+    return response.data;
+  }
+
+  async updateProjectSettings(projectId: string, patch: {
+    write_mode?: "apply_and_show" | "always_ask";
+    default_focus_id?: string;
+    encrypted_settings?: string;
+    updated_at?: number;
+  }, options: TeamContextOptions = {}): Promise<ProjectSettingsRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ settings: ProjectSettingsRecord }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/settings`, options),
+      patch, this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.settings) throw this.projectRequestError("settings update", response);
+    return response.data.settings;
+  }
+
+  async activateProjectFocus(projectId: string, input: {
+    chat_id: string; focus_id: string; instruction: string;
+  }, options: TeamContextOptions = {}): Promise<ActiveProjectFocus> {
+    this.requireSession();
+    const response = await this.http.post<{ focus: ActiveProjectFocus }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/focus/activate`, options),
+      input, this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.focus) throw this.projectRequestError("focus activation", response);
+    return response.data.focus;
+  }
+
+  async getActiveProjectFocus(chatId: string): Promise<ActiveProjectFocus | null> {
+    this.requireSession();
+    const response = await this.http.get<{ focus: ActiveProjectFocus | null }>(
+      `/v1/projects/focus/current?chat_id=${encodeURIComponent(chatId)}`, this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("focus", response);
+    return response.data.focus;
+  }
+
+  async deactivateProjectFocus(chatId: string): Promise<void> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/projects/focus/deactivate", { chat_id: chatId }, this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("focus deactivation", response);
+  }
+
+  async stopRemoteCommand(input: { execution_id: string; chat_id: string; project_id: string }, options: TeamContextOptions = {}): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const focus = await this.getActiveProjectFocus(input.chat_id);
+    if (focus?.project_id !== input.project_id) throw new Error("The requested Project focus is not active for this chat.");
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false, remoteCommandJobs: true });
+    try {
+      ws.send("set_active_chat", { chat_id: input.chat_id, ...(options.teamId ? { team_id: options.teamId } : {}) });
+      const pending = ws.waitForMessage("remote_command_stop_ack", (value) => {
+        const payload = value as Record<string, unknown>;
+        return payload.execution_id === input.execution_id;
+      }, 20_000);
+      await ws.sendAsync("remote_command_stop", { protocol_version: 1, ...input });
+      return (await pending).payload as Record<string, unknown>;
+    } finally {
+      ws.close();
+    }
+  }
+
+  async approveProjectWrite(projectId: string, input: {
+    chat_id: string; operation_id: string; proposal_digest: string;
+  }, options: TeamContextOptions = {}): Promise<void> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/write-approvals`, options),
+      input, this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("write approval", response);
+  }
+
   async updateProject(projectId: string, patch: Record<string, unknown>, options: TeamContextOptions = {}): Promise<ProjectRecord> {
     this.requireSession();
     const response = await this.http.patch<{ project?: ProjectRecord }>(
@@ -9428,6 +9606,17 @@ export class OpenMatesClient {
     return response.data.source;
   }
 
+  async updateProjectSourceCapabilities(projectId: string, sourceId: string, capabilities: ProjectSourceCapability[], updatedAt: number, options: TeamContextOptions = {}): Promise<ProjectSourceRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ source?: ProjectSourceRecord }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}`, options),
+      { capabilities, updated_at: updatedAt },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.source) throw this.projectRequestError("source capability update", response);
+    return response.data.source;
+  }
+
   async deleteProjectSource(
     projectId: string,
     sourceId: string,
@@ -9479,6 +9668,26 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  async authorizeProjectRemoteWrite(
+    projectId: string,
+    sourceId: string,
+    requestId: string,
+    sourceSessionId: string,
+    options: TeamContextOptions = {},
+  ): Promise<{ authorized: boolean; operation_id: string; authorization_scope: string }> {
+    this.requireSession();
+    const path = `/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/requests/${encodeURIComponent(requestId)}/authorize-write`;
+    const response = await this.http.post<{ authorized: boolean; operation_id: string; authorization_scope: string }>(
+      this.appendTeamQuery(path, options),
+      { source_session_id: sourceSessionId },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || response.data.authorized !== true) {
+      throw this.projectRequestError("remote write authorization", response);
+    }
+    return response.data;
+  }
+
   async decryptProjectKey(record: ProjectRecord, options: TeamContextOptions = {}): Promise<Uint8Array> {
     const teamId = this.resolveTeamContext(options);
     if (!teamId) {
@@ -9518,7 +9727,7 @@ export class OpenMatesClient {
     ws: OpenMatesWsClient;
     ownerId: string;
   }> {
-    const opened = await this.openWsClient({ taskUpdateJobs: false });
+    const opened = await this.openWsClient({ taskUpdateJobs: false, remoteCommandJobs: true });
     if (!opened.ownerId) {
       opened.ws.close();
       throw new Error("Authenticated user identity unavailable for remote access");
@@ -11952,7 +12161,7 @@ export class OpenMatesClient {
 
   private makeWsClient(
     session: OpenMatesSession,
-    options: { taskUpdateJobs?: boolean } = {},
+    options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean } = {},
   ): OpenMatesWsClient {
     const ws = new OpenMatesWsClient({
       apiUrl: session.apiUrl,
@@ -11964,6 +12173,8 @@ export class OpenMatesClient {
       // Node.js ws library doesn't auto-send cookies on upgrade requests.
       cookies: session.cookies,
       taskUpdateJobs: options.taskUpdateJobs,
+      projectFileJobs: options.projectFileJobs,
+      remoteCommandJobs: options.remoteCommandJobs,
       onForceLogout: () => {
         purgeLocalPrivateData();
         this.session = null;
@@ -11985,7 +12196,7 @@ export class OpenMatesClient {
    * Combines refreshWsToken() + makeWsClient() + ws.open() into one call
    * so every WebSocket usage gets a fresh HMAC token automatically.
    */
-  private async openWsClient(options: { taskUpdateJobs?: boolean } = {}): Promise<{
+  private async openWsClient(options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean } = {}): Promise<{
     ws: OpenMatesWsClient;
     session: OpenMatesSession;
     ownerId: string | null;

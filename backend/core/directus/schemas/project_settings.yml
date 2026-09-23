@@ -1,7 +1,7 @@
 # backend/core/directus/schemas/project_settings.yml
 # Encrypted per-Project assistant action and remote write preferences.
-# Plaintext write_mode is intentionally sparse so backend/CLI can enforce the
-# approved two-mode contract without decrypting user-authored settings details.
+# Plaintext write_mode and focus binding hash are intentionally sparse so the
+# backend can enforce authorization without decrypting Project-private details.
 project_settings:
   type: collection
   fields:
@@ -30,11 +30,17 @@ project_settings:
 
     write_mode:
       type: string
-      note: "Project write policy: always_ask or auto_approve_safe_writes. Auto decide is intentionally not supported in V1."
+      nullable: true
+      note: "Explicit Project write policy: apply_and_show or always_ask. Null/missing never authorizes writes."
+
+    default_focus_id_hash:
+      type: string
+      nullable: true
+      note: "SHA256 of the opaque Project-owned default focus UUID. The focus name and instructions remain encrypted."
 
     encrypted_settings:
       type: text
-      note: "[Encrypted] Project permission settings, protected paths, and automated check overrides encrypted with the project key."
+      note: "[Encrypted] Project focus content, permission settings, protected paths, and automated check overrides encrypted with the project key."
 
     updated_at:
       type: integer

@@ -8,6 +8,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { text } from '@repo/ui';
   import CodeEmbedFullscreen from '../embeds/code/CodeEmbedFullscreen.svelte';
   import ProjectBrowserItem from './ProjectBrowserItem.svelte';
   import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
@@ -47,6 +48,7 @@
     normalizeRemoteFilePreview,
     type VirtualRemoteFullscreenDetail,
     type VirtualRemoteFilePreview,
+    type ProjectWriteMode,
   } from '../../services/projectRemoteSources';
 
   interface RemotePreviewEntry {
@@ -84,6 +86,7 @@
   let isLoading = $state(true);
   let isSaving = $state(false);
   let newProjectName = $state('');
+  let newProjectWriteMode = $state<ProjectWriteMode | null>(null);
   let newFolderName = $state('');
   let uploadInput = $state<HTMLInputElement>();
   let hasLoadError = $state(false);
@@ -272,10 +275,10 @@
 
   async function handleCreateProject(): Promise<void> {
     const name = newProjectName.trim();
-    if (!name || isSaving) return;
+    if (!name || !newProjectWriteMode || isSaving) return;
     isSaving = true;
     try {
-      const project = await createProject(name);
+      const project = await createProject(name, newProjectWriteMode);
       projects = [project, ...projects];
       selectedProject = project;
       currentFolder = null;
@@ -284,6 +287,7 @@
       items = [];
       sources = [];
       newProjectName = '';
+      newProjectWriteMode = null;
       setProjectUrlState(project.project_id);
       broadcastProjectsChanged();
       broadcastProjectSelected(project);
@@ -615,10 +619,25 @@
       placeholder="New project name"
       aria-label="New project name"
     />
-    <button data-testid="project-create-button" type="submit" disabled={isSaving || !newProjectName.trim()}>
+    {@render writePolicyChoice()}
+    <button data-testid="project-create-button" type="submit" disabled={isSaving || !newProjectName.trim() || !newProjectWriteMode}>
       Create project
     </button>
   </form>
+{/snippet}
+
+{#snippet writePolicyChoice()}
+  <fieldset class="write-policy-choice" data-testid="project-write-policy-choice">
+    <legend>{$text('settings.projects.write_policy_prompt')}</legend>
+    <label>
+      <input data-testid="project-write-policy-apply-and-show" type="radio" name="project-write-policy" value="apply_and_show" bind:group={newProjectWriteMode} />
+      <span><strong>{$text('settings.projects.write_mode_apply_and_show')}</strong><small>{$text('settings.projects.write_mode_apply_and_show_description')}</small></span>
+    </label>
+    <label>
+      <input data-testid="project-write-policy-always-ask" type="radio" name="project-write-policy" value="always_ask" bind:group={newProjectWriteMode} />
+      <span><strong>{$text('settings.projects.write_mode_always_ask')}</strong><small>{$text('settings.projects.write_mode_always_ask_description')}</small></span>
+    </label>
+  </fieldset>
 {/snippet}
 
 {#snippet projectList(showEmpty = true)}
@@ -894,21 +913,24 @@
         onStartInspiration={handleStartProjectInspiration}
       >
         <svelte:fragment slot="composer">
-          <WorkspacePromptComposer
-            surface="projects"
-            bind:value={newProjectName}
-            placeholder="Name a new project"
-            submitLabel="Create project"
-            submittingLabel="Creating..."
-            disabled={isSaving}
-            submitting={isSaving}
-            testId="project-input-composer"
-            inputTestId="project-input-textarea"
-            submitTestId="project-input-submit"
-            micTestId="project-input-mic"
-            onSubmit={handleCreateProject}
-            onMicClick={showProjectVoiceInputUnavailable}
-          />
+          <div class="project-create-controls">
+            {@render writePolicyChoice()}
+            <WorkspacePromptComposer
+              surface="projects"
+              bind:value={newProjectName}
+              placeholder="Name a new project"
+              submitLabel="Create project"
+              submittingLabel="Creating..."
+              disabled={isSaving || !newProjectWriteMode}
+              submitting={isSaving}
+              testId="project-input-composer"
+              inputTestId="project-input-textarea"
+              submitTestId="project-input-submit"
+              micTestId="project-input-mic"
+              onSubmit={handleCreateProject}
+              onMicClick={showProjectVoiceInputUnavailable}
+            />
+          </div>
         </svelte:fragment>
       </WorkspaceHomeShell>
     {/if}
@@ -946,6 +968,39 @@
     background: var(--color-grey-20);
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     color: var(--color-font-primary);
+  }
+
+  /* The Project policy selector makes this composer taller than the shared
+     prompt-only composer. Dock it in layout so it cannot cover Project cards. */
+  .projects-page :global(.workspace-home-shell[data-surface='projects']) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .projects-page :global(.workspace-home-shell[data-surface='projects'] .workspace-scroll-layer) {
+    flex: 1 1 auto;
+    height: auto;
+  }
+
+  .projects-page :global(.workspace-home-shell[data-surface='projects'] .workspace-composer-slot) {
+    position: relative;
+    inset: auto;
+    flex: 0 0 auto;
+    transform: none;
+  }
+
+  .project-create-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    align-items: center;
+    gap: var(--spacing-4);
+    width: min(100%, 1080px);
+  }
+
+  .project-create-controls .write-policy-choice {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .projects-sidebar-panel {
@@ -1011,6 +1066,49 @@
   .create-row.compact {
     margin: 10px 15px 20px;
     flex-direction: column;
+  }
+
+  .write-policy-choice {
+    display: grid;
+    gap: var(--spacing-3);
+    min-width: 0;
+    margin: 0;
+    padding: var(--spacing-4);
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-4);
+    background: var(--color-grey-10);
+  }
+
+  .write-policy-choice legend {
+    padding: 0 var(--spacing-2);
+    color: var(--color-font-secondary);
+    font-size: var(--processing-details-font-size);
+  }
+
+  .write-policy-choice label {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+    cursor: pointer;
+  }
+
+  .write-policy-choice label input {
+    flex: 0 0 auto;
+    width: 1rem;
+    min-width: 1rem;
+    padding: 0;
+    border: 0;
+    margin-top: var(--spacing-1);
+    accent-color: var(--color-button-primary);
+  }
+
+  .write-policy-choice label span {
+    display: grid;
+    gap: var(--spacing-1);
+  }
+
+  .write-policy-choice small {
+    color: var(--color-font-secondary);
   }
 
   input {
@@ -1396,6 +1494,11 @@
   }
 
   @media (max-width: 800px) {
+    .project-create-controls,
+    .project-create-controls .write-policy-choice {
+      grid-template-columns: 1fr;
+    }
+
     .section-title,
     .project-detail-topbar {
       flex-direction: column;

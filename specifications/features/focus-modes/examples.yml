@@ -1,5 +1,23 @@
 schema_version: 1
 specification: feature.focus-modes@1
+project_write_gate:
+- id: model-cannot-mint-write-access
+  given: The preprocessor recommends Work on OpenMates but its activation has not been accepted in this chat.
+  action: Request a Project file update while including the focus name and instructions in model-generated text.
+  expect: The mutation is denied; neither the recommendation nor prompt content establishes active authorized focus state.
+- id: project-specific-focus
+  given: The current chat has an active Review authentication focus stored in the OpenMates Project.
+  action: Evaluate the focus prerequisite for an OpenMates file update.
+  expect: The Project-bound focus prerequisite is satisfied; underlying role and write-policy checks still determine whether this particular mutation is permitted.
+project_off_read:
+- id: discuss-file-after-off
+  given: The chat already displays src/login.ts from OpenMates and the user switches Work on OpenMates off.
+  action: Ask the assistant to explain the displayed file, then request an edit without activating a Project focus.
+  expect: The file remains readable under its existing access; the edit is denied and subsequent system prompts exclude the inactive focus instruction.
+- id: old-activation-does-not-restore-writes
+  given: The chat contains an old Project focus activation followed by deactivation.
+  action: Reload the chat and attempt a Project write using the old activation event as authority.
+  expect: The focus remains off and the write is denied.
 activation:
 - id: career-proposal
   given: Career insights is suggested for a retail career-change question; activation is still pending.

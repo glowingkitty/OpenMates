@@ -95,6 +95,12 @@ def server_client_capabilities(manager: Any, user_id: str, device_fingerprint_ha
     supports_task_update_jobs = getattr(manager, "supports_task_update_jobs", None)
     if callable(supports_task_update_jobs) and supports_task_update_jobs(user_id, device_fingerprint_hash):
         capabilities.append("task_update_jobs")
+    supports_project_file_jobs = getattr(manager, "supports_project_file_jobs", None)
+    if callable(supports_project_file_jobs) and supports_project_file_jobs(user_id, device_fingerprint_hash):
+        capabilities.append("project_file_jobs")
+    supports_remote_command_jobs = getattr(manager, "supports_remote_command_jobs", None)
+    if callable(supports_remote_command_jobs) and supports_remote_command_jobs(user_id, device_fingerprint_hash):
+        capabilities.append("remote_command_jobs")
     return capabilities
 
 
@@ -215,6 +221,25 @@ async def handle_chat_turn_preflight(
             user_id,
             device_fingerprint_hash,
         )
+        cache_service = getattr(getattr(websocket, "app", None), "state", None)
+        cache_service = getattr(cache_service, "cache_service", None)
+        if cache_service is not None:
+            from backend.core.api.app.services.project_write_authorization_service import (
+                ProjectWriteAuthorizationService,
+            )
+
+            project_focus = await ProjectWriteAuthorizationService(
+                directus_service, cache_service
+            ).get_active_focus(user_id=user_id, chat_id=str(payload["chat_id"]))
+            inference_request["active_project_focus"] = project_focus
+            inference_request["current_project"] = (
+                {
+                    key: project_focus.get(key)
+                    for key in ("project_id", "project_id_hash", "team_id", "team_id_hash")
+                }
+                if project_focus
+                else None
+            )
         transaction_data = {
             "protocol_version": payload["protocol_version"],
             "hashed_user_id": user_id_hash,

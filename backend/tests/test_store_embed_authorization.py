@@ -62,8 +62,13 @@ class FakeEmbedMethods:
 
 
 class FakeDirectusService:
-    def __init__(self, existing_embed=None):
+    def __init__(self, existing_embed=None, *, project_linked=False):
         self.embed = FakeEmbedMethods(existing_embed)
+        self.project_linked = project_linked
+
+    async def get_items(self, collection, params, **kwargs):
+        assert collection == "project_items"
+        return [{"id": "project-item-1"}] if self.project_linked else []
 
 
 class FakeCacheService:
@@ -103,6 +108,7 @@ def store_payload(**overrides):
     return payload
 
 
+# contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit
 @pytest.mark.asyncio
 async def test_store_embed_rejects_existing_embed_update_from_non_owner():
     manager = FakeConnectionManager()
@@ -125,6 +131,7 @@ async def test_store_embed_rejects_existing_embed_update_from_non_owner():
     assert manager.personal_messages[0][0]["payload"]["message"] == "Not authorized to store embed"
 
 
+# contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit
 @pytest.mark.asyncio
 async def test_store_embed_rejects_new_embed_create_with_forged_owner_hash():
     manager = FakeConnectionManager()
@@ -147,6 +154,7 @@ async def test_store_embed_rejects_new_embed_create_with_forged_owner_hash():
     assert manager.personal_messages[0][0]["payload"]["message"] == "Not authorized to store embed"
 
 
+# contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit
 @pytest.mark.asyncio
 async def test_store_embed_allows_existing_embed_update_from_owner():
     manager = FakeConnectionManager()
@@ -167,3 +175,49 @@ async def test_store_embed_allows_existing_embed_update_from_owner():
     assert directus.embed.updated[0][1]["hashed_user_id"] == OWNER_HASH
     assert manager.personal_messages == []
     assert len(manager.broadcasts) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit,projects.files.concurrent-chat-safety
+@pytest.mark.asyncio
+async def test_store_embed_rejects_legacy_update_for_project_linked_embed():
+    manager = FakeConnectionManager()
+    directus = FakeDirectusService(
+        existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH},
+        project_linked=True,
+    )
+
+    handle_store_embed = get_handle_store_embed()
+    await handle_store_embed(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeCacheService(),
+        directus_service=directus,
+        user_id=OWNER_ID,
+        device_fingerprint_hash="device-1",
+        payload=store_payload(),
+    )
+
+    assert directus.embed.updated == []
+    assert directus.embed.created == []
+    assert manager.personal_messages[0][0]["payload"]["message"] == "Not authorized to store embed"
+
+
+# contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit,projects.files.concurrent-chat-safety
+@pytest.mark.asyncio
+async def test_store_embed_rejects_reserved_hosted_create_before_project_link_exists():
+    manager = FakeConnectionManager()
+    directus = FakeDirectusService(existing_embed=None)
+
+    handle_store_embed = get_handle_store_embed()
+    await handle_store_embed(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeCacheService(),
+        directus_service=directus,
+        user_id=OWNER_ID,
+        device_fingerprint_hash="device-1",
+        payload=store_payload(embed_id="11111111-1111-5111-8111-111111111111"),
+    )
+
+    assert directus.embed.updated == []
+    assert directus.embed.created == []

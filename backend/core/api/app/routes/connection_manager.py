@@ -86,10 +86,24 @@ class ConnectionManager:
         # Structure: {(user_id, device_fingerprint_hash): bool} tracks clients
         # that implement client-encrypted task update job claim/persist.
         self.task_update_job_capability: Dict[Tuple[str, str], bool] = {}
+        # Clients that can execute Project file operations for their currently
+        # assigned chat. Capability alone never grants Project authority.
+        self.project_file_job_capability: Dict[Tuple[str, str], bool] = {}
+        # Clients that implement reviewed, client-encrypted remote commands.
+        self.remote_command_job_capability: Dict[Tuple[str, str], bool] = {}
         # Structure: {(user_id, device_fingerprint_hash): asyncio.Task} for disconnect grace period tasks
         self.grace_period_tasks: Dict[Tuple[str, str], asyncio.Task] = {}
 
-    async def connect(self, websocket: WebSocket, user_id: str, device_fingerprint_hash: str, *, supports_task_update_jobs: bool = False):
+    async def connect(
+        self,
+        websocket: WebSocket,
+        user_id: str,
+        device_fingerprint_hash: str,
+        *,
+        supports_task_update_jobs: bool = False,
+        supports_project_file_jobs: bool = False,
+        supports_remote_command_jobs: bool = False,
+    ):
         await websocket.accept()
         connection_key = (user_id, device_fingerprint_hash)
         new_ws_id = id(websocket)
@@ -122,6 +136,8 @@ class ConnectionManager:
             logger.debug(f"WebSocket re-established: User {user_id}, Device {device_fingerprint_hash}. Active chat: {self.active_chat_per_connection[connection_key]}.")
         self.connection_foreground_state[connection_key] = True
         self.task_update_job_capability[connection_key] = supports_task_update_jobs
+        self.project_file_job_capability[connection_key] = supports_project_file_jobs
+        self.remote_command_job_capability[connection_key] = supports_remote_command_jobs
 
     def disconnect(self, websocket: WebSocket, reason: str = "Unknown"):
         ws_id = id(websocket)
@@ -204,6 +220,8 @@ class ConnectionManager:
                     logger.debug(f"Finalized: Cleared active chat tracking for {user_id}/{device_fingerprint_hash} (ws_id: {ws_id_to_finalize}) after grace period.")
                 self.connection_foreground_state.pop(connection_key, None)
                 self.task_update_job_capability.pop(connection_key, None)
+                self.project_file_job_capability.pop(connection_key, None)
+                self.remote_command_job_capability.pop(connection_key, None)
             else:
                 # This case should ideally be caught by the check at the beginning of this method.
                 logger.warning(f"Finalize disconnect for {user_id}/{device_fingerprint_hash}: ws_id {ws_id_to_finalize} was expected, but found ws_id {id(user_connections[device_fingerprint_hash])}. Session might have been rapidly replaced. Reverse lookup for {ws_id_to_finalize} cleaned if it was still pointing here.")
@@ -221,6 +239,8 @@ class ConnectionManager:
                     logger.debug(f"Finalized: Cleared lingering active chat tracking for {user_id}/{device_fingerprint_hash} as no active connection exists.")
                 self.connection_foreground_state.pop(connection_key, None)
                 self.task_update_job_capability.pop(connection_key, None)
+                self.project_file_job_capability.pop(connection_key, None)
+                self.remote_command_job_capability.pop(connection_key, None)
 
     async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str) -> bool:
         websocket = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
@@ -410,6 +430,44 @@ class ConnectionManager:
         if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
             return False
         return self.task_update_job_capability.get(connection_key, False)
+
+    def supports_project_file_jobs(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        """True for a foreground connection that advertises Project execution."""
+        connection_key = (user_id, device_fingerprint_hash)
+        if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            return False
+        return self.project_file_job_capability.get(connection_key, False)
+
+    def can_execute_project_file_job(
+        self,
+        user_id: str,
+        device_fingerprint_hash: str,
+        chat_id: str,
+    ) -> bool:
+        """Require explicit capability and current chat assignment."""
+        return (
+            self.supports_project_file_jobs(user_id, device_fingerprint_hash)
+            and self.get_active_chat(user_id, device_fingerprint_hash) == chat_id
+        )
+
+    def supports_remote_command_jobs(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        """True for a foreground client implementing the remote-command protocol."""
+        connection_key = (user_id, device_fingerprint_hash)
+        if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            return False
+        return self.remote_command_job_capability.get(connection_key, False)
+
+    def can_execute_remote_command_job(
+        self,
+        user_id: str,
+        device_fingerprint_hash: str,
+        chat_id: str,
+    ) -> bool:
+        """Origin review/completion requires capability and current chat assignment."""
+        return (
+            self.supports_remote_command_jobs(user_id, device_fingerprint_hash)
+            and self.get_active_chat(user_id, device_fingerprint_hash) == chat_id
+        )
 
     def is_user_completion_capable_active(self, user_id: str) -> bool:
         """Checks if a user has any foreground connection that can finish AI storage."""

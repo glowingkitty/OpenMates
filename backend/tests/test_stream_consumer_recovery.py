@@ -240,6 +240,40 @@ def test_focus_continuation_frames_are_marked() -> None:
     assert payload["is_focus_mode_continuation"] is True
 
 
+def test_async_skill_continuation_frames_keep_operation_and_original_turn() -> None:
+    request_data = _ask_request()
+    request_data.is_async_skill_continuation = True
+    request_data.original_user_message_id = request_data.message_id
+    request_data.async_skill_task_id = "operation-1"
+
+    payload = stream_consumer._create_redis_payload(
+        "11111111-1111-4111-8111-111111111111",
+        request_data,
+        "continued response",
+        1,
+    )
+
+    assert payload["is_async_skill_continuation"] is True
+    assert payload["original_user_message_id"] == request_data.message_id
+    assert payload["async_skill_task_id"] == "operation-1"
+
+
+def test_interim_async_skill_response_does_not_seal_recovery() -> None:
+    source = inspect.getsource(stream_consumer._consume_main_processing_stream)
+    assert "not request_data.awaiting_async_skill_continuation" in source
+
+    request_data = _ask_request()
+    request_data.awaiting_async_skill_continuation = True
+    payload = stream_consumer._create_redis_payload(
+        "11111111-1111-4111-8111-111111111111",
+        request_data,
+        "waiting for executor",
+        1,
+        is_final=True,
+    )
+    assert payload["awaiting_async_skill_continuation"] is True
+
+
 def test_continuation_stream_payloads_use_continuation_message_id() -> None:
     request_data = _ask_request()
     request_data.continuation_message_id = "99999999-9999-4999-8999-999999999999"

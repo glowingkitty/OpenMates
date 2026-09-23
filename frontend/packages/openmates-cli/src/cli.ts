@@ -47,6 +47,8 @@ import {
   type WorkflowRunContentRetention,
   type WorkflowSummary,
   type ProjectRecord,
+  type ProjectSourceCapability,
+  type ProjectWriteApprovalRequest,
   type ProjectSourceRecord,
   type UserTaskActionInput,
   type UserTaskReorderInput,
@@ -69,9 +71,9 @@ import { stdin, stdout } from "node:process";
 import { readActivityHistory } from "./taskActivityHistory.js";
 import { TaskDeliveryPending } from "./taskDelivery.js";
 import { activityDeliveryStore } from "./taskActivityDelivery.js";
-import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, readdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { basename, dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { arch, platform } from "node:os";
 import { parse as parseYaml } from "yaml";
@@ -161,6 +163,24 @@ import {
 } from "./remoteAccess.js";
 import { buildProtonWriteWarning, runProtonBridgeConnector } from "./protonBridgeConnector.js";
 import { ProjectRequesterError, requestProjectRemoteOperation } from "./projectRequester.js";
+import {
+  disableRemoteCommandPreset,
+  enableRemoteCommandPreset,
+  listRemoteCommandPresetGrants,
+  renderRemoteCommandReview,
+  type DecryptedRemoteCommandEvent,
+  type RemoteCommandApprovalChoice,
+  type RemoteCommandReview,
+} from "./remoteCommandClient.js";
+import { loadRemoteCommandPermissions, matchEnabledRemoteCommandPreset, remoteCommandPresetDigest } from "./remoteCommandPermissions.js";
+import { inspectRemoteCommandCapability } from "./remoteCommandRuntime.js";
+import {
+  disableRemoteCommandResourceGrant,
+  enableRemoteCommandCredentialGrant,
+  enableRemoteCommandNetworkGrant,
+  enableRemoteCommandWritableGrant,
+  listRemoteCommandResourceGrants,
+} from "./remoteCommandResourceGrants.js";
 import { getCliPackageVersion, buildSelfUpdatePlan, checkSelfUpdateStatus, persistSelfUpdateChannel, pinSelfUpdatePlan, runSelfUpdate } from "./selfUpdate.js";
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import {
@@ -3197,6 +3217,9 @@ async function handleProjects(
   if (subcommand === "files" && (flags.json === true || !process.stdin.isTTY) && !hasExplicitProjectContext(flags)) {
     throw new CliContractError("context_confirmation_required", "Live file requests require --personal or --team <team>.");
   }
+  if (subcommand === "create" && (flags.json === true || !process.stdin.isTTY) && flags["write-policy"] === undefined) {
+    throw new CliContractError("write_policy_required", "Project creation requires --write-policy apply_and_show|always_ask in non-interactive mode.");
+  }
 
   const context = await resolveProjectContext(client, flags, subcommand === "files");
   const masterKey = client.getMasterKeyBytes();
@@ -3233,10 +3256,12 @@ async function handleProjects(
 
   if (subcommand === "create") {
     const name = requiredStringFlag(rest[0] ?? flags.name, "project name");
+    const writeMode = await resolveProjectWriteMode(flags, `Choose how OpenMates may change files in ${JSON.stringify(name)}:`);
     const projectKey = randomBytes(32);
     const wrapping = await client.projectWrappingKey(context);
     const projectId = randomUUID();
     const timestamp = nowSeconds();
+    const defaultFocus = buildProjectDefaultFocus(name);
     const slugMetadata = await buildEncryptedObjectSlugMetadata({
       value: typeof flags.slug === "string" ? flags.slug : name,
       encryptionKey: projectKey,
@@ -3255,6 +3280,9 @@ async function handleProjects(
       created_at: timestamp,
       updated_at: timestamp,
       last_opened_at: timestamp,
+      write_mode: writeMode,
+      default_focus_id: defaultFocus.focus_id,
+      encrypted_settings: await encryptWithAesGcmCombined(JSON.stringify({ default_focus: defaultFocus }), projectKey),
       key_wrappers: wrapping.teamId ? [{
         key_type: "team",
         hashed_team_id: createHash("sha256").update(wrapping.teamId).digest("hex"),
@@ -3267,6 +3295,155 @@ async function handleProjects(
     const result = await client.createProject(payload, context);
     const record = { ...payload, ...((result.project ?? {}) as Record<string, unknown>) } as ProjectRecord;
     printProjectOutput(await decryptProject(client, record, masterKey, context), flags);
+    return;
+  }
+
+  if (subcommand === "settings") {
+    const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
+    if (rest[1] === "command" && rest[2] === "stop") {
+      const executionId = requiredStringFlag(rest[3], "execution ID");
+      const chatTarget = requiredStringFlag(flags.chat, "--chat <chat-id>");
+      const chatId = await client.resolveFullChatId(chatTarget, context);
+      if (!chatId) throw new CliContractError("chat_not_found", `Chat '${chatTarget}' not found.`);
+      const result = await client.stopRemoteCommand({
+        execution_id: executionId,
+        chat_id: chatId,
+        project_id: project.projectId,
+      }, context);
+      if (flags.json === true) printJson(result);
+      else console.log(`Command stop requested: ${executionId} (${String(result.state ?? result.status ?? "acknowledged")})`);
+      return;
+    }
+    if (rest[1] === "command-presets") {
+      const action = rest[2] ?? "list";
+      const candidates = listRemoteAccessSources().filter((source) =>
+        source.projectId === project.projectId
+        && (typeof flags.source !== "string" || source.sourceId === flags.source)
+        && (typeof flags.path !== "string" || source.rootPath === flags.path));
+      if (candidates.length !== 1) {
+        throw new CliContractError("source_selection_required", "Select one attached local source with --source <source-id> or --path <folder>.");
+      }
+      const source = candidates[0];
+      const permissions = loadRemoteCommandPermissions(source.rootPath);
+      if (!permissions) throw new CliContractError("command_presets_missing", "This source has no .openmates/permissions.yml file.");
+      if (action === "list") {
+        const active = listRemoteCommandPresetGrants().filter((grant) => grant.project_id === project.projectId);
+        const presets = permissions.presets.map((preset) => {
+          const definitionDigest = remoteCommandPresetDigest(permissions, preset.id);
+          return {
+            id: preset.id,
+            label: preset.label,
+            enabled: active.some((grant) => grant.preset_id === preset.id && grant.definition_digest === definitionDigest),
+            definition_digest: definitionDigest,
+          };
+        });
+        if (flags.json === true) printJson({ project_id: project.projectId, source_id: source.sourceId, presets });
+        else presets.forEach((preset) => console.log(`${preset.enabled ? "enabled" : "disabled"}  ${preset.id}  ${preset.label}`));
+        return;
+      }
+      const presetId = requiredStringFlag(rest[3] ?? flags.preset, "preset ID");
+      if (action === "enable") {
+        const grant = enableRemoteCommandPreset(project.projectId, source.rootPath, presetId);
+        if (flags.json === true) printJson({ project_id: project.projectId, source_id: source.sourceId, grant });
+        else console.log(`Command preset enabled: ${presetId}`);
+        return;
+      }
+      if (action === "disable") {
+        disableRemoteCommandPreset(project.projectId, presetId);
+        if (flags.json === true) printJson({ project_id: project.projectId, source_id: source.sourceId, preset_id: presetId, enabled: false });
+        else console.log(`Command preset disabled: ${presetId}`);
+        return;
+      }
+      throw new CliContractError("invalid_command_preset_action", "Use command-presets list|enable|disable.");
+    }
+    if (rest[1] === "command-resources") {
+      const action = rest[2] ?? "list";
+      const candidates = listRemoteAccessSources().filter((source) =>
+        source.projectId === project.projectId
+        && (typeof flags.source !== "string" || source.sourceId === flags.source)
+        && (typeof flags.path !== "string" || source.rootPath === flags.path));
+      if (candidates.length !== 1) throw new CliContractError("source_selection_required", "Select one attached local source with --source <source-id> or --path <folder>.");
+      const source = candidates[0];
+      const permissions = loadRemoteCommandPermissions(source.rootPath);
+      if (!permissions) throw new CliContractError("command_resources_missing", "This source has no .openmates/permissions.yml file.");
+      if (action === "list") {
+        const enabled = listRemoteCommandResourceGrants(project.projectId, source.sourceId);
+        const resources = {
+          writable: permissions.resource_profiles.writable.map((item) => ({ ...item, enabled: enabled.some((grant) => grant.kind === "writable" && grant.profile_id === item.id) })),
+          network: permissions.resource_profiles.network.map((item) => ({ ...item, enabled: enabled.some((grant) => grant.kind === "network" && grant.profile_id === item.id) })),
+          credentials: permissions.resource_profiles.credentials.map((item) => ({ ...item, enabled: enabled.some((grant) => grant.kind === "credential" && grant.profile_id === item.id) })),
+        };
+        if (flags.json === true) printJson({ project_id: project.projectId, source_id: source.sourceId, resources });
+        else for (const [kind, definitions] of Object.entries(resources)) for (const item of definitions) console.log(`${item.enabled ? "enabled" : "disabled"}  ${kind}  ${item.id}`);
+        return;
+      }
+      const kind = requiredStringFlag(rest[3], "resource kind") as "writable" | "network" | "credential";
+      if (!["writable", "network", "credential"].includes(kind)) throw new CliContractError("invalid_command_resource_kind", "Resource kind must be writable, network, or credential.");
+      const profileId = requiredStringFlag(rest[4] ?? flags.profile, "profile ID");
+      if (action === "disable") {
+        disableRemoteCommandResourceGrant(project.projectId, source.sourceId, kind, profileId);
+      } else if (action === "enable" && kind === "writable") {
+        enableRemoteCommandWritableGrant({ projectId: project.projectId, sourceId: source.sourceId, projectRoot: source.rootPath,
+          permissions, profileId, hostPath: requiredStringFlag(flags["host-path"], "--host-path <absolute-folder>") });
+      } else if (action === "enable" && kind === "network") {
+        enableRemoteCommandNetworkGrant({ projectId: project.projectId, sourceId: source.sourceId, permissions, profileId });
+      } else if (action === "enable" && kind === "credential") {
+        enableRemoteCommandCredentialGrant({ projectId: project.projectId, sourceId: source.sourceId, permissions, profileId,
+          environmentSources: parseCredentialEnvironmentMappings(requiredStringFlag(flags.environment, "--environment TARGET=LOCAL_ENV,...")) });
+      } else {
+        throw new CliContractError("invalid_command_resource_action", "Use command-resources list|enable|disable.");
+      }
+      if (flags.json === true) printJson({ project_id: project.projectId, source_id: source.sourceId, kind, profile_id: profileId, enabled: action === "enable" });
+      else console.log(`Command ${kind} profile ${action === "enable" ? "enabled" : "disabled"}: ${profileId}`);
+      return;
+    }
+    if (rest[1] === "focus") {
+      const action = rest[2];
+      if (action !== "activate" && action !== "deactivate") {
+        throw new CliContractError(
+          "project_focus_action_required",
+          "Use 'projects settings <project> focus activate|deactivate --chat <chat-id>'.",
+        );
+      }
+      const chatTarget = requiredStringFlag(flags.chat, "--chat <chat-id>");
+      const chatId = await client.resolveFullChatId(chatTarget, context);
+      if (!chatId) throw new CliContractError("chat_not_found", `Chat '${chatTarget}' not found.`);
+      if (action === "deactivate") {
+        const activeFocus = await client.getActiveProjectFocus(chatId);
+        if (activeFocus && activeFocus.project_id !== project.projectId) {
+          throw new CliContractError(
+            "project_focus_conflict",
+            `Chat '${chatTarget}' has a different Project focus active.`,
+          );
+        }
+        await client.deactivateProjectFocus(chatId);
+        if (flags.json === true) printJson({ active: false, project_id: project.projectId, chat_id: chatId });
+        else console.log(`Project focus deactivated for chat ${chatId}.`);
+        return;
+      }
+      const defaultFocus = await decryptProjectDefaultFocus(client, project, context);
+      const activeFocus = await client.activateProjectFocus(project.projectId, {
+        chat_id: chatId,
+        focus_id: defaultFocus.focus_id,
+        instruction: defaultFocus.instructions,
+      }, context);
+      if (flags.json === true) printJson({ focus: activeFocus });
+      else console.log(`Project focus activated for ${project.name} in chat ${chatId}.`);
+      return;
+    }
+    if (flags["write-policy"] === undefined) {
+      const settings = await client.getProjectSettings(project.projectId, context);
+      if (flags.json === true) printJson({ project_id: project.projectId, settings });
+      else console.log(`Write policy: ${settings.write_mode ?? "selection required"}`);
+      return;
+    }
+    const writeMode = await resolveProjectWriteMode(flags, "Choose the Project write policy:");
+    const settings = await client.updateProjectSettings(project.projectId, {
+      write_mode: writeMode,
+      updated_at: nowSeconds(),
+    }, context);
+    if (flags.json === true) printJson({ project_id: project.projectId, settings });
+    else console.log(`Write policy saved: ${settings.write_mode}`);
     return;
   }
 
@@ -4489,7 +4666,7 @@ function parseResponseTimeoutMs(flags: Record<string, string | boolean>): number
 }
 
 function assertRemoteAccessPublicFlags(flags: Record<string, string | boolean>): void {
-  const internalFlags = ["source-id", "project", "type", "local-only", "encrypted-display-name", "encrypted-metadata"];
+  const internalFlags = ["source-id", "type", "local-only", "encrypted-display-name", "encrypted-metadata"];
   const supplied = internalFlags.filter((name) => flags[name] !== undefined);
   if (supplied.length > 0) {
     throw new Error(`Unsupported remote-access option${supplied.length === 1 ? "" : "s"}: ${supplied.map((name) => `--${name}`).join(", ")}`);
@@ -4525,6 +4702,8 @@ async function resolveRemoteAccessBindings(
   flags: Record<string, string | boolean>,
   context: { teamId?: string; personal?: boolean },
 ): Promise<LiveRemoteAccessBinding[]> {
+  const sourceCapabilities: ProjectSourceCapability[] = ["read", "search", "import", "write_request"];
+  if (inspectRemoteCommandCapability().supported) sourceCapabilities.push("run_command");
   const stored = listRemoteAccessSources();
   const resolved: Array<{ rootPath: string; project: DecryptedProject; sourceId: string }> = [];
   const unresolved: string[] = [];
@@ -4542,24 +4721,40 @@ async function resolveRemoteAccessBindings(
 
   if (unresolved.length > 0) {
     if (flags.json === true || !process.stdin.isTTY) {
-      throw new Error(`Remote access needs interactive Project review for: ${unresolved.join(", ")}`);
+      if (flags["write-policy"] === undefined) {
+        throw new CliContractError("write_policy_required", "Adding a Project folder requires --write-policy apply_and_show|always_ask in non-interactive mode.");
+      }
+      if (typeof flags.project !== "string") {
+        throw new CliContractError("project_selection_required", "Adding a Project folder requires --project <slug|id|new> in non-interactive mode.");
+      }
     }
     const available = projects.filter((project) => !project.archived);
     for (const rootPath of unresolved) {
-      console.log(`Choose the OpenMates Project for ${rootPath}:`);
-      available.forEach((project, index) => console.log(`  ${index + 1}. ${JSON.stringify(project.name)} (${project.projectId})`));
-      console.log("  new. Create a new Project");
-      const answer = (await promptLine("Project number, 'new', or Enter to cancel: ")).trim();
+      let answer = typeof flags.project === "string" ? flags.project.trim() : "";
+      if (!answer) {
+        console.log(`Choose the OpenMates Project for ${rootPath}:`);
+        available.forEach((project, index) => console.log(`  ${index + 1}. ${JSON.stringify(project.name)} (${project.projectId})`));
+        console.log("  new. Create a new Project");
+        answer = (await promptLine("Project number, 'new', or Enter to cancel: ")).trim();
+      }
+      const writeMode = await resolveProjectWriteMode(flags, `Choose how OpenMates may change files in ${JSON.stringify(rootPath)}:`);
       let project: DecryptedProject;
       if (answer.toLowerCase() === "new") {
-        project = await createEncryptedRemoteAccessProject(client, masterKey, basename(rootPath), context);
+        project = await createEncryptedRemoteAccessProject(client, basename(rootPath), rootPath, writeMode, context);
         available.push(project);
       } else {
         const index = Number(answer) - 1;
-        if (!/^[1-9][0-9]*$/.test(answer) || !Number.isSafeInteger(index) || !available[index]) {
+        const selected = /^[1-9][0-9]*$/.test(answer) && Number.isSafeInteger(index)
+          ? available[index]
+          : await tryResolveProject(client, masterKey, answer, flags, context);
+        if (!selected) {
           throw new Error("Remote access Project selection cancelled or invalid; no Project was created.");
         }
-        project = available[index];
+        project = selected;
+        await client.updateProjectSettings(project.projectId, {
+          write_mode: writeMode,
+          updated_at: nowSeconds(),
+        }, context);
       }
       resolved.push({ rootPath, project, sourceId: randomUUID() });
     }
@@ -4587,11 +4782,17 @@ async function resolveRemoteAccessBindings(
           JSON.stringify({ root: source.rootPath, binding_root: source.rootPath }),
           item.project.projectKey,
         ),
-        capabilities: ["read", "search", "import"],
+        capabilities: sourceCapabilities,
         status: "offline",
         created_at: timestamp,
         updated_at: timestamp,
       }, context);
+    } else {
+      const current = [...(remoteSource.capabilities ?? [])].sort();
+      const desired = [...sourceCapabilities].sort();
+      if (JSON.stringify(current) !== JSON.stringify(desired)) {
+        await client.updateProjectSourceCapabilities(item.project.projectId, source.sourceId, sourceCapabilities, Math.floor(Date.now() / 1000), context);
+      }
     }
     bindings.push({ source, projectKey: item.project.projectKey, keyEpoch: 1, ...(context.teamId ? { teamId: context.teamId } : {}) });
   }
@@ -4600,17 +4801,24 @@ async function resolveRemoteAccessBindings(
 
 async function createEncryptedRemoteAccessProject(
   client: OpenMatesClient,
-  masterKey: Uint8Array,
   name: string,
+  rootPath: string,
+  writeMode: ProjectWriteMode,
   context: { teamId?: string; personal?: boolean },
 ): Promise<DecryptedProject> {
   const projectKey = randomBytes(32);
   const projectId = randomUUID();
   const timestamp = Math.floor(Date.now() / 1000);
   const wrapping = await client.projectWrappingKey(context);
+  const importedInstructions = readRootProjectInstructions(rootPath);
+  const defaultFocus = buildProjectDefaultFocus(
+    name,
+    importedInstructions?.instructions,
+    importedInstructions?.source,
+  );
   const payload: ProjectRecord = {
     project_id: projectId,
-    encrypted_project_key: wrapping.teamId ? null : await encryptBytesWithAesGcm(projectKey, masterKey),
+    encrypted_project_key: wrapping.teamId ? null : await encryptBytesWithAesGcm(projectKey, wrapping.key),
     encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
     encrypted_description: await encryptWithAesGcmCombined("", projectKey),
     encrypted_icon: await encryptWithAesGcmCombined("folder", projectKey),
@@ -4620,6 +4828,9 @@ async function createEncryptedRemoteAccessProject(
     created_at: timestamp,
     updated_at: timestamp,
     last_opened_at: timestamp,
+    write_mode: writeMode,
+    default_focus_id: defaultFocus.focus_id,
+    encrypted_settings: await encryptWithAesGcmCombined(JSON.stringify({ default_focus: defaultFocus }), projectKey),
     key_wrappers: wrapping.teamId ? [{
       key_type: "team",
       hashed_team_id: createHash("sha256").update(wrapping.teamId).digest("hex"),
@@ -4643,6 +4854,102 @@ async function createEncryptedRemoteAccessProject(
     projectKey,
     encrypted: payload,
   };
+}
+
+type ProjectWriteMode = "apply_and_show" | "always_ask";
+
+interface ProjectDefaultFocusEnvelope {
+  focus_id: string;
+  name: string;
+  instructions: string;
+  source: string;
+}
+
+async function decryptProjectDefaultFocus(
+  client: OpenMatesClient,
+  project: DecryptedProject,
+  context: { teamId?: string | null; personal?: boolean },
+): Promise<ProjectDefaultFocusEnvelope> {
+  const settings = await client.getProjectSettings(project.projectId, context);
+  if (!settings.encrypted_settings) {
+    throw new CliContractError("project_focus_missing", "This Project does not have an encrypted default focus.");
+  }
+  const plaintext = await decryptWithAesGcmCombined(settings.encrypted_settings, project.projectKey);
+  if (!plaintext) throw new CliContractError("project_focus_invalid", "The Project default focus could not be decrypted.");
+  try {
+    const parsed = JSON.parse(plaintext) as { default_focus?: Partial<ProjectDefaultFocusEnvelope> };
+    const focus = parsed.default_focus;
+    if (
+      !focus
+      || typeof focus.focus_id !== "string"
+      || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(focus.focus_id)
+      || typeof focus.name !== "string"
+      || typeof focus.instructions !== "string"
+      || typeof focus.source !== "string"
+    ) {
+      throw new Error("invalid default focus");
+    }
+    return focus as ProjectDefaultFocusEnvelope;
+  } catch {
+    throw new CliContractError("project_focus_invalid", "The Project encrypted settings do not contain a valid default focus.");
+  }
+}
+
+export function buildProjectDefaultFocus(
+  projectName: string,
+  instructions?: string,
+  source = "generated",
+): ProjectDefaultFocusEnvelope {
+  const name = projectName.trim() || "Untitled project";
+  return {
+    focus_id: randomUUID(),
+    name: `Work on ${name}`,
+    instructions: instructions?.trim() || `Help with work in ${name}. Follow the user's instructions and the Project's connected source guidance.`,
+    source,
+  };
+}
+
+export function readRootProjectInstructions(rootPath: string): { instructions: string; source: string } | null {
+  const entries = readdirSync(rootPath, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name);
+  for (const canonicalName of ["agents.md", "claude.md"]) {
+    const matchingNames = entries
+      .filter((entry) => entry.toLocaleLowerCase("en-US") === canonicalName)
+      .sort((left, right) => {
+        const exactName = canonicalName === "agents.md" ? "AGENTS.md" : "CLAUDE.md";
+        if (left === exactName) return -1;
+        if (right === exactName) return 1;
+        return left.localeCompare(right);
+      });
+    const source = matchingNames[0];
+    if (source) return { instructions: readFileSync(join(rootPath, source), "utf8"), source };
+  }
+  return null;
+}
+
+async function resolveProjectWriteMode(
+  flags: Record<string, string | boolean>,
+  prompt: string,
+): Promise<ProjectWriteMode> {
+  const supplied = flags["write-policy"];
+  if (typeof supplied === "string") {
+    if (supplied === "apply_and_show" || supplied === "always_ask") return supplied;
+    throw new CliContractError("invalid_write_policy", "--write-policy must be apply_and_show or always_ask.");
+  }
+  if (supplied === true) {
+    throw new CliContractError("invalid_write_policy", "--write-policy requires apply_and_show or always_ask.");
+  }
+  if (flags.json === true || !process.stdin.isTTY) {
+    throw new CliContractError("write_policy_required", "This operation requires --write-policy apply_and_show|always_ask in non-interactive mode.");
+  }
+  console.log(prompt);
+  console.log("  1. Apply and show changes (recommended)");
+  console.log("  2. Always ask before writes");
+  const answer = (await promptLine("Write policy (1 or 2): ")).trim().toLowerCase();
+  if (answer === "1" || answer === "apply_and_show") return "apply_and_show";
+  if (answer === "2" || answer === "always_ask") return "always_ask";
+  throw new CliContractError("write_policy_selection_cancelled", "A write policy must be selected; no Project setting was changed.");
 }
 
 function parseJsonFlag<T>(value: string, flagName: string): T {
@@ -4783,6 +5090,101 @@ function parseUnixSecondsFlag(value: string, flagName: string): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`Invalid ${flagName}; expected Unix seconds.`);
   return parsed > 10_000_000_000 ? Math.floor(parsed / 1000) : Math.floor(parsed);
+}
+
+function parseCredentialEnvironmentMappings(value: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const entry of value.split(",")) {
+    const [target, local, ...extra] = entry.split("=").map((item) => item.trim());
+    if (!target || !local || extra.length > 0 || result[target]) throw new CliContractError("invalid_environment_mapping", "--environment must be a comma-separated TARGET=LOCAL_ENV mapping.");
+    result[target] = local;
+  }
+  return result;
+}
+
+function escapeTerminalControls(value: string): string {
+  // Security boundary: intentionally find raw terminal controls before rendering untrusted text.
+  // eslint-disable-next-line no-control-regex
+  return value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, (character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return `\\u${codePoint.toString(16).padStart(4, "0")}`;
+  });
+}
+
+export function renderProjectWriteApprovalRequest(request: ProjectWriteApprovalRequest): string {
+  const mutation = request.mutation;
+  const bodyLabel = mutation.operation === "create_file" ? "Content" : "Patch";
+  const body = mutation.operation === "create_file" ? mutation.content ?? "" : mutation.patch ?? "";
+  return [
+    "Project file write requested",
+    `Operation: ${mutation.operation}`,
+    `Path: ${escapeTerminalControls(mutation.path)}`,
+    ...(mutation.expected_base ? [`Expected base: ${mutation.expected_base}`] : []),
+    `${bodyLabel}:`,
+    escapeTerminalControls(body),
+  ].join("\n");
+}
+
+export function renderRemoteCommandEvent(event: DecryptedRemoteCommandEvent): string {
+  const identity = `${event.execution_id} #${event.sequence}`;
+  if (event.event_kind === "output") {
+    const raw = typeof event.payload.text === "string" ? event.payload.text : "";
+    const limit = 24_000;
+    const text = escapeTerminalControls(raw.slice(0, limit));
+    const omitted = raw.length > limit ? `\n[${raw.length - limit} characters omitted from this display]` : "";
+    return `Unreviewed command output (inert) ${identity}:\n${text}${omitted}`;
+  }
+  if (event.event_kind === "output_truncated") {
+    return `Command output was truncated upstream (${identity}); displayed output does not cover the full process transcript.`;
+  }
+  if (event.event_kind === "terminal") {
+    const safeError = typeof event.payload.error_message === "string" && event.payload.error_message
+      ? `: ${escapeTerminalControls(event.payload.error_message.slice(0, 2_000))}`
+      : "";
+    return `Command ${event.status} (${identity})${safeError}`;
+  }
+  return `Command ${event.status} (${identity})`;
+}
+
+const EXPLICIT_PROJECT_MENTION = /@project:([A-Za-z0-9](?:[A-Za-z0-9_-]|\.(?=[A-Za-z0-9]))*)/gi;
+
+export function extractExplicitProjectMentions(message: string): string[] {
+  const matches = Array.from(message.matchAll(EXPLICIT_PROJECT_MENTION), (match) => match[1]);
+  const unique = new Map<string, string>();
+  for (const target of matches) unique.set(target.toLocaleLowerCase("en-US"), target);
+  return [...unique.values()];
+}
+
+async function resolveExplicitChatProject(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  message: string,
+  flags: Record<string, string | boolean>,
+  context: { teamId?: string | null; personal?: boolean },
+): Promise<{ message: string; projectId?: string }> {
+  const mentions = extractExplicitProjectMentions(message);
+  if (mentions.length > 1) {
+    throw new CliContractError("project_focus_conflict", "A chat turn can explicitly activate only one Project focus.");
+  }
+  if (flags.project === true) throw new CliContractError("project_selection_required", "--project requires a Project slug or ID.");
+  const flagTarget = typeof flags.project === "string" ? flags.project.trim() : null;
+  const mentionTarget = mentions[0] ?? null;
+  if (!flagTarget && !mentionTarget) return { message };
+  const flagProject = flagTarget
+    ? await requiredResolvedProject(client, masterKey, flagTarget, flags, context)
+    : null;
+  const mentionProject = mentionTarget
+    ? await requiredResolvedProject(client, masterKey, mentionTarget, flags, context)
+    : null;
+  if (flagProject && mentionProject && flagProject.projectId !== mentionProject.projectId) {
+    throw new CliContractError("project_focus_conflict", "--project and @project:… must identify the same Project.");
+  }
+  const project = flagProject ?? mentionProject;
+  if (!project) return { message };
+  return {
+    message: message.replace(EXPLICIT_PROJECT_MENTION, `Project ${JSON.stringify(project.name)}`),
+    projectId: project.projectId,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -5042,11 +5444,23 @@ async function handleChats(
   }
 
   if (subcommand === "new") {
-    const message = rest.join(" ").trim();
+    let message = rest.join(" ").trim();
     if (!message)
       throw new Error(
         "Missing message text. Usage: openmates chats new <message>",
       );
+    const hasProjectSelection = flags.project !== undefined || extractExplicitProjectMentions(message).length > 0;
+    if (apiKey && hasProjectSelection) {
+      throw new Error("Project focus through --api-key is not supported; use an authenticated CLI session.");
+    }
+    if (!client.hasSession() && hasProjectSelection) {
+      throw new Error("Project focus requires an authenticated CLI session.");
+    }
+    const projectSelection = client.hasSession()
+      ? await resolveExplicitChatProject(client, client.getMasterKeyBytes(), message, flags, teamContext)
+      : { message, projectId: undefined };
+    message = projectSelection.message;
+    const projectId = projectSelection.projectId;
     const result = apiKey
       ? await sendApiKeyChatNew(client, apiKey, message, flags)
       : await sendMessageStreaming(
@@ -5054,6 +5468,7 @@ async function handleChats(
           {
             message,
             chatId: undefined,
+            projectId,
             slug: typeof flags.slug === "string" ? flags.slug : undefined,
             incognito: false,
             json: flags.json === true,
@@ -5148,11 +5563,18 @@ async function handleChats(
       );
     }
 
+    if (apiKey && (flags.project !== undefined || extractExplicitProjectMentions(message).length > 0)) {
+      throw new Error("Project focus through --api-key is not supported; use an authenticated CLI session.");
+    }
+    const projectSelection = await resolveExplicitChatProject(client, client.getMasterKeyBytes(), message, flags, teamContext);
+    message = projectSelection.message;
+    const projectId = projectSelection.projectId;
     const result = await sendMessageStreaming(
       client,
       {
         message,
         chatId,
+        projectId,
         slug: chatId ? undefined : typeof flags.slug === "string" ? flags.slug : undefined,
         incognito: flags.incognito === true,
         json: flags.json === true,
@@ -11090,6 +11512,7 @@ async function sendMessageStreaming(
   params: {
     message: string;
     chatId?: string;
+    projectId?: string;
     slug?: string;
     teamId?: string | null;
     personal?: boolean;
@@ -11288,6 +11711,53 @@ async function sendMessageStreaming(
     } finally {
       rl.close();
     }
+  };
+
+  const onProjectWriteApproval = process.stdin.isTTY
+    ? async (request: ProjectWriteApprovalRequest): Promise<boolean> => {
+        clearTyping();
+        process.stderr.write(`\n${renderProjectWriteApprovalRequest(request)}\n`);
+        const rl = createInterface({ input: process.stdin, output: process.stderr });
+        try {
+          const answer = await rl.question("Apply this exact Project file change? [y/N] ");
+          return answer.trim().toLowerCase() === "y" || answer.trim().toLowerCase() === "yes";
+        } finally {
+          rl.close();
+        }
+      }
+    : undefined;
+
+  const onRemoteCommandReview = async (review: RemoteCommandReview): Promise<RemoteCommandApprovalChoice | null | undefined> => {
+    clearTyping();
+    process.stderr.write(`\n${renderRemoteCommandReview(review)}\n`);
+    const source = listRemoteAccessSources().find((item) => item.projectId === review.project_id && item.sourceId === review.source_id);
+    const permissions = source ? loadRemoteCommandPermissions(source.rootPath) : null;
+    const preset = permissions ? matchEnabledRemoteCommandPreset({
+      config: permissions,
+      projectId: review.project_id,
+      policy: review.command,
+      activeGrants: listRemoteCommandPresetGrants(),
+    }) : null;
+    if (preset && review.approval_requirement !== "one_run") {
+      process.stderr.write(`Approved by enabled command preset ${preset.presetId}.\n`);
+      return { kind: "preset", preset_id: preset.presetId, definition_digest: preset.definitionDigest };
+    }
+    if (!process.stdin.isTTY) return undefined;
+        const rl = createInterface({ input: process.stdin, output: process.stderr });
+        try {
+          const answer = await rl.question("Run this exact command once? [y/N] ");
+          return answer.trim().toLowerCase() === "y" || answer.trim().toLowerCase() === "yes"
+            ? { kind: "one_run" }
+            : null;
+        } finally {
+          rl.close();
+        }
+  };
+
+  const onRemoteCommandEvent = async (event: DecryptedRemoteCommandEvent): Promise<void> => {
+    if (params.json) return;
+    clearTyping();
+    process.stderr.write(`${renderRemoteCommandEvent(event)}\n`);
   };
 
   // ── Prepared embeds array (encrypted after real chat/message IDs exist) ────
@@ -11579,6 +12049,10 @@ async function sendMessageStreaming(
   const result = await client.sendMessage({
       message: finalMessage,
       chatId: params.chatId,
+      projectId: params.projectId,
+      onProjectWriteApproval,
+      onRemoteCommandReview,
+      onRemoteCommandEvent,
       slug: params.slug,
       teamId: params.teamId,
     personal: params.personal,
@@ -13710,12 +14184,14 @@ Options:
 
 function printRemoteAccessHelp(): void {
   console.log(`Remote access command:
-  openmates remote-access [--path <folder>]... [--task-cache <folder>] [--json]
+  openmates remote-access [--path <folder>]... [--project <slug|id|new>] [--write-policy apply_and_show|always_ask] [--task-cache <folder>] [--json]
 
 Behavior:
   Discovers repository Projects below the current working directory by default.
   Repeated --path values replace default discovery. For an unlinked folder, select
-  an existing Project or explicitly choose 'new' to create one. The command remains connected in the foreground;
+  an existing Project or explicitly choose 'new' to create one, then choose its
+  write policy. Non-interactive setup requires --project and --write-policy.
+  The command remains connected in the foreground;
   keep the terminal open or use zellij, tmux, or screen.
 
 Security:
@@ -13898,8 +14374,8 @@ function printChatsHelp(): void {
   openmates chats retry <chat-id> [--dry-run] [--yes] [--json]
   openmates chats open [<n|example-id|slug>] [--json]
   openmates chats search <query> [--json]
-  openmates chats new <message> [--slug <slug>] [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection] [--no-task-update-jobs]
-  openmates chats send [--chat <id>] [--slug <slug>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection] [--no-task-update-jobs]
+  openmates chats new <message> [--slug <slug>] [--project <slug|id>] [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection] [--no-task-update-jobs]
+  openmates chats send [--chat <id>] [--slug <slug>] [--project <slug|id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection] [--no-task-update-jobs]
   openmates chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]
   openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>' [--json] [--accept-task-proposals]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
@@ -14163,7 +14639,13 @@ function printProjectsHelp(): void {
   openmates projects list [--include-archived] [--personal|--team <team>] [--json]
   openmates projects show <project> [--personal|--team <team>] [--json]
   openmates projects open <project> [--personal|--team <team>] [--json]
-  openmates projects create <name> [--description <text>] [--icon <name>] [--color <token>] [--pinned] [--personal|--team <team>] [--json]
+  openmates projects create <name> [--write-policy apply_and_show|always_ask] [--description <text>] [--icon <name>] [--color <token>] [--pinned] [--personal|--team <team>] [--json]
+  openmates projects settings <project> [--write-policy apply_and_show|always_ask] [--personal|--team <team>] [--json]
+  openmates projects settings <project> focus activate|deactivate --chat <chat-id> [--personal|--team <team>] [--json]
+  openmates projects settings <project> command-presets list|enable|disable [<preset-id>] [--source <source-id>|--path <folder>] [--json]
+  openmates projects settings <project> command-resources list [--source <source-id>|--path <folder>] [--json]
+  openmates projects settings <project> command-resources enable|disable writable|network|credential <profile-id> [--host-path <absolute-folder>] [--environment TARGET=LOCAL_ENV,...] [--source <source-id>|--path <folder>] [--json]
+  openmates projects settings <project> command stop <execution-id> --chat <chat-id> [--json]
   openmates projects update <project> [--name <name>] [--description <text>] [--icon <name>] [--color <token>] [--pin|--unpin] [--personal|--team <team>] [--json]
   openmates projects archive <project> [--personal|--team <team>] [--json]
   openmates projects unarchive <project> [--personal|--team <team>] [--json]
@@ -14183,6 +14665,9 @@ function printProjectsHelp(): void {
 
 Notes:
   Project metadata is encrypted by clients. History and restore operate on opaque encrypted snapshots.
+  Focus activation decrypts the Project-owned default instructions locally and applies them only to the named saved chat.
+  Command presets remain disabled until explicitly enabled; grants are stored in private CLI state outside the Project folder.
+  Resource profiles also require explicit local activation. Credential values are read only from the selected local environment variables at execution time.
   Stored Project commands use the persisted Personal/Team context unless an explicit flag is supplied.
   Non-interactive and JSON live file requests require an explicit context before source discovery.
   File operations are read-only, bounded, encrypted between CLIs, and never fall back to an AI model.

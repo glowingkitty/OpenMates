@@ -35,7 +35,7 @@ async def handle_cancel_ai_task(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("cancel_ai_task", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -80,6 +80,20 @@ async def handle_cancel_ai_task(
                         logger.debug(f"{log_prefix} active_ai_task marker not found for chat {chat_id} (may already be cleared)")
                 except Exception as cache_err:
                     logger.warning(f"{log_prefix} Failed to clear active_ai_task marker: {cache_err}")
+                try:
+                    from backend.apps.ai.tasks.async_skill_continuation import (
+                        ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+                        async_skill_latest_user_turn_key,
+                    )
+                    if not cache_service:
+                        cache_service = CacheService()
+                    await cache_service.set(
+                        async_skill_latest_user_turn_key(user_id, chat_id),
+                        f"cancelled:{task_id_to_cancel}",
+                        ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+                    )
+                except Exception as cache_err:
+                    logger.warning(f"{log_prefix} Failed to fence async continuations: {cache_err}")
             else:
                 logger.warning(f"{log_prefix} chat_id not provided - cannot clear active_ai_task marker. Typing indicator may persist until task processes revocation.")
 

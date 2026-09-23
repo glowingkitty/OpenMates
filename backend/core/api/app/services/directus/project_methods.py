@@ -6,6 +6,7 @@
 import hashlib
 import logging
 import re
+import uuid
 from typing import Any, Dict, List, Optional
 
 from backend.shared.python_utils.encrypted_slug_metadata import (
@@ -39,7 +40,8 @@ SOURCE_FIELDS = (
     "created_at,updated_at,last_indexed_at"
 )
 PROJECT_SETTINGS_FIELDS = (
-    "id,hashed_project_id,hashed_user_id,hashed_team_id,updated_by_user_hash,write_mode,encrypted_settings,updated_at"
+    "id,hashed_project_id,hashed_user_id,hashed_team_id,updated_by_user_hash,write_mode,default_focus_id_hash,"
+    "encrypted_settings,updated_at"
 )
 PROJECT_KEY_WRAPPER_FIELDS = (
     "id,hashed_project_id,hashed_user_id,key_type,hashed_chat_id,hashed_plan_id,"
@@ -370,6 +372,37 @@ class ProjectMethods:
             return False
         return bool(await self.directus_service.delete_item("project_sources", source["id"]))
 
+    async def update_source_capabilities(
+        self,
+        project_id: str,
+        user_id: str,
+        source_id: str,
+        *,
+        capabilities: List[str],
+        updated_at: int,
+        team_id: str | None = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Refresh only trusted source capabilities without replacing ciphertext or identity."""
+        allowed = {"read", "search", "import", "write_request", "run_command"}
+        normalized = list(dict.fromkeys(capabilities))
+        if not normalized or len(normalized) != len(capabilities) or not set(normalized).issubset(allowed):
+            return None
+        source = await self.get_source(project_id, user_id, source_id, team_id=team_id)
+        if not source or source.get("status") == "revoked":
+            return None
+        success = await self.directus_service.update_item(
+            "project_sources",
+            source["id"],
+            {"capabilities": normalized, "updated_at": updated_at},
+        )
+        if not success:
+            return None
+        return {
+            **source,
+            "capabilities": normalized,
+            "updated_at": updated_at,
+        }
+
     async def mark_team_member_sources_offline(
         self,
         team_id: str,
@@ -445,17 +478,41 @@ class ProjectMethods:
         payload: Dict[str, Any],
         team_id: str | None = None,
     ) -> Optional[Dict[str, Any]]:
+        existing = await self.get_project_settings(project_id, user_id, team_id=team_id)
+        if "write_mode" in payload and payload["write_mode"] not in {"apply_and_show", "always_ask"}:
+            logger.error("Rejected unsupported Project write mode")
+            return None
         record = {
             "hashed_project_id": hash_id(project_id),
             **_owner_record(user_id, team_id),
             "updated_by_user_hash": hash_id(user_id),
-            "write_mode": payload["write_mode"],
-            "encrypted_settings": payload.get("encrypted_settings"),
             "updated_at": payload["updated_at"],
         }
-        existing = await self.get_project_settings(project_id, user_id, team_id=team_id)
+        if "write_mode" in payload:
+            record["write_mode"] = payload["write_mode"]
+        elif existing:
+            record["write_mode"] = existing.get("write_mode")
+        if "default_focus_id" in payload:
+            canonical_focus_id = str(uuid.UUID(str(payload["default_focus_id"])))
+            record["default_focus_id_hash"] = hash_id(canonical_focus_id)
+        elif "default_focus_id_hash" in payload:
+            record["default_focus_id_hash"] = payload["default_focus_id_hash"]
+        elif existing and existing.get("default_focus_id_hash"):
+            record["default_focus_id_hash"] = existing["default_focus_id_hash"]
+        if "encrypted_settings" in payload:
+            record["encrypted_settings"] = payload["encrypted_settings"]
+        elif existing:
+            record["encrypted_settings"] = existing.get("encrypted_settings")
         if existing:
             return await self.directus_service.update_item("project_settings", existing["id"], record)
+
+        if (
+            record.get("write_mode") not in {"apply_and_show", "always_ask"}
+            or not _is_sha256_hex(record.get("default_focus_id_hash"))
+            or not record.get("encrypted_settings")
+        ):
+            logger.error("Rejected incomplete initial Project settings")
+            return None
 
         success, data = await self.directus_service.create_item("project_settings", record)
         if not success:

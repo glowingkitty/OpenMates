@@ -52,6 +52,19 @@ def _validate_client_encrypted_embed_content(embed_id: str, payload: Dict[str, A
             "Vault ciphertext is only allowed in inference/runtime cache."
         )
 
+    # UUIDv5 ids are reserved for deterministic hosted Project-file identities.
+    # Those rows must be created and changed only by the Directus transaction
+    # extension, which writes the head, history, link, wrappers, and receipt as
+    # one commit. Direct Python CRUD would reintroduce a split-write bypass.
+    from backend.core.api.app.services.embed_version_transaction_service import (
+        is_hosted_project_embed_id,
+    )
+
+    if is_hosted_project_embed_id(embed_id):
+        raise ValueError(
+            f"Embed {embed_id} is a hosted Project file and requires atomic revision commit"
+        )
+
 # Fields for embed operations
 EMBED_ALL_FIELDS = (
     "id,"

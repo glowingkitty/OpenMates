@@ -54,9 +54,10 @@ class FakeEmbedMethods:
 
 
 class FakeDirectusService:
-    def __init__(self, existing_embed=None):
+    def __init__(self, existing_embed=None, *, project_linked=False):
         self.embed = FakeEmbedMethods(existing_embed)
         self.rows = []
+        self.project_linked = project_linked
 
     async def read_items(self, collection, params):
         assert collection == "embed_diffs"
@@ -71,6 +72,10 @@ class FakeDirectusService:
             and row["version_number"] == version_number
             and row["hashed_user_id"] == hashed_user_id
         ]
+
+    async def get_items(self, collection, params, **kwargs):
+        assert collection == "project_items"
+        return [{"id": "project-item-1"}] if self.project_linked else []
 
     async def create_item(self, collection, payload):
         assert collection == "embed_diffs"
@@ -110,6 +115,7 @@ def diff_payload(**overrides):
     return payload
 
 
+# contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit
 @pytest.mark.asyncio
 async def test_store_embed_diff_allows_owner_encrypted_row_and_derives_owner_hash():
     manager = FakeConnectionManager()
@@ -136,6 +142,7 @@ async def test_store_embed_diff_allows_owner_encrypted_row_and_derives_owner_has
     assert len(manager.broadcasts) == 1
 
 
+# contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit
 @pytest.mark.asyncio
 async def test_store_embed_diff_confirms_request_after_persisting_row():
     manager = FakeConnectionManager()
@@ -172,6 +179,7 @@ async def test_store_embed_diff_confirms_request_after_persisting_row():
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit
 @pytest.mark.asyncio
 async def test_store_embed_diff_rejects_shared_recipient_write():
     manager = FakeConnectionManager()
@@ -195,6 +203,7 @@ async def test_store_embed_diff_rejects_shared_recipient_write():
     assert manager.personal_messages[0][0]["payload"]["message"] == "Not authorized to store embed diff"
 
 
+# contract-test: supporting surface=rest_api assertions=projects.files.no-server-decryption-authority
 @pytest.mark.asyncio
 async def test_store_embed_diff_rejects_unencrypted_or_empty_row():
     manager = FakeConnectionManager()
@@ -218,6 +227,7 @@ async def test_store_embed_diff_rejects_unencrypted_or_empty_row():
     assert manager.personal_messages[0][0]["payload"]["message"] == "Embed diff row must be encrypted"
 
 
+# contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit
 @pytest.mark.asyncio
 async def test_store_embed_diff_upserts_existing_version_row_ciphertext():
     manager = FakeConnectionManager()
@@ -252,3 +262,28 @@ async def test_store_embed_diff_upserts_existing_version_row_ciphertext():
     assert directus.rows[0]["encrypted_patch"] is None
     assert manager.personal_messages == []
     assert len(manager.broadcasts) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit,projects.files.concurrent-chat-safety
+@pytest.mark.asyncio
+async def test_store_embed_diff_rejects_legacy_history_write_for_project_embed():
+    manager = FakeConnectionManager()
+    directus = FakeDirectusService(
+        existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH},
+        project_linked=True,
+    )
+
+    handle_store_embed_diff = get_handle_store_embed_diff()
+    await handle_store_embed_diff(
+        websocket=None,
+        manager=manager,
+        cache_service=None,
+        directus_service=directus,
+        user_id=OWNER_ID,
+        device_fingerprint_hash="device-1",
+        payload=diff_payload(),
+    )
+
+    assert directus.rows == []
+    assert manager.broadcasts == []
+    assert manager.personal_messages[0][0]["payload"]["message"] == "Project file revisions require atomic commit"

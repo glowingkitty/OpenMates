@@ -81,6 +81,7 @@ from .handlers.websocket_handlers.delete_app_settings_memories_handler import ha
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
 from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
 from .handlers.websocket_handlers.store_embed_diff_handler import handle_store_embed_diff # Handler for storing encrypted embed diff rows
+from .handlers.websocket_handlers.commit_embed_revision_handler import handle_commit_embed_revision
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
 from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
@@ -94,6 +95,26 @@ from .handlers.websocket_handlers.project_remote_access_handlers import (
     handle_project_remote_access_disconnect,
     handle_project_remote_access_heartbeat,
     handle_project_remote_access_register,
+)
+from .handlers.websocket_handlers.project_file_operation_handlers import (
+    handle_project_file_operation_claim,
+    handle_project_file_operation_reject,
+    handle_project_file_operation_result,
+    send_available_project_file_operations,
+)
+from .handlers.websocket_handlers.remote_command_handlers import (
+    handle_remote_command_claim,
+    handle_remote_command_discover,
+    handle_remote_command_event,
+    handle_remote_command_prepare,
+    handle_remote_command_recover,
+    handle_remote_command_reject,
+    handle_remote_command_revalidate,
+    handle_remote_command_source_completion,
+    handle_remote_command_stop,
+)
+from .handlers.websocket_handlers.remote_command_origin_completion_handler import (
+    handle_remote_command_origin_completion,
 )
 from .handlers.websocket_handlers.update_chat_pinned_handler import handle_update_chat_pinned  # Handler for pin/unpin chat (cross-device sync)
 from .handlers.websocket_handlers.key_received_handler import handle_key_received  # Handler for key delivery acknowledgment (SYNC-01)
@@ -1010,6 +1031,10 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     "awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False),
                                     "is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False),
                                     "is_sub_chat_continuation": redis_payload.get("is_sub_chat_continuation", False),
+                                    "is_async_skill_continuation": redis_payload.get("is_async_skill_continuation", False),
+                                    "original_user_message_id": redis_payload.get("original_user_message_id"),
+                                    "async_skill_task_id": redis_payload.get("async_skill_task_id"),
+                                    "awaiting_async_skill_continuation": redis_payload.get("awaiting_async_skill_continuation", False),
                                 }
                                 await manager.send_personal_message(
                                     message={"type": "ai_background_response_completed", "payload": background_completion_payload},
@@ -1880,6 +1905,26 @@ async def listen_for_user_updates(app: FastAPI):
                 logger.debug(f"User Updates Listener: Received event for user {user_id_uuid}. Forwarding as '{event_for_client}'.")
 
                 target_device_hash = redis_payload.get("target_device_fingerprint_hash")
+                if event_for_client == "project_file_operation_available":
+                    chat_id = client_payload.get("chat_id") if isinstance(client_payload, dict) else None
+                    project_id = client_payload.get("project_id") if isinstance(client_payload, dict) else None
+                    if not chat_id or not project_id:
+                        continue
+                    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+
+                    focus = await ProjectWriteAuthorizationService(
+                        app.state.directus_service, cache_service
+                    ).get_active_focus(user_id=user_id_uuid, chat_id=chat_id)
+                    if not focus or focus.get("project_id") != project_id:
+                        continue
+                    for device_hash in manager.get_connections_for_user(user_id_uuid):
+                        if manager.can_execute_project_file_job(user_id_uuid, device_hash, chat_id):
+                            await manager.send_personal_message(
+                                {"type": event_for_client, "payload": client_payload},
+                                user_id_uuid,
+                                device_hash,
+                            )
+                    continue
                 if target_device_hash:
                     await manager.send_personal_message(
                         {"type": event_for_client, "payload": client_payload},
@@ -2357,6 +2402,8 @@ async def websocket_endpoint(
     raw_capabilities = websocket.query_params.get("client_capabilities", "")
     connection_capabilities = {item.strip() for item in raw_capabilities.split(",") if item.strip()}
     supports_task_update_jobs = "task_update_jobs" in connection_capabilities
+    supports_project_file_jobs = "project_file_jobs" in connection_capabilities
+    supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
 
     # Extract user OTel attributes for privacy tier resolution (OTEL-02, OTEL-06).
     # These are set once per connection and passed to every handler span.
@@ -2376,6 +2423,8 @@ async def websocket_endpoint(
         user_id,
         device_fingerprint_hash,
         supports_task_update_jobs=supports_task_update_jobs,
+        supports_project_file_jobs=supports_project_file_jobs,
+        supports_remote_command_jobs=supports_remote_command_jobs,
     )
 
     phased_sync_tasks: set[asyncio.Task] = set()
@@ -2418,6 +2467,19 @@ async def websocket_endpoint(
                 cache_service=cache_service,
                 user_id=user_id,
                 device_fingerprint_hash=device_fingerprint_hash,
+            )
+        )
+
+    reconnect_chat_id = manager.get_active_chat(user_id, device_fingerprint_hash)
+    if supports_project_file_jobs and reconnect_chat_id:
+        asyncio.create_task(
+            send_available_project_file_operations(
+                manager=manager,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash,
+                chat_id=reconnect_chat_id,
             )
         )
 
@@ -2915,6 +2977,15 @@ async def websocket_endpoint(
                     active_chat_id=active_chat_id,
                     user_otel_attrs=user_otel_attrs,
                 )
+                if supports_project_file_jobs and isinstance(active_chat_id, str) and active_chat_id:
+                    await send_available_project_file_operations(
+                        manager=manager,
+                        cache_service=cache_service,
+                        directus_service=directus_service,
+                        user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash,
+                        chat_id=active_chat_id,
+                    )
             elif message_type == "native_client_lifecycle":
                 is_foreground = bool(payload.get("is_foreground", True))
                 manager.set_connection_foreground(user_id, device_fingerprint_hash, is_foreground)
@@ -3303,6 +3374,16 @@ async def websocket_endpoint(
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
                 )
+            elif message_type == "commit_embed_revision":
+                await handle_commit_embed_revision(
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
             elif message_type == "request_embed":
                 from .handlers.websocket_handlers.request_embed_handler import handle_request_embed
                 await handle_request_embed(
@@ -3459,6 +3540,25 @@ async def websocket_endpoint(
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
                 )
+                # Registration is the source-readiness edge. Re-offer any
+                # still-live operation for this explicitly assigned chat once;
+                # heartbeats do not republish and cannot create a claim loop.
+                source_ready_chat_id = manager.get_active_chat(
+                    user_id, device_fingerprint_hash
+                )
+                if (
+                    supports_project_file_jobs
+                    and isinstance(source_ready_chat_id, str)
+                    and source_ready_chat_id
+                ):
+                    await send_available_project_file_operations(
+                        manager=manager,
+                        cache_service=cache_service,
+                        directus_service=directus_service,
+                        user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash,
+                        chat_id=source_ready_chat_id,
+                    )
 
             elif message_type == "project_remote_access_heartbeat":
                 websocket.app.state.project_task_sync.reconcile(websocket)
@@ -3486,6 +3586,97 @@ async def websocket_endpoint(
             elif message_type == "project_remote_access_complete":
                 await handle_project_remote_access_complete(
                     websocket=websocket,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "project_file_operation_claim":
+                if not supports_project_file_jobs:
+                    await websocket.send_json({"type": "project_file_operation_error", "payload": {"operation_id": payload.get("operation_id"), "code": "project_file_jobs_capability_required"}})
+                    continue
+                await handle_project_file_operation_claim(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "project_file_operation_result":
+                if not supports_project_file_jobs:
+                    await websocket.send_json({"type": "project_file_operation_error", "payload": {"operation_id": payload.get("operation_id"), "code": "project_file_jobs_capability_required"}})
+                    continue
+                await handle_project_file_operation_result(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "project_file_operation_reject":
+                if not supports_project_file_jobs:
+                    await websocket.send_json({"type": "project_file_operation_error", "payload": {"operation_id": payload.get("operation_id"), "code": "project_file_jobs_capability_required"}})
+                    continue
+                await handle_project_file_operation_reject(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type in {
+                "remote_command_prepare",
+                "remote_command_recover",
+                "remote_command_reject",
+                "remote_command_claim",
+                "remote_command_discover",
+                "remote_command_revalidate",
+                "remote_command_event",
+                "remote_command_source_completion",
+                "remote_command_stop",
+                "remote_command_origin_completion",
+            }:
+                if not supports_remote_command_jobs:
+                    await websocket.send_json(
+                        {
+                            "type": "remote_command_error",
+                            "payload": {
+                                "execution_id": payload.get("execution_id"),
+                                "code": "remote_command_jobs_capability_required",
+                            },
+                        }
+                    )
+                    continue
+                remote_command_handler = {
+                    "remote_command_prepare": handle_remote_command_prepare,
+                    "remote_command_recover": handle_remote_command_recover,
+                    "remote_command_reject": handle_remote_command_reject,
+                    "remote_command_claim": handle_remote_command_claim,
+                    "remote_command_discover": handle_remote_command_discover,
+                    "remote_command_revalidate": handle_remote_command_revalidate,
+                    "remote_command_event": handle_remote_command_event,
+                    "remote_command_source_completion": handle_remote_command_source_completion,
+                    "remote_command_stop": handle_remote_command_stop,
+                    "remote_command_origin_completion": handle_remote_command_origin_completion,
+                }[message_type]
+                await remote_command_handler(
+                    websocket=websocket,
+                    manager=manager,
                     cache_service=cache_service,
                     directus_service=directus_service,
                     user_id=user_id,

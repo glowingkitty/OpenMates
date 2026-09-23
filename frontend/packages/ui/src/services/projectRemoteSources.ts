@@ -5,9 +5,26 @@
 // Keep this file browser-independent so CLI-first contract tests can run with node:test.
 
 export type ProjectSourceType = "local_folder" | "local_git_repository" | "remote_folder" | "remote_git_repository";
-export type ProjectSourceCapability = "read" | "search" | "import" | "write_request";
+export type ProjectSourceCapability = "read" | "search" | "import" | "write_request" | "run_command";
 export type ProjectSourceStatus = "connected" | "offline" | "permission_required" | "revoked";
-export type ProjectWriteMode = "always_ask" | "auto_approve_safe_writes";
+export type ProjectWriteMode = "apply_and_show" | "always_ask";
+
+export interface ProjectDefaultFocus {
+  focus_id: string;
+  name: string;
+  instructions: string;
+  source: string;
+}
+
+export function buildDefaultProjectFocus(projectName: string, instructions?: string, source = "generated"): ProjectDefaultFocus {
+  const name = projectName.trim() || "Untitled project";
+  return {
+    focus_id: crypto.randomUUID(),
+    name: `Work on ${name}`,
+    instructions: instructions?.trim() || `Help with work in ${name}. Follow the user's instructions and the Project's connected source guidance.`,
+    source,
+  };
+}
 
 export interface ProjectSourceCreatePayload {
   source_id: string;

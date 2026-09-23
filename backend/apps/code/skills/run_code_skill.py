@@ -13,9 +13,10 @@ import inspect
 import json
 import re
 import time
+import uuid
 from pathlib import PurePosixPath
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -58,6 +59,9 @@ class RunCodeInlineFile(BaseModel):
 
 
 class RunCodeRequest(BaseModel):
+    target: Literal["e2b", "remote_source"] = Field(
+        default="e2b", description="Run in E2B or in an explicitly authorized remote Project source."
+    )
     chat_id: str | None = Field(default=None, description="Chat ID containing the code embeds to run.")
     target_embed_id: str | None = Field(default=None, description="Existing code embed ID to execute as the entrypoint.")
     entry_path: str | None = Field(default=None, description="Entrypoint path when files are supplied inline.")
@@ -65,6 +69,17 @@ class RunCodeRequest(BaseModel):
     enable_internet: bool = Field(default=True, description="Allow outbound internet access from the E2B sandbox.")
     selected_embed_ids: list[str] | None = Field(default=None, description="Optional related embed IDs to include in the run.")
     dependency_installs: list[dict[str, Any]] = Field(default_factory=list, description="Selected package installs for this run.")
+    project_id: str | None = Field(default=None, description="Active Project id for remote_source execution.")
+    source_id: str | None = Field(default=None, description="Attached remote Project source id.")
+    argv: list[str] = Field(default_factory=list, description="Exact argument vector for remote_source execution.")
+    cwd: str = Field(default=".", description="Project-relative working directory for remote_source execution.")
+    wait_for_completion: bool = Field(default=True, description="Wait for the tracked remote job when practical.")
+    background: bool = Field(default=False, description="Run as a finite tracked background job.")
+    timeout_seconds: int = Field(default=600, ge=1, le=86_400, description="Finite remote execution deadline.")
+    source_access: Literal["read_only", "read_write"] = Field(default="read_only")
+    writable_profiles: list[str] = Field(default_factory=list)
+    network_profile: str | None = None
+    credential_profiles: list[str] = Field(default_factory=list)
 
 
 class RunCodeResponse(BaseModel):
@@ -494,6 +509,18 @@ class RunCodeSkill(BaseSkill):
         if not chat_id or not message_id or not user_id or not user_vault_key_id or cache_service is None or encryption_service is None:
             return RunCodeResponse(status="error", error="Code Run requires chat, message, user, cache, and encryption context.")
 
+        if request.target == "remote_source":
+            return await self._execute_remote(
+                request,
+                chat_id=str(chat_id),
+                message_id=str(message_id),
+                user_id=str(user_id),
+                user_vault_key_id=str(user_vault_key_id),
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+                secrets_manager=kwargs.get("secrets_manager"),
+            )
+
         created_embed_ids: list[str] = []
         target_embed_id = request.target_embed_id
         if request.files:
@@ -586,4 +613,120 @@ class RunCodeSkill(BaseSkill):
             credits_per_minute=execution.credits_per_minute,
             stream_path=f"/v1/code/run/{execution.execution_id}/stream",
             status_path=f"/v1/code/run/{execution.execution_id}",
+        )
+
+    async def _execute_remote(
+        self,
+        request: RunCodeRequest,
+        *,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_vault_key_id: str,
+        cache_service: Any,
+        encryption_service: Any,
+        secrets_manager: Any,
+    ) -> RunCodeResponse:
+        """Create a review episode; command execution remains entirely client-side."""
+        del user_vault_key_id
+        from backend.core.api.app.schemas.remote_command_schemas import RemoteCommandPolicy
+        from backend.core.api.app.services.project_write_authorization_service import (
+            ProjectWriteAuthorizationService,
+        )
+        from backend.core.api.app.services.project_remote_access_service import (
+            ProjectRemoteAccessError,
+            ProjectRemoteAccessService,
+        )
+        from backend.core.api.app.services.remote_command_service import (
+            RemoteCommandError,
+            RemoteCommandService,
+            explain_remote_command,
+        )
+
+        if not request.project_id or not request.source_id:
+            return RunCodeResponse(status="error", error="Remote Code Run requires project_id and source_id.")
+        try:
+            policy = RemoteCommandPolicy(
+                argv=request.argv,
+                cwd=request.cwd,
+                mode="background" if request.background else "foreground",
+                source_access=request.source_access,
+                deadline_ms=request.timeout_seconds * 1000,
+                writable_profiles=request.writable_profiles,
+                network_profile=request.network_profile,
+                credential_profiles=request.credential_profiles,
+            )
+        except ValueError:
+            return RunCodeResponse(status="error", error="Remote Code Run request is invalid.")
+
+        directus_service = create_directus_service(
+            cache_service=cache_service, encryption_service=encryption_service
+        )
+        focus = await ProjectWriteAuthorizationService(
+            directus_service, cache_service
+        ).get_active_focus(user_id=user_id, chat_id=chat_id)
+        if not focus or focus.get("project_id") != request.project_id:
+            return RunCodeResponse(status="error", error="An active matching Project focus is required.")
+        team_id = focus.get("team_id") if isinstance(focus.get("team_id"), str) else None
+        source = await directus_service.project.get_source(
+            request.project_id, user_id, request.source_id, team_id=team_id
+        )
+        if (
+            not source
+            or source.get("status") == "revoked"
+            or "run_command" not in set(source.get("capabilities") or [])
+        ):
+            return RunCodeResponse(status="error", error="The selected Project source cannot run commands.")
+        settings = await directus_service.project.get_project_settings(
+            request.project_id, user_id, team_id=team_id
+        )
+        stored_write_mode = settings.get("write_mode") if settings else None
+        write_mode = "apply_and_show" if stored_write_mode == "auto_approve_safe_writes" else stored_write_mode
+        if request.source_access == "read_write" and write_mode not in {"apply_and_show", "always_ask"}:
+            return RunCodeResponse(status="error", error="Project write mode must be explicitly configured.")
+        try:
+            await ProjectRemoteAccessService(cache_service).get_active_binding(
+                user_id,
+                request.project_id,
+                request.source_id,
+                team_id=team_id,
+                now=int(time.time()),
+            )
+        except ProjectRemoteAccessError as exc:
+            return RunCodeResponse(status="error", error=exc.code)
+
+        execution_id = str(uuid.uuid4())
+        command = policy.model_dump()
+        try:
+            explanation = await explain_remote_command(
+                task_id=execution_id,
+                command={
+                    "execution_id": execution_id,
+                    "project_id": request.project_id,
+                    "source_id": request.source_id,
+                    "policy": command,
+                },
+                secrets_manager=secrets_manager,
+            )
+            await RemoteCommandService(cache_service).create_review(
+                user_id=user_id,
+                chat_id=chat_id,
+                project_id=request.project_id,
+                focus_id=str(focus["focus_id"]),
+                source_id=request.source_id,
+                command=command,
+                explanation=explanation,
+                continuation_task_id=execution_id,
+                message_id=message_id,
+                wait_for_completion=request.wait_for_completion,
+                one_run_required=request.source_access == "read_write" and write_mode == "always_ask",
+                team_id=team_id,
+                execution_id=execution_id,
+            )
+        except RemoteCommandError as exc:
+            return RunCodeResponse(status="error", error=exc.code)
+        return RunCodeResponse(
+            execution_id=execution_id,
+            task_id=execution_id,
+            status="processing",
         )

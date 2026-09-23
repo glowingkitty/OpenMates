@@ -34,9 +34,12 @@ export interface ProjectRemoteAccessRequestFrame {
   source_id: string;
   source_session_id: string;
   requesting_client_id: string;
-  operation: "list" | "search" | "read_text";
+  operation: "list" | "search" | "read_text" | "create_file" | "update_file";
   key_epoch: number;
   encrypted_envelope: string;
+  chat_id?: string;
+  operation_id?: string;
+  proposal_digest?: string;
   routing_identity?: {
     context_type: string;
     context_id_hash: string;
@@ -392,6 +395,7 @@ function parseAvailableRecoveryJobs(value: unknown): AvailableRecoveryJobFrame[]
 export class OpenMatesWsClient {
   private readonly socket: InstanceType<typeof WebSocket>;
   private readonly passiveTaskUpdateJobs = new Map<string, PendingTaskUpdateJobFrame>();
+  private readonly remoteCommandReviewDeferredHandlers = new Set<(payload: Record<string, unknown>) => void>();
   private activeResponseCollectors = 0;
 
   constructor(options: {
@@ -402,6 +406,8 @@ export class OpenMatesWsClient {
     userAgent?: string;
     cookies?: Record<string, string>;
     taskUpdateJobs?: boolean;
+    projectFileJobs?: boolean;
+    remoteCommandJobs?: boolean;
     onForceLogout?: (payload: ForceLogoutPayload) => void | Promise<void>;
   }) {
     const wsBase = options.apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
@@ -412,9 +418,12 @@ export class OpenMatesWsClient {
       sessionId: options.sessionId,
       token,
     });
-    if (options.taskUpdateJobs !== false) {
-      query.set("client_capabilities", "task_update_jobs");
-    }
+    const clientCapabilities = [
+      ...(options.taskUpdateJobs !== false ? ["task_update_jobs"] : []),
+      ...(options.projectFileJobs === true ? ["project_file_jobs"] : []),
+      ...(options.remoteCommandJobs === true ? ["remote_command_jobs"] : []),
+    ];
+    if (clientCapabilities.length > 0) query.set("client_capabilities", clientCapabilities.join(","));
     // Pass the same User-Agent as the HTTP login call so the device fingerprint
     // hash (SHA256(OS:Country:UserID)) matches the one registered at login time.
     // Also forward cookies — Node.js ws library doesn't auto-send HTTP cookies,
@@ -479,6 +488,11 @@ export class OpenMatesWsClient {
     this.socket.close();
   }
 
+  onClose(handler: () => void): () => void {
+    this.socket.once("close", handler);
+    return () => this.socket.off("close", handler);
+  }
+
   send(type: string, payload: unknown): void {
     this.socket.send(JSON.stringify({ type, payload }));
   }
@@ -503,6 +517,15 @@ export class OpenMatesWsClient {
     };
     this.socket.on("message", onMessage);
     return () => this.socket.off("message", onMessage);
+  }
+
+  onRemoteCommandReviewDeferred(handler: (payload: Record<string, unknown>) => void): () => void {
+    this.remoteCommandReviewDeferredHandlers.add(handler);
+    return () => this.remoteCommandReviewDeferredHandlers.delete(handler);
+  }
+
+  notifyRemoteCommandReviewDeferred(payload: Record<string, unknown>): void {
+    for (const handler of this.remoteCommandReviewDeferredHandlers) handler(payload);
   }
 
   onLocalConnectorRequest(handler: (payload: LocalConnectorRequestFrame) => void | Promise<void>): () => void {
@@ -553,10 +576,13 @@ export class OpenMatesWsClient {
           || typeof payload.source_id !== "string"
           || typeof payload.source_session_id !== "string"
           || typeof payload.requesting_client_id !== "string"
-          || !["list", "search", "read_text"].includes(String(payload.operation))
+          || !["list", "search", "read_text", "create_file", "update_file"].includes(String(payload.operation))
           || typeof payload.key_epoch !== "number"
           || typeof payload.encrypted_envelope !== "string"
         ) return;
+        if ((payload.operation === "create_file" || payload.operation === "update_file")
+          && (typeof payload.chat_id !== "string" || typeof payload.operation_id !== "string"
+            || typeof payload.proposal_digest !== "string" || !/^[a-f0-9]{64}$/.test(payload.proposal_digest))) return;
         void handler(payload as unknown as ProjectRemoteAccessRequestFrame);
       } catch {
         // Ignore malformed frames.
@@ -753,6 +779,8 @@ export class OpenMatesWsClient {
         event: AppSettingsMemoriesRequestEvent,
       ) => void | Promise<void>;
       recoveryTurnId?: string | null;
+      projectWriteApprovalInteractive?: boolean;
+      remoteCommandReviewInteractive?: boolean;
     },
   ): Promise<{
     status: "completed" | "waiting_for_user";
@@ -828,6 +856,12 @@ export class OpenMatesWsClient {
       const POST_PROCESSING_WINDOW_MS = 12_000;
       let postProcessingTimer: ReturnType<typeof setTimeout> | null = null;
       let asyncEmbedTimer: ReturnType<typeof setTimeout> | null = null;
+      const remoteCommandReviewDeferredOff = this.onRemoteCommandReviewDeferred((payload) => {
+        if (payload.chat_id !== chatId || payload.message_id !== userMessageId) return;
+        waitingForUserPayload = payload;
+        latestContent = "This command needs approval. Resume interactively to review the command and its requested resources.";
+        maybeResolve();
+      });
 
       const startTimeout = (ms: number) =>
         setTimeout(() => {
@@ -837,6 +871,9 @@ export class OpenMatesWsClient {
       let timeout = startTimeout(timeoutMs);
       let awaitingSubChatsCompletion = false;
       let awaitingFocusModeContinuation = false;
+      const pendingProjectOperations = new Set<string>();
+      let activeProjectContinuation: string | null = null;
+      let awaitingUnidentifiedAsyncContinuation = false;
 
       const resetTimeout = (ms: number) => {
         clearTimeout(timeout);
@@ -934,6 +971,7 @@ export class OpenMatesWsClient {
           });
           return;
         }
+        if (pendingProjectOperations.size > 0 || awaitingUnidentifiedAsyncContinuation) return;
         if (!aiResponseDone || !postProcessingDone) return;
         if (options?.recoveryTurnId && !recoveryJobId) return;
         if (pendingSubChatHandlers.size > 0) return;
@@ -1083,6 +1121,10 @@ export class OpenMatesWsClient {
       // Called once AI response is done. Start a short window to wait for
       // post_processing_metadata which may carry follow-up suggestions.
       const scheduleResolve = (content: string) => {
+        if (pendingProjectOperations.size > 0 || awaitingUnidentifiedAsyncContinuation) {
+          latestContent = content;
+          return;
+        }
         if (awaitingFocusModeContinuation) {
           latestContent = content;
           resetTimeout(timeoutMs);
@@ -1136,6 +1178,22 @@ export class OpenMatesWsClient {
         resetTimeout(timeoutMs);
       };
 
+      const beginProjectContinuation = (payload: Record<string, unknown>) => {
+        if (payload.is_async_skill_continuation !== true
+          || payload.original_user_message_id !== userMessageId
+          || typeof payload.async_skill_task_id !== "string"
+          || (!pendingProjectOperations.has(payload.async_skill_task_id) && !awaitingUnidentifiedAsyncContinuation)) return;
+        pendingProjectOperations.delete(payload.async_skill_task_id);
+        awaitingUnidentifiedAsyncContinuation = false;
+        activeProjectContinuation = payload.async_skill_task_id;
+        aiResponseDone = false;
+        postProcessingDone = false;
+        recoveryJobId = null;
+        latestContent = "";
+        if (postProcessingTimer) { clearTimeout(postProcessingTimer); postProcessingTimer = null; }
+        resetTimeout(timeoutMs);
+      };
+
       const onMessage = (rawData: RawData) => {
         try {
           const parsed = JSON.parse(rawData.toString()) as WsEnvelope<
@@ -1156,6 +1214,47 @@ export class OpenMatesWsClient {
 
           if (SUB_CHAT_EVENT_TYPES.has(type)) {
             handleSubChatEvent(type, p);
+            return;
+          }
+
+          if (type.startsWith("remote_command_")) {
+            if (p.chat_id !== chatId || p.message_id !== userMessageId) return;
+            if (type === "remote_command_review_required" && !options?.remoteCommandReviewInteractive) {
+              waitingForUserPayload = p;
+              latestContent = "This command needs approval. Resume interactively to review the command and its requested resources.";
+              maybeResolve();
+              return;
+            }
+            if ((type === "remote_command_review_required" || type === "remote_command_available" || type === "remote_command_event")
+              && p.wait_for_completion === true && typeof p.execution_id === "string") {
+              pendingProjectOperations.add(p.execution_id);
+              aiResponseDone = false;
+              postProcessingDone = false;
+              if (postProcessingTimer) { clearTimeout(postProcessingTimer); postProcessingTimer = null; }
+              // Activity extends the transport wait; execution deadlines remain enforced by the source.
+              resetTimeout(Math.max(timeoutMs, 20 * 60_000 + 5_000));
+            }
+            return;
+          }
+
+          if (type.startsWith("project_file_operation_")) {
+            if (p.chat_id !== chatId || p.message_id !== userMessageId) return;
+            if (["project_file_operation_available", "project_file_operation_request", "project_file_operation_waiting"].includes(type)
+              && typeof p.operation_id === "string") {
+              pendingProjectOperations.add(p.operation_id);
+              aiResponseDone = false;
+              postProcessingDone = false;
+              if (postProcessingTimer) { clearTimeout(postProcessingTimer); postProcessingTimer = null; }
+              if (typeof p.expires_at === "number") resetTimeout(Math.max(1, p.expires_at * 1000 - Date.now()) + 5_000);
+            } else if (type === "project_file_operation_paused") {
+              waitingForUserPayload = p;
+              latestContent = "Project execution paused after waiting. Resume this chat to continue.";
+              maybeResolve();
+            } else if (type === "project_file_operation_awaiting_approval" && !options?.projectWriteApprovalInteractive) {
+              waitingForUserPayload = p;
+              latestContent = "This Project requires approval of the proposed file change. Resume interactively to review it.";
+              maybeResolve();
+            }
             return;
           }
 
@@ -1239,6 +1338,8 @@ export class OpenMatesWsClient {
           if (type === "ai_message_update") {
             const msgId = p.user_message_id ?? p.userMessageId;
             if (msgId !== userMessageId && p.chat_id !== chatId) return;
+            beginProjectContinuation(p);
+            if (activeProjectContinuation && (p.is_async_skill_continuation !== true || p.async_skill_task_id !== activeProjectContinuation)) return;
             if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
             beginSubChatContinuation(p);
             capture(p);
@@ -1246,6 +1347,10 @@ export class OpenMatesWsClient {
               latestContent = p.full_content_so_far;
             }
             if (p.is_final_chunk === true) {
+              if (p.awaiting_async_skill_continuation === true) {
+                awaitingUnidentifiedAsyncContinuation = true;
+                resetTimeout(Math.max(timeoutMs, 20 * 60_000 + 5_000));
+              }
               if (p.awaiting_focus_mode_continuation === true) {
                 awaitingFocusModeContinuation = true;
               }
@@ -1272,6 +1377,8 @@ export class OpenMatesWsClient {
             const msgId = p.user_message_id ?? p.userMessageId;
             if (msgId && msgId !== userMessageId && p.chat_id !== chatId) return;
             if (!msgId && p.chat_id !== chatId) return;
+            beginProjectContinuation(p);
+            if (activeProjectContinuation && (p.is_async_skill_continuation !== true || p.async_skill_task_id !== activeProjectContinuation)) return;
             if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
             beginSubChatContinuation(p);
             capture(p);
@@ -1282,6 +1389,10 @@ export class OpenMatesWsClient {
             if (p.awaiting_focus_mode_continuation === true) {
               awaitingFocusModeContinuation = true;
             }
+            if (p.awaiting_async_skill_continuation === true) {
+              awaitingUnidentifiedAsyncContinuation = true;
+              resetTimeout(Math.max(timeoutMs, 20 * 60_000 + 5_000));
+            }
             onStream?.({ kind: "done", content, category, modelName });
             scheduleResolve(content);
             return;
@@ -1291,6 +1402,7 @@ export class OpenMatesWsClient {
           // message via chat_message_added even when stream frames were missed.
           if (type === "chat_message_added") {
             if (p.chat_id !== chatId) return;
+            if (activeProjectContinuation || pendingProjectOperations.size > 0 || awaitingUnidentifiedAsyncContinuation) return;
             const rawMessage = p.message;
             if (!rawMessage || typeof rawMessage !== "object") return;
             const message = rawMessage as Record<string, unknown>;
@@ -1312,6 +1424,7 @@ export class OpenMatesWsClient {
           // Typing started — fires before content chunks arrive
           if (type === "ai_typing_started") {
             if (p.chat_id !== chatId) return;
+            beginProjectContinuation(p);
             capture(p);
             // Preprocessing owns the initial title; post-processing only retitles
             // conversations that drift. Preserve both until encrypted persistence.
@@ -1386,7 +1499,7 @@ export class OpenMatesWsClient {
       };
       const onClose = () => {
         // If AI response already completed, close is not an error — resolve with what we have.
-        if (aiResponseDone) {
+        if (aiResponseDone && pendingProjectOperations.size === 0 && !awaitingUnidentifiedAsyncContinuation) {
           cleanup();
           resolve({
             status: "completed",
@@ -1434,6 +1547,7 @@ export class OpenMatesWsClient {
         this.socket.off("message", onMessage);
         this.socket.off("error", onError);
         this.socket.off("close", onClose);
+        remoteCommandReviewDeferredOff();
         this.activeResponseCollectors = Math.max(0, this.activeResponseCollectors - 1);
       };
 

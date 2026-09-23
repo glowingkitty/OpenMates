@@ -44,6 +44,7 @@ class _FakeCache:
     def __init__(self):
         self.values = {}
         self.deleted = []
+        self.active_task = None
 
     async def set(self, key, value, ttl=None):
         self.values[key] = {"value": value, "ttl": ttl}
@@ -57,6 +58,9 @@ class _FakeCache:
         self.deleted.append(key)
         self.values.pop(key, None)
         return True
+
+    async def get_active_ai_task(self, _chat_id):
+        return self.active_task
 
 
 class _FakeTaskSignature:
@@ -85,7 +89,13 @@ def _request():
         ],
         chat_has_title=True,
         mate_id="mate-1",
+        client_capabilities=["project_file_jobs", "remote_command_jobs"],
         user_preferences={"language": "en"},
+        recovery_task_id="recovery-inference-1",
+        recovery_preflight_id="preflight-1",
+        recovery_turn_id="turn-1",
+        recovery_public_key="public-key-1",
+        chat_key_version=4,
     )
 
 
@@ -158,6 +168,16 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
     request_payload = fake_celery_app.sent[0]["kwargs"]["request_data_dict"]
     skill_config_payload = fake_celery_app.sent[0]["kwargs"]["skill_config_dict"]
     assert request_payload["chat_id"] == "chat-1"
+    assert request_payload["is_async_skill_continuation"] is True
+    assert request_payload["original_user_message_id"] == "message-1"
+    assert request_payload["async_skill_task_id"] == "async-task-1"
+    assert request_payload["recovery_task_id"] is None
+    assert request_payload["recovery_inference_task_id"] == "recovery-inference-1"
+    assert request_payload["recovery_preflight_id"] == "preflight-1"
+    assert request_payload["recovery_turn_id"] == "turn-1"
+    assert request_payload["recovery_public_key"] == "public-key-1"
+    assert request_payload["chat_key_version"] == 4
+    assert request_payload["client_capabilities"] == ["project_file_jobs", "remote_command_jobs"]
     assert request_payload["message_history"][-1]["role"] == "system"
     assert "Completed tool result" in request_payload["message_history"][-1]["content"]
     assert "[human-readable title](embed:the_embed_ref)" in request_payload["message_history"][-1]["content"]
@@ -243,3 +263,72 @@ async def test_dispatch_async_skill_continuation_caches_inline_wait_result(monke
     assert completion["results"][0]["title"] == "A useful post"
     assert async_skill_continuation.async_skill_completion_key("async-task-1") not in cache.values
     assert async_skill_continuation.async_skill_continuation_key("async-task-1") not in cache.values
+
+
+@pytest.mark.asyncio
+# contract-test: tooling
+async def test_current_turn_fence_discards_stale_continuation(monkeypatch, async_skill_continuation):
+    cache = _FakeCache()
+    fake_celery_app = _FakeCeleryApp()
+    monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
+    await async_skill_continuation.cache_async_skill_continuation_context(
+        cache_service=cache,
+        async_task_id="async-task-1",
+        request_data=_request(),
+        skill_config_dict=_skill_config_dict(),
+        app_id="system",
+        skill_id="project_read_text",
+        tool_name="project_read_text",
+        tool_arguments={"path": "README.md"},
+        requires_current_turn=True,
+    )
+    await cache.set(
+        async_skill_continuation.async_skill_latest_user_turn_key("user-1", "chat-1"),
+        "message-2",
+    )
+    result = await async_skill_continuation.dispatch_async_skill_continuation(
+        cache_service=cache,
+        async_task_id="async-task-1",
+        completed_results=[{"content": "stale"}],
+    )
+    assert result is None
+    assert fake_celery_app.sent == []
+    assert async_skill_continuation.async_skill_continuation_key("async-task-1") not in cache.values
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=cli assertions=code-run.execution.wait-or-continue
+async def test_continue_mode_defers_completion_until_initial_response_finishes(monkeypatch, async_skill_continuation):
+    cache = _FakeCache()
+    cache.active_task = "initial-response-task"
+    fake_celery_app = _FakeCeleryApp()
+    monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
+    await async_skill_continuation.cache_async_skill_continuation_context(
+        cache_service=cache,
+        async_task_id="remote-command-1",
+        request_data=_request(),
+        skill_config_dict=_skill_config_dict(),
+        app_id="code",
+        skill_id="run",
+        tool_name="code-run",
+        tool_arguments={"target": "remote_source", "wait_for_completion": False},
+        requires_current_turn=True,
+        defer_until_initial_response_complete=True,
+    )
+    await cache.set(
+        async_skill_continuation.async_skill_latest_user_turn_key("user-1", "chat-1"),
+        "message-1",
+    )
+    assert await async_skill_continuation.dispatch_async_skill_continuation(
+        cache_service=cache,
+        async_task_id="remote-command-1",
+        completed_results=[{"status": "succeeded", "output": "done"}],
+    ) is None
+    assert fake_celery_app.sent == []
+
+    cache.active_task = None
+    dispatched = await async_skill_continuation.dispatch_deferred_async_skill_continuations(
+        cache_service=cache, user_id="user-1", chat_id="chat-1"
+    )
+    assert dispatched == ["continuation-task-1"]
+    assert len(fake_celery_app.sent) == 1

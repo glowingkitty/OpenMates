@@ -390,7 +390,7 @@ function calculateMatchScore(
 }
 
 function toProjectMentionAccessMode(writeMode: unknown): ProjectMentionAccessMode {
-  return writeMode === "auto_approve_safe_writes" ? "read_write" : "read";
+  return writeMode === "apply_and_show" ? "read_write" : "read";
 }
 
 export function buildProjectMentionSyntax(

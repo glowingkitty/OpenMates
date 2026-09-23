@@ -176,7 +176,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/code-run
-    fingerprint: 989da34d0b341545cf530efb104d34429df5b0bc27e11b85297679f6dd1f293e
+    fingerprint: e5eb33c19acff79e89efd29b8156d8dd08b0f30714b30bc3f4ad5bd998948ea5
     required_applies_to:
     - rest_api
     - cli
@@ -368,7 +368,7 @@ specifications:
     version: 1
     status: draft
     path: features/focus-modes
-    fingerprint: 0822c5e38cb671c398ec2fa4679f5b8516eaad127e07117ff79c35247eaca6cd
+    fingerprint: 3fcede82b7b3a44a2b45c6d53233c0f319b8bd97fecb3949618794f0a703cd72
     required_applies_to:
     - rest_api
     - cli
@@ -450,15 +450,16 @@ specifications:
     - gui.web
   feature.projects:
     version: 1
-    status: draft
+    status: approved
     path: features/projects
-    fingerprint: 74013a227d4dcc4a4cba9a89f52a0f6a643abbb1377b316f02fe421809102773
+    fingerprint: 0d28da41b9b4e584876b41e30800f6bd6a011fbc3690220d71df9e86964de1cf
     required_applies_to:
     - rest_api
     - cli
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   feature.public-example-chats:
     version: 4
     status: draft
@@ -2293,7 +2294,127 @@ assertions:
     specification: feature.app-skill.code-run@1
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: 3ce47732eeacc76fe2c88e7232eb2dfc207f9ae781588445ad269fd473fdbc3a
+    fingerprint: 73cf49bbd73f161c796e78b298fd5b4140be74c0db19f153b10c51c09859a4f5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.remote.confinement:
+    specification: feature.app-skill.code-run@1
+    specification_id: feature.app-skill.code-run
+    type: security
+    fingerprint: d8e05579ed4ca76acee39780de12e61b3ae9c686fadb921e87b257fda7978269
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.remote.explicit-approval:
+    specification: feature.app-skill.code-run@1
+    specification_id: feature.app-skill.code-run
+    type: security
+    fingerprint: ab1887d89d3d59228c447bc63786f92001ce28e4bf5a1e66ccc5fd0f43099eca
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.remote.command-lists:
+    specification: feature.app-skill.code-run@1
+    specification_id: feature.app-skill.code-run
+    type: security
+    fingerprint: 231562afed0521b8d25d5ab70e4dda0bc3084ab9c4e9794eaaed40c86b68b11a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.remote.explanation:
+    specification: feature.app-skill.code-run@1
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 04de7d18426fcf60290ce5d2b693ec9711f253ba52fdb0e7690886f660e616ab
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.remote.resource-profiles:
+    specification: feature.app-skill.code-run@1
+    specification_id: feature.app-skill.code-run
+    type: security
+    fingerprint: e37a438614369cab289dacddcac31d9fe9cb35c70ca951fcc6acfff5a9f77df2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.remote.managed-jobs:
+    specification: feature.app-skill.code-run@1
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 96536856cf8d7bb41a06e9c2b5fd28d794e9c9ed1d2c1a75641ddd376da6d7a0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.execution.wait-or-continue:
+    specification: feature.app-skill.code-run@1
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 0f45a2d4c23626029ef3701a21846471402dcd29cbcd6b38b6d408447f285057
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.output.external-text-guard:
+    specification: feature.app-skill.code-run@1
+    specification_id: feature.app-skill.code-run
+    type: security
+    fingerprint: 43b63a1cffb610d062844f92a195e8af1d5c3f91e1010791ff635b04b6586ec2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.output.cached-inference-guard:
+    specification: feature.app-skill.code-run@1
+    specification_id: feature.app-skill.code-run
+    type: security
+    fingerprint: e447730d3f50796d3ed5f5c0999216de851ee9d8de45097a77b8818078a4e846
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.output.bounded-delivery:
+    specification: feature.app-skill.code-run@1
+    specification_id: feature.app-skill.code-run
+    type: invariant
+    fingerprint: 0dc7e54f9ad6dc6bb8486117e24d408264c2be8d464aaf598f15e1d9d0ac946e
     required_applies_to:
     - rest_api
     - cli
@@ -2437,7 +2558,7 @@ assertions:
     specification: feature.app-skill.code-run@1
     specification_id: feature.app-skill.code-run
     type: parity
-    fingerprint: 8efeef0e89b4e22a93993245a5c548c031abd8c587696c174fc626ee259b52ce
+    fingerprint: 7afc22a12155e792fb1402c09dd3a5690df4b0171993a4e14b4045fb38f493d1
     required_applies_to:
     - rest_api
     - cli
@@ -4145,6 +4266,30 @@ assertions:
     required_applies_to:
     - rest_api
     - gui.web
+  focus-modes.project-write-gate:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: security
+    fingerprint: 3a66ad4a904d5b973936da85e3611ca415111903ecd34cfc91d941ee7f178bbf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.project-off-read-preserved:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: 0871c8b12e76cb530b9fc70cb058a319aaff6911d95151dc1ff4271880c33f05
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   focus-modes.activation:
     specification: feature.focus-modes@1
     specification_id: feature.focus-modes
@@ -4875,6 +5020,282 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  projects.files.search-scoped:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: security
+    fingerprint: c6ef3e0e6ec989f889a151d29b1009f794d2ac886155af5116500ef12951e432
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.search-consistent:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: b2cd2cd90db0a8abbfc55f3e6bd7ea646e59da64c92caff50a10f2866b109145
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.executor-wait:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: 82eaf71451c2294f3567e6ec6a7a36ae1c4a95657353444f32008809d80019b0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.wait-deadlines:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: invariant
+    fingerprint: 7c8d74c531c57d67586cb2e0b9c3b1438bddbdcaccbc5f11d59103d509b6d392
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.wait-email:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: privacy
+    fingerprint: 06a0e68cd66836cd5e0d0ab71317214a9bf9f87b1ad0e59e16ac46760a7a69c7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.wait-expiry:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: a4fac2aae63888f698ea3f2ab2c4db73acde6851f1272e5502c18eb728a0815c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.wait-result-reconciliation:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: invariant
+    fingerprint: 9662ce6c795712a434624b72f755dca391fd5c8e6aeb0b9b889914924e4b7855
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.short-write-turn:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: invariant
+    fingerprint: 469d7e073a904462ff5735b354d666b2bc59fe94d10d5eb6915068151515515c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.hosted-ciphertext-commit:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: invariant
+    fingerprint: 9533594ff52fd02e94530a9ac89eadeafd13309a49afeb9f46b48f23c33701d3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.no-server-decryption-authority:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: privacy
+    fingerprint: 0548383692ecbb279efa6467c63a8fe3393f9cdfd2a51b76c2e81f7caaee83c2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.commit-replay:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: invariant
+    fingerprint: 57975c8bd365e62f094adad25fc4c2f2ad86b3c56fb990d90321f4ddc9552998
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.expected-base:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: invariant
+    fingerprint: c634f4f64868795fb4548343f1817b9ae9e56d4ef3c1780989c9ff54fa740fca
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.exact-patch:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: invariant
+    fingerprint: 1127ad32a02e4935772ddb4515a6d58a24f256695be70026af672817180e400f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.automatic-recovery:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: da8a69ab699e480bcde4ed6e300e7f736db10dff6cc5410b623f2817910f7815
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.conflict-decision:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: failure
+    fingerprint: d3d20e54f589bc49cf2746ed85d9d70f4b9bd645dc62ee275f2636ca7c77c97b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.recovery-authorization:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: security
+    fingerprint: b888feafa0f0a0a166edd84fc3d4bf51fbf2c3b1a90ab570543feee1aa8bb4b5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.concurrent-chat-safety:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: invariant
+    fingerprint: 67c21c3c6b0e12170872d2962b6b0c6f8717d5cbe7a89e9411f8c15999764232
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.write-policy-setup:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: a0442e975428d5dc679da0a30c33b9a1d816956b5b89da0f1e5f0e6ae781f03d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.write-policy-enforcement:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: security
+    fingerprint: fcf0a4ed12af2b4457762e40df0217c1ff1f7cf353aeb8be42c558bbe3fed9ad
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.write-policy-settings:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: parity
+    fingerprint: 8422ca284dca82b518b0353ed2f155dece75df61c19321dae5dcbfe1ab85c154
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.focus.default-owned:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: 4e8c635f77d3fc5ff505028c1d338163e4f1806cf39ff23bc512df49bbd75487
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.focus.existing-instructions:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: 7133a6ce02786d844267e48ce13df8cec4d72d2ab0df46ddb396706976da9bb1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.chat-focus-required:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: security
+    fingerprint: d6a52a678c0da0a61eaa7fd1df5aed71da25f6c2d63b6c1296adb4dc0a72892e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   projects.access.explicit-context:
     specification: feature.projects@1
     specification_id: feature.projects
@@ -4886,6 +5307,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   projects.lifecycle.encrypted-crud:
     specification: feature.projects@1
     specification_id: feature.projects
@@ -4897,6 +5319,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   projects.keys.client-wrapped:
     specification: feature.projects@1
     specification_id: feature.projects
@@ -4908,6 +5331,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   projects.links.openmates-only-encrypted:
     specification: feature.projects@1
     specification_id: feature.projects
@@ -4919,6 +5343,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   projects.association.safe-metadata-encrypted-authority:
     specification: feature.projects@1
     specification_id: feature.projects
@@ -4930,6 +5355,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   projects.workspace.contract-plan-task-check-chain:
     specification: feature.projects@1
     specification_id: feature.projects
@@ -4941,6 +5367,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   projects.surfaces.catalog-reused:
     specification: feature.projects@1
     specification_id: feature.projects
@@ -4952,6 +5379,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   projects.checks.lazy-materialization:
     specification: feature.projects@1
     specification_id: feature.projects
@@ -4963,17 +5391,19 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   projects.items.responsive-embeds:
     specification: feature.projects@1
     specification_id: feature.projects
     type: behavior
-    fingerprint: 8ec99ac9c137e8ee41a0d8e5b1a059f691fba6cfb44042bf946e667e33459b5a
+    fingerprint: a1cf22ccb3a65d0bc4d3524c1d3651cfe29fbeed0c1f0c6f3fa4bf690b3a17da
     required_applies_to:
     - rest_api
     - cli
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   projects.uploads.project-wrapped:
     specification: feature.projects@1
     specification_id: feature.projects
@@ -4985,17 +5415,19 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   projects.surface.semantic-parity:
     specification: feature.projects@1
     specification_id: feature.projects
     type: parity
-    fingerprint: 0713b3b2b89fe3333f320e4854491c66c952759e5fa8aa5a52129e060c70774c
+    fingerprint: 348bfe6059d5ba3db92a498d81b30674a7de19b12e323130adf2ac2d148bf3a5
     required_applies_to:
     - rest_api
     - cli
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   projects.remote-access.task-sync:
     specification: feature.projects@1
     specification_id: feature.projects
@@ -5007,6 +5439,7 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
   public-example-chats.catalog.discoverable:
     specification: feature.public-example-chats@4
     specification_id: feature.public-example-chats

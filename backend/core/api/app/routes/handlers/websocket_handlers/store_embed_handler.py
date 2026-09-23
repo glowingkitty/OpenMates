@@ -7,6 +7,9 @@ from fastapi import WebSocket
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.services.embed_version_transaction_service import (
+    requires_atomic_project_embed_write,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +90,16 @@ async def handle_store_embed(
                 logger.error(f"Missing embed_id in store_embed payload from user {user_id}")
                 return
             request_id = payload.pop("request_id", None)
+
+            if await requires_atomic_project_embed_write(directus_service, embed_id):
+                await _reject_store_embed_write(
+                    manager,
+                    user_id,
+                    device_fingerprint_hash,
+                    embed_id,
+                    "Project file writes require commit_embed_revision",
+                )
+                return
 
             logger.info(f"Processing store_embed for embed {embed_id} from user {user_id}")
 

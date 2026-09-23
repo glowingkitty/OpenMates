@@ -17,17 +17,26 @@ import io
 import json
 import re
 import hashlib
-from fastapi import APIRouter, HTTPException, Request, Depends, Query
+from fastapi import APIRouter, HTTPException, Request, Depends, Path, Query
 from fastapi.responses import StreamingResponse
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_optional, get_current_user_or_api_key
+from backend.core.api.app.routes.auth_routes.auth_dependencies import (
+    get_current_user,
+    get_current_user_optional,
+    get_current_user_or_api_key,
+)
 from backend.core.api.app.models.user import User
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+from backend.core.api.app.services.project_write_authorization_service import (
+    ProjectWriteAuthorizationError,
+    ProjectWriteAuthorizationService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +51,14 @@ def get_directus_service(request: Request) -> DirectusService:
         logger.error("DirectusService not found in app.state")
         raise HTTPException(status_code=500, detail="Internal configuration error")
     return request.app.state.directus_service
+
+
+def get_cache_service(request: Request):
+    """Get the cache used for fresh Project focus and policy authorization."""
+    if not hasattr(request.app.state, 'cache_service'):
+        logger.error("CacheService not found in app.state")
+        raise HTTPException(status_code=500, detail="Internal configuration error")
+    return request.app.state.cache_service
 
 
 def get_encryption_service(request: Request) -> EncryptionService:
@@ -108,6 +125,190 @@ async def _read_version_rows(
     else:
         rows = await directus_service.get_items("embed_diffs", params=params)
     return list(rows or [])
+
+
+async def _require_project_embed_access(
+    *,
+    directus_service: DirectusService,
+    user_id: str,
+    project_id: str,
+    embed_id: str,
+    team_id: str | None,
+) -> dict:
+    """Require current Personal/Team Project and exact opaque item membership."""
+    user_hash = _hash_value(user_id)
+    team_hash = _hash_value(team_id) if team_id else None
+    if team_id:
+        try:
+            await directus_service.team.require_team_role(
+                team_id,
+                user_id,
+                {"owner", "admin", "member", "viewer"},
+            )
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=404, detail="Project embed not found") from exc
+    project = await directus_service.project.get_project(project_id, user_id, team_id=team_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project embed not found")
+    params = {
+        "filter[hashed_project_id][_eq]": _hash_value(project_id),
+        "filter[target_id_hash][_eq]": _hash_value(embed_id),
+        "filter[item_type][_in]": "embed,upload",
+        "fields": "id",
+        "limit": 1,
+    }
+    if team_hash:
+        params["filter[hashed_team_id][_eq]"] = team_hash
+        params["filter[hashed_user_id][_null]"] = True
+    else:
+        params["filter[hashed_user_id][_eq]"] = user_hash
+        params["filter[hashed_team_id][_null]"] = True
+    items = await directus_service.get_items(
+        "project_items",
+        params=params,
+        no_cache=True,
+        admin_required=True,
+    )
+    if not isinstance(items, list) or not items:
+        raise HTTPException(status_code=404, detail="Project embed not found")
+    return project
+
+
+@router.get("/{embed_id}/encrypted")
+@limiter.limit("120/minute")
+async def get_encrypted_project_embed(
+    embed_id: str,
+    request: Request,
+    project_id: str = Query(..., min_length=1),
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Return a fresh hosted-file ciphertext head to first-party clients only.
+
+    This endpoint never decrypts content and returns only the wrapper bound to
+    the requested Project. Private paths and plaintext content hashes are not
+    part of the projection.
+    """
+    await _require_project_embed_access(
+        directus_service=directus_service,
+        user_id=current_user.id,
+        project_id=project_id,
+        embed_id=embed_id,
+        team_id=team_id,
+    )
+    embed = await directus_service.embed.get_embed_by_id(embed_id)
+    if not embed or embed.get("encryption_mode", "client") != "client":
+        raise HTTPException(status_code=404, detail="Project embed not found")
+    hashed_embed_id = _hash_value(embed_id)
+    hashed_project_id = _hash_value(project_id)
+    wrappers = await directus_service.get_items(
+        "embed_keys",
+        params={
+            "filter[hashed_embed_id][_eq]": hashed_embed_id,
+            "filter[key_type][_eq]": "project",
+            "filter[hashed_project_id][_eq]": hashed_project_id,
+            "fields": "hashed_embed_id,key_type,hashed_project_id,encrypted_embed_key,created_at",
+            "limit": 1,
+        },
+        no_cache=True,
+        admin_required=True,
+    )
+    initial_rows = await directus_service.get_items(
+        "embed_diffs",
+        params={
+            "filter[embed_id][_eq]": embed_id,
+            "filter[version_number][_eq]": 1,
+            "fields": "id",
+            "limit": 1,
+        },
+        no_cache=True,
+        admin_required=True,
+    )
+    safe_embed_fields = (
+        "embed_id", "encrypted_type", "encrypted_content", "encrypted_text_preview",
+        "encrypted_diff", "status", "version_number", "encryption_mode", "created_at", "updated_at",
+    )
+    return {
+        "embed": {field: embed.get(field) for field in safe_embed_fields},
+        "embed_keys": list(wrappers) if isinstance(wrappers, list) else [],
+        "has_initial_history": isinstance(initial_rows, list) and bool(initial_rows),
+    }
+
+
+@router.get("/{embed_id}/revision-receipts/{operation_id}")
+@limiter.limit("120/minute")
+async def get_project_embed_revision_receipt(
+    embed_id: str,
+    request: Request,
+    operation_id: str = Path(
+        ...,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+    ),
+    project_id: str = Query(..., min_length=1, max_length=512),
+    chat_id: str = Query(..., min_length=1, max_length=512),
+    proposal_digest: str = Query(
+        ...,
+        min_length=64,
+        max_length=64,
+        pattern=r"^[0-9a-f]{64}$",
+    ),
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Reconcile one exact committed operation without exposing its payload."""
+    await _require_project_embed_access(
+        directus_service=directus_service,
+        user_id=current_user.id,
+        project_id=project_id,
+        embed_id=embed_id,
+        team_id=team_id,
+    )
+    try:
+        await ProjectWriteAuthorizationService(
+            directus_service,
+            get_cache_service(request),
+        ).require_write_authorization(
+            requester_user_id=current_user.id,
+            chat_id=chat_id,
+            project_id=project_id,
+            operation_id=operation_id,
+            proposal_digest=proposal_digest,
+            team_id=team_id,
+            consume_approval=False,
+        )
+    except ProjectWriteAuthorizationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
+
+    params = {
+        "filter[embed_id][_eq]": embed_id,
+        "filter[operation_id][_eq]": operation_id,
+        "filter[hashed_project_id][_eq]": _hash_value(project_id),
+        "filter[actor_user_hash][_eq]": _hash_value(current_user.id),
+        "filter[hashed_chat_id][_eq]": _hash_value(chat_id),
+        "filter[proposal_digest][_eq]": proposal_digest,
+        "fields": "committed_revision",
+        "limit": 1,
+    }
+    if team_id:
+        params["filter[hashed_team_id][_eq]"] = _hash_value(team_id)
+    else:
+        params["filter[hashed_team_id][_null]"] = True
+    receipts = await directus_service.get_items(
+        "embed_version_commits",
+        params=params,
+        no_cache=True,
+        admin_required=True,
+    )
+    if not isinstance(receipts, list) or not receipts:
+        raise HTTPException(status_code=404, detail="Revision receipt not found")
+    return {
+        "status": "committed",
+        "current_revision": receipts[0].get("committed_revision"),
+    }
 
 
 @router.get("/{embed_id}/versions")

@@ -31,6 +31,10 @@ from backend.shared.providers.e2b_application_preview import (
     plan_application_preview_startup,
 )
 from backend.shared.python_utils.learning_mode import apply_learning_mode_cap_to_embed_result
+from backend.shared.python_utils.terminal_output_safety import (
+    normalize_terminal_output,
+    terminal_output_receipt_allows_model,
+)
 from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_payload_for_ascii_smuggling,
     sanitize_text_simple,
@@ -4054,9 +4058,12 @@ class EmbedService:
                 return None
 
             cached_data = json.loads(cached_json.decode("utf-8") if isinstance(cached_json, bytes) else cached_json)
+            receipt = cached_data.get("output_safety_receipt")
             encrypted_content = cached_data.get("encrypted_content")
             if not encrypted_content:
-                logger.debug(f"{log_prefix} Code Run output cache for embed {embed_id} has no encrypted_content")
+                logger.debug(
+                    f"{log_prefix} Code Run output cache for embed {embed_id} has no model-approved content"
+                )
                 return None
 
             plaintext_toon = await self.encryption_service.decrypt_with_user_key(
@@ -4066,7 +4073,37 @@ class EmbedService:
             if not plaintext_toon:
                 logger.warning(f"{log_prefix} Failed to decrypt Code Run output for embed {embed_id}")
                 return None
-            return plaintext_toon
+
+            decoded = decode(plaintext_toon)
+            if not isinstance(decoded, dict) or decoded.get("type") != "code_run_output":
+                logger.warning(f"{log_prefix} Invalid Code Run inference cache payload for embed {embed_id}")
+                return None
+            output = decoded.get("output")
+            if not isinstance(output, str):
+                return None
+            receipt_id = receipt.get("receipt_id") if isinstance(receipt, dict) else None
+            if not isinstance(receipt_id, str) or decoded.get("output_safety_receipt_id") != receipt_id:
+                logger.warning(f"{log_prefix} Code Run inference cache receipt mismatch for embed {embed_id}")
+                return None
+            normalized_output, cleanup = normalize_terminal_output(output)
+            if normalized_output != output or any(cleanup.values()):
+                logger.warning(f"{log_prefix} Code Run inference cache failed deterministic revalidation for embed {embed_id}")
+                return None
+            if not terminal_output_receipt_allows_model(receipt, delivered_chars=len(output)):
+                logger.warning(f"{log_prefix} Withholding unreviewed Code Run output for embed {embed_id}")
+                return None
+
+            safe_payload: dict[str, Any] = {
+                "type": "code_run_output",
+                "status": str(decoded.get("status") or "unknown"),
+                "saved_at": decoded.get("saved_at"),
+                "output": output,
+                "output_safety_receipt": receipt,
+            }
+            files = decoded.get("files")
+            if isinstance(files, list):
+                safe_payload["files"] = [file[:512] for file in files if isinstance(file, str)]
+            return encode(safe_payload)
         except Exception as e:
             logger.error(f"{log_prefix} Error retrieving Code Run output for embed {embed_id}: {e}", exc_info=True)
             return None

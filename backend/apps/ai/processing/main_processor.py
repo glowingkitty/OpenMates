@@ -90,6 +90,11 @@ from backend.core.api.app.services.sub_chat_orchestration_service import SubChat
 # Import tool generator
 from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
 from backend.apps.ai.processing.task_runtime_tools import build_task_runtime_tools, merge_task_runtime_tools
+from backend.apps.ai.processing.project_file_tools import (
+    PROJECT_FILE_TOOL_TO_OPERATION,
+    build_project_file_tools,
+    build_project_focus_prompt,
+)
 from backend.apps.ai.processing.task_queue_continuation import (
     TASK_QUEUE_GUARD_MAX_RETRIES,
     build_task_queue_continuation_event,
@@ -2956,6 +2961,40 @@ async def handle_main_processing(
     task_tool_context = None
     task_context_prompt = ""
     task_tools_enabled = "task_update_jobs" in (getattr(request_data, "client_capabilities", None) or [])
+    project_capabilities = getattr(request_data, "client_capabilities", None) or []
+    project_file_tools_enabled = (
+        "project_file_jobs" in project_capabilities
+        and not request_data.is_incognito
+        and cache_service is not None
+    )
+    active_project_focus = None
+    if project_file_tools_enabled or (
+        "remote_command_jobs" in project_capabilities
+        and not request_data.is_incognito
+        and cache_service is not None
+    ):
+        try:
+            from backend.core.api.app.services.project_write_authorization_service import (
+                ProjectWriteAuthorizationService,
+            )
+
+            active_project_focus = await ProjectWriteAuthorizationService(
+                directus_service, cache_service
+            ).get_active_focus(user_id=request_data.user_id, chat_id=request_data.chat_id)
+        except Exception:
+            logger.warning("%s Project focus authorization failed closed", log_prefix, exc_info=True)
+            active_project_focus = None
+    request_data.active_project_focus = active_project_focus
+    request_data.current_project = (
+        {
+            key: active_project_focus.get(key)
+            for key in ("project_id", "project_id_hash", "team_id", "team_id_hash")
+        }
+        if active_project_focus
+        else None
+    )
+    if active_project_focus:
+        prompt_parts.append(build_project_focus_prompt(active_project_focus))
     suppress_task_runtime_tools = should_suppress_task_runtime_tools_for_app_skill(
         preselected_skills,
         user_requested_skills_only=user_requested_skills_only,
@@ -3419,6 +3458,11 @@ async def handle_main_processing(
             len(task_tools),
         )
 
+    if project_file_tools_enabled and active_project_focus:
+        project_tools = build_project_file_tools()
+        available_tools_for_llm.extend(project_tools)
+        logger.info("%s Added %s authorized Project file tool(s)", log_prefix, len(project_tools))
+
     audio_transcribe_blocked_by_recording = has_transcribed_web_audio_recording(request_data.message_history)
     if audio_transcribe_blocked_by_recording:
         original_tool_count = len(available_tools_for_llm)
@@ -3747,7 +3791,13 @@ async def handle_main_processing(
     # underscored form into "activate-focus-mode" before resolver lookup, so
     # we register BOTH the canonicalized form (post-canonicalize) and the raw
     # snake_case form (pre-canonicalize, defensive) for both tools.
-    for system_skill in ("activate_focus_mode", "deactivate_focus_mode", "start_sub_chats", "ask_user_input"):
+    for system_skill in (
+        "activate_focus_mode",
+        "deactivate_focus_mode",
+        "start_sub_chats",
+        "ask_user_input",
+        *PROJECT_FILE_TOOL_TO_OPERATION.keys(),
+    ):
         # Pre-canonicalize form (raw snake_case as the LLM emits it)
         tool_resolver_map[system_skill] = ("system", system_skill)
         # Post-canonicalize form (underscores → hyphens, what the dispatcher sees)
@@ -4061,6 +4111,7 @@ async def handle_main_processing(
     # duplicate side effects (e.g., multiple reminders for "set me a reminder").
     # Key: hash of (app_id, skill_id, arguments), Value: dict with results and embed_id
     completed_skill_calls: Dict[str, Dict[str, Any]] = {}
+    pending_project_operation_id: Optional[str] = None
     
     for iteration in range(MAX_TOOL_CALL_ITERATIONS):
         logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}, total_skill_calls={total_skill_calls}")
@@ -5699,6 +5750,154 @@ async def handle_main_processing(
                 # System tools are special tools that modify the chat state rather than executing skills
                 # They use app_id="system" to distinguish from regular app skills
                 if app_id == "system":
+                    if skill_id in PROJECT_FILE_TOOL_TO_OPERATION:
+                        operation = PROJECT_FILE_TOOL_TO_OPERATION[skill_id]
+                        if pending_project_operation_id:
+                            project_result = {
+                                "status": "rejected",
+                                "reason": (
+                                    "A Project file operation is already waiting for its authorized client result. "
+                                    "Do not dispatch another operation or poll."
+                                ),
+                                "operation_id": pending_project_operation_id,
+                            }
+                        elif not cache_service:
+                            project_result = {
+                                "status": "rejected",
+                                "reason": "Project file execution is unavailable.",
+                            }
+                        else:
+                            operation_id = str(uuid.uuid4())
+                            try:
+                                from backend.apps.ai.tasks.async_skill_continuation import (
+                                    cache_async_skill_continuation_context,
+                                    async_skill_continuation_key,
+                                )
+                                from backend.core.api.app.services.project_file_operation_service import (
+                                    PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
+                                    ProjectFileOperationService,
+                                )
+                                from backend.core.api.app.services.project_write_authorization_service import (
+                                    ProjectWriteAuthorizationService,
+                                )
+                                from backend.core.api.app.tasks.project_file_operation_tasks import (
+                                    schedule_project_file_operation_deadlines,
+                                )
+
+                                current_focus = await ProjectWriteAuthorizationService(
+                                    directus_service, cache_service
+                                ).get_active_focus(
+                                    user_id=request_data.user_id,
+                                    chat_id=request_data.chat_id,
+                                )
+                                if (
+                                    not current_focus
+                                    or not active_project_focus
+                                    or current_focus.get("project_id") != active_project_focus.get("project_id")
+                                    or current_focus.get("focus_id_hash") != active_project_focus.get("focus_id_hash")
+                                ):
+                                    raise PermissionError("Project focus changed before file operation dispatch")
+
+                                operation_arguments = dict(parsed_args) if isinstance(parsed_args, dict) else {}
+                                requested_source_id = operation_arguments.pop("source_id", None)
+                                dispatch_focus = dict(current_focus)
+                                if requested_source_id is not None:
+                                    source = await directus_service.project.get_source(
+                                        str(current_focus["project_id"]),
+                                        request_data.user_id,
+                                        str(requested_source_id),
+                                        team_id=current_focus.get("team_id"),
+                                    )
+                                    required_source_capability = (
+                                        "write_request"
+                                        if operation in {"create_file", "update_file"}
+                                        else "search" if operation == "search" else "read"
+                                    )
+                                    if (
+                                        not source
+                                        or source.get("status") == "revoked"
+                                        or required_source_capability not in set(source.get("capabilities") or [])
+                                    ):
+                                        raise PermissionError("Project source is unavailable or not authorized")
+                                    dispatch_focus["source_id"] = str(requested_source_id)
+
+                                await cache_async_skill_continuation_context(
+                                    cache_service=cache_service,
+                                    async_task_id=operation_id,
+                                    request_data=request_data,
+                                    skill_config_dict=skill_config_dict,
+                                    app_id="system",
+                                    skill_id=skill_id,
+                                    tool_name=skill_id,
+                                    tool_arguments=operation_arguments,
+                                    ttl_seconds=PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
+                                    requires_current_turn=True,
+                                )
+                                operation_service = ProjectFileOperationService(cache_service)
+                                try:
+                                    project_result = await operation_service.create_operation(
+                                        user_id=request_data.user_id,
+                                        chat_id=request_data.chat_id,
+                                        project_focus=dispatch_focus,
+                                        operation=operation,
+                                        arguments=operation_arguments,
+                                        continuation_task_id=operation_id,
+                                        message_id=request_data.message_id,
+                                        operation_id=operation_id,
+                                        publish=False,
+                                    )
+                                except Exception:
+                                    await cache_service.delete(async_skill_continuation_key(operation_id))
+                                    raise
+                                operation_record = await operation_service.get_job(
+                                    user_id=request_data.user_id,
+                                    operation_id=operation_id,
+                                )
+                                schedule_project_file_operation_deadlines(
+                                    user_id=request_data.user_id,
+                                    operation_id=operation_id,
+                                    episode_id=str(operation_record["episode_id"]),
+                                )
+                                await operation_service.publish_available(operation_record)
+                                project_result = {
+                                    **project_result,
+                                    "status": "processing",
+                                    "message": "Waiting for an authorized Project client executor.",
+                                }
+                                pending_project_operation_id = operation_id
+                                request_data.awaiting_async_skill_continuation = True
+                            except Exception as project_error:
+                                logger.warning(
+                                    "%s Project file operation dispatch failed: %s",
+                                    log_prefix,
+                                    project_error,
+                                    exc_info=True,
+                                )
+                                if getattr(project_error, "code", None) == "conflict_recovery_budget_exhausted":
+                                    project_result = {
+                                        "status": "paused_conflict_budget_exhausted",
+                                        "reason": (
+                                            "This file reached the automatic conflict recovery limit for the original "
+                                            "user turn. Explain the blocked edit and any partial work honestly; a new "
+                                            "user request is required before another mutation of this file."
+                                        ),
+                                    }
+                                else:
+                                    project_result = {
+                                        "status": "rejected",
+                                        "reason": "Project file operation authorization or dispatch failed.",
+                                    }
+                        current_message_history.append(
+                            {
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps(project_result),
+                            }
+                        )
+                        completed_skill_calls[call_hash] = project_result
+                        continue
+
                     if skill_id == "activate_focus_mode":
                         focus_id = parsed_args.get("focus_id")
                         logger.info(f"{log_prefix} [FOCUS_MODE] LLM requested focus mode activation: {focus_id}")
@@ -6908,6 +7107,17 @@ async def handle_main_processing(
                         and len(tool_calls_for_this_turn) == 1
                     )
                     inline_wait_deadline = time.time() + ASYNC_SKILL_INLINE_WAIT_SECONDS if should_wait_inline else None
+                    waits_for_remote_command = (
+                        (app_id, skill_id) == ("code", "run")
+                        and isinstance(parsed_args, dict)
+                        and parsed_args.get("target") == "remote_source"
+                        and parsed_args.get("wait_for_completion", True) is True
+                    )
+                    is_remote_command = (
+                        (app_id, skill_id) == ("code", "run")
+                        and isinstance(parsed_args, dict)
+                        and parsed_args.get("target") == "remote_source"
+                    )
                     try:
                         from backend.apps.ai.tasks.async_skill_continuation import (
                             cache_async_skill_continuation_context,
@@ -6925,7 +7135,23 @@ async def handle_main_processing(
                                 tool_name=tool_name,
                                 tool_arguments=parsed_args if isinstance(parsed_args, dict) else {},
                                 inline_wait_deadline=inline_wait_deadline,
+                                requires_current_turn=is_remote_command,
+                                defer_until_initial_response_complete=(
+                                    is_remote_command and not waits_for_remote_command
+                                ),
                             )
+                        if (
+                            is_remote_command
+                        ):
+                            from backend.core.api.app.services.remote_command_service import (
+                                RemoteCommandService,
+                            )
+
+                            for async_task_id in async_task_ids:
+                                await RemoteCommandService(cache_service).register_continuation(
+                                    user_id=request_data.user_id,
+                                    execution_id=str(async_task_id),
+                                )
                         if async_task_ids:
                             logger.info(
                                 f"{log_prefix} Cached async skill continuation context for "
@@ -6949,6 +7175,8 @@ async def handle_main_processing(
                                 "passing completed results to LLM"
                             )
                         else:
+                            if waits_for_remote_command and async_task_ids:
+                                request_data.awaiting_async_skill_continuation = True
                             tool_result_content_str = json.dumps(
                                 _build_async_skill_pending_tool_result(
                                     async_result=async_result,

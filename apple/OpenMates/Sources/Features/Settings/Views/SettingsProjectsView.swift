@@ -21,7 +21,7 @@ struct SettingsProjectsView: View {
     @State private var projectKeys: [String: SymmetricKey] = [:]
     @State private var sources: [ProjectSource] = []
     @State private var sourceNames: [String: String] = [:]
-    @State private var writeMode: WriteMode = .alwaysAsk
+    @State private var writeMode: WriteMode?
     @State private var isLoading = true
     @State private var isSaving = false
     @State private var statusMessage: String?
@@ -47,21 +47,20 @@ struct SettingsProjectsView: View {
     struct ProjectsResponse: Decodable { let projects: [ProjectItem] }
     struct SourcesResponse: Decodable { let sources: [ProjectSource] }
     struct SettingsResponse: Decodable { let settings: ProjectSettings }
-    struct ProjectSettings: Decodable { let writeMode: WriteMode }
+    struct ProjectSettings: Decodable { let writeMode: WriteMode? }
     struct UpdateSettingsRequest: Encodable {
         let writeMode: WriteMode
-        let encryptedSettings: String?
         let updatedAt: Int
     }
 
     enum WriteMode: String, Codable, CaseIterable {
+        case applyAndShow = "apply_and_show"
         case alwaysAsk = "always_ask"
-        case autoApproveSafeWrites = "auto_approve_safe_writes"
 
         @MainActor var title: String {
             switch self {
             case .alwaysAsk: return L("settings.projects.write_mode_always_ask")
-            case .autoApproveSafeWrites: return L("settings.projects.write_mode_safe_writes")
+            case .applyAndShow: return L("settings.projects.write_mode_apply_and_show")
             }
         }
     }
@@ -276,7 +275,6 @@ struct SettingsProjectsView: View {
                     path: "/v1/projects/\(project.id)/settings",
                     body: UpdateSettingsRequest(
                         writeMode: mode,
-                        encryptedSettings: nil,
                         updatedAt: Int(Date().timeIntervalSince1970 * 1000)
                     )
                 )

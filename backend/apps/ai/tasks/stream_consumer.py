@@ -2486,6 +2486,14 @@ def _create_redis_payload(
         payload["is_sub_chat_continuation"] = True
     if request_data.is_focus_mode_continuation:
         payload["is_focus_mode_continuation"] = True
+    if request_data.is_async_skill_continuation:
+        payload["is_async_skill_continuation"] = True
+        payload["original_user_message_id"] = (
+            request_data.original_user_message_id or request_data.message_id
+        )
+        payload["async_skill_task_id"] = request_data.async_skill_task_id
+    if request_data.awaiting_async_skill_continuation:
+        payload["awaiting_async_skill_continuation"] = True
     if awaiting_focus_mode_continuation:
         payload["awaiting_focus_mode_continuation"] = True
     
@@ -9632,7 +9640,11 @@ async def _consume_main_processing_stream(
     )
 
     recovery_job = None
-    if _recovery_inference_task_id(request_data) and not awaiting_sub_chats_completion:
+    if (
+        _recovery_inference_task_id(request_data)
+        and not awaiting_sub_chats_completion
+        and not request_data.awaiting_async_skill_continuation
+    ):
         recovery_job = await _persist_sealed_recovery_job(
             directus_service=directus_service,
             request_data=request_data,

@@ -33,6 +33,103 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
+  // contract-test: supporting surface=cli assertions=projects.files.executor-wait,projects.files.wait-result-reconciliation
+  it("keeps the Project executor connected until its matching continuation finishes", async () => {
+    const chatId = "project-fixture-chat";
+    const userMessageId = "project-fixture-user";
+    server.once("connection", (socket) => {
+      const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+      setTimeout(() => {
+        send("project_file_operation_available", { protocol_version: 1, operation_id: "file-op", chat_id: chatId, message_id: userMessageId, expires_at: Math.floor(Date.now() / 1000) + 60 });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, message_id: "initial", is_final_chunk: true, full_content_so_far: "Working on the file." });
+        send("post_processing_completed", { chat_id: chatId });
+        send("project_file_operation_completed", { chat_id: chatId, message_id: userMessageId, operation_id: "file-op" });
+      }, 5);
+      setTimeout(() => {
+        const continuation = { chat_id: chatId, user_message_id: userMessageId, original_user_message_id: userMessageId, is_async_skill_continuation: true, async_skill_task_id: "file-op", message_id: "continued" };
+        send("ai_message_update", { ...continuation, is_final_chunk: false, full_content_so_far: "Read back" });
+        // A late initial terminal frame must not close the new continuation.
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, message_id: "initial", is_final_chunk: true, full_content_so_far: "Working on the file." });
+        send("ai_message_update", { ...continuation, is_final_chunk: true, full_content_so_far: "Read back confirmed the edit." });
+        send("post_processing_completed", { chat_id: chatId });
+      }, 35);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      const result = await client.collectAiResponse(userMessageId, chatId, { timeoutMs: 1_000 });
+      assert.equal(result.status, "completed");
+      assert.equal(result.content, "Read back confirmed the edit.");
+      assert.equal(result.messageId, "continued");
+    } finally { client.close(); }
+  });
+
+  for (const mode of ["missing-file-event", "command-wait", "command-continue", "command-review"] as const) {
+    // contract-test: supporting surface=cli assertions=projects.files.executor-wait,code-run.execution.wait-or-continue,code-run.remote.explicit-approval
+    it(`collects the correct Project execution stage: ${mode}`, async () => {
+      const chatId = `chat-${mode}`;
+      const userMessageId = `user-${mode}`;
+      server.once("connection", (socket) => {
+        const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+        setTimeout(() => {
+          if (mode !== "missing-file-event") send("remote_command_review_required", {
+            chat_id: chatId, message_id: userMessageId, execution_id: "command-fixture",
+            wait_for_completion: mode !== "command-continue",
+          });
+          send("ai_message_update", {
+            chat_id: chatId, user_message_id: userMessageId, message_id: "initial", is_final_chunk: true,
+            awaiting_async_skill_continuation: mode === "missing-file-event",
+            full_content_so_far: "Initial reply.",
+          });
+          send("post_processing_completed", { chat_id: chatId });
+        }, 5);
+        if (mode === "missing-file-event" || mode === "command-wait") setTimeout(() => {
+          send("ai_message_update", {
+            chat_id: chatId, user_message_id: userMessageId, original_user_message_id: userMessageId,
+            is_async_skill_continuation: true, async_skill_task_id: mode === "command-wait" ? "command-fixture" : "file-fixture",
+            message_id: "continued", is_final_chunk: true, full_content_so_far: "Result checked.",
+          });
+          send("post_processing_completed", { chat_id: chatId });
+        }, 35);
+      });
+      const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+      try {
+        await client.open();
+        const result = await client.collectAiResponse(userMessageId, chatId, {
+          timeoutMs: 1_000, remoteCommandReviewInteractive: mode !== "command-review",
+        });
+        assert.equal(result.status, mode === "command-review" ? "waiting_for_user" : "completed");
+        if (mode === "command-review") assert.match(result.content, /needs approval/);
+        else assert.equal(result.content, mode === "command-continue" ? "Initial reply." : "Result checked.");
+      } finally { client.close(); }
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=code-run.remote.explicit-approval,code-run.execution.wait-or-continue
+  it("returns waiting after an interactive-capable review callback defers", async () => {
+    const chatId = "chat-command-deferred";
+    const userMessageId = "user-command-deferred";
+    server.once("connection", (socket) => {
+      setTimeout(() => socket.send(JSON.stringify({
+        type: "remote_command_review_required",
+        payload: { chat_id: chatId, message_id: userMessageId, execution_id: "command-deferred", wait_for_completion: true },
+      })), 5);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      client.onMessageType<Record<string, unknown>>("remote_command_review_required", (payload) => {
+        queueMicrotask(() => client.notifyRemoteCommandReviewDeferred(payload));
+      });
+      const result = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        remoteCommandReviewInteractive: true,
+      });
+      assert.equal(result.status, "waiting_for_user");
+      assert.match(result.content, /needs approval/);
+    } finally { client.close(); }
+  });
+
   it("ignores unrelated embeds and waits for delayed async embed completion", async () => {
     const chatId = "chat-active";
     const userMessageId = "user-message-1";

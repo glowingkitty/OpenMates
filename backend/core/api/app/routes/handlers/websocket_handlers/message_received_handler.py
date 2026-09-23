@@ -186,8 +186,32 @@ def _sanitize_benchmark_metadata(value: Any) -> dict[str, str] | None:
 def _sanitize_client_capabilities(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
-    allowed = {"task_update_jobs"}
+    allowed = {"task_update_jobs", "project_file_jobs", "remote_command_jobs"}
     return sorted({item for item in value if isinstance(item, str) and item in allowed})
+
+
+async def _active_project_context(
+    *,
+    directus_service: Any,
+    cache_service: Any,
+    user_id: str,
+    chat_id: str,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Resolve Project context from server authority, never from client fields."""
+    from backend.core.api.app.services.project_write_authorization_service import (
+        ProjectWriteAuthorizationService,
+    )
+
+    focus = await ProjectWriteAuthorizationService(
+        directus_service, cache_service
+    ).get_active_focus(user_id=user_id, chat_id=chat_id)
+    if not focus:
+        return None, None
+    current_project = {
+        key: focus.get(key)
+        for key in ("project_id", "project_id_hash", "team_id", "team_id_hash")
+    }
+    return current_project, focus
 
 
 def _sanitize_connected_account_directory(value: Any) -> list[dict[str, Any]] | None:
@@ -474,6 +498,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 user_id,
                 device_fingerprint_hash,
             )
+            current_project, active_project_focus = await _active_project_context(
+                directus_service=directus_service,
+                cache_service=cache_service,
+                user_id=user_id,
+                chat_id=chat_id,
+            )
+            inference_request["current_project"] = current_project
+            inference_request["active_project_focus"] = active_project_focus
             if team_should_trigger_ai:
                 try:
                     recovery_enqueue_result = await enqueue_chat_turn(
@@ -798,6 +830,20 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             logger.info(f"[FORK] Fork message {message_id} cached for AI context in chat {chat_id}. No AI pipeline triggered.")
             return  # Early exit — skip suggestion deletion, draft deletion, broadcast, AI
+
+        # Fence later client-executed tool continuations to this accepted user
+        # turn. A newer message replaces this value before it starts inference.
+        if role == "user":
+            from backend.apps.ai.tasks.async_skill_continuation import (
+                ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+                async_skill_latest_user_turn_key,
+            )
+
+            await cache_service.set(
+                async_skill_latest_user_turn_key(user_id, chat_id),
+                message_id,
+                ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+            )
 
         # DELETE NEW CHAT SUGGESTION if user clicked one before sending this message
         # This ensures used suggestions are removed from the pool on both client and server
@@ -2027,6 +2073,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             mentioned_settings_memories_cleartext = None
             logger.warning("mentioned_settings_memories_cleartext is not a dict, ignoring")
         client_capabilities = server_client_capabilities(manager, user_id, device_fingerprint_hash)
+        current_project, active_project_focus = await _active_project_context(
+            directus_service=directus_service,
+            cache_service=cache_service,
+            user_id=user_id,
+            chat_id=chat_id,
+        )
 
         # OPE-265: Pass the current chat title (decrypted by client) to post-processing
         # so the LLM can decide if the title needs updating when the conversation drifts.
@@ -2074,6 +2126,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             is_incognito=is_incognito, # Pass the incognito flag
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
+            current_project=current_project,
+            active_project_focus=active_project_focus,
             user_preferences=user_preferences_dict,
             learning_mode=learning_mode_context,
             app_settings_memories_metadata=app_settings_memories_metadata_from_client,  # Client-provided metadata (source of truth)

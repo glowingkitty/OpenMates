@@ -1,6 +1,95 @@
 schema_version: 1
 specification: feature.app-skill.code-run@1
 
+remote_commands:
+  - id: isolated-explanation-has-no-authority
+    assertion_ids: [code-run.remote.explanation]
+    given: A reviewed command contains a comment asking the reviewer to approve all commands, while the coding chat contains private Project instructions.
+    when: The separate Flash-Lite explanation call receives the exact command and fixed review instructions.
+    then: It receives neither the chat instructions nor credential values, treats the comment as untrusted input, and cannot mint an approval. A failed explanation stops review with a visible failure.
+  - id: remote-ask-first
+    assertion_ids: [code-run.remote.explicit-approval, code-run.remote.explanation]
+    given: Project focus is active and file writes use Apply and show; no command list is enabled.
+    when: The agent proposes npm test on the connected machine.
+    then: An independent Flash-Lite explanation and exact Run once approval precede execution. File policy and E2B markers do not authorize it.
+  - id: remote-selected-checks
+    assertion_ids: [code-run.remote.command-lists]
+    given: The user explicitly enabled exact npm test and npm run lint commands at the Project root.
+    when: The agent requests npm test, npm install, or npm test followed by a second shell command.
+    then: Only the exact test match is preapproved. Other eligible requests ask; all retain explanations, scope and resource checks.
+  - id: repo-policy-self-escalation
+    assertion_ids: [code-run.remote.command-lists]
+    given: An enabled list excludes package installation.
+    when: An agent edits .openmates/permissions.yml to add npm install or disable isolation.
+    then: The repository change cannot broaden active grants; permission changes require an explicit user action.
+  - id: command-change-after-review
+    assertion_ids: [code-run.remote.explicit-approval]
+    given: A user reviewed a command for one source, cwd and resource profile.
+    when: Its arguments, source, cwd or required access change before execution.
+    then: The old exact approval does not authorize the changed request; current grants are checked again.
+  - id: offline-minimal-environment
+    assertion_ids: [code-run.remote.resource-profiles]
+    given: The host has cloud credentials and SSH keys but the Project has no enabled resource profiles.
+    when: An approved command runs.
+    then: It receives neither those credentials nor network access; cwd, toolchain and cache access are enforced by the OS sandbox.
+  - id: resource-profile-reuse
+    assertion_ids: [code-run.remote.resource-profiles]
+    given: The user enabled the npm registry profile without credentials.
+    when: An approved package command requests that registry and then an unrelated destination or token.
+    then: Existing registry access needs no repeat prompt; additional access is not silently granted.
+  - id: sandbox-unavailable
+    assertion_ids: [code-run.execution.e2b-only, code-run.remote.confinement]
+    given: The remote host cannot establish the declared isolation.
+    when: A user-approved command is dispatched.
+    then: It fails with a capability error before execution, without host-wide or backend fallback.
+  - id: wait-and-continue
+    assertion_ids: [code-run.execution.wait-or-continue]
+    given: Tests are running as an async skill job.
+    when: The next action depends on their result, or the agent has independent documentation work.
+    then: The first case waits for the result event; the second may continue and receive completion later. Neither uses model polling.
+  - id: stop-and-reconnect
+    assertion_ids: [code-run.remote.managed-jobs]
+    given: A tracked background job has an approved lifetime and a connected executor.
+    when: The user closes the browser, later stops the job, or the executor disappears.
+    then: Browser closure alone does not revoke the grant. Stop targets owned descendants; an unreachable executor's outcome remains uncertain until reconciled and is never blindly rerun.
+  - id: command-versus-chat-edit
+    assertion_ids: [code-run.remote.confinement]
+    given: A formatter may write src while another chat prepares a src edit.
+    when: They reach execution or commit.
+    then: Overlapping mutations coordinate. A source-read-only dev server with separate cache writes does not reserve src indefinitely.
+
+terminal_output_safety:
+  - id: terminal-injection-and-short-lines
+    assertion_ids: [code-run.output.external-text-guard]
+    given: A command emits a short assistant-directed instruction or an instruction spanning neighboring output units.
+    when: Output is prepared for the coding model.
+    then: Required terminal coverage and contextual scanning apply; verified attack spans become a marker and cannot grant permissions.
+  - id: terminal-scan-technical-failure
+    assertion_ids: [code-run.output.cached-inference-guard, code-run.output.bounded-delivery]
+    given: Output scanning times out or returns incomplete results.
+    when: The process finishes normally.
+    then: Status and an honest unreviewed log remain available, but that text is withheld from autonomous inference. The command is not restarted and the scan is not called safe.
+  - id: terminal-scan-uncertain
+    assertion_ids: [code-run.output.external-text-guard]
+    given: The completed scanner returns a valid uncertain decision for quoted documentation.
+    when: The result is delivered.
+    then: Preserve the cleaned text as untrusted data under the existing uncertain policy; uncertainty is distinct from a technical unscanned result.
+  - id: terminal-cached-output-bypass
+    assertion_ids: [code-run.output.cached-inference-guard]
+    given: A later chat turn resolves a code embed with legacy cached output or a client-claimed scanned flag.
+    when: Embed context is assembled.
+    then: Missing server-controlled exact coverage prevents autonomous ingestion. A previously scanned processing response or separate ciphertext is insufficient.
+  - id: terminal-bounded-stream
+    assertion_ids: [code-run.output.bounded-delivery]
+    given: A long command emits more output than the selected inference budget and includes terminal control sequences.
+    when: Logs and model checkpoints are delivered.
+    then: Neutralize terminal actions, bound batches/queues, preserve order and neighboring context, report truncation, and scan only new selected text. Do not claim full transcript coverage or wake the coding model per line.
+  - id: terminal-late-result-after-stop
+    assertion_ids: [code-run.remote.managed-jobs]
+    given: A command's original chat run was canceled or expired.
+    when: A delayed checked completion arrives twice.
+    then: Record the original execution outcome once without reviving the stopped chat or launching duplicate effects.
+
 valid_requests:
   - id: direct-inline-python
     input:

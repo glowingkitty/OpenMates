@@ -44,6 +44,7 @@ test.describe('Unified workspace detail pages', () => {
 		await loginToTestAccount(page);
 	});
 
+	// contract-test: direct surface=gui.web assertions=projects.lifecycle.encrypted-crud
 	test('Project cards open a canonical shared-header detail page', async ({ page }) => {
 		await skipIfFeaturesDisabled(test, page, ['platform:projects']);
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
@@ -57,6 +58,7 @@ test.describe('Unified workspace detail pages', () => {
 			const created = page.waitForResponse(
 				(response) => response.request().method() === 'POST' && response.url().endsWith('/v1/projects') && response.ok()
 			);
+			await page.getByTestId('project-write-policy-apply-and-show').check();
 			await page.getByTestId('project-input-textarea').fill(title);
 			await page.getByTestId('project-input-submit').click();
 			projectId = (await (await created).json()).project.project_id;
@@ -70,6 +72,7 @@ test.describe('Unified workspace detail pages', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=tasks.detail.embed-responsive
 	test('Task cards open a canonical shared-header detail page', async ({ page }) => {
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks']);
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
@@ -94,6 +97,7 @@ test.describe('Unified workspace detail pages', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=plans.ui.edit-approve-resume
 	test('Plan cards open a canonical shared-header detail page', async ({ page }) => {
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
@@ -118,6 +122,7 @@ test.describe('Unified workspace detail pages', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=workflows-ui.detail.stable-visual-header
 	test('Workflow cards open a canonical shared-header detail page', async ({ page }) => {
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');

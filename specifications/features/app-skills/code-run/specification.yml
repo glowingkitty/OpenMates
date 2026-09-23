@@ -4,8 +4,8 @@ version: 1
 status: draft
 title: Code Run Skill
 summary: >
-  Code Run executes bounded user-provided or assistant-created code only in an
-  isolated E2B sandbox, streams terminal results, persists chat-bound output and
+  Code Run executes bounded user-provided or assistant-created code in an
+  isolated E2B sandbox or an explicitly authorized confined remote Project, streams terminal results, persists chat-bound output and
   intentional artifacts safely, and exposes equivalent direct-run semantics
   across REST, CLI, SDK, assistant, web, and Apple surfaces.
 
@@ -20,6 +20,8 @@ scope:
     - Live terminal streaming, status polling, visible failure states, and encrypted chat-bound terminal output sidecars
     - Explicit output artifact discovery inside E2B before teardown, encrypted artifact storage, generated-asset download metadata, typed child embeds, and same-path artifact version history
     - Assistant auto-run, debug, and rerun behavior for code created or edited in the current assistant turn
+    - Explicit remote Project execution, exact command approvals and user-enabled command lists, scoped network/credentials, independent command explanations, and event-driven wait/continue behavior
+    - Required terminal-text safety coverage for live batches, completion results and later inference-cache hydration
   excludes:
     - Backend execution, importing, package installation, linting, formatting, cloning, or URL fetching of user code outside E2B
     - Persisting direct-run source code, terminal output, artifacts, messages, embeds, embed keys, or code_run_outputs unless the caller uses chat-bound mode
@@ -28,6 +30,17 @@ scope:
     - Private repository authentication or unbounded arbitrary binary project uploads in v1
 
 models:
+  RemoteCommandRequest:
+    target: {type: enum, values: [remote_source], required: true}
+    project_id: {type: string, required: true}
+    source_id: {type: string, required: true}
+    chat_id: {type: string, required: true}
+    argv: {type: array, required: true, constraints: {exact_arguments: true, shell_expansion: forbidden}}
+    cwd: {type: string, required: true, constraints: {project_relative: true}}
+    wait_for_completion: {type: boolean, default: true}
+    background: {type: boolean, default: false}
+    timeout_seconds: {type: integer, required: true, constraints: {finite: true}}
+    access_profiles: {type: array, constraints: {explicit_user_activation: true}}
   CodeRunRequest:
     mode:
       type: enum
@@ -251,8 +264,40 @@ assertions:
     depends_on: [models.CodeRunRequest, models.CodeRunInputFile, examples.valid_requests, examples.invalid_requests]
   - id: code-run.execution.e2b-only
     type: security
-    must: User code, dependency installation, language execution, and output discovery occur only inside E2B; OpenMates backend hosts treat source and generated files as inert data and never execute, import, clone, shell out, lint, format, package-install, or fetch user-supplied code outside E2B.
-    depends_on: [models.CodeRunExecution, examples.boundary_cases]
+    must: The default code/file execution target remains E2B. Remote Project execution is permitted only through an explicitly selected, authorized, OS-confined remote CLI executor governed by the remote-command assertions. OpenMates backend hosts treat source and generated files as inert data and never execute, import, clone, shell out, lint, format, package-install, or fetch user-supplied code themselves. A failed or unavailable remote executor never falls back to backend execution or unrestricted host access.
+    depends_on: [models.CodeRunExecution]
+  - id: code-run.remote.confinement
+    type: security
+    must: Remote commands require current access and the target Project's active focus in the originating chat. OS-enforced filesystem and process boundaries confine the command and descendants to declared Project/toolchain/cache access; cwd alone is insufficient. Unsupported isolation fails visibly without an unrestricted fallback. Background services have read-only source plus declared writable cache/output paths. Source-writing commands coordinate against overlapping Project edits during execution without holding reservations while explaining or awaiting permission.
+    depends_on: [models.RemoteCommandRequest]
+  - id: code-run.remote.explicit-approval
+    type: security
+    must: Remote commands default to Ask first. Approval is bound to the exact command or script, arguments, target Project/source/device, cwd, requested resources and execution identity. A current explicitly user-enabled command list may preapprove an exact match; other eligible commands still ask and denied actions remain denied. Changed requests need a current matching grant or new approval. File Apply and show mode, model output, repository instructions and E2B rerun markers cannot authorize remote commands. Replayed delivery reconciles the original execution rather than executing twice.
+  - id: code-run.remote.command-lists
+    type: security
+    must: Reviewable command-list definitions may be stored in .openmates/permissions.yml. Loading, cloning, pulling or agent-editing this file cannot activate or broaden permission grants. Only an explicit user action activates a scoped selection in trusted state outside the command-writable Project; changes cannot inherit a mismatched prior grant. Matching uses explicit argv/cwd/resource scope rather than broad shell prefixes, and never bypasses current Project authority or isolation. Users can inspect and revoke their selections.
+  - id: code-run.remote.explanation
+    type: behavior
+    must: Before each remote execution, a separate Gemini Flash-Lite call explains the exact command's expected effects and uncertainty using fixed review instructions and minimal authorized context. It does not inherit the coding conversation or Project agent instructions, treats code/comments as untrusted data, receives no credential values and has no execution or approval authority. The configured latest supported Flash-Lite version is explicit. A reassuring explanation never bypasses permissions; explanation failure is visible and cannot silently authorize execution.
+  - id: code-run.remote.resource-profiles
+    type: security
+    must: Remote commands start without network or credentials and receive a minimal environment rather than inherited host secrets. Users may explicitly enable reusable Project profiles for named destinations and selected credentials; requested expansions are presented with the command approval. Command preapproval does not grant resource access. Every execution enforces current granted destinations and credential scope, including child processes. Credential values stay out of model review and durable server plaintext; resource enforcement failure does not justify unrestricted access.
+  - id: code-run.remote.managed-jobs
+    type: behavior
+    must: A remote execution has stable identity, visible status/logs, finite approved lifetime and authenticated Stop control over its owned process tree. Explicit background mode lets authorized work continue while the chat performs independent work. Browser closure alone does not revoke a connected executor's grant. Cancellation, timeout and revoked authorization prevent new work and terminate owned processes when reachable; disconnected executors use a bounded local lease and uncertain outcomes remain visible until reconciled. No blind relaunch or indefinite detached daemon is permitted. Test/build results must not claim a coherent latest revision when inputs changed during execution.
+  - id: code-run.execution.wait-or-continue
+    type: behavior
+    must: The agent can request waiting for a terminal result when subsequent work depends on it or continue independent work and receive a later completion through the shared app-skill async lifecycle. Waiting uses events rather than repeated model polling. Process background lifetime is a separate permission from chat waiting. Completion is scoped and deduplicated, incorporates current chat context, and cannot revive a canceled or expired run. A dev server's readiness is distinct from process completion and cannot be established solely by arbitrary stdout instructions.
+    depends_on: [models.RemoteCommandRequest]
+  - id: code-run.output.external-text-guard
+    type: security
+    must: Terminal stdout/stderr, errors and model-visible terminal metadata are untrusted external text even for assistant-authored commands. Apply bounded secret/control/ASCII cleanup and the shared semantic scanner before autonomous model consumption, with explicit coverage including short text. Exact verified injection spans are redacted; checked uncertainty remains untrusted text. Technical timeout, unavailable, malformed or oversized scans withhold that text from autonomous inference while preserving process status and an honest unreviewed user log. This stricter terminal consumption gate does not silently change unrelated app-skill fallback behavior or grant authority to output text.
+  - id: code-run.output.cached-inference-guard
+    type: security
+    must: The same terminal safety boundary covers completed async results and subsequent code_run_outputs inference-cache hydration, including legacy unreviewed entries. A scan of the initial processing response is not coverage for later logs. Only server-controlled exact-content/policy coverage may authorize scan reuse; ciphertext or client-supplied flags cannot prove a separate inference copy was scanned. Preserve client-encrypted durable output and authorized transient AI context without giving the server independent stored-file decryption authority.
+  - id: code-run.output.bounded-delivery
+    type: invariant
+    must: Short command output may be scanned once at completion; long output is delivered in bounded ordered batches with neighboring context and explicit truncation/coverage status. Status may update live without waking the coding model for every line. No model call per byte, unbounded queue, repeated scan of unchanged text or claim of whole-transcript coverage after scanning only a selected excerpt is permitted. UI logs render inert text without active terminal escape actions. Summaries and checkpoints cannot bypass input scanning.
   - id: code-run.execution.stream-status-visible
     type: behavior
     must: Every accepted run exposes an execution id, status path, stream path, target filename, file list, live status/stdout/stderr events, final status, exit code when available, duration, and safe visible errors for startup, dependency, runtime, timeout, cancellation, and capacity failures.
@@ -321,4 +366,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [valid_requests, invalid_requests, execution_outputs, billing_and_limits, chat_bound_outputs, direct_outputs, valid_artifacts, rejected_artifacts, successful_artifacts, artifact_version_history, artifact_child_routing, artifact_child_navigation, responsive_layout, assistant_autonomy, error_outputs, boundary_cases]
+  required_groups: [valid_requests, invalid_requests, execution_outputs, billing_and_limits, chat_bound_outputs, direct_outputs, valid_artifacts, rejected_artifacts, successful_artifacts, artifact_version_history, artifact_child_routing, artifact_child_navigation, responsive_layout, assistant_autonomy, error_outputs, boundary_cases, remote_commands, terminal_output_safety]

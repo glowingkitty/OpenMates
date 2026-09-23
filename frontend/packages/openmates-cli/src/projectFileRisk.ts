@@ -9,6 +9,8 @@
  * Tests: frontend/packages/openmates-cli/tests/remoteAccess.test.ts.
  */
 
+import { isProtectedProjectReadPath } from "../../ui/src/utils/projectSearchProtocol.js";
+
 export interface ProjectFileRiskResult {
   isHighRisk: boolean;
   reasons: string[];
@@ -66,6 +68,17 @@ const BUILT_IN_PATTERNS: Array<{ reason: string; patterns: string[] }> = [
 ];
 
 export const PROJECT_HIGH_RISK_GLOBS = BUILT_IN_PATTERNS.flatMap((group) => group.patterns);
+
+/** Read/search protection is intentionally narrower than mutation risk. */
+export function classifyProjectFileReadRisk(path: string, userProtectedPatterns: string[] = []): ProjectFileRiskResult {
+  const normalizedPath = normalizePath(path);
+  const reasons: string[] = [];
+  if (isProtectedProjectReadPath(normalizedPath)) reasons.push("credential_file");
+  if (userProtectedPatterns.some((pattern) => matchesPattern(normalizedPath, normalizePath(pattern)))) {
+    reasons.push("user_protected_pattern");
+  }
+  return { isHighRisk: reasons.length > 0, reasons: [...new Set(reasons)] };
+}
 
 export function classifyProjectFileRisk(path: string, userProtectedPatterns: string[] = []): ProjectFileRiskResult {
   const normalizedPath = normalizePath(path);

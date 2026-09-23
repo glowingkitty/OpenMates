@@ -22,6 +22,7 @@ import { normalizeMindMapSource } from "../components/embeds/mindmaps/mindMapCon
 import { generateDirectEmbedRef } from "../utils/embedFragmentUtils";
 import {
   buildProjectSourceCreatePayload,
+  buildDefaultProjectFocus,
   type ProjectSourceCapability,
   type ProjectSourceCreatePayload,
   type ProjectSourceStatus,
@@ -105,13 +106,16 @@ export interface ProjectSourceRecord extends ProjectSourceCreatePayload {
 }
 
 export interface ProjectSettingsRecord {
-  write_mode: ProjectWriteMode;
+  write_mode?: ProjectWriteMode | null;
+  selection_required?: boolean;
+  default_focus_id_hash?: string | null;
   encrypted_settings?: string | null;
   updated_at?: number | null;
 }
 
 export interface ProjectSettingsViewModel {
-  writeMode: ProjectWriteMode;
+  writeMode: ProjectWriteMode | null;
+  selectionRequired: boolean;
   settings: Record<string, unknown>;
   encrypted: ProjectSettingsRecord;
 }
@@ -306,12 +310,13 @@ export async function updateProjectMetadata(
   return updated;
 }
 
-export async function createProject(name: string): Promise<ProjectViewModel> {
+export async function createProject(name: string, writeMode: ProjectWriteMode): Promise<ProjectViewModel> {
   const projectKey = generateProjectKey();
   const encryptedProjectKey = await encryptChatKeyWithMasterKey(projectKey);
   if (!encryptedProjectKey) throw new Error("Could not wrap project key with master key");
   const timestamp = nowSeconds();
   const projectId = crypto.randomUUID();
+  const defaultFocus = buildDefaultProjectFocus(name);
   const body = {
     project_id: projectId,
     encrypted_project_key: encryptedProjectKey,
@@ -323,6 +328,9 @@ export async function createProject(name: string): Promise<ProjectViewModel> {
     created_at: timestamp,
     updated_at: timestamp,
     last_opened_at: timestamp,
+    write_mode: writeMode,
+    default_focus_id: defaultFocus.focus_id,
+    encrypted_settings: await encryptWithEmbedKey(JSON.stringify({ default_focus: defaultFocus }), projectKey),
   };
   const data = await requestJson<{ project: EncryptedProjectRecord }>("/v1/projects", {
     method: "POST",
@@ -504,13 +512,11 @@ export async function getProjectSettings(project: ProjectViewModel): Promise<Pro
 export async function updateProjectSettings(
   project: ProjectViewModel,
   writeMode: ProjectWriteMode,
-  settings: Record<string, unknown> = {},
 ): Promise<ProjectSettingsViewModel> {
   const data = await requestJson<{ settings: ProjectSettingsRecord }>(`/v1/projects/${project.project_id}/settings`, {
     method: "PATCH",
     body: JSON.stringify({
       write_mode: writeMode,
-      encrypted_settings: await encryptWithEmbedKey(JSON.stringify(settings), project.projectKey),
       updated_at: nowSeconds(),
     }),
   });
@@ -542,6 +548,7 @@ async function decryptProjectSettings(settings: ProjectSettingsRecord, projectKe
   const settingsText = await decryptOptional(settings.encrypted_settings, projectKey);
   return {
     writeMode: normalizeProjectWriteMode(settings.write_mode),
+    selectionRequired: settings.selection_required === true || normalizeProjectWriteMode(settings.write_mode) === null,
     settings: parseProjectMetadata(settingsText, "settings"),
     encrypted: {
       ...settings,
@@ -550,8 +557,8 @@ async function decryptProjectSettings(settings: ProjectSettingsRecord, projectKe
   };
 }
 
-function normalizeProjectWriteMode(writeMode: unknown): ProjectWriteMode {
-  return writeMode === "auto_approve_safe_writes" ? "auto_approve_safe_writes" : "always_ask";
+function normalizeProjectWriteMode(writeMode: unknown): ProjectWriteMode | null {
+  return writeMode === "apply_and_show" || writeMode === "always_ask" ? writeMode : null;
 }
 
 export async function getProjectContents(project: ProjectViewModel): Promise<{

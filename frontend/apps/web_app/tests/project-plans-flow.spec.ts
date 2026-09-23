@@ -17,6 +17,7 @@ function projectHashUrlPattern(projectId: string): RegExp {
 }
 
 test.describe('Project-linked Plans V1 flow', () => {
+	// contract-test: direct surface=gui.web assertions=projects.workspace.contract-plan-task-check-chain,plans.project-links.encrypted
 	test('creates a project-linked plan card', async ({ page }) => {
 		test.setTimeout(120000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -34,6 +35,7 @@ test.describe('Project-linked Plans V1 flow', () => {
 		const created = page.waitForResponse(
 			(response) => response.request().method() === 'POST' && response.url().endsWith('/v1/projects') && response.ok()
 		);
+		await page.getByTestId('project-write-policy-apply-and-show').check();
 		await page.getByTestId('project-input-textarea').fill(projectName);
 		await page.getByTestId('project-input-submit').click();
 		const projectId = (await (await created).json()).project.project_id;
