@@ -17,6 +17,8 @@ PROVIDERS_DIR = REPO_ROOT / "backend" / "providers"
 CAPABILITY_LEVELS = {"low", "medium", "high", "max"}
 EXPECTED_CAPABILITIES = {
     "gpt-6-astra": "max",
+    "gpt-6-luna": "low",
+    "gpt-6-sol": "high",
     "gpt-5.6-luna": "low",
     "gpt-5.6-terra": "medium",
     "gpt-5.6-sol": "high",
@@ -25,6 +27,7 @@ EXPECTED_CAPABILITIES = {
     "gpt-oss-20b": "low",
     "claude-haiku-4-5-20251001": "low",
     "claude-sonnet-5": "medium",
+    "claude-opus-5-5": "high",
     "claude-opus-5": "high",
     "claude-fable-5-1": "max",
     "claude-fable-5": "max",
@@ -47,7 +50,7 @@ def _ai_ask_models() -> list[dict[str, Any]]:
 def test_every_ai_ask_model_has_explicit_capability_and_release_date() -> None:
     models = _ai_ask_models()
 
-    assert len(models) == 39
+    assert len(models) == 42
     for model in models:
         assert model.get("capability_level") in CAPABILITY_LEVELS, model["id"]
         assert date.fromisoformat(model["release_date"]), model["id"]

@@ -8813,17 +8813,17 @@ assertions:
       surface: gui.apple
     - &id1036
       path: backend/tests/test_ai_ask_model_metadata.py
-      line: 47
+      line: 50
       name: test_every_ai_ask_model_has_explicit_capability_and_release_date
       surface: gui.web
     - &id1037
       path: backend/tests/test_ai_ask_model_metadata.py
-      line: 57
+      line: 60
       name: test_named_model_capabilities_match_the_approved_scale
       surface: gui.web
     - &id1038
       path: backend/tests/test_ai_ask_model_metadata.py
-      line: 68
+      line: 71
       name: test_gpt6_astra_uses_max_reasoning_on_openai
       surface: gui.web
     - &id1041

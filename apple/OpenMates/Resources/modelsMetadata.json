@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "sourceDigest": "7e4929b686938fdaf1677b74fcbbd69f237a4a6295c3bed059ed53bb89adf488",
+  "sourceDigest": "5bc279d6ca771932dfc8609c3fc6f75d14509a067a9bed44f0094e790b383d19",
   "providers": [
     {
       "id": "openai",
@@ -446,6 +446,44 @@
         "claude-opus-5",
         "opus 4.8",
         "claude-opus-4-8"
+      ]
+    },
+    {
+      "id": "claude-opus-5-5",
+      "name": "Claude Opus 5.5",
+      "description": "Anthropic's high-capability model for long-running agentic coding and knowledge work.",
+      "provider_id": "anthropic",
+      "provider_name": "Anthropic",
+      "logo_svg": "icons/anthropic.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-09-22",
+      "servers": [
+        {
+          "id": "anthropic",
+          "name": "Anthropic API",
+          "region": "US"
+        }
+      ],
+      "default_server": "anthropic",
+      "pricing": {
+        "input_tokens_per_credit": 80,
+        "output_tokens_per_credit": 15
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "opus 5.5",
+        "claude 5.5 opus",
+        "claude-opus-5-5"
       ]
     },
     {
@@ -1062,7 +1100,7 @@
     {
       "id": "gemini-3.8-flash",
       "name": "Gemini 3.8 Flash",
-      "description": "Latest Gemini Flash model for complex coding, agentic, multimodal, and long-context tasks. Explicit selection only pending real-world user feedback.",
+      "description": "Latest Gemini Flash model for simple, complex, and most-demanding automatic routing, with tier-specific reasoning levels, plus explicit selection.",
       "provider_id": "google",
       "provider_name": "Google",
       "logo_svg": "icons/google.svg",
@@ -1546,6 +1584,36 @@
       }
     },
     {
+      "id": "voxtral-mini-transcribe-realtime-2602",
+      "name": "Voxtral Mini Realtime",
+      "description": "Mistral AI's low-latency streaming speech transcription model. Produces incremental text while an audio recording is still in progress.",
+      "provider_id": "mistral",
+      "provider_name": "Mistral AI",
+      "logo_svg": "icons/mistral.svg",
+      "country_origin": "FR",
+      "input_types": [
+        "audio"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "audio.transcribe",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": "2026-02-04",
+      "servers": [
+        {
+          "id": "mistral",
+          "name": "Mistral",
+          "region": "EU"
+        }
+      ],
+      "default_server": "mistral",
+      "pricing": {
+        "per_minute": 8
+      }
+    },
+    {
       "id": "kimi-k2.6",
       "name": "Kimi K2.6",
       "description": "Kimi K2.6 is Moonshot AI's next-generation multimodal model, designed for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration. Features improved reasoning, 262K context window, and enhanced tool-calling capabilities over K2.5. Primary: Together AI; Fallback: OpenRouter.",
@@ -1919,6 +1987,82 @@
         "astra",
         "gpt-6 astra",
         "gpt-6-astra"
+      ]
+    },
+    {
+      "id": "gpt-6-luna",
+      "name": "GPT-6 Luna",
+      "description": "OpenAI's efficient GPT-6 model for focused, high-volume tasks, everyday assistance, and multimodal chat.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "economy",
+      "capability_level": "low",
+      "release_date": "2026-09-22",
+      "servers": [
+        {
+          "id": "openai",
+          "name": "OpenAI API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openai",
+      "pricing": {
+        "input_tokens_per_credit": 3300,
+        "output_tokens_per_credit": 650
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "luna",
+        "gpt-6 luna",
+        "gpt-6-luna"
+      ]
+    },
+    {
+      "id": "gpt-6-sol",
+      "name": "GPT-6 Sol",
+      "description": "OpenAI's high-capability GPT-6 model for complex coding, agentic workflows, and multimodal reasoning.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-09-22",
+      "servers": [
+        {
+          "id": "openai",
+          "name": "OpenAI API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openai",
+      "pricing": {
+        "input_tokens_per_credit": 165,
+        "output_tokens_per_credit": 30
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "sol",
+        "gpt-6 sol",
+        "gpt-6-sol"
       ]
     },
     {
