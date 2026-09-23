@@ -18,6 +18,7 @@ final class ChatFlowParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=landing-onboarding.uses-real-chat-shell,workspace-shell.nav.released-surfaces-visible
     func testUnauthenticatedColdBootShowsNewChatParitySurface() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -73,6 +74,7 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Unauthenticated new-chat parity surface")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testVisibleChatFlowElementsMatchWebParitySnapshot() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-header-contract"]
@@ -109,6 +111,7 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Seeded chat-flow parity hierarchy")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.form.role-aware-controls
     func testChatFloatingReportButtonOpensReportIssueForm() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-chat-report-form"]
@@ -137,6 +140,7 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Chat floating report opens report form")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history
     func testVisualChatFlowSurfaceUsesProductChromeOnly() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-visual-snapshot"]
@@ -156,6 +160,7 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Seeded chat-flow visual snapshot")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.suggestions.contextual
     func testGuestInterestTagsSelectAndFilterSuggestions() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
@@ -191,6 +196,7 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Guest interest tag selection filters suggestions")
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.suggestions.contextual,message-input.layout.responsive-parity
     func testGuestDefaultSuggestionsShowWhenComposerFocusedBeforeInterestSelection() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
@@ -237,8 +243,11 @@ final class ChatFlowParityUITests: XCTestCase {
             )
         }
 
-        XCTAssertTrue(app.buttons["sketch-button"].exists)
-        XCTAssertTrue(app.buttons["take-photo-button"].exists)
+        let attachmentToggle = app.buttons["composer-attachment-toggle"]
+        XCTAssertTrue(attachmentToggle.exists)
+        attachmentToggle.tap()
+        XCTAssertTrue(app.buttons["composer-attachment-drawing"].exists)
+        XCTAssertTrue(app.buttons["composer-attachment-camera"].exists)
         XCTAssertTrue(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.discover_web_search"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.discover_image_generate"].exists)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
@@ -246,6 +255,7 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Guest default suggestions before interest selection")
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.layout.responsive-parity
     func testGuestComposerKeepsHeightCapAfterFirstCharacter() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -273,6 +283,7 @@ final class ChatFlowParityUITests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=landing-onboarding.uses-real-chat-shell
     func testWelcomeRecentOverflowUsesCompactHeightOnPhone() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -309,6 +320,7 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Welcome compact recent overflow height")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=landing-onboarding.uses-real-chat-shell
     func testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -333,6 +345,7 @@ final class ChatFlowParityUITests: XCTestCase {
         )
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.drafts.preview-persistence
     func testTextDraftBlursIntoCompactPreviewWithoutLosingContent() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]

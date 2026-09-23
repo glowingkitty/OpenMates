@@ -5,11 +5,15 @@
 // Decisions retain source content so conversion failure remains recoverable.
 
 import XCTest
+#if os(iOS)
+import UIKit
+#endif
 @testable import OpenMates
 
 final class NativeComposerPasteTests: XCTestCase {
     private let service = ComposerPasteService()
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testCustomEmbedPayloadHasHighestPriority() {
         let embed = ComposerNodeV1.embed(
             id: "embed-paste",
@@ -27,6 +31,7 @@ final class NativeComposerPasteTests: XCTestCase {
         XCTAssertEqual(decision, .insertEmbed(embed))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testCodeTableDocumentAndURLClassification() {
         XCTAssertEqual(
             service.classify(.init(plainText: "let value = 42", sourceCodeLanguage: "swift")),
@@ -57,6 +62,7 @@ final class NativeComposerPasteTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testLongProseAndHTMLStructureBecomeDocuments() {
         let prose = Array(repeating: "synthetic", count: 180).joined(separator: " ")
         XCTAssertEqual(service.classify(.init(plainText: prose)), .convert(.document, source: prose))
@@ -66,8 +72,34 @@ final class NativeComposerPasteTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testPlainTextFallbackPreservesUnicodeAndLineOrder() {
         let source = "Hello 👋🏽\nمرحبا\n世界"
         XCTAssertEqual(service.classify(.init(plainText: source)), .insertText(source))
     }
 }
+
+#if os(iOS)
+@MainActor
+final class AttachmentDocumentPickerTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send
+    func testReadableLocalDocumentReachesComposerWithoutSecurityScope() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("attachment-picker-regression-\(UUID().uuidString).pdf")
+        let content = Data("synthetic PDF fixture".utf8)
+        try content.write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        var selected: (Data, String)?
+        let coordinator = AttachmentDocumentPickerView.Coordinator(
+            onFileSelected: { data, filename in selected = (data, filename) },
+            startAccessing: { _ in false }
+        )
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.pdf])
+        coordinator.documentPicker(picker, didPickDocumentsAt: [fileURL])
+
+        XCTAssertEqual(selected?.0, content)
+        XCTAssertEqual(selected?.1, fileURL.lastPathComponent)
+    }
+}
+#endif

@@ -40,6 +40,11 @@ except ModuleNotFoundError:
     import _workflow_decisions as workflow_decisions
 
 try:
+    from scripts import ci_impact
+except ModuleNotFoundError:
+    import ci_impact
+
+try:
     from scripts.engineering_control_plane import (
         ControlPlaneApiError,
         ENV_FILE as ENGINEERING_CONTROL_PLANE_ENV_FILE,
@@ -5065,6 +5070,20 @@ def _enforce_vercel_standard_build_machine() -> None:
             f"current nodeVersion={node_version or '<missing>'}. "
             "Fix Vercel Project Settings > General > Node.js Version before pushing."
         )
+
+
+def _verify_vercel_build_machine_for_paths(files: list[str]) -> None:
+    """Keep the paid-build gate for web changes and unknown deploy scope.
+
+    Local Mac Apple-only deployments have no web source impact. The web build
+    cost check remains mandatory on other hosts and whenever web inputs change.
+    """
+    if files and sys.platform == "darwin" and not ci_impact.classify_paths(files).web:
+        print("Vercel build machine: SKIPPED (local Mac, no web-impacting files)")
+        return
+    print("Checking Vercel web app build machine...")
+    _enforce_vercel_standard_build_machine()
+    print("Vercel build machine: standard/fixed")
 
 
 def _get_commit_url(commit_hash: str) -> str | None:
@@ -10951,9 +10970,7 @@ def _deploy_native_worktree(
                 continue
 
             _enforce_control_plane_sync_ready(final_base)
-            print("Checking Vercel web app build machine...")
-            _enforce_vercel_standard_build_machine()
-            print("Vercel build machine: standard/fixed")
+            _verify_vercel_build_machine_for_paths(commit_files)
             if not _validate_staged_deploy_files(
                 set(commit_files),
                 context="before integration commit",
@@ -11374,7 +11391,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             commit_hash_full = (commit_hash_full or "").strip() if rc == 0 else ""
             commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
 
-            _enforce_embed_registry_validation(_get_unpushed_files())
+            unpushed_files = _get_unpushed_files()
+            _enforce_embed_registry_validation(unpushed_files)
 
             deploy_lock_held = False
             try:
@@ -11391,16 +11409,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                 sys.exit(1)
             print(f"Dev deploy push lock acquired for commit {commit_hash}.")
 
-            print("Checking Vercel web app build machine...")
             try:
-                _enforce_vercel_standard_build_machine()
+                _verify_vercel_build_machine_for_paths(unpushed_files)
             except RuntimeError as exc:
                 if deploy_lock_held:
                     _release_session_lock("vercel_deploy", released_by=sid)
                 print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
                 sys.exit(1)
-            print("Vercel build machine: standard/fixed")
-
             try:
                 _enforce_control_plane_deploy_protocol_compatible(_fetch_origin_dev_commit())
             except RuntimeError as exc:
@@ -11569,14 +11584,11 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     # 1e. Pytest gate — hard-block on failing related pytest unit tests
     _run_pytest_gate(to_commit, skip_reason=skip_tests_reason, no_verify=no_verify)
 
-    print("Checking Vercel web app build machine...")
     try:
-        _enforce_vercel_standard_build_machine()
+        _verify_vercel_build_machine_for_paths(to_commit)
     except RuntimeError as exc:
         print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
         sys.exit(1)
-    print("Vercel build machine: standard/fixed")
-
     deploy_lock_held = False
     try:
         _wait_and_acquire_session_lock(
@@ -11652,17 +11664,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
         print(f"Staging complete: {len(files_to_add)} added, {len(deleted_files)} deleted")
 
-    print("Rechecking Vercel web app build machine before commit...")
     try:
-        _enforce_vercel_standard_build_machine()
+        _verify_vercel_build_machine_for_paths(to_commit)
     except RuntimeError as exc:
         if deploy_lock_held:
             _release_session_lock("vercel_deploy", released_by=sid)
         print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
         print("No commit was created.", file=sys.stderr)
         sys.exit(1)
-    print("Vercel build machine: standard/fixed")
-
     if not _validate_staged_deploy_files(
         set(to_commit),
         context="before commit",

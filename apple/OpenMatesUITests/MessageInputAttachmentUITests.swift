@@ -11,6 +11,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send
     func testSeededPendingAttachmentMatchesMessageInputContractStructure() throws {
         let app = launchChatOpeningPreview(arguments: ["--ui-test-seed-pending-composer-embed"])
 
@@ -35,6 +36,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         add(attachment)
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.privacy-context
     func testComposerWarningHighlightsAndExclusions() throws {
         let app = launchChatOpeningPreview(arguments: ["--ui-test-pii-composer-banner-fixture"])
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
@@ -57,6 +59,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertTrue(waitForAbsence(app.buttons["+49 170 1234567"]))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.privacy-context
     func testPIIVisibilityToggleRevealHideAndReload() throws {
         let app = launchChatOpeningPreview(arguments: ["--ui-test-pii-visibility-fixture"])
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
@@ -82,6 +85,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertFalse(textContaining("alice@example.com", in: app).exists)
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.privacy-context
     func testWelcomeComposerShowsPIIWarningHighlights() throws {
         let app = launchChatOpeningPreview(arguments: ["--ui-test-pii-composer-banner-fixture"])
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
@@ -93,6 +97,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send
     func testWelcomeComposerSeededPendingAttachmentsEnableSendWithoutRawJson() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -123,6 +128,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "/private/")).firstMatch.exists)
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send,message-input.layout.responsive-parity
     func testImagePreviewSurvivesBackgroundAndKeepsActionsAboveIPadKeyboard() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -151,7 +157,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
 
         let keyboard = app.keyboards.firstMatch
         XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
-        for identifier in ["attach-files-button", "share-location-button", "sketch-button", "take-photo-button", "send-button"] {
+        for identifier in ["composer-attachment-toggle", "send-button"] {
             let button = app.buttons[identifier]
             XCTAssertTrue(button.waitForExistence(timeout: 5), "Missing composer action: \(identifier)")
             XCTAssertTrue(button.isHittable, "Composer action is covered: \(identifier)")
@@ -173,6 +179,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         attachScreenshot(name: "Image composer preview restored above iPad keyboard")
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.layout.responsive-parity
     func testAttachmentMenuOverlaysComposerActions() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -190,12 +197,18 @@ final class MessageInputAttachmentUITests: XCTestCase {
         editor.tap()
         editor.typeText("Attachment menu")
 
-        let actionIDs = ["attach-files-button", "share-location-button", "sketch-button", "take-photo-button", "send-button"]
+        let actionIDs = ["composer-attachment-toggle", "send-button"]
         let actionFrames = Dictionary(uniqueKeysWithValues: actionIDs.map { identifier in
             (identifier, app.buttons[identifier].frame)
         })
 
-        app.buttons["attach-files-button"].tap()
+        app.buttons["composer-attachment-toggle"].tap()
+
+        for identifier in ["composer-attachment-drawing", "composer-attachment-location", "composer-attachment-camera", "composer-attachment-files"] {
+            let action = app.buttons[identifier]
+            XCTAssertTrue(action.waitForExistence(timeout: 5), "Missing attachment menu action: \(identifier)")
+            XCTAssertTrue(action.isHittable, "Attachment menu action is covered: \(identifier)")
+        }
 
         for identifier in actionIDs {
             XCTAssertEqual(app.buttons[identifier].frame, actionFrames[identifier])

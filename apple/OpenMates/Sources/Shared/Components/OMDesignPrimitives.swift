@@ -169,7 +169,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
         )
         .background(Color.greyBlue, in: RoundedRectangle(cornerRadius: cornerRadius))
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
-        .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+        // The attachment menu extends above this field; a parent contentShape
+        // would make its visible menu rows impossible to tap.
         .onTapGesture {
             isFocused.wrappedValue = true
         }

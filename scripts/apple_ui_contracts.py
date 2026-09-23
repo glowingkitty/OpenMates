@@ -34,8 +34,8 @@ REQUIRED_MESSAGE_INPUT_STATES = {
 REQUIRED_MESSAGE_INPUT_IDENTIFIERS = {
     "message-editor",
     "action-buttons",
-    "attach-files-button",
-    "take-photo-button",
+    "composer-attachment-toggle",
+    "composer-attachment-menu",
     "record-audio-button",
     "record-overlay",
     "release-text",
@@ -348,7 +348,7 @@ def _extract_ts_object_keys(source: str, const_name: str) -> set[str]:
 
 
 def _extract_showcase_apps(source: str) -> set[str]:
-    match = re.search(r"const ALL_APPS = \[(?P<body>.*?)\];", source, flags=re.DOTALL)
+    match = re.search(r"export const EMBED_APP_SLUGS = \[(?P<body>.*?)\] as const;", source, flags=re.DOTALL)
     if not match:
         return set()
     return set(re.findall(r"'([^']+)'", match.group("body")))
@@ -458,7 +458,8 @@ def audit_embeds() -> tuple[list[str], list[str]]:
     warnings: list[str] = []
 
     registry_source = _read_repo_file("frontend/packages/ui/src/data/embedRegistry.generated.ts")
-    showcase_source = _read_repo_file("frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte")
+    showcase_source = _read_repo_file("frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte")
+    showcase_apps_source = _read_repo_file("frontend/apps/web_app/src/lib/devPreviewEmbedApps.ts")
     embed_models_source = _read_repo_file("apple/OpenMates/Sources/Core/Models/EmbedModels.swift")
     fixtures_source = _read_repo_file("apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift")
     content_view_source = _read_repo_file("apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift")
@@ -468,7 +469,7 @@ def audit_embeds() -> tuple[list[str], list[str]]:
     registry_keys = preview_keys | fullscreen_keys
     apple_types = _extract_swift_enum_raw_values(embed_models_source, "EmbedType")
     apple_type_cases_by_raw_value = _extract_swift_enum_raw_value_to_case(embed_models_source, "EmbedType")
-    showcase_apps = _extract_showcase_apps(showcase_source)
+    showcase_apps = _extract_showcase_apps(showcase_apps_source)
     apple_apps = _extract_swift_enum_raw_values(fixtures_source, "DevEmbedPreviewApp")
     apple_fixture_skill_ids = _extract_apple_fixture_skill_ids(fixtures_source)
     generic_embed_cases = _extract_generic_embed_cases(content_view_source)
@@ -476,7 +477,9 @@ def audit_embeds() -> tuple[list[str], list[str]]:
     if not registry_keys:
         errors.append("could not extract web embed registry keys")
     if not showcase_apps:
-        errors.append("could not extract web embed showcase ALL_APPS")
+        errors.append("could not extract web embed showcase EMBED_APP_SLUGS")
+    if "EMBED_APP_SLUGS" not in showcase_source:
+        errors.append("web embed showcase does not use EMBED_APP_SLUGS")
     if not apple_types:
         errors.append("could not extract Apple EmbedType cases")
     if not apple_apps:
@@ -582,9 +585,14 @@ def swift_files_for_message_input() -> list[Path]:
         REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Features" / "Chat" / "Views" / "ChatView.swift",
         REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Features" / "Chat" / "Views" / "InlinePreviewView.swift",
         REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Features" / "Chat" / "Views" / "VoiceRecordingView.swift",
+        REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Shared" / "Composer" / "ComposerAttachmentActionRow.swift",
         REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Shared" / "Components" / "MessageComposerView.swift",
         REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Shared" / "Components" / "OMDesignPrimitives.swift",
     ]
+
+
+def missing_attachment_icons(source: str, available_icons: set[str]) -> set[str]:
+    return set(re.findall(r'\b(?:Icon|item)\("([^"]+)"', source)) - available_icons
 
 
 def audit_message_input() -> tuple[list[str], list[str]]:
@@ -595,6 +603,15 @@ def audit_message_input() -> tuple[list[str], list[str]]:
     for identifier in sorted(REQUIRED_MESSAGE_INPUT_IDENTIFIERS):
         if f'"{identifier}"' not in source:
             errors.append(f"missing Apple accessibility identifier: {identifier}")
+
+    attachment_row = (REPO_ROOT / "apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentActionRow.swift").read_text(encoding="utf-8")
+    icon_sources = REPO_ROOT / "frontend/packages/ui/static/icons"
+    available_icons = {path.stem for path in icon_sources.glob("*.svg")}
+    for icon in sorted(missing_attachment_icons(attachment_row, available_icons)):
+        errors.append(f"missing Apple attachment icon source: {icon}.svg")
+    for action in ("drawing", "location", "camera", "files"):
+        if not re.search(rf'item\([^,\n]+,\s*[^,\n]+,\s*"{action}"', attachment_row):
+            errors.append(f"missing Apple attachment menu action: {action}")
 
     forbidden_controls = ["Form {", "List {", "NavigationLink {", ".navigationTitle(", ".toolbar {"]
     for forbidden in forbidden_controls:

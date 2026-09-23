@@ -167,17 +167,33 @@ struct AttachmentDocumentPickerView: UIViewControllerRepresentable {
 
     class Coordinator: NSObject, UIDocumentPickerDelegate {
         let onFileSelected: (Data, String) -> Void
+        let startAccessing: (URL) -> Bool
 
-        init(onFileSelected: @escaping (Data, String) -> Void) {
+        init(
+            onFileSelected: @escaping (Data, String) -> Void,
+            startAccessing: @escaping (URL) -> Bool = { $0.startAccessingSecurityScopedResource() }
+        ) {
             self.onFileSelected = onFileSelected
+            self.startAccessing = startAccessing
         }
 
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
             guard let url = urls.first else { return }
-            if url.startAccessingSecurityScopedResource() {
-                defer { url.stopAccessingSecurityScopedResource() }
-                guard let data = try? Data(contentsOf: url) else { return }
+            let hasSecurityScope = startAccessing(url)
+            defer {
+                if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
+            }
+            do {
+                let data = try Data(contentsOf: url)
                 onFileSelected(data, url.lastPathComponent)
+            } catch {
+                NativeDiagnostics.error(
+                    "Attachment picker could not read selected file: \(type(of: error))",
+                    category: "apple_composer"
+                )
+                Task { @MainActor in
+                    ToastManager.shared.show(AppStrings.uploadProgressError, type: .error)
+                }
             }
         }
     }

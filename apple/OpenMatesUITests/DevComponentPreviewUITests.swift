@@ -47,6 +47,26 @@ final class DevComponentPreviewUITests: XCTestCase {
         attachScreenshot("Composer local attachment removed")
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility
+    func testComposerAttachmentMenuOpensAndSelectsLocalFileFixture() throws {
+        let app = launch(component: "composer", variant: "focused")
+        let toggle = app.buttons["composer-attachment-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        XCTAssertTrue(toggle.isHittable)
+        toggle.tap()
+
+        for identifier in ["composer-attachment-drawing", "composer-attachment-location", "composer-attachment-camera", "composer-attachment-files"] {
+            let action = app.buttons[identifier]
+            XCTAssertTrue(action.waitForExistence(timeout: 5), "Missing menu action: \(identifier)")
+            XCTAssertTrue(action.isHittable, "Menu action is covered: \(identifier)")
+        }
+        attachScreenshot("Isolated composer attachment menu open")
+
+        app.buttons["composer-attachment-files"].tap()
+        assertAction("attachment-added", in: app)
+        XCTAssertFalse(app.buttons["composer-attachment-files"].exists)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testMessageThinkingExpandsAndCollapses() {
         let app = launch(component: "message", variant: "thinking")
