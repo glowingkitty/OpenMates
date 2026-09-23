@@ -375,15 +375,18 @@ provider_groups:
         data_shared:
           - Chat messages with PII placeholders substituted client-side
           - Bounded recent-message context and candidate metadata needed for internal routing and safety decisions
+          - Optional search relevance criteria, search parameters, and minimized public search-result candidate data
       typesafe:
         privacy_policy: https://typesafe.ai/legal/privacy-policy
         location: See provider privacy policy
         used_for:
           - bounded request routing, model-tier, skill, focus-mode, language, and metadata decisions via OpenRouter
           - request-safety, response-safety, and prompt-injection classification via OpenRouter
+          - optional relevance ranking for web, news, event, and housing search results via OpenRouter
         data_shared:
           - Bounded recent chat context with PII placeholders substituted client-side
           - External text being checked for prompt injection, without OpenMates user identifiers
+          - User-stated relevance criteria, search parameters, and minimized public result metadata, without OpenMates user identifiers
       cerebras:
         privacy_policy: https://www.cerebras.ai/privacy-policy
         location: US

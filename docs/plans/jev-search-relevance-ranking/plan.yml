@@ -1,0 +1,314 @@
+schema_version: 2
+id: jev-search-relevance-ranking
+title: Optional Jev Relevance Ranking For Search Skills
+status: implementing
+
+goal: >
+  Add an optional relevance_criteria field to web, news, events, and home search;
+  when the user states a material purpose, have the assistant fill it faithfully,
+  retrieve a bounded pool of up to forty candidates, use one skill-specific Jev
+  decision to rank them, and return the requested count (default ten). Preserve
+  the current provider order and cost path when no criteria are present, and do
+  not add this ranking to health appointment search.
+
+scope:
+  in:
+    - Shared bounded Jev ranking infrastructure with minimized untrusted candidate projections, usage logging, deterministic tie-breaking, and provider-order fallback.
+    - Optional relevance_criteria request fields and assistant tool guidance for web, news, events, and home search.
+    - Forty-candidate retrieval when ranking is active: two Brave pages for web, one Brave News request, and bounded deduplicated merged pools for events and home.
+    - Public count or max_results controls with a default of ten and their existing public maximums.
+    - Focused backend tests, app-skill E2E contract updates, privacy disclosure updates, and one real dev CLI inference proving faithful automatic criteria population.
+    - Real-provider evidence for Jev ranking quality, latency, token use, and cost on web, news, events, and home examples.
+  out:
+    - Jev ranking or a relevance_criteria field for health appointment search.
+    - Changing eligibility, structured filters, provider attribution, output safety, user credit pricing, or Brave billing semantics.
+    - Inventing preferences for plain searches or allowing relevance scores to override hard filters.
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-23T00:00:00Z"
+    reason: The user approved the corrected behavior in the existing app-skill and specific skill Specifications.
+  plan:
+    status: approved
+    approved_at: "2026-09-23T00:00:00Z"
+    reason: The user explicitly said "approved. continue" after reviewing the corrected scope.
+
+specifications:
+  - id: architecture.app-skill-execution
+    fingerprint: c300f28577a1d4a1052eff5a4de3847abac266b49f9d986058c170d86c129c78
+    assertions:
+      - app-skills.search-relevance.optional-and-inferred
+      - app-skills.search-relevance.bounded-and-conditional
+      - app-skills.search-relevance.safe-finalization
+  - id: feature.app-skill.web-search
+    fingerprint: 8d4092a7a38ed56537510fdab840779b48abf5df2a9a91fc65ed1af01652a90f
+    assertions:
+      - web-search.relevance.activation
+      - web-search.relevance.bounded-ranking
+      - web-search.relevance.safe-fallback
+      - web-search.results.bounded
+  - id: feature.app-skill.events-search
+    fingerprint: 08f3218d9c3b60f0197e4f001010a6d19c288489216fa485a9541bf679da071f
+    assertions:
+      - events-search.relevance.activation
+      - events-search.relevance.bounded-candidates
+      - events-search.relevance.evidence-ranking
+      - events-search.relevance.safe-fallback
+  - id: feature.app-skill.health-search-appointments
+    fingerprint: 4aa123e5ef03bab6def2972694df61bd7987009af873411191449a32047fae8d
+    assertions:
+      - health-search-appointments.availability.window-order
+
+implementation_state:
+  subject_commit: pending
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Run Jev only when relevance_criteria is nonblank.
+    reason: Plain searches retain existing provider use, ordering, latency, and cost.
+    decided_at: "2026-09-23T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Web ranking uses two sequential twenty-result Brave pages while news uses one up-to-forty result Brave News request.
+    reason: These are the bounded provider limits the user selected after evaluating Brave usage.
+    decided_at: "2026-09-23T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Events and home rank deduplicated candidates only after structured filters and before the final result limit or expensive result-only enrichment.
+    reason: Hard constraints remain authoritative and enrichment cost stays bounded to returned results.
+    decided_at: "2026-09-23T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Each skill uses a separate evidence-based Jev rubric and falls back to the exact pre-ranking deterministic order, truncated to the requested public limit before formatting, enrichment, or embed creation, on any ranking failure.
+    reason: Relevance evidence differs across general web, news, events, and housing, while a ranking outage must not break search or leak the forty-to-fifty-result internal pool into AI context.
+    decided_at: "2026-09-23T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Health appointments retain deterministic eligibility and earliest-availability ordering without this field or Jev path.
+    reason: Medical appointment ranking carries distinct clinical and fairness risks and the current contract is already purpose- and eligibility-aware.
+    decided_at: "2026-09-23T00:00:00Z"
+
+scenarios:
+  - id: S-1
+    title: Purpose-aware search ranks a bounded pool
+    given:
+      - A web, news, events, or home search includes a nonblank relevance_criteria value.
+    when:
+      - The skill obtains candidates that satisfy its structured filters.
+    then:
+      - At most one bounded skill-specific Jev decision ranks the deduplicated candidates.
+      - The final response contains no more than the requested count.
+  - id: S-2
+    title: Plain search preserves existing behavior
+    given:
+      - relevance_criteria is absent or blank.
+    when:
+      - The search executes.
+    then:
+      - The skill makes no Jev relevance-ranking call.
+      - Existing provider retrieval and deterministic ordering remain unchanged.
+  - id: S-3
+    title: Ranking failure degrades safely
+    given:
+      - Candidate retrieval succeeds but Jev is unavailable, invalid, incomplete, rejected, oversized, or timed out.
+    when:
+      - The skill attempts optional ranking.
+    then:
+      - Candidates keep their pre-ranking deterministic order.
+      - The successful provider search returns only the requested count before formatting, enrichment, or embed creation.
+  - id: S-4
+    title: Assistant infers a stated ranking purpose
+    given:
+      - An ordinary user request states a material purpose or preference that should affect ordering.
+    when:
+      - The assistant constructs a supported search tool call.
+    then:
+      - The tool call contains a concise faithful relevance_criteria value.
+      - A plain control request does not gain an invented preference.
+  - id: S-5
+    title: Health appointments retain eligibility-first ordering
+    given:
+      - The user searches for a health appointment.
+    when:
+      - The appointment skill validates eligibility and availability.
+    then:
+      - The request schema has no relevance_criteria field.
+      - Jev does not reorder appointments.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A nonblank relevance_criteria value activates one bounded skill-specific Jev ranking over no more than max(40, requested_limit) deduplicated filtered candidates, then returns no more than the requested limit.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-SHARED, T-SKILLS]
+  - id: AC-2
+    scenario: S-2
+    text: Missing or blank criteria makes no Jev call and preserves each skill's existing retrieval and deterministic ordering behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-SKILLS]
+  - id: AC-3
+    scenario: S-3
+    text: Web makes exactly two bounded Brave calls for ranked searches, news makes one, and provider or Jev failure cannot expose diagnostics or send more than the requested final count into formatting, enrichment, embeds, or AI context.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-SKILLS]
+  - id: AC-4
+    scenario: S-4
+    text: Ordinary assistant conversation faithfully auto-populates relevance_criteria when the user states a material ranking purpose, while a plain request does not gain invented preferences.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-E2E, T-CLI]
+  - id: AC-5
+    scenario: S-1
+    text: Real search samples demonstrate useful ranking quality and record Jev input/output tokens, latency, and estimated cost for web, news, events, and home.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-REAL]
+  - id: AC-6
+    scenario: S-5
+    text: Health appointment request schema and eligibility-first ordering remain unchanged and TypeSafe privacy disclosures describe the additional minimized relevance-ranking use.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CONTRACTS, T-SPECS]
+
+tests:
+  - id: T-SHARED
+    type: pytest
+    file: backend/tests/test_search_relevance.py
+    command: python3 -m pytest backend/tests/test_search_relevance.py
+    covers: [AC-1]
+    assertions:
+      - Complete score responses produce stable descending relevance order.
+      - Missing, malformed, unavailable, timed-out, or oversized decisions preserve input order.
+      - State and questions are bounded and candidate text is labeled untrusted.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-SKILLS
+    type: pytest
+    file: backend/tests/test_search_relevance.py
+    command: python3 -m pytest backend/tests/test_search_relevance.py backend/tests/test_web_search_contract.py backend/tests/test_news_search_fixture.py backend/tests/test_home_workflow_search.py
+    covers: [AC-1, AC-2, AC-3]
+    assertions:
+      - Ranked and unranked retrieval call counts, candidate limits, deduplication, fallback, and final bounds match each skill contract.
+      - Request models and tool schemas expose optional bounded criteria and a default result limit of ten.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-CONTRACTS
+    type: lint
+    file: backend/apps/web/app.yml
+    command: python3 -m pytest backend/tests/test_search_relevance.py -k tool_schemas
+    covers: [AC-4, AC-6]
+    assertions:
+      - App schemas and Pydantic models remain aligned.
+      - Health appointment search has no relevance_criteria field.
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-web-search.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --help
+    target: frontend/apps/web_app/tests/skill-web-search.spec.ts frontend/apps/web_app/tests/skill-news-search.spec.ts frontend/apps/web_app/tests/skill-events-search.spec.ts frontend/apps/web_app/tests/skill-home-search.spec.ts
+    execution_environment: isolated_github_ci
+    covers: [AC-4]
+    assertions:
+      - Updated web, news, events, and home search specs preserve user-visible rendering and request/result limits through the isolated GitHub stack.
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-SPECS
+    type: lint
+    file: docs/plans/jev-search-relevance-ranking/plan.yml
+    command: python3 scripts/specifications.py generate && python3 scripts/specifications.py check-generated && python3 scripts/plan_validate.py docs/plans/jev-search-relevance-ranking/plan.yml
+    covers: [AC-6]
+    assertions:
+      - Existing approved Specifications and generated registries validate.
+      - The durable implementation Plan validates.
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-CLI
+    type: manual
+    file: backend/apps/events/app.yml
+    covers: [AC-4]
+    assertions:
+      - A real disposable dev CLI chat for promoting AI software at Berlin events emits a concise faithful relevance_criteria value in the events.search call.
+      - A plain control request omits relevance_criteria.
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-REAL
+    type: manual
+    file: backend/shared/python_utils/search_relevance.py
+    covers: [AC-5]
+    assertions:
+      - Real web, news, events, and home searches compare provider order with Jev order on the same bounded candidate pools.
+      - Retained evidence records candidate count, selected results, latency, input/output tokens, and estimated Jev cost without private user data.
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+
+tasks:
+  - id: TASK-1
+    title: Implement and verify optional search relevance ranking
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    expected_files:
+      - backend/shared/python_utils/search_relevance.py
+      - backend/apps/web/
+      - backend/apps/news/
+      - backend/apps/events/
+      - backend/apps/home/
+      - backend/tests/
+      - frontend/apps/web_app/tests/
+    verification_ids: [T-SHARED, T-SKILLS, T-CONTRACTS, T-E2E, T-SPECS, T-CLI, T-REAL]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [backend/shared/python_utils/, backend/apps/web/, backend/apps/news/, backend/apps/events/, backend/apps/home/, backend/tests/, frontend/apps/web_app/tests/]
+      shared_files: [shared/docs/privacy_policy.yml, frontend/packages/ui/src/i18n/sources/legal/privacy.yml]
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Implement one shared bounded scorer, integrate each skill behind optional criteria, and verify with mocked and real provider evidence.
+    outcome: planned
+    recorded_at: "2026-09-23T00:00:00Z"
+
+documentation_impact:
+  privacy:
+    status: update
+    reason: TypeSafe receives a new bounded projection containing relevance criteria, search parameters, and minimized public provider-result metadata.
+  provider_api:
+    status: update
+    file: docs/apis/typesafe-jev.md
+  app_skill_specs:
+    status: updated
+    files:
+      - specifications/architecture/app-skill-execution/specification.yml
+      - specifications/features/app-skills/web-search/specification.yml
+      - specifications/features/app-skills/events-search/specification.yml
+      - specifications/features/app-skills/health-search-appointments/specification.yml
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Implement the shared ranking helper, then integrate and test web, news, events, and home before isolated product E2E and real dev inference.
+  command: python3 -m pytest backend/tests/test_search_relevance.py
+  expected_outcome: Shared scorer and four skill integrations pass focused backend tests before deployment.
+  last_verified_commit: pending
+  blocker: null

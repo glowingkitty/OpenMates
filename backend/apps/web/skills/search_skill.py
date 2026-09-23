@@ -26,6 +26,13 @@ from backend.shared.python_utils.app_skill_output_safety import (
     is_central_app_skill_dispatch,
     sanitize_app_skill_output,
 )
+from backend.shared.python_utils.search_relevance import (
+    MAX_RELEVANCE_CRITERIA_CHARS,
+    normalize_relevance_criteria,
+    normalize_url_for_deduplication,
+    rank_search_candidates,
+    stable_deduplicate_candidates,
+)
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.providers.youtube.youtube_metadata import (
@@ -51,7 +58,7 @@ SAFE_PROVIDER_ERROR = "Search provider request failed. Please try again."
 # for results that will be filtered out. This ensures users still get their requested count.
 TABLOID_FILTER_OVER_REQUEST_COUNT = 15
 # Default number of results to return to the user after filtering
-DEFAULT_RESULT_COUNT = 6
+DEFAULT_RESULT_COUNT = 10
 
 
 def strip_html_tags(text: str) -> str:
@@ -104,7 +111,16 @@ class WebSearchRequestItem(BaseModel):
     )
 
     query: str = Field(description="Search query string (e.g. 'Python async', 'FastAPI best practices').")
-    count: int = Field(default=6, description="Number of results for this request (max 20).")
+    count: int = Field(default=10, description="Number of results for this request (max 20, default 10).")
+    relevance_criteria: Optional[str] = Field(
+        default=None,
+        max_length=MAX_RELEVANCE_CRITERIA_CHARS,
+        description=(
+            "Optional concise natural-language purpose or preference used to rank a larger "
+            "candidate pool. Populate it when the user states a material goal that should "
+            "change ordering; omit it for a plain search and never invent preferences."
+        ),
+    )
     country: Optional[str] = Field(
         default=None,
         description="Country code for localized results (e.g. 'US', 'DE', 'GB'). Defaults to 'us'.",
@@ -381,6 +397,7 @@ class SearchSkill(BaseSkill):
             request_id = req.get("id")
             query = req.get("query")
             count = req.get("count", DEFAULT_RESULT_COUNT)
+            raw_relevance_criteria = req.get("relevance_criteria")
             item_errors: List[str] = []
 
             if not isinstance(query, str) or not query.strip():
@@ -395,6 +412,12 @@ class SearchSkill(BaseSkill):
                     f"count must be between {MIN_SEARCH_RESULT_COUNT} and {MAX_SEARCH_RESULT_COUNT}"
                 )
 
+            try:
+                relevance_criteria = normalize_relevance_criteria(raw_relevance_criteria)
+            except ValueError as exc:
+                item_errors.append(str(exc))
+                relevance_criteria = None
+
             if item_errors:
                 error_message = f"Request id {request_id} is invalid: {', '.join(item_errors)}"
                 invalid_grouped_results.append({
@@ -407,6 +430,10 @@ class SearchSkill(BaseSkill):
 
             req["query"] = query.strip()
             req["count"] = count
+            if relevance_criteria:
+                req["relevance_criteria"] = relevance_criteria
+            else:
+                req.pop("relevance_criteria", None)
             contract_valid_requests.append(req)
 
         return (contract_valid_requests, invalid_grouped_results, validation_errors, None)
@@ -476,10 +503,15 @@ class SearchSkill(BaseSkill):
         req_result_filter = req.get("result_filter") or "web"
         # Tabloid/boulevard domain filtering — enabled by default
         req_filter_tabloids = req.get("filter_tabloids", True)
+        relevance_criteria = req.get("relevance_criteria")
         
         # When tabloid filtering is active, over-request from the API to compensate
         # for results that will be removed. This ensures users still get their requested count.
-        api_count = TABLOID_FILTER_OVER_REQUEST_COUNT if req_filter_tabloids else req_count
+        api_count = (
+            20
+            if relevance_criteria
+            else TABLOID_FILTER_OVER_REQUEST_COUNT if req_filter_tabloids else req_count
+        )
         
         # CRITICAL: Validate and correct country code to ensure it's valid for Brave Search API
         # Valid codes: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, ALL
@@ -561,19 +593,24 @@ class SearchSkill(BaseSkill):
                     # These should bubble up to the route handler
                     raise
             
-            # Call Brave Search API. Use api_count (over-requested when filtering)
-            # instead of req_count.
-            search_result = await search_web(
-                query=search_query,
-                secrets_manager=secrets_manager,
-                count=api_count,
-                country=req_country,
-                search_lang=req_lang,
-                safesearch=req_safesearch,
-                extra_snippets=True,  # Enable extra snippets for richer results
-                freshness=req_freshness,
-                result_filter=req_result_filter,  # Filter to web articles by default
-            )
+            async def _search_page(offset: int) -> Dict[str, Any]:
+                return await search_web(
+                    query=search_query,
+                    secrets_manager=secrets_manager,
+                    count=api_count,
+                    country=req_country,
+                    search_lang=req_lang,
+                    safesearch=req_safesearch,
+                    extra_snippets=True,
+                    freshness=req_freshness,
+                    result_filter=req_result_filter,
+                    offset=offset,
+                )
+
+            # Ranked web search uses exactly two bounded Brave pages. Sequential
+            # calls avoid a needless rate-limit burst and preserve page order for
+            # deterministic fallback. A second-page shortfall keeps page one.
+            search_result = await _search_page(0)
             
             if search_result.get("error"):
                 logger.warning(
@@ -583,15 +620,67 @@ class SearchSkill(BaseSkill):
                 )
                 return (request_id, [], SAFE_PROVIDER_ERROR)
             
-            results = search_result.get("results", [])
+            results = list(search_result.get("results", []))
+            if relevance_criteria:
+                try:
+                    second_page = await _search_page(1)
+                except Exception as exc:
+                    logger.warning(
+                        "Second Brave web candidate page raised for request id %s error_type=%s",
+                        request_id,
+                        type(exc).__name__,
+                    )
+                    second_page = {"results": []}
+                if second_page.get("error"):
+                    logger.warning(
+                        "Second Brave web candidate page unavailable for request id %s",
+                        request_id,
+                    )
+                else:
+                    results.extend(second_page.get("results", []))
             
             # Apply tabloid/boulevard domain filtering if enabled
             if req_filter_tabloids:
                 blocked_domains = load_tabloid_blocklist()
                 if blocked_domains:
                     results = filter_results_by_domain(results, blocked_domains)
-            
-            # Trim to the user's requested count (may have over-requested for filtering)
+
+            if relevance_criteria:
+                results = stable_deduplicate_candidates(
+                    results,
+                    key=lambda item: normalize_url_for_deduplication(item.get("url")),
+                )[:40]
+                projections = []
+                for result in results:
+                    raw_extra_snippets = result.get("extra_snippets", [])
+                    if not isinstance(raw_extra_snippets, list):
+                        raw_extra_snippets = []
+                    projections.append({
+                        "title": strip_html_tags(result.get("title", "")),
+                        "description": strip_html_tags(result.get("description", "")),
+                        "extra_snippets": [strip_html_tags(item) for item in raw_extra_snippets[:4]],
+                        "url": result.get("url", ""),
+                        "source": _allowlisted_object(result.get("profile"), "name"),
+                        "age": self._normalize_result_age(result),
+                        "language": result.get("language"),
+                    })
+                ranking = await rank_search_candidates(
+                    candidates=results,
+                    candidate_projections=projections,
+                    relevance_criteria=relevance_criteria,
+                    search_parameters={
+                        "query": search_query,
+                        "country": req_country,
+                        "search_lang": req_lang,
+                        "freshness": req_freshness,
+                        "result_filter": req_result_filter,
+                    },
+                    profile="web",
+                    secrets_manager=secrets_manager,
+                )
+                results = ranking.candidates
+
+            # Trim after optional ranking so only selected results are enriched.
             if len(results) > req_count:
                 results = results[:req_count]
             previews: List[Dict[str, Any]] = []

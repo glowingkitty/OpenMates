@@ -58,6 +58,14 @@ from backend.apps.events.providers import resident_advisor as ra_provider
 from backend.apps.events.providers import siegessaeule as siegessaeule_provider
 from backend.apps.events.providers.registry import filter_providers
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.search_relevance import (
+    MAX_RELEVANCE_CRITERIA_CHARS,
+    normalize_relevance_criteria,
+    normalize_url_for_deduplication,
+    rank_search_candidates,
+    relevance_candidate_target,
+    stable_deduplicate_candidates,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +204,19 @@ class SearchRequestItem(BaseModel):
     )
     count: int = Field(
         default=10,
+        ge=1,
+        le=50,
         description="Maximum number of events to return (default: 10, max: 50).",
+    )
+    relevance_criteria: Optional[str] = Field(
+        default=None,
+        max_length=MAX_RELEVANCE_CRITERIA_CHARS,
+        description=(
+            "Optional concise natural-language event-selection goal used to rank a larger "
+            "candidate pool. Populate it when the user states a material purpose such as "
+            "networking, promoting a product, or finding future speaking opportunities; "
+            "omit it for a plain event search and never invent preferences."
+        ),
     )
     provider: Optional[str] = Field(
         default=None,
@@ -1026,6 +1046,27 @@ class SearchSkill(BaseSkill):
 
         return merged[:count]
 
+    @staticmethod
+    def _relevance_deduplication_key(event: Dict[str, Any]) -> str:
+        """Identify cross-provider copies before relevance ranking."""
+
+        title = re.sub(r"\s+", " ", str(event.get("title") or "")).strip().lower()
+        date_start = str(event.get("date_start") or "").strip().lower()
+        venue = event.get("venue")
+        if isinstance(venue, dict):
+            venue_text = "|".join(
+                str(venue.get(field) or "").strip().lower()
+                for field in ("name", "address", "city")
+            )
+        else:
+            venue_text = str(venue or event.get("location") or "").strip().lower()
+        if title and date_start:
+            return f"event:{title}|{date_start}|{venue_text}"
+        url = normalize_url_for_deduplication(_event_result_url(event))
+        if url:
+            return f"url:{url}"
+        return ""
+
     async def _process_single_search_request(
         self,
         req: Dict[str, Any],
@@ -1059,6 +1100,7 @@ class SearchSkill(BaseSkill):
         query = req.get("query") or req.get("q") or conference
         if not query:
             return (request_id, [], "Missing 'query' parameter", 0, [])
+        relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
 
         # Strip platform-brand and filler stopwords before passing to providers.
         # e.g. "AI meetup" -> "AI", "tech events" -> "tech". Falls back to the
@@ -1153,6 +1195,7 @@ class SearchSkill(BaseSkill):
         event_type: Optional[str] = req.get("event_type")
         radius_miles: float = float(req.get("radius_miles", 25.0))
         count: int = int(req.get("count", _DEFAULT_COUNT))
+        candidate_target = relevance_candidate_target(count) if relevance_criteria else count
         concert_tags: Optional[List[str]] = req.get("concert_tags") or None
         past_events: bool = bool(req.get("past_events", False))
 
@@ -1186,7 +1229,7 @@ class SearchSkill(BaseSkill):
                 end_date=end_date,
                 event_type=event_type,
                 radius_miles=radius_miles,
-                count=count,
+                count=candidate_target,
                 proxy_url=proxy_url,
             )
             if meetup_err and not meetup_events:
@@ -1199,7 +1242,7 @@ class SearchSkill(BaseSkill):
             luma_events, total, luma_err = await self._search_luma(
                 query=query,
                 location_str=luma_city,
-                count=count,
+                count=candidate_target,
                 proxy_url=proxy_url,
             )
             if luma_err and not luma_events:
@@ -1215,7 +1258,7 @@ class SearchSkill(BaseSkill):
                 start_date=start_date,
                 end_date=end_date,
                 event_type=event_type,
-                count=count,
+                count=candidate_target,
                 secrets_manager=secrets_manager,
             )
             if ge_err and not ge_events:
@@ -1228,7 +1271,7 @@ class SearchSkill(BaseSkill):
             eb_events, total, eb_err = await self._search_eventbrite(
                 query=query,
                 location_str=luma_city,
-                count=count,
+                count=candidate_target,
                 proxy_url=proxy_url,
             )
             if eb_err and not eb_events:
@@ -1243,7 +1286,7 @@ class SearchSkill(BaseSkill):
                 location_str=luma_city,
                 start_date=start_date,
                 end_date=end_date,
-                count=count,
+                count=candidate_target,
             )
             if ra_err and not ra_events:
                 return (request_id, [], f"Resident Advisor search failed: {ra_err}", 0, searched_provider_ids)
@@ -1256,7 +1299,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 location_str=luma_city,
                 start_date=start_date,
-                count=count,
+                count=candidate_target,
                 proxy_url=proxy_url,
             )
             if ss_err and not ss_events:
@@ -1270,7 +1313,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 location_str=luma_city,
                 concert_tags=concert_tags,
-                count=count,
+                count=candidate_target,
             )
             if bp_err and not bp_events:
                 return (request_id, [], f"Berlin Philharmonic search failed: {bp_err}", 0, searched_provider_ids)
@@ -1285,7 +1328,7 @@ class SearchSkill(BaseSkill):
                 conference=conference,
                 start_date=start_date,
                 end_date=end_date,
-                count=count,
+                count=candidate_target,
                 past_events=past_events,
             )
             if pretalx_err and not pretalx_events:
@@ -1296,14 +1339,20 @@ class SearchSkill(BaseSkill):
         else:
             # "auto" or per-request providers list: query applicable providers
             # in parallel with extra headroom for deduplication.
-            per_provider_count = count * _AUTO_PROVIDER_MULTIPLIER
-
             # Safety filter: validate LLM's provider choices against region scope
             applicable_ids = filter_providers(
                 requested_providers=requested_providers,
                 city=luma_city,
                 providers_meta=self._providers_meta,
             )
+            if relevance_criteria:
+                provider_count = max(1, len(applicable_ids))
+                per_provider_count = max(
+                    count,
+                    (candidate_target + provider_count - 1) // provider_count,
+                )
+            else:
+                per_provider_count = count * _AUTO_PROVIDER_MULTIPLIER
 
             logger.info(
                 "Auto mode for request %s: %d applicable providers for city=%r: %s",
@@ -1415,6 +1464,44 @@ class SearchSkill(BaseSkill):
             end_date=end_date,
             query=query,
         )
+        if relevance_criteria:
+            results = stable_deduplicate_candidates(
+                results,
+                key=self._relevance_deduplication_key,
+            )[:candidate_target]
+            projections = []
+            for result in results:
+                projections.append({
+                    "title": result.get("title"),
+                    "description": result.get("description"),
+                    "date_start": result.get("date_start"),
+                    "date_end": result.get("date_end"),
+                    "event_type": result.get("event_type"),
+                    "venue": result.get("venue") or result.get("location"),
+                    "organizer": result.get("organizer"),
+                    "provider": result.get("provider"),
+                    "price": result.get("price") or result.get("fee"),
+                    "constraint_matches": result.get("constraint_matches"),
+                    "url": result.get("url"),
+                })
+            ranking = await rank_search_candidates(
+                candidates=results,
+                candidate_projections=projections,
+                relevance_criteria=relevance_criteria,
+                search_parameters={
+                    "query": query,
+                    "location": luma_city,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "event_type": event_type,
+                    "radius_miles": radius_miles,
+                    "conference": conference,
+                    "providers": searched_provider_ids,
+                },
+                profile="events",
+                secrets_manager=secrets_manager,
+            )
+            results = ranking.candidates
         results = results[:count]
         if quality_metadata.get("filtered_out_count"):
             logger.info(

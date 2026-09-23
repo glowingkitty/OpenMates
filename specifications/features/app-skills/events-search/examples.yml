@@ -28,6 +28,50 @@ results:
     provider_event: {title: Event, url: null, booking_url: null, provider: meetup, date_start: "2026-08-25T19:00:00+02:00"}
     expect: {retained: false}
 
+relevance_ranking:
+  - id: ordinary-chat-promotion-goal
+    given: Alice says, "Show me AI events in Berlin in the coming weeks where I can promote my AI software."
+    when: The assistant prepares the events search request.
+    then: It preserves Berlin, the future date window, and physical-event constraints as structured fields and supplies concise relevance criteria about AI-community fit, networking, product feedback, and plausible organizer engagement.
+    assertion_ids: [events-search.relevance.activation]
+  - id: plain-event-search
+    given: Alice asks, "Show me AI events in Berlin next week."
+    when: The assistant prepares the events search request.
+    then: It may omit relevance criteria and does not invent promotion, speaking, price, accessibility, or networking goals.
+    assertion_ids: [events-search.relevance.activation]
+  - id: forty-candidate-default-count
+    input: {requests: [{query: AI, location: Berlin, count: 10, relevance_criteria: Events suitable for meeting AI software builders and organizers}]}
+    given: Applicable providers return at least forty valid events including cross-provider duplicates.
+    then: Hard filters and deduplication run before one Jev decision ranks no more than forty candidates and returns no more than ten events.
+    expect: {hard_filters_applied_first: true, duplicates_removed_before_ranking: true, maximum_candidates_ranked: 40, maximum_results_returned: 10, jev_calls: 1}
+    assertion_ids: [events-search.relevance.bounded-candidates]
+  - id: larger-explicit-count
+    input: {requests: [{query: AI, location: Berlin, count: 50, relevance_criteria: Events suitable for meeting AI software builders}]}
+    given: Applicable providers support at least fifty valid unique events.
+    then: The candidate target and maximum final result count expand to the explicitly requested fifty.
+    expect: {candidate_target: 50, maximum_results_returned: 50}
+    assertion_ids: [events-search.relevance.bounded-candidates]
+  - id: hard-filter-cannot-be-reintroduced
+    given: An otherwise promising event is outside the requested date window and another candidate does not state whether organizers accept talks.
+    when: Candidates are filtered and ranked.
+    then: The out-of-window event remains excluded regardless of score and the missing organizer fact is treated as unknown rather than favorable.
+    assertion_ids: [events-search.relevance.evidence-ranking]
+  - id: title-keywords-are-insufficient
+    given: An event repeats the query terms in its title but its description concerns an unrelated audience, while another event gives concrete evidence for the stated networking goal.
+    when: Jev ranks the filtered candidates.
+    then: The evidence-backed match ranks higher; title keyword overlap alone does not establish goal fit.
+    assertion_ids: [events-search.relevance.evidence-ranking]
+  - id: omitted-criteria-preserves-existing-order
+    given: An otherwise valid events request omits relevance criteria.
+    when: Providers return events.
+    then: No Jev ranking call occurs and existing event ordering is preserved.
+    assertion_ids: [events-search.relevance.safe-fallback]
+  - id: ranking-failure-preserves-search
+    given: Event providers return valid candidates but Jev times out or returns incomplete scores.
+    when: The result group is finalized.
+    then: The successful search is preserved in existing event order, remains bounded by count, and exposes no raw Jev diagnostics.
+    assertion_ids: [events-search.relevance.safe-fallback]
+
 conferences:
   - id: conference-only
     input: {provider: GPN24, requests: [{conference: GPN24}]}
@@ -44,8 +88,11 @@ performance:
 
 surface_parity:
   - id: two-date-ranges
+    given: The same two grouped date-range searches are submitted through direct CLI and assistant surfaces.
     input:
       requests:
         - {id: first, query: tech, location: Berlin, start_date: "2026-06-20T00:00:00+02:00", end_date: "2026-06-21T23:59:59+02:00"}
         - {id: second, query: tech, location: Berlin, start_date: "2026-06-27T00:00:00+02:00", end_date: "2026-06-28T23:59:59+02:00"}
     expect: {groups: 2, date_ranges_preserved: true, web_grouped_map_resolves: true}
+    then: Both surfaces preserve the same request grouping, date ranges, optional relevance field, final-count behavior, and structured event result schema.
+    assertion_ids: [events-search.surface-parity]

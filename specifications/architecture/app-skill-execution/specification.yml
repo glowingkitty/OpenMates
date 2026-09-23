@@ -14,13 +14,15 @@ scope:
     - Equivalent request, result, error, billing, and safety semantics across supported surfaces
     - Explicitly opted-in concurrent assistant execution for independent read-only skill calls
     - Single-pass structured external-text safety decisions with bounded failure latency
+    - Optional Jev relevance ranking for explicitly supported read-only search skills
     - Truthful CLI app-skill status messages without session-save decryption notices
     - Owner-authorized asynchronous result polling without changing existing authentication, rate limits, budgets, or encryption boundaries.
   excludes:
-    - Provider-specific request and result fields
+    - Provider-specific request and result fields outside the declared shared relevance-ranking profiles
     - Client-specific visual layout
     - Internal provider wrapper implementation
     - Automatic parallelization of undeclared, dependent, or mutating calls
+    - Jev relevance ranking for health appointment search or clinical suitability decisions
 
 models:
   AppSkillInvocation:
@@ -96,6 +98,54 @@ models:
       required: true
       constraints: {undeclared_dependent_mutating_payment_account_workspace_calls: true}
 
+  OptionalSearchRelevanceRanking:
+    eligible_skills:
+      type: enum_set
+      required: true
+      values: [web.search, news.search, events.search, home.search]
+      constraints: {health.search_appointments: excluded}
+    relevance_criteria:
+      type: string
+      nullable: true
+      constraints: {trim: true, blank: treat_as_omitted, max_length: 1000}
+    assistant_population:
+      type: faithful_goal_extraction
+      required: true
+      constraints: {material_ranking_goal: populate, plain_search: may_omit, invented_preferences: forbidden}
+    result_limit:
+      type: existing_public_field
+      required: true
+      constraints: {web_news_events: count, home: max_results, default: 10, existing_skill_maximum_preserved: true}
+    candidate_pool:
+      type: bounded_skill_profile
+      required: true
+      constraints:
+        when_criteria_present_target: max_40_or_requested_result_limit
+        when_criteria_absent: existing_provider_fetch_behavior
+        web_search: two_Brave_pages_of_at_most_20_each
+        news_search: one_Brave_News_call_of_up_to_40
+        events_search: bounded_deduplicated_merged_provider_pool
+        home_search: bounded_deduplicated_merged_provider_pool
+        provider_shortfall: return_smaller_pool
+        fabricated_candidates: forbidden
+        unbounded_retries: forbidden
+    decision:
+      type: typesafe_jev_ranking
+      required: true
+      constraints:
+        candidate_text: untrusted_data
+        structured_filters: authoritative
+        unsupported_facts: unknown
+        web_rubric: intent_fit_72_percent_and_source_evidence_quality_28_percent
+        news_rubric: material_relevance_65_percent_and_source_quality_35_percent
+        events_rubric: stated_event_goal_fit_after_hard_filters_and_deduplication
+        home_rubric: stated_listing_facts_only_without_inferred_amenities_commute_lease_or_neighborhood_quality
+        user_or_chat_identifiers: forbidden
+    finalization:
+      type: deterministic
+      required: true
+      constraints: {successful_ranking: score_then_existing_tie_break, ranking_failure: existing_order, final_results: at_most_requested_limit, output_safety_after_selection: required}
+
 assertions:
   - id: app-skills.execution.registered-validated
     type: security
@@ -134,6 +184,21 @@ assertions:
     must: Assistant tool calls run concurrently only when every call in the same model-emitted batch has explicit static parallel_safe true metadata; concurrency is bounded to three, result messages retain original call order, cancellation reaches unfinished calls, per-call billing and normalized failures remain visible, and every undeclared, dependent, mutating, payment, account, or workspace batch remains serial.
     depends_on: [models.ParallelSafeSkillBatch, examples.parallel_execution]
 
+  - id: app-skills.search-relevance.optional-and-inferred
+    type: behavior
+    must: Web, news, events, and home search accept an optional relevance_criteria value. When an ordinary assistant request states a material purpose or preference that should change result ordering, the assistant supplies a concise faithful relevance_criteria value without requiring the user to name the field. A plain search may omit it, direct callers may omit it, and no preference may be invented.
+    depends_on: [models.OptionalSearchRelevanceRanking]
+
+  - id: app-skills.search-relevance.bounded-and-conditional
+    type: invariant
+    must: A nonblank relevance_criteria value activates bounded candidate retrieval and one Jev ranking decision using the declared skill profile. The internal target is forty candidates or the larger explicitly requested final limit. Web uses at most two twenty-result Brave pages, news one up-to-forty Brave News request, and events/home bounded deduplicated merged provider pools. Missing criteria preserves existing fetch and ordering behavior and makes no relevance-ranking call. Provider shortfalls or duplicates yield a smaller pool without fabricated results or unbounded retries.
+    depends_on: [models.OptionalSearchRelevanceRanking.candidate_pool]
+
+  - id: app-skills.search-relevance.safe-finalization
+    type: security
+    must: Jev receives only the bounded relevance goal, ranking-relevant search parameters, and minimized candidate projections labeled as untrusted data. Structured filters run before ranking and cannot be reversed by a score; unsupported candidate facts remain unknown. Malformed, incomplete, unavailable, rejected, or timed-out ranking falls back to existing deterministic order without failing an otherwise successful search. The public result-limit field defaults to ten, the final result count never exceeds the requested limit, and selected external output still passes the inherited output-safety boundary. Health appointment search remains eligibility- and earliest-availability-based and does not use this Jev ranking path.
+    depends_on: [models.OptionalSearchRelevanceRanking]
+
   - id: app-skills.execution.async-owner-bound
     type: security
     must: Completed asynchronous app-skill jobs, including image, video, music, audio, document, 3D, and code-generated file jobs, carry trusted owner metadata so the submitting authenticated session or authorized API key can retrieve its own result. Other users cannot retrieve results, and unverified ownership remains denied. Provider failures and safety rejections remain visible without leaking private result data or automatically resubmitting generation.
@@ -159,4 +224,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution, async_polling]
+  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution, search_relevance, async_polling]

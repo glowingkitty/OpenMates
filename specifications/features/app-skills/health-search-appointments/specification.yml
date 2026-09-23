@@ -21,6 +21,7 @@ scope:
   - Agent system-prompt wording, prompting tactics, tool-selection instructions and focus-mode behavior;
     coordinator owns that separate question.
   - Appointment booking/cancellation, health memories, medical report generation and medication lookup.
+  - Jev relevance ranking, a relevance_criteria input, and preference-based reordering of appointment candidates.
   - New providers, endpoints or supported procedures; changes to authentication, credits, rate limits
     and encryption.
   - Pixel-level layouts and the internal implementation of generic embed serialization.
@@ -235,10 +236,10 @@ assertions:
     to seven days. Compare offset-aware timestamps as actual instants, omit past slots and retain provider
     local-time information. Only eligible services participate in earliest-availability comparisons; an
     earlier incompatible treatment cannot displace a consultation. The bounded search must not claim the
-    globally earliest appointment.
+    globally earliest appointment. This skill does not accept relevance_criteria or use Jev to reorder
+    appointments; eligibility and existing earliest-first ordering remain authoritative.
   depends_on:
   - models
-  - examples.window_order
 - id: health-search-appointments.results.grouping
   type: invariant
   must: Preserve the service, doctor, location and source provider when grouping alternate slots. Do not

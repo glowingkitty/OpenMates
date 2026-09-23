@@ -182,7 +182,10 @@ skills:
     icon_image: search.svg
     preprocessor_hint: >
       General web search for current information, prices, weather, facts, stocks, sports scores, etc.
-      Use as a fallback when no specialized skill applies.
+      Use as a fallback when no specialized skill applies. When the user states a material purpose
+      or preference that should change which results are most useful, include a concise, faithful
+      relevance_criteria value (for example, research suitable for a purchase decision). Do not
+      wait for the user to name the field, but omit it for a plain search and never invent preferences.
     class_path: |
       backend.apps.web.skills.search_skill.SearchSkill
     providers:
@@ -210,7 +213,7 @@ skills:
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
             Example for single search: {"requests": [{"query": "Python async"}]}
             Example for multiple searches: {"requests": [{"query": "Python async"}, {"query": "FastAPI best practices"}]}
-            Each object must contain 'query' (search query string), and can include optional parameters (count, country, search_lang, safesearch).
+            Each object must contain 'query' (search query string), and can include optional parameters (count, relevance_criteria, country, search_lang, safesearch).
             Note: The 'id' field is auto-generated if not provided - you don't need to include it.
           items:
             type: object
@@ -220,10 +223,18 @@ skills:
                 description: Search query string
               count:
                 type: integer
-                description: Number of results for this request (max 20)
+                description: Number of final results for this request (default 10, max 20).
                 minimum: 1
                 maximum: 20
-                default: 6
+                default: 10
+              relevance_criteria:
+                type: string
+                maxLength: 1000
+                description: >
+                  Optional concise natural-language purpose or preference for relevance ranking.
+                  Include it when the user states a material goal that should change ordering;
+                  omit it for a plain search and never invent preferences. When present, the skill
+                  ranks up to 40 candidates and still returns only count results.
               country:
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."

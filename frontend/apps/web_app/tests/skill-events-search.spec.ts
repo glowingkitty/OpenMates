@@ -178,7 +178,7 @@ test.describe('App: Events / Skill: search', () => {
 	});
 
 	// ── Phase 2: CLI direct skill command ──────────────────────────────────
-	// contract-test: direct surface=cli assertions=events-search.request.validated,events-search.results.actionable,events-search.performance.bounded,events-search.surface-parity
+	// contract-test: direct surface=cli assertions=events-search.request.validated,events-search.results.actionable,events-search.performance.bounded,events-search.surface-parity,app-skills.search-relevance.safe-finalization
 	test('Phase 2: CLI apps events search returns results', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
@@ -190,7 +190,7 @@ test.describe('App: Events / Skill: search', () => {
 			[
 				'apps', 'events', 'search',
 				'--input', JSON.stringify({
-					requests: [{ query: 'technology meetup', location: 'Berlin', provider: 'auto' }]
+					requests: [{ query: 'technology meetup', location: 'Berlin', provider: 'auto', count: 3 }]
 				}),
 				'--json'
 			],
@@ -209,6 +209,7 @@ test.describe('App: Events / Skill: search', () => {
 
 		const events = skillData.results[0].results || [];
 		expect(events.length).toBeGreaterThan(0);
+		expect(events.length).toBeLessThanOrEqual(3);
 
 		const ev = events[0];
 		expect(ev.name || ev.title).toBeTruthy();

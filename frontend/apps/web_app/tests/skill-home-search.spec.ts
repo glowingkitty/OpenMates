@@ -47,11 +47,13 @@ test.describe('App: Home / Skill: search', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.surface.semantic-parity
 	test('Phase 1: embed preview renders at /dev/preview/embeds/home', async ({ page }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'home', log);
 	});
 
+	// contract-test: direct surface=cli assertions=app-skills.search-relevance.safe-finalization
 	test('Phase 2: CLI apps home search returns results', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -60,7 +62,7 @@ test.describe('App: Home / Skill: search', () => {
 			[
 				'apps', 'home', 'search',
 				'--input', JSON.stringify({
-					requests: [{ query: 'Berlin', listing_type: 'rent' }]
+					requests: [{ query: 'Berlin', listing_type: 'rent', max_results: 3 }]
 				}),
 				'--json'
 			],
@@ -73,10 +75,12 @@ test.describe('App: Home / Skill: search', () => {
 
 		const results = parsed.data?.results?.[0]?.results || [];
 		expect(results.length).toBeGreaterThan(0);
+		expect(results.length).toBeLessThanOrEqual(3);
 		expect(results[0].title).toBeTruthy();
 		console.log(`[P2] home/search found ${results.length} listing(s)`);
 	});
 
+	// contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
 	test('Phase 3: CLI chats new triggers home search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -93,6 +97,7 @@ test.describe('App: Home / Skill: search', () => {
 		}
 	});
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
 	test('Phase 4: Web chat triggers home search with embed', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);

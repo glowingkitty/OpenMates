@@ -60,7 +60,7 @@ test.describe('App: Web / Skill: search', () => {
 	});
 
 	// ── Phase 2: CLI direct skill command ──────────────────────────────────
-	// contract-test: direct surface=cli assertions=web-search.request.validated,web-search.surface-parity
+	// contract-test: direct surface=cli assertions=web-search.request.validated,web-search.results.bounded,web-search.surface-parity,app-skills.search-relevance.safe-finalization
 	test('Phase 2: CLI apps web search returns results', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
@@ -71,7 +71,7 @@ test.describe('App: Web / Skill: search', () => {
 			apiUrl,
 			[
 				'apps', 'web', 'search',
-				'--input', JSON.stringify({ requests: [{ query: WEB_SEARCH_FIXTURE_QUERY }] }),
+				'--input', JSON.stringify({ requests: [{ query: WEB_SEARCH_FIXTURE_QUERY, count: 2 }] }),
 				'--json'
 			],
 			30_000
@@ -81,6 +81,9 @@ test.describe('App: Web / Skill: search', () => {
 			'Brave Search provider quota exhausted; direct provider contract cannot run in this environment.'
 		);
 		expectCliSuccess(result);
+		const parsed = parseCliJson(result);
+		const results = parsed.data?.results?.[0]?.results || [];
+		expect(results.length).toBeLessThanOrEqual(2);
 		expect(result.stdout.length).toBeGreaterThan(10);
 		expect(result.stderr).not.toMatch(/error|failed|exception/i);
 		console.log(`[P2] web/search returned ${result.stdout.length} chars`);

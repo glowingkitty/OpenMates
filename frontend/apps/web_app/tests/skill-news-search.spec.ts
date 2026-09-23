@@ -52,7 +52,7 @@ test.describe('App: News / Skill: search', () => {
 		await verifyEmbedPreviewPage(page, 'news', log);
 	});
 
-	// contract-test: supporting surface=cli assertions=web-search.surface-parity
+	// contract-test: supporting surface=cli assertions=web-search.surface-parity,app-skills.search-relevance.safe-finalization
 	test('Phase 2: CLI apps news search returns results', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -60,7 +60,7 @@ test.describe('App: News / Skill: search', () => {
 			apiUrl,
 			[
 				'apps', 'news', 'search',
-				'--input', JSON.stringify({ requests: [{ query: NEWS_SEARCH_FIXTURE_QUERY, freshness: 'pw' }] }),
+				'--input', JSON.stringify({ requests: [{ query: NEWS_SEARCH_FIXTURE_QUERY, freshness: 'pw', count: 2 }] }),
 				'--json'
 			],
 			30_000
@@ -72,6 +72,7 @@ test.describe('App: News / Skill: search', () => {
 
 		const results = parsed.data?.results?.[0]?.results || [];
 		expect(results.length).toBeGreaterThan(0);
+		expect(results.length).toBeLessThanOrEqual(2);
 		expect(results[0].title || results[0].name).toBeTruthy();
 		expect(results[0].url).toBeTruthy();
 		console.log(`[P2] news/search found ${results.length} article(s)`);

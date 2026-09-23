@@ -94,6 +94,42 @@ parallel_execution:
     given: {eligible_batch: true, one_call_fails: true}
     expect: {normalized_failure_visible: true, sibling_results_visible: true, hidden_failure: false}
 
+search_relevance:
+  - id: material-goal-is-populated
+    given: Alice says, "Show me AI events in Berlin in the coming weeks where I can promote my AI software."
+    when: The assistant prepares the events search request.
+    then: It preserves Berlin and the date window as structured filters and supplies concise relevance criteria about AI-community fit, networking, product feedback, and plausible organizer engagement.
+    assertion_ids: [app-skills.search-relevance.optional-and-inferred]
+  - id: plain-search-does-not-invent-goal
+    given: Alice asks, "Show me AI events in Berlin next week."
+    when: The assistant prepares the events search request.
+    then: It may omit relevance criteria and does not invent promotion, speaking, price, accessibility, or networking preferences.
+    assertion_ids: [app-skills.search-relevance.optional-and-inferred]
+  - id: skill-specific-candidate-profiles
+    given: Each supported search uses its default final limit of ten and includes relevance criteria.
+    when: Candidate retrieval starts.
+    then: Web uses at most two twenty-result Brave pages, news one request for up to forty results, and events/home bounded deduplicated merged provider pools; at most ten ranked results are returned per group.
+    assertion_ids: [app-skills.search-relevance.bounded-and-conditional]
+  - id: criteria-omitted
+    given: A supported search omits or supplies blank relevance criteria.
+    when: Providers return results.
+    then: Existing provider retrieval and deterministic ordering are preserved and no Jev relevance-ranking call occurs.
+    assertion_ids: [app-skills.search-relevance.bounded-and-conditional]
+  - id: news-and-home-use-their-own-evidence-rubrics
+    given: News candidates vary in material relevance and source quality, while home candidates omit some requested amenity, commute, lease, or neighborhood facts.
+    when: Jev ranks each skill's bounded candidate pool.
+    then: News balances material relevance with source quality; home uses only stated listing facts and treats every omitted housing fact as unknown rather than favorable.
+    assertion_ids: [app-skills.search-relevance.safe-finalization]
+  - id: ranking-failure
+    given: Providers return valid candidates but Jev times out or returns incomplete scores.
+    when: The skill prepares its final result group.
+    then: It returns up to the requested limit in existing deterministic order, logs a safe server-side diagnostic, and exposes no raw model response or credential.
+    assertion_ids: [app-skills.search-relevance.safe-finalization]
+  - id: health-remains-eligibility-first
+    given: Health appointment search finds an earlier incompatible treatment and a later eligible initial consultation.
+    when: Results are filtered and ordered.
+    then: The eligible consultation is retained and ordered by availability without relevance criteria or a Jev ranking call.
+
 async_polling:
 - id: owned-file-generation-across-skills
   variants: [images.generate, videos.generate, music.generate, audio.generate, audio.speak, docs.generate, models3d.generate, code.run]
