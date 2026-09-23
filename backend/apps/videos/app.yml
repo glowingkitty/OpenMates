@@ -292,13 +292,13 @@ skills:
     description_translation_key: videos.search.description
     icon_image: search.svg
     preprocessor_hint: >
-      Search for videos, documentaries, tutorials, and clips on the web. When the user
-      states a material viewing purpose or preference that should change ordering, such
-      as audience level, desired depth, format, duration, authority, or freshness,
-      include a concise, faithful relevance_criteria value. Keep country, language,
-      safe-search, freshness, and count constraints structured. A plain video search may
-      omit relevance_criteria; never invent experience level, recency, duration, creator,
-      popularity, or format preferences.
+      Search for videos, documentaries, tutorials, and clips on the web. Keep query focused on the
+      topic. Whenever the user states a viewing or learning purpose, audience level, desired depth,
+      format, authority, or other preference that should change ordering, put it in
+      relevance_criteria even if related words could also be added to query. Example: query "RAG
+      tutorial" with relevance_criteria "Advanced, hands-on production guidance with deployment and
+      evaluation details." Keep country, language, safe-search, freshness, and count structured.
+      Omit relevance_criteria only for a neutral video search; never invent preferences.
     class_path: |
       backend.apps.videos.skills.search_skill.SearchSkill
     providers:
@@ -343,7 +343,12 @@ skills:
               relevance_criteria:
                 type: string
                 maxLength: 1000
-                description: Optional natural-language viewing or learning goal used only to rank matching video candidates. Omit for ordinary popularity ordering; structured country, language, safe-search, freshness, and count fields remain authoritative.
+                description: >
+                  Optional concise natural-language video-ranking goal, separate from the topic query.
+                  Set it whenever the user states a viewing or learning purpose, audience level,
+                  desired depth, format, authority, or preference that should change ordering. Example:
+                  "Advanced, hands-on production guidance with deployment and evaluation details."
+                  Omit only for a neutral search fully expressed by query and structured fields.
               country:
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."

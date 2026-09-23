@@ -1783,38 +1783,38 @@ assertions:
       surface: rest_api
     - &id220
       path: backend/tests/test_search_relevance.py
-      line: 568
+      line: 574
       name: test_maps_relevance_uses_one_twenty_candidate_call_and_clips_fallback
       surface: rest_api
     - &id221
       path: backend/tests/test_search_relevance.py
-      line: 657
+      line: 663
       name: test_shopping_relevance_uses_twenty_candidates_without_extra_page
       surface: rest_api
     - &id222
       path: backend/tests/test_search_relevance.py
-      line: 723
+      line: 729
       name: test_stay_relevance_keeps_serpapi_to_one_twenty_result_request
       surface: rest_api
     - &id223
       path: backend/tests/test_search_relevance.py
-      line: 797
+      line: 803
       name: test_video_relevance_uses_one_forty_result_brave_call_and_clips_fallback
       surface: rest_api
     - &id224
       path: backend/tests/test_search_relevance.py
-      line: 867
+      line: 873
       name: test_fitness_relevance_uses_existing_forty_candidate_pool_and_clips_fallback
       surface: rest_api
     supporting_tests:
     - &id218
       path: backend/tests/test_search_relevance.py
-      line: 321
+      line: 327
       name: test_news_ranked_search_uses_one_forty_candidate_call_and_returns_only_count
       surface: rest_api
     - &id219
       path: backend/tests/test_search_relevance.py
-      line: 484
+      line: 490
       name: test_home_ranked_search_geocodes_and_returns_only_max_results
       surface: rest_api
     tests:
@@ -1859,27 +1859,27 @@ assertions:
       surface: rest_api
     - &id229
       path: backend/tests/test_search_relevance.py
-      line: 568
+      line: 574
       name: test_maps_relevance_uses_one_twenty_candidate_call_and_clips_fallback
       surface: rest_api
     - &id230
       path: backend/tests/test_search_relevance.py
-      line: 657
+      line: 663
       name: test_shopping_relevance_uses_twenty_candidates_without_extra_page
       surface: rest_api
     - &id231
       path: backend/tests/test_search_relevance.py
-      line: 723
+      line: 729
       name: test_stay_relevance_keeps_serpapi_to_one_twenty_result_request
       surface: rest_api
     - &id232
       path: backend/tests/test_search_relevance.py
-      line: 797
+      line: 803
       name: test_video_relevance_uses_one_forty_result_brave_call_and_clips_fallback
       surface: rest_api
     - &id233
       path: backend/tests/test_search_relevance.py
-      line: 867
+      line: 873
       name: test_fitness_relevance_uses_existing_forty_candidate_pool_and_clips_fallback
       surface: rest_api
     - &id234
@@ -1900,12 +1900,12 @@ assertions:
     supporting_tests:
     - &id227
       path: backend/tests/test_search_relevance.py
-      line: 321
+      line: 327
       name: test_news_ranked_search_uses_one_forty_candidate_call_and_returns_only_count
       surface: rest_api
     - &id228
       path: backend/tests/test_search_relevance.py
-      line: 484
+      line: 490
       name: test_home_ranked_search_geocodes_and_returns_only_max_results
       surface: rest_api
     - &id236
@@ -13756,7 +13756,7 @@ assertions:
       surface: rest_api
     - &id1584
       path: backend/tests/test_search_relevance.py
-      line: 405
+      line: 411
       name: test_events_ranked_search_keeps_candidate_pool_internal
       surface: rest_api
     - &id1585
@@ -13796,7 +13796,7 @@ assertions:
     direct_tests:
     - &id1586
       path: backend/tests/test_search_relevance.py
-      line: 405
+      line: 411
       name: test_events_ranked_search_keeps_candidate_pool_internal
       surface: rest_api
     supporting_tests: []
@@ -13822,7 +13822,7 @@ assertions:
     direct_tests:
     - &id1587
       path: backend/tests/test_search_relevance.py
-      line: 405
+      line: 411
       name: test_events_ranked_search_keeps_candidate_pool_internal
       surface: rest_api
     supporting_tests: []
@@ -15553,7 +15553,7 @@ assertions:
       surface: gui.apple
     - &id1758
       path: backend/tests/test_search_relevance.py
-      line: 228
+      line: 234
       name: test_web_ranked_search_uses_two_pages_but_returns_only_count
       surface: rest_api
     - &id1759
@@ -15635,7 +15635,7 @@ assertions:
     direct_tests:
     - &id1765
       path: backend/tests/test_search_relevance.py
-      line: 228
+      line: 234
       name: test_web_ranked_search_uses_two_pages_but_returns_only_count
       surface: rest_api
     supporting_tests: []
@@ -15653,7 +15653,7 @@ assertions:
     direct_tests:
     - &id1766
       path: backend/tests/test_search_relevance.py
-      line: 228
+      line: 234
       name: test_web_ranked_search_uses_two_pages_but_returns_only_count
       surface: rest_api
     supporting_tests: []

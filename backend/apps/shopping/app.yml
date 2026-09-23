@@ -44,11 +44,13 @@ skills:
       Search products on REWE, Amazon, or Stoffe.de with real-time prices.
       Use category to route groceries, marketplace products, fabrics, sewing supplies,
       and patterns to compatible providers. Invalid provider/category combinations are rejected.
-      When the user states a material use case or preference that should change product
-      ordering, include a concise, faithful relevance_criteria value. Keep provider,
-      category, country, department, price, fulfilment, and sort constraints structured.
-      A plain product search may omit relevance_criteria; never invent budget, brand,
-      durability, quality, delivery, safety, or compatibility preferences.
+      Keep query focused on the product type. Whenever the user states an intended use, audience,
+      compatibility need, desired quality, or preference that should change ordering, put it in
+      relevance_criteria even if related words could also be added to query. Example: query "wireless
+      mouse" with relevance_criteria "Good for travel, with explicit quiet-click, long-battery, and
+      multi-device evidence." Keep provider, category, country, department, price, fulfilment, and
+      sort constraints structured. Omit relevance_criteria only for a neutral product search fully
+      expressed by query and structured fields; never invent preferences.
     class_path: backend.apps.shopping.skills.search_products.SearchProductsSkill
     pricing:
       per_unit:
@@ -134,7 +136,12 @@ skills:
               relevance_criteria:
                 type: string
                 maxLength: 1000
-                description: Optional natural-language purchase goal used only to rank matching product candidates. Omit for ordinary provider ordering; structured provider, category, price, country, department, fulfilment, and sort fields remain authoritative.
+                description: >
+                  Optional concise natural-language product-ranking goal, separate from the product
+                  query. Set it whenever the user states an intended use, audience, compatibility
+                  need, desired quality, or preference that should change ordering. Example: "Good
+                  for travel, with explicit quiet-click, long-battery, and multi-device evidence."
+                  Omit only for a neutral search fully expressed by query and structured fields.
               sort:
                 type: string
                 description: >

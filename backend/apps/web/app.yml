@@ -182,10 +182,13 @@ skills:
     icon_image: search.svg
     preprocessor_hint: >
       General web search for current information, prices, weather, facts, stocks, sports scores, etc.
-      Use as a fallback when no specialized skill applies. When the user states a material purpose
-      or preference that should change which results are most useful, include a concise, faithful
-      relevance_criteria value (for example, research suitable for a purchase decision). Do not
-      wait for the user to name the field, but omit it for a plain search and never invent preferences.
+      Use as a fallback when no specialized skill applies. Keep query focused on the subject being
+      retrieved. Whenever the user states a purpose, intended use, audience, decision need, or
+      preference that should change result ordering, put that goal in relevance_criteria even if
+      related words could also be added to query. For example, query "laptop-friendly cafes Berlin"
+      with relevance_criteria "Places suitable for working several hours and taking a client call."
+      Omit relevance_criteria only for a neutral search whose goal is fully expressed by query and
+      structured fields. Copy the user's goal faithfully and never invent preferences.
     class_path: |
       backend.apps.web.skills.search_skill.SearchSkill
     providers:
@@ -231,10 +234,12 @@ skills:
                 type: string
                 maxLength: 1000
                 description: >
-                  Optional concise natural-language purpose or preference for relevance ranking.
-                  Include it when the user states a material goal that should change ordering;
-                  omit it for a plain search and never invent preferences. When present, the skill
-                  ranks up to 40 candidates and still returns only count results.
+                  Optional concise natural-language ranking goal, separate from the retrieval query.
+                  Set it whenever the user states a purpose, intended use, audience, decision need,
+                  or preference that should change ordering, even if related terms also appear in
+                  query. Example: "Research useful for deciding which framework to adopt." Omit only
+                  for a neutral search fully expressed by query and structured fields; never invent
+                  preferences. When present, up to 40 candidates are ranked and only count are returned.
               country:
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."

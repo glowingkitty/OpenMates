@@ -89,12 +89,13 @@ skills:
       past events or older completed sessions.
       When the user mentions a city or location, default to PHYSICAL (in-person) events.
       When the user explicitly asks for online or virtual events, use ONLINE filter.
-      When the user states a purpose or preference that should change event ordering, always
-      include a concise, faithful relevance_criteria value without waiting for the user to name
-      the field. Example: "Show me AI events in Berlin where I can promote my AI software" should
-      use query "AI", location "Berlin", and relevance_criteria "Events where I can promote my AI
-      software, network with potential users, and potentially give a future talk." Omit the field
-      for a plain event search and never invent a goal.
+      Keep query focused on the event topic. Whenever the user states a purpose, intended audience,
+      networking goal, desired activity, or other preference that should change event ordering, put
+      it in relevance_criteria even if related words could also be added to query. Example: "Show me
+      AI events in Berlin where I can promote my AI software" should use query "AI", location
+      "Berlin", and relevance_criteria "Events where I can promote my AI software, network with
+      potential users, and potentially give a future talk." Omit relevance_criteria only for a
+      neutral event search fully expressed by query and structured fields; never invent a goal.
       Always limit results to 10 (default) unless the user explicitly requests more.
       Do NOT retry with broader or alternative queries if results are empty or if there is a provider error.
       Do NOT fall back to web.search after this skill returns an error — report the
@@ -243,12 +244,12 @@ skills:
                 type: string
                 maxLength: 1000
                 description: >
-                  Optional concise natural-language event-selection purpose used for relevance
-                  ranking. Include it whenever the user states a material goal such as networking,
-                  promoting a product, finding potential users, or future speaking opportunities;
-                  omit it for a plain event search and never invent preferences. When present, the
-                  skill ranks a bounded pool of up to 40 candidates (or the larger requested count)
-                  and still returns only count events.
+                  Optional concise natural-language event-ranking goal, separate from the event
+                  query. Set it whenever the user states a purpose, intended audience, networking
+                  goal, desired activity, or preference such as promoting a product or finding a
+                  future speaking opportunity. Omit only for a neutral event search fully expressed
+                  by query and structured fields; never invent preferences. When present, up to 40
+                  candidates (or the larger requested count) are ranked and only count are returned.
               provider:
                 type: string
                 description: "Provider for this request. Overrides the top-level provider when set."

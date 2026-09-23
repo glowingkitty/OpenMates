@@ -45,11 +45,13 @@ skills:
       Search Urban Sports Club public fitness locations. Use this when the user
       asks for gyms, studios, pools, or Urban Sports locations near a city,
       address, or radius. Do not use it for class availability; use
-      fitness.search_classes for dated class searches. When the user states a material
-      purpose or preference that should change venue ordering, include a concise,
-      faithful relevance_criteria value. Keep city, radius, plan, and category constraints
-      structured. A plain venue search may omit it; never invent beginner level,
-      intensity, accessibility, equipment, atmosphere, or schedule preferences.
+      fitness.search_classes for dated class searches. Keep query focused on the activity or
+      venue type. Whenever the user states a fitness purpose, intended activity, accessibility
+      need, desired quality, or preference that should change venue ordering, put it in
+      relevance_criteria even if related words could also be added to query. Example: "Prioritize
+      broad yoga variety with explicit central-Berlin evidence." Keep city, radius, plan, and
+      category structured. Omit relevance_criteria only for a neutral venue search; never invent
+      beginner level, intensity, accessibility, equipment, atmosphere, or schedule preferences.
     tool_schema:
       type: object
       properties:
@@ -82,7 +84,12 @@ skills:
               relevance_criteria:
                 type: string
                 maxLength: 1000
-                description: Optional natural-language activity goal used only to rank matching fitness locations. Omit for distance-first provider ordering; structured city, radius, plan, and category filters remain authoritative.
+                description: >
+                  Optional concise natural-language venue-ranking goal, separate from the activity
+                  query. Set it whenever the user states a fitness purpose, intended activity,
+                  accessibility need, desired quality, or preference that should change ordering.
+                  Example: "Broad yoga variety with explicit central-Berlin evidence." Omit only for
+                  a neutral search fully expressed by query and structured fields.
           description: Location search requests.
     class_path: |
       backend.apps.fitness.skills.search_locations.SearchLocationsSkill
@@ -102,11 +109,12 @@ skills:
       the user asks for dated fitness classes, course availability, free spots,
       on-site classes, online classes, or plan-filtered Urban Sports classes.
       Omit plan unless the user explicitly asks for Essential, Classic,
-      Premium, or Max. When the user states a material purpose or preference that should
-      change class ordering, include a concise, faithful relevance_criteria value. Keep
-      date, location, radius, plan, attendance mode, minimum spots, category, and venue
-      constraints structured. A plain class search may omit it; never invent beginner
-      level, intensity, accessibility, coaching quality, or schedule preferences.
+      Premium, or Max. Keep query focused on the activity. Whenever the user states a fitness
+      purpose, intended activity, audience level, desired quality, or preference that should change
+      class ordering, put it in relevance_criteria even if related words could also be added to query.
+      Example: "Prioritize evening on-site yoga classes with explicit remaining spots." Keep date,
+      location, radius, plan, attendance mode, minimum spots, category, and venue structured. Omit
+      relevance_criteria only for a neutral class search; never invent preferences.
     tool_schema:
       type: object
       properties:
@@ -151,7 +159,12 @@ skills:
               relevance_criteria:
                 type: string
                 maxLength: 1000
-                description: Optional natural-language activity goal used only to rank matching fitness classes. Omit for chronological provider ordering; structured date, location, radius, plan, attendance, spots, category, and venue filters remain authoritative.
+                description: >
+                  Optional concise natural-language class-ranking goal, separate from the activity
+                  query. Set it whenever the user states a fitness purpose, intended activity,
+                  audience level, desired quality, or preference that should change ordering. Example:
+                  "Evening on-site yoga classes with explicit remaining spots." Omit only for a neutral
+                  search fully expressed by query and structured fields.
           description: Class search requests.
     class_path: |
       backend.apps.fitness.skills.search_classes.SearchClassesSkill

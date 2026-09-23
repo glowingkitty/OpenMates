@@ -1034,7 +1034,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional concise natural-language event-selection purpose used for relevance ranking. Include it whenever the user states a material goal such as networking, promoting a product, finding potential users, or future speaking opportunities; omit it for a plain event search and never invent preferences. When present, the skill ranks a bounded pool of up to 40 candidates (or the larger requested count) and still returns only count events.\n"
+                "description": "Optional concise natural-language event-ranking goal, separate from the event query. Set it whenever the user states a purpose, intended audience, networking goal, desired activity, or preference such as promoting a product or finding a future speaking opportunity. Omit only for a neutral event search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates (or the larger requested count) are ranked and only count are returned.\n"
               },
               "provider": {
                 "type": "string",
@@ -1319,7 +1319,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "fitness",
     "skill_method_py": "search_locations",
     "description_key": "fitness.search_locations.description",
-    "description": "Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches. When the user states a material purpose or preference that should change venue ordering, include a concise, faithful relevance_criteria value. Keep city, radius, plan, and category constraints structured. A plain venue search may omit it; never",
+    "description": "Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches. Keep query focused on the activity or venue type. Whenever the user states a fitness purpose, intended activity, accessibility need, desired quality, or preference that should change venue ordering, put it in relevance_criteria even if related w",
     "schema": {
       "type": "object",
       "properties": {
@@ -1361,7 +1361,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional natural-language activity goal used only to rank matching fitness locations. Omit for distance-first provider ordering; structured city, radius, plan, and category filters remain authoritative."
+                "description": "Optional concise natural-language venue-ranking goal, separate from the activity query. Set it whenever the user states a fitness purpose, intended activity, accessibility need, desired quality, or preference that should change ordering. Example: \"Broad yoga variety with explicit central-Berlin evidence.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
               }
             }
           },
@@ -1378,7 +1378,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "fitness",
     "skill_method_py": "search_classes",
     "description_key": "fitness.search_classes.description",
-    "description": "Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max. When the user states a material purpose or preference that should change class ordering, include a concise, faithful relevance_criteria value. Keep date, location, radius, plan, attendance mode, min",
+    "description": "Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max. Keep query focused on the activity. Whenever the user states a fitness purpose, intended activity, audience level, desired quality, or preference that should change class ordering, put it in relevan",
     "schema": {
       "type": "object",
       "properties": {
@@ -1438,7 +1438,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional natural-language activity goal used only to rank matching fitness classes. Omit for chronological provider ordering; structured date, location, radius, plan, attendance, spots, category, and venue filters remain authoritative."
+                "description": "Optional concise natural-language class-ranking goal, separate from the activity query. Set it whenever the user states a fitness purpose, intended activity, audience level, desired quality, or preference that should change ordering. Example: \"Evening on-site yoga classes with explicit remaining spots.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
               }
             }
           },
@@ -1562,7 +1562,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "home",
     "skill_method_py": "search",
     "description_key": "app_skills.home.search.description",
-    "description": "Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany. When the user states a material preference not fully captured by the structured price, room, size, property-type, or sort fields, include a concise, faithful relevance_criteria value without waiting for the user to",
+    "description": "Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany. Keep query focused on the location. Whenever the user states an intended use, household need, desired quality, or preference not fully captured by price, room, size, property-type, or sort fields, put it in relevanc",
     "schema": {
       "type": "object",
       "properties": {
@@ -1633,7 +1633,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional concise natural-language housing preference for relevance ranking. Include it when the user states a material preference not fully represented by structured filters; omit it for a plain search. Rank only explicit listing facts and never infer unstated amenities, commute, lease, accessibility, or neighborhood qualities. The internal candidate pool is bounded and only max_results listings are returned.\n"
+                "description": "Optional concise natural-language housing-ranking goal, separate from the location query. Set it whenever the user states an intended use, household need, desired quality, or preference not represented by structured filters. Example: \"Prioritize explicit balcony and quiet-setting evidence.\" Omit only for a neutral search fully expressed by query and structured fields. Rank only explicit listing facts and never infer unstated qualities. Only max_results listings are returned.\n"
               },
               "max_results": {
                 "type": "integer",
@@ -2079,7 +2079,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "maps",
     "skill_method_py": "search",
     "description_key": "maps.search.description",
-    "description": "Search for places, businesses, restaurants, directions, and locations. When the user's request states a material purpose or preference that should change which matching places rank first, include a concise, faithful relevance_criteria value without waiting for the user to name the field. Keep location, place type, rating, open-now, price, and required amenity constraints in their structured fields. A plain place search may omit relevance_criteria; never invent quietness, ambience, accessibility,",
+    "description": "Search for places, businesses, restaurants, directions, and locations. Keep query focused on the place type and location. Whenever the user states a purpose, intended activity, audience, or preference that should change place ordering, put it in relevance_criteria even if related words could also be added to query. Example: query \"cafes in Berlin\" with relevance_criteria \"Places suitable for working several hours on a laptop and taking a client call.\" Keep rating, open-now, price, and required a",
     "schema": {
       "type": "object",
       "properties": {
@@ -2103,7 +2103,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional natural-language goal used only to rank matching place candidates. Omit for ordinary provider ordering; structured place, rating, open-now, price, location, and amenity filters remain authoritative."
+                "description": "Optional concise natural-language place-ranking goal, separate from the place and location query. Set it whenever the user states a purpose, intended activity, audience, or preference that should change ordering. Example: \"Suitable for working several hours on a laptop and taking a client call.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences.\n"
               },
               "languageCode": {
                 "type": "string",
@@ -2458,7 +2458,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "news",
     "skill_method_py": "search",
     "description_key": "news.search.description",
-    "description": "Search for news articles, current events, headlines, and announcements. When the user states a material purpose or preference that should change which coverage is most useful, include a concise, faithful relevance_criteria value. Do not wait for the user to name the field, but omit it for a plain news search and never invent preferences.",
+    "description": "Search for news articles, current events, headlines, and announcements. Keep query focused on the news topic. Whenever the user states a purpose, audience, decision need, impact of interest, or coverage preference that should change ordering, put it in relevance_criteria even if related terms could also be added to query. Example: query \"EU AI regulation\" with relevance_criteria \"Changes most likely to affect small EU software startups.\" Omit relevance_criteria only for a neutral news search ful",
     "schema": {
       "type": "object",
       "properties": {
@@ -2482,7 +2482,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional concise natural-language purpose or preference for relevance ranking. Include it when the user states a material goal that should change ordering; omit it for a plain search and never invent preferences. When present, the skill ranks up to 40 candidates and still returns only count results.\n"
+                "description": "Optional concise natural-language coverage-ranking goal, separate from the news query. Set it whenever the user states a purpose, audience, decision need, impact of interest, or coverage preference that should change ordering. Example: \"Changes most likely to affect small EU software startups.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates are ranked and only count are returned.\n"
               },
               "country": {
                 "type": "string",
@@ -3292,7 +3292,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "shopping",
     "skill_method_py": "search_products",
     "description_key": "app_skills.shopping.search_products.description",
-    "description": "Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected. When the user states a material use case or preference that should change product ordering, include a concise, faithful relevance_criteria value. Keep provider, category, country, department, price, fulfilment, and sort constraints structured. A plain product",
+    "description": "Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected. Keep query focused on the product type. Whenever the user states an intended use, audience, compatibility need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Exampl",
     "schema": {
       "type": "object",
       "properties": {
@@ -3352,7 +3352,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional natural-language purchase goal used only to rank matching product candidates. Omit for ordinary provider ordering; structured provider, category, price, country, department, fulfilment, and sort fields remain authoritative."
+                "description": "Optional concise natural-language product-ranking goal, separate from the product query. Set it whenever the user states an intended use, audience, compatibility need, desired quality, or preference that should change ordering. Example: \"Good for travel, with explicit quiet-click, long-battery, and multi-device evidence.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
               },
               "sort": {
                 "type": "string",
@@ -4046,7 +4046,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "travel",
     "skill_method_py": "search_stays",
     "description_key": "app_skills.travel.search_stays.description",
-    "description": "Search hotels, hostels, and other stays for explicit dates and party size. When the user states a material stay purpose or preference that should change which valid properties rank first, include a concise, faithful relevance_criteria value. Keep dates, guests, currency, price, hotel class, rating, free cancellation, and sort constraints in their structured fields. A plain stay search may omit relevance_criteria; never invent budget, amenities, neighborhood, quietness, accessibility, workspace,",
+    "description": "Search hotels, hostels, and other stays for explicit dates and party size. Keep query focused on destination or property. Whenever the user states a trip purpose, intended activity, traveler need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: \"Prioritize explicit reliable-Wi-Fi and in-room workspace or desk evidence.\" Keep dates, guests, price, class, rating, cancellation, and sort structured.",
     "schema": {
       "type": "object",
       "properties": {
@@ -4108,7 +4108,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional natural-language stay goal used only to rank matching first-page properties. Omit for ordinary provider ordering; structured date, party-size, price, class, rating, cancellation, and sort filters remain authoritative."
+                "description": "Optional concise natural-language stay-ranking goal, separate from the destination query. Set it whenever the user states a trip purpose, intended activity, traveler need, desired quality, or preference that should change ordering. Example: \"Prioritize explicit reliable-Wi-Fi and workspace or desk evidence.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences.\n"
               }
             },
             "required": [
@@ -4313,7 +4313,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "videos",
     "skill_method_py": "search",
     "description_key": "videos.search.description",
-    "description": "Search for videos, documentaries, tutorials, and clips on the web. When the user states a material viewing purpose or preference that should change ordering, such as audience level, desired depth, format, duration, authority, or freshness, include a concise, faithful relevance_criteria value. Keep country, language, safe-search, freshness, and count constraints structured. A plain video search may omit relevance_criteria; never invent experience level, recency, duration, creator, popularity, or",
+    "description": "Search for videos, documentaries, tutorials, and clips on the web. Keep query focused on the topic. Whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or other preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: query \"RAG tutorial\" with relevance_criteria \"Advanced, hands-on production guidance with deployment and evaluation details.\" Keep country, language, safe-",
     "schema": {
       "type": "object",
       "properties": {
@@ -4337,7 +4337,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional natural-language viewing or learning goal used only to rank matching video candidates. Omit for ordinary popularity ordering; structured country, language, safe-search, freshness, and count fields remain authoritative."
+                "description": "Optional concise natural-language video-ranking goal, separate from the topic query. Set it whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or preference that should change ordering. Example: \"Advanced, hands-on production guidance with deployment and evaluation details.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
               },
               "country": {
                 "type": "string",
@@ -5027,7 +5027,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "web",
     "skill_method_py": "search",
     "description_key": "app_skills.web.search.description",
-    "description": "General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies. When the user states a material purpose or preference that should change which results are most useful, include a concise, faithful relevance_criteria value (for example, research suitable for a purchase decision). Do not wait for the user to name the field, but omit it for a plain search and never invent preferences.",
+    "description": "General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies. Keep query focused on the subject being retrieved. Whenever the user states a purpose, intended use, audience, decision need, or preference that should change result ordering, put that goal in relevance_criteria even if related words could also be added to query. For example, query \"laptop-friendly cafes Berlin\" with relevance_criteria \"Places suita",
     "schema": {
       "type": "object",
       "properties": {
@@ -5051,7 +5051,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional concise natural-language purpose or preference for relevance ranking. Include it when the user states a material goal that should change ordering; omit it for a plain search and never invent preferences. When present, the skill ranks up to 40 candidates and still returns only count results.\n"
+                "description": "Optional concise natural-language ranking goal, separate from the retrieval query. Set it whenever the user states a purpose, intended use, audience, decision need, or preference that should change ordering, even if related terms also appear in query. Example: \"Research useful for deciding which framework to adopt.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates are ranked and only count are returned.\n"
               },
               "country": {
                 "type": "string",
@@ -5489,7 +5489,7 @@ export class FitnessAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max. When the user states a material purpose or preference that should change class ordering, include a concise, faithful relevance_criteria value. Keep date, location, radius, plan, attendance mode, min
+   * Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max. Keep query focused on the activity. Whenever the user states a fitness purpose, intended activity, audience level, desired quality, or preference that should change class ordering, put it in relevan
    * Description key: fitness.search_classes.description
    * Skill: fitness/search_classes
    */
@@ -5497,7 +5497,7 @@ export class FitnessAppSkills {
     return this.runSkill<T>("fitness", "search_classes", input, options);
   }
   /**
-   * Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches. When the user states a material purpose or preference that should change venue ordering, include a concise, faithful relevance_criteria value. Keep city, radius, plan, and category constraints structured. A plain venue search may omit it; never
+   * Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches. Keep query focused on the activity or venue type. Whenever the user states a fitness purpose, intended activity, accessibility need, desired quality, or preference that should change venue ordering, put it in relevance_criteria even if related w
    * Description key: fitness.search_locations.description
    * Skill: fitness/search_locations
    */
@@ -5535,7 +5535,7 @@ export class HomeAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany. When the user states a material preference not fully captured by the structured price, room, size, property-type, or sort fields, include a concise, faithful relevance_criteria value without waiting for the user to
+   * Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany. Keep query focused on the location. Whenever the user states an intended use, household need, desired quality, or preference not fully captured by price, room, size, property-type, or sort fields, put it in relevanc
    * Description key: app_skills.home.search.description
    * Skill: home/search
    */
@@ -5588,7 +5588,7 @@ export class MapsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search for places, businesses, restaurants, directions, and locations. When the user's request states a material purpose or preference that should change which matching places rank first, include a concise, faithful relevance_criteria value without waiting for the user to name the field. Keep location, place type, rating, open-now, price, and required amenity constraints in their structured fields. A plain place search may omit relevance_criteria; never invent quietness, ambience, accessibility,
+   * Search for places, businesses, restaurants, directions, and locations. Keep query focused on the place type and location. Whenever the user states a purpose, intended activity, audience, or preference that should change place ordering, put it in relevance_criteria even if related words could also be added to query. Example: query "cafes in Berlin" with relevance_criteria "Places suitable for working several hours on a laptop and taking a client call." Keep rating, open-now, price, and required a
    * Description key: maps.search.description
    * Skill: maps/search
    */
@@ -5648,7 +5648,7 @@ export class NewsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search for news articles, current events, headlines, and announcements. When the user states a material purpose or preference that should change which coverage is most useful, include a concise, faithful relevance_criteria value. Do not wait for the user to name the field, but omit it for a plain news search and never invent preferences.
+   * Search for news articles, current events, headlines, and announcements. Keep query focused on the news topic. Whenever the user states a purpose, audience, decision need, impact of interest, or coverage preference that should change ordering, put it in relevance_criteria even if related terms could also be added to query. Example: query "EU AI regulation" with relevance_criteria "Changes most likely to affect small EU software startups." Omit relevance_criteria only for a neutral news search ful
    * Description key: news.search.description
    * Skill: news/search
    */
@@ -5809,7 +5809,7 @@ export class ShoppingAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected. When the user states a material use case or preference that should change product ordering, include a concise, faithful relevance_criteria value. Keep provider, category, country, department, price, fulfilment, and sort constraints structured. A plain product
+   * Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected. Keep query focused on the product type. Whenever the user states an intended use, audience, compatibility need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Exampl
    * Description key: app_skills.shopping.search_products.description
    * Skill: shopping/search_products
    */
@@ -5886,7 +5886,7 @@ export class TravelAppSkills {
     return this.runSkill<T>("travel", "search_connections", input, options);
   }
   /**
-   * Search hotels, hostels, and other stays for explicit dates and party size. When the user states a material stay purpose or preference that should change which valid properties rank first, include a concise, faithful relevance_criteria value. Keep dates, guests, currency, price, hotel class, rating, free cancellation, and sort constraints in their structured fields. A plain stay search may omit relevance_criteria; never invent budget, amenities, neighborhood, quietness, accessibility, workspace,
+   * Search hotels, hostels, and other stays for explicit dates and party size. Keep query focused on destination or property. Whenever the user states a trip purpose, intended activity, traveler need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: "Prioritize explicit reliable-Wi-Fi and in-room workspace or desk evidence." Keep dates, guests, price, class, rating, cancellation, and sort structured.
    * Description key: app_skills.travel.search_stays.description
    * Skill: travel/search_stays
    */
@@ -5925,7 +5925,7 @@ export class VideosAppSkills {
     return this.runSkill<T>("videos", "get_transcript", input, options);
   }
   /**
-   * Search for videos, documentaries, tutorials, and clips on the web. When the user states a material viewing purpose or preference that should change ordering, such as audience level, desired depth, format, duration, authority, or freshness, include a concise, faithful relevance_criteria value. Keep country, language, safe-search, freshness, and count constraints structured. A plain video search may omit relevance_criteria; never invent experience level, recency, duration, creator, popularity, or
+   * Search for videos, documentaries, tutorials, and clips on the web. Keep query focused on the topic. Whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or other preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: query "RAG tutorial" with relevance_criteria "Advanced, hands-on production guidance with deployment and evaluation details." Keep country, language, safe-
    * Description key: videos.search.description
    * Skill: videos/search
    */
@@ -5971,7 +5971,7 @@ export class WebAppSkills {
     return this.runSkill<T>("web", "read", input, options);
   }
   /**
-   * General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies. When the user states a material purpose or preference that should change which results are most useful, include a concise, faithful relevance_criteria value (for example, research suitable for a purchase decision). Do not wait for the user to name the field, but omit it for a plain search and never invent preferences.
+   * General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies. Keep query focused on the subject being retrieved. Whenever the user states a purpose, intended use, audience, decision need, or preference that should change result ordering, put that goal in relevance_criteria even if related words could also be added to query. For example, query "laptop-friendly cafes Berlin" with relevance_criteria "Places suita
    * Description key: app_skills.web.search.description
    * Skill: web/search
    */

@@ -139,10 +139,12 @@ skills:
       Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously.
       Returns listings with prices, sizes, rooms, addresses, and direct links.
       Costs 10 credits per search. Use when user asks about finding housing in Germany.
-      When the user states a material preference not fully captured by the structured price,
-      room, size, property-type, or sort fields, include a concise, faithful relevance_criteria
-      value without waiting for the user to name the field. Omit it for a plain housing search
-      and never invent amenities, commute, lease, accessibility, or neighborhood qualities.
+      Keep query focused on the location. Whenever the user states an intended use, household need,
+      desired quality, or preference not fully captured by price, room, size, property-type, or sort
+      fields, put it in relevance_criteria even if related words could also be added to query. Example:
+      "Prioritize listings with explicit balcony and quiet-setting evidence." Omit relevance_criteria
+      only for a neutral housing search fully expressed by query and structured fields. Never invent
+      amenities, commute, lease, accessibility, or neighborhood qualities.
     class_path: backend.apps.home.skills.search_skill.SearchSkill
     pricing:
       per_unit:
@@ -231,12 +233,12 @@ skills:
                 type: string
                 maxLength: 1000
                 description: >
-                  Optional concise natural-language housing preference for relevance ranking.
-                  Include it when the user states a material preference not fully represented by
-                  structured filters; omit it for a plain search. Rank only explicit listing facts
-                  and never infer unstated amenities, commute, lease, accessibility, or neighborhood
-                  qualities. The internal candidate pool is bounded and only max_results listings
-                  are returned.
+                  Optional concise natural-language housing-ranking goal, separate from the location
+                  query. Set it whenever the user states an intended use, household need, desired
+                  quality, or preference not represented by structured filters. Example: "Prioritize
+                  explicit balcony and quiet-setting evidence." Omit only for a neutral search fully
+                  expressed by query and structured fields. Rank only explicit listing facts and
+                  never infer unstated qualities. Only max_results listings are returned.
               max_results:
                 type: integer
                 description: Maximum number of listings to return (1-20, default 10).

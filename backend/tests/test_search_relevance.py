@@ -206,7 +206,13 @@ def test_search_tool_schemas_expose_optional_criteria_and_keep_health_excluded()
         assert properties[limit_field]["default"] == default
         if maximum is not None:
             assert properties[limit_field]["maximum"] == maximum
-        assert "relevance_criteria" in skill["preprocessor_hint"]
+        hint = skill["preprocessor_hint"]
+        description = properties["relevance_criteria"]["description"]
+        assert "relevance_criteria" in hint
+        assert "even if" in hint and "query" in hint
+        assert "only for a neutral" in hint
+        assert "separate from" in description
+        assert "only for a neutral" in description
 
     health = yaml.safe_load((backend_root / "apps" / "health" / "app.yml").read_text())
     health_skill = next(item for item in health["skills"] if item["id"] == "search_appointments")

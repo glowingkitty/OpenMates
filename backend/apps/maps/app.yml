@@ -86,13 +86,13 @@ skills:
     description_translation_key: maps.search.description
     icon_image: search.svg
     preprocessor_hint: >
-      Search for places, businesses, restaurants, directions, and locations. When the
-      user's request states a material purpose or preference that should change which
-      matching places rank first, include a concise, faithful relevance_criteria value
-      without waiting for the user to name the field. Keep location, place type, rating,
-      open-now, price, and required amenity constraints in their structured fields. A
-      plain place search may omit relevance_criteria; never invent quietness, ambience,
-      accessibility, laptop suitability, price, or other preferences.
+      Search for places, businesses, restaurants, directions, and locations. Keep query focused on
+      the place type and location. Whenever the user states a purpose, intended activity, audience,
+      or preference that should change place ordering, put it in relevance_criteria even if related
+      words could also be added to query. Example: query "cafes in Berlin" with relevance_criteria
+      "Places suitable for working several hours on a laptop and taking a client call." Keep rating,
+      open-now, price, and required amenities structured. Omit relevance_criteria only for a neutral
+      place search fully expressed by query and structured fields; never invent preferences.
     class_path: |
       backend.apps.maps.skills.search_skill.SearchSkill
     providers:
@@ -139,7 +139,12 @@ skills:
               relevance_criteria:
                 type: string
                 maxLength: 1000
-                description: Optional natural-language goal used only to rank matching place candidates. Omit for ordinary provider ordering; structured place, rating, open-now, price, location, and amenity filters remain authoritative.
+                description: >
+                  Optional concise natural-language place-ranking goal, separate from the place and
+                  location query. Set it whenever the user states a purpose, intended activity,
+                  audience, or preference that should change ordering. Example: "Suitable for working
+                  several hours on a laptop and taking a client call." Omit only for a neutral search
+                  fully expressed by query and structured fields; never invent preferences.
               languageCode:
                 type: string
                 description: Language code for results (ISO 639-1, e.g., 'en', 'es', 'fr', 'de'). Defaults to 'en' if not specified.
