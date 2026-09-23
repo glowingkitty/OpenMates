@@ -191,7 +191,7 @@ struct AppSkillUseRenderer: View {
         if appId == "web", skillId == "search" {
             return AnyView(WebSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
         } else if appId == "audio", skillId == "generate" || skillId == "speak" {
-            return AnyView(GeneratedAudioEmbedRenderer(data: data, status: embed.status, skillId: skillId, mode: .preview))
+            return AnyView(GeneratedAudioSkillEmbedRenderer(data: data, status: embed.status, skillId: skillId, mode: .preview))
         } else if appId == "web", skillId == "read" {
             return AnyView(WebReadEmbedRenderer(data: data, mode: .preview))
         } else if appId == "images", skillId == "search" {
@@ -304,7 +304,7 @@ struct AppSkillUseRenderer: View {
         if appId == "web", skillId == "search" {
             WebSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
         } else if appId == "audio", skillId == "generate" || skillId == "speak" {
-            GeneratedAudioEmbedRenderer(data: data, status: embed.status, skillId: skillId, mode: .fullscreen)
+            GeneratedAudioSkillEmbedRenderer(data: data, status: embed.status, skillId: skillId, mode: .fullscreen)
         } else if appId == "web", skillId == "read" {
             WebReadEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "images", skillId == "search" {

@@ -4,6 +4,8 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.svelte
@@ -14,7 +16,10 @@
 //          SpacingTokens.generated.swift, TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/app-skills/videos-get-transcript/specification.yml
-// Assertions: videos.transcript.surface-parity
+//                specifications/features/app-skills/audio-generate/specification.yml
+//                specifications/features/app-skills/audio-speak/specification.yml
+// Assertions: videos.transcript.surface-parity, audio-generate.surface-parity,
+//             audio-speak.surface-parity
 
 import SwiftUI
 #if os(iOS)
@@ -26,6 +31,293 @@ import AppKit
 import QuickLookUI
 #endif
 import AVFoundation
+
+// MARK: - Generated audio app skills
+
+struct GeneratedAudioSkillEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let status: EmbedStatus
+    let skillId: String
+    let mode: EmbedDisplayMode
+
+    @State private var player: AVAudioPlayer?
+    @State private var isPlaying = false
+    @State private var isLoading = false
+    @State private var elapsed: TimeInterval = 0
+    @State private var loadFailed = false
+
+    private var payload: GeneratedAudioSkillPayload { GeneratedAudioSkillPayload(data) }
+    private var identifierPrefix: String { skillId == "speak" ? "audio-speak" : "audio-generate" }
+    private var skillName: String {
+        AppStrings.localized(skillId == "speak" ? "app_skills.audio.speak" : "app_skills.audio.generate")
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            VStack(alignment: .leading, spacing: .spacing5) {
+                HStack(spacing: .spacing4) {
+                    playbackButton(compact: true)
+                    VStack(alignment: .leading, spacing: .spacing1) {
+                        Text(skillName)
+                            .font(.omP)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.fontPrimary)
+                        Text(payload.metadata)
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(AppStrings.localized("embeds.music_generate.prompt_label"))
+                        .font(.omMicro)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.fontTertiary)
+                    Text(payload.prompt ?? skillName)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(3)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("\(identifierPrefix)-preview")
+
+        case .fullscreen:
+            VStack(alignment: .leading, spacing: .spacing8) {
+                HStack(spacing: .spacing8) {
+                    playbackButton(compact: false)
+                    VStack(alignment: .leading, spacing: .spacing3) {
+                        audioProgress
+                        Text("\(Self.duration(elapsed)) / \(Self.duration(effectiveDuration))")
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                }
+                .padding(.spacing10)
+                .background(Color.grey0)
+                .overlay(alignment: .bottom) { Rectangle().fill(Color.grey20).frame(height: 1) }
+
+                VStack(alignment: .leading, spacing: .spacing6) {
+                    detail(AppStrings.localized("embeds.music_generate.prompt_label"), payload.prompt ?? skillName)
+                    detail(AppStrings.localized("embeds.music_generate.model_label"), payload.model ?? "ElevenLabs")
+                    detail(AppStrings.localized("embeds.music_generate.duration"), Self.duration(effectiveDuration))
+                }
+                .padding(.spacing10)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("\(identifierPrefix)-fullscreen")
+        }
+    }
+
+    @ViewBuilder
+    private func playbackButton(compact: Bool) -> some View {
+        if status == .processing {
+            ProgressView()
+                .tint(Color.buttonPrimary)
+                .frame(width: compact ? 40 : 48, height: compact ? 40 : 48)
+                .accessibilityIdentifier("\(identifierPrefix)-loading")
+        } else if status == .error || loadFailed {
+            Icon("warning", size: compact ? 22 : 28)
+                .foregroundStyle(Color.error)
+                .frame(width: compact ? 40 : 48, height: compact ? 40 : 48)
+                .accessibilityIdentifier("\(identifierPrefix)-error")
+        } else {
+            Button {
+                togglePlayback()
+            } label: {
+                Group {
+                    if isLoading {
+                        ProgressView().tint(Color.grey0)
+                    } else {
+                        Icon(isPlaying ? "pause" : "play", size: compact ? 18 : 22)
+                            .foregroundStyle(Color.grey0)
+                    }
+                }
+                .frame(width: compact ? 40 : 48, height: compact ? 40 : 48)
+                .background(LinearGradient.appAudio)
+                .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isLoading || !payload.hasPlayableMedia)
+            .accessibilityLabel(isPlaying ? AppStrings.localized("audio.pause") : AppStrings.localized("audio.play"))
+            .accessibilityIdentifier("\(identifierPrefix)-\(compact ? "preview" : "fullscreen")-play-button")
+        }
+    }
+
+    private var audioProgress: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.grey20)
+                Capsule().fill(LinearGradient.appAudio)
+                    .frame(width: proxy.size.width * progress)
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { value in
+                guard proxy.size.width > 0 else { return }
+                seek(value.location.x / proxy.size.width)
+            })
+        }
+        .frame(height: 10)
+        .accessibilityElement()
+        .accessibilityLabel(AppStrings.localized("audio.playback_progress"))
+        .accessibilityValue("\(Int(progress * 100))%")
+        .accessibilityIdentifier("\(identifierPrefix)-fullscreen-waveform")
+        .task(id: isPlaying) {
+            while !Task.isCancelled, isPlaying, let player {
+                elapsed = player.currentTime
+                if !player.isPlaying { isPlaying = false }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+        }
+    }
+
+    private var effectiveDuration: TimeInterval { max(player?.duration ?? 0, payload.duration ?? 0) }
+    private var progress: Double { effectiveDuration > 0 ? min(max(elapsed / effectiveDuration, 0), 1) : 0 }
+
+    private func detail(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(label).font(.omXs).fontWeight(.semibold).foregroundStyle(Color.fontSecondary)
+            Text(value).font(.omP).foregroundStyle(Color.fontPrimary).textSelection(.enabled)
+        }
+    }
+
+    private func seek(_ value: Double) {
+        let next = min(max(value, 0), 1) * effectiveDuration
+        elapsed = next
+        player?.currentTime = next
+    }
+
+    private func togglePlayback() {
+        if let player {
+            if player.isPlaying { player.pause() } else { player.play() }
+            isPlaying = player.isPlaying
+            return
+        }
+        guard payload.hasPlayableMedia else { return }
+        isLoading = true
+        loadFailed = false
+        Task {
+            do {
+                let bytes = try await payload.loadAudio()
+                #if os(iOS)
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+                #endif
+                let audioPlayer = try AVAudioPlayer(data: bytes)
+                audioPlayer.prepareToPlay()
+                audioPlayer.play()
+                player = audioPlayer
+                isPlaying = true
+            } catch {
+                loadFailed = true
+            }
+            isLoading = false
+        }
+    }
+
+    fileprivate static func duration(_ seconds: TimeInterval) -> String {
+        let value = max(0, Int(seconds.rounded(.down)))
+        return "\(value / 60):\(String(format: "%02d", value % 60))"
+    }
+}
+
+private struct GeneratedAudioSkillPayload {
+    let prompt: String?
+    let model: String?
+    let duration: Double?
+    let directURL: String?
+    let s3BaseURL: String?
+    let s3Key: String?
+    let aesKey: String?
+    let aesNonce: String?
+    let encryption: String?
+
+    init(_ data: [String: AnyCodable]?) {
+        let raw = Self.flattened(data)
+        prompt = Self.string(raw, ["prompt", "text_preview", "text"])
+        model = Self.string(raw, ["model"])
+        let original = Self.dictionary(Self.dictionary(raw?["files"]?.value)?["original"])
+        duration = Self.number(raw?["duration_seconds"]?.value) ?? Self.number(original?["duration_seconds"])
+        if let encoded = Self.string(raw, ["audio_base64"]) {
+            let mime = Self.string(raw, ["mime_type"]) ?? "audio/mpeg"
+            directURL = "data:\(mime);base64,\(encoded)"
+        } else {
+            directURL = Self.string(raw, ["previewAudioUrl", "preview_audio_url", "audio_url"])
+        }
+        s3BaseURL = Self.string(raw, ["s3_base_url"])
+        s3Key = Self.string(original, ["s3_key"]) ?? Self.string(raw, ["files_original_s3_key"])
+        aesKey = Self.string(raw, ["aes_key"])
+        aesNonce = Self.string(raw, ["aes_nonce"])
+        encryption = Self.string(original, ["encryption"]) ?? Self.string(raw, ["files_original_encryption"])
+    }
+
+    var metadata: String {
+        [model ?? "ElevenLabs", duration.map { GeneratedAudioSkillEmbedRenderer.duration($0) }]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+    }
+
+    var hasPlayableMedia: Bool { directURL != nil || (s3Key != nil && aesKey != nil) }
+
+    func loadAudio() async throws -> Data {
+        if let directURL {
+            if directURL.hasPrefix("data:"), let comma = directURL.firstIndex(of: ",") {
+                let encoded = String(directURL[directURL.index(after: comma)...])
+                guard let data = Data(base64Encoded: encoded) else { throw URLError(.cannotDecodeContentData) }
+                return data
+            }
+            guard let url = URL(string: directURL) else { throw URLError(.badURL) }
+            return try await URLSession.shared.data(from: url).0
+        }
+        guard let s3Key, let aesKey else { throw URLError(.badURL) }
+        return try await S3MediaClient.shared.fetchAndDecrypt(
+            s3Url: s3BaseURL ?? "",
+            aesKeyHex: aesKey,
+            aesNonceHex: aesNonce,
+            encryption: encryption,
+            s3Key: s3Key
+        )
+    }
+
+    private static func flattened(_ data: [String: AnyCodable]?) -> [String: AnyCodable]? {
+        guard var data else { return nil }
+        if let results = data["results"]?.value as? [[String: Any]], let first = results.first {
+            for (key, value) in first { data[key] = AnyCodable(value) }
+        }
+        return data
+    }
+
+    private static func dictionary(_ value: Any?) -> [String: Any]? {
+        if let value = value as? [String: Any] { return value }
+        if let value = value as? [String: AnyCodable] { return value.mapValues(\.value) }
+        return nil
+    }
+
+    private static func string(_ data: [String: AnyCodable]?, _ keys: [String]) -> String? {
+        for key in keys {
+            if let value = data?[key]?.value as? String, !value.isEmpty { return value }
+        }
+        return nil
+    }
+
+    private static func string(_ data: [String: Any]?, _ keys: [String]) -> String? {
+        for key in keys {
+            if let value = data?[key] as? String, !value.isEmpty { return value }
+        }
+        return nil
+    }
+
+    private static func number(_ value: Any?) -> Double? {
+        if let value = value as? Double { return value }
+        if let value = value as? Int { return Double(value) }
+        if let value = value as? NSNumber { return value.doubleValue }
+        return nil
+    }
+}
 
 // MARK: - Disk-backed public image loader
 
