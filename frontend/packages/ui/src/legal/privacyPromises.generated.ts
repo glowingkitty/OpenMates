@@ -17,10 +17,10 @@ export interface PrivacyPromise {
 export const PRIVACY_PROMISES_VERSION: number = 1;
 
 export const PRIVACY_PROMISES: readonly PrivacyPromise[] = [
-  {"id":"client-side-chat-encryption","i18n_key":"legal.privacy.promises.client_side_chat_encryption","category":"encryption","severity":"critical","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 32"]},
+  {"id":"client-side-chat-encryption","i18n_key":"legal.privacy.promises.client_side_chat_encryption_v2","category":"encryption","severity":"critical","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 32"]},
   {"id":"email-encryption-at-rest","i18n_key":"legal.privacy.promises.email_encryption_at_rest","category":"encryption","severity":"critical","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 32","Art. 5(1)(f)"]},
   {"id":"no-third-party-tracking","i18n_key":"legal.privacy.promises.no_third_party_tracking","category":"tracking","severity":"high","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 5(1)(c)","Art. 25"]},
-  {"id":"pii-placeholder-substitution","i18n_key":"legal.privacy.promises.pii_placeholder_substitution","category":"pii","severity":"critical","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 5(1)(c)","Art. 25"]},
+  {"id":"pii-placeholder-substitution","i18n_key":"legal.privacy.promises.pii_placeholder_substitution_v2","category":"pii","severity":"critical","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 5(1)(c)","Art. 25"]},
   {"id":"telemetry-privacy-filter","i18n_key":"legal.privacy.promises.telemetry_privacy_filter","category":"logging","severity":"high","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 5(1)(c)","Art. 32"]},
   {"id":"cryptographic-erasure","i18n_key":"legal.privacy.promises.cryptographic_erasure","category":"deletion","severity":"critical","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 17"]},
   {"id":"argon2-password-hashing","i18n_key":"legal.privacy.promises.argon2_password_hashing","category":"auth","severity":"critical","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 32"]},
