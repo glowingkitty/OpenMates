@@ -1,7 +1,7 @@
 schema_version: 2
 id: jev-search-relevance-expansion
 title: Expand Optional Jev Search Relevance Ranking
-status: implementing
+status: verified
 
 goal: >
   Fix CLI, SDK, and REST schema parity for relevance_criteria and extend the
@@ -74,7 +74,7 @@ decisions:
     decided_at: "2026-09-23T18:24:00Z"
 
 implementation_state:
-  subject_commit: pending
+  subject_commit: d85bbe6f52ed5631ea2cc971949210f10386ff36
 
 scenarios:
   - id: S-1
@@ -104,7 +104,7 @@ acceptance_criteria:
     scenario: S-3
     text: Every eligible app skill exposes the same optional relevance_criteria field through REST/OpenAPI, typed CLI, JSON CLI input, and npm/pip generated metadata.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-SDK, T-NPM, T-PIP, T-E2E]
@@ -112,7 +112,7 @@ acceptance_criteria:
     scenario: S-1
     text: Ranked maps, shopping-product, and stay searches inspect at most twenty candidates without an additional provider page; video and fitness searches inspect up to forty without an additional provider-page request.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BACKEND]
@@ -120,7 +120,7 @@ acceptance_criteria:
     scenario: S-2
     text: Missing or blank criteria preserve existing provider calls and ordering and make no Jev relevance-ranking call.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BACKEND]
@@ -128,7 +128,7 @@ acceptance_criteria:
     scenario: S-2
     text: Successful ranking and every failure path return no more than the caller's requested public limit, preserving provider order on fallback.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BACKEND]
@@ -136,7 +136,7 @@ acceptance_criteria:
     scenario: S-1
     text: Each new skill profile is tuned against real public candidates and retained evidence records candidate count, selected results, latency, input/output tokens, and any provider limitation without private data.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids: [T-REAL]
@@ -144,7 +144,7 @@ acceptance_criteria:
     scenario: S-3
     text: A real assistant chat auto-populates faithful relevance_criteria for at least one newly eligible skill, while a plain control request omits it.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids: [T-REAL]
@@ -157,24 +157,63 @@ tests:
     covers: [AC-2, AC-3, AC-4]
     assertions:
       - Candidate targets, provider calls, ranking, fallback, and final limits match the approved profiles.
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-09-23T20:37:00Z"
+        reason: No trustworthy pre-implementation failure receipt was retained before this continuation completed the final implementation slice.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api python -m pytest /app/backend/tests/test_search_relevance.py -q
+        run_id: dev-runtime-d85bbe6-20260923
+        timestamp: "2026-09-23T20:37:00Z"
+        subject_commit: d85bbe6f52ed5631ea2cc971949210f10386ff36
+        result: 18 passed; candidate sizing, optional invocation, stable fallback, final clipping, and travel's 20-result boundary passed in the dev backend dependency environment.
   - id: T-SDK
     type: lint
     file: scripts/generate_sdk_app_skills.py
     command: python3 scripts/generate_sdk_app_skills.py && python3 scripts/audit_sdk_cli_parity.py
     covers: [AC-1]
     assertions: [Generated app-skill metadata matches app.yml request schemas.]
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-09-23T20:36:00Z"
+        reason: No trustworthy pre-regeneration failure receipt was retained before the final app-skill metadata generation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/generate_sdk_app_skills.py && python3 scripts/audit_sdk_cli_parity.py
+        run_id: deploy-d85bbe6-sdk-cleartext
+        timestamp: "2026-09-23T20:36:00Z"
+        subject_commit: d85bbe6f52ed5631ea2cc971949210f10386ff36
+        result: Generated 61 app-skill methods; deploy SDK cleartext parity and boundary audits passed.
   - id: T-NPM
     type: unit
     file: frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
     command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
     covers: [AC-1]
     assertions: [Typed CLI metadata exposes relevance_criteria for every eligible skill.]
-    red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    red_phase: {required: false, expected: fail, evidence: {status: not_required, reason: Generator parity was covered by the final green run.}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+        run_id: local-npm-sdk-d85bbe6-20260923
+        timestamp: "2026-09-23T20:35:00Z"
+        subject_commit: d85bbe6f52ed5631ea2cc971949210f10386ff36
+        result: 2 passed.
 
   - id: T-PIP
     type: pytest
@@ -182,8 +221,17 @@ tests:
     command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py
     covers: [AC-1]
     assertions: [Python SDK metadata exposes relevance_criteria for every eligible skill.]
-    red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    red_phase: {required: false, expected: fail, evidence: {status: not_required, reason: Generator parity was covered by the final green run.}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py -q
+        run_id: local-pip-sdk-d85bbe6-20260923
+        timestamp: "2026-09-23T20:35:00Z"
+        subject_commit: d85bbe6f52ed5631ea2cc971949210f10386ff36
+        result: 2 passed.
 
   - id: T-SPECS
     type: lint
@@ -191,8 +239,17 @@ tests:
     command: python3 scripts/specifications.py check-generated && python3 scripts/plan_validate.py docs/plans/jev-search-relevance-expansion/plan.yml
     covers: [AC-1, AC-2, AC-3, AC-4]
     assertions: [Approved Specification registries and this implementation plan validate.]
-    red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    red_phase: {required: false, expected: fail, evidence: {status: not_required, reason: The approved Specification already existed; this test verifies current generated artifacts.}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/specifications.py check-generated && python3 scripts/plan_validate.py docs/plans/jev-search-relevance-expansion/plan.yml
+        run_id: deploy-d85bbe6-specification-gate
+        timestamp: "2026-09-23T20:36:00Z"
+        subject_commit: d85bbe6f52ed5631ea2cc971949210f10386ff36
+        result: Generated Specification artifacts were current and the deploy Specification gate passed.
   - id: T-E2E
     type: playwright
     file: frontend/apps/web_app/tests/skill-search-relevance-parity.spec.ts
@@ -202,8 +259,24 @@ tests:
     covers: [AC-1]
     assertions:
       - REST/OpenAPI and every generated typed CLI command expose the same optional bounded relevance_criteria field without invoking Jev.
-    red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    red_phase: {required: false, expected: fail, evidence: {status: not_required, reason: REST and typed CLI parity were verified directly in the isolated green run.}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/ci_coordinator.py submit --session c22a --source d85bbe6f52ed5631ea2cc971949210f10386ff36 --mode e2e --spec skill-search-relevance-parity.spec.ts
+        run_id: "35918542742"
+        request_id: c99af13d206b24c696ba39b123f62b38d82dc1b23d78f52c8e1389ba46f67a59
+        timestamp: "2026-09-23T20:53:00Z"
+        subject_commit: d85bbe6f52ed5631ea2cc971949210f10386ff36
+        execution_environment: isolated_github_ci
+        harness_commit: 4355eb51aafb90065be1032e7347bb1db9659ff9
+        profile: e2e/github-isolated
+        artifacts:
+          - https://github.com/glowingkitty/OpenMates/actions/runs/35918542742/artifacts/10776666451
+          - test-results/ci-runs/c99af13d206b24c696ba39b123f62b38d82dc1b23d78f52c8e1389ba46f67a59
+        result: 2 expected tests passed; 0 unexpected, skipped, or flaky; coverage complete; cleanup verified.
   - id: T-REAL
     type: manual
     file: backend/scripts/test_search_relevance_ranking.py
@@ -212,14 +285,34 @@ tests:
       - Real provider candidates demonstrate useful domain-specific ranking.
       - Jev usage and latency are captured without logging secrets or private user data.
       - Assistant inference populates criteria only for a stated material preference.
-    red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    red_phase: {required: false, expected: fail, evidence: {status: not_required, reason: Real-provider quality and inference behavior were evaluated only after the feature was available.}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-09-23T20:32:00Z"
+        reason: Real public-provider/Jev probes passed for all six new profiles, and purpose-rich versus neutral assistant controls proved faithful conditional inference.
+        result: >
+          Provider/Jev probes returned exactly 10 results per case: maps 20 candidates
+          (10,089 input/344 output tokens, 682.0 ms), shopping 20 (7,475/344,
+          678.4 ms), stays 20 (8,242/344, 566.6 ms), videos 40 (18,539/684,
+          2,320.8 ms), fitness locations 10 available from the provider (2,793/174,
+          354.8 ms), and fitness classes 40 (11,537/684, 901.3 ms). Total Jev
+          usage was 58,675 input and 2,574 output tokens in 5,503.9 ms, costing
+          $0.00246435 at $0.042/M input with no output-token fee. Representative
+          top results reflected explicit evidence for travel-mouse qualities,
+          production RAG depth, workspace/Wi-Fi stays, central yoga locations, and
+          evening classes. A natural laptop-work/client-call maps request automatically
+          supplied relevance_criteria, ranked 20 candidates, and returned 10; the
+          neutral cafes-on-a-map control omitted relevance_criteria, made no relevance
+          ranking call, and returned 10 in provider order.
 
 tasks:
   - id: TASK-1
     title: Implement and verify cost-aware relevance ranking expansion
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2, S-3]
       acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
@@ -232,7 +325,7 @@ tasks:
       - backend/apps/fitness/
       - frontend/packages/openmates-cli/
       - packages/openmates-python/
-    verification_ids: [T-BACKEND, T-SDK, T-NPM, T-PIP, T-SPECS, T-REAL]
+    verification_ids: [T-BACKEND, T-SDK, T-NPM, T-PIP, T-SPECS, T-E2E, T-REAL]
     dependencies: []
     blockers: []
     follow_up_tasks: []
@@ -244,7 +337,7 @@ attempts:
   - id: ATTEMPT-1
     task_id: TASK-1
     approach: Extend the shared ranker with cost-aware profiles, integrate eligible skills, then tune with real provider candidates.
-    outcome: planned
+    outcome: succeeded
     recorded_at: "2026-09-23T18:24:00Z"
 
 documentation_impact:
@@ -252,7 +345,7 @@ documentation_impact:
     status: updated
     files: [specifications/architecture/app-skill-execution/specification.yml]
   provider_api:
-    status: update
+    status: updated
     file: docs/apis/typesafe-jev.md
   privacy:
     status: updated
@@ -260,8 +353,8 @@ documentation_impact:
 
 handoff:
   current_task_id: TASK-1
-  next_action: Implement request/schema parity and shared profiles before integrating each provider path and running real probes.
-  command: python3 -m pytest backend/tests/test_search_relevance.py
-  expected_outcome: All new skill profiles preserve provider use and return limits while ranking only when criteria are present.
-  last_verified_commit: 8f38587d2
+  next_action: No remaining implementation action; retain the isolated CI receipt and monitor real usage before considering additional skill families.
+  command: python3 scripts/plan_verify.py docs/plans/jev-search-relevance-expansion/plan.yml --phase complete
+  expected_outcome: The completed plan remains verified against the final implementation commit and retained provider evidence.
+  last_verified_commit: d85bbe6f52ed5631ea2cc971949210f10386ff36
   blocker: null
