@@ -6,11 +6,15 @@
 //          frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
 // Tokens:  ColorTokens.generated.swift, GradientTokens.generated.swift,
 //          SpacingTokens.generated.swift, TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/app-skills/videos-get-transcript/specification.yml
+// Assertions: videos.transcript.surface-parity
 
 import SwiftUI
 #if os(iOS)
@@ -1247,34 +1251,245 @@ struct VideoPlayerView: View {
 
 // MARK: - Transcript
 
+private extension AppStrings {
+    static var transcriptYouTubeVideo: String { localized("embeds.youtube_video") }
+    static var transcriptVia: String { localized("embeds.via") }
+    static var transcriptWords: String { localized("embeds.document_word_plural") }
+    static var transcriptNoResults: String { localized("embeds.search_no_results") }
+}
+
+struct VideoTranscriptPayload: Equatable {
+    let title: String?
+    let channelName: String?
+    let channelThumbnailURL: URL?
+    let sourceURL: String?
+    let transcript: String
+    let wordCount: Int
+    let language: String?
+
+    init(data: [String: AnyCodable]?) {
+        let root = data ?? [:]
+        let flattenedResults = Self.flattenedResults(in: root)
+        let result = flattenedResults.first(where: { Self.string($0, keys: ["transcript", "formatted_transcript", "text", "content"]) != nil })
+            ?? flattenedResults.first
+            ?? root.mapValues(\.value)
+        let metadata = Self.dictionary(result["metadata"])
+
+        title = Self.string(metadata, keys: ["title"])
+            ?? Self.string(result, keys: ["title"])
+            ?? EmbedFieldReader.string(root, keys: ["title"])
+        channelName = Self.string(metadata, keys: ["channel_name", "channel_title"])
+            ?? Self.string(result, keys: ["channel_name", "channel_title"])
+        let thumbnail = Self.string(metadata, keys: ["channel_thumbnail", "channel_thumbnail_url"])
+            ?? Self.string(result, keys: ["channel_thumbnail", "channel_thumbnail_url"])
+        channelThumbnailURL = EmbedFieldReader.proxiedImageURL(thumbnail, maxWidth: 58).flatMap(URL.init(string:))
+        sourceURL = Self.string(result, keys: ["url"])
+            ?? EmbedFieldReader.string(root, keys: ["url"])
+        transcript = Self.string(result, keys: ["transcript", "formatted_transcript", "text", "content"])
+            ?? EmbedFieldReader.string(root, keys: ["transcript", "formatted_transcript", "text", "content"])
+            ?? ""
+        wordCount = flattenedResults.reduce(0) { partial, item in
+            partial + (Self.int(item, keys: ["word_count", "wordCount"]) ?? 0)
+        }
+        language = Self.string(result, keys: ["language"])
+            ?? EmbedFieldReader.string(root, keys: ["language"])
+    }
+
+    static func flattenedResults(in data: [String: AnyCodable]) -> [[String: Any]] {
+        let candidates = EmbedFieldReader.dictionaryArray(data, key: "results")
+        let flattened = candidates.flatMap { candidate -> [[String: Any]] in
+            let nested = dictionaryArray(candidate["results"])
+            return nested.isEmpty ? [candidate] : nested
+        }
+        if !flattened.isEmpty { return flattened }
+        return EmbedFieldReader.string(data, keys: ["transcript", "formatted_transcript", "text", "content"]) == nil
+            ? []
+            : [data.mapValues(\.value)]
+    }
+
+    private static func dictionary(_ value: Any?) -> [String: Any] {
+        if let value = value as? [String: Any] { return value }
+        if let value = value as? [String: AnyCodable] { return value.mapValues(\.value) }
+        return [:]
+    }
+
+    private static func dictionaryArray(_ value: Any?) -> [[String: Any]] {
+        if let value = value as? [[String: Any]] { return value }
+        if let value = value as? [Any] { return value.map(dictionary).filter { !$0.isEmpty } }
+        return []
+    }
+
+    private static func string(_ data: [String: Any], keys: [String]) -> String? {
+        for key in keys {
+            if let value = data[key] as? String,
+               !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func int(_ data: [String: Any], keys: [String]) -> Int? {
+        for key in keys {
+            if let value = data[key] as? Int { return value }
+            if let value = data[key] as? Double { return Int(value) }
+            if let value = data[key] as? String, let parsed = Int(value) { return parsed }
+        }
+        return nil
+    }
+}
+
+struct VideoTranscriptMetadata: Decodable, Equatable {
+    let title: String?
+    let channelName: String?
+    let channelThumbnail: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case channelName = "channel_name"
+        case channelThumbnail = "channel_thumbnail"
+    }
+
+    var channelThumbnailURL: URL? {
+        EmbedFieldReader.proxiedImageURL(channelThumbnail, maxWidth: 58).flatMap(URL.init(string:))
+    }
+}
+
+enum VideoTranscriptMetadataLoader {
+    static func metadataURL(for sourceURL: String) -> URL? {
+        guard let source = URL(string: sourceURL),
+              source.scheme == "https",
+              let host = source.host?.lowercased(),
+              host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com" || host == "youtu.be" else {
+            return nil
+        }
+        var components = URLComponents(string: "https://preview.openmates.org/api/v1/youtube")
+        components?.queryItems = [URLQueryItem(name: "url", value: sourceURL)]
+        return components?.url
+    }
+
+    static func load(sourceURL: String, session: URLSession = .shared) async throws -> VideoTranscriptMetadata {
+        guard let url = metadataURL(for: sourceURL) else { throw URLError(.badURL) }
+        #if DEBUG
+        if let fixture = ProcessInfo.processInfo.environment["DEV_TRANSCRIPT_METADATA_RESPONSE"],
+           let fixtureData = fixture.data(using: .utf8) {
+            return try JSONDecoder().decode(VideoTranscriptMetadata.self, from: fixtureData)
+        }
+        #endif
+        let (data, response) = try await session.data(from: url)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200..<300).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode(VideoTranscriptMetadata.self, from: data)
+    }
+}
+
 struct TranscriptRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
-    private var title: String? { data?["title"]?.value as? String }
-    private var transcript: String? { data?["transcript"]?.value as? String }
+    @State private var fetchedMetadata: VideoTranscriptMetadata?
+
+    private var payload: VideoTranscriptPayload { VideoTranscriptPayload(data: data) }
+    private var title: String? { fetchedMetadata?.title ?? payload.title }
+    private var channelName: String? { fetchedMetadata?.channelName ?? payload.channelName }
+    private var channelThumbnailURL: URL? {
+        fetchedMetadata?.channelThumbnailURL ?? payload.channelThumbnailURL
+    }
 
     var body: some View {
-        switch mode {
+        Group {
+            switch mode {
         case .preview:
             VStack(alignment: .leading, spacing: .spacing3) {
-                if let title {
-                    Text(title).font(.omSmall).fontWeight(.medium)
-                        .foregroundStyle(Color.fontPrimary).lineLimit(1)
+                HStack(alignment: .top, spacing: .spacing4) {
+                    if let thumbnailURL = channelThumbnailURL {
+                        CachedRemoteImage(url: thumbnailURL) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Circle().fill(Color.grey30)
+                        }
+                        .frame(width: 29, height: 29)
+                        .clipShape(Circle())
+                        .accessibilityHidden(true)
+                    }
+
+                    Text(title ?? AppStrings.transcriptYouTubeVideo)
+                        .font(.omP)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.grey100)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .accessibilityIdentifier("video-transcript-title")
                 }
-                if let transcript {
-                    Text(transcript).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(5)
+
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(channelName.map { "\(AppStrings.transcriptVia) YouTube · \($0)" } ?? "\(AppStrings.transcriptVia) YouTube")
+                    if payload.wordCount > 0 {
+                        Text("\(payload.wordCount.formatted()) \(AppStrings.transcriptWords)")
+                    }
                 }
+                .font(.omSmall)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.grey70)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("video-transcript-subtitle")
             }
-            .padding(.spacing4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("video-transcript-preview")
 
         case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing4) {
-                if let transcript {
-                    Text(transcript).font(.omP).foregroundStyle(Color.fontPrimary).textSelection(.enabled)
+            VStack(alignment: .leading, spacing: .spacing8) {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(title ?? AppStrings.transcriptYouTubeVideo)
+                        .font(.omH3)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.fontPrimary)
+                        .accessibilityIdentifier("video-transcript-fullscreen-title")
+
+                    HStack(spacing: .spacing3) {
+                        if let channelName {
+                            Text(channelName)
+                        }
+                        if payload.wordCount > 0 {
+                            Text("\(payload.wordCount.formatted()) \(AppStrings.transcriptWords)")
+                        }
+                        if let language = payload.language {
+                            Text(language.uppercased())
+                        }
+                    }
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("video-transcript-fullscreen-metadata")
+                }
+
+                if payload.transcript.isEmpty {
+                    Text(AppStrings.transcriptNoResults)
+                        .font(.omP)
+                        .foregroundStyle(Color.fontSecondary)
+                        .accessibilityIdentifier("video-transcript-fullscreen-empty")
+                } else {
+                    Text(payload.transcript)
+                        .font(.omP)
+                        .foregroundStyle(Color.fontPrimary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("video-transcript-fullscreen-text")
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("video-transcript-fullscreen")
+            }
+        }
+        .task(id: payload.sourceURL) {
+            fetchedMetadata = nil
+            guard let sourceURL = payload.sourceURL,
+                  payload.title == nil || payload.channelName == nil || payload.channelThumbnailURL == nil else { return }
+            fetchedMetadata = try? await VideoTranscriptMetadataLoader.load(sourceURL: sourceURL)
         }
     }
 }

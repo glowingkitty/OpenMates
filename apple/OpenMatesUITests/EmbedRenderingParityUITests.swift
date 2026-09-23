@@ -8,6 +8,34 @@ import XCTest
 
 @MainActor
 final class EmbedRenderingParityUITests: XCTestCase {
+    private let canonicalRegistryKeys = [
+        "app:audio:generate", "app:audio:speak", "app:business:company_financials",
+        "app:calendar:create-event", "app:calendar:delete-event", "app:calendar:get-events",
+        "app:calendar:list-calendars", "app:calendar:update-event", "app:code:get_docs",
+        "app:code:search_repos", "app:design:search_icons", "app:electronics:search_components",
+        "app:events:search", "app:finance:check_accounts", "app:fitness:search_classes",
+        "app:fitness:search_locations", "app:health:search_appointments", "app:home:search",
+        "app:images:generate", "app:images:generate_draft", "app:images:search",
+        "app:mail:search", "app:maps:search", "app:math:calculate", "app:models3d:generate",
+        "app:models3d:search", "app:music:generate", "app:news:search",
+        "app:nutrition:search_recipes", "app:reminder:cancel-reminder",
+        "app:reminder:list-reminders", "app:reminder:set-reminder",
+        "app:shopping:search_products", "app:social_media:get-posts", "app:social_media:search",
+        "app:tasks:create", "app:tasks:search", "app:travel:get_flight",
+        "app:travel:price_calendar", "app:travel:search_connections", "app:travel:search_stays",
+        "app:videos:create", "app:videos:generate", "app:videos:get_transcript",
+        "app:videos:search", "app:weather:forecast", "app:weather:rain_radar",
+        "app:web:read", "app:web:search", "app:workflows:create-or-modify",
+        "app:workflows:search", "business-company-financial-result", "code-application",
+        "code-code", "code-notebook", "code-repo", "design-icon-result", "docs-doc",
+        "electronics-component", "electronics-pcb-schematic", "events-event", "file-file",
+        "fitness-class", "fitness-location", "focus-mode-activation", "health-appointment",
+        "home-listing", "image", "images-image-result", "mail-email", "maps", "maps-place",
+        "math-plot", "mindmaps-mindmap", "models3d-model-result", "nutrition-recipe", "pdf",
+        "recording", "sheets-sheet", "shopping-product", "social-media-post", "tasks-task",
+        "travel-connection", "travel-stay", "videos-video", "weather-day", "web-website",
+        "workflows-workflow"
+    ]
     private let appSlugs = [
         "audio",
         "business",
@@ -47,6 +75,51 @@ final class EmbedRenderingParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
+    func testCanonicalRegistryKeysRenderPreviewAndFullscreenWithoutGenericFallback() throws {
+        let requestedKey = ProcessInfo.processInfo.environment["EMBED_REGISTRY_KEY"]
+        let keys = requestedKey.map { [$0] } ?? canonicalRegistryKeys
+        XCTAssertEqual(canonicalRegistryKeys.count, 88, "The canonical native evidence inventory must track all generated registry keys.")
+
+        for key in keys {
+            for surface in ["preview", "fullscreen"] {
+                let app = XCUIApplication()
+                app.launchArguments = [
+                    "--dev-preview", "embeds",
+                    "--dev-preview-app", "web",
+                    "--dev-preview-theme", "light",
+                    "--embed-registry-key", key,
+                    "--embed-surface", surface
+                ]
+                app.launchEnvironment["DEV_PREVIEW"] = "embeds"
+                app.launchEnvironment["DEV_PREVIEW_APP"] = "web"
+                app.launchEnvironment["DEV_PREVIEW_THEME"] = "light"
+                app.launch()
+
+                let identifier = "dev-embed-canonical-\(surface)"
+                let canonical = app.descendants(matching: .any)[identifier]
+                XCTAssertTrue(canonical.waitForExistence(timeout: 8), "Missing canonical \(surface) for \(key)")
+                XCTAssertEqual(canonical.value as? String, "\(key)|default")
+                XCTAssertFalse(app.descendants(matching: .any)["dev-embed-registry-missing"].exists, "Missing native fixture for \(key)")
+
+                if surface == "fullscreen" {
+                    let readiness = app.descendants(matching: .any)["embed-presentation-state"]
+                    XCTAssertTrue(readiness.waitForExistence(timeout: 3), "Fullscreen readiness signal missing for \(key)")
+                    XCTAssertTrue(waitForLabel(readiness, containing: "ready", timeout: 3), "Fullscreen was still animating for \(key)")
+                }
+
+                XCTAssertFalse(
+                    app.staticTexts.matching(NSPredicate(format: "label == %@", key)).firstMatch.exists,
+                    "\(key) rendered the generic raw-data fallback in \(surface)"
+                )
+                XCTAssertFalse(app.tables.firstMatch.exists, "\(key) rendered default List/table chrome")
+                attachScreenshot(name: "Embed parity|\(key)|\(surface)|iphone-light-ltr")
+                app.terminate()
+            }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
     func testAllEmbedPreviewAppsRenderProductChrome() throws {
         for appSlug in appSlugs {
             let app = XCUIApplication()
@@ -69,6 +142,7 @@ final class EmbedRenderingParityUITests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=code-run.artifacts.chat-bound-versioned
     func testVersionedCodeEmbedFullscreenTimelineRendersAndRestores() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "code"]
@@ -105,6 +179,7 @@ final class EmbedRenderingParityUITests: XCTestCase {
         attachScreenshot(name: "Versioned code embed timeline")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
     func testSheetsPreviewAndFullscreenUseSpreadsheetChrome() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "sheets"]
@@ -128,6 +203,7 @@ final class EmbedRenderingParityUITests: XCTestCase {
         attachScreenshot(name: "Sheets fullscreen")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
     func testTaskWorkflowAndModelEmbedsUseSpecificNativeChrome() throws {
         let cases: [(appSlug: String, previewIdentifiers: [String], childFullscreenIdentifier: String)] = [
             ("tasks", ["task-create-embed-preview", "task-search-embed-preview", "task-embed-card"], "task-embed-fullscreen"),
@@ -169,6 +245,7 @@ final class EmbedRenderingParityUITests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=code-run.artifacts.parent-child-navigation
     func testFullscreenParentChildRouteStackReturnsToParentBeforeClosing() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "web"]
@@ -210,6 +287,54 @@ final class EmbedRenderingParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Embed fullscreen route stack must not render default List/table chrome")
 
         attachScreenshot(name: "Fullscreen parent child route stack")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=videos.transcript.surface-parity
+    func testGroupedVideoTranscriptRendersPreviewAndFullscreenContent() throws {
+        for surface in ["preview", "fullscreen"] {
+            let app = XCUIApplication()
+            app.launchArguments = [
+                "--dev-preview", "embeds",
+                "--dev-preview-app", "videos",
+                "--embed-registry-key", "app:videos:get_transcript",
+                "--embed-surface", surface
+            ]
+            app.launchEnvironment["DEV_PREVIEW"] = "embeds"
+            app.launchEnvironment["DEV_PREVIEW_APP"] = "videos"
+            app.launchEnvironment["DEV_TRANSCRIPT_METADATA_RESPONSE"] = """
+                {"title":"Resolved transcript metadata fixture","channel_name":"Resolved fixture channel"}
+                """
+            app.launch()
+
+            if surface == "preview" {
+                XCTAssertTrue(app.descendants(matching: .any)["video-transcript-preview"].waitForExistence(timeout: 8))
+                let title = app.staticTexts["video-transcript-title"]
+                XCTAssertTrue(
+                    waitForLabel(title, containing: "Resolved transcript metadata fixture", timeout: 5),
+                    "Preview must resolve the real video title from the source URL when the transcript result contains no metadata."
+                )
+                XCTAssertTrue(
+                    waitForLabel(app.staticTexts["video-transcript-subtitle"], containing: "Resolved fixture channel", timeout: 5),
+                    "Preview must resolve the channel through the privacy-preserving preview endpoint."
+                )
+            } else {
+                XCTAssertTrue(
+                    waitForLabel(app.staticTexts["video-transcript-fullscreen-title"], containing: "Resolved transcript metadata fixture", timeout: 5),
+                    "Fullscreen must preserve metadata resolved from the transcript source URL."
+                )
+                XCTAssertTrue(
+                    waitForLabel(app.staticTexts["video-transcript-fullscreen-metadata"], containing: "Resolved fixture channel", timeout: 5),
+                    "Fullscreen must preserve the resolved channel metadata."
+                )
+                let transcript = app.staticTexts["video-transcript-fullscreen-text"]
+                XCTAssertTrue(transcript.waitForExistence(timeout: 8), "Grouped skill results must load the actual transcript in fullscreen.")
+                XCTAssertTrue(transcript.label.contains("Grouped transcript fixture proof text"))
+                XCTAssertFalse(app.descendants(matching: .any)["video-transcript-fullscreen-empty"].exists)
+            }
+
+            attachScreenshot(name: "Video transcript grouped result \(surface)")
+            app.terminate()
+        }
     }
 
     private func attachScreenshot(name: String) {
