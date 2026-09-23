@@ -190,7 +190,7 @@ def test_search_tool_schemas_expose_optional_criteria_and_keep_health_excluded()
         ("home", "search"): ("max_results", 10, 20),
         ("maps", "search"): ("pageSize", 10, 20),
         ("shopping", "search_products"): ("max_results", 10, 20),
-        ("travel", "search_stays"): ("max_results", 10, None),
+        ("travel", "search_stays"): ("max_results", 10, 20),
         ("videos", "search"): ("count", 6, 20),
         ("fitness", "search_locations"): ("limit", 10, 50),
         ("fitness", "search_classes"): ("limit", 10, 50),

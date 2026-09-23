@@ -5954,7 +5954,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'of '
                                                                                                  'results '
                                                                                                  'to '
-                                                                                                 'return.',
+                                                                                                 'return '
+                                                                                                 '(1-20, '
+                                                                                                 'default '
+                                                                                                 '10).',
+                                                                                  'maximum': 20,
+                                                                                  'minimum': 1,
                                                                                   'type': 'integer'},
                                                                   'min_price': {'description': 'Minimum '
                                                                                                'nightly '

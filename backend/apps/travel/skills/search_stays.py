@@ -65,7 +65,12 @@ class SearchStaysRequestItem(BaseModel):
         default=None,
         description="Comma-separated star rating filter (e.g. '3,4,5' for 3-star and above).",
     )
-    max_results: int = Field(default=10, description="Maximum number of results to return.")
+    max_results: int = Field(
+        default=10,
+        ge=1,
+        le=20,
+        description="Maximum number of results to return (1-20).",
+    )
     relevance_criteria: Optional[str] = Field(
         default=None,
         max_length=1_000,

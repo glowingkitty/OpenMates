@@ -4102,7 +4102,9 @@ export const APP_SKILL_METADATA = [
               },
               "max_results": {
                 "type": "integer",
-                "description": "Maximum number of results to return.",
+                "description": "Maximum number of results to return (1-20, default 10).",
+                "minimum": 1,
+                "maximum": 20,
                 "default": 10
               },
               "relevance_criteria": {
