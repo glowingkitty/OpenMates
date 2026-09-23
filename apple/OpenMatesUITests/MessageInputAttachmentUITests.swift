@@ -97,6 +97,31 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
+    func testProductionComposerDetectsAndExcludesContextualSecret() throws {
+        let app = launchChatOpeningPreview()
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
+        editor.typeText("password=supersecret123 ")
+
+        let banner = element(in: app, identifier: "pii-warning-banner")
+        XCTAssertTrue(banner.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Sensitive data detected"].exists)
+        let undoAll = element(in: app, identifier: "pii-undo-all")
+        XCTAssertTrue(undoAll.waitForExistence(timeout: 5))
+        XCTAssertTrue(undoAll.isHittable)
+        attachScreenshot(name: "Production composer contextual PII detected")
+
+        undoAll.tap()
+        XCTAssertTrue(waitForAbsence(banner))
+        XCTAssertTrue(
+            (editor.value as? String)?.contains("password=supersecret123") == true,
+            "Excluding a current-send match must preserve the original composer text"
+        )
+    }
+
     // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send
     func testWelcomeComposerSeededPendingAttachmentsEnableSendWithoutRawJson() throws {
         let app = XCUIApplication()

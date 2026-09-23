@@ -96,13 +96,15 @@ def test_local_mac_apple_only_deploy_skips_vercel_token(monkeypatch):
         "apple/OpenMates/Sources/App/MainAppView.swift",
         "scripts/sessions.py",
         "specifications/generated/assertion-index.yml",
+        "docs/plans/apple-realtime-audio-parity/plan.yml",
     ])
 
 
 @pytest.mark.parametrize(
     "paths",
     [[], ["frontend/packages/ui/src/components/enter_message/MessageInput.svelte"],
-     ["apple/OpenMates/Sources/App/MainAppView.swift", "docs/plans/apple-ui/plan.yml"]],
+     ["apple/OpenMates/Sources/App/MainAppView.swift", "docs/plans/apple-ui/plan.yml",
+      "frontend/apps/web_app/src/routes/dev/preview/embeds/+page.svelte"]],
 )
 def test_local_mac_unknown_or_web_scope_keeps_vercel_gate(monkeypatch, paths):
     sessions = load_sessions_module()

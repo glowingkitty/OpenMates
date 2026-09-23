@@ -3,6 +3,8 @@
 // Structural groups delegate to their registered child type without fallback.
 // Lifecycle support is declared centrally for deterministic host behavior.
 // This semantic layer owns no SwiftUI views, encryption keys, or persisted data.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send
 
 import Foundation
 
@@ -11,6 +13,7 @@ enum AppleComposerEmbedLifecycleState: String, CaseIterable, Codable, Sendable {
     case uploading
     case processing
     case transcribing
+    case correcting
     case finished
     case error
     case cancelled

@@ -100,6 +100,28 @@ Every Svelte product UI file must list its native Swift counterpart files in its
 
 If no native counterpart exists yet, write `Native Swift counterparts: none yet` so the gap is explicit.
 
+## Specification ↔ Apple Proof Traceability
+
+Every touched production Swift file that implements approved Specification
+behavior must list the project-relative `specifications/**/specification.yml`
+path and exact assertion IDs in its file header. Every Apple unit or UI test that
+proves those assertions must carry the repository's existing metadata immediately
+above the test declaration, for example:
+
+```swift
+// contract-test: direct surface=gui.apple assertions=pii.composer.detect-redact-exclude
+func testComposerReplacesDetectedPIIBeforeSend() { ... }
+```
+
+Classify partial or lower-level evidence as `supporting`. The Specification must
+declare Apple through `applies_to.gui.implementations.apple`; do not invent new
+Specification YAML fields for source paths. After metadata changes, run
+`python3 scripts/specifications.py generate` and validate the affected bundle.
+The generated `specifications/generated/assertion-index.yml` provides the
+reciprocal link from each assertion to its Apple proof path and line. Production
+source references establish implementation ownership; contract-linked tests
+establish proof.
+
 ## Implementation Standard
 
 When touching a screen that still uses default product UI, convert the touched area to OpenMates primitives before adding new behavior. Do not add new default controls to legacy screens.

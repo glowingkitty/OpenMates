@@ -2,6 +2,8 @@
 // Supports block-level markdown rendering (code blocks, tables, blockquotes),
 // inline embed previews, and fullscreen embed sheets. Advertises the current
 // chat for Handoff so users can continue on another Apple device.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context
 
 // ─── Web source ─────────────────────────────────────────────────────
 // MessageBubble:
@@ -268,6 +270,7 @@ struct ChatView: View {
     @StateObject private var enhancedPIIRecommendationStore = EnhancedPIIRecommendationStore.shared
     @StateObject private var composerSession = NativeComposerSession()
     @ObservedObject private var draftService = DraftService.shared
+    @EnvironmentObject private var authManager: AuthManager
     @Environment(\.workspacePaneIsVisible) private var parentPaneVisible
     private var transcriptIsVisible: Bool { parentPaneVisible && (!showEmbedFullscreen || (chatWorkspaceWidth >= 1024 && !hideSplitChat)) }
     @State private var chatWorkspaceWidth: CGFloat = 0
@@ -289,6 +292,8 @@ struct ChatView: View {
     @State private var recordStartedFromKeyboard = false
     @State private var recordStartTask: Task<Void, Never>?
     @State private var recordHintTask: Task<Void, Never>?
+    @State private var recordingUploadTasks: [String: Task<Void, Never>] = [:]
+    @State private var recordingTemporaryFiles: [String: URL] = [:]
     @State private var detectedPIIMatches: [PIIMatch] = []
     @State private var piiExclusions: Set<String> = []
     @State private var enhancedPIIDetectionTask: Task<Void, Never>?
@@ -318,6 +323,9 @@ struct ChatView: View {
     @State private var broadcastToSiblingSubChats = false
     @StateObject private var focusModeManager = FocusModeManager()
     @StateObject private var composerRecorder = VoiceRecorder()
+    @State private var activeRecordingRealtimeSession: AudioRecordingRealtimeSession?
+    @State private var recordingLiveTranscript = ""
+    @State private var recordingRealtimeConnecting = false
     @StateObject private var pendingUploads = PendingUploadStore.shared
     @State private var composerEmbedLifecycle = ComposerEmbedLifecycle()
     @State private var composerPendingSendCoordinator = ComposerPendingSendCoordinator()
@@ -664,6 +672,9 @@ struct ChatView: View {
     }
 
     private func handleChatTask() async {
+        if let loadedChatID = viewModel.chat?.id, loadedChatID != chatId {
+            cancelRecordAttempt()
+        }
         draftSaveTask?.cancel()
         await invalidateDeferredComposerSends()
         resetComposerForChatLoad()
@@ -679,10 +690,16 @@ struct ChatView: View {
                 insertResolvedUITestEmbed(embed)
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-recording-raw-pending") {
+            seedUITestRecordingRawPending()
+        }
         if ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay") {
             micPermissionState = .granted
             composerOverlay = .recording
-            isInputFocused = true
+            isInputFocused = false
+        }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-chat-mic-granted") {
+            micPermissionState = .granted
         }
         #endif
         handoffManager.advertiseChatViewing(
@@ -691,6 +708,53 @@ struct ChatView: View {
         )
         PushNotificationManager.shared.clearBadge()
     }
+
+    #if DEBUG
+    private func seedUITestRecordingRawPending() {
+        let nodeID = "composer:embed:ui-test-recording-raw"
+        do {
+            try composerSession.insertPendingEmbed(
+                nodeID: nodeID,
+                embedType: "recording",
+                title: "recording-ui-test.m4a"
+            )
+            try composerSession.updateEmbed(
+                nodeID: nodeID,
+                status: AppleComposerEmbedLifecycleState.transcribing.rawValue
+            )
+            try composerSession.updatePendingEmbedTitle(
+                nodeID: nodeID,
+                title: "Raw realtime transcript"
+            )
+            try composerSession.updateEmbed(
+                nodeID: nodeID,
+                status: AppleComposerEmbedLifecycleState.correcting.rawValue
+            )
+            isInputFocused = true
+            Task { @MainActor in
+                // Leave the realtime transcript visible long enough for the UI test
+                // process to attach after app launch, then model correction in place.
+                try? await Task.sleep(for: .seconds(8))
+                guard composerSession.controller.document.nodes.contains(where: { $0.id == nodeID }) else { return }
+                try? composerSession.updatePendingEmbedTitle(
+                    nodeID: nodeID,
+                    title: "Corrected realtime transcript"
+                )
+                try? composerSession.resolveEmbed(
+                    nodeID: nodeID,
+                    durableEmbedID: "ui-test-recording-server",
+                    referenceType: "audio-recording",
+                    status: AppleComposerEmbedLifecycleState.finished.rawValue
+                )
+            }
+        } catch {
+            NativeDiagnostics.error(
+                "Recording pending transcript fixture failed: \(type(of: error))",
+                category: "apple_composer"
+            )
+        }
+    }
+    #endif
 
     private func resetComposerForChatLoad() {
         guard !composerSession.canonicalMarkdown.isEmpty || !composerSession.controller.document.nodes.isEmpty else {
@@ -701,6 +765,13 @@ struct ChatView: View {
     }
 
     private func handleChatLifecycleDisappear() {
+        recordStartTask?.cancel()
+        recordStartTask = nil
+        composerRecorder.cancelRecording()
+        cancelRealtimeRecording()
+        composerOverlay = nil
+        recordAttemptActive = false
+        recordStartedFromKeyboard = false
         modelHost.deactivate()
         scrollPositionDebounceTask?.cancel()
         handoffManager.stopAdvertising()
@@ -2140,7 +2211,10 @@ struct ChatView: View {
         let overlayActive = composerOverlay != nil || isUITestRecordingOverlayForced
         let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
         let maximumViewportFieldHeight = max(expandedMinHeight, chatViewportHeight - .spacing20)
-        let overlayHeight = min(400, maximumViewportFieldHeight)
+        let recordingOverlayActive = composerOverlay == .recording || isUITestRecordingOverlayForced
+        let overlayHeight = recordingOverlayActive
+            ? ComposerRecordingOverlay.recordingPanelHeight
+            : min(400, maximumViewportFieldHeight)
         return VStack(spacing: .spacing2) {
             MessageComposerView(
                 session: composerSession,
@@ -2327,21 +2401,42 @@ struct ChatView: View {
                 recorder: composerRecorder,
                 dragOffsetX: recordDragOffsetX,
                 startedFromKeyboard: recordStartedFromKeyboard,
+                liveTranscript: recordingLiveTranscript,
+                isRealtimeConnecting: recordingRealtimeConnecting,
                 onStop: { url in
+                    let duration = composerRecorder.duration
+                    let uploadContext = finishRealtimeRecording(duration: duration)
                     self.composerOverlay = nil
                     self.recordAttemptActive = false
                     self.recordStartedFromKeyboard = false
                     self.recordDragOffsetX = 0
-                    Task {
-                        await enqueueRecordingUpload(url: url, duration: composerRecorder.duration)
-                    }
+                    dismissChatKeyboardForRecording(afterCurrentGesture: true)
+                    enqueueRecordingUpload(
+                        url: url,
+                        duration: duration,
+                        waveform: uploadContext.waveform,
+                        realtimeResult: uploadContext.realtimeResult,
+                        realtimeSession: uploadContext.realtimeSession
+                    )
                 },
                 onCancel: {
                     composerRecorder.cancelRecording()
+                    cancelRealtimeRecording()
                     self.composerOverlay = nil
                     self.recordAttemptActive = false
                     self.recordStartedFromKeyboard = false
                     self.recordDragOffsetX = 0
+                    dismissChatKeyboardForRecording(afterCurrentGesture: true)
+                },
+                onFailure: {
+                    composerRecorder.cancelRecording()
+                    cancelRealtimeRecording()
+                    self.composerOverlay = nil
+                    self.recordAttemptActive = false
+                    self.recordStartedFromKeyboard = false
+                    self.recordDragOffsetX = 0
+                    dismissChatKeyboardForRecording(afterCurrentGesture: true)
+                    showRecordHint(duration: 0)
                 }
             )
         )
@@ -2373,7 +2468,7 @@ struct ChatView: View {
         micPermissionState = .granted
         recordStartedFromKeyboard = isUITestKeyboardRecordingOverlayForced
         composerOverlay = .recording
-        isInputFocused = true
+        isInputFocused = false
         #endif
     }
 
@@ -2484,8 +2579,15 @@ struct ChatView: View {
         }
     }
 
-    private func enqueueRecordingUpload(url: URL, duration: TimeInterval) async {
+    private func enqueueRecordingUpload(
+        url: URL,
+        duration: TimeInterval,
+        waveform: AudioRecordingWaveform? = nil,
+        realtimeResult: AudioRecordingRealtimeResultProvider? = nil,
+        realtimeSession: AudioRecordingRealtimeSession? = nil
+    ) {
         let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
+        recordingTemporaryFiles[nodeID] = url
         do {
             try composerSession.insertPendingEmbed(
                 nodeID: nodeID,
@@ -2510,18 +2612,52 @@ struct ChatView: View {
                 nodeID: nodeID,
                 generation: record.generation,
                 to: .transcribing
-            ) != nil else { return }
+            ) != nil else {
+                removeRecordingTemporaryFile(nodeID: nodeID)
+                return
+            }
         } catch {
+            removeRecordingTemporaryFile(nodeID: nodeID)
             NativeDiagnostics.error("Composer recording insertion failed: \(type(of: error))", category: "apple_composer")
             return
         }
 
-        guard let generation = composerEmbedLifecycle.record(nodeId: nodeID)?.generation else { return }
-        guard let embed = await viewModel.uploadRecording(url: url, duration: duration) else {
-            _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
+        guard let generation = composerEmbedLifecycle.record(nodeId: nodeID)?.generation else {
+            removeRecordingTemporaryFile(nodeID: nodeID)
             return
         }
-        resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
+        realtimeSession?.observeRawTranscript { transcript in
+            guard transitionComposerEmbed(
+                nodeID: nodeID,
+                generation: generation,
+                to: .correcting
+            ) != nil else { return }
+            try? composerSession.updatePendingEmbedTitle(nodeID: nodeID, title: transcript)
+        }
+        recordingUploadTasks[nodeID] = Task { @MainActor in
+            let embed = await viewModel.uploadRecording(
+                url: url,
+                duration: duration,
+                waveform: waveform,
+                realtimeResult: realtimeResult
+            )
+            recordingUploadTasks[nodeID] = nil
+            guard !Task.isCancelled else {
+                if let embed { viewModel.removePendingComposerEmbed(id: embed.id) }
+                removeRecordingTemporaryFile(nodeID: nodeID)
+                return
+            }
+            guard let embed else {
+                _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
+                return
+            }
+            try? composerSession.updatePendingEmbedTitle(
+                nodeID: nodeID,
+                title: embed.textPreview.flatMap { $0.isEmpty ? nil : $0 } ?? url.lastPathComponent
+            )
+            resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
+            removeRecordingTemporaryFile(nodeID: nodeID)
+        }
     }
 
     private func retryRecordingUpload(nodeID: String, url: URL, duration: TimeInterval) async {
@@ -2531,6 +2667,7 @@ struct ChatView: View {
             return
         }
         resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
+        removeRecordingTemporaryFile(nodeID: nodeID)
     }
 
     private func resolveComposerEmbed(nodeID: String, generation: Int, embed: ComposerPendingEmbed) {
@@ -2622,6 +2759,8 @@ struct ChatView: View {
     }
 
     private func handleComposerEmbedRemoval(nodeID: String, durableID: String) {
+        recordingUploadTasks.removeValue(forKey: nodeID)?.cancel()
+        removeRecordingTemporaryFile(nodeID: nodeID)
         if let current = composerEmbedLifecycle.record(nodeId: nodeID),
            case .applied(let record) = composerEmbedLifecycle.remove(
                nodeId: nodeID,
@@ -2631,6 +2770,11 @@ struct ChatView: View {
         }
         viewModel.removePendingComposerEmbed(id: durableID)
         Task { await invalidateDeferredComposerSends() }
+    }
+
+    private func removeRecordingTemporaryFile(nodeID: String) {
+        guard let url = recordingTemporaryFiles.removeValue(forKey: nodeID) else { return }
+        try? FileManager.default.removeItem(at: url)
     }
 
     private func reportComposerEmbedState(_ record: ComposerEmbedLifecycleRecord) {
@@ -2848,7 +2992,7 @@ struct ChatView: View {
     }
 
     private var recordGestureButton: some View {
-        Button(action: {}) {
+        Button(action: { startRecordFromControlIfNeeded() }) {
             Icon("recordaudio", size: 25)
                 .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
                 .frame(width: 25, height: 25)
@@ -2860,9 +3004,7 @@ struct ChatView: View {
                     .onChanged { value in
                         handleRecordGestureChanged(value)
                     }
-                    .onEnded { _ in
-                        finishRecordAttempt()
-                    }
+                    .onEnded { _ in }
             )
             .help(Text(AppStrings.recordAudio))
             .accessibilityLabel(AppStrings.recordAudio)
@@ -2886,19 +3028,67 @@ struct ChatView: View {
     }
 
     private func handleRecordGestureChanged(_ value: DragGesture.Value) {
-        if !recordAttemptActive {
-            beginRecordAttempt(startLocation: value.startLocation)
-        }
+        startRecordFromControlIfNeeded(startLocation: value.startLocation)
+    }
 
-        guard composerOverlay == .recording else { return }
-        recordDragOffsetX = min(0, value.translation.width)
-        let distance = hypot(value.translation.width, value.translation.height)
-        if distance > 100 && value.translation.width < -60 {
-            cancelRecordAttempt()
+    private func startRecordFromControlIfNeeded(startLocation: CGPoint = .zero) {
+        guard !recordAttemptActive, composerOverlay != .recording else { return }
+        beginRecordAttempt(startLocation: startLocation)
+    }
+
+    private func prepareRealtimeRecording() {
+        recordingLiveTranscript = ""
+        recordingRealtimeConnecting = false
+        composerRecorder.setPCMHandler(nil)
+        guard authManager.state == .authenticated else {
+            activeRecordingRealtimeSession = nil
+            return
+        }
+        let session = AudioRecordingRealtimeSession()
+        activeRecordingRealtimeSession = session
+        session.begin(authManager: authManager, chatID: chatId) { transcript, isConnecting in
+            guard activeRecordingRealtimeSession === session else { return }
+            recordingLiveTranscript = transcript
+            recordingRealtimeConnecting = isConnecting
+        }
+        composerRecorder.setPCMHandler { [weak session] samples, sampleRate in
+            session?.append(samples: samples, sampleRate: sampleRate)
         }
     }
 
+    private func finishRealtimeRecording(
+        duration: TimeInterval
+    ) -> (
+        waveform: AudioRecordingWaveform?,
+        realtimeResult: AudioRecordingRealtimeResultProvider?,
+        realtimeSession: AudioRecordingRealtimeSession?
+    ) {
+        let waveform = composerRecorder.recordingWaveform(duration: duration)
+        composerRecorder.setPCMHandler(nil)
+        guard let session = activeRecordingRealtimeSession else {
+            return (waveform, nil, nil)
+        }
+        session.finish()
+        activeRecordingRealtimeSession = nil
+        recordingLiveTranscript = ""
+        recordingRealtimeConnecting = false
+        let provider: AudioRecordingRealtimeResultProvider = { [session] in
+            await session.awaitResult()
+        }
+        return (waveform, provider, session)
+    }
+
+    private func cancelRealtimeRecording() {
+        composerRecorder.setPCMHandler(nil)
+        guard let session = activeRecordingRealtimeSession else { return }
+        activeRecordingRealtimeSession = nil
+        recordingLiveTranscript = ""
+        recordingRealtimeConnecting = false
+        Task { await session.cancel() }
+    }
+
     private func beginRecordAttempt(startLocation _: CGPoint) {
+        dismissChatKeyboardForRecording()
         recordStartedFromKeyboard = false
         recordAttemptActive = true
         recordDragOffsetX = 0
@@ -2913,27 +3103,30 @@ struct ChatView: View {
             Task { @MainActor in
                 let granted = await composerRecorder.requestPermission()
                 micPermissionState = granted ? .granted : .denied
-                recordAttemptActive = false
-                showRecordHint(duration: granted ? 2500 : 0)
+                if granted && recordAttemptActive {
+                    beginRecordAttempt(startLocation: .zero)
+                } else {
+                    recordAttemptActive = false
+                    showRecordHint(duration: granted ? 2500 : 0)
+                }
             }
             return
         }
 
-        recordStartTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled, recordAttemptActive, micPermissionState == .granted else { return }
-            composerRecorder.startRecording()
-            guard composerRecorder.error == nil else {
-                micPermissionState = .denied
-                recordAttemptActive = false
-                showRecordHint(duration: 0)
-                return
-            }
-            withAnimation(.easeInOut(duration: 0.15)) {
-                composerOverlay = .recording
-                isInputFocused = true
-            }
+        prepareRealtimeRecording()
+        composerRecorder.startRecording()
+        guard composerRecorder.error == nil else {
+            cancelRealtimeRecording()
+            micPermissionState = .denied
+            recordAttemptActive = false
+            showRecordHint(duration: 0)
+            return
         }
+        withAnimation(.easeInOut(duration: 0.15)) {
+            composerOverlay = .recording
+            isInputFocused = false
+        }
+        dismissChatKeyboardForRecording(afterCurrentGesture: true)
     }
 
     private func finishRecordAttempt() {
@@ -2941,13 +3134,20 @@ struct ChatView: View {
         recordStartTask = nil
 
         if composerOverlay == .recording, let url = composerRecorder.stopRecording() {
+            let duration = composerRecorder.duration
+            let uploadContext = finishRealtimeRecording(duration: duration)
             composerOverlay = nil
             recordAttemptActive = false
             recordStartedFromKeyboard = false
             recordDragOffsetX = 0
-            Task {
-                await enqueueRecordingUpload(url: url, duration: composerRecorder.duration)
-            }
+            dismissChatKeyboardForRecording(afterCurrentGesture: true)
+            enqueueRecordingUpload(
+                url: url,
+                duration: duration,
+                waveform: uploadContext.waveform,
+                realtimeResult: uploadContext.realtimeResult,
+                realtimeSession: uploadContext.realtimeSession
+            )
             return
         }
 
@@ -2957,19 +3157,23 @@ struct ChatView: View {
         recordAttemptActive = false
         recordStartedFromKeyboard = false
         recordDragOffsetX = 0
+        dismissChatKeyboardForRecording(afterCurrentGesture: true)
     }
 
     private func cancelRecordAttempt() {
         recordStartTask?.cancel()
         recordStartTask = nil
         composerRecorder.cancelRecording()
+        cancelRealtimeRecording()
         composerOverlay = nil
         recordAttemptActive = false
         recordStartedFromKeyboard = false
         recordDragOffsetX = 0
+        dismissChatKeyboardForRecording(afterCurrentGesture: true)
     }
 
     private func beginKeyboardRecordAttempt() {
+        dismissChatKeyboardForRecording()
         recordStartedFromKeyboard = true
         recordAttemptActive = true
         recordDragOffsetX = 0
@@ -2984,28 +3188,55 @@ struct ChatView: View {
             Task { @MainActor in
                 let granted = await composerRecorder.requestPermission()
                 micPermissionState = granted ? .granted : .denied
-                recordAttemptActive = false
-                recordStartedFromKeyboard = false
-                showRecordHint(duration: granted ? 2500 : 0)
+                if granted && recordAttemptActive {
+                    beginKeyboardRecordAttempt()
+                } else {
+                    recordAttemptActive = false
+                    recordStartedFromKeyboard = false
+                    showRecordHint(duration: granted ? 2500 : 0)
+                }
             }
             return
         }
 
-        recordStartTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled, recordAttemptActive, recordStartedFromKeyboard, micPermissionState == .granted else { return }
-            composerRecorder.startRecording()
-            guard composerRecorder.error == nil else {
-                micPermissionState = .denied
-                recordAttemptActive = false
-                recordStartedFromKeyboard = false
-                showRecordHint(duration: 0)
-                return
-            }
-            withAnimation(.easeInOut(duration: 0.15)) {
-                composerOverlay = .recording
-                isInputFocused = true
-            }
+        prepareRealtimeRecording()
+        composerRecorder.startRecording()
+        guard composerRecorder.error == nil else {
+            micPermissionState = .denied
+            recordAttemptActive = false
+            recordStartedFromKeyboard = false
+            showRecordHint(duration: 0)
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.15)) {
+            composerOverlay = .recording
+            isInputFocused = false
+        }
+        dismissChatKeyboardForRecording(afterCurrentGesture: true)
+    }
+
+    private func dismissChatKeyboardForRecording(afterCurrentGesture: Bool = false) {
+        isInputFocused = false
+        #if os(iOS)
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
+        #endif
+        guard afterCurrentGesture else { return }
+        Task { @MainActor in
+            await Task.yield()
+            isInputFocused = false
+            #if os(iOS)
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
+            #endif
         }
     }
 

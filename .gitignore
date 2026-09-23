@@ -216,6 +216,7 @@ _backup
 .derivedData/
 apple/.derivedData/
 DerivedData/
+.runtime/
 
 # Deployment configuration
 # Allow template/example files, but ignore environment-specific overrides

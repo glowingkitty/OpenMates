@@ -39,3 +39,13 @@ Before replacing SwiftUI with UIKit, identify a concrete bottleneck, optimize ex
 If a touched file still uses default product UI, migrate that touched surface toward reusable OpenMates primitives rather than layering more modifiers onto native controls.
 
 Every touched Svelte product UI file must include a `Native Swift counterparts:` block in its header comment. Every touched Swift product UI file must include the matching Svelte/CSS source files in its header comment. Do not leave counterpart mapping implicit.
+
+Every touched production Swift file that implements Specification behavior must
+also list the approved `specifications/**/specification.yml` path and exact
+assertion IDs in its header. Put `// contract-test: direct|supporting
+surface=gui.apple assertions=<ids>` immediately above each Apple test that proves
+those assertions. Ensure the Specification declares Apple in
+`applies_to.gui.implementations.apple`, then regenerate the assertion index; its
+recorded Apple test paths and lines are the supported reciprocal links from the
+Specification to proof. Do not add unsupported implementation-path fields to
+Specification YAML.

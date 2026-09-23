@@ -2,6 +2,8 @@
 // Mirrors the web app's dual-phase send protocol: WebSocket plaintext for AI
 // processing, then client-encrypted metadata/messages for permanent storage.
 // Subscribes to StreamingClient for real-time AI response chunks.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context
 
 import Foundation
 import SwiftUI
@@ -2249,75 +2251,21 @@ final class ChatViewModel: ObservableObject {
         return supportedExtensions.contains(ext)
     }
 
-    func uploadRecording(url: URL, duration: TimeInterval) async -> ComposerPendingEmbed? {
+    func uploadRecording(
+        url: URL,
+        duration: TimeInterval,
+        waveform: AudioRecordingWaveform? = nil,
+        realtimeResult: AudioRecordingRealtimeResultProvider? = nil
+    ) async -> ComposerPendingEmbed? {
         guard let chatId = chat?.id else { return nil }
-        guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
-            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
-            return nil
-        }
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        let uploadId = UUID().uuidString
-        let filename = url.lastPathComponent
-        PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
-
-        guard let upload = await uploadData(
-            data,
-            filename: filename,
-            uploadId: uploadId,
-            contentType: "audio/mp4",
-            markFinishedOnSuccess: false
-        ) else {
-            return nil
-        }
-
-        PendingUploadStore.shared.updateStatus(id: uploadId, status: .transcribing)
-        let s3Key = upload.files["original"]?.s3Key ?? upload.files.values.first?.s3Key
-        guard let s3Key else {
-            PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
-            return nil
-        }
-
-        let embedId = UUID().uuidString
-        let request: [String: Any] = [
-            "requests": [[
-                "id": embedId,
-                "embed_id": upload.embedId,
-                "s3_key": s3Key,
-                "s3_base_url": upload.s3BaseUrl,
-                "aes_key": upload.aesKey,
-                "aes_nonce": upload.aesNonce,
-                "vault_wrapped_aes_key": upload.vaultWrappedAesKey,
-                "filename": filename,
-                "mime_type": "audio/mp4",
-                "chat_id": chatId
-            ]]
-        ]
-
-        do {
-            let response: TranscribeSkillResponse = try await APIClient.shared.request(
-                .post,
-                path: "apps/audio/skills/transcribe",
-                body: request
-            )
-            let transcription = response.data.results.first?.results.first
-            let embed = registerPendingComposerEmbed(
-                upload,
-                localData: data,
-                transcription: transcription,
-                duration: duration,
-                piiMappings: [],
-                textContent: nil
-            )
-            PendingUploadStore.shared.markFinished(id: uploadId)
-            return embed
-        } catch {
-            NativeDiagnostics.error(
-                "Composer recording transcription failed: \(type(of: error))",
-                category: "apple_composer"
-            )
-            PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
-            return nil
-        }
+        guard let embed = await AudioRecordingUploadService.prepare(
+            url: url,
+            duration: duration,
+            chatId: chatId,
+            waveform: waveform,
+            realtimeResult: realtimeResult
+        ) else { return nil }
+        return registerPendingComposerEmbed(embed)
     }
 
     private func uploadData(
@@ -2522,7 +2470,7 @@ struct ChatContentBatchPayload: Decodable {
     }
 }
 
-struct UploadFileResponse: Decodable {
+struct UploadFileResponse: Decodable, Equatable, Sendable {
     let embedId: String
     let filename: String
     let contentType: String
@@ -2536,7 +2484,7 @@ struct UploadFileResponse: Decodable {
     let deduplicated: Bool?
 }
 
-struct UploadedFileVariant: Decodable {
+struct UploadedFileVariant: Decodable, Equatable, Sendable {
     let s3Key: String
     let sizeBytes: Int?
     let width: Int?
@@ -2544,28 +2492,274 @@ struct UploadedFileVariant: Decodable {
     let format: String?
 }
 
-struct TranscriptionMetadata: Decodable {
+struct AudioRecordingWaveform: Codable, Equatable, Sendable {
+    static let version = 1
+    static let kind = "rms-envelope"
+    static let sampleCount = 128
+
+    let version: Int
+    let kind: String
+    let samples: [Int]
+    let durationSeconds: TimeInterval?
+
+    init?(normalizedLevels: [Double], duration: TimeInterval?) {
+        let levels = normalizedLevels.filter(\.isFinite)
+        guard !levels.isEmpty else { return nil }
+        let resampled = (0..<Self.sampleCount).map { index in
+            let start = min(levels.count - 1, index * levels.count / Self.sampleCount)
+            let end = min(levels.count, max(start + 1, (index + 1) * levels.count / Self.sampleCount))
+            let sumOfSquares = levels[start..<end].reduce(0.0) { partial, rawLevel in
+                let level = min(1, max(0, rawLevel))
+                return partial + level * level
+            }
+            return Int((sqrt(sumOfSquares / Double(max(1, end - start))) * 100).rounded())
+        }
+        self.init(samples: resampled, duration: duration)
+    }
+
+    init?(samples: [Int], duration: TimeInterval?) {
+        guard !samples.isEmpty else { return nil }
+        version = Self.version
+        kind = Self.kind
+        self.samples = samples.map { min(100, max(0, $0)) }
+        durationSeconds = duration.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
+    }
+
+    var contentObject: [String: Any] {
+        var object: [String: Any] = [
+            "version": version,
+            "kind": kind,
+            "samples": samples
+        ]
+        if let durationSeconds { object["duration_seconds"] = durationSeconds }
+        return object
+    }
+}
+
+struct AudioRecordingRealtimeResult: Equatable, Sendable {
+    let title: String?
+    let transcript: String
+    let transcriptOriginal: String
+    let transcriptCorrected: String?
+    let useCorrected: Bool
+    let model: String
+    let correctionModel: String?
+
+    var transcriptionMetadata: TranscriptionMetadata {
+        TranscriptionMetadata(
+            title: title,
+            transcript: transcript,
+            transcriptOriginal: transcriptOriginal,
+            transcriptCorrected: transcriptCorrected,
+            useCorrected: useCorrected,
+            model: model,
+            correctionModel: correctionModel,
+            waveform: nil
+        )
+    }
+}
+
+typealias AudioRecordingRealtimeResultProvider = @MainActor @Sendable () async -> AudioRecordingRealtimeResult?
+
+struct AudioRecordingUploadPipelineResult: Equatable, Sendable {
+    let upload: UploadFileResponse
+    let transcription: TranscriptionMetadata
+}
+
+@MainActor
+enum AudioRecordingUploadPipeline {
+    typealias Upload = @MainActor @Sendable () async -> UploadFileResponse?
+    typealias BatchTranscription = @MainActor @Sendable (UploadFileResponse) async -> TranscriptionMetadata?
+
+    static func run(
+        waveform: AudioRecordingWaveform?,
+        realtimeResult: AudioRecordingRealtimeResultProvider?,
+        upload: @escaping Upload,
+        batchTranscription: @escaping BatchTranscription
+    ) async -> AudioRecordingUploadPipelineResult? {
+        let realtimeTask = Task { @MainActor in
+            await resolveRealtime(realtimeResult)
+        }
+        async let uploaded = upload()
+
+        guard let uploadResult = await uploaded else {
+            realtimeTask.cancel()
+            return nil
+        }
+        let transcription: TranscriptionMetadata
+        if let realtimeResult = await realtimeTask.value {
+            transcription = realtimeResult.transcriptionMetadata.withWaveform(waveform)
+        } else {
+            guard let batchResult = await batchTranscription(uploadResult) else { return nil }
+            transcription = batchResult.withWaveform(waveform ?? batchResult.waveform)
+        }
+        return AudioRecordingUploadPipelineResult(upload: uploadResult, transcription: transcription)
+    }
+
+    private static func resolveRealtime(
+        _ realtimeResult: AudioRecordingRealtimeResultProvider?
+    ) async -> AudioRecordingRealtimeResult? {
+        await realtimeResult?()
+    }
+}
+
+@MainActor
+enum AudioRecordingUploadService {
+    static func prepare(
+        url: URL,
+        duration: TimeInterval,
+        chatId: String,
+        waveform: AudioRecordingWaveform? = nil,
+        realtimeResult: AudioRecordingRealtimeResultProvider? = nil
+    ) async -> ComposerPendingEmbed? {
+        guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
+            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
+            return nil
+        }
+        guard let data = try? Data(contentsOf: url) else { return nil }
+
+        let uploadId = UUID().uuidString
+        let filename = url.lastPathComponent
+        let mimeType = "audio/mp4"
+        PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
+        PendingUploadStore.shared.updateStatus(id: uploadId, status: .transcribing)
+
+        let pipeline = await AudioRecordingUploadPipeline.run(
+            waveform: waveform,
+            realtimeResult: realtimeResult,
+            upload: {
+                await upload(
+                    data: data,
+                    filename: filename,
+                    contentType: mimeType,
+                    chatId: chatId,
+                    uploadId: uploadId
+                )
+            },
+            batchTranscription: { upload in
+                await batchTranscription(
+                    upload: upload,
+                    filename: filename,
+                    mimeType: mimeType,
+                    chatId: chatId
+                )
+            }
+        )
+
+        guard let pipeline else {
+            PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
+            return nil
+        }
+        let embed = ComposerPendingEmbed.from(
+            upload: pipeline.upload,
+            localData: data,
+            transcription: pipeline.transcription,
+            duration: duration,
+            piiMappings: [],
+            textContent: nil
+        )
+        PendingUploadStore.shared.markFinished(id: uploadId)
+        return embed
+    }
+
+    private static func upload(
+        data: Data,
+        filename: String,
+        contentType: String,
+        chatId: String,
+        uploadId: String
+    ) async -> UploadFileResponse? {
+        do {
+            let responseData = try await APIClient.shared.uploadFile(
+                data: data,
+                filename: filename,
+                contentType: contentType,
+                chatId: chatId
+            )
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let upload = try decoder.decode(UploadFileResponse.self, from: responseData)
+            PendingUploadStore.shared.updateProgress(id: uploadId, progress: 1.0)
+            return upload
+        } catch {
+            NativeDiagnostics.error(
+                "Composer recording upload failed: \(type(of: error))",
+                category: "apple_composer"
+            )
+            return nil
+        }
+    }
+
+    private static func batchTranscription(
+        upload: UploadFileResponse,
+        filename: String,
+        mimeType: String,
+        chatId: String
+    ) async -> TranscriptionMetadata? {
+        let s3Key = upload.files["original"]?.s3Key ?? upload.files.values.first?.s3Key
+        guard let s3Key else { return nil }
+
+        let requestId = UUID().uuidString
+        let request: [String: Any] = [
+            "requests": [[
+                "id": requestId,
+                "embed_id": upload.embedId,
+                "s3_key": s3Key,
+                "s3_base_url": upload.s3BaseUrl,
+                "aes_key": upload.aesKey,
+                "aes_nonce": upload.aesNonce,
+                "vault_wrapped_aes_key": upload.vaultWrappedAesKey,
+                "filename": filename,
+                "mime_type": mimeType,
+                "chat_id": chatId
+            ]]
+        ]
+
+        do {
+            let response: TranscribeSkillResponse = try await APIClient.shared.request(
+                .post,
+                path: "apps/audio/skills/transcribe",
+                body: request
+            )
+            return response.data.results.first?.results.first
+        } catch {
+            NativeDiagnostics.error(
+                "Composer recording transcription failed: \(type(of: error))",
+                category: "apple_composer"
+            )
+            return nil
+        }
+    }
+}
+
+struct TranscriptionMetadata: Decodable, Equatable, Sendable {
+    let title: String?
     let transcript: String?
     let transcriptOriginal: String?
     let transcriptCorrected: String?
     let useCorrected: Bool?
     let model: String?
     let correctionModel: String?
+    let waveform: AudioRecordingWaveform?
 
     init(
+        title: String? = nil,
         transcript: String?,
         transcriptOriginal: String? = nil,
         transcriptCorrected: String? = nil,
         useCorrected: Bool? = nil,
         model: String? = nil,
-        correctionModel: String? = nil
+        correctionModel: String? = nil,
+        waveform: AudioRecordingWaveform? = nil
     ) {
+        self.title = title
         self.transcript = transcript
         self.transcriptOriginal = transcriptOriginal
         self.transcriptCorrected = transcriptCorrected
         self.useCorrected = useCorrected
         self.model = model
         self.correctionModel = correctionModel
+        self.waveform = waveform
     }
 
     var displayTranscript: String? {
@@ -2573,6 +2767,19 @@ struct TranscriptionMetadata: Decodable {
             return transcriptCorrected
         }
         return transcript
+    }
+
+    func withWaveform(_ waveform: AudioRecordingWaveform?) -> TranscriptionMetadata {
+        TranscriptionMetadata(
+            title: title,
+            transcript: transcript,
+            transcriptOriginal: transcriptOriginal,
+            transcriptCorrected: transcriptCorrected,
+            useCorrected: useCorrected,
+            model: model,
+            correctionModel: correctionModel,
+            waveform: waveform
+        )
     }
 }
 
@@ -2658,7 +2865,7 @@ struct ComposerPendingEmbed: Identifiable {
             textContent: textContent
         )
         let content = classification.shouldSendContent ? jsonString(contentObject) : nil
-        let preview = transcription?.displayTranscript ?? upload.filename
+        let preview = transcription?.title ?? transcription?.displayTranscript ?? upload.filename
         let record = EmbedRecord(
             id: upload.embedId,
             type: classification.embedType,
@@ -2799,6 +3006,7 @@ private struct ComposerUploadClassification {
         if let contentHash = upload.contentHash { object["content_hash"] = contentHash }
         if let pageCount = upload.pageCount { object["page_count"] = pageCount }
         if let transcription {
+            if let title = transcription.title { object["title"] = title }
             if let transcript = transcription.transcript { object["transcript"] = transcript }
             if let displayTranscript = transcription.displayTranscript { object["transcription"] = displayTranscript }
             if let transcriptOriginal = transcription.transcriptOriginal { object["transcript_original"] = transcriptOriginal }
@@ -2806,6 +3014,7 @@ private struct ComposerUploadClassification {
             if let useCorrected = transcription.useCorrected { object["use_corrected"] = useCorrected }
             if let model = transcription.model { object["model"] = model }
             if let correctionModel = transcription.correctionModel { object["correction_model"] = correctionModel }
+            if let waveform = transcription.waveform { object["waveform"] = waveform.contentObject }
         }
         if let duration { object["duration"] = duration }
         if let textContent, !textContent.isEmpty, appId == "docs" {

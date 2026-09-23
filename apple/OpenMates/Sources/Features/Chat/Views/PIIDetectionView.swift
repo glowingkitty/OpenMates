@@ -1,6 +1,13 @@
 // PII detection UI — warns user about personal data in messages.
 // Shows detected PII count with option to exclude individual entries.
 // Replaces PII with placeholders like [EMAIL_1], [PHONE_1] on send.
+//
+// Web sources:
+// - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+// - frontend/packages/ui/src/components/enter_message/services/placeholderRewriteService.ts
+// Specification: specifications/features/pii-protection/specification.yml
+// Assertions: pii.composer.detect-redact-exclude, pii.outbound.known-original-rewrite,
+//             pii.surface.semantic-parity
 
 import SwiftUI
 import CryptoKit
@@ -258,7 +265,11 @@ enum PIIDetector {
             }
             pattern.expression.enumerateMatches(in: text, options: [], range: fullRange) { result, _, _ in
                 guard let result else { return }
-                let range = result.range(at: result.numberOfRanges > 1 && result.range(at: 1).location != NSNotFound ? 1 : 0)
+                // Match the browser detector's `regexMatch[0]` contract. Several
+                // context-dependent patterns contain a capture group for the
+                // secret or identifier, but web highlights and replaces the full
+                // phrase (for example `password=...`), not only that capture.
+                let range = result.range(at: 0)
                 guard range.location != NSNotFound, range.length > 0 else { return }
                 guard !urlExclusionRanges.contains(where: { NSIntersectionRange($0, range).length == range.length }) else { return }
                 guard !occupied.contains(where: { NSIntersectionRange($0, range).length > 0 }) else { return }

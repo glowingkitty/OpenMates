@@ -290,6 +290,47 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertTrue(result.mappings.contains { $0.original == "sarah@proton.com" && $0.type == "EMAIL" })
     }
 
+    // contract-test: direct surface=gui.apple assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
+    func testContextualPIIPatternsReplaceTheSameFullMatchAsWeb() throws {
+        let awsSecret = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn"
+        let azureSecret = "0123456789abcdef0123456789abcdef"
+        let fixtures: [(text: String, type: PIIType, expectedOriginal: String)] = [
+            ("password=supersecret123", .genericSecret, "password=supersecret123"),
+            ("aws_secret=\(awsSecret)", .awsSecretKey, "aws_secret=\(awsSecret)"),
+            ("azure_key=\(azureSecret)", .azureKey, "azure_key=\(azureSecret)"),
+            ("passport no: C01X00T47", .passport, "passport no: C01X00T47"),
+            ("tax id: 12-3456789", .taxId, "tax id: 12-3456789"),
+            ("license plate: B AB 1234", .vehiclePlate, "license plate: B AB 1234"),
+        ]
+
+        for fixture in fixtures {
+            let match = try XCTUnwrap(
+                PIIDetector.detect(in: fixture.text).first { $0.type == fixture.type },
+                "Expected \(fixture.type.rawValue) in \(fixture.text)"
+            )
+            XCTAssertEqual(match.value, fixture.expectedOriginal)
+            XCTAssertEqual((fixture.text as NSString).substring(with: match.range), fixture.expectedOriginal)
+            XCTAssertEqual(match.id, "pii-\(fixture.type.rawValue)-0")
+
+            let redaction = PIIDetector.redactionResult(in: fixture.text, matches: [match])
+            XCTAssertEqual(redaction.redactedText, match.placeholder)
+            XCTAssertEqual(redaction.mappings.first?.original, fixture.expectedOriginal)
+            XCTAssertEqual(redaction.mappings.first?.type, fixture.type.rawValue)
+
+            let excludedRedaction = PIIDetector.redactionResult(
+                in: fixture.text,
+                matches: [match],
+                excludedIds: [match.id]
+            )
+            XCTAssertEqual(
+                excludedRedaction.redactedText,
+                fixture.text,
+                "The same stable full-match ID must preserve the current-send exclusion"
+            )
+            XCTAssertTrue(excludedRedaction.mappings.isEmpty)
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testSendTimeRedactionUsesCurrentPrivacySettingsInsteadOfCachedMatches() {
         let text = "Email alice@example.com about Project Orchid."

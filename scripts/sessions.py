@@ -5075,10 +5075,13 @@ def _enforce_vercel_standard_build_machine() -> None:
 def _verify_vercel_build_machine_for_paths(files: list[str]) -> None:
     """Keep the paid-build gate for web changes and unknown deploy scope.
 
-    Local Mac Apple-only deployments have no web source impact. The web build
-    cost check remains mandatory on other hosts and whenever web inputs change.
+    Local Mac Apple-only deployments have no web source impact. Apple Plan
+    documents are part of that scope even though generic docs trigger web CI.
+    The web build cost check remains mandatory on other hosts and whenever web
+    inputs change.
     """
-    if files and sys.platform == "darwin" and not ci_impact.classify_paths(files).web:
+    web_inputs = [path for path in files if not path.startswith("docs/plans/apple-")]
+    if files and sys.platform == "darwin" and not ci_impact.classify_paths(web_inputs).web:
         print("Vercel build machine: SKIPPED (local Mac, no web-impacting files)")
         return
     print("Checking Vercel web app build machine...")

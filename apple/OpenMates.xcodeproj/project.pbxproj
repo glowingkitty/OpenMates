@@ -398,6 +398,11 @@
 		C0FFEE00000000000003600B /* WorkflowStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036005 /* WorkflowStore.swift */; };
 		C0FFEE00000000000003600C /* WorkflowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036006 /* WorkflowViews.swift */; };
 		C0FFEE000000000000037002 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
+		A0D100000000000000000002 /* AudioRealtimeTranscriptionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D100000000000000000001 /* AudioRealtimeTranscriptionClient.swift */; };
+		A0D100000000000000000003 /* AudioRealtimeTranscriptionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D100000000000000000001 /* AudioRealtimeTranscriptionClient.swift */; };
+		A0D100000000000000000005 /* AudioRealtimeTranscriptionClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D100000000000000000004 /* AudioRealtimeTranscriptionClientTests.swift */; };
+		A0D100000000000000000007 /* ChatAudioPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D100000000000000000006 /* ChatAudioPipelineTests.swift */; };
+		A0D200000000000000000002 /* APIClientUploadTransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D200000000000000000001 /* APIClientUploadTransportTests.swift */; };
 		C0FFEE000000000000037003 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
 		C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */; };
 		C0FFEE000000000000038002 /* ChatStreamingLifecycleParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */; };
@@ -1018,6 +1023,10 @@
 		A10000000000000000000005 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		A10000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000008 /* OpenMatesNotificationService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenMatesNotificationService.entitlements; sourceTree = "<group>"; };
+		A0D100000000000000000001 /* AudioRealtimeTranscriptionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRealtimeTranscriptionClient.swift; sourceTree = "<group>"; };
+		A0D100000000000000000004 /* AudioRealtimeTranscriptionClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift; sourceTree = SOURCE_ROOT; };
+		A0D100000000000000000006 /* ChatAudioPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesTests/ChatAudioPipelineTests.swift; sourceTree = SOURCE_ROOT; };
+		A0D200000000000000000001 /* APIClientUploadTransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesTests/APIClientUploadTransportTests.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000009 /* OpenMatesNotificationService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OpenMatesNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		50826BC7A9753643CB205C57 /* FontRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontRegistration.swift; sourceTree = "<group>"; };
 		57079AD3AF054B1475AB1E48 /* NutritionSearchIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionSearchIntent.swift; sourceTree = "<group>"; };
@@ -1557,6 +1566,7 @@
 			isa = PBXGroup;
 			children = (
 				EF7ECFDB350FFF2DF2E494E9 /* APIClient.swift */,
+				A0D100000000000000000001 /* AudioRealtimeTranscriptionClient.swift */,
 				C0DE00000000000000000001 /* CodeRunService.swift */,
 				710225174647E1642E8B5863 /* DeepLinkHandler.swift */,
 				A10000000000000000000001 /* NotificationPreviewCrypto.swift */,
@@ -2030,6 +2040,9 @@
 		C0FFEE000000000000002012 /* OpenMatesTests */ = {
 			isa = PBXGroup;
 			children = (
+				A0D100000000000000000004 /* AudioRealtimeTranscriptionClientTests.swift */,
+				A0D100000000000000000006 /* ChatAudioPipelineTests.swift */,
+				A0D200000000000000000001 /* APIClientUploadTransportTests.swift */,
 				C0FFEE000000000000053001 /* ChatCompletionRecoveryTests.swift */,
 				B70000000000000000000005 /* SettingsPrivacyParityTests.swift */,
 				C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */,
@@ -2799,6 +2812,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A0D100000000000000000003 /* AudioRealtimeTranscriptionClient.swift in Sources */,
 				C0FFEE00000000000003600A /* WorkflowAPI.swift in Sources */,
 				C0FFEE000000000000036009 /* WorkflowModels.swift in Sources */,
 				C0FFEE00000000000003600B /* WorkflowStore.swift in Sources */,
@@ -3085,6 +3099,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A0D100000000000000000002 /* AudioRealtimeTranscriptionClient.swift in Sources */,
 				87BC11EACC54693695953576 /* AITypingIndicator.swift in Sources */,
 				555AD52BB0EB143F00E3B872 /* APIClient.swift in Sources */,
 				C0DE00000000000000000002 /* CodeRunService.swift in Sources */,
@@ -3471,6 +3486,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A0D100000000000000000005 /* AudioRealtimeTranscriptionClientTests.swift in Sources */,
+				A0D100000000000000000007 /* ChatAudioPipelineTests.swift in Sources */,
+				A0D200000000000000000002 /* APIClientUploadTransportTests.swift in Sources */,
 				C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */,
 				C0FFEE000000000000053002 /* ChatCompletionRecoveryTests.swift in Sources */,
 				C0FFEE000000000000048024 /* WatchPairLoginRuntimeTests.swift in Sources */,

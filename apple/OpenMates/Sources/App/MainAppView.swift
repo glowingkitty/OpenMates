@@ -2,6 +2,8 @@
 // Uses NavigationSplitView for adaptive layout across iPhone, iPad, and Mac.
 // Sidebar shows chat list; detail shows active chat or empty state.
 // Manages WebSocket connection and phased sync lifecycle.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/apps/web_app/src/routes/+page.svelte  (top-level layout)
@@ -4984,6 +4986,7 @@ private enum WelcomeComposerPendingKind {
 
 struct NewChatWelcomeView: View {
     let isIncognito: Bool
+    @EnvironmentObject private var authManager: AuthManager
     @StateObject private var modelHost = NativeComposerModelHost()
     @State private var modelDraftID = DraftService.shared.activeNewChatDraftId ?? UUID().uuidString.lowercased()
     let inspirations: [DailyInspirationBanner.DailyInspiration]
@@ -5038,6 +5041,14 @@ struct NewChatWelcomeView: View {
     @State private var draftSaveTask: Task<Void, Never>?
     @State private var suppressNextDraftSave = false
     @State private var isCreatingChat = false
+    @State private var isRecordingUploadPending = false
+    @State private var recordingUploadID: UUID?
+    @State private var recordingUploadTask: Task<Void, Never>?
+    @State private var recordingTemporaryURL: URL?
+    @State private var guestRecordingNodeIDs = Set<String>()
+    @State private var activeRecordingRealtimeSession: AudioRecordingRealtimeSession?
+    @State private var recordingLiveTranscript = ""
+    @State private var recordingRealtimeConnecting = false
     #if DEBUG
     @State private var welcomeSendStage = "idle"
     #endif
@@ -5325,11 +5336,12 @@ struct NewChatWelcomeView: View {
                     canSendAnonymously: canSendAnonymously,
                     piiMatches: activePIIMatches,
                     anonymousAttachmentPending: anonymousAttachmentPending,
-                    isSubmitting: isCreatingChat,
+                    isSubmitting: isCreatingChat || isRecordingUploadPending,
                     pendingComposerEmbeds: pendingComposerEmbeds,
                     recordHintText: recordHintText,
                     recordAttemptActive: recordAttemptActive,
                     isOverlayActive: composerOverlay != nil,
+                    isRecordingOverlayActive: composerOverlay == .recording,
                     isAttachmentMenuPresented: $showAttachmentMenu,
                     onRemovePendingEmbed: removePendingComposerEmbed,
                     onExcludePII: { match in piiExclusions.insert(match.id) },
@@ -5341,8 +5353,8 @@ struct NewChatWelcomeView: View {
                     onLocation: openLocationOverlay,
                     onSketch: openSketchOverlay,
                     onCamera: openCameraCapture,
+                    onRecordStart: startWelcomeRecordingIfNeeded,
                     onRecordChanged: handleRecordGestureChanged,
-                    onRecordEnded: finishRecordAttempt,
                     onDismiss: dismissWelcomeComposer,
                     overlayContent: welcomeComposerOverlayView()
                 )
@@ -5421,6 +5433,11 @@ struct NewChatWelcomeView: View {
         .onDisappear {
             draftSaveTask?.cancel()
             flushNewChatDraft()
+            if composerOverlay == .recording || recordAttemptActive {
+                cancelWelcomeRecording()
+            } else {
+                cancelWelcomeRealtimeRecording()
+            }
         }
         .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
             updatePIIMatches(for: messageText)
@@ -5643,19 +5660,192 @@ struct NewChatWelcomeView: View {
 
     private func handleRecordGestureChanged(_ value: DragGesture.Value) {
         guard !recordGestureCancelled else { return }
-        if !recordAttemptActive {
-            beginRecordAttempt()
+        startWelcomeRecordingIfNeeded()
+    }
+
+    private func startWelcomeRecordingIfNeeded() {
+        guard !recordAttemptActive, composerOverlay != .recording else { return }
+        beginRecordAttempt()
+    }
+
+    private func prepareWelcomeRealtimeRecording() {
+        recordingLiveTranscript = ""
+        recordingRealtimeConnecting = false
+        composerRecorder.setPCMHandler(nil)
+        guard isAuthenticated, authManager.state == .authenticated else {
+            activeRecordingRealtimeSession = nil
+            return
+        }
+        let session = AudioRecordingRealtimeSession()
+        activeRecordingRealtimeSession = session
+        session.begin(authManager: authManager, chatID: modelDraftID) { transcript, isConnecting in
+            guard activeRecordingRealtimeSession === session else { return }
+            recordingLiveTranscript = transcript
+            recordingRealtimeConnecting = isConnecting
+        }
+        composerRecorder.setPCMHandler { [weak session] samples, sampleRate in
+            session?.append(samples: samples, sampleRate: sampleRate)
+        }
+    }
+
+    private func finishWelcomeRealtimeRecording(
+        duration: TimeInterval
+    ) -> (
+        waveform: AudioRecordingWaveform?,
+        realtimeResult: AudioRecordingRealtimeResultProvider?,
+        realtimeSession: AudioRecordingRealtimeSession?
+    ) {
+        let waveform = composerRecorder.recordingWaveform(duration: duration)
+        composerRecorder.setPCMHandler(nil)
+        guard let session = activeRecordingRealtimeSession else { return (waveform, nil, nil) }
+        session.finish()
+        activeRecordingRealtimeSession = nil
+        recordingLiveTranscript = ""
+        recordingRealtimeConnecting = false
+        let provider: AudioRecordingRealtimeResultProvider = { [session] in
+            await session.awaitResult()
+        }
+        return (waveform, provider, session)
+    }
+
+    private func cancelWelcomeRealtimeRecording() {
+        composerRecorder.setPCMHandler(nil)
+        guard let session = activeRecordingRealtimeSession else { return }
+        activeRecordingRealtimeSession = nil
+        recordingLiveTranscript = ""
+        recordingRealtimeConnecting = false
+        Task { await session.cancel() }
+    }
+
+    private func enqueueWelcomeRecordingUpload(url: URL, duration: TimeInterval) {
+        guard isAuthenticated, authManager.state == .authenticated else {
+            cancelWelcomeRealtimeRecording()
+            addGuestRecordingPreview(url: url, duration: duration)
+            return
+        }
+        let context = finishWelcomeRealtimeRecording(duration: duration)
+        let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
+        do {
+            try composerSession.insertPendingEmbed(
+                nodeID: nodeID,
+                embedType: "recording",
+                title: url.lastPathComponent
+            )
+        } catch {
+            try? FileManager.default.removeItem(at: url)
+            NativeDiagnostics.error("Welcome recording insertion failed: \(type(of: error))", category: "apple_composer")
+            showRecordHint(duration: 0)
+            return
         }
 
-        guard composerOverlay == .recording else { return }
-        recordDragOffsetX = min(0, value.translation.width)
-        let distance = hypot(value.translation.width, value.translation.height)
-        if distance > 100 && value.translation.width < -60 {
-            cancelWelcomeRecording(markGestureCancelled: true)
+        let uploadID = UUID()
+        recordingUploadID = uploadID
+        recordingTemporaryURL = url
+        isRecordingUploadPending = true
+        isComposerActivated = true
+        isFocused = false
+        context.realtimeSession?.observeRawTranscript { transcript in
+            guard recordingUploadID == uploadID,
+                  composerSession.controller.document.nodes.contains(where: { $0.id == nodeID }) else { return }
+            try? composerSession.updateEmbed(
+                nodeID: nodeID,
+                status: AppleComposerEmbedLifecycleState.correcting.rawValue
+            )
+            try? composerSession.updatePendingEmbedTitle(nodeID: nodeID, title: transcript)
+        }
+        recordingUploadTask = Task { @MainActor in
+            let embed = await AudioRecordingUploadService.prepare(
+                url: url,
+                duration: duration,
+                chatId: modelDraftID,
+                waveform: context.waveform,
+                realtimeResult: context.realtimeResult
+            )
+            guard recordingUploadID == uploadID, !Task.isCancelled else {
+                if let embed { pendingComposerEmbeds.removeAll { $0.id == embed.id } }
+                cleanupWelcomeRecordingTemporaryFile()
+                return
+            }
+            recordingUploadID = nil
+            recordingUploadTask = nil
+            isRecordingUploadPending = false
+            guard let embed else {
+                try? composerSession.removeEmbed(nodeID: nodeID)
+                cleanupWelcomeRecordingTemporaryFile()
+                showRecordHint(duration: 0)
+                return
+            }
+            try? composerSession.updatePendingEmbedTitle(
+                nodeID: nodeID,
+                title: embed.textPreview.flatMap { $0.isEmpty ? nil : $0 } ?? url.lastPathComponent
+            )
+            pendingComposerEmbeds.removeAll { $0.id == embed.id }
+            pendingComposerEmbeds.append(embed)
+            do {
+                try composerSession.resolveEmbed(
+                    nodeID: nodeID,
+                    durableEmbedID: embed.id,
+                    referenceType: embed.referenceType,
+                    status: embed.status,
+                    embedRecord: embed.record,
+                    localPreviewData: embed.localData
+                )
+                try composerSession.configureEmbedActions(
+                    nodeID: nodeID,
+                    onOpen: { _ in },
+                    onRetry: { _ in },
+                    onRemove: { _ in pendingComposerEmbeds.removeAll { $0.id == embed.id } }
+                )
+                cleanupWelcomeRecordingTemporaryFile()
+            } catch {
+                pendingComposerEmbeds.removeAll { $0.id == embed.id }
+                try? composerSession.removeEmbed(nodeID: nodeID)
+                cleanupWelcomeRecordingTemporaryFile()
+                NativeDiagnostics.error(
+                    "Welcome recording resolution failed: \(type(of: error))",
+                    category: "apple_composer"
+                )
+                showRecordHint(duration: 0)
+            }
+        }
+    }
+
+    private func addGuestRecordingPreview(url: URL, duration: TimeInterval) {
+        defer { try? FileManager.default.removeItem(at: url) }
+        guard let data = try? Data(contentsOf: url), !data.isEmpty else {
+            showRecordHint(duration: 0)
+            return
+        }
+        let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
+        do {
+            try composerSession.insertPendingEmbed(
+                nodeID: nodeID,
+                embedType: "recording",
+                title: url.lastPathComponent,
+                localPreviewData: data
+            )
+            try composerSession.updateEmbed(
+                nodeID: nodeID,
+                status: AppleComposerEmbedLifecycleState.finished.rawValue
+            )
+            try composerSession.configureEmbedActions(
+                nodeID: nodeID,
+                onOpen: { _ in },
+                onRetry: { _ in },
+                onRemove: { _ in guestRecordingNodeIDs.remove(nodeID) }
+            )
+            guestRecordingNodeIDs.insert(nodeID)
+            anonymousAttachmentPending = true
+            isComposerActivated = true
+            isFocused = false
+        } catch {
+            try? composerSession.removeEmbed(nodeID: nodeID)
+            showRecordHint(duration: 0)
         }
     }
 
     private func beginRecordAttempt(startedFromKeyboard: Bool = false) {
+        dismissWelcomeKeyboardForRecording()
         recordGestureCancelled = false
         recordStartedFromKeyboard = startedFromKeyboard
         recordAttemptActive = true
@@ -5671,41 +5861,57 @@ struct NewChatWelcomeView: View {
             Task { @MainActor in
                 let granted = await composerRecorder.requestPermission()
                 micPermissionState = granted ? .granted : .denied
-                recordAttemptActive = false
-                recordStartedFromKeyboard = false
-                if granted && startedFromKeyboard {
-                    beginRecordAttempt(startedFromKeyboard: true)
+                if granted && (recordAttemptActive || startedFromKeyboard) {
+                    beginRecordAttempt(startedFromKeyboard: startedFromKeyboard)
                 } else {
+                    recordAttemptActive = false
+                    recordStartedFromKeyboard = false
                     showRecordHint(duration: granted ? 2500 : 0)
                 }
             }
             return
         }
 
-        recordStartTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled, recordAttemptActive, micPermissionState == .granted else { return }
-            if isUITestWelcomeSimulatedRecording {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    composerOverlay = .recording
-                    isComposerActivated = true
-                    isFocused = true
-                }
-                return
-            }
-            composerRecorder.startRecording()
-            guard composerRecorder.error == nil else {
-                micPermissionState = .denied
-                recordAttemptActive = false
-                recordStartedFromKeyboard = false
-                showRecordHint(duration: 0)
-                return
-            }
-            withAnimation(.easeInOut(duration: 0.15)) {
-                composerOverlay = .recording
-                isComposerActivated = true
-                isFocused = true
-            }
+        prepareWelcomeRealtimeRecording()
+        composerRecorder.startRecording()
+        guard composerRecorder.error == nil else {
+            cancelWelcomeRealtimeRecording()
+            micPermissionState = .denied
+            recordAttemptActive = false
+            recordStartedFromKeyboard = false
+            showRecordHint(duration: 0)
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.15)) {
+            composerOverlay = .recording
+            isComposerActivated = true
+            isFocused = false
+        }
+        dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
+    }
+
+    private func dismissWelcomeKeyboardForRecording(afterCurrentGesture: Bool = false) {
+        isFocused = false
+        #if os(iOS)
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
+        #endif
+        guard afterCurrentGesture else { return }
+        Task { @MainActor in
+            await Task.yield()
+            isFocused = false
+            #if os(iOS)
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
+            #endif
         }
     }
 
@@ -5720,20 +5926,22 @@ struct NewChatWelcomeView: View {
 
         if composerOverlay == .recording {
             let duration = max(composerRecorder.duration, 1)
-            let filename: String
-            if isUITestWelcomeSimulatedRecording {
-                filename = "recording-ui-test.m4a"
+            if isUITestWelcomeSimulatedRecording && !isUITestWelcomeGuestLocalRecording {
+                _ = composerRecorder.stopRecording()
+                cancelWelcomeRealtimeRecording()
+                addPendingComposerEmbed(filename: "recording-ui-test.m4a", kind: .audio, duration: duration)
             } else if let url = composerRecorder.stopRecording() {
-                filename = url.lastPathComponent
+                enqueueWelcomeRecordingUpload(url: url, duration: duration)
             } else {
-                filename = "recording.m4a"
+                cancelWelcomeRealtimeRecording()
+                showRecordHint(duration: 0)
             }
             composerOverlay = nil
             recordAttemptActive = false
             recordGestureCancelled = false
             recordStartedFromKeyboard = false
             recordDragOffsetX = 0
-            addPendingComposerEmbed(filename: filename, kind: .audio, duration: duration)
+            dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
             return
         }
 
@@ -5744,17 +5952,20 @@ struct NewChatWelcomeView: View {
         recordGestureCancelled = false
         recordStartedFromKeyboard = false
         recordDragOffsetX = 0
+        dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
     }
 
     private func cancelWelcomeRecording(markGestureCancelled: Bool = false) {
         recordStartTask?.cancel()
         recordStartTask = nil
         composerRecorder.cancelRecording()
+        cancelWelcomeRealtimeRecording()
         composerOverlay = nil
         recordAttemptActive = false
         recordGestureCancelled = markGestureCancelled
         recordStartedFromKeyboard = false
         recordDragOffsetX = 0
+        dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
     }
 
     private func showRecordHint(duration: Int = 2500) {
@@ -5771,6 +5982,14 @@ struct NewChatWelcomeView: View {
     private var isUITestWelcomeSimulatedRecording: Bool {
         #if DEBUG
         ProcessInfo.processInfo.arguments.contains("--ui-test-welcome-simulated-recording")
+        #else
+        false
+        #endif
+    }
+
+    private var isUITestWelcomeGuestLocalRecording: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-test-welcome-guest-local-recording")
         #else
         false
         #endif
@@ -5854,6 +6073,7 @@ struct NewChatWelcomeView: View {
         recordHintTask = nil
         if composerOverlay == .recording {
             composerRecorder.cancelRecording()
+            cancelWelcomeRealtimeRecording()
             recordAttemptActive = false
             recordGestureCancelled = false
             recordDragOffsetX = 0
@@ -5864,9 +6084,24 @@ struct NewChatWelcomeView: View {
         isFocused = false
         isComposerExpanded = false
         anonymousAttachmentPending = false
+        recordingUploadID = nil
+        recordingUploadTask?.cancel()
+        recordingUploadTask = nil
+        cleanupWelcomeRecordingTemporaryFile()
+        for nodeID in guestRecordingNodeIDs {
+            try? composerSession.removeEmbed(nodeID: nodeID)
+        }
+        guestRecordingNodeIDs.removeAll()
+        isRecordingUploadPending = false
         pendingComposerEmbeds = []
         showAttachmentMenu = false
         composerOverlay = nil
+    }
+
+    private func cleanupWelcomeRecordingTemporaryFile() {
+        guard let url = recordingTemporaryURL else { return }
+        recordingTemporaryURL = nil
+        try? FileManager.default.removeItem(at: url)
     }
 
     private func welcomeComposerOverlayView() -> AnyView? {
@@ -5901,14 +6136,37 @@ struct NewChatWelcomeView: View {
                     recorder: composerRecorder,
                     dragOffsetX: recordDragOffsetX,
                     startedFromKeyboard: recordStartedFromKeyboard,
+                    liveTranscript: recordingLiveTranscript,
+                    isRealtimeConnecting: recordingRealtimeConnecting,
                     onStop: { url in
+                        let duration = max(composerRecorder.duration, 1)
+                        if isUITestWelcomeSimulatedRecording && !isUITestWelcomeGuestLocalRecording {
+                            cancelWelcomeRealtimeRecording()
+                            addPendingComposerEmbed(
+                                filename: url.lastPathComponent,
+                                kind: .audio,
+                                duration: duration
+                            )
+                        } else {
+                            enqueueWelcomeRecordingUpload(url: url, duration: duration)
+                        }
                         self.composerOverlay = nil
                         self.recordAttemptActive = false
                         self.recordStartedFromKeyboard = false
                         self.recordDragOffsetX = 0
-                        handleAttachmentSelection(data: nil, filename: url.lastPathComponent, kind: .audio)
+                        dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
                     },
-                    onCancel: { cancelWelcomeRecording() }
+                    onCancel: { cancelWelcomeRecording() },
+                    onFailure: {
+                        composerRecorder.cancelRecording()
+                        cancelWelcomeRealtimeRecording()
+                        self.composerOverlay = nil
+                        self.recordAttemptActive = false
+                        self.recordStartedFromKeyboard = false
+                        self.recordDragOffsetX = 0
+                        dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
+                        showRecordHint(duration: 0)
+                    }
                 )
             )
         }
@@ -7341,6 +7599,7 @@ private struct WelcomeComposer: View {
     let recordHintText: String?
     let recordAttemptActive: Bool
     let isOverlayActive: Bool
+    let isRecordingOverlayActive: Bool
     @Binding var isAttachmentMenuPresented: Bool
     let onRemovePendingEmbed: (ComposerPendingEmbed) -> Void
     let onExcludePII: (PIIMatch) -> Void
@@ -7352,8 +7611,8 @@ private struct WelcomeComposer: View {
     let onLocation: () -> Void
     let onSketch: () -> Void
     let onCamera: () -> Void
+    let onRecordStart: () -> Void
     let onRecordChanged: (DragGesture.Value) -> Void
-    let onRecordEnded: () -> Void
     let onDismiss: () -> Void
     let overlayContent: AnyView?
 
@@ -7388,7 +7647,9 @@ private struct WelcomeComposer: View {
     }
 
     private var overlayHeight: CGFloat {
-        min(400, maximumViewportFieldHeight)
+        isRecordingOverlayActive
+            ? ComposerRecordingOverlay.recordingPanelHeight
+            : min(400, maximumViewportFieldHeight)
     }
 
     private var maximumViewportFieldHeight: CGFloat {
@@ -7459,6 +7720,7 @@ private struct WelcomeComposer: View {
             )
             .simultaneousGesture(
                 TapGesture().onEnded {
+                    guard !isOverlayActive else { return }
                     isActivated = true
                     isFocused = true
                 }
@@ -7524,7 +7786,7 @@ private struct WelcomeComposer: View {
                     .accessibilityIdentifier("press-hold-label")
             }
 
-            Button(action: onRecordEnded) {
+            Button(action: onRecordStart) {
                 Icon("recordaudio", size: 25)
                     .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
                     .frame(width: 25, height: 25)
@@ -7534,7 +7796,7 @@ private struct WelcomeComposer: View {
             .simultaneousGesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged(onRecordChanged)
-                    .onEnded { _ in onRecordEnded() }
+                    .onEnded { _ in }
             )
             .help(Text(AppStrings.recordAudio))
             .accessibilityLabel(AppStrings.recordAudio)

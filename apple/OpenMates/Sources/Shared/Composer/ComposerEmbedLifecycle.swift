@@ -3,6 +3,8 @@
 // Every asynchronous callback is validated by node ID and generation.
 // Invalid, stale, duplicate, and terminal callbacks produce no side effects.
 // Blocking classification mirrors the authoritative web deferred-send contract.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership
 
 import Foundation
 
@@ -117,7 +119,7 @@ final class ComposerEmbedLifecycle {
 
     nonisolated static func isBlocking(_ state: AppleComposerEmbedLifecycleState) -> Bool {
         switch state {
-        case .draft, .uploading, .transcribing, .error:
+        case .draft, .uploading, .transcribing, .correcting, .error:
             true
         case .processing, .finished, .cancelled:
             false
@@ -136,6 +138,8 @@ final class ComposerEmbedLifecycle {
         case .processing:
             [.transcribing, .finished, .cancelled, .error].contains(next)
         case .transcribing:
+            [.correcting, .finished, .cancelled, .error].contains(next)
+        case .correcting:
             [.finished, .cancelled, .error].contains(next)
         case .error, .finished, .cancelled:
             false

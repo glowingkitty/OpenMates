@@ -1,0 +1,284 @@
+// Deterministic coverage for the authenticated Apple recording finalization pipeline.
+// Network and microphone I/O are replaced at the pipeline seam so these tests can
+// prove concurrency, fallback counts, metadata completeness, and deferred-send identity.
+
+import XCTest
+@testable import OpenMates
+
+@MainActor
+final class ChatAudioPipelineTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send,chats.message.identity-idempotent
+    func testRealtimeUploadOverlapsCorrectionSkipsBatchAndUnblocksSameMessageIdentity() async throws {
+        let correctionGate = AudioPipelineGate()
+        let starts = AudioPipelineStartRecorder()
+        let batchCalls = AudioPipelineCounter()
+        let dispatches = AudioPipelineDispatchRecorder()
+        let upload = Self.uploadFixture(embedId: "server-recording-1")
+        let waveform = try XCTUnwrap(AudioRecordingWaveform(
+            normalizedLevels: [0, 0.25, 0.5, 0.75, 1],
+            duration: 2.4
+        ))
+
+        let pipelineTask = Task { @MainActor in
+            await AudioRecordingUploadPipeline.run(
+                waveform: waveform,
+                realtimeResult: {
+                    await starts.record("correction")
+                    await correctionGate.wait()
+                    return AudioRecordingRealtimeResult(
+                        title: "Project review",
+                        transcript: "Schedule the project review Thursday afternoon.",
+                        transcriptOriginal: "Schedule project review Thursday afternoon.",
+                        transcriptCorrected: "Schedule the project review Thursday afternoon.",
+                        useCorrected: true,
+                        model: AudioRealtimeTranscriptionClient.model,
+                        correctionModel: "gemini-3.5-flash"
+                    )
+                },
+                upload: {
+                    await starts.record("upload")
+                    return upload
+                },
+                batchTranscription: { _ in
+                    await batchCalls.increment()
+                    return nil
+                }
+            )
+        }
+
+        await starts.waitFor(keys: ["upload", "correction"])
+        let localNodeID = "composer:embed:recording-1"
+        let messageID = "message-recording-1"
+        let lifecycle = ComposerEmbedLifecycle()
+        let lifecycleRecord = lifecycle.register(nodeId: localNodeID, state: .uploading)
+        let coordinator = ComposerPendingSendCoordinator()
+        let snapshot = ComposerSendSnapshot(
+            requestId: "request-recording-1",
+            messageId: messageID,
+            destinationId: "chat-1",
+            documentRevision: 9,
+            document: ComposerDocumentV1(
+                version: 1,
+                nodes: [
+                    .embed(
+                        id: localNodeID,
+                        embedType: "recording",
+                        canonicalSource: "",
+                        referenceOnly: true,
+                        display: .init(title: "recording.m4a", mediaKind: "audio")
+                    ).updatingStatus(AppleComposerEmbedLifecycleState.uploading.rawValue)
+                ]
+            ),
+            blockers: [.init(nodeId: localNodeID, generation: lifecycleRecord.generation)]
+        )
+        let enqueued = await coordinator.enqueue(snapshot)
+        XCTAssertTrue(enqueued)
+        await coordinator.updateNode(
+            nodeId: localNodeID,
+            generation: lifecycleRecord.generation,
+            state: .uploading
+        )
+        await coordinator.resumeReady { dispatched in
+            await dispatches.append(messageID: dispatched.messageId, embedID: nil)
+        }
+        let dispatchCountWhilePending = await dispatches.values().count
+        XCTAssertEqual(dispatchCountWhilePending, 0, "Immediate Send must remain deferred while correction is pending")
+
+        await correctionGate.open()
+        let completedPipeline = await pipelineTask.value
+        let pipeline = try XCTUnwrap(completedPipeline)
+        let realtimeBatchCalls = await batchCalls.value()
+        XCTAssertEqual(realtimeBatchCalls, 0, "Successful realtime transcription must make zero batch calls")
+
+        let embed = ComposerPendingEmbed.from(
+            upload: pipeline.upload,
+            localData: Data([0x01]),
+            transcription: pipeline.transcription,
+            duration: 2.4
+        )
+        guard case .applied(let finished) = lifecycle.transition(
+            nodeId: localNodeID,
+            generation: lifecycleRecord.generation,
+            to: .finished,
+            durableEmbedId: embed.id
+        ) else {
+            return XCTFail("Expected the original recording node to resolve")
+        }
+        await coordinator.updateNode(
+            nodeId: localNodeID,
+            generation: finished.generation,
+            state: .finished
+        )
+        await coordinator.resumeReady { dispatched in
+            await dispatches.append(messageID: dispatched.messageId, embedID: embed.id)
+        }
+
+        let dispatchedValues = await dispatches.values()
+        XCTAssertEqual(dispatchedValues, [
+            .init(messageID: messageID, embedID: "server-recording-1")
+        ])
+        XCTAssertEqual(finished.nodeId, localNodeID)
+        XCTAssertEqual(embed.id, upload.embedId)
+        XCTAssertEqual(embed.textPreview, "Project review")
+
+        let content = try Self.contentObject(embed)
+        XCTAssertEqual(content["title"] as? String, "Project review")
+        XCTAssertEqual(content["transcript"] as? String, "Schedule the project review Thursday afternoon.")
+        XCTAssertEqual(content["transcript_original"] as? String, "Schedule project review Thursday afternoon.")
+        XCTAssertEqual(content["transcript_corrected"] as? String, "Schedule the project review Thursday afternoon.")
+        XCTAssertEqual(content["use_corrected"] as? Bool, true)
+        XCTAssertEqual(content["model"] as? String, AudioRealtimeTranscriptionClient.model)
+        XCTAssertEqual(content["correction_model"] as? String, "gemini-3.5-flash")
+        let persistedWaveform = try XCTUnwrap(content["waveform"] as? [String: Any])
+        XCTAssertEqual(persistedWaveform["version"] as? Int, 1)
+        XCTAssertEqual(persistedWaveform["kind"] as? String, "rms-envelope")
+        XCTAssertEqual((persistedWaveform["samples"] as? [Int])?.count, 128)
+        XCTAssertEqual(persistedWaveform["duration_seconds"] as? Double, 2.4)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send
+    func testRealtimeCorrectionFailureUsesRawTranscriptWithoutBatch() async throws {
+        let batchCalls = AudioPipelineCounter()
+        let completedPipeline = await AudioRecordingUploadPipeline.run(
+            waveform: nil,
+            realtimeResult: {
+                AudioRecordingRealtimeResult(
+                    title: nil,
+                    transcript: "Raw transcript survives correction failure.",
+                    transcriptOriginal: "Raw transcript survives correction failure.",
+                    transcriptCorrected: nil,
+                    useCorrected: false,
+                    model: AudioRealtimeTranscriptionClient.model,
+                    correctionModel: nil
+                )
+            },
+            upload: { Self.uploadFixture(embedId: "server-recording-raw") },
+            batchTranscription: { _ in
+                await batchCalls.increment()
+                return nil
+            }
+        )
+        let result = try XCTUnwrap(completedPipeline)
+
+        let correctionFailureBatchCalls = await batchCalls.value()
+        XCTAssertEqual(correctionFailureBatchCalls, 0)
+        XCTAssertEqual(result.transcription.transcript, "Raw transcript survives correction failure.")
+        XCTAssertEqual(result.transcription.transcriptOriginal, "Raw transcript survives correction failure.")
+        XCTAssertNil(result.transcription.transcriptCorrected)
+        XCTAssertEqual(result.transcription.useCorrected, false)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send
+    func testRealtimeFailureCallsBatchExactlyOnceAndKeepsCompleteBatchMetadata() async throws {
+        let batchCalls = AudioPipelineCounter()
+        let batchWaveform = try XCTUnwrap(AudioRecordingWaveform(samples: [10, 30, 50], duration: 3))
+        let completedPipeline = await AudioRecordingUploadPipeline.run(
+            waveform: nil,
+            realtimeResult: { nil },
+            upload: { Self.uploadFixture(embedId: "server-recording-fallback") },
+            batchTranscription: { _ in
+                await batchCalls.increment()
+                return TranscriptionMetadata(
+                    title: "Recovered recording",
+                    transcript: "Recovered by batch transcription.",
+                    transcriptOriginal: "Recovered by batch transcription.",
+                    transcriptCorrected: nil,
+                    useCorrected: false,
+                    model: "voxtral-mini-transcribe-2507",
+                    correctionModel: nil,
+                    waveform: batchWaveform
+                )
+            }
+        )
+        let result = try XCTUnwrap(completedPipeline)
+
+        let fallbackBatchCalls = await batchCalls.value()
+        XCTAssertEqual(fallbackBatchCalls, 1)
+        XCTAssertEqual(result.upload.embedId, "server-recording-fallback")
+        XCTAssertEqual(result.transcription.title, "Recovered recording")
+        XCTAssertEqual(result.transcription.waveform, batchWaveform)
+    }
+
+    private static func uploadFixture(embedId: String) -> UploadFileResponse {
+        UploadFileResponse(
+            embedId: embedId,
+            filename: "recording.m4a",
+            contentType: "audio/mp4",
+            contentHash: "hash-recording",
+            files: [
+                "original": UploadedFileVariant(
+                    s3Key: "recordings/recording.m4a",
+                    sizeBytes: 512,
+                    width: nil,
+                    height: nil,
+                    format: "m4a"
+                )
+            ],
+            s3BaseUrl: "https://example.invalid/audio",
+            aesKey: "test-aes-key",
+            aesNonce: "test-aes-nonce",
+            vaultWrappedAesKey: "test-wrapped-key",
+            pageCount: nil,
+            deduplicated: false
+        )
+    }
+
+    private static func contentObject(_ embed: ComposerPendingEmbed) throws -> [String: Any] {
+        let content = try XCTUnwrap(embed.content)
+        let data = try XCTUnwrap(content.data(using: .utf8))
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+}
+
+private actor AudioPipelineGate {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        if isOpen { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func open() {
+        isOpen = true
+        let pending = waiters
+        waiters.removeAll()
+        pending.forEach { $0.resume() }
+    }
+}
+
+private actor AudioPipelineStartRecorder {
+    private var keys = Set<String>()
+    private var waiters: [(Set<String>, CheckedContinuation<Void, Never>)] = []
+
+    func record(_ key: String) {
+        keys.insert(key)
+        let ready = waiters.filter { keys.isSuperset(of: $0.0) }
+        waiters.removeAll { keys.isSuperset(of: $0.0) }
+        ready.forEach { $0.1.resume() }
+    }
+
+    func waitFor(keys expected: Set<String>) async {
+        if keys.isSuperset(of: expected) { return }
+        await withCheckedContinuation { waiters.append((expected, $0)) }
+    }
+}
+
+private actor AudioPipelineCounter {
+    private var count = 0
+    func increment() { count += 1 }
+    func value() -> Int { count }
+}
+
+private struct AudioPipelineDispatch: Equatable {
+    let messageID: String
+    let embedID: String?
+}
+
+private actor AudioPipelineDispatchRecorder {
+    private var dispatched: [AudioPipelineDispatch] = []
+    func append(messageID: String, embedID: String?) {
+        dispatched.append(.init(messageID: messageID, embedID: embedID))
+    }
+    func values() -> [AudioPipelineDispatch] { dispatched }
+}

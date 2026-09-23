@@ -3,6 +3,8 @@
 // Finished supported records reuse existing native read renderers inside web-parity chrome.
 // Pending and summary-only families use deterministic lifecycle presentation.
 // Required callbacks keep host behavior explicit across iOS and macOS.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
@@ -115,6 +117,7 @@ struct AppleComposerEmbedPreview: View {
         .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("native-composer-preview-\(descriptor.embedType)-\(lifecycle.rawValue)")
+        .accessibilityValue(node.contentRef == nil ? "local-preview-no-durable-id" : "durable-preview")
     }
 
     private static func makeLocalPreviewImage(data: Data?) -> Image? {
@@ -222,6 +225,7 @@ struct AppleComposerEmbedPreview: View {
         case .uploading: AppStrings.uploadProgressUploading(percent: "0")
         case .processing: AppStrings.uploadProgressProcessing
         case .transcribing: AppStrings.uploadProgressTranscribing
+        case .correcting: AppStrings.uploadProgressProcessing
         case .finished: openLabel
         case .error: AppStrings.uploadProgressError
         case .cancelled: AppStrings.cancel
@@ -377,7 +381,7 @@ private struct ComposerAudioPreview: View {
                         .font(.omXs)
                         .foregroundStyle(Color.fontSecondary)
                         .lineLimit(3)
-                } else if lifecycle == .uploading || lifecycle == .processing || lifecycle == .transcribing {
+                } else if lifecycle == .uploading || lifecycle == .processing || lifecycle == .transcribing || lifecycle == .correcting {
                     ProgressView()
                         .tint(Color.buttonPrimary)
                 } else {
@@ -662,7 +666,7 @@ private struct AppleComposerSummaryCard: View {
     @ViewBuilder
     private var lifecycleContent: some View {
         switch lifecycle {
-        case .draft, .uploading, .processing, .transcribing:
+        case .draft, .uploading, .processing, .transcribing, .correcting:
             ProgressView()
                 .tint(Color.buttonPrimary)
         case .finished:
