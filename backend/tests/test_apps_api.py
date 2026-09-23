@@ -182,6 +182,67 @@ def _b64(value: str) -> str:
     return base64.b64encode(value.encode("utf-8")).decode("ascii")
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
+def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) -> None:
+    module_name = "backend.apps.rest_schema_contract"
+    skill_module = types.ModuleType(module_name)
+    monkeypatch.setitem(sys.modules, module_name, skill_module)
+
+    app_yml = AppYAML.model_validate({
+        "id": "rest_schema_contract",
+        "name_translation_key": "apps.rest_schema_contract",
+        "description_translation_key": "apps.rest_schema_contract.description",
+        "skills": [{
+            "id": "search",
+            "name_translation_key": "app_skills.rest_schema_contract.search",
+            "description_translation_key": "app_skills.rest_schema_contract.search.description",
+            "class_path": "rest_schema_contract.ContractSkill",
+            "tool_schema": {
+                "type": "object",
+                "properties": {
+                    "requests": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string", "minLength": 2},
+                                "count": {"type": "integer", "minimum": 1, "maximum": 20},
+                                "relevance_criteria": {"type": "string", "maxLength": 1000},
+                            },
+                            "required": ["query"],
+                        },
+                    },
+                },
+                "required": ["requests"],
+            },
+        }],
+    })
+    app = FastAPI()
+
+    apps_api.register_app_and_skill_routes(app, {"rest_schema_contract": app_yml})
+
+    openapi = app.openapi()
+    operation = openapi["paths"]["/v1/apps/rest_schema_contract/skills/search"]["post"]
+    request_ref = operation["requestBody"]["content"]["application/json"]["schema"]["$ref"]
+    request_schema = openapi["components"]["schemas"][request_ref.rsplit("/", 1)[-1]]
+    item_ref = request_schema["properties"]["requests"]["items"]["$ref"]
+    item_schema = openapi["components"]["schemas"][item_ref.rsplit("/", 1)[-1]]
+    count_schema = next(
+        option for option in item_schema["properties"]["count"]["anyOf"]
+        if option.get("type") == "integer"
+    )
+    relevance_schema = next(
+        option for option in item_schema["properties"]["relevance_criteria"]["anyOf"]
+        if option.get("type") == "string"
+    )
+
+    assert item_schema["properties"]["query"]["minLength"] == 2
+    assert count_schema["minimum"] == 1
+    assert count_schema["maximum"] == 20
+    assert relevance_schema["maxLength"] == 1000
+    assert "relevance_criteria" not in item_schema["required"]
+
+
 # contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
 def test_image_to_html_processing_response_defers_billing_to_worker() -> None:
     credits = apps_api.get_variable_result_credits(

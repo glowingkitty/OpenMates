@@ -120,6 +120,29 @@ describe("generated npm SDK app skills", () => {
     assert.equal(fitnessClasses.skill_method_ts, "searchClasses");
     assert.ok(fitnessClasses.schema.properties.requests);
 
+    // contract-test: supporting surface=sdks.npm assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
+    for (const [appId, skillId] of [
+      ["web", "search"],
+      ["news", "search"],
+      ["events", "search"],
+      ["home", "search"],
+      ["maps", "search"],
+      ["shopping", "search_products"],
+      ["travel", "search_stays"],
+      ["videos", "search"],
+      ["fitness", "search_locations"],
+      ["fitness", "search_classes"],
+    ]) {
+      const skill = APP_SKILL_METADATA.find(
+        (candidate) => candidate.app_id === appId && candidate.skill_id === skillId,
+      );
+      assert.ok(skill, `${appId}.${skillId} metadata missing`);
+      assert.equal(
+        skill.schema.properties.requests.items.properties.relevance_criteria.maxLength,
+        1000,
+      );
+    }
+
     assert.ok(weatherForecast);
     assert.equal(weatherForecast.schema.properties.start_date.format, "date");
     assert.equal(weatherForecast.schema.properties.end_date.format, "date");

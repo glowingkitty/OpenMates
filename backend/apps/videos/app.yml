@@ -292,7 +292,13 @@ skills:
     description_translation_key: videos.search.description
     icon_image: search.svg
     preprocessor_hint: >
-      Search for videos, documentaries, tutorials, clips on the web.
+      Search for videos, documentaries, tutorials, and clips on the web. When the user
+      states a material viewing purpose or preference that should change ordering, such
+      as audience level, desired depth, format, duration, authority, or freshness,
+      include a concise, faithful relevance_criteria value. Keep country, language,
+      safe-search, freshness, and count constraints structured. A plain video search may
+      omit relevance_criteria; never invent experience level, recency, duration, creator,
+      popularity, or format preferences.
     class_path: |
       backend.apps.videos.skills.search_skill.SearchSkill
     providers:
@@ -320,7 +326,7 @@ skills:
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
             Example for single search: {"requests": [{"query": "Python tutorial"}]}
             Example for multiple searches: {"requests": [{"query": "Python tutorial"}, {"query": "FastAPI tutorial"}]}
-            Each object must contain 'query' (search query string), and can include optional parameters (count, country, search_lang, safesearch).
+            Each object must contain 'query' (search query string), and can include optional parameters (count, relevance_criteria, country, search_lang, safesearch, freshness).
             Note: The 'id' field is auto-generated if not provided - you don't need to include it.
           items:
             type: object
@@ -334,6 +340,10 @@ skills:
                 minimum: 1
                 maximum: 20
                 default: 6
+              relevance_criteria:
+                type: string
+                maxLength: 1000
+                description: Optional natural-language viewing or learning goal used only to rank matching video candidates. Omit for ordinary popularity ordering; structured country, language, safe-search, freshness, and count fields remain authoritative.
               country:
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."

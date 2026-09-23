@@ -1,0 +1,267 @@
+schema_version: 2
+id: jev-search-relevance-expansion
+title: Expand Optional Jev Search Relevance Ranking
+status: implementing
+
+goal: >
+  Fix CLI, SDK, and REST schema parity for relevance_criteria and extend the
+  approved optional Jev filtering behavior to maps, shopping products, travel
+  stays, videos, and fitness location/class search, using forty candidates only
+  when that does not add provider requests or material rate-limit cost and twenty
+  otherwise. Tune each skill's ranking instructions against real provider data,
+  preserve existing public result limits, and return only the requested count on
+  success or fallback.
+
+scope:
+  in:
+    - Regenerated npm/pip app-skill metadata and typed CLI --relevance-criteria support.
+    - REST/OpenAPI request schema parity from each app.yml and Pydantic request model.
+    - Twenty-candidate maps, shopping-product, and travel-stay profiles without ranking-only pagination.
+    - Forty-candidate video and fitness profiles without additional provider-page requests.
+    - Skill-specific minimized projections, evidence rubrics, deterministic fallback, and final requested-count clipping.
+    - Focused backend, CLI/SDK generator, REST schema, and app-skill E2E contract coverage.
+    - Real public-provider/Jev probes recording quality, candidate count, latency, and token use.
+  out:
+    - Social-media ranking, because async multi-provider aggregation and comment hydration need a separate rate-limit design.
+    - Health appointment ranking or clinical suitability decisions.
+    - Changes to public result-limit defaults, hard filters, provider attribution, billing, or output-safety policy.
+
+approvals:
+  specification:
+    status: approved
+    fingerprint: e496183c2265df81df07fae76a0a70cae3784d3b18dd9c1fb02e33242f4d7042
+    approved_at: "2026-09-23T18:24:00Z"
+    reason: The user explicitly approved the existing app-skill execution Specification expansion.
+  plan:
+    status: approved
+    approved_at: "2026-09-23T18:24:00Z"
+    reason: The user directly requested implementation with provider-cost-aware candidate sizes and real Jev tuning.
+
+specifications:
+  - id: architecture.app-skill-execution
+    fingerprint: e496183c2265df81df07fae76a0a70cae3784d3b18dd9c1fb02e33242f4d7042
+    assertions:
+      - app-skills.search-relevance.optional-and-inferred
+      - app-skills.search-relevance.bounded-and-conditional
+      - app-skills.search-relevance.safe-finalization
+      - app-skills.surface.semantic-parity
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Maps, shopping products, and travel stays rank at most twenty candidates from one provider request or first page.
+    reason: Forty requires additional billable or rate-limited provider requests for at least one provider in each skill family.
+    decided_at: "2026-09-23T18:24:00Z"
+  - id: D-2
+    status: active
+    decision: Videos rank up to forty candidates from one Brave Videos call and existing at-most-fifty-item YouTube metadata batches.
+    reason: Brave supports fifty results per request, so forty does not consume a second Brave query.
+    decided_at: "2026-09-23T18:24:00Z"
+  - id: D-3
+    status: active
+    decision: Fitness location and class searches rank up to forty candidates from provider pages already fetched by the existing client.
+    reason: The current client retrieves and enriches its page/date candidates before applying the local limit.
+    decided_at: "2026-09-23T18:24:00Z"
+  - id: D-4
+    status: active
+    decision: Every skill keeps its existing deterministic retrieval path when relevance_criteria is absent or blank.
+    reason: Optional ranking must not add latency, provider use, or preferences to plain searches.
+    decided_at: "2026-09-23T18:24:00Z"
+  - id: D-5
+    status: active
+    decision: Any Jev, schema, or timeout failure returns the requested count in unchanged pre-ranking provider order.
+    reason: Internal candidate pools must never leak into embeds or later AI context.
+    decided_at: "2026-09-23T18:24:00Z"
+
+implementation_state:
+  subject_commit: pending
+
+scenarios:
+  - id: S-1
+    title: Cost-aware purpose ranking
+    given: [A newly eligible search includes nonblank relevance criteria.]
+    when: [The provider returns candidates that satisfy structured filters.]
+    then:
+      - The skill uses its approved twenty- or forty-candidate profile without ranking-only pagination.
+      - One domain-specific Jev decision ranks the pool and only the requested count is returned.
+  - id: S-2
+    title: Plain search and ranking failure stay bounded
+    given: [Relevance criteria are absent or Jev fails after provider retrieval.]
+    when: [The skill finalizes results.]
+    then:
+      - Plain searches preserve existing retrieval and make no Jev call.
+      - Failures preserve provider order and return only the requested count.
+  - id: S-3
+    title: Public surface parity and inferred criteria
+    given: [A caller uses assistant, REST, typed CLI, JSON CLI, npm SDK, or pip SDK.]
+    when: [The caller supplies or clearly implies a material ranking goal.]
+    then:
+      - Every surface accepts the same optional relevance_criteria field.
+      - Assistant inference is faithful and plain controls do not gain invented preferences.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-3
+    text: Every eligible app skill exposes the same optional relevance_criteria field through REST/OpenAPI, typed CLI, JSON CLI input, and npm/pip generated metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-SDK, T-NPM, T-PIP, T-E2E]
+  - id: AC-2
+    scenario: S-1
+    text: Ranked maps, shopping-product, and stay searches inspect at most twenty candidates without an additional provider page; video and fitness searches inspect up to forty without an additional provider-page request.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND]
+  - id: AC-3
+    scenario: S-2
+    text: Missing or blank criteria preserve existing provider calls and ordering and make no Jev relevance-ranking call.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND]
+  - id: AC-4
+    scenario: S-2
+    text: Successful ranking and every failure path return no more than the caller's requested public limit, preserving provider order on fallback.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND]
+  - id: AC-5
+    scenario: S-1
+    text: Each new skill profile is tuned against real public candidates and retained evidence records candidate count, selected results, latency, input/output tokens, and any provider limitation without private data.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-REAL]
+  - id: AC-6
+    scenario: S-3
+    text: A real assistant chat auto-populates faithful relevance_criteria for at least one newly eligible skill, while a plain control request omits it.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-REAL]
+
+tests:
+  - id: T-BACKEND
+    type: pytest
+    file: backend/tests/test_search_relevance.py
+    command: python3 -m pytest backend/tests/test_search_relevance.py
+    covers: [AC-2, AC-3, AC-4]
+    assertions:
+      - Candidate targets, provider calls, ranking, fallback, and final limits match the approved profiles.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-SDK
+    type: lint
+    file: scripts/generate_sdk_app_skills.py
+    command: python3 scripts/generate_sdk_app_skills.py && python3 scripts/audit_sdk_cli_parity.py
+    covers: [AC-1]
+    assertions: [Generated app-skill metadata matches app.yml request schemas.]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-NPM
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    covers: [AC-1]
+    assertions: [Typed CLI metadata exposes relevance_criteria for every eligible skill.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+
+  - id: T-PIP
+    type: pytest
+    file: packages/openmates-python/tests/test_sdk_generator.py
+    command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py
+    covers: [AC-1]
+    assertions: [Python SDK metadata exposes relevance_criteria for every eligible skill.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+
+  - id: T-SPECS
+    type: lint
+    file: docs/plans/jev-search-relevance-expansion/plan.yml
+    command: python3 scripts/specifications.py check-generated && python3 scripts/plan_validate.py docs/plans/jev-search-relevance-expansion/plan.yml
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    assertions: [Approved Specification registries and this implementation plan validate.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-search-relevance-parity.spec.ts
+    target: skill-search-relevance-parity.spec.ts
+    execution_environment: isolated_github_ci
+    command: python3 scripts/ci_coordinator.py submit --session c22a --source SOURCE --mode e2e --spec skill-search-relevance-parity.spec.ts
+    covers: [AC-1]
+    assertions:
+      - REST/OpenAPI and every generated typed CLI command expose the same optional bounded relevance_criteria field without invoking Jev.
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-REAL
+    type: manual
+    file: backend/scripts/test_search_relevance_ranking.py
+    covers: [AC-5, AC-6]
+    assertions:
+      - Real provider candidates demonstrate useful domain-specific ranking.
+      - Jev usage and latency are captured without logging secrets or private user data.
+      - Assistant inference populates criteria only for a stated material preference.
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+
+tasks:
+  - id: TASK-1
+    title: Implement and verify cost-aware relevance ranking expansion
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    expected_files:
+      - backend/shared/python_utils/search_relevance.py
+      - backend/apps/maps/
+      - backend/apps/shopping/
+      - backend/apps/travel/
+      - backend/apps/videos/
+      - backend/apps/fitness/
+      - frontend/packages/openmates-cli/
+      - packages/openmates-python/
+    verification_ids: [T-BACKEND, T-SDK, T-NPM, T-PIP, T-SPECS, T-REAL]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [backend/shared/python_utils/search_relevance.py, backend/apps/maps/, backend/apps/shopping/, backend/apps/travel/, backend/apps/videos/, backend/apps/fitness/, frontend/packages/openmates-cli/, packages/openmates-python/]
+      shared_files: [specifications/architecture/app-skill-execution/specification.yml, docs/apis/typesafe-jev.md]
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Extend the shared ranker with cost-aware profiles, integrate eligible skills, then tune with real provider candidates.
+    outcome: planned
+    recorded_at: "2026-09-23T18:24:00Z"
+
+documentation_impact:
+  app_skill_specs:
+    status: updated
+    files: [specifications/architecture/app-skill-execution/specification.yml]
+  provider_api:
+    status: update
+    file: docs/apis/typesafe-jev.md
+  privacy:
+    status: updated
+    reason: The TypeSafe disclosure now describes minimized candidate data from all supported public searches without enumerating a stale subset.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Implement request/schema parity and shared profiles before integrating each provider path and running real probes.
+  command: python3 -m pytest backend/tests/test_search_relevance.py
+  expected_outcome: All new skill profiles preserve provider use and return limits while ranking only when criteria are present.
+  last_verified_commit: 8f38587d2
+  blocker: null

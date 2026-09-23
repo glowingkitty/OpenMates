@@ -102,7 +102,17 @@ models:
     eligible_skills:
       type: enum_set
       required: true
-      values: [web.search, news.search, events.search, home.search]
+      values:
+        - web.search
+        - news.search
+        - events.search
+        - home.search
+        - maps.search
+        - shopping.search_products
+        - travel.search_stays
+        - videos.search
+        - fitness.search_locations
+        - fitness.search_classes
       constraints: {health.search_appointments: excluded}
     relevance_criteria:
       type: string
@@ -115,7 +125,12 @@ models:
     result_limit:
       type: existing_public_field
       required: true
-      constraints: {web_news_events: count, home: max_results, default: 10, existing_skill_maximum_preserved: true}
+      constraints:
+        web_news_events_videos: count
+        home_shopping_travel_stays: max_results
+        maps: pageSize
+        fitness: limit
+        existing_defaults_and_maxima_preserved: true
     candidate_pool:
       type: bounded_skill_profile
       required: true
@@ -126,6 +141,13 @@ models:
         news_search: one_Brave_News_call_of_up_to_40
         events_search: bounded_deduplicated_merged_provider_pool
         home_search: bounded_deduplicated_merged_provider_pool
+        maps_search: one_Google_Places_request_of_up_to_20
+        shopping_search_products: one_provider_request_of_up_to_20
+        travel_search_stays: one_SerpAPI_Google_Hotels_page_of_up_to_20
+        videos_search: one_Brave_Videos_request_of_up_to_40_with_batched_metadata
+        fitness_search_locations: up_to_40_from_existing_provider_page_retrieval
+        fitness_search_classes: up_to_40_from_existing_date_page_retrieval
+        extra_billable_page_for_ranking_only: forbidden
         provider_shortfall: return_smaller_pool
         fabricated_candidates: forbidden
         unbounded_retries: forbidden
@@ -140,6 +162,11 @@ models:
         news_rubric: material_relevance_65_percent_and_source_quality_35_percent
         events_rubric: stated_event_goal_fit_after_hard_filters_and_deduplication
         home_rubric: stated_listing_facts_only_without_inferred_amenities_commute_lease_or_neighborhood_quality
+        maps_rubric: stated_place_goal_fit_from_explicit_place_fields_without_inferred_ambience_accessibility_or_suitability
+        shopping_rubric: stated_product_goal_fit_from_explicit_product_price_rating_review_delivery_and_category_evidence
+        travel_stays_rubric: stated_stay_goal_fit_from_explicit_property_amenity_location_price_rating_and_cancellation_evidence
+        videos_rubric: stated_learning_or_viewing_goal_fit_plus_explicit_depth_authority_freshness_and_engagement_evidence
+        fitness_rubric: stated_activity_goal_fit_from_explicit_discipline_class_schedule_distance_rating_spot_and_plan_evidence
         user_or_chat_identifiers: forbidden
     finalization:
       type: deterministic
@@ -186,17 +213,17 @@ assertions:
 
   - id: app-skills.search-relevance.optional-and-inferred
     type: behavior
-    must: Web, news, events, and home search accept an optional relevance_criteria value. When an ordinary assistant request states a material purpose or preference that should change result ordering, the assistant supplies a concise faithful relevance_criteria value without requiring the user to name the field. A plain search may omit it, direct callers may omit it, and no preference may be invented.
+    must: Web, news, events, home, maps, shopping-product, travel-stay, video, and fitness location/class search accept an optional relevance_criteria value through assistant, REST API, CLI, and npm/pip SDK calls. When an ordinary assistant request states a material purpose or preference that should change result ordering, the assistant supplies a concise faithful relevance_criteria value without requiring the user to name the field. A plain search may omit it, direct callers may omit it, and no preference may be invented.
     depends_on: [models.OptionalSearchRelevanceRanking]
 
   - id: app-skills.search-relevance.bounded-and-conditional
     type: invariant
-    must: A nonblank relevance_criteria value activates bounded candidate retrieval and one Jev ranking decision using the declared skill profile. The internal target is forty candidates or the larger explicitly requested final limit. Web uses at most two twenty-result Brave pages, news one up-to-forty Brave News request, and events/home bounded deduplicated merged provider pools. Missing criteria preserves existing fetch and ordering behavior and makes no relevance-ranking call. Provider shortfalls or duplicates yield a smaller pool without fabricated results or unbounded retries.
+    must: A nonblank relevance_criteria value activates bounded candidate retrieval and one Jev ranking decision using the declared skill profile. Web, news, events, home, videos, and fitness target forty candidates or the larger explicitly requested final limit; maps, shopping products, and travel stays target twenty because forty would require an extra billable or rate-limited provider page. Retrieval remains within each declared request profile, and no extra billable provider page is fetched solely for ranking. Missing criteria preserves existing fetch and ordering behavior and makes no relevance-ranking call. Provider shortfalls or duplicates yield a smaller pool without fabricated results or unbounded retries.
     depends_on: [models.OptionalSearchRelevanceRanking.candidate_pool]
 
   - id: app-skills.search-relevance.safe-finalization
     type: security
-    must: Jev receives only the bounded relevance goal, ranking-relevant search parameters, and minimized candidate projections labeled as untrusted data. Structured filters run before ranking and cannot be reversed by a score; unsupported candidate facts remain unknown. Malformed, incomplete, unavailable, rejected, or timed-out ranking falls back to existing deterministic order without failing an otherwise successful search. The public result-limit field defaults to ten, the final result count never exceeds the requested limit, and selected external output still passes the inherited output-safety boundary. Health appointment search remains eligibility- and earliest-availability-based and does not use this Jev ranking path.
+    must: Jev receives only the bounded relevance goal, ranking-relevant search parameters, and minimized candidate projections labeled as untrusted data. Each skill applies its declared evidence rubric; structured filters run before ranking and cannot be reversed by a score, popularity alone cannot replace goal fit, and unsupported candidate facts remain unknown. Malformed, incomplete, unavailable, rejected, or timed-out ranking falls back to existing deterministic order without failing an otherwise successful search. Existing public result-limit defaults and maxima remain unchanged, the final result count never exceeds the requested limit, and selected external output still passes the inherited output-safety boundary. Health appointment search remains eligibility- and earliest-availability-based and does not use this Jev ranking path.
     depends_on: [models.OptionalSearchRelevanceRanking]
 
   - id: app-skills.execution.async-owner-bound

@@ -18,6 +18,13 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.search_relevance import (
+    normalize_relevance_criteria,
+    normalize_url_for_deduplication,
+    rank_search_candidates,
+    relevance_candidate_target,
+    stable_deduplicate_candidates,
+)
 from backend.apps.travel.providers.serpapi_hotels_provider import (
     search_hotels,
     StayResult,
@@ -59,6 +66,11 @@ class SearchStaysRequestItem(BaseModel):
         description="Comma-separated star rating filter (e.g. '3,4,5' for 3-star and above).",
     )
     max_results: int = Field(default=10, description="Maximum number of results to return.")
+    relevance_criteria: Optional[str] = Field(
+        default=None,
+        max_length=1_000,
+        description="Optional natural-language stay goal used only to rank matching properties.",
+    )
 
 
 class SearchStaysRequest(BaseModel):
@@ -320,7 +332,13 @@ class SearchStaysSkill(BaseSkill):
         hotel_class = req.get("hotel_class")
         rating = req.get("rating")
         free_cancellation = req.get("free_cancellation", False)
-        max_results = req.get("max_results", 10)
+        requested_max_results = max(1, int(req.get("max_results") or 10))
+        relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
+        max_results = (
+            relevance_candidate_target(requested_max_results, profile="travel_stays")
+            if relevance_criteria
+            else requested_max_results
+        )
 
         # Validate required fields
         if not query:
@@ -390,6 +408,59 @@ class SearchStaysSkill(BaseSkill):
                 exc_info=True,
             )
             return (request_id, [], "Content sanitization failed")
+
+        if relevance_criteria:
+            results = stable_deduplicate_candidates(
+                results,
+                key=lambda item: (
+                    item.get("property_token")
+                    or normalize_url_for_deduplication(item.get("link"))
+                    or item.get("hash")
+                    or str(item.get("name") or "").casefold()
+                ),
+            )
+            ranking = await rank_search_candidates(
+                candidates=results,
+                candidate_projections=[
+                    {
+                        "name": item.get("name"),
+                        "description": item.get("description"),
+                        "property_type": item.get("property_type"),
+                        "hotel_class": item.get("hotel_class"),
+                        "overall_rating": item.get("overall_rating"),
+                        "reviews": item.get("reviews"),
+                        "rate_per_night": item.get("rate_per_night"),
+                        "extracted_rate_per_night": item.get("extracted_rate_per_night"),
+                        "total_rate": item.get("total_rate"),
+                        "amenities": item.get("amenities"),
+                        "nearby_places": item.get("nearby_places"),
+                        "eco_certified": item.get("eco_certified"),
+                        "free_cancellation": item.get("free_cancellation"),
+                        "constraint_matches": item.get("constraint_matches"),
+                    }
+                    for item in results
+                ],
+                relevance_criteria=relevance_criteria,
+                search_parameters={
+                    "query": query,
+                    "check_in_date": check_in_date,
+                    "check_out_date": check_out_date,
+                    "adults": adults,
+                    "children": children,
+                    "currency": currency,
+                    "sort_by": sort_by,
+                    "min_price": min_price,
+                    "max_price": max_price,
+                    "hotel_class": hotel_class,
+                    "rating": rating,
+                    "free_cancellation": free_cancellation,
+                },
+                profile="travel_stays",
+                secrets_manager=secrets_manager,
+            )
+            results = ranking.candidates
+
+        results = results[:requested_max_results]
 
         return (request_id, results, None)
 

@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 DEFAULT_RELEVANCE_CANDIDATE_COUNT = 40
+ECONOMICAL_RELEVANCE_CANDIDATE_COUNT = 20
 MAX_RELEVANCE_CRITERIA_CHARS = 1_000
 MAX_SEARCH_RELEVANCE_CANDIDATES = 50
 MAX_CANDIDATE_PROJECTION_CHARS = 1_400
@@ -112,6 +113,110 @@ SEARCH_RELEVANCE_PROFILES: Dict[str, SearchRelevanceProfile] = {
             "Exceptional explicit match to the stated housing preference",
         ),
     ),
+    "maps": SearchRelevanceProfile(
+        instructions=(
+            "Score how well this place supports the stated real-world goal using only explicit "
+            "place evidence such as name, types, address, description, summaries, opening data, "
+            "ratings, review count, reviews, price level, and source-labelled amenity fields. "
+            "Use ratings and review volume only as supporting confidence, not as a substitute for "
+            "goal fit. Never infer quietness, laptop suitability, accessibility, ambience, seating, "
+            "or other missing qualities; missing facts remain unknown."
+        ),
+        criteria=(
+            "Explicit evidence conflicts with or does not support the place goal",
+            "Weak place fit with little explicit supporting evidence",
+            "Plausible fit supported by some explicit place evidence",
+            "Strong fit supported by several goal-specific place facts",
+            "Exceptional direct fit with unusually clear goal-specific evidence",
+        ),
+    ),
+    "shopping": SearchRelevanceProfile(
+        instructions=(
+            "Score how well this product satisfies the stated purchase goal using only explicit "
+            "title, category, attributes, price, rating, review count, delivery, availability, and "
+            "provider evidence. Prioritize use-case and compatibility fit before general popularity. "
+            "Treat price as better only when the goal calls for affordability or value, and use "
+            "ratings or reviews as supporting confidence rather than proof of unstated quality, "
+            "durability, safety, or suitability. Missing product facts remain unknown."
+        ),
+        criteria=(
+            "Wrong or unsupported product fit for the purchase goal",
+            "Weak fit with major unsupported requirements",
+            "Plausible fit with partial explicit product evidence",
+            "Strong fit with clear use-case and product evidence",
+            "Exceptional direct match with strong explicit decision evidence",
+        ),
+    ),
+    "travel_stays": SearchRelevanceProfile(
+        instructions=(
+            "Score how well this accommodation supports the stated stay goal after authoritative "
+            "date, party-size, price, class, rating, and cancellation filters. Use only explicit "
+            "property type, description, amenities, location, price, rating, review, eco, and "
+            "cancellation evidence. Never infer quietness, comfort, walkability, neighborhood "
+            "quality, workspace suitability, accessibility, or proximity from missing data."
+        ),
+        criteria=(
+            "Explicit facts conflict with or do not support the stay goal",
+            "Weak stay fit with little explicit evidence",
+            "Plausible fit supported by some property evidence",
+            "Strong stay fit supported by several explicit facts",
+            "Exceptional direct match to the stated stay goal",
+        ),
+    ),
+    "videos": SearchRelevanceProfile(
+        instructions=(
+            "Score how well this video serves the stated viewing or learning goal. Prioritize direct "
+            "topic coverage, intended audience, requested depth, format, duration, and freshness "
+            "using explicit title, description, tags, channel, publication, and duration evidence. "
+            "Engagement counts are secondary confidence signals and must never outweigh a stronger "
+            "goal match. Do not infer authority, accuracy, or expertise that is not evidenced."
+        ),
+        criteria=(
+            "Unrelated or unsuitable for the viewing goal",
+            "Weak or mostly keyword-level video fit",
+            "Plausible fit with partial audience or depth evidence",
+            "Strong fit with clear topic, audience, and format evidence",
+            "Exceptional direct fit for the exact viewing or learning goal",
+        ),
+    ),
+    "fitness_locations": SearchRelevanceProfile(
+        instructions=(
+            "Score how well this fitness venue supports the stated activity goal after authoritative "
+            "city, radius, category, and plan filters. Use only explicit disciplines, address, "
+            "distance, plan, rating, review count, and venue fields. Never infer beginner level, "
+            "intensity, accessibility, equipment, atmosphere, or class availability from missing data."
+        ),
+        criteria=(
+            "Explicit venue facts conflict with or do not support the goal",
+            "Weak venue fit with little explicit evidence",
+            "Plausible venue fit from available disciplines or location evidence",
+            "Strong venue fit supported by several explicit facts",
+            "Exceptional direct venue match to the stated activity goal",
+        ),
+    ),
+    "fitness_classes": SearchRelevanceProfile(
+        instructions=(
+            "Score how well this class supports the stated activity goal after authoritative date, "
+            "location, radius, attendance, minimum-spots, category, venue, and plan filters. Use only "
+            "explicit class name, category, type, schedule, venue, distance, spots, attendance, and "
+            "plan evidence. Never infer beginner level, intensity, accessibility, coaching quality, "
+            "or suitability from missing data."
+        ),
+        criteria=(
+            "Explicit class facts conflict with or do not support the goal",
+            "Weak class fit with little explicit evidence",
+            "Plausible class fit from available activity or schedule evidence",
+            "Strong class fit supported by several explicit facts",
+            "Exceptional direct class match to the stated activity goal",
+        ),
+    ),
+}
+
+
+RELEVANCE_CANDIDATE_COUNTS: Dict[str, int] = {
+    "maps": ECONOMICAL_RELEVANCE_CANDIDATE_COUNT,
+    "shopping": ECONOMICAL_RELEVANCE_CANDIDATE_COUNT,
+    "travel_stays": ECONOMICAL_RELEVANCE_CANDIDATE_COUNT,
 }
 
 
@@ -144,12 +249,18 @@ def normalize_relevance_criteria(value: Any) -> Optional[str]:
     return normalized
 
 
-def relevance_candidate_target(requested_limit: int) -> int:
-    """Return the approved forty-or-larger bounded discovery target."""
+def relevance_candidate_target(requested_limit: int, *, profile: Optional[str] = None) -> int:
+    """Return the approved cost-aware bounded discovery target."""
 
+    profile_target = RELEVANCE_CANDIDATE_COUNTS.get(
+        profile or "",
+        DEFAULT_RELEVANCE_CANDIDATE_COUNT,
+    )
+    if profile in RELEVANCE_CANDIDATE_COUNTS:
+        return min(MAX_SEARCH_RELEVANCE_CANDIDATES, profile_target)
     return min(
         MAX_SEARCH_RELEVANCE_CANDIDATES,
-        max(DEFAULT_RELEVANCE_CANDIDATE_COUNT, max(1, int(requested_limit))),
+        max(profile_target, max(1, int(requested_limit))),
     )
 
 

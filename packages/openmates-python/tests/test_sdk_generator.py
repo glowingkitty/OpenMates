@@ -131,6 +131,30 @@ def test_generated_metadata_includes_audio_web_search_images_generate_business_a
     assert fitness_classes["skill_method_py"] == "search_classes"
     assert "requests" in fitness_classes["schema"]["properties"]
 
+    # contract-test: supporting surface=sdks.pip assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
+    for app_id, skill_id in [
+        ("web", "search"),
+        ("news", "search"),
+        ("events", "search"),
+        ("home", "search"),
+        ("maps", "search"),
+        ("shopping", "search_products"),
+        ("travel", "search_stays"),
+        ("videos", "search"),
+        ("fitness", "search_locations"),
+        ("fitness", "search_classes"),
+    ]:
+        skill = next(
+            candidate
+            for candidate in APP_SKILL_METADATA
+            if candidate["app_id"] == app_id and candidate["skill_id"] == skill_id
+        )
+        assert (
+            skill["schema"]["properties"]["requests"]["items"]["properties"]
+            ["relevance_criteria"]["maxLength"]
+            == 1000
+        )
+
     weather_schema = weather_forecast["schema"]
     assert weather_schema["properties"]["start_date"]["format"] == "date"
     assert weather_schema["properties"]["end_date"]["format"] == "date"

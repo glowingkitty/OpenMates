@@ -538,6 +538,14 @@ skills:
     name_translation_key: app_skills.travel.search_stays
     description_translation_key: app_skills.travel.search_stays.description
     icon_image: home.svg
+    preprocessor_hint: >
+      Search hotels, hostels, and other stays for explicit dates and party size. When the
+      user states a material stay purpose or preference that should change which valid
+      properties rank first, include a concise, faithful relevance_criteria value. Keep
+      dates, guests, currency, price, hotel class, rating, free cancellation, and sort
+      constraints in their structured fields. A plain stay search may omit
+      relevance_criteria; never invent budget, amenities, neighborhood, quietness,
+      accessibility, workspace, or cancellation preferences.
     class_path: backend.apps.travel.skills.search_stays.SearchStaysSkill
     pricing:
       per_unit:
@@ -605,6 +613,10 @@ skills:
                 type: integer
                 description: Maximum number of results to return.
                 default: 10
+              relevance_criteria:
+                type: string
+                maxLength: 1000
+                description: Optional natural-language stay goal used only to rank matching first-page properties. Omit for ordinary provider ordering; structured date, party-size, price, class, rating, cancellation, and sort filters remain authoritative.
             required:
               - query
               - check_in_date

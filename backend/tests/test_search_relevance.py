@@ -184,21 +184,28 @@ def test_criteria_validation_and_stable_deduplication() -> None:
 def test_search_tool_schemas_expose_optional_criteria_and_keep_health_excluded() -> None:
     backend_root = Path(__file__).resolve().parents[1]
     expected_limits = {
-        "web": ("count", 20),
-        "news": ("count", 20),
-        "events": ("count", 50),
-        "home": ("max_results", 20),
+        ("web", "search"): ("count", 10, 20),
+        ("news", "search"): ("count", 10, 20),
+        ("events", "search"): ("count", 10, 50),
+        ("home", "search"): ("max_results", 10, 20),
+        ("maps", "search"): ("pageSize", 10, 20),
+        ("shopping", "search_products"): ("max_results", 10, 20),
+        ("travel", "search_stays"): ("max_results", 10, None),
+        ("videos", "search"): ("count", 6, 20),
+        ("fitness", "search_locations"): ("limit", 10, 50),
+        ("fitness", "search_classes"): ("limit", 10, 50),
     }
-    for app_id, (limit_field, maximum) in expected_limits.items():
+    for (app_id, skill_id), (limit_field, default, maximum) in expected_limits.items():
         app = yaml.safe_load((backend_root / "apps" / app_id / "app.yml").read_text())
-        skill = next(item for item in app["skills"] if item["id"] == "search")
+        skill = next(item for item in app["skills"] if item["id"] == skill_id)
         item_schema = skill["tool_schema"]["properties"]["requests"]["items"]
         properties = item_schema["properties"]
         assert properties["relevance_criteria"]["type"] == "string"
         assert properties["relevance_criteria"]["maxLength"] == 1000
         assert "relevance_criteria" not in item_schema.get("required", [])
-        assert properties[limit_field]["default"] == 10
-        assert properties[limit_field]["maximum"] == maximum
+        assert properties[limit_field]["default"] == default
+        if maximum is not None:
+            assert properties[limit_field]["maximum"] == maximum
         assert "relevance_criteria" in skill["preprocessor_hint"]
 
     health = yaml.safe_load((backend_root / "apps" / "health" / "app.yml").read_text())
@@ -554,3 +561,374 @@ async def test_home_ranked_search_geocodes_and_returns_only_max_results(monkeypa
     assert geocoded_counts == [10, 4]
     assert len(fallback_results) == 4
     assert fallback_results[0]["title"] == "Listing 0"
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization
+@pytest.mark.anyio
+async def test_maps_relevance_uses_one_twenty_candidate_call_and_clips_fallback(monkeypatch) -> None:
+    from backend.apps.maps.skills import search_skill as maps_search
+
+    provider_sizes = []
+    rank_calls = []
+    ranking_fails = False
+
+    async def fake_provider(**kwargs):
+        provider_sizes.append(kwargs["page_size"])
+        return {"results": [
+            {
+                "place_id": f"place-{index}",
+                "name": f"Place {index}",
+                "formatted_address": f"Street {index}, Berlin",
+                "description": "Cafe with explicit Wi-Fi details",
+            }
+            for index in range(kwargs["page_size"])
+        ]}
+
+    async def allow_rate_limit(**_kwargs):
+        return True, None
+
+    async def passthrough_sanitizer(*, payload, **_kwargs):
+        return payload
+
+    async def passthrough_enrichment(*, previews, **_kwargs):
+        return previews, {"geoapify_requested": False}
+
+    async def fake_rank(**kwargs):
+        rank_calls.append(len(kwargs["candidates"]))
+        if ranking_fails:
+            return search_relevance.SearchRelevanceRankingResult(
+                candidates=list(kwargs["candidates"]),
+                applied=False,
+                fallback_reason="provider_failure",
+            )
+        return _reversed_ranking(kwargs["candidates"])
+
+    monkeypatch.setattr(maps_search, "search_places", fake_provider)
+    monkeypatch.setattr(maps_search, "check_rate_limit", allow_rate_limit)
+    monkeypatch.setattr(maps_search, "sanitize_long_text_fields_in_payload", passthrough_sanitizer)
+    monkeypatch.setattr(maps_search, "rank_search_candidates", fake_rank)
+    skill = object.__new__(maps_search.SearchSkill)
+    monkeypatch.setattr(skill, "_apply_geoapify_enrichment", passthrough_enrichment)
+
+    _, ranked, error, _metadata = await skill._process_single_search_request(
+        {
+            "query": "cafes in Berlin",
+            "pageSize": 10,
+            "relevance_criteria": "quiet laptop-friendly cafe with explicit Wi-Fi evidence",
+            "osmEnrichment": "disabled",
+        },
+        "maps-ranked",
+        secrets_manager=object(),
+        cache_service=object(),
+    )
+    assert error is None
+    assert provider_sizes == [20]
+    assert len(ranked) == 10 and ranked[0]["name"] == "Place 19"
+
+    ranking_fails = True
+    _, fallback, error, _metadata = await skill._process_single_search_request(
+        {
+            "query": "cafes in Berlin",
+            "pageSize": 4,
+            "relevance_criteria": "quiet laptop-friendly cafe",
+            "osmEnrichment": "disabled",
+        },
+        "maps-fallback",
+        secrets_manager=object(),
+        cache_service=object(),
+    )
+    assert error is None
+    assert provider_sizes == [20, 20]
+    assert len(fallback) == 4 and fallback[0]["name"] == "Place 0"
+
+    _, plain, error, _metadata = await skill._process_single_search_request(
+        {"query": "cafes in Berlin", "pageSize": 3, "osmEnrichment": "disabled"},
+        "maps-plain",
+        secrets_manager=object(),
+        cache_service=object(),
+    )
+    assert error is None and len(plain) == 3
+    assert provider_sizes == [20, 20, 3]
+    assert rank_calls == [20, 20]
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization
+@pytest.mark.anyio
+async def test_shopping_relevance_uses_twenty_candidates_without_extra_page(monkeypatch) -> None:
+    from backend.apps.shopping.skills import search_products as shopping_search
+
+    provider_sizes = []
+    rank_calls = []
+
+    class FakeProduct:
+        def __init__(self, index):
+            self.index = index
+
+        def to_result_dict(self):
+            return {
+                "product_id": f"product-{self.index}",
+                "title": f"Product {self.index}",
+                "description": "Explicit product facts",
+                "price": self.index + 1,
+            }
+
+    async def fake_provider(**kwargs):
+        provider_sizes.append(kwargs["max_results"])
+        return [FakeProduct(index) for index in range(kwargs["max_results"])], {
+            "totalResultCount": 100,
+        }
+
+    async def passthrough_sanitizer(*, payload, **_kwargs):
+        return payload
+
+    async def failed_rank(**kwargs):
+        rank_calls.append(len(kwargs["candidates"]))
+        return search_relevance.SearchRelevanceRankingResult(
+            candidates=list(kwargs["candidates"]),
+            applied=False,
+            fallback_reason="invalid_response",
+        )
+
+    monkeypatch.setattr(shopping_search, "rewe_search", fake_provider)
+    monkeypatch.setattr(shopping_search, "sanitize_long_text_fields_in_payload", passthrough_sanitizer)
+    monkeypatch.setattr(shopping_search, "rank_search_candidates", failed_rank)
+    skill = object.__new__(shopping_search.SearchProductsSkill)
+
+    _, fallback, error = await skill._process_single_request(
+        {
+            "query": "protein snack",
+            "category": "grocery",
+            "max_results": 4,
+            "relevance_criteria": "high protein with low added sugar based on explicit product facts",
+        },
+        "shopping-fallback",
+        secrets_manager=object(),
+    )
+    assert error is None
+    assert provider_sizes == [20]
+    assert len(fallback) == 4 and fallback[0]["title"] == "Product 0"
+
+    _, plain, error = await skill._process_single_request(
+        {"query": "protein snack", "category": "grocery", "max_results": 3},
+        "shopping-plain",
+        secrets_manager=object(),
+    )
+    assert error is None and len(plain) == 3
+    assert provider_sizes == [20, 3]
+    assert rank_calls == [20]
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization
+@pytest.mark.anyio
+async def test_stay_relevance_keeps_serpapi_to_one_twenty_result_request(monkeypatch) -> None:
+    from backend.apps.travel.skills import search_stays as stay_search
+
+    provider_sizes = []
+    rank_calls = []
+
+    class FakeStay:
+        def __init__(self, index):
+            self.index = index
+            self.name = f"Stay {index}"
+            self.extracted_rate_per_night = 100 + index
+            self.gps_coordinates = {"latitude": 52.5, "longitude": 13.4 + index / 1000}
+
+        def to_dict(self):
+            return {
+                "property_token": f"stay-{self.index}",
+                "name": self.name,
+                "description": "Explicit amenities and location facts",
+                "extracted_rate_per_night": self.extracted_rate_per_night,
+                "amenities": ["Wi-Fi"],
+            }
+
+    async def fake_provider(**kwargs):
+        provider_sizes.append(kwargs["max_results"])
+        return [FakeStay(index) for index in range(kwargs["max_results"])]
+
+    async def passthrough_sanitizer(*, payload, **_kwargs):
+        return payload
+
+    async def failed_rank(**kwargs):
+        rank_calls.append(len(kwargs["candidates"]))
+        return search_relevance.SearchRelevanceRankingResult(
+            candidates=list(kwargs["candidates"]),
+            applied=False,
+            fallback_reason="provider_failure",
+        )
+
+    monkeypatch.setattr(stay_search, "search_hotels", fake_provider)
+    monkeypatch.setattr(stay_search, "sanitize_long_text_fields_in_payload", passthrough_sanitizer)
+    monkeypatch.setattr(stay_search, "rank_search_candidates", failed_rank)
+    skill = object.__new__(stay_search.SearchStaysSkill)
+
+    _, fallback, error = await skill._process_single_request(
+        {
+            "query": "Berlin hotel",
+            "check_in_date": "2026-10-10",
+            "check_out_date": "2026-10-12",
+            "max_results": 4,
+            "relevance_criteria": "quiet work-friendly stay with explicit desk and Wi-Fi evidence",
+        },
+        "stay-fallback",
+        secrets_manager=object(),
+    )
+    assert error is None
+    assert provider_sizes == [20]
+    assert len(fallback) == 4 and fallback[0]["name"] == "Stay 0"
+
+    _, plain, error = await skill._process_single_request(
+        {
+            "query": "Berlin hotel",
+            "check_in_date": "2026-10-10",
+            "check_out_date": "2026-10-12",
+            "max_results": 3,
+        },
+        "stay-plain",
+        secrets_manager=object(),
+    )
+    assert error is None and len(plain) == 3
+    assert provider_sizes == [20, 3]
+    assert rank_calls == [20]
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization
+@pytest.mark.anyio
+async def test_video_relevance_uses_one_forty_result_brave_call_and_clips_fallback(monkeypatch) -> None:
+    from backend.apps.videos.skills import search_skill as video_search
+
+    provider_sizes = []
+    rank_calls = []
+
+    async def fake_provider(**kwargs):
+        provider_sizes.append(kwargs["count"])
+        return {
+            "sanitize_output": False,
+            "results": [
+                {
+                    "title": f"Video {index}",
+                    "url": f"https://videos.example/{index}",
+                    "description": "Explicit tutorial scope",
+                }
+                for index in range(kwargs["count"])
+            ],
+        }
+
+    async def allow_rate_limit(**_kwargs):
+        return True, None
+
+    async def failed_rank(**kwargs):
+        rank_calls.append(len(kwargs["candidates"]))
+        return search_relevance.SearchRelevanceRankingResult(
+            candidates=list(kwargs["candidates"]),
+            applied=False,
+            fallback_reason="provider_failure",
+        )
+
+    monkeypatch.setattr(video_search, "search_videos", fake_provider)
+    monkeypatch.setattr(video_search, "check_rate_limit", allow_rate_limit)
+    monkeypatch.setattr(video_search, "rank_search_candidates", failed_rank)
+    skill = object.__new__(video_search.SearchSkill)
+
+    _, fallback, error = await skill._process_single_search_request(
+        {
+            "query": "advanced local AI tutorial",
+            "count": 4,
+            "relevance_criteria": "hands-on advanced tutorial for an experienced Python developer",
+        },
+        "videos-fallback",
+        secrets_manager=object(),
+        cache_service=object(),
+    )
+    assert error is None
+    assert provider_sizes == [40]
+    assert len(fallback) == 4 and fallback[0]["title"] == "Video 0"
+
+    _, plain, error = await skill._process_single_search_request(
+        {"query": "advanced local AI tutorial", "count": 3},
+        "videos-plain",
+        secrets_manager=object(),
+        cache_service=object(),
+    )
+    assert error is None and len(plain) == 3
+    assert provider_sizes == [40, 8]
+    assert rank_calls == [40]
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("module_name", "class_name", "client_method", "detail_url_field"),
+    [
+        ("search_locations", "SearchLocationsSkill", "search_locations", "url"),
+        ("search_classes", "SearchClassesSkill", "search_classes", "detail_url"),
+    ],
+)
+async def test_fitness_relevance_uses_existing_forty_candidate_pool_and_clips_fallback(
+    monkeypatch,
+    module_name,
+    class_name,
+    client_method,
+    detail_url_field,
+) -> None:
+    if module_name == "search_locations":
+        from backend.apps.fitness.skills import search_locations as fitness_search
+    else:
+        from backend.apps.fitness.skills import search_classes as fitness_search
+
+    provider_sizes = []
+    rank_calls = []
+
+    class FakeClient:
+        async def search_locations(self, **kwargs):
+            return await self._results(**kwargs)
+
+        async def search_classes(self, **kwargs):
+            return await self._results(**kwargs)
+
+        async def _results(self, **kwargs):
+            provider_sizes.append(kwargs["limit"])
+            return [
+                {
+                    "id": f"fitness-{index}",
+                    detail_url_field: f"https://fitness.example/{index}",
+                    "name": f"Fitness result {index}",
+                    "city": "Berlin",
+                }
+                for index in range(kwargs["limit"])
+            ]
+
+    async def failed_rank(**kwargs):
+        rank_calls.append(len(kwargs["candidates"]))
+        return search_relevance.SearchRelevanceRankingResult(
+            candidates=list(kwargs["candidates"]),
+            applied=False,
+            fallback_reason="provider_failure",
+        )
+
+    monkeypatch.setattr(fitness_search, "rank_search_candidates", failed_rank)
+    skill_class = getattr(fitness_search, class_name)
+    skill = object.__new__(skill_class)
+    skill.client = FakeClient()
+
+    payload = {
+        "requests": [{
+            "query": "yoga",
+            "city": "Berlin",
+            "limit": 4,
+            "relevance_criteria": "beginner-friendly evening option with explicit availability evidence",
+        }],
+    }
+    response = await skill.execute(payload, secrets_manager=object())
+    group = response["results"][0]
+    assert provider_sizes == [40]
+    assert group["result_count"] == 4
+    assert group["results"][0]["name"] == "Fitness result 0"
+
+    plain_response = await skill.execute(
+        {"requests": [{"query": "yoga", "city": "Berlin", "limit": 3}]},
+        secrets_manager=object(),
+    )
+    assert provider_sizes == [40, 3]
+    assert plain_response["results"][0]["result_count"] == 3
+    assert rank_calls == [40]

@@ -24,6 +24,8 @@ CORE_SPECS = frozenset({
     "guest-interest-smart-selection.spec.ts",
     "notification-stack.spec.ts",
     "paste-classification.spec.ts",
+    # Schema/CLI metadata only; no provider credentials or AI inference.
+    "skill-search-relevance-parity.spec.ts",
 
     "interface-font-settings.spec.ts",
     "language-settings-flow.spec.ts",

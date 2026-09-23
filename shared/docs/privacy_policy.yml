@@ -430,7 +430,7 @@ provider_groups:
         used_for:
           - bounded request routing, model-tier, skill, focus-mode, language, and metadata decisions via OpenRouter
           - request-safety, response-safety, and prompt-injection classification via OpenRouter
-          - optional relevance ranking for web, news, event, and housing search results via OpenRouter
+          - optional relevance ranking for supported public search results via OpenRouter
         data_shared:
           - Bounded recent chat context with PII placeholders substituted client-side
           - External text being checked for prompt injection, without OpenMates user identifiers

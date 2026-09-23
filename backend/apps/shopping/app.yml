@@ -44,6 +44,11 @@ skills:
       Search products on REWE, Amazon, or Stoffe.de with real-time prices.
       Use category to route groceries, marketplace products, fabrics, sewing supplies,
       and patterns to compatible providers. Invalid provider/category combinations are rejected.
+      When the user states a material use case or preference that should change product
+      ordering, include a concise, faithful relevance_criteria value. Keep provider,
+      category, country, department, price, fulfilment, and sort constraints structured.
+      A plain product search may omit relevance_criteria; never invent budget, brand,
+      durability, quality, delivery, safety, or compatibility preferences.
     class_path: backend.apps.shopping.skills.search_products.SearchProductsSkill
     pricing:
       per_unit:
@@ -123,7 +128,13 @@ skills:
               max_results:
                 type: integer
                 description: Maximum number of products to return (1-20, default 10).
+                minimum: 1
+                maximum: 20
                 default: 10
+              relevance_criteria:
+                type: string
+                maxLength: 1000
+                description: Optional natural-language purchase goal used only to rank matching product candidates. Omit for ordinary provider ordering; structured provider, category, price, country, department, fulfilment, and sort fields remain authoritative.
               sort:
                 type: string
                 description: >

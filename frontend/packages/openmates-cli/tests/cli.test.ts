@@ -3376,6 +3376,33 @@ describe("apps metadata commands", () => {
     });
   });
 
+  // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
+  it("forwards relevance criteria through generated typed app-skill flags", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "fitness", "search_locations",
+        "--query", "yoga",
+        "--city", "Berlin",
+        "--limit", "4",
+        "--relevance-criteria", "beginner-friendly evening venues with explicit class variety",
+        "--json",
+      ]);
+
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/fitness/skills/search_locations",
+        body: {
+          requests: [{
+            query: "yoga",
+            city: "Berlin",
+            limit: 4,
+            relevance_criteria: "beginner-friendly evening venues with explicit class variety",
+          }],
+        },
+      });
+    });
+  });
+
   it("keeps explicit app-skill metadata inspection available", async () => {
     await withFlatWeatherSkillMockApi(async ({ apiUrl }) => {
       const output = await runCliAsync([

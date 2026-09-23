@@ -86,7 +86,13 @@ skills:
     description_translation_key: maps.search.description
     icon_image: search.svg
     preprocessor_hint: >
-      Search for places, businesses, restaurants, directions, locations.
+      Search for places, businesses, restaurants, directions, and locations. When the
+      user's request states a material purpose or preference that should change which
+      matching places rank first, include a concise, faithful relevance_criteria value
+      without waiting for the user to name the field. Keep location, place type, rating,
+      open-now, price, and required amenity constraints in their structured fields. A
+      plain place search may omit relevance_criteria; never invent quietness, ambience,
+      accessibility, laptop suitability, price, or other preferences.
     class_path: |
       backend.apps.maps.skills.search_skill.SearchSkill
     providers:
@@ -116,7 +122,7 @@ skills:
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
             Example for single search: {"requests": [{"query": "restaurants in Berlin"}]}
             Example for multiple searches: {"requests": [{"query": "restaurants in Berlin"}, {"query": "museums in Berlin"}]}
-            Each object must contain 'query' (search query string), and can include optional parameters (pageSize, languageCode, locationBias, includedType, minRating, openNow, includeReviews).
+            Each object must contain 'query' (search query string), and can include optional parameters (pageSize, relevance_criteria, languageCode, locationBias, includedType, minRating, openNow, includeReviews).
             Note: The 'id' field is auto-generated if not provided - you don't need to include it.
           items:
             type: object
@@ -130,6 +136,10 @@ skills:
                 minimum: 1
                 maximum: 20
                 default: 10
+              relevance_criteria:
+                type: string
+                maxLength: 1000
+                description: Optional natural-language goal used only to rank matching place candidates. Omit for ordinary provider ordering; structured place, rating, open-now, price, location, and amenity filters remain authoritative.
               languageCode:
                 type: string
                 description: Language code for results (ISO 639-1, e.g., 'en', 'es', 'fr', 'de'). Defaults to 'en' if not specified.

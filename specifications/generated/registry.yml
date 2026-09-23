@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/app-skill-execution
-    fingerprint: c300f28577a1d4a1052eff5a4de3847abac266b49f9d986058c170d86c129c78
+    fingerprint: e496183c2265df81df07fae76a0a70cae3784d3b18dd9c1fb02e33242f4d7042
     required_applies_to:
     - rest_api
     - cli
@@ -731,7 +731,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: parity
-    fingerprint: b9ba3ada384e2827ffd9e3c806840f9eb29309af2c0e2ea1366d695800c3932f
+    fingerprint: ea4590131c4207b8a6c75f3d264df6deb98c2acc191b887622298f85a3030e69
     required_applies_to:
     - rest_api
     - cli
@@ -755,7 +755,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: behavior
-    fingerprint: 9eaf692552e1e422db3e46487024b8bdb5e2585a32972301576cbf8ff63863e8
+    fingerprint: a030f4e137e4bc9dff97cb41c8bb521fe0bd1a98cd29f347283f5ebf9443bf80
     required_applies_to:
     - rest_api
     - cli
@@ -767,7 +767,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: invariant
-    fingerprint: 4b39e31732ff58dbde3456beaf86d15433bea64bc4f8d048b19a6e672920ff31
+    fingerprint: 88810ac4fa0f7944e7b0f475f6af5181efe61b6557958ade0d33a47ec7c434ff
     required_applies_to:
     - rest_api
     - cli
@@ -779,7 +779,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: security
-    fingerprint: 799debe1d08de74579cdff40a51cf797ec55a61d80a98998e16c578a4e726a1a
+    fingerprint: 7d3f1eb4e2c6543dd61a66dd64b3aebf748552ff4a8cae85cbbcf3d345f39f2b
     required_applies_to:
     - rest_api
     - cli

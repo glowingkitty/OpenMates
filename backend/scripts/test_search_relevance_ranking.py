@@ -2,16 +2,17 @@
 # contract-test-file: infrastructure
 """Run a small real-provider evaluation of optional search relevance ranking.
 
-Purpose: Compare provider order with Jev order for web, news, events, and home.
+Purpose: Compare provider order with Jev order for supported public search skills.
 Architecture: Runs inside the API container through SkillRegistry.dispatch_skill().
 Data sources: Existing public search providers and the configured Jev provider.
 Output: Public titles/hosts plus aggregate candidate, latency, token, and cost data.
-Usage: docker exec api python /app/backend/scripts/test_search_relevance_ranking.py
+Usage: docker exec api python /app/backend/scripts/test_search_relevance_ranking.py [--case maps]
 """
 
 from __future__ import annotations
 
 import asyncio
+import argparse
 from datetime import datetime, timedelta, timezone
 import importlib
 import json
@@ -47,9 +48,42 @@ def _event_request() -> dict[str, Any]:
     }
 
 
+def _stay_request() -> dict[str, Any]:
+    check_in = (datetime.now(timezone.utc) + timedelta(days=35)).date()
+    check_out = check_in + timedelta(days=3)
+    return {
+        "id": "travel-stays",
+        "query": "Berlin hotels",
+        "check_in_date": check_in.isoformat(),
+        "check_out_date": check_out.isoformat(),
+        "adults": 1,
+        "max_results": FINAL_COUNT,
+        "relevance_criteria": (
+            "A work-friendly stay with explicit Wi-Fi and workspace or desk evidence, "
+            "prioritizing concrete property details over rating popularity"
+        ),
+    }
+
+
+def _fitness_class_request() -> dict[str, Any]:
+    start = (datetime.now(timezone.utc) + timedelta(days=1)).date()
+    return {
+        "id": "fitness-classes",
+        "query": "yoga",
+        "city": "Berlin",
+        "start_date": start.isoformat(),
+        "days": 7,
+        "limit": FINAL_COUNT,
+        "relevance_criteria": (
+            "Evening on-site yoga classes with explicit remaining spots and a central Berlin venue"
+        ),
+    }
+
+
 CASES: tuple[dict[str, Any], ...] = (
     {
         "app": "web",
+        "skill": "search",
         "module": "backend.apps.web.skills.search_skill",
         "request": {
             "id": "web",
@@ -63,6 +97,7 @@ CASES: tuple[dict[str, Any], ...] = (
     },
     {
         "app": "news",
+        "skill": "search",
         "module": "backend.apps.news.skills.search_skill",
         "request": {
             "id": "news",
@@ -77,11 +112,13 @@ CASES: tuple[dict[str, Any], ...] = (
     },
     {
         "app": "events",
+        "skill": "search",
         "module": "backend.apps.events.skills.search_skill",
         "request_factory": _event_request,
     },
     {
         "app": "home",
+        "skill": "search",
         "module": "backend.apps.home.skills.search_skill",
         "request": {
             "id": "home",
@@ -95,6 +132,81 @@ CASES: tuple[dict[str, Any], ...] = (
             ),
         },
     },
+    {
+        "app": "maps",
+        "skill": "search",
+        "module": "backend.apps.maps.skills.search_skill",
+        "request": {
+            "id": "maps",
+            "query": "cafes in Berlin",
+            "includedType": "cafe",
+            "pageSize": FINAL_COUNT,
+            "osmEnrichment": "disabled",
+            "relevance_criteria": (
+                "A cafe suitable for focused laptop work, prioritizing explicit Wi-Fi, seating, "
+                "opening-hour, or work-friendly evidence and treating missing facts as unknown"
+            ),
+        },
+    },
+    {
+        "app": "shopping",
+        "skill": "search_products",
+        "module": "backend.apps.shopping.skills.search_products",
+        "request": {
+            "id": "shopping",
+            "query": "wireless travel mouse",
+            "provider": "Amazon",
+            "category": "electronics",
+            "country": "DE",
+            "max_results": FINAL_COUNT,
+            "relevance_criteria": (
+                "A compact travel mouse with explicit quiet-click, long battery-life, and "
+                "multi-device support, prioritizing feature fit over popularity"
+            ),
+        },
+    },
+    {
+        "app": "travel",
+        "skill": "search_stays",
+        "module": "backend.apps.travel.skills.search_stays",
+        "request_factory": _stay_request,
+    },
+    {
+        "app": "videos",
+        "skill": "search",
+        "module": "backend.apps.videos.skills.search_skill",
+        "request": {
+            "id": "videos",
+            "query": "local LLM RAG production tutorial",
+            "count": FINAL_COUNT,
+            "relevance_criteria": (
+                "An advanced hands-on tutorial for an experienced Python developer, with explicit "
+                "production architecture, evaluation, or deployment depth rather than an introduction"
+            ),
+        },
+    },
+    {
+        "app": "fitness-locations",
+        "registry_app": "fitness",
+        "skill": "search_locations",
+        "module": "backend.apps.fitness.skills.search_locations",
+        "request": {
+            "id": "fitness-locations",
+            "query": "yoga",
+            "city": "Berlin",
+            "limit": FINAL_COUNT,
+            "relevance_criteria": (
+                "A venue with explicit yoga variety and a central Berlin address; do not infer class level"
+            ),
+        },
+    },
+    {
+        "app": "fitness-classes",
+        "registry_app": "fitness",
+        "skill": "search_classes",
+        "module": "backend.apps.fitness.skills.search_classes",
+        "request_factory": _fitness_class_request,
+    },
 )
 
 
@@ -107,7 +219,7 @@ def _candidate_summary(candidate: Any) -> dict[str, str]:
     except ValueError:
         host = ""
     return {
-        "title": str(candidate.get("title") or "")[:180],
+        "title": str(candidate.get("title") or candidate.get("name") or "")[:180],
         "host": host,
     }
 
@@ -154,8 +266,8 @@ async def _run_case(
     request = case.get("request") or case["request_factory"]()
     try:
         response = await registry.dispatch_skill(
-            case["app"],
-            "search",
+            case.get("registry_app", case["app"]),
+            case["skill"],
             {"requests": [request], "_secrets_manager": secrets_manager},
         )
     finally:
@@ -167,7 +279,11 @@ async def _run_case(
         "requested_count": FINAL_COUNT,
         "returned_count": len(response_items),
         "response_top": [_candidate_summary(item) for item in response_items],
-        "response_has_error": bool(response.get("error")),
+        "response_has_error": bool(response.get("error")) or any(
+            bool(group.get("error"))
+            for group in response.get("results", [])
+            if isinstance(group, dict)
+        ),
     })
     capture["status"] = (
         "pass"
@@ -180,18 +296,38 @@ async def _run_case(
 
 
 async def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--case",
+        action="append",
+        dest="case_names",
+        help="Run only this case name (repeatable).",
+    )
+    args = parser.parse_args()
+    selected_cases = tuple(
+        case for case in CASES if not args.case_names or case["app"] in args.case_names
+    )
+    unknown_cases = sorted(set(args.case_names or ()) - {case["app"] for case in CASES})
+    if unknown_cases:
+        print(json.dumps({"status": "fail", "unknown_cases": unknown_cases}))
+        return 2
+
     logging.basicConfig(level=logging.WARNING)
     secrets_manager = SecretsManager()
     await secrets_manager.initialize()
     try:
         registry, metadata = build_skill_registry()
-        missing = [case["app"] for case in CASES if case["app"] not in metadata]
+        missing = [
+            case["app"]
+            for case in selected_cases
+            if case.get("registry_app", case["app"]) not in metadata
+        ]
         if missing:
             print(json.dumps({"status": "fail", "missing_apps": missing}))
             return 1
 
         results = []
-        for case in CASES:
+        for case in selected_cases:
             try:
                 results.append(await _run_case(registry, secrets_manager, case))
             except Exception as exc:
