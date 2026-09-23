@@ -4,7 +4,7 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r28
+revision: r32
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '6407'
 specification_refs:
@@ -34,10 +34,10 @@ implementation_checkpoint_2026_09_23:
   - Command continue mode queues completion until the initial response finishes and retains newer-turn/cancellation fences.
   - Origin CLI review, resource controls, deferred noninteractive prompts and fallback completeness metadata pass their final focused checks.
   verification_remaining:
-  - Isolated product verification remains required. Supporting evidence includes source transport 8/8, runtime 11/11, backend 77/77, origin 6/6, resource grants 1/1, WebSocket 24/24 and CLI focused suites 13/13.
+  - Isolated Project settings verification passed both cases without retries, skips or failures. Supporting evidence includes source transport 8/8, runtime 11/11, backend 77/77, origin 6/6, resource grants 1/1, WebSocket 24/24 and CLI focused suites 13/13.
   - Actual CLI/chat remote and hosted edits plus one exact approved remote command run directly on dev per U24.
   - Exact three-bundle Specification review receipts are recorded after the user approved the presented PDFs.
-  - CLI build and declarations pass. Generated traceability is refreshed; no deployment has occurred.
+  - CLI build and declarations pass. Scoped dev deployment 5fe487f43d262864326ccc15d078943690b96c57 passed the required integration gates; schema setup, service refresh, API health, Vercel and automatic CLI alpha publication succeeded. Real chat verification remains pending.
   limitations:
   - Linux bubblewrap is the initial command confinement adapter; unsupported hosts fail closed.
   - This host previously rejected the bubblewrap probe; confirm the supported dev-host execution route before the command test.
@@ -279,10 +279,7 @@ current_checkpoint:
   step: P1 implementation resumed with approved search and remote command scope
   next_question: null
   clarification_rounds_remaining: 0
-  next_action: Correct the bounded deployment lint findings listed below, refresh the reviewed candidate
-    and deploy through the session helper. The Project settings CI passed and its UI source remains unchanged.
-    Activate the required
-    dev runtime under its lease before actual CLI/chat verification on dev. File checks can proceed
+  next_action: Dev and the web deployment are healthy at 5fe487f43d262864326ccc15d078943690b96c57. Resolve the dedicated dev test-account two-factor credential mismatch before another actual CLI/chat verification attempt. Two bounded fixture attempts failed before inference; do not keep trying accounts or reset account security without the scoped recovery decision. File checks can proceed
     independently of the pending host AppArmor permission for the command check. Do not build
     a live-provider CI profile or repeat approved Specification/test-routing decisions.
   implementation_started: true
@@ -307,8 +304,8 @@ prior_audit:
 specification_tracking:
   state: Projects, Focus Modes and Code Run requirements and their exact presented PDF revisions are
     approved. All three matching publication receipts were recorded on 2026-09-23. Implementation
-    remains in the session worktree with focused local checks passed; product verification and
-    deployment remain incomplete. Approval does not claim implementation verification.
+    is published and active on dev with focused local checks and isolated Project settings CI passed;
+    real chat execution evidence remains incomplete. Approval does not claim implementation verification.
   files:
   - specifications/features/projects/specification.yml
   - specifications/features/projects/examples.yml
@@ -900,7 +897,7 @@ search_terminal_clarification:
       finding: OS filesystem and network restrictions apply to commands and child processes. Permission
         prompts and command labels do not substitute for enforced runtime isolation.
 implementation_traceability:
-  state: All entries below are partial source changes in session 6407, not completed or deployed features.
+  state: The P1 source below is published and active on dev at 5fe487f; focused checks and Project settings CI passed. Real chat file/command verification is blocked on dedicated test-account authentication and the separate host AppArmor choice. Later P2-P4 work remains unimplemented.
   specifications: [feature.projects@1, feature.focus-modes@1, feature.app-skill.code-run@1]
   evidence_state: Focused backend and CLI component checks have passed. Actual disposable-Project
     chat/command evidence remains pending direct dev verification per U24. Exact Specification approval receipts are recorded.
@@ -1079,13 +1076,14 @@ approval_and_ci_continuation_2026_09_23:
   user_confirmation: Approved. Continue.
   turn: 01a0cbf4-7144-7d52-9060-97d287b0fb0b
   approvals: Recorded the three exact fingerprints listed above with their corresponding reviewed PDF artifacts.
-  next_step: Finish the scoped deployment lint corrections, deploy and run real-inference checks on dev per U24. No additional approval is needed for the accepted Specification revisions or this test route.
+  next_step: Run real-inference checks directly on healthy dev per U24. No additional approval is needed for the accepted Specification revisions or this test route.
   candidate:
-    source: 736802cdea0034e4a204bd82d6cf59c63785227d
+    source: 4d90bf1558257551428154b181b43d3dbbedbdca
     base: 3463965d60d71d359fbd9011e14d771aee0b8acb
-    manifest: /home/superdev/projects/OpenMates/logs/ci-candidates/736802cdea0034e4a204bd82d6cf59c63785227d/manifest.json
-    equivalence: All 118 non-generated paths matched the frozen r25 source; only three regenerated Specification artifacts are additional. Later Plan checkpoint updates do not change product code.
+    manifest: /home/superdev/projects/OpenMates/logs/ci-candidates/4d90bf1558257551428154b181b43d3dbbedbdca/manifest.json
+    equivalence: All 118 non-generated paths matched the frozen r28 source; only three regenerated Specification artifacts are additional. Compared with the passing CI candidate, nine paths differ; all four CLI deltas are comments only, and all 15 compared UI/web paths are byte-identical. Backend changes correct one service reference, remove two unused imports and add a passing regression test.
   settings_ci:
+    source: 736802cdea0034e4a204bd82d6cf59c63785227d
     request: d6477b5ff81a77c16cd0af1ffa2412a48b3f5d5ed98a200c6460e29621b55869
     spec: projects-flow.spec.ts
     state: corrected_candidate_passed
@@ -1124,8 +1122,23 @@ approval_and_ci_continuation_2026_09_23:
       validation: Syntax checked without kernel load; dedicated /usr/bin/bwrap attachment adds userns permission and preserves the global restriction.
       status: User choice requested for temporary load/removal or persistent installation; no host profile change performed.
   deployment:
-    state: stopped_before_publication_at_lint
-    receipt: /tmp/openmates-6407-reviewed-deploy.log
+    state: published_and_healthy
+    commit: 5fe487f43d262864326ccc15d078943690b96c57
+    receipt: /tmp/openmates-6407-reviewed-deploy-corrected.log
+    passed: Materialized Specification gate, embed registry, changed-file lint and the required backend pytest gate (24 files) passed. The exact reviewed 121-path candidate was published through session6407.
+    initial_attempt_receipt: /tmp/openmates-6407-reviewed-deploy.log
+    runtime: Schema setup docker-1d449f21 and service refresh docker-caa4cb44 succeeded. The coordinator expanded the explicit services to restore a single backend generation; all services and the API health endpoint are healthy.
+    health_receipt: /tmp/openmates-6407-dev-health.log
+    web: Exact-commit Vercel deployment succeeded at https://vercel.com/marcos-projects-e740a395/open-mates-webapp/7CqKSj2oZtxUgNgdnGH6eDshoV6X.
+    cli: Automatic workflow run https://github.com/glowingkitty/OpenMates/actions/runs/35814376095 passed build/tests and published openmates@0.21.0-alpha.1. The global engineering CLI login/install has not been changed.
+    first_live_launch: The local pnpm-resolved Playwright binary rejected the test subcommand. No test, login or inference ran; fix the test-runner entrypoint without changing product assertions.
+    live_runner_correction: The ignored runner now invokes the already-installed Playwright Test CLI from the canonical dependency directory, with explicit worktree config and spec paths. No dependency installation was needed.
+    second_live_launch: The selected real-inference test starts, but beforeAll login returns HTTP200 login.code_wrong. No chat, inference or Project mutation ran. Inspect credential-slot consistency and backend rejection semantics without resetting accounts or sending email.
+    live_receipt: /tmp/openmates-6407-live-files-rerun.log
+    bounded_auth_diagnosis: Slot mapping and the shared HMAC-SHA1/Base32 six-digit TOTP algorithm are consistent; API and host clocks differ by about 1.6 seconds. Bounded API logs show accepted credentials followed by invalid_2fa_otp_code, with no password failure. The configured test-account TOTP secret appears stale or mismatched.
+    alternate_fixture: One further attempt selected explicit configured slot10 under its own lease; it also failed login.code_wrong in beforeAll. No chat, Project mutation or inference ran. Stop further authentication attempts until the fixture credentials are corrected.
+    alternate_receipt: /tmp/openmates-6407-live-files-alternate-account.log
+    verification_status: Live inference is not verified; failed setup is neither a product pass nor a passing skip. Disposable CLI state and account/runtime leases are cleaned up by finally hooks. No test-account security settings, engineering login or AppArmor profiles were changed.
     checks: Materialized Specification gate and embed registry passed. Lint found one undefined
       Directus service reference in the Project focus WebSocket path, two unused Python imports,
       and intentional terminal-control regexes needing narrowly documented lint exceptions.
