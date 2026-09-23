@@ -61,9 +61,23 @@ quick_answers:
   third_party_providers: >
     When a user chooses a model or uses a feature powered by a third-party
     provider, the content needed to process that request may be sent to that
-    provider. OpenMates tries to reduce exposure by replacing recognized
-    personal details and secrets with placeholders before sending, but anything
-    not detected may be sent as typed.
+    provider. For eligible typed chat messages, OpenMates tries to reduce
+    exposure by replacing recognized personal details and secrets with
+    placeholders before sending, but anything not detected may be sent as
+    typed. This protection does not apply to recordings, raw transcripts,
+    uploaded files, reference images, calendar content, or provider-specific
+    search fields unless a feature explicitly says otherwise.
+  voice_recordings: >
+    When you use audio recording, audio travels over TLS through the OpenMates
+    backend hosted by Hetzner and is sent to Mistral for transcription. Realtime
+    audio is streamed to Mistral; uploaded recordings are encrypted by our
+    upload service before durable S3 storage, then decrypted only in server
+    memory when transcription is requested. The raw transcript is sent to
+    Google Gemini to correct obvious transcription errors and create a title.
+    Neither the voice audio nor the raw transcript receives the placeholder
+    substitution used for eligible typed chat messages. OpenMates stores the
+    recording and transcript as encrypted account content, but Mistral and
+    Google may retain API request data under their own policies.
   model_training: >
     OpenMates does not use private chats to train OpenMates-owned AI models. For
     third-party providers, training use depends on the provider. Most audited
@@ -132,10 +146,11 @@ data_protection_measures:
       happens transiently in process memory and the plaintext is never persisted.
   pii_placeholder_substitution:
     description: >
-      Before any message is sent to a third-party AI model, your browser scans
-      your message for real names, email addresses, and physical addresses that
-      you have saved in your privacy settings (or that match common patterns)
-      and replaces any matches with neutral placeholders (for example [USER_0]).
+      Before an eligible typed chat message is sent to a third-party AI model,
+      your browser scans the message for real names, email addresses, and
+      physical addresses that you have saved in your privacy settings (or that
+      match common patterns) and replaces any matches with neutral placeholders
+      (for example [USER_0]).
       The mapping back to your real values is stored encrypted with your key
       and is never decrypted on our servers. **Important limitation:** this
       substitution only protects personal data that our client-side detector
@@ -144,16 +159,22 @@ data_protection_measures:
       you send. Anything the detector does not recognize (typos of your own
       name, uncommon address formats, other people's personal data, sensitive
       topics that are not formally PII) will be transmitted as you typed it.
-      Please treat every message as you would treat a note passed to a
-      third-party AI provider and be cautious with personal data.
+      Voice audio, raw transcripts, uploaded files, reference images, connected-
+      account content, and structured skill inputs are not covered by this
+      typed-message substitution unless the feature explicitly says otherwise.
+      Please be cautious with personal data whenever you use a third-party-
+      powered feature.
     gdpr_article: Art. 5(1)(c) — Data minimization
   encrypted_at_rest:
     description: >
       Our PostgreSQL database (via Directus), our Redis caches, our S3 object
-      storage, and our backup snapshots hold only ciphertext for any field
-      containing user content. Decryption happens only in memory during active
-      processing and is discarded immediately after. Key material is released
-      on demand by HashiCorp Vault and never stored in raw form outside it.
+      storage, and our backup snapshots are designed to hold only ciphertext for
+      user-content fields. Structured chat data is encrypted in the browser.
+      Uploaded files and recordings travel to our backend over TLS and are
+      encrypted by our upload service before durable S3 storage. Decryption
+      happens only in memory during active processing and is discarded after
+      processing. Key material is released on demand by HashiCorp Vault and
+      never stored in raw form outside it.
     gdpr_article: Art. 32 — Security of processing
   hashed_identifiers:
     description: >
@@ -205,12 +226,24 @@ data_categories:
   content:
     description: >
       User-provided content necessary to deliver the service, such as chat
-      messages, prompts, attachments, reminders, and uploaded images/videos
-      (subject to moderation when applicable). All content is client-side
-      encrypted before transmission. Anonymous free-usage chats are stored only
-      on the user's device before signup, protected by normal per-chat keys;
-      they are uploaded only if the user signs up and promotes them into account
-      sync.
+      messages, prompts, attachments, reminders, voice recordings and
+      transcripts, calendar content, and uploaded images/videos (subject to
+      moderation when applicable). Structured chat fields are generally
+      encrypted in the browser before sync. Uploads and recordings travel to
+      our backend over TLS and are encrypted before durable object storage; they
+      are not necessarily client-side encrypted before transmission. Anonymous
+      free-usage chats are stored only on the user's device before signup,
+      protected by normal per-chat keys; they are uploaded only if the user signs
+      up and promotes them into account sync.
+  connected_accounts:
+    description: >
+      If you connect an external account, we process the provider name, granted
+      scopes, encrypted credential material, and the data needed for each action.
+      For Google Calendar this can include calendar names, time zones, event
+      titles, descriptions, locations, dates, attendee email addresses, and
+      provider event IDs. Connected-account content is accessed only for an
+      authorized action and may appear in encrypted chat history or action
+      receipts.
   payments:
     description: >
       Payment-related data processed by our payment processors (Stripe and
@@ -257,6 +290,11 @@ provider_groups:
           - database hosting
           - S3 file hosting
           - self-hosted observability (OpenObserve runs on our Hetzner infrastructure; traces never leave the EU)
+        data_shared:
+          - TLS-encrypted network traffic and service metadata needed to operate the backend
+          - Ciphertext stored in databases, caches, backups, and S3 object storage
+          - Uploads and recordings in transit to the OpenMates upload service before it encrypts them for durable S3 storage
+          - Note: Encryption reduces what Hetzner can read in storage but does not remove Hetzner's role as an infrastructure processor
       brevo:
         privacy_policy: https://www.brevo.com/legal/privacypolicy
         location: EU
@@ -332,18 +370,26 @@ provider_groups:
   ai_models:
     description: >
       OpenMates routes AI requests to different providers depending on which
-      model you choose. Before any message is sent to a provider in this group,
-      your browser replaces real names, emails, and addresses with placeholders
-      (see data_protection_measures.pii_placeholder_substitution). You can
-      always see which provider a model uses in the model details panel.
+      model or provider-backed feature you use. Eligible typed chat messages use
+      client-side placeholder substitution before provider transmission (see
+      data_protection_measures.pii_placeholder_substitution). Recordings, raw
+      transcripts, uploaded files, reference images, connected-account content,
+      and structured skill inputs are not covered by that protection unless the
+      feature explicitly says otherwise. You can see which provider a selectable
+      model uses in the model details panel.
     providers:
       mistral:
-        privacy_policy: https://legal.mistral.ai/terms/privacy-policy
+        privacy_policy: https://legal.mistral.ai/terms/privacy-policy/
         location: EU
         used_for:
           - Mistral-family model inference (when you select a Mistral model)
+          - realtime voice-recording transcription via Mistral Voxtral
+          - batch transcription of uploaded recordings via Mistral Voxtral
         data_shared:
           - Chat messages with PII placeholders substituted client-side
+          - Realtime audio chunks or the decrypted recording file, plus language and transcription settings
+          - Note: Voice audio may contain personal or sensitive information and is not protected by typed-message placeholder substitution
+          - Note: Mistral states that ordinary API inputs and outputs may be kept for 30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention for this path
       aws_bedrock:
         privacy_policy: https://aws.amazon.com/privacy/
         company_location: US
@@ -364,8 +410,10 @@ provider_groups:
         location: US
         used_for:
           - GPT-family model inference (when you select an OpenAI model)
+          - GPT Image generation or editing when that image model is selected
         data_shared:
           - Chat messages with PII placeholders substituted client-side
+          - Image prompts, generation settings, and reference images when using GPT Image
       openrouter:
         privacy_policy: https://openrouter.ai/privacy
         location: US
@@ -399,8 +447,17 @@ provider_groups:
         location: US
         used_for:
           - Gemini-family model inference (when you select a Gemini model)
+          - automatic correction and title generation for Mistral voice transcripts
+          - Gemini image generation and editing
+          - Google Veo video generation
+          - screenshot-to-HTML conversion
         data_shared:
           - Chat messages with PII placeholders substituted client-side
+          - Raw voice transcript and language hint for transcript correction; the audio itself is not sent to Google for this step
+          - Image or video prompts, generation settings, and reference images when those features are used
+          - Uploaded screenshot and generated code inputs needed for screenshot-to-HTML conversion
+          - Note: Raw transcripts, reference images, and screenshots are not protected by typed-message placeholder substitution and may contain personal data
+          - Note: Google's paid Gemini API terms say prompts and outputs are not used to improve its products, but they may be logged for a limited abuse-monitoring period; Google's current abuse-monitoring documentation states 55 days
       google_vertex_maas:
         privacy_policy: https://cloud.google.com/terms/cloud-privacy-notice
         location: US
@@ -516,9 +573,18 @@ provider_groups:
   # =====================================================================
   model_generation:
     description: >
-      This provider is only used when you invoke a 3D model generation skill.
-      If you never use the 3D models app, none of your data is shared with it.
+      These providers are only used when you search for an existing public 3D
+      model or invoke a 3D model generation skill. If you never use the 3D
+      models app, none of your data is shared with them.
     providers:
+      printables:
+        privacy_policy: https://www.prusa3d.com/page/privacy-policy_231258/
+        location: EU (Czech Republic)
+        used_for:
+          - searching the public Printables 3D model catalog
+        data_shared:
+          - 3D model search query and result limit
+          - Note: Shared server-side without OpenMates user identifiers
       hi3d:
         privacy_policy: https://docs.hi3d.ai/en/api/resources/privacy-policy  # verified 2026-07-11
         location: China
@@ -675,6 +741,15 @@ provider_groups:
           - YouTube video URLs
           - Requested transcript language preferences
           - Note: Routed without OpenMates user identifiers
+      google_lens:
+        privacy_policy: https://policies.google.com/privacy
+        location: US
+        used_for:
+          - reverse-image search through Google Lens, brokered by SerpAPI
+        data_shared:
+          - A short-lived URL to a decrypted copy of the selected image
+          - Optional text refinement query
+          - Note: SerpAPI and Google can retrieve the image during the short-lived URL window; no OpenMates user identifier is included
 
   # =====================================================================
   # Group G — Travel. Only used when you invoke a travel skill.
@@ -691,8 +766,13 @@ provider_groups:
         used_for:
           - flight search (via Google Flights)
           - hotel search (via Google Hotels)
+          - events search (via Google Events)
+          - Amazon product search
+          - reverse-image search (via Google Lens)
         data_shared:
           - Flight and hotel search queries (origin, destination, dates, preferences)
+          - Event and product search queries and localization filters
+          - A short-lived URL to a decrypted copy of an image, plus any optional refinement query, for reverse-image search
           - Note: Shared without user identifiers
       flightradar24:
         privacy_policy: https://www.flightradar24.com/terms-and-conditions
@@ -718,13 +798,21 @@ provider_groups:
         data_shared:
           - Connection search queries, origin, destination, and dates
           - Note: Shared without user identifiers
+      transitous:
+        privacy_policy: https://transitous.org/privacy/
+        location: EU (Germany)
+        used_for:
+          - timetable-only public transport routing across supported European regions
+        data_shared:
+          - Origin and destination station or location queries
+          - Travel date, time, transport modes, and route options
+          - Note: Shared server-side without OpenMates user identifiers; Transitous states that request URLs and server request metadata are kept in logs for up to 2 days
 
   # =====================================================================
   # Group H — Events. Only used when you invoke the events skill.
-  # Only the providers actually enabled in the events app registry are
-  # listed here. Providers that exist as code but are gated behind a
-  # feature flag (Bachtrack, ClassicTIC, Berlin Philharmonic, Siegessäule,
-  # Google Calendar) are NOT listed until they are enabled.
+  # Only providers that receive a user query or query-derived fields are listed.
+  # Known Pretalx/C3VOC schedule exports are fetched as fixed public files and
+  # searched locally, so those hosts receive no user query or user identifier.
   # =====================================================================
   events:
     description: >
@@ -756,6 +844,30 @@ provider_groups:
         data_shared:
           - Event search queries
           - Note: Shared without user identifiers
+      eventbrite:
+        privacy_policy: https://www.eventbrite.com/help/en-us/articles/460838/eventbrite-privacy-policy/
+        location: US
+        used_for:
+          - public Eventbrite event search and event-page retrieval
+        data_shared:
+          - Event search query, city, category, dates, and requested result count
+          - Note: Shared server-side without OpenMates user identifiers
+      siegessaeule:
+        privacy_policy: https://www.iubenda.com/privacy-policy/27039210
+        location: EU (Germany)
+        used_for:
+          - Berlin LGBTQ+ event listings through Siegessäule's public GraphQL service
+        data_shared:
+          - Date range and, when applicable, a matching event section/category
+          - Note: Routed through Webshare without OpenMates user identifiers; free-text filtering that does not map to a category happens locally
+      berlin_philharmonic:
+        privacy_policy: https://www.berliner-philharmoniker.de/en/privacy/
+        location: EU (Germany)
+        used_for:
+          - Berlin classical concert search through the Berliner Philharmoniker public calendar
+        data_shared:
+          - Concert search query, date filters, tags, and result count
+          - Note: Shared server-side without OpenMates user identifiers
 
   # =====================================================================
   # Group I — Health. Only used when you invoke the appointment-search
@@ -831,6 +943,83 @@ provider_groups:
         data_shared:
           - Product search queries
           - Note: Shared without user identifiers
+      stoffe:
+        privacy_policy: https://www.stoffe.de/privacy-policy/
+        location: EU (Germany)
+        used_for:
+          - fabric, sewing-supply, and pattern search through the Stoffe.de public storefront API
+        data_shared:
+          - Product search query, category, sorting, pagination, and compatible shipping-country filters
+          - Note: Shared server-side without OpenMates user identifiers
+
+  # =====================================================================
+  # Group J2 — Connected services. Only used after the user connects an
+  # external account and authorizes the specific operation.
+  # =====================================================================
+  connected_services:
+    description: >
+      These providers are only used after you connect an external account and
+      authorize access. OpenMates requests the narrow scopes needed for the
+      action and stores durable credential material encrypted.
+    providers:
+      google_calendar:
+        privacy_policy: https://policies.google.com/privacy
+        location: US / provider-selected regions
+        used_for:
+          - OAuth connection to a Google Calendar account
+          - listing calendars and reading events after permission checks
+          - creating, updating, or deleting events only after write or delete permission is authorized
+        data_shared:
+          - OAuth authorization code and refresh/access tokens needed to maintain the connection
+          - Calendar IDs, calendar names, time zones, event IDs, titles, descriptions, locations, dates, and attendee email addresses needed for the requested action
+          - Note: Google already stores the connected calendar data; OpenMates accesses or changes only the data covered by the scopes and action you authorize
+
+  # =====================================================================
+  # Group J3 — Public company data. Only used for an explicit company
+  # financials lookup.
+  # =====================================================================
+  business_data:
+    description: >
+      This public-data provider is only used when you explicitly request company
+      financial information.
+    providers:
+      sec_edgar:
+        privacy_policy: https://www.sec.gov/about/privacy-information
+        location: US
+        used_for:
+          - public-company identity and financial filing lookups through SEC EDGAR
+        data_shared:
+          - Explicit company name, ticker, or CIK and the filing/period fields needed for the lookup
+          - Note: Shared server-side without OpenMates user identifiers
+
+  # =====================================================================
+  # Group J4 — Weather. Only used when a weather forecast or radar skill is
+  # invoked.
+  # =====================================================================
+  weather:
+    description: >
+      These services are only used when you request a weather forecast or rain
+      radar. A named place is first geocoded by Open-Meteo. Germany forecasts
+      then use Bright Sky's DWD-derived data; other forecasts use Open-Meteo.
+    providers:
+      open_meteo:
+        privacy_policy: https://open-meteo.com/en/terms
+        location: EU / US (GeoDNS-selected service region)
+        used_for:
+          - place-name geocoding for weather requests
+          - global weather forecasts outside the Germany-specific Bright Sky path
+        data_shared:
+          - Place name and language for geocoding
+          - Coordinates, date range, time zone, and requested weather fields for forecasts
+          - Note: Shared server-side without OpenMates user identifiers; Open-Meteo states that API logs may contain coordinates and are deleted after 90 days
+      bright_sky:
+        privacy_policy: https://brightsky.dev/docs/
+        location: EU (Germany)
+        used_for:
+          - Germany weather forecasts and rain radar using DWD-derived public data
+        data_shared:
+          - Coordinates, date range, time zone, radar radius, and requested weather fields
+          - Note: Shared server-side without OpenMates user identifiers; Bright Sky does not publish a standalone privacy notice, so the link points to its official service documentation
 
   # =====================================================================
   # Group K — Nutrition. Only used when you invoke the recipe-search skill.
@@ -1081,9 +1270,9 @@ limitations_of_erasure_items:
     scope: Timestamp, user identifier, event type, status — no content
   third_party_ai_logs:
     what: Request logs retained by the AI providers we send your prompts to
-    retention: Typically 30 days per the providers' own policies
+    retention: Provider-specific. For example, Mistral states 30 rolling days for ordinary API input/output unless zero-data retention is active; Google's current Gemini abuse-monitoring documentation states 55 days for logged prompts, context, and outputs.
     reason: We cannot reach into Anthropic, OpenAI, Google, Together, Mistral, Groq, or Cerebras to delete your data from their systems
-    mitigation: Real names, emails, and addresses in your prompts are replaced with placeholders client-side before transmission (see data_protection_measures.pii_placeholder_substitution), so the provider never sees your real PII to begin with
+    mitigation: Eligible typed chat messages use client-side placeholder substitution before transmission. This reduces exposure but does not guarantee removal of all personal data, and it does not apply to voice audio, raw transcripts, uploaded or reference files, connected-account content, or structured skill inputs unless a feature explicitly says otherwise.
   observability_traces:
     what: OpenTelemetry spans
     retention: Up to 30 days; effectively unjoinable to a specific user after 24 hours due to daily salt rotation

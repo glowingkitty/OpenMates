@@ -10251,3 +10251,223 @@ training_policies.status_limited_use:
   sv: Anonymiserade derivat kan användas
   he: ייתכן שימוש בנגזרות אנונימיות
   verified_by_human: []
+
+# Revisioned keys below replace older translated disclosures whose legal meaning
+# changed. Keeping the old keys temporarily avoids presenting stale translations
+# while the new keys are translated and deployed atomically.
+provider_link_label_v2:
+  context: Label before a link to a provider's privacy notice, legal terms, or official service documentation
+  en: Provider privacy or legal information
+  verified_by_human: []
+quick_answers.third_party_providers_v2.question:
+  context: Privacy policy quick-answer question about third-party processing
+  en: Do third-party providers receive my content?
+  verified_by_human: []
+quick_answers.third_party_providers_v2.answer:
+  context: Privacy policy quick-answer response about third-party processing and placeholder limitations
+  en: Yes, when you choose a model or use a provider-powered feature, the content needed for that request may be sent to the provider. Eligible typed chat messages use client-side placeholder substitution for recognized personal details and secrets. Anything not detected may be sent as typed, and the protection does not cover voice recordings, raw transcripts, uploaded files, reference images, calendar content, or structured skill inputs unless a feature explicitly says otherwise.
+  verified_by_human: []
+quick_answers.voice_recordings.question:
+  context: Privacy policy quick-answer question about audio recording processing
+  en: What happens when I record audio?
+  verified_by_human: []
+quick_answers.voice_recordings.answer:
+  context: Privacy policy quick-answer response naming the audio transcription and correction providers
+  en: Audio travels over TLS through the OpenMates backend hosted by Hetzner and is sent to Mistral for transcription. Realtime audio is streamed; uploaded recordings are encrypted by our upload service before durable storage and decrypted only in server memory for transcription. The raw transcript is then sent to Google Gemini to correct obvious transcription errors and create a title. Audio and raw transcripts do not receive the placeholder substitution used for eligible typed chat messages. OpenMates stores recordings and transcripts as encrypted account content, but Mistral and Google may retain API request data under their own policies.
+  verified_by_human: []
+data_categories.content_v2:
+  context: Privacy policy data category covering user content and the applicable encryption boundary
+  en: "Content: Chat messages, prompts, attachments, reminders, voice recordings and transcripts, calendar content, and uploaded images or videos needed to provide the service. Structured chat fields are generally encrypted in the browser before sync. Uploads and recordings travel to our backend over TLS and are encrypted before durable object storage; they are not necessarily client-side encrypted before transmission. Anonymous free-usage chats stay on the user's device until signup and are uploaded only if promoted into account sync."
+  verified_by_human: []
+data_categories.connected_accounts:
+  context: Privacy policy data category for connected external accounts such as Google Calendar
+  en: "Connected accounts: If you connect an external account, we process the provider, granted scopes, encrypted credential material, and the data needed for each authorized action. For Google Calendar this can include calendar names, time zones, event titles, descriptions, locations, dates, attendee email addresses, and provider event IDs."
+  verified_by_human: []
+promises.client_side_chat_encryption_v2.heading:
+  context: Privacy promise heading for the encryption boundary of structured chat data
+  en: Structured chat data is encrypted before sync
+  verified_by_human: []
+promises.client_side_chat_encryption_v2.description:
+  context: Privacy promise explaining browser encryption and the separate upload path
+  en: Structured chat data, settings, and memories are encrypted in your browser with AES-256-GCM before sync, and the server stores ciphertext on disk, in caches, and in backups. Uploaded files and recordings instead travel to our backend over TLS and are encrypted by the upload service before durable storage. This is not end-to-end encryption; server-side tasks decrypt relevant content transiently in memory when needed to provide a requested feature.
+  verified_by_human: []
+promises.pii_placeholder_substitution_v2.heading:
+  context: Privacy promise heading for eligible typed-message placeholder substitution
+  en: Recognized personal data is replaced in eligible typed chat
+  verified_by_human: []
+promises.pii_placeholder_substitution_v2.description:
+  context: Privacy promise explaining the exact scope and limitations of placeholder substitution
+  en: Before an eligible typed chat message is sent to an AI provider, your browser detects supported categories of personal data and secrets and replaces recognized values with placeholders. The substitution map is encrypted with your chat key. Detection can miss data, and this protection does not cover voice audio, raw transcripts, uploaded files, reference images, connected-account content, or structured skill inputs unless a feature explicitly says otherwise.
+  verified_by_human: []
+providers.always_active.hetzner_v2.heading:
+  context: Provider heading for Hetzner infrastructure
+  en: Hetzner
+  verified_by_human: []
+providers.always_active.hetzner_v2.description:
+  context: Hetzner infrastructure disclosure including encrypted storage and upload transit
+  en: We host backend services, databases, caches, S3-compatible object storage, backups, and our self-hosted OpenObserve platform on Hetzner infrastructure in the EU. Hetzner processes TLS-encrypted service traffic and stores ciphertext. Uploads and recordings also pass through its infrastructure before our upload service encrypts them for durable storage. Encryption reduces what Hetzner can read at rest but does not remove Hetzner's role as an infrastructure processor.
+  verified_by_human: []
+providers.ai_models.description_v2:
+  context: AI provider group description clarifying placeholder coverage
+  en: OpenMates routes requests to these providers according to the model or provider-powered feature you use. Eligible typed chat messages use client-side placeholder substitution. Recordings, raw transcripts, uploaded files, reference images, connected-account content, and structured skill inputs are not covered unless a feature explicitly says otherwise. Selectable models show their provider in AI settings.
+  verified_by_human: []
+providers.ai_models.mistral_v2.heading:
+  context: Provider heading for Mistral AI
+  en: Mistral AI
+  verified_by_human: []
+providers.ai_models.mistral_v2.description:
+  context: Mistral disclosure for selected chat models and voice transcription
+  en: Mistral processes eligible chat messages when you select a Mistral model and processes realtime or uploaded voice audio when you use audio transcription. Voice audio can contain personal or sensitive information and does not receive typed-message placeholder substitution. Mistral states that ordinary API inputs and outputs may be retained for 30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention for this path.
+  verified_by_human: []
+providers.ai_models.openai_v2.heading:
+  context: Provider heading for OpenAI
+  en: OpenAI
+  verified_by_human: []
+providers.ai_models.openai_v2.description:
+  context: OpenAI disclosure for chat and GPT Image features
+  en: OpenAI processes eligible chat messages when you select a GPT-family model. It also receives image prompts, generation settings, and any reference images when you select GPT Image for generation or editing. Reference images are not covered by typed-message placeholder substitution.
+  verified_by_human: []
+providers.ai_models.google_gemini_v2.heading:
+  context: Provider heading for Google Gemini
+  en: Google Gemini
+  verified_by_human: []
+providers.ai_models.google_gemini_v2.description:
+  context: Google Gemini disclosure including transcript correction and media features
+  en: Google's Gemini API processes eligible chat messages when you select a Gemini model. Gemini is also used to correct raw Mistral voice transcripts and create titles, and may process prompts, reference images, screenshots, or generated code for image generation or editing, Veo video generation, and screenshot-to-HTML conversion. These non-chat inputs do not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context, and outputs may be retained for 55 days.
+  verified_by_human: []
+providers.model_generation_v2.heading:
+  context: Provider group heading for 3D model search and generation
+  en: 3D model search and generation
+  verified_by_human: []
+providers.model_generation_v2.description:
+  context: Provider group description for 3D model search and generation
+  en: These providers are used only when you search the public 3D model catalog or invoke a 3D model generation skill.
+  verified_by_human: []
+providers.model_generation_v2.printables.heading:
+  context: Provider heading for Printables
+  en: Printables by Prusa Research
+  verified_by_human: []
+providers.model_generation_v2.printables.description:
+  context: Printables provider disclosure
+  en: Printables receives the 3D model search query and requested result limit when you search its public catalog. The request is sent server-side without an OpenMates user identifier.
+  verified_by_human: []
+providers.web_and_search.google_lens.heading:
+  context: Provider heading for Google Lens reverse-image search
+  en: Google Lens
+  verified_by_human: []
+providers.web_and_search.google_lens.description:
+  context: Google Lens disclosure for reverse-image search brokered through SerpAPI
+  en: When you request reverse-image search, SerpAPI brokers the request to Google Lens. SerpAPI and Google receive a short-lived public URL to a decrypted copy of the selected image and any optional text refinement. The URL expires, and no OpenMates user identifier is included.
+  verified_by_human: []
+providers.travel.serpapi_v2.heading:
+  context: Provider heading for SerpAPI
+  en: SerpAPI
+  verified_by_human: []
+providers.travel.serpapi_v2.description:
+  context: SerpAPI disclosure covering all current search uses
+  en: SerpAPI powers flight, hotel, Google Events, Amazon product, and Google Lens reverse-image searches. It receives the relevant query and localization filters without an OpenMates user identifier. Reverse-image search also sends a short-lived URL to a decrypted copy of the selected image and any optional refinement query.
+  verified_by_human: []
+providers.travel.transitous.heading:
+  context: Provider heading for Transitous
+  en: Transitous
+  verified_by_human: []
+providers.travel.transitous.description:
+  context: Transitous public transport routing disclosure
+  en: Transitous receives origin and destination stations or locations, travel date and time, transport modes, and route options for supported European public-transport routing. Requests are server-side without an OpenMates user identifier. Transitous states that request URLs and server request metadata are retained for up to two days.
+  verified_by_human: []
+providers.events.eventbrite.heading:
+  context: Provider heading for Eventbrite
+  en: Eventbrite
+  verified_by_human: []
+providers.events.eventbrite.description:
+  context: Eventbrite public event search disclosure
+  en: Eventbrite receives the event query, city, category, dates, and requested result count for public event search and page retrieval. Requests are sent server-side without an OpenMates user identifier.
+  verified_by_human: []
+providers.events.siegessaeule.heading:
+  context: Provider heading for Siegessäule
+  en: Siegessäule
+  verified_by_human: []
+providers.events.siegessaeule.description:
+  context: Siegessäule Berlin event search disclosure
+  en: Siegessäule receives the date range and, when applicable, a matching event section or category for Berlin LGBTQ+ event listings. Requests are routed through Webshare without an OpenMates user identifier; unmatched free-text filtering happens locally.
+  verified_by_human: []
+providers.events.berlin_philharmonic.heading:
+  context: Provider heading for Berliner Philharmoniker
+  en: Berliner Philharmoniker
+  verified_by_human: []
+providers.events.berlin_philharmonic.description:
+  context: Berliner Philharmoniker public calendar search disclosure
+  en: Berliner Philharmoniker receives the concert query, date filters, tags, and requested result count when you search its public calendar. Requests are sent server-side without an OpenMates user identifier.
+  verified_by_human: []
+providers.shopping.stoffe.heading:
+  context: Provider heading for Stoffe.de
+  en: Stoffe.de
+  verified_by_human: []
+providers.shopping.stoffe.description:
+  context: Stoffe.de public storefront search disclosure
+  en: Stoffe.de receives the product query, category, sorting, pagination, and compatible shipping-country filters for fabric, sewing-supply, and pattern searches. Requests are sent server-side without an OpenMates user identifier.
+  verified_by_human: []
+providers.connected_services.heading:
+  context: Provider group heading for user-connected external services
+  en: Connected services
+  verified_by_human: []
+providers.connected_services.description:
+  context: Provider group description for connected accounts
+  en: These providers are used only after you connect an external account and authorize access. OpenMates requests the scopes needed for the action and stores durable credential material encrypted.
+  verified_by_human: []
+providers.connected_services.google_calendar.heading:
+  context: Provider heading for Google Calendar
+  en: Google Calendar
+  verified_by_human: []
+providers.connected_services.google_calendar.description:
+  context: Google Calendar connected-account disclosure
+  en: After you connect Google Calendar, OpenMates exchanges the OAuth authorization code and stores refresh or access tokens encrypted. Authorized actions may access calendar IDs, names, time zones, event IDs, titles, descriptions, locations, dates, and attendee email addresses. OpenMates reads, creates, updates, or deletes only within the scopes and action you authorize.
+  verified_by_human: []
+providers.business_data.heading:
+  context: Provider group heading for public company information
+  en: Public company data
+  verified_by_human: []
+providers.business_data.description:
+  context: Provider group description for public company information
+  en: This provider is used only when you explicitly request public company financial information.
+  verified_by_human: []
+providers.business_data.sec_edgar.heading:
+  context: Provider heading for SEC EDGAR
+  en: SEC EDGAR
+  verified_by_human: []
+providers.business_data.sec_edgar.description:
+  context: SEC EDGAR lookup disclosure
+  en: The SEC receives the explicit company name, ticker, or CIK and the filing or period fields needed for a public-company lookup. Requests are sent server-side without an OpenMates user identifier.
+  verified_by_human: []
+providers.weather.heading:
+  context: Provider group heading for weather data
+  en: Weather services
+  verified_by_human: []
+providers.weather.description:
+  context: Provider group description for geocoding, forecasts, and radar
+  en: A named place is first geocoded by Open-Meteo. Germany forecasts then use Bright Sky's DWD-derived data; forecasts elsewhere use Open-Meteo. These services receive location and forecast parameters without an OpenMates user identifier.
+  verified_by_human: []
+providers.weather.open_meteo.heading:
+  context: Provider heading for Open-Meteo
+  en: Open-Meteo
+  verified_by_human: []
+providers.weather.open_meteo.description:
+  context: Open-Meteo geocoding and weather disclosure
+  en: Open-Meteo receives a place name and language for geocoding, and coordinates, date range, time zone, and requested weather fields for global forecasts outside the Germany-specific path. Requests exclude OpenMates user identifiers. Open-Meteo states that API logs may contain coordinates and are deleted after 90 days.
+  verified_by_human: []
+providers.weather.bright_sky.heading:
+  context: Provider heading for Bright Sky
+  en: Bright Sky
+  verified_by_human: []
+providers.weather.bright_sky.description:
+  context: Bright Sky Germany weather and radar disclosure
+  en: Bright Sky receives coordinates, date range, time zone, radar radius, and requested weather fields for Germany forecasts and rain radar using public DWD-derived data. Requests exclude OpenMates user identifiers. Bright Sky does not publish a standalone privacy notice, so the link points to its official service documentation.
+  verified_by_human: []
+limitations_of_erasure.third_party_ai_logs_v2.heading:
+  context: Privacy policy heading for provider-controlled AI request logs
+  en: Logs retained by third-party AI providers
+  verified_by_human: []
+limitations_of_erasure.third_party_ai_logs_v2.description:
+  context: Privacy policy disclosure of provider-specific log retention and deletion limitations
+  en: AI providers retain request logs under their own policies, independently of OpenMates, and we cannot delete data from their systems. Retention is provider-specific; for example, Mistral states 30 rolling days for ordinary API input and output unless zero-data retention is active, while Google's current Gemini abuse-monitoring documentation states 55 days for logged prompts, context, and outputs. Eligible typed chat uses client-side placeholder substitution, which reduces exposure but may miss data and does not cover voice audio, raw transcripts, uploaded or reference files, connected-account content, or structured skill inputs unless a feature explicitly says otherwise.
+  verified_by_human: []
