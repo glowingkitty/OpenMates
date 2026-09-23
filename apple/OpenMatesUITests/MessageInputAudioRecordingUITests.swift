@@ -12,6 +12,57 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
     }
 
     // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.recording.lifecycle
+    func testIdleWelcomeComposerShowsAiAndMicAndRecordsWithoutKeyboard() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-welcome-mic-granted",
+            "--ui-test-welcome-simulated-recording"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 3) {
+            skipInterests.tap()
+        }
+
+        XCTAssertTrue(element(in: app, identifier: "message-input-idle-actions").waitForExistence(timeout: 5))
+        let recordButton = element(in: app, identifier: "record-audio-button")
+        XCTAssertTrue(recordButton.isHittable)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+
+        let screenshotAttachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshotAttachment.name = "Idle welcome composer AI and microphone controls"
+        screenshotAttachment.lifetime = .keepAlways
+        add(screenshotAttachment)
+
+        recordButton.tap()
+        XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 5))
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.recording.lifecycle
+    func testIdleChatComposerShowsAiAndMicWithoutOpeningKeyboard() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--dev-preview", "chat-opening", "--ui-test-chat-mic-granted", "--ui-test-simulated-recording"
+        ]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        XCTAssertTrue(element(in: app, identifier: "message-input-idle-actions").waitForExistence(timeout: 5))
+        let recordButton = element(in: app, identifier: "record-audio-button")
+        XCTAssertTrue(recordButton.isHittable)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+
+        recordButton.tap()
+        XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 5))
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.recording.lifecycle
     func testSignedOutWelcomeSingleTapStartsRecordingUntilExplicitCancel() throws {
         let app = launchFocusedWelcomeComposer(extraArguments: [
             "--ui-test-welcome-mic-granted",

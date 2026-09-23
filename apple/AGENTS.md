@@ -219,6 +219,17 @@ Use `--apple test --only-testing "OpenMatesUITests/<testName>"` when a targeted
 native test exists. Use `--apple skip --skip-apple "Apple not affected"` only
 when the changed surface has no Apple counterpart.
 
+## TestFlight delivery
+
+Every TestFlight milestone updates all supported Apple platforms together: the
+iOS archive must contain the companion Watch app, and macOS must be uploaded
+separately with the same marketing version and build number. Prefer
+`scripts/apple_remote.py deploy-latest-testflight --branch dev` when its remote
+configuration is available; a local Mac release must meet the same contract.
+Verify that App Store Connect has processed both the iOS and macOS builds before
+reporting the TestFlight update complete. A successful iOS upload alone is not a
+complete release.
+
 Validated 2026-06-08 from the Linux dev server: a configured SSH alias reached
 a Tailscale Mac, `xcodebuild -version` responded, sanitized project lookup found
 the checkout, `xcodebuild -showBuildSettings` worked, and a generic

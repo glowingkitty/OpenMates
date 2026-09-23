@@ -61,6 +61,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
     var piiDecorations: [NativeComposerPIIDecoration] = []
     var onExcludePII: (String) -> Void = { _ in }
     var inlineFieldContent: AnyView? = nil
+    var idleFieldContent: AnyView? = nil
     var overlayContent: AnyView? = nil
     var onSubmit: () -> Void
     @ViewBuilder var actionButtons: () -> ActionButtons
@@ -136,7 +137,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
                         Text(placeholder)
                             .font(.omP)
                             .foregroundStyle(Color.fontSecondary)
-                            .padding(.horizontal, .spacing4)
+                            .lineLimit(1)
+                            .padding(.horizontal, compact && idleFieldContent != nil ? 56 : .spacing4)
                             .padding(.vertical, compact ? 0 : .spacing6)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
@@ -151,6 +153,10 @@ struct OMMessageInputField<ActionButtons: View>: View {
 
             if shouldShowActionButtons {
                 actionButtons()
+                    .zIndex(2)
+            } else if compact, let idleFieldContent {
+                idleFieldContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .zIndex(2)
             }
 

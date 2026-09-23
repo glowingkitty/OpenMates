@@ -4,6 +4,8 @@
 // chat for Handoff so users can continue on another Apple device.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.layout.responsive-history
 
 // ─── Web source ─────────────────────────────────────────────────────
 // MessageBubble:
@@ -32,6 +34,9 @@
 //
 // messageList:
 //   Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
+//            frontend/packages/ui/src/components/ActiveChat.svelte
+//            frontend/packages/ui/src/components/HeaderActionMenu.svelte
+//   Action:  frontend/packages/ui/src/actions/headerOverlayControls.ts
 //   CSS:     frontend/packages/ui/src/styles/chat.css
 //            .chat-history-container { padding:10px; overflow-y:auto }
 //            .chat-history-content { max-width:1000px; margin:0 auto }
@@ -246,6 +251,8 @@ struct ChatView: View {
     /// collapse from viewport-responsive height to the fixed adjacent-panel height.
     var isSettingsOpen = false
     var onShareChat: (() -> Void)? = nil
+    var onOpenChatSettings: (() -> Void)? = nil
+    var onCloseChat: (() -> Void)? = nil
     /// Navigation callbacks for prev/next chat arrows on the banner.
     var onPreviousChat: (() -> Void)? = nil
     var onNextChat: (() -> Void)? = nil
@@ -280,6 +287,8 @@ struct ChatView: View {
     @State private var showEmbedFullscreen = false
     @State private var openedInitialEmbedId: String?
     @State private var showReminder = false
+    @State private var chatHeaderMoreOpen = false
+    @State private var chatHeaderActionsOverlapBanner = true
     @State private var isPIIRevealed = false
     @State private var showAttachmentMenu = false
     @State private var showCameraCapture = false
@@ -1079,6 +1088,19 @@ struct ChatView: View {
                                     onNext: onNextChat
                                 )
                                     .id("banner")
+                                    .onGeometryChange(for: CGFloat.self) { geometry in
+                                        geometry.frame(in: .named("chat-scroll")).maxY
+                                    } action: { bannerBottom in
+                                        let overlaps = bannerBottom > 64
+                                        guard overlaps != chatHeaderActionsOverlapBanner else { return }
+                                        if reduceMotion {
+                                            chatHeaderActionsOverlapBanner = overlaps
+                                        } else {
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                chatHeaderActionsOverlapBanner = overlaps
+                                            }
+                                        }
+                                    }
                             }
 
                             // The initial history window is capped by the model.
@@ -1304,6 +1326,8 @@ struct ChatView: View {
                     proxy.scrollTo("scroll-top", anchor: .top)
                 }
                 .onChange(of: chatId) { _, _ in
+                    chatHeaderMoreOpen = false
+                    chatHeaderActionsOverlapBanner = true
                     resetScrollRestoration()
                     proxy.scrollTo("scroll-top", anchor: .top)
                 }
@@ -1808,27 +1832,67 @@ struct ChatView: View {
     }
 
     private var chatFloatingActions: some View {
-        HStack(spacing: .spacing2) {
+        ZStack(alignment: .topLeading) {
             HStack(spacing: .spacing2) {
-                chatFloatingAction(icon: "share", label: AppStrings.share, accessibilityIdentifier: "chat-share-button") {
-                    onShareChat?()
-                }
-                chatFloatingAction(icon: "bug", label: AppStrings.settingsReportIssue) {
+                chatFloatingAction(
+                    icon: "bug",
+                    label: AppStrings.settingsReportIssue,
+                    accessibilityIdentifier: "report-issue-button",
+                    showsLabel: chatContainerWidth >= 640
+                ) {
                     onReportIssue?(.assistantResponseQuality())
                 }
+
+                if chatContainerWidth >= 460, onShareChat != nil {
+                    chatFloatingAction(icon: "share", label: AppStrings.share, accessibilityIdentifier: "chat-share-button") {
+                        onShareChat?()
+                    }
+                }
+
+                chatFloatingAction(icon: "more", label: "More", accessibilityIdentifier: "chat-more-button") {
+                    chatHeaderMoreOpen.toggle()
+                }
+
+                Spacer(minLength: .spacing6)
+
+                if showEmbedFullscreen && chatWorkspaceWidth >= 1024 {
+                    splitChatHideAction
+                } else {
+                    chatFloatingAction(icon: "close", label: AppStrings.close, accessibilityIdentifier: "chat-close-button") {
+                        onCloseChat?()
+                    }
+                }
             }
 
-            Spacer(minLength: .spacing6)
-
-            if showEmbedFullscreen && chatWorkspaceWidth >= 1024 {
-                splitChatHideAction
-            } else {
-            chatFloatingAction(icon: "reminder", label: AppStrings.setReminder) {
-                showReminder = true
-            }
+            if chatHeaderMoreOpen {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    if chatContainerWidth < 460, onShareChat != nil {
+                        chatFloatingMenuAction(icon: "share", label: AppStrings.share, identifier: "chat-more-share-button") {
+                            chatHeaderMoreOpen = false
+                            onShareChat?()
+                        }
+                    }
+                    chatFloatingMenuAction(icon: "settings", label: AppStrings.settings, identifier: "chat-details-button") {
+                        chatHeaderMoreOpen = false
+                        onOpenChatSettings?()
+                    }
+                    chatFloatingMenuAction(icon: "reminder", label: AppStrings.setReminder, identifier: "chat-reminders-button") {
+                        chatHeaderMoreOpen = false
+                        showReminder = true
+                    }
+                }
+                .padding(.spacing3)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 6)
+                .offset(x: chatContainerWidth >= 640 ? 54 : 0, y: 52)
+                .accessibilityIdentifier("chat-more-actions")
             }
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat-top-actions")
+        .accessibilityValue(chatHeaderActionsOverlapBanner ? "banner-overlay" : "standard")
     }
 
     private var splitChatHideAction: some View {
@@ -1841,15 +1905,27 @@ struct ChatView: View {
         icon: String,
         label: String,
         accessibilityIdentifier: String? = nil,
+        showsLabel: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Icon(icon, size: 22)
-                .foregroundStyle(LinearGradient.primary)
-                .frame(width: 44, height: 44)
-                .background(Color.grey0.opacity(0.92))
-                .clipShape(Circle())
-                .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+            HStack(spacing: .spacing2) {
+                ZStack {
+                    Icon(icon, size: 22).foregroundStyle(LinearGradient.primary)
+                        .opacity(chatHeaderActionsOverlapBanner ? 0 : 1)
+                    Icon(icon, size: 22).foregroundStyle(.white)
+                        .opacity(chatHeaderActionsOverlapBanner ? 1 : 0)
+                }
+                if showsLabel {
+                    Text(label).font(.omSmall.weight(.semibold))
+                        .foregroundStyle(chatHeaderActionsOverlapBanner ? Color.white : Color.grey100)
+                }
+            }
+            .padding(.horizontal, showsLabel ? .spacing4 : 0)
+            .frame(minWidth: 44, minHeight: 44)
+            .background(chatHeaderActionsOverlapBanner ? Color.white.opacity(0.2) : Color.grey10)
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
@@ -1857,6 +1933,25 @@ struct ChatView: View {
         .accessibilityLabel(label)
         .accessibilityIdentifier(accessibilityIdentifier ?? "chat-floating-action-\(icon)")
         .accessibilityAddTraits(.isButton)
+    }
+
+    private func chatFloatingMenuAction(
+        icon: String,
+        label: String,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: .spacing3) {
+                Icon(icon, size: 20).foregroundStyle(LinearGradient.primary)
+                Text(label).font(.omSmall.weight(.semibold)).foregroundStyle(Color.grey100)
+                Spacer(minLength: .spacing4)
+            }
+            .frame(minWidth: 170, minHeight: 40)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
     }
 
     // MARK: - Streaming banner
@@ -2233,7 +2328,8 @@ struct ChatView: View {
                 ),
                 onExcludePII: { piiExclusions.insert($0) },
                 onSubmit: sendMessage,
-                inlineFieldContent: nil
+                inlineFieldContent: nil,
+                idleFieldContent: compact && !overlayActive ? idleFieldControls : nil
             ) {
                 PIIWarningBanner(matches: activePIIMatches) {
                     piiExclusions.formUnion(detectedPIIMatches.map(\.id))
@@ -3009,6 +3105,26 @@ struct ChatView: View {
             .help(Text(AppStrings.recordAudio))
             .accessibilityLabel(AppStrings.recordAudio)
             .accessibilityIdentifier("record-audio-button")
+    }
+
+    // Match the web example-chat composer before the field is focused.
+    // Spec: specifications/features/message-input/specification.yml (message-input.actions.visibility).
+    private var idleFieldControls: AnyView {
+        AnyView(
+            HStack(spacing: 0) {
+                Icon("ai", size: 24)
+                    .foregroundStyle(LinearGradient.primary)
+                    .accessibilityHidden(true)
+                    .allowsHitTesting(false)
+                Spacer(minLength: 0)
+                recordGestureButton
+                    .frame(width: 44, height: 44)
+            }
+            .padding(.leading, 22)
+            .padding(.trailing, 14)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("message-input-idle-actions")
+        )
     }
 
     private var recordPermissionHintText: String? {

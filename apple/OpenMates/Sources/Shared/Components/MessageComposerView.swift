@@ -88,6 +88,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
     var onExcludePII: (String) -> Void = { _ in }
     var onSubmit: () -> Void
     var inlineFieldContent: AnyView? = nil
+    var idleFieldContent: AnyView? = nil
     @ViewBuilder var preFieldContent: () -> PreFieldContent
     @ViewBuilder var overlayContent: () -> OverlayContent
     @ViewBuilder var actionButtons: () -> ActionButtons
@@ -110,6 +111,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
                 piiDecorations: piiDecorations,
                 onExcludePII: onExcludePII,
                 inlineFieldContent: inlineFieldContent,
+                idleFieldContent: idleFieldContent,
                 overlayContent: AnyView(overlayContent()),
                 onSubmit: onSubmit
             ) {

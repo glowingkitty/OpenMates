@@ -54,6 +54,50 @@ final class VoiceRecorderTests: XCTestCase {
         XCTAssertEqual(recorder.duration, 0)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testMicrophoneTapProcessesPCMOffMainActor() async throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("voice-recorder-tap-\(UUID().uuidString).m4a")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = try XCTUnwrap(AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: 44_100,
+            channels: 1,
+            interleaved: false
+        ))
+        let writer = try AudioRecordingFileWriter(url: url, sourceFormat: format)
+        let receivedPCM = expectation(description: "audio tap forwards PCM from the realtime queue")
+        let tap = VoiceRecorder.makePCMInputTapHandler(
+            writer: writer,
+            handler: { samples, sampleRate in
+                XCTAssertFalse(Thread.isMainThread)
+                XCTAssertEqual(samples.count, 512)
+                XCTAssertEqual(sampleRate, 44_100)
+                receivedPCM.fulfill()
+            },
+            recorder: VoiceRecorder()
+        )
+
+        DispatchQueue(label: "org.openmates.tests.audio-tap").async {
+            guard let format = AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: 44_100,
+                channels: 1,
+                interleaved: false
+            ), let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 512) else {
+                XCTFail("Could not construct the synthetic microphone buffer")
+                receivedPCM.fulfill()
+                return
+            }
+            buffer.frameLength = 512
+            buffer.floatChannelData?[0][0] = 0.2
+            tap(buffer, AVAudioTime())
+        }
+
+        await fulfillment(of: [receivedPCM], timeout: 5)
+        XCTAssertTrue(writer.finish())
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
     func testSyntheticPCMProducesNonemptyPlayableM4A() throws {
         let url = FileManager.default.temporaryDirectory

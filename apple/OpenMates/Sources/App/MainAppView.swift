@@ -1644,6 +1644,11 @@ struct MainAppView: View {
                 initialEmbedId: pendingExternalEmbedOpen?.chatId == chatId ? pendingExternalEmbedOpen?.embedId : nil,
                 isSettingsOpen: currentViewportWidth > 1100 && showSettings,
                 onShareChat: { openShareSettings(for: chatId) },
+                onOpenChatSettings: {
+                    settingsShareChatId = nil
+                    showSettings = true
+                },
+                onCloseChat: openNewChatScreen,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
@@ -1675,6 +1680,8 @@ struct MainAppView: View {
                 searchTarget: searchSelection?.chatId == chatId ? searchSelection : nil,
                 initialEmbedId: pendingExternalEmbedOpen?.chatId == chatId ? pendingExternalEmbedOpen?.embedId : nil,
                 isSettingsOpen: currentViewportWidth > 1100 && showSettings,
+                onOpenChatSettings: { showSettings = true },
+                onCloseChat: openNewChatScreen,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
@@ -7688,6 +7695,7 @@ private struct WelcomeComposer: View {
                     (isAuthenticated || canSendAnonymously) ? onSend() : onOpenAuth()
                 },
                 inlineFieldContent: nil,
+                idleFieldContent: !isOpen && !isDraftPreview ? idleFieldControls : nil,
                 preFieldContent: { EmptyView() },
                 overlayContent: {
                     if let overlayContent {
@@ -7802,6 +7810,26 @@ private struct WelcomeComposer: View {
             .accessibilityLabel(AppStrings.recordAudio)
             .accessibilityIdentifier("record-audio-button")
         }
+    }
+
+    // Web MessageInput.svelte shows these controls while its empty action row is hidden.
+    // Spec: specifications/features/message-input/specification.yml (message-input.actions.visibility).
+    private var idleFieldControls: AnyView {
+        AnyView(
+            HStack(spacing: 0) {
+                Icon("ai", size: 24)
+                    .foregroundStyle(LinearGradient.primary)
+                    .accessibilityHidden(true)
+                    .allowsHitTesting(false)
+                Spacer(minLength: 0)
+                recordActionControls
+                    .frame(width: 44, height: 44)
+            }
+            .padding(.leading, 22)
+            .padding(.trailing, 14)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("message-input-idle-actions")
+        )
     }
 }
 

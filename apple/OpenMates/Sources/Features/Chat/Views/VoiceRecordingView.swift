@@ -443,22 +443,38 @@ final class VoiceRecorder: ObservableObject {
             throw AudioRealtimeTranscriptionError.invalidAudioFormat
         }
         let writer = try AudioRecordingFileWriter(url: url, sourceFormat: format)
-        let handler = pcmHandler
-        input.installTap(onBus: 0, bufferSize: 2_048, format: format) { [weak self] buffer, _ in
+        // AVAudioEngine invokes this block on its realtime queue. Constructing it
+        // outside MainActor isolation prevents Swift's executor check from
+        // trapping before the first microphone buffer can be processed.
+        let tap = Self.makePCMInputTapHandler(
+            writer: writer,
+            handler: pcmHandler,
+            recorder: self
+        )
+        input.installTap(onBus: 0, bufferSize: 2_048, format: format, block: tap)
+        audioEngine = engine
+        recordingWriter = writer
+        engine.prepare()
+        try engine.start()
+    }
+
+    // contract-implementation: message-input.recording.lifecycle
+    nonisolated static func makePCMInputTapHandler(
+        writer: AudioRecordingFileWriter,
+        handler: (@Sendable ([Float], Double) -> Void)?,
+        recorder: VoiceRecorder
+    ) -> @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void {
+        { [weak recorder] buffer, _ in
             _ = writer.enqueue(buffer)
             guard let samples = Self.monoSamples(from: buffer), !samples.isEmpty else { return }
             let sampleRate = buffer.format.sampleRate
             let rms = Self.normalizedRMS(samples)
             handler?(samples, sampleRate)
-            Task { @MainActor [weak self] in
-                guard let self, self.isRecording else { return }
-                self.appendLocalWaveformLevel(rms)
+            Task { @MainActor [weak recorder] in
+                guard let recorder, recorder.isRecording else { return }
+                recorder.appendLocalWaveformLevel(rms)
             }
         }
-        audioEngine = engine
-        recordingWriter = writer
-        engine.prepare()
-        try engine.start()
     }
 
     nonisolated static func makeAACRecordingFile(
