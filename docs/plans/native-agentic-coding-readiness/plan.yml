@@ -312,18 +312,13 @@ current_checkpoint:
   step: Finish P1 and P2 web Project coding integration and deliver it for user testing
   next_question: null
   clarification_rounds_remaining: 0
-  next_action: Publish the frozen scoped reviewed candidate; normal CLI terminal setup integration is complete.
-    The Project focus pill and deactivation control now use the encrypted chat metadata lifecycle,
-    restore on chat reopen, and revalidate server authority. Preserve the passing approval-card and
-    kernel evidence. The connected-source browser case passed on retry; its initial keyboard delivery
-    race is corrected by targeting the current item locator, with no assertion or timeout change. Refresh only the required dev runtime targets and execute the
-    two existing real-AI hosted/remote browser cases on dev with disposable Projects and the personal
-    dev account. Do not broaden the tests or repeat unrelated passing checks. Web browsing, fullscreen
-    opening and actual web-chat hosted/remote edits are mandatory before completion. The user rejected
-    a separate administrator-run shell script for terminal setup. Integrate guard detection and setup
-    into normal CLI installation or remote-access onboarding, using standard operating-system
-    authorization when required. Continue file verification independently and never obtain or
-    transmit the user's sudo password.
+  next_action: Hand over the deployed web and backend implementation for user testing. Commit
+    66a757619ce2a428f26d9b7f07a1ed1bfc7501f8 is published to dev; Vercel is ready, the coordinated
+    runtime refresh succeeded, and the API health endpoint returns 200. A small CLI publication fix
+    changes prepack to verify the already-built guard assets instead of rebuilding without development
+    dependencies. Its automatic alpha publication is the final delivery step. Do not start further
+    feature work or optional tests. The two real-AI hosted/remote browser cases remain unexecuted;
+    record user testing results before claiming end-to-end chat verification or starting later phases.
   implementation_started: true
   task_id: 9accd17f-21b0-4802-b5aa-934eb36eb12c
   task_project_id: 96033196-e4b1-431e-b773-ba221e952fed
@@ -1549,3 +1544,21 @@ final_scope_freeze:
   unverified: The two real-AI hosted/remote browser cases are prepared but have not run. Actual dev
     terminal execution is unverified because the one-time OS guard has not been installed. Do not
     claim those checks passed or mark their Tasks complete merely because implementation is frozen.
+
+deployment_handoff:
+  implementation_commit: 66a757619ce2a428f26d9b7f07a1ed1bfc7501f8
+  web: Vercel deployment 6618319740 is ready; Projects are available through app.dev.openmates.org.
+  backend: Coordinated session6407 refresh completed on the implementation commit; API health is 200.
+  runtime_data: Seven existing generated newsletter files were preserved byte-for-byte with ownership
+    unchanged. A temporary exact-path Git exclusion was used only for the refresh invocation after
+    confirming no tracked changes and no overlap with published source; no data was moved or deleted.
+    Every other dirty path remained subject to the normal guard; Git fast-forward collision checks
+    remained enabled. Receipt is logs/agent-6407-web-checkpoint.json in the task workspace.
+  cli_publication: Initial alpha.4 publication failed because prepack invoked tsup without development
+    dependencies in the publish job. The correction verifies the already-built, byte-matched guard
+    assets. Existing CLI build/tests passed; automatic republishing is required to finish delivery.
+  not_claimed: Real-AI hosted/remote browser execution and installed dev-host terminal execution.
+  user_testing: Use the dev Projects workspace for nested browsing and fullscreen previews. Mention a
+    Project in a web chat to activate its visible focus, then request a small edit in a disposable
+    Project. Remote folders use the updated CLI. Terminal protection setup is integrated into normal
+    remote-access --enable-commands with standard OS authorization; no separate shell script is needed.

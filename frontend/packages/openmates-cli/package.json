@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts src/cli.ts src/remoteAccessCrypto.ts --format esm --dts --clean && node scripts/package-remote-command-apparmor.mjs",
-    "prepack": "npm run build && node scripts/package-remote-command-apparmor.mjs --check",
+    "prepack": "node scripts/package-remote-command-apparmor.mjs --check",
     "dev": "tsup src/index.ts src/cli.ts src/remoteAccessCrypto.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "test:unit:crypto": "node --test --experimental-strip-types tests/crypto.test.ts",
