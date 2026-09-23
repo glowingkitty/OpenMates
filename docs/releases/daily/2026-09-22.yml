@@ -1,0 +1,1556 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-22'
+generated_at: '2026-09-23T00:20:19+00:00'
+range:
+  since: '2026-09-22T00:00:00+00:00'
+  until: '2026-09-23T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 19
+  section_counts:
+    features: 5
+    bug_fixes: 11
+    improvements: 0
+    docs: 3
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 11
+  user_facing_items: 14
+  dev_only_items: 5
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: refine public blog article experience'
+    section: features
+    commits:
+    - 0af9760d0
+    authored_at: '2026-09-22T13:20:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/lib/components/publications/PublicationRoute.svelte
+    - frontend/apps/web_app/src/lib/publications/publicationManifest.v1.json
+    - frontend/apps/web_app/src/lib/server/publicationHosting.ts
+    - frontend/apps/web_app/src/lib/server/publicationMarkdown.test.ts
+    - frontend/apps/web_app/src/lib/server/publicationMarkdown.ts
+    - frontend/apps/web_app/src/lib/server/publications.test.ts
+    - frontend/apps/web_app/src/lib/server/publications.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/apps/web_app/static/publications/authors/marco.jpg
+    - frontend/apps/web_app/tests/components/newsroom-surface.spec.ts
+    - frontend/apps/web_app/tests/public-publications.spec.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/newsroom/NewsroomMedia.svelte
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.preview.ts
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
+    - frontend/packages/ui/src/components/newsroom/PublicationHeader.svelte
+    - frontend/packages/ui/src/components/newsroom/PublicationHero.svelte
+    - frontend/packages/ui/src/components/newsroom/types.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: publish illustrated agentic coding blog'
+    section: features
+    commits:
+    - b8d87173f
+    authored_at: '2026-09-22T12:26:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/lib/publications/publicationManifest.v1.json
+    - frontend/apps/web_app/src/lib/server/publicationManifest.test.ts
+    - frontend/apps/web_app/src/lib/server/publicationManifest.ts
+    - frontend/apps/web_app/src/lib/server/publications.ts
+    - frontend/apps/web_app/static/publications/blog/guardrails-agent-instructions-56d50eac2a7a.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-blind-folded-1aa08a250bc6.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-hardcoded-enforcement-c794e790afb2.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-isolated-runtimes-6d25d444ff9c.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-multi-tasking-50acd227ab4d.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-next-updates-d28614921211.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-no-enforced-spec-driven-dev-73ada2aee84e.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-no-wall-of-text-24979aba6493.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-no-wall-of-text-asci-31040bc6c31b.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-openmates-e17aa34261b6.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-plans-0881cb7385b7.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-spec-driven-dev-requirements-dadbfef5ecef.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-spec-driven-dev-tests-1-56d1d0cc4937.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-tasks-dc637341b627.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-user-experience-afterthought-25dbce916879.webp
+    - frontend/apps/web_app/tests/public-publications.spec.ts
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: preserve artifacts across chat compression'
+    section: features
+    commits:
+    - 94ea315d5
+    authored_at: '2026-09-22T11:08:21+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/artifact_ledger.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_artifact_ledger.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:ai:ask'
+    - commit is reachable from main
+  - title: 'feat: make Jev long-chat routing model-aware'
+    section: features
+    commits:
+    - b8dc581d0
+    authored_at: '2026-09-22T10:42:39+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/artifact_ledger.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_message_handler.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_artifact_ledger.py
+    - backend/tests/test_delete_chat_handler.py
+    - backend/tests/test_model_context_budget.py
+    - backend/tests/test_preprocessor_jev.py
+    - docs/apis/typesafe-jev.md
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/architecture/messaging/embeds.md
+    - docs/plans/jev-context-routing/plan.yml
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'feat: add Jev decision processing'
+    section: features
+    commits:
+    - cfdbda23a
+    authored_at: '2026-09-22T01:38:28+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/chat_request_safety.py
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/apps/ai/processing/jev_decisions.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/shared/providers/typesafe/__init__.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/providers/typesafe/models.py
+    - backend/tests/test_chat_request_safety.py
+    - backend/tests/test_content_sanitization.py
+    - backend/tests/test_postprocessor.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_typesafe_decisions.py
+    - docs/apis/typesafe-jev.md
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/architecture/privacy/prompt-injection.md
+    - docs/plans/jev-decision-processing/plan.yml
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    - scripts/api_tests/test_typesafe_jev_api.py
+    - shared/docs/privacy_policy.yml
+    - shared/docs/provider_training_policies.yml
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:ai:ask'
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: preserve send clicks during first draft activation'
+    section: bug_fixes
+    commits:
+    - c2f505a5a
+    authored_at: '2026-09-22T18:45:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/component-message-input-performance.spec.ts
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover recorder cleanup and defer voice-first chat metadata'
+    section: bug_fixes
+    commits:
+    - e9ec8a1bf
+    authored_at: '2026-09-22T16:54:13+00:00'
+    changed_paths:
+    - docs/plans/chat-failure-incident-2026-09-22/plan.yml
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/apps/web_app/tests/components/audio-recording-realtime.spec.ts
+    - frontend/apps/web_app/tests/report-issue-context-fallback.spec.ts
+    - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.preview.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/RecordAudio.test.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechPreference.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - scripts/ci_coverage.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prioritize audio websocket proxy routes before encoded app routes'
+    section: bug_fixes
+    commits:
+    - 1898cc216
+    authored_at: '2026-09-22T16:39:02+00:00'
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - scripts/tests/test_verify_caddyfile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent blank container logs from rejecting telemetry batches'
+    section: bug_fixes
+    commits:
+    - dcfa1a495
+    authored_at: '2026-09-22T16:13:21+00:00'
+    changed_paths:
+    - backend/core/monitoring/promtail/promtail-config.yaml
+    - backend/tests/test_promtail_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover chat failures and preserve Gemini provider affinity'
+    section: bug_fixes
+    commits:
+    - 124d8c18f
+    authored_at: '2026-09-22T15:36:08+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/main_processing_failure.py
+    - backend/apps/ai/utils/tool_protocol_guard.py
+    - backend/scripts/debug_trace.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - backend/tests/test_tool_protocol_guard.py
+    - backend/tests/test_tracing/test_debug_trace.py
+    - docs/plans/chat-failure-incident-2026-09-22/plan.yml
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/services/__tests__/issueReportSubmission.test.ts
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: include optimized publication fallback'
+    section: bug_fixes
+    commits:
+    - 91853cfcf
+    authored_at: '2026-09-22T13:41:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/publications/openmates-ui-fallback.webp
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve publication navigation and loading'
+    section: bug_fixes
+    commits:
+    - 0c78b960c
+    authored_at: '2026-09-22T13:40:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/lib/components/publications/PublicationRoute.svelte
+    - frontend/apps/web_app/src/lib/server/publications.ts
+    - frontend/apps/web_app/src/routes/(publications)/+layout@.svelte
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.preview.ts
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
+    - frontend/packages/ui/src/components/newsroom/PublicationHero.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: cap main inference context at 200k tokens'
+    section: bug_fixes
+    commits:
+    - 680b6f39c
+    authored_at: '2026-09-22T12:09:01+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_model_context_budget.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'fix: recover inline upload artifacts'
+    section: bug_fixes
+    commits:
+    - 6f8eb0a60
+    authored_at: '2026-09-22T11:23:29+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/artifact_ledger.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_artifact_ledger.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'fix: match compressed upload references'
+    section: bug_fixes
+    commits:
+    - 54ad87899
+    authored_at: '2026-09-22T11:18:11+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/artifact_ledger.py
+    - backend/tests/test_artifact_ledger.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'fix: persist generated CLI chat titles'
+    section: bug_fixes
+    commits:
+    - 8457d59e2
+    authored_at: '2026-09-22T02:05:37+00:00'
+    changed_paths:
+    - docs/plans/jev-decision-processing/plan.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: include latest agentic coding article edits'
+    section: docs
+    commits:
+    - a366af6aa
+    authored_at: '2026-09-22T12:28:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/lib/publications/publicationManifest.v1.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: verify Jev long-chat routing'
+    section: docs
+    commits:
+    - 2eceda13d
+    authored_at: '2026-09-22T11:40:34+00:00'
+    changed_paths:
+    - docs/plans/jev-context-routing/plan.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Jev web verification'
+    section: docs
+    commits:
+    - 6e6e30623
+    authored_at: '2026-09-22T02:19:48+00:00'
+    changed_paths:
+    - docs/plans/jev-decision-processing/plan.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: preserve send clicks during first draft activation'
+    commits:
+    - c2f505a5a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: recover recorder cleanup and defer voice-first chat metadata'
+    commits:
+    - e9ec8a1bf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: prioritize audio websocket proxy routes before encoded app routes'
+    commits:
+    - 1898cc216
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent blank container logs from rejecting telemetry batches'
+    commits:
+    - dcfa1a495
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover chat failures and preserve Gemini provider affinity'
+    commits:
+    - 124d8c18f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add Jev decision processing'
+    commits:
+    - cfdbda23a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+marketing_candidates:
+  newsletter:
+  - title: 'fix: include optimized publication fallback'
+    commits:
+    - 91853cfcf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve publication navigation and loading'
+    commits:
+    - 0c78b960c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: refine public blog article experience'
+    commits:
+    - 0af9760d0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: publish illustrated agentic coding blog'
+    commits:
+    - b8d87173f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: cap main inference context at 200k tokens'
+    commits:
+    - 680b6f39c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: recover inline upload artifacts'
+    commits:
+    - 6f8eb0a60
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: match compressed upload references'
+    commits:
+    - 54ad87899
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: preserve artifacts across chat compression'
+    commits:
+    - 94ea315d5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'feat: make Jev long-chat routing model-aware'
+    commits:
+    - b8dc581d0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: persist generated CLI chat titles'
+    commits:
+    - 8457d59e2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Jev decision processing'
+    commits:
+    - cfdbda23a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  social_or_video:
+  - title: 'fix: preserve send clicks during first draft activation'
+    commits:
+    - c2f505a5a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover recorder cleanup and defer voice-first chat metadata'
+    commits:
+    - e9ec8a1bf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover chat failures and preserve Gemini provider affinity'
+    commits:
+    - 124d8c18f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: include optimized publication fallback'
+    commits:
+    - 91853cfcf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve publication navigation and loading'
+    commits:
+    - 0c78b960c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: refine public blog article experience'
+    commits:
+    - 0af9760d0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: publish illustrated agentic coding blog'
+    commits:
+    - b8d87173f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: cap main inference context at 200k tokens'
+    commits:
+    - 680b6f39c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: recover inline upload artifacts'
+    commits:
+    - 6f8eb0a60
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: match compressed upload references'
+    commits:
+    - 54ad87899
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'feat: preserve artifacts across chat compression'
+    commits:
+    - 94ea315d5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'feat: make Jev long-chat routing model-aware'
+    commits:
+    - b8dc581d0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: persist generated CLI chat titles'
+    commits:
+    - 8457d59e2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Jev decision processing'
+    commits:
+    - cfdbda23a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: c2f505a5a9a5c9d6920ea0dddb36de7e6853df4f
+    short_sha: c2f505a5a
+    authored_at: '2026-09-22T18:45:20+00:00'
+    subject: 'fix: preserve send clicks during first draft activation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/component-message-input-performance.spec.ts
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: e9ec8a1bff85ea57a6bfdc456d71c70e377f6a5f
+    short_sha: e9ec8a1bf
+    authored_at: '2026-09-22T16:54:13+00:00'
+    subject: 'fix: recover recorder cleanup and defer voice-first chat metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/chat-failure-incident-2026-09-22/plan.yml
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/apps/web_app/tests/components/audio-recording-realtime.spec.ts
+    - frontend/apps/web_app/tests/report-issue-context-fallback.spec.ts
+    - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.preview.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/RecordAudio.test.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechPreference.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - scripts/ci_coverage.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1898cc216aedcb606bb4de4ed7d8e0892ed696d4
+    short_sha: 1898cc216
+    authored_at: '2026-09-22T16:39:02+00:00'
+    subject: 'fix: prioritize audio websocket proxy routes before encoded app routes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - scripts/tests/test_verify_caddyfile.py
+    related_feature_ids: []
+  - sha: dcfa1a49554344f95c36851fe545f56d6dd8133c
+    short_sha: dcfa1a495
+    authored_at: '2026-09-22T16:13:21+00:00'
+    subject: 'fix: prevent blank container logs from rejecting telemetry batches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/monitoring/promtail/promtail-config.yaml
+    - backend/tests/test_promtail_pipeline.py
+    related_feature_ids: []
+  - sha: 124d8c18f72a00d51195def145e208b4da465367
+    short_sha: 124d8c18f
+    authored_at: '2026-09-22T15:36:08+00:00'
+    subject: 'fix: recover chat failures and preserve Gemini provider affinity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/main_processing_failure.py
+    - backend/apps/ai/utils/tool_protocol_guard.py
+    - backend/scripts/debug_trace.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - backend/tests/test_tool_protocol_guard.py
+    - backend/tests/test_tracing/test_debug_trace.py
+    - docs/plans/chat-failure-incident-2026-09-22/plan.yml
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/services/__tests__/issueReportSubmission.test.ts
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 91853cfcf7be7bb4d57ac54930facc7149162eb5
+    short_sha: 91853cfcf
+    authored_at: '2026-09-22T13:41:02+00:00'
+    subject: 'fix: include optimized publication fallback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/publications/openmates-ui-fallback.webp
+    related_feature_ids: []
+  - sha: 0c78b960c7ad5cd1cd040c5e6eec0f462f40acae
+    short_sha: 0c78b960c
+    authored_at: '2026-09-22T13:40:05+00:00'
+    subject: 'fix: improve publication navigation and loading'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/lib/components/publications/PublicationRoute.svelte
+    - frontend/apps/web_app/src/lib/server/publications.ts
+    - frontend/apps/web_app/src/routes/(publications)/+layout@.svelte
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.preview.ts
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
+    - frontend/packages/ui/src/components/newsroom/PublicationHero.svelte
+    related_feature_ids: []
+  - sha: 0af9760d049653346011d2f4aa481f9f457772df
+    short_sha: 0af9760d0
+    authored_at: '2026-09-22T13:20:47+00:00'
+    subject: 'feat: refine public blog article experience'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/lib/components/publications/PublicationRoute.svelte
+    - frontend/apps/web_app/src/lib/publications/publicationManifest.v1.json
+    - frontend/apps/web_app/src/lib/server/publicationHosting.ts
+    - frontend/apps/web_app/src/lib/server/publicationMarkdown.test.ts
+    - frontend/apps/web_app/src/lib/server/publicationMarkdown.ts
+    - frontend/apps/web_app/src/lib/server/publications.test.ts
+    - frontend/apps/web_app/src/lib/server/publications.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/apps/web_app/static/publications/authors/marco.jpg
+    - frontend/apps/web_app/tests/components/newsroom-surface.spec.ts
+    - frontend/apps/web_app/tests/public-publications.spec.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/newsroom/NewsroomMedia.svelte
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.preview.ts
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
+    - frontend/packages/ui/src/components/newsroom/PublicationHeader.svelte
+    - frontend/packages/ui/src/components/newsroom/PublicationHero.svelte
+    - frontend/packages/ui/src/components/newsroom/types.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a366af6aa44cd4c3acf560c091efef2da7682a2d
+    short_sha: a366af6aa
+    authored_at: '2026-09-22T12:28:16+00:00'
+    subject: 'docs: include latest agentic coding article edits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/lib/publications/publicationManifest.v1.json
+    related_feature_ids: []
+  - sha: b8d87173f4a6bf15a2102834c32483e4133d5bc6
+    short_sha: b8d87173f
+    authored_at: '2026-09-22T12:26:57+00:00'
+    subject: 'feat: publish illustrated agentic coding blog'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/lib/publications/publicationManifest.v1.json
+    - frontend/apps/web_app/src/lib/server/publicationManifest.test.ts
+    - frontend/apps/web_app/src/lib/server/publicationManifest.ts
+    - frontend/apps/web_app/src/lib/server/publications.ts
+    - frontend/apps/web_app/static/publications/blog/guardrails-agent-instructions-56d50eac2a7a.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-blind-folded-1aa08a250bc6.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-hardcoded-enforcement-c794e790afb2.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-isolated-runtimes-6d25d444ff9c.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-multi-tasking-50acd227ab4d.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-next-updates-d28614921211.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-no-enforced-spec-driven-dev-73ada2aee84e.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-no-wall-of-text-24979aba6493.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-no-wall-of-text-asci-31040bc6c31b.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-openmates-e17aa34261b6.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-plans-0881cb7385b7.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-spec-driven-dev-requirements-dadbfef5ecef.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-spec-driven-dev-tests-1-56d1d0cc4937.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-tasks-dc637341b627.webp
+    - frontend/apps/web_app/static/publications/blog/guardrails-user-experience-afterthought-25dbce916879.webp
+    - frontend/apps/web_app/tests/public-publications.spec.ts
+    - frontend/packages/ui/src/components/newsroom/NewsroomSurface.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 680b6f39c189c6e90a4cc67657593b1a6e917b20
+    short_sha: 680b6f39c
+    authored_at: '2026-09-22T12:09:01+00:00'
+    subject: 'fix: cap main inference context at 200k tokens'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_model_context_budget.py
+    related_feature_ids:
+    - app:ai
+  - sha: 2eceda13df63a4402686b1f5a8a58fc6d32e8c56
+    short_sha: 2eceda13d
+    authored_at: '2026-09-22T11:40:34+00:00'
+    subject: 'docs: verify Jev long-chat routing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/plans/jev-context-routing/plan.yml
+    related_feature_ids: []
+  - sha: 6f8eb0a60eec2f200d5adda3e322da9649d2131b
+    short_sha: 6f8eb0a60
+    authored_at: '2026-09-22T11:23:29+00:00'
+    subject: 'fix: recover inline upload artifacts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/artifact_ledger.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_artifact_ledger.py
+    related_feature_ids:
+    - app:ai
+  - sha: 54ad87899b03850e09dbfcd04fcf256248b96fe8
+    short_sha: 54ad87899
+    authored_at: '2026-09-22T11:18:11+00:00'
+    subject: 'fix: match compressed upload references'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/artifact_ledger.py
+    - backend/tests/test_artifact_ledger.py
+    related_feature_ids:
+    - app:ai
+  - sha: 94ea315d5de45afa130feae3f60c162f04cbb44c
+    short_sha: 94ea315d5
+    authored_at: '2026-09-22T11:08:21+00:00'
+    subject: 'feat: preserve artifacts across chat compression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/artifact_ledger.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_artifact_ledger.py
+    related_feature_ids:
+    - app:ai
+    - skill:ai:ask
+  - sha: b8dc581d079c65ba69b47c7e261ed2a2f7c1edf5
+    short_sha: b8dc581d0
+    authored_at: '2026-09-22T10:42:39+00:00'
+    subject: 'feat: make Jev long-chat routing model-aware'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/artifact_ledger.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_message_handler.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_artifact_ledger.py
+    - backend/tests/test_delete_chat_handler.py
+    - backend/tests/test_model_context_budget.py
+    - backend/tests/test_preprocessor_jev.py
+    - docs/apis/typesafe-jev.md
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/architecture/messaging/embeds.md
+    - docs/plans/jev-context-routing/plan.yml
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 6e6e30623e5891c5bc08a22f7a3fa8ce5b3806d0
+    short_sha: 6e6e30623
+    authored_at: '2026-09-22T02:19:48+00:00'
+    subject: 'docs: record Jev web verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/plans/jev-decision-processing/plan.yml
+    related_feature_ids: []
+  - sha: 8457d59e2d9c11b674e5c8d7a04a54ac847cb12b
+    short_sha: 8457d59e2
+    authored_at: '2026-09-22T02:05:37+00:00'
+    subject: 'fix: persist generated CLI chat titles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/plans/jev-decision-processing/plan.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: cfdbda23ad824f442f6c542bfa0cac567a9cca2d
+    short_sha: cfdbda23a
+    authored_at: '2026-09-22T01:38:28+00:00'
+    subject: 'feat: add Jev decision processing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/chat_request_safety.py
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/apps/ai/processing/jev_decisions.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/shared/providers/typesafe/__init__.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/providers/typesafe/models.py
+    - backend/tests/test_chat_request_safety.py
+    - backend/tests/test_content_sanitization.py
+    - backend/tests/test_postprocessor.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_typesafe_decisions.py
+    - docs/apis/typesafe-jev.md
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/architecture/privacy/prompt-injection.md
+    - docs/plans/jev-decision-processing/plan.yml
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    - scripts/api_tests/test_typesafe_jev_api.py
+    - shared/docs/privacy_policy.yml
+    - shared/docs/provider_training_policies.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - skill:ai:ask
+llm_summary:
+  overview: OpenMates introduced major updates to its AI execution engine, Jev, focusing on safety, model-aware routing, and
+    artifact persistence. The project also launched a new illustrated blog series and refined the public publication interface.
+  released_changes:
+  - text: OpenMates added Jev decision processing, which introduces automated safety checks and content sanitization for AI
+      interactions.
+    evidence:
+      commits:
+      - cfdbda23a
+    release_status: released_main
+  - text: The AI engine now utilizes model-aware routing to better manage context in long conversations.
+    evidence:
+      commits:
+      - b8dc581d0
+    release_status: released_main
+  - text: Artifacts are now preserved across chat compression cycles, ensuring they remain available as the conversation grows.
+    evidence:
+      commits:
+      - 94ea315d5
+    release_status: released_main
+  - text: The project published a new illustrated article on agentic coding and refined the UI for all public blog posts.
+    evidence:
+      commits:
+      - b8d87173f
+      - 0af9760d0
+    release_status: released_main
+  bug_fixes:
+  - text: The AI inference context is now capped at 200k tokens to ensure stability during long conversations.
+    evidence:
+      commits:
+      - 680b6f39c
+    release_status: released_main
+  - text: Resolved issues where inline upload artifacts and compressed references were not being correctly recovered or matched.
+    evidence:
+      commits:
+      - 6f8eb0a60
+      - 54ad87899
+    release_status: released_main
+  - text: Improved the public blog experience with better navigation, loading states, and optimized fallback images.
+    evidence:
+      commits:
+      - 0c78b960c
+      - 91853cfcf
+    release_status: released_main
+  - text: The CLI now correctly persists generated chat titles.
+    evidence:
+      commits:
+      - 8457d59e2
+    release_status: released_main
+  unreleased_progress:
+  - text: Development is underway to improve recovery from chat failures and maintain provider affinity for Gemini models.
+    evidence:
+      commits:
+      - 124d8c18f
+    release_status: dev_only
+  - text: Ongoing work includes refining audio recorder cleanup and optimizing message input performance during draft activation.
+    evidence:
+      commits:
+      - e9ec8a1bf
+      - c2f505a5a
+    release_status: dev_only
+  internal_progress:
+  - text: Adjusted Caddyfile routing to prioritize audio websocket proxies.
+    evidence:
+      commits:
+      - 1898cc216
+    release_status: dev_only
+  - text: Updated telemetry pipelines to prevent blank container logs from rejecting data batches.
+    evidence:
+      commits:
+      - dcfa1a495
+    release_status: dev_only
+  newsletter_recommendation:
+    include:
+    - text: New Jev decision processing for enhanced AI safety and content sanitization.
+      evidence:
+        commits:
+        - cfdbda23a
+      reason: Introduces critical safety and sanitization logic for the AI engine.
+    - text: Model-aware routing for long-chat history management.
+      evidence:
+        commits:
+        - b8dc581d0
+      reason: Improves the efficiency of long-running AI conversations.
+    - text: Artifact preservation across AI chat compression cycles.
+      evidence:
+        commits:
+        - 94ea315d5
+      reason: Ensures user data remains accessible even as chat history is compressed.
+    - text: Launch of the illustrated agentic coding blog series and refined reading experience.
+      evidence:
+        commits:
+        - b8d87173f
+        - 0af9760d0
+      reason: New public-facing content and UI improvements for the project blog.
+    exclude:
+    - text: Internal fixes for chat failures and audio recording cleanup.
+      evidence:
+        commits:
+        - 124d8c18f
+        - e9ec8a1bf
+        - c2f505a5a
+      reason: These items are currently dev_only and have not reached the main release branch.
+    - text: Internal documentation and verification plans.
+      evidence:
+        commits:
+        - a366af6aa
+        - 2eceda13d
+        - 6e6e30623
+      reason: These are internal documentation and verification records not intended for public consumption.
+    rationale: The selected items represent significant functional improvements to the AI engine and new public-facing content
+      that is ready for communication.
+  social_video_recommendations:
+  - idea: A visual tour of the new illustrated blog post and the refined reading interface.
+    priority: high
+    reason: The new blog content is highly visual and demonstrates the project's thought leadership in agentic coding.
+    evidence:
+      commits:
+      - b8d87173f
+      - 0af9760d0
+  - idea: A technical deep dive or demo showing how OpenMates maintains context and artifacts in very long chat sessions.
+    priority: medium
+    reason: Demonstrates the robustness of the Jev engine for power users.
+    evidence:
+      commits:
+      - b8dc581d0
+      - 94ea315d5
+  quality_notes:
+  - Commit cfdbda23a includes updates to the privacy policy and provider training policies.
+  - Several AI improvements focus on maintaining context and artifact integrity during long-running sessions.
+  validation_warnings: []
