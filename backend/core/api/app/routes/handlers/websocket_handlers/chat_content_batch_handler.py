@@ -21,6 +21,47 @@ from backend.core.api.app.routes.handlers.websocket_handlers.notebook_run_output
 logger = logging.getLogger(__name__)
 
 
+async def _fetch_complete_embeds_for_chat(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    chat_id: str,
+    hashed_chat_id: str,
+) -> List[Dict[str, Any]]:
+    """Merge live cached embeds with the authoritative persisted chat graph.
+
+    The sync cache stores each embed in a separate expiring key. A non-empty
+    cache result can therefore still be incomplete when a parent or child key
+    has expired. Directus rows replace stale cached copies with the same
+    ``embed_id`` while cached-only rows remain available during persistence.
+    """
+    try:
+        cached_embeds = await cache_service.get_sync_embeds_for_chat(chat_id) or []
+    except Exception:
+        cached_embeds = []
+        logger.warning("Batch handler: sync embed cache read failed; using persisted rows")
+
+    try:
+        persisted_embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(
+            hashed_chat_id
+        ) or []
+    except Exception:
+        if cached_embeds:
+            logger.warning("Batch handler: persisted embed read failed; using cached rows")
+            return cached_embeds
+        raise
+
+    merged_by_id: Dict[str, Dict[str, Any]] = {}
+    for embed in cached_embeds:
+        embed_id = embed.get("embed_id")
+        if embed_id:
+            merged_by_id[embed_id] = embed
+    for embed in persisted_embeds:
+        embed_id = embed.get("embed_id")
+        if embed_id:
+            merged_by_id[embed_id] = embed
+    return list(merged_by_id.values())
+
+
 async def _fetch_code_run_outputs_for_chats(
     directus_service: DirectusService,
     chat_ids: List[str],
@@ -204,9 +245,12 @@ async def handle_chat_content_batch(
             hashed_ids_for_keys.append(hashed_id)
 
             try:
-                embeds = await cache_service.get_sync_embeds_for_chat(chat_id)
-                if not embeds:
-                    embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_id)
+                embeds = await _fetch_complete_embeds_for_chat(
+                    cache_service,
+                    directus_service,
+                    chat_id,
+                    hashed_id,
+                )
                 if embeds:
                     for embed in embeds:
                         embed_id = embed.get("embed_id")
