@@ -188,3 +188,29 @@ async def test_batch_wrapper_fetch_uses_team_scope_when_provided():
     assert [wrapper["id"] for wrapper in wrappers] == ["team-wrapper"]
     assert directus.requests[-1][1]["filter[hashed_team_id][_eq]"] == _hash("team-1")
     assert "filter[hashed_user_id][_eq]" not in directus.requests[-1][1]
+
+
+# contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity,chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_team_chat_wrapper_is_idempotent_and_team_scoped():
+    directus = FakeDirectusService()
+    methods = ChatKeyWrapperMethods(directus)
+
+    assert await methods.ensure_team_wrapper_for_chat(
+        chat_id="chat-team-1",
+        hashed_team_id=_hash("team-1"),
+        encrypted_chat_key="ciphertext-team-wrapped-chat-key",
+    )
+    assert await methods.ensure_team_wrapper_for_chat(
+        chat_id="chat-team-1",
+        hashed_team_id=_hash("team-1"),
+        encrypted_chat_key="ciphertext-team-wrapped-chat-key",
+    )
+
+    assert len(directus.wrapper_rows) == 1
+    wrapper = directus.wrapper_rows[0]
+    assert wrapper["hashed_chat_id"] == _hash("chat-team-1")
+    assert wrapper["hashed_team_id"] == _hash("team-1")
+    assert wrapper["key_type"] == "team"
+    assert wrapper["team_key_epoch"] == 1
+    assert "hashed_user_id" not in wrapper

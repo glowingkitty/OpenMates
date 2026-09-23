@@ -60,6 +60,10 @@
   // rather than as a fixed overlay, so users can scroll while the dialog is visible
   import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
   import ConnectedAccountPermissionDialog from './ConnectedAccountPermissionDialog.svelte';
+  import ProjectFileApprovalCard from './projects/ProjectFileApprovalCard.svelte';
+  import RemoteCommandReviewCard from './projects/RemoteCommandReviewCard.svelte';
+  import { remoteCommandEntries, resolveRemoteCommandApproval, requestRemoteCommandStop } from '../stores/remoteCommandApprovalStore';
+  import { projectFileApprovals, resolveProjectFileApproval } from '../stores/projectFileApprovalStore';
   import { 
     appSettingsMemoriesPermissionStore,
     isPermissionDialogVisible,
@@ -3009,6 +3013,17 @@
                     <ConnectedAccountPermissionDialog />
                 </div>
             {/if}
+
+            {#each $projectFileApprovals.filter((entry) => entry.request.chatId === currentChatId) as entry (entry.id)}
+                <div class="permission-dialog-wrapper">
+                    <ProjectFileApprovalCard {entry} onDecision={resolveProjectFileApproval} />
+                </div>
+            {/each}
+            {#each $remoteCommandEntries.filter((entry) => entry.chatId === currentChatId) as entry (entry.id)}
+                <div class="permission-dialog-wrapper">
+                    <RemoteCommandReviewCard {entry} onDecision={resolveRemoteCommandApproval} onStop={requestRemoteCommandStop} />
+                </div>
+            {/each}
 
             
             <!-- Bottom spacer: fills remaining viewport space below messages during streaming.

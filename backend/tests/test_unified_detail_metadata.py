@@ -48,9 +48,11 @@ if "botocore" not in sys.modules:
     botocore_exceptions_module.__spec__ = importlib.machinery.ModuleSpec("botocore.exceptions", loader=None)
     botocore_config_module.Config = lambda *_args, **_kwargs: None
     botocore_exceptions_module.ClientError = Exception
+    botocore_exceptions_module.ConnectionClosedError = Exception
     botocore_exceptions_module.ReadTimeoutError = Exception
     botocore_exceptions_module.ConnectTimeoutError = Exception
     botocore_exceptions_module.EndpointConnectionError = Exception
+    botocore_exceptions_module.HTTPClientError = Exception
     sys.modules["botocore"] = botocore_module
     sys.modules["botocore.config"] = botocore_config_module
     sys.modules["botocore.exceptions"] = botocore_exceptions_module
@@ -943,6 +945,75 @@ def test_metadata_persistence_writes_reserved_cache_version_to_directus(monkeypa
     assert updates
     assert updates[0]["metadata_v"] == 5
     assert updates[0]["encrypted_chat_summary"] == "cipher-summary-v5"
+
+
+# contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_key_only_websocket_shell_is_durably_empty_for_recovery_preflight(monkeypatch) -> None:
+    stored: dict[str, object] = {}
+
+    class ChatStore:
+        async def check_chat_ownership(self, _chat_id: str, _user_id: str) -> bool:
+            return False
+
+        async def get_chat_metadata(self, _chat_id: str) -> dict[str, object] | None:
+            return dict(stored) if stored else None
+
+        async def create_chat_in_directus(self, payload: dict[str, object]):
+            stored.update(payload)
+            return dict(stored), False
+
+    class DirectusDouble:
+        def __init__(self) -> None:
+            self.chat = ChatStore()
+
+        async def ensure_auth_token(self) -> None:
+            return None
+
+    class CacheDouble:
+        async def get_chat_list_item_data(self, _user_id: str, _chat_id: str):
+            return None
+
+        async def update_chat_list_item_field(self, *_args) -> bool:
+            return True
+
+        async def set_chat_list_item_data(self, *_args) -> bool:
+            return True
+
+        async def set_chat_versions(self, *_args) -> bool:
+            return True
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(persistence_tasks, "DirectusService", DirectusDouble)
+    monkeypatch.setattr(persistence_tasks, "CacheService", CacheDouble)
+
+    manager = ChatMetadataManager()
+    await handle_encrypted_chat_metadata(
+        websocket=None,
+        manager=manager,
+        cache_service=CacheDouble(),
+        directus_service=DirectusDouble(),
+        encryption_service=None,
+        user_id="owner-1",
+        user_id_hash="owner-hash",
+        device_fingerprint_hash="device-1",
+        payload={
+            "chat_id": "chat-shell-1",
+            "encrypted_chat_key": "wrapped-chat-key",
+            "created_at": 1000,
+            "versions": {},
+        },
+    )
+
+    assert stored["messages_v"] == 0
+    assert stored["title_v"] == 0
+    assert stored["metadata_v"] == 0
+    assert stored.get("last_message_timestamp") is None
+    assert stored.get("encrypted_title") is None
+    assert not any(key in stored for key in ("message_id", "encrypted_content"))
+    assert manager.personal_messages[-1][0]["type"] == "encrypted_metadata_stored"
 
 
 def test_metadata_persistence_writes_reserved_title_version_when_cache_is_ahead(monkeypatch) -> None:

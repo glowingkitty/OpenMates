@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 
@@ -12,6 +13,51 @@ PROJECT_FILE_TOOL_TO_OPERATION = {
     "project_create_file": "create_file",
     "project_update_file": "update_file",
 }
+
+PROJECT_SOURCE_TYPES = {
+    "local_folder",
+    "local_git_repository",
+    "remote_folder",
+    "remote_git_repository",
+}
+PROJECT_SOURCE_CAPABILITIES = {"read", "search", "import", "write_request", "run_command"}
+
+
+def build_project_source_routing_context(
+    sources: list[dict[str, Any]],
+    *,
+    connected_source_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Return deterministic, non-secret source metadata suitable for the model."""
+
+    connected_source_ids = connected_source_ids or set()
+    routing_sources: list[dict[str, Any]] = []
+    for source in sources:
+        source_id = source.get("source_id")
+        source_type = source.get("source_type")
+        if (
+            source.get("status") == "revoked"
+            or not isinstance(source_id, str)
+            or not source_id
+            or source_type not in PROJECT_SOURCE_TYPES
+        ):
+            continue
+        capabilities = sorted(
+            {
+                capability
+                for capability in source.get("capabilities") or []
+                if isinstance(capability, str) and capability in PROJECT_SOURCE_CAPABILITIES
+            }
+        )
+        routing_sources.append(
+            {
+                "source_id": source_id,
+                "source_type": source_type,
+                "status": "connected" if source_id in connected_source_ids else "offline",
+                "capabilities": capabilities,
+            }
+        )
+    return sorted(routing_sources, key=lambda source: source["source_id"])
 
 
 def build_project_file_tools() -> list[dict[str, Any]]:
@@ -132,9 +178,12 @@ def build_project_file_tools() -> list[dict[str, Any]]:
     ]
 
 
-def build_project_focus_prompt(focus: dict[str, Any]) -> str:
+def build_project_focus_prompt(
+    focus: dict[str, Any],
+    sources: list[dict[str, Any]] | None = None,
+) -> str:
     instruction = str(focus.get("instruction") or "").strip()
-    return (
+    prompt = (
         "An authorized Project focus is active for this chat. Use the Project file tools when the "
         "request requires inspecting or changing Project files. Read a file before updating it and "
         "use the exact expected_base returned by the read. Never invent, weaken, or change Project "
@@ -148,3 +197,11 @@ def build_project_focus_prompt(focus: dict[str, Any]) -> str:
         "Full active Project focus instruction:\n"
         f"{instruction}"
     )
+    if sources is not None:
+        prompt += (
+            "\n\nAuthorized Project source routing metadata (server-derived; labels and content are omitted):\n"
+            f"{json.dumps(sources, separators=(',', ':'), sort_keys=True)}\n"
+            "Use an exact source_id when selecting one of these sources. Treat status and capabilities as "
+            "advisory discovery metadata; every operation is authorized again at dispatch time."
+        )
+    return prompt

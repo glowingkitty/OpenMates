@@ -6,6 +6,7 @@
 -->
 
 <script lang="ts">
+  import { text } from '@repo/ui';
   import CodeEmbedPreview from '../embeds/code/CodeEmbedPreview.svelte';
   import type { VirtualRemoteFilePreview } from '../../services/projectRemoteSources';
 
@@ -27,28 +28,41 @@
 
   let content = $derived(preview.embed.content);
   let sizeLabel = $derived(content.size_bytes !== undefined ? `${content.size_bytes.toLocaleString()} bytes` : 'Virtual preview');
+  let isTruncated = $derived(content.safety_flags.includes('truncated'));
 </script>
 
 <article class="remote-preview-card" data-testid="project-remote-preview-card" data-remote-path={content.path}>
   <div class="remote-preview-shell">
-    <CodeEmbedPreview
-      id={preview.embed.embed_id}
-      language={content.language}
-      filename={content.display_name}
-      lineCount={content.line_count ?? 0}
-      status="finished"
-      codeContent={content.snippet}
-      appId="code"
-      skillId="code"
-      skillIconName="coding"
-      onFullscreen={onOpenFullscreen}
-    />
+    {#if content.snippet}
+      <CodeEmbedPreview
+        id={preview.embed.embed_id}
+        language={content.language}
+        filename={content.display_name}
+        lineCount={content.line_count ?? 0}
+        status="finished"
+        codeContent={content.snippet}
+        appId="code"
+        skillId="code"
+        skillIconName="coding"
+        onFullscreen={onOpenFullscreen}
+      />
+    {:else}
+      <button class="remote-preview-placeholder" type="button" onclick={onOpenFullscreen}>
+        <span>{content.language || 'Text'}</span>
+        <strong>{content.display_name}</strong>
+        <small>Open to load a preview from your connected source</small>
+      </button>
+    {/if}
   </div>
   <div class="remote-preview-meta">
     <div>
       <span class="remote-source-label">{sourceLabel}</span>
       <strong>{content.display_name}</strong>
       <small>{content.path} · {sizeLabel}</small>
+      <span class="virtual-status">{$text('projects.remote_preview_transient')}</span>
+      {#if isTruncated}
+        <span class="preview-warning" data-testid="project-remote-preview-truncated">{$text('projects.remote_preview_truncated')}</span>
+      {/if}
     </div>
     <div class="remote-preview-actions">
       <button type="button" data-testid="project-remote-preview-open" onclick={onOpenFullscreen}>
@@ -58,10 +72,10 @@
         type="button"
         data-testid="project-remote-preview-upload"
         disabled={!canUpload || isUploading}
-        title={canUpload ? 'Upload selected remote file to OpenMates' : 'Full selected file content is required before upload'}
+        title={canUpload ? $text('projects.import_to_openmates') : $text('projects.import_requires_complete_read')}
         onclick={onUpload}
       >
-        Upload to OpenMates
+        {canUpload ? $text('projects.import_to_openmates') : $text('projects.import_unavailable')}
       </button>
     </div>
   </div>
@@ -77,7 +91,7 @@
   }
 
   .remote-preview-shell {
-    height: 170px;
+    height: 200px;
     overflow: hidden;
     background: var(--color-grey-10);
   }
@@ -87,7 +101,29 @@
     max-width: none;
     min-width: 0;
     height: 100%;
+    min-height: 100%;
+    max-height: 100%;
     border-radius: 0;
+  }
+
+  .remote-preview-placeholder {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-content: center;
+    gap: 6px;
+    padding: 18px;
+    border: 0;
+    background: transparent;
+    color: var(--color-font-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .remote-preview-placeholder span,
+  .remote-preview-placeholder small {
+    color: var(--color-font-secondary);
   }
 
   .remote-preview-meta {
@@ -98,7 +134,8 @@
 
   .remote-preview-meta strong,
   .remote-preview-meta small,
-  .remote-source-label {
+  .remote-source-label,
+  .virtual-status {
     display: block;
   }
 
@@ -106,6 +143,18 @@
   .remote-source-label {
     color: var(--color-font-secondary);
     font-size: 0.82rem;
+  }
+
+  .virtual-status {
+    margin-top: 4px;
+  }
+
+  .preview-warning {
+    display: block;
+    margin-top: 6px;
+    color: var(--color-warning, var(--color-font-secondary));
+    font-size: 0.82rem;
+    font-weight: 700;
   }
 
   .remote-source-label {

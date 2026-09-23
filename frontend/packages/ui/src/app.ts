@@ -9,7 +9,45 @@ import { userActionTracker } from "./services/userActionTracker";
 import { initDebugUtils } from "./services/debugUtils";
 import { initPermissionDialogListener } from "./stores/appSettingsMemoriesPermissionStore";
 import { initConnectedAccountPermissionListener } from "./stores/connectedAccountPermissionStore";
+import { clearProjectFileApprovals } from "./stores/projectFileApprovalStore";
+import { clearRemoteCommands } from "./stores/remoteCommandApprovalStore";
 import { installE2ETestHooks } from "./services/e2eTestHooks";
+import { activeChatStore } from "./stores/activeChatStore";
+import { createBrowserProjectFileExecutor } from "./services/browserProjectFileExecutor";
+import { createBrowserRemoteCommandClient } from "./services/browserRemoteCommandClient";
+import { chatSyncService } from "./services/chatSyncService";
+
+let removeProjectAgentClients: (() => void) | null = null;
+let unsubscribeProjectFileExecutorAuth: (() => void) | null = null;
+
+function initProjectFileExecutorLifecycle(): void {
+  if (unsubscribeProjectFileExecutorAuth) return;
+  unsubscribeProjectFileExecutorAuth = authStore.subscribe(({ isAuthenticated }) => {
+    if (!isAuthenticated) {
+      removeProjectAgentClients?.();
+      removeProjectAgentClients = null;
+      clearProjectFileApprovals();
+      clearRemoteCommands();
+      return;
+    }
+    if (removeProjectAgentClients) return;
+    const executor = createBrowserProjectFileExecutor({
+      transport: {
+        send: chatSyncService.sendProjectFileExecutorEvent,
+        commit: chatSyncService.commitProjectFileRevision,
+      },
+      isActiveChat: (chatId) => activeChatStore.get() === chatId,
+    });
+    const remoteCommandClient = createBrowserRemoteCommandClient({
+      transport: { send: chatSyncService.sendRemoteCommandEvent },
+      isActiveChat: (chatId) => activeChatStore.get() === chatId,
+    });
+    removeProjectAgentClients = chatSyncService.installProjectAgentClients(
+      executor,
+      remoteCommandClient,
+    );
+  });
+}
 
 /**
  * Initialize all application services
@@ -64,6 +102,7 @@ export async function initializeApp(
     // This listens for "showAppSettingsMemoriesPermissionDialog" events from the WebSocket handler
     initPermissionDialogListener();
     initConnectedAccountPermissionListener();
+    initProjectFileExecutorLifecycle();
 
     // Check authentication only if not skipped
     if (!options.skipAuthInitialization) {

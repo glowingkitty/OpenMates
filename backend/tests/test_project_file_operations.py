@@ -175,6 +175,45 @@ async def test_awaiting_approval_releases_lease_and_fresh_claim_revalidates() ->
         )
 
 
+# contract-test: supporting surface=cli assertions=projects.files.ignored-exact-inclusion,projects.files.private-path-deny
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reason", ["ignored_path_requires_approval", "protected_path", None])
+async def test_only_ignored_reads_can_wait_for_client_consent(reason: str | None) -> None:
+    service = ProjectFileOperationService(MemoryCache())
+    await create_read(service)
+    identity = {
+        "user_id": "user-1", "device_fingerprint_hash": "device-a",
+        "operation_id": "operation-1", "chat_id": "chat-1", "project_id": "project-1",
+    }
+    first = await service.claim(**identity, now=101)
+    result = {"reason": reason} if reason else {}
+    if reason != "ignored_path_requires_approval":
+        with pytest.raises(ProjectFileOperationError, match="approval_not_supported_for_read"):
+            await service.settle(
+                **identity, lease_token=first["lease_token"],
+                lease_generation=first["lease_generation"], status="awaiting_approval",
+                result=result, now=102,
+            )
+        return
+    waiting = await service.settle(
+        **identity, lease_token=first["lease_token"],
+        lease_generation=first["lease_generation"], status="awaiting_approval",
+        result=result, now=102,
+    )
+    assert waiting["job"]["state"] == "AWAITING_APPROVAL"
+    assert "lease_token" not in waiting["job"]
+    assert "proposal_commitment" not in waiting["job"]
+    with pytest.raises(ProjectFileOperationError, match="operation_lease_stale"):
+        await service.settle(
+            **identity, lease_token=first["lease_token"],
+            lease_generation=first["lease_generation"], status="completed",
+            result={"content": "not allowed under the old lease"}, now=103,
+        )
+    fresh = await service.claim(**identity, now=104)
+    assert fresh["lease_generation"] == first["lease_generation"] + 1
+    assert fresh["lease_token"] != first["lease_token"]
+
+
 # contract-test: supporting surface=gui.web assertions=projects.files.wait-deadlines,projects.files.wait-email,projects.files.wait-expiry
 @pytest.mark.asyncio
 async def test_fixed_deadlines_do_not_reset_on_claim_and_expire_without_timer() -> None:

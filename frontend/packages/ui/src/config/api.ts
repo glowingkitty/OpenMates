@@ -37,6 +37,20 @@ export const apiUrls = {
   production: import.meta.env.VITE_API_URL_PROD || "https://api.openmates.org",
 } as const;
 
+// This capability is process-local and may only be enabled after the browser
+// has installed a real Project file executor. The WebSocket is reconnected by
+// ChatSynchronizationService when the value changes.
+let projectFileJobsCapabilityEnabled = false;
+let remoteCommandJobsCapabilityEnabled = false;
+
+export function setProjectFileJobsCapabilityEnabled(enabled: boolean): void {
+  projectFileJobsCapabilityEnabled = enabled;
+}
+
+export function setRemoteCommandJobsCapabilityEnabled(enabled: boolean): void {
+  remoteCommandJobsCapabilityEnabled = enabled;
+}
+
 function getBrowserDerivedApiUrl(): string | null {
   if (typeof window === "undefined") {
     return null;
@@ -108,6 +122,13 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
   }
   if (token) {
     params.push(`token=${encodeURIComponent(token)}`);
+  }
+  const clientCapabilities = [
+    ...(projectFileJobsCapabilityEnabled ? ["project_file_jobs"] : []),
+    ...(remoteCommandJobsCapabilityEnabled ? ["remote_command_jobs"] : []),
+  ];
+  if (clientCapabilities.length > 0) {
+    params.push(`client_capabilities=${clientCapabilities.join(",")}`);
   }
 
   if (params.length > 0) {

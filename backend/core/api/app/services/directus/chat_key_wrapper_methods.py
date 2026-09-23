@@ -29,6 +29,7 @@ CHAT_WRAPPER_FIELDS = (
 )
 CHAT_BACKFILL_FIELDS = "id,hashed_user_id,encrypted_chat_key"
 MASTER_KEY_TYPE = "master"
+TEAM_KEY_TYPE = "team"
 WRAPPER_VERSION = 1
 
 
@@ -129,6 +130,50 @@ class ChatKeyWrapperMethods:
             hashed_user_id=hashed_user_id,
             encrypted_chat_key=encrypted_chat_key,
         )
+
+    async def ensure_team_wrapper_for_chat(
+        self,
+        *,
+        chat_id: str,
+        hashed_team_id: str,
+        encrypted_chat_key: str,
+        team_key_epoch: int = 1,
+    ) -> bool:
+        """Ensure a team wrapper exists for a chat key wrapped by the Team key."""
+        if not chat_id or not hashed_team_id or not encrypted_chat_key or team_key_epoch < 1:
+            return False
+        hashed_chat_id = _hash_identifier(chat_id)
+        rows = await self.directus_service.get_items(
+            CHAT_KEY_WRAPPERS_COLLECTION,
+            params={
+                "filter[hashed_chat_id][_eq]": hashed_chat_id,
+                "filter[hashed_team_id][_eq]": hashed_team_id,
+                "filter[key_type][_eq]": TEAM_KEY_TYPE,
+                "filter[team_key_epoch][_eq]": team_key_epoch,
+                "fields": "id",
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        if rows and isinstance(rows, list):
+            return True
+        success, _created = await self.directus_service.create_item(
+            CHAT_KEY_WRAPPERS_COLLECTION,
+            {
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_team_id": hashed_team_id,
+                "key_type": TEAM_KEY_TYPE,
+                "team_key_epoch": team_key_epoch,
+                "encrypted_chat_key": encrypted_chat_key,
+                "wrapper_version": WRAPPER_VERSION,
+                "created_at": int(time.time()),
+            },
+            admin_required=True,
+        )
+        if not success:
+            logger.error("Failed to create Team chat key wrapper row")
+        return bool(success)
 
     async def backfill_master_wrappers(
         self,

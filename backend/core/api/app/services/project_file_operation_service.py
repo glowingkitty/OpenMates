@@ -318,13 +318,20 @@ class ProjectFileOperationService:
                     "result": {"reason": reason},
                 }
             if status == "awaiting_approval":
-                if job.get("operation") not in PROJECT_FILE_MUTATIONS:
+                ignored_read = (
+                    job.get("operation") == "read_text"
+                    and result.get("reason") == "ignored_path_requires_approval"
+                )
+                if job.get("operation") not in PROJECT_FILE_MUTATIONS and not ignored_read:
                     raise ProjectFileOperationError("approval_not_supported_for_read")
                 job["state"] = "AWAITING_APPROVAL"
-                job["proposal_commitment"] = str(result.get("proposal_commitment") or "")[:256]
+                if not ignored_read:
+                    job["proposal_commitment"] = str(result.get("proposal_commitment") or "")[:256]
                 # Approval is client-owned. Release the executor lease; after
-                # explicit REST approval the client must claim again, causing a
-                # fresh authority/current-chat check before execution.
+                # explicit user consent the client must claim again, causing a
+                # fresh authority/current-chat check before execution. Ignored
+                # reads carry a client-signed exact-file grant through the
+                # encrypted source relay; this state is never a read grant.
                 job.pop("lease_token", None)
                 job.pop("lease_device_hash", None)
                 job.pop("lease_expires_at", None)

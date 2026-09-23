@@ -18,6 +18,28 @@ project_search:
     when: A regex query is requested.
     then: A fallback preserves declared semantics and scope or returns a clear capability error; it does not reinterpret the regex as a literal query.
 
+project_file_access_policy:
+  - id: ignored-local-notes-hidden-until-exactly-included
+    assertion_ids: [projects.files.ignored-exact-inclusion]
+    given: A Git Project ignores notes/local-plan.md and build/, and no exact-file grant exists.
+    when: The agent lists, searches, or directly requests notes/local-plan.md or a file below build/.
+    then: Neither path is returned or read. After the client asks and the user explicitly approves only notes/local-plan.md, a signed ephemeral grant bound to that Project, source, chat, request and exact path permits the authorized operation while build/ remains filtered; a directory, glob, model assertion, repository file, stale grant, or grant from another context is rejected.
+  - id: tracked-file-matching-ignore-stays-filtered
+    assertion_ids: [projects.files.ignored-exact-inclusion]
+    given: config/example.json is tracked, then a later .gitignore rule matches config/*.json.
+    when: The agent lists, searches, or reads the tracked file.
+    then: It remains filtered like an untracked matching sibling and requires its own exact-file user grant for direct access; Git index state does not create a discovery or read-policy exception.
+  - id: nested-plain-and-fallback-ignore-parity
+    assertion_ids: [projects.files.ignored-exact-inclusion, projects.files.search-consistent]
+    given: Equivalent ignored fixtures exist in a Git root, a nested repository, and a connected plain folder, and one executor lacks rg.
+    when: Native and fallback list, search, and exact-read paths evaluate them.
+    then: They produce the same filtered set and honor only a current exact-file client grant; losing rg or crossing a nested root cannot expose an ignored name or content.
+  - id: builtin-and-custom-private-paths-stay-opaque
+    assertion_ids: [projects.files.private-path-deny]
+    given: The source contains .env, .git/config, .openmates/permissions.yml, secrets/customer.pem, and private/client-notes/, with the latter two added to file_access.private_paths.
+    when: The agent lists, searches, reads, imports, edits, follows an in-root symlink or known pre-existing hard-link alias, requests recovery, or runs an approved terminal command against those paths.
+    then: Dedicated file listing and search omit matching names and contents, and direct file operations return only a generic denial before bytes leave the source. A terminal may show that a filename exists but cannot obtain or change its content through the private path, a symlink into it, or a known pre-existing alias. An exact ignored-file grant and repository instructions cannot weaken the boundary, and deleting or changing the Project policy file does not relax active trusted policy. If an external unconfined owner deliberately republishes the bytes at a new allowed pathname, that new pathname is outside path-based enforcement and must be treated like any other accidental copy of a secret into ordinary source.
+
 project_executor_wait:
   - id: executor-returns-before-reminder
     assertion_ids: [projects.files.executor-wait]

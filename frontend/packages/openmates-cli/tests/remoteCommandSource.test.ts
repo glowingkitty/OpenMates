@@ -159,6 +159,15 @@ async function fixture(options: { digest?: string } = {}) {
 const supported = () => ({
   supported: true, platform: "linux" as const, mechanism: "bubblewrap" as const, executable: "/usr/bin/bwrap",
 });
+const appArmorConfinement = {
+  prepareAppArmorConfinement: async () => ({
+    profile_name: "openmates-command.1000.test",
+    definition_digest: "a".repeat(64),
+    sandbox_command: { executable: "/usr/bin/aa-exec", args: ["--profile", "openmates-command.1000.test"] },
+    sandbox_environment: { LD_PRELOAD: "/usr/libexec/openmates-git-config-mask.so" },
+    dispose: async () => undefined,
+  }),
+};
 
 async function until(predicate: () => boolean, message: string): Promise<void> {
   const deadline = Date.now() + 3_000;
@@ -179,7 +188,7 @@ describe("remote command source transport", () => {
       sourceSessionId: "session-1",
       bindings: [item.binding],
       toolchainPaths: [item.toolchain],
-      runtime: {
+      runtime: { ...appArmorConfinement,
         capability: supported,
         launchSandbox: (launch) => { launches += 1; launchedRoot = launch.preflight.source_root; return process; },
       },
@@ -222,7 +231,7 @@ describe("remote command source transport", () => {
     const controller = createRemoteCommandSourceController({
       client: {} as never, sourceSessionId: "session-1", bindings: [item.binding],
       toolchainPaths: [item.toolchain],
-      runtime: { capability: supported, launchSandbox: () => { launches += 1; return new FakeProcess(); } },
+      runtime: { ...appArmorConfinement, capability: supported, launchSandbox: () => { launches += 1; return new FakeProcess(); } },
       responseTimeoutMs: 1_000,
     });
     controller.attach(ws);
@@ -245,7 +254,7 @@ describe("remote command source transport", () => {
     const controller = createRemoteCommandSourceController({
       client: {} as never, sourceSessionId: "session-1", bindings: [item.binding],
       toolchainPaths: [item.toolchain],
-      runtime: { capability: supported, launchSandbox: () => { launches += 1; return process; } },
+      runtime: { ...appArmorConfinement, capability: supported, launchSandbox: () => { launches += 1; return process; } },
       responseTimeoutMs: 1_000,
     });
     const first = item.wire(new FakeWebSocket());
@@ -279,7 +288,7 @@ describe("remote command source transport", () => {
     const controller = createRemoteCommandSourceController({
       client: {} as never, sourceSessionId: "session-1", bindings: [item.binding],
       toolchainPaths: [item.toolchain],
-      runtime: { capability: supported, launchSandbox: () => { launches += 1; return new FakeProcess(); } },
+      runtime: { ...appArmorConfinement, capability: supported, launchSandbox: () => { launches += 1; return new FakeProcess(); } },
       responseTimeoutMs: 1_000,
     });
     controller.attach(ws);
@@ -304,7 +313,7 @@ describe("remote command source transport", () => {
     const controller = createRemoteCommandSourceController({
       client: {} as never, sourceSessionId: "session-1", bindings: [item.binding],
       toolchainPaths: [item.toolchain],
-      runtime: { capability: supported, launchSandbox: () => { launches += 1; return process; } },
+      runtime: { ...appArmorConfinement, capability: supported, launchSandbox: () => { launches += 1; return process; } },
       responseTimeoutMs: 1_000,
     });
     controller.attach(ws);
@@ -330,7 +339,7 @@ describe("remote command source transport", () => {
     const controller = createRemoteCommandSourceController({
       client: {} as never, sourceSessionId: "session-1", bindings: [item.binding],
       toolchainPaths: [item.toolchain],
-      runtime: {
+      runtime: { ...appArmorConfinement,
         capability: supported,
         maxRetainedOutputBytes: 4,
         launchSandbox: () => { launches += 1; return process; },
@@ -364,7 +373,7 @@ describe("remote command source transport", () => {
     const controller = createRemoteCommandSourceController({
       client: {} as never, sourceSessionId: "session-1", bindings: [item.binding],
       toolchainPaths: [item.toolchain],
-      runtime: { capability: supported, launchSandbox: () => { launches += 1; return new FakeProcess(); } },
+      runtime: { ...appArmorConfinement, capability: supported, launchSandbox: () => { launches += 1; return new FakeProcess(); } },
       responseTimeoutMs: 1_000,
     });
     controller.attach(ws);
@@ -388,7 +397,7 @@ describe("remote command source transport", () => {
     try {
       assert.throws(() => createRemoteCommandSourceController({
         client: {} as never, sourceSessionId: "session-1", bindings: [item.binding],
-        toolchainPaths: [item.toolchain], runtime: { capability: supported },
+        toolchainPaths: [item.toolchain], runtime: { ...appArmorConfinement, capability: supported },
       }), /cannot contain OpenMates private state/);
     } finally {
       if (previous === undefined) delete process.env.OPENMATES_STATE_DIR;

@@ -10,6 +10,20 @@ export interface ProjectWriteApprovalRequest {
   mutation: ProjectFileMutation;
 }
 
+export interface ProjectReadApprovalRequest {
+  projectId: string;
+  sourceId: string | null;
+  chatId: string;
+  operationId: string;
+  path: string;
+}
+
+export interface ProjectApprovedIgnoredRead {
+  path: string;
+  chatId: string;
+  operationId: string;
+}
+
 export interface ProjectFileJob {
   protocol_version: 1;
   operation_id: string;
@@ -25,8 +39,14 @@ export interface ProjectFileJob {
 
 export interface ProjectFileExecutionContext {
   projectKey: Uint8Array;
+  /** Actual source selected by the fresh resolver; null identifies hosted Project files. */
+  sourceId?: string | null;
   writeMode: "apply_and_show" | "always_ask" | null;
-  execute: (job: ProjectFileJob, mutation?: ProjectFileMutation) => Promise<unknown>;
+  execute: (
+    job: ProjectFileJob,
+    mutation?: ProjectFileMutation,
+    approvedIgnoredRead?: ProjectApprovedIgnoredRead,
+  ) => Promise<unknown>;
 }
 
 export interface ProjectFileJobExecutorOptions {
@@ -37,6 +57,10 @@ export interface ProjectFileJobExecutorOptions {
   approve: (request: ProjectWriteApprovalRequest, proposalDigest: string) => Promise<void>;
   requestApproval?: (request: ProjectWriteApprovalRequest) => boolean | Promise<boolean>;
   onWaitingForUser?: (request: ProjectWriteApprovalRequest) => void;
+  requestReadApproval?: (request: ProjectReadApprovalRequest) => boolean | Promise<boolean>;
+  onWaitingForRead?: (request: ProjectReadApprovalRequest) => void;
+  /** Client-only display of the exact proposal after a confirmed successful edit. */
+  onMutationApplied?: (request: ProjectWriteApprovalRequest) => void;
 }
 
 const OPERATIONS = new Set(["list", "search", "read_text", "create_file", "update_file"]);
@@ -59,6 +83,7 @@ export function createProjectFileJobExecutor(options: ProjectFileJobExecutorOpti
   const processing = new Set<string>();
   // This is only a prompt-deduplication hint; server authority is checked on every write.
   const approved = new Map<string, string>();
+  const approvedIgnoredReads = new Set<string>();
   const active = (chatId: string) => !stopped && options.isActiveChat(chatId);
 
   async function available(value: unknown): Promise<void> {
@@ -115,9 +140,49 @@ export function createProjectFileJobExecutor(options: ProjectFileJobExecutorOpti
         }
       }
       if (job.lease_expires_at * 1000 <= Date.now()) throw Object.assign(new Error(), { code: "lease_expired" });
-      const output = await context.execute(job, mutation);
+      const requestedPath = job.operation === "read_text" && typeof job.arguments.path === "string"
+        ? job.arguments.path : null;
+      const readApprovalRequest: ProjectReadApprovalRequest | null = requestedPath ? {
+        projectId: job.project_id,
+        sourceId: context.sourceId !== undefined ? context.sourceId : job.source_id ?? null,
+        chatId: job.chat_id,
+        operationId: job.operation_id,
+        path: requestedPath,
+      } : null;
+      const readApprovalKey = readApprovalRequest
+        ? JSON.stringify([readApprovalRequest.projectId, readApprovalRequest.sourceId, readApprovalRequest.chatId, readApprovalRequest.path])
+        : null;
+      let output: unknown;
+      try {
+        output = await context.execute(job, mutation,
+          readApprovalRequest && readApprovalKey && approvedIgnoredReads.has(readApprovalKey)
+            ? { path: readApprovalRequest.path, chatId: job.chat_id, operationId: job.operation_id }
+            : undefined);
+      } catch (error) {
+        const code = (error as { code?: unknown })?.code;
+        if (code !== "ignored_path_requires_approval" || !readApprovalRequest || !readApprovalKey) throw error;
+        await result("awaiting_approval", { reason: "ignored_path_requires_approval", path: readApprovalRequest.path });
+        leaseReleased = true;
+        options.onWaitingForRead?.(readApprovalRequest);
+        if (!options.requestReadApproval) return;
+        const accepted = await options.requestReadApproval(readApprovalRequest);
+        if (!active(job.chat_id)) return;
+        if (!accepted) {
+          await options.send("project_file_operation_reject", scope(job));
+          return;
+        }
+        approvedIgnoredReads.add(readApprovalKey);
+        processing.delete(job.operation_id);
+        await options.send("project_file_operation_claim", scope(job));
+        return;
+      }
       approved.delete(job.operation_id);
       await result("completed", { ...(output && typeof output === "object" ? output : { value: output }), ...(proposalCommitment ? { proposal_commitment: proposalCommitment } : {}) });
+      if (mutation) {
+        // Display failure cannot turn an acknowledged successful write into a failed job.
+        try { options.onMutationApplied?.({ projectId: job.project_id, chatId: job.chat_id, mutation }); }
+        catch { /* The committed result remains authoritative. */ }
+      }
     } catch (error) {
       // The original error may contain a private path, command, or credential.
       const rawCode = (error as { code?: unknown })?.code;
@@ -135,5 +200,5 @@ export function createProjectFileJobExecutor(options: ProjectFileJobExecutorOpti
     }
   }
 
-  return { available, request, stop: () => { stopped = true; approved.clear(); } };
+  return { available, request, stop: () => { stopped = true; approved.clear(); approvedIgnoredReads.clear(); } };
 }

@@ -4,18 +4,28 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r32
+revision: r63
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '6407'
+approved_by_user: true
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-09-23T00:00:00Z'
+    reason: U28 approved the ignored/private requirements; U30 approved AppArmor-first live-folder terminal enforcement and updated examples.
+  plan:
+    status: approved
+    approved_at: '2026-09-23T00:00:00Z'
+    reason: U28 and U30 explicitly instructed implementation of the recorded ignored/private-path design and bounded reviewed dev-host validation.
 specification_refs:
 - specification: feature.projects@1
   role: primary
-  fingerprint: 0d28da41b9b4e584876b41e30800f6bd6a011fbc3690220d71df9e86964de1cf
+  fingerprint: 91a6c3e9bbc0474b017e43fecc03a4d5fe7811ec817ccee3806041d3bada5ae2
 - specification: feature.focus-modes@1
   role: related
 - specification: feature.app-skill.code-run@1
   role: related
-  fingerprint: e5eb33c19acff79e89efd29b8156d8dd08b0f30714b30bc3f4ad5bd998948ea5
+  fingerprint: 09b06da0aa7020a23125d0a77e5052731185ac05212581cabccc6f8132b840a7
 implementation_checkpoint_2026_09_23:
   completed_local_slices:
   - Project focus/role/write policy, setup/settings surfaces and exact approval checks.
@@ -39,13 +49,15 @@ implementation_checkpoint_2026_09_23:
   - Exact three-bundle Specification review receipts are recorded after the user approved the presented PDFs.
   - CLI build and declarations pass. Scoped dev deployment 5fe487f43d262864326ccc15d078943690b96c57 passed the required integration gates; schema setup, service refresh, API health, Vercel and automatic CLI alpha publication succeeded. Real chat verification remains pending.
   limitations:
-  - Linux bubblewrap is the initial command confinement adapter; unsupported hosts fail closed.
-  - This host previously rejected the bubblewrap probe; confirm the supported dev-host execution route before the command test.
+  - Linux bubblewrap retains general command confinement while the AppArmor-first adapter enforces
+    private-content access on the original live folder; unsupported hosts fail closed.
+  - This host previously rejected the bubblewrap probe; U30 authorizes bounded reviewed host setup,
+    but the supported dev-host execution route still requires concrete review and live validation.
   - Network adapter scope is public exact HTTPS hostname:443; other transports fail explicitly.
   - Source-writing commands conservatively serialize across roots on one host, preserving alias safety.
   - Dedicated file edits currently bound complete UTF-8 text to 200 KiB; excerpted reads do not claim a complete-file base hash. Large-file/ranged editing remains a capability limitation.
   - Raw remote terminal logs are live encrypted events; durable encrypted log-history sidecars are not added in this slice.
-  - Web browsing/chat execution remains P2; Tasks and Specs/Plans execution remain later stages.
+  - P2 connected-source web browsing is now actively being completed per U26; web-chat editing and later Tasks/Specs/Plans execution remain unverified.
 working_agreement:
 - Maintain this single implementation plan as decisions evolve; read it again after context loss or before
   resuming work.
@@ -53,7 +65,8 @@ working_agreement:
   for the user response.
 - Inspect existing source and designs before asking questions; distinguish historical ideas, user decisions,
   and assistant recommendations.
-- Do not invoke skills or create tracking artifacts beyond this requested plan unless the user asks.
+- Do not invoke skills. Keep architecture and decisions in this requested Plan; use the existing
+  OpenMates Tasks authority for outcome status under the current repository instructions.
 - The first bounded file-editing slice was authorized and started. All five requested search/terminal
   rounds are now accepted in U23; resume implementation without reopening settled requirements.
 - Keep later-stage design questions deferred until their slice needs them; do not implement speculative
@@ -72,6 +85,11 @@ sequence:
 - id: P2
   outcome: Web Projects can be discovered, browsed, opened in embed fullscreen, and edited from chats.
   includes:
+  - Show connected Projects with expandable subfolders and appropriate file embed previews, including code.
+  - Open file previews in the existing fullscreen embed view and deliver remote content safely on demand.
+  - Keep remote Project file content transient on the authorized client; do not persist it as hosted
+    files/embeds or upload entire repositories to OpenMates. Preserve bounded encrypted transport.
+  - Verify the actual connected-source browse/preview/fullscreen flow with a disposable Project.
   - Retrieve remote tree/content on demand without uploading entire repositories.
   - Preserve encryption, scoped permissions, and honest online/offline state.
   - Confirm web-chat edits work for both storage locations.
@@ -80,6 +98,21 @@ sequence:
 - id: P4
   outcome: Address Specifications and Plans gaps after Tasks; clarify their detailed order later.
 user_direction:
+- id: U27
+  decision: The user replied Continue after the concrete request to restore the older embed-fallback
+    fix. Apply only the prepared three historical hunks, run the existing failing regression tests
+    and selected gate, then resume publication. This does not authorize host AppArmor changes.
+- id: U26
+  decision: Explicitly implement and test the web Projects workspace showing connected Projects,
+    expandable subfolders and file embed previews, with click-to-open fullscreen embeds and safe
+    on-demand remote content delivery. Remote access Project files must not be stored on OpenMates.
+    Inspect P2 gaps alongside the current P1 fix, then implement and verify the bounded web flow.
+- id: U25
+  decision: Use the documented personal DEV TEST account for the dev verification. The user clarified
+    that this account should already be logged in and its existing recovery instructions/credentials
+    must be used if needed. Live identity and engineering Project read access are confirmed; no new
+    login or numbered-account repair is needed. Preserve the global session and test only newly
+    created disposable Projects with private temporary CLI state.
 - id: U1
   decision: Plan through multiple question rounds with one question and a wait after every round. Each
     question includes concrete examples and the assistant recommendation.
@@ -276,12 +309,21 @@ open_questions:
   answer: Accepted automatic recovery before a twenty-minute wait deadline, with a private email reminder
     after ten minutes. Expiry stops automatic continuation and requires an explicit chat resume.
 current_checkpoint:
-  step: P1 implementation resumed with approved search and remote command scope
+  step: Finish P1 and P2 web Project coding integration and deliver it for user testing
   next_question: null
   clarification_rounds_remaining: 0
-  next_action: Dev and the web deployment are healthy at 5fe487f43d262864326ccc15d078943690b96c57. Resolve the dedicated dev test-account two-factor credential mismatch before another actual CLI/chat verification attempt. Two bounded fixture attempts failed before inference; do not keep trying accounts or reset account security without the scoped recovery decision. File checks can proceed
-    independently of the pending host AppArmor permission for the command check. Do not build
-    a live-provider CI profile or repeat approved Specification/test-routing decisions.
+  next_action: Publish the frozen scoped reviewed candidate; normal CLI terminal setup integration is complete.
+    The Project focus pill and deactivation control now use the encrypted chat metadata lifecycle,
+    restore on chat reopen, and revalidate server authority. Preserve the passing approval-card and
+    kernel evidence. The connected-source browser case passed on retry; its initial keyboard delivery
+    race is corrected by targeting the current item locator, with no assertion or timeout change. Refresh only the required dev runtime targets and execute the
+    two existing real-AI hosted/remote browser cases on dev with disposable Projects and the personal
+    dev account. Do not broaden the tests or repeat unrelated passing checks. Web browsing, fullscreen
+    opening and actual web-chat hosted/remote edits are mandatory before completion. The user rejected
+    a separate administrator-run shell script for terminal setup. Integrate guard detection and setup
+    into normal CLI installation or remote-access onboarding, using standard operating-system
+    authorization when required. Continue file verification independently and never obtain or
+    transmit the user's sudo password.
   implementation_started: true
   task_id: 9accd17f-21b0-4802-b5aa-934eb36eb12c
   task_project_id: 96033196-e4b1-431e-b773-ba221e952fed
@@ -897,7 +939,7 @@ search_terminal_clarification:
       finding: OS filesystem and network restrictions apply to commands and child processes. Permission
         prompts and command labels do not substitute for enforced runtime isolation.
 implementation_traceability:
-  state: The P1 source below is published and active on dev at 5fe487f; focused checks and Project settings CI passed. Real chat file/command verification is blocked on dedicated test-account authentication and the separate host AppArmor choice. Later P2-P4 work remains unimplemented.
+  state: The P1 source below is published and active on dev at 5fe487f; focused checks and Project settings CI passed. Real file verification is resuming with the confirmed personal DEV TEST session per U25. Command verification separately needs the host sandbox prerequisite. Later P2-P4 work remains unimplemented.
   specifications: [feature.projects@1, feature.focus-modes@1, feature.app-skill.code-run@1]
   evidence_state: Focused backend and CLI component checks have passed. Actual disposable-Project
     chat/command evidence remains pending direct dev verification per U24. Exact Specification approval receipts are recorded.
@@ -1108,11 +1150,83 @@ approval_and_ci_continuation_2026_09_23:
     preserved: Real disposable remote/hosted file mutations and execution-generated terminal UUID assertions remain intact; no mock replacement or passing skip.
     scope_boundary: U24 is the explicit dev execution instruction. Preserve disposable state, confinement and runtime coordination; no broader CI infrastructure work.
   dev_test_preparation:
-    runtime_order: After scoped deployment, build/run cms-setup against healthy CMS first; then use
-      sessions.py docker restart --session 6407 --build with explicit cms, api, core-worker,
-      app-ai-worker and app-code-worker targets, followed by wait-health. The helper may expand to
-      other running backend services for generation coherence; schema-first ordering avoids starting
-      new workers against old schemas. There are no app-ai or app-code HTTP services.
+    fixture_recovery:
+      state: Superseded and withdrawn by U25. Use the existing personal DEV TEST account; do not repair numbered fixtures for this task.
+      explanation: The earlier invalid-TOTP failures belonged to numbered automated fixtures, not
+        the personal account. No numbered fixture or personal security reset was performed.
+    personal_dev_account:
+      verification: Global CLI is authenticated as the documented personal DEV TEST user and can read
+        the existing engineering Project. Documented personal recovery credential fields are available;
+        no secrets were printed and no re-login was needed.
+      instructions: docs/architecture/codex-task-cache.md, Recover the global dev login.
+      test_scope: Copy only the authenticated session into a mode0700 temporary state directory, keep
+        the global session intact, and exercise only new disposable Projects and external temp folders.
+      first_run: Authentication and fixture setup succeeded; chat submission failed with
+        WebSocketProtocolError preflight_mismatch (durable encrypted preflight did not authorize the
+        request). This is a client/server chat-preflight issue, not a login failure. No model/file
+        operation success is claimed. The private session copy was removed and leases released.
+      receipt: /tmp/openmates-6407-live-personal-files.log
+      diagnosis: The API runtime and relevant canonical/worktree source match; stale dependencies are
+        not causal. Preflight committed no focus, then CLI focus activation changed the server's
+        inference snapshot, so enqueue correctly rejected the HMAC mismatch. The fix belongs in
+        client sequencing, not relaxed authorization or an account reset.
+      cleanup: Root removed only the failed run's exact fresh chat, two Project IDs and UUID-named
+        external temporary folder. Both Projects were confirmed absent; source was offline and no
+        foreground child remained. The ordinary personal dev session is still authenticated.
+      local_fix: New Project chats persist an owned key-only encrypted chat and await its ACK, then
+        activate focus before preflight; existing chats activate before preflight directly. The
+        Directus transaction atomically completes only missing metadata on an empty version-zero
+        owned shell and rejects conflicting non-null metadata. Parallel promise rejection handlers
+        preserve cleanup on failure; enqueue HMAC validation is unchanged.
+      focused_checks: Handler suite6, real persistence/detail suite22, wrapper/ChatMethods suites15,
+        Directus preflight tests2 and CLI executor tests8 passed. Scoped Ruff, ESLint and diff checks
+        passed. Root confirmed the CLI production ESM and declaration build completed successfully.
+      build_receipt: /tmp/openmates-6407-project-preflight-cli-build.log
+      followup_scope:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+      - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+      - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+      - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+      - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+      - backend/core/api/app/tasks/persistence_tasks.py
+      - backend/core/api/app/services/directus/chat_methods.py
+      - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+      - backend/tests/test_encrypted_chat_metadata_guard.py
+      - backend/tests/test_unified_detail_metadata.py
+      - backend/tests/test_unified_key_wrappers.py
+      - backend/tests/test_chat_directus_encryption_guards.py
+      publication_status: Focused fix is local; review, scoped publication, CMS extension refresh and
+        the next real file check remain pending. The already-passing Project settings UI is unchanged.
+      review_findings_resolved: Actual persistence now preserves version0/null for a strict new
+        key-only shell, including canonical Team-scoped wrappers. The classifier excludes content,
+        metadata and sub-chat fields; ordinary metadata creates retain prior versions and defaults.
+        Tests traverse the real handler-to-persistence path. No followup deployment has occurred;
+        final narrow review passed. The first publication attempt found missing legacy test contract
+        links; those annotations were added without changing test behavior and check-test passed.
+        Replacement candidate and publication are next.
+    preflight_deploy_gate:
+      candidate: 2a9264ef2fbb7f7516851473ef424cdc811bca19
+      state: The earlier candidate was not deployed. Its required gate exposed the pre-existing
+        fallback regression. U27 approved the exact historical restoration; it is applied locally
+        and both former failures plus all59 tests in the selected Python gate now pass.
+      failures: Missing _persisted_embed_snapshot_is_current and no resend of newer cached embed.
+      diagnosis: Pre-existing deployed regression, not test pollution or the Project shell patch.
+        Commit07291e943 introduced version-aware fallback plus tests; later2dfdcd28e removed that
+        behavior while retaining tests. Current task exposed it by touching persistence_tasks.py.
+      reviewable_fix: /tmp/openmates-6407-embed-fallback-restoration.patch
+      approval: Approved by U27 Continue response to the concrete restoration request. Apply only
+        the reviewed dry-run-clean patch; no other baseline repair or AppArmor mutation is authorized.
+      verified_fix: The applied file byte-matches the reviewed restoration snapshot and preserves
+        the Project shell fix. Two former failures passed, then the full selected five-file gate
+        passed59/59 in98.24s. No runtime or deployment change has occurred.
+      next: Include the verified restoration in the combined scoped candidate and complete P2 CI.
+      receipt: /tmp/openmates-6407-preflight-deploy-final.log
+    runtime_order: The initial P1 schema setup and runtime refresh are complete. For the current
+      code-only preflight fix, use sessions.py docker restart --session 6407 --build with explicit
+      cms, api and core-worker targets, followed by wait-health. No new schema setup is needed
+      unless the final patch changes schemas. The helper may expand to other running backend
+      services for generation coherence. There are no app-ai or app-code HTTP services.
     isolation: Dedicated temporary OPENMATES_STATE_DIR controls login, source registry, caches and child processes; HOME and the engineering login stay intact.
     runner: logs/agent-6407-live-check.py
     coordination: Existing exclusive test-account and shared dev-stack leases with heartbeats; no automatic inference retries.
@@ -1120,10 +1234,13 @@ approval_and_ci_continuation_2026_09_23:
       finding: Ubuntu's AppArmor user-namespace restriction blocks unprofiled bubblewrap on the dev host.
       prepared_profile: /tmp/openmates-6407-bwrap.apparmor
       validation: Syntax checked without kernel load; dedicated /usr/bin/bwrap attachment adds userns permission and preserves the global restriction.
-      status: User choice requested for temporary load/removal or persistent installation; no host profile change performed.
+      status: The earlier path-selection question is superseded by U30's AppArmor-first terminal
+        adapter decision. The prior syntax-only profile was not loaded; the new bounded host setup
+        must be concretely reviewed before authorized dev validation.
   deployment:
     state: published_and_healthy
     commit: 5fe487f43d262864326ccc15d078943690b96c57
+    published_plan_checkpoint: Plan r32 was published separately in docs-only commit ee65046505b7b285c7cb01e67bb4af6b7aa90c6f. The current local handoff records U25, withdraws the unnecessary numbered-fixture repair request, and resumes with the working personal DEV TEST account.
     receipt: /tmp/openmates-6407-reviewed-deploy-corrected.log
     passed: Materialized Specification gate, embed registry, changed-file lint and the required backend pytest gate (24 files) passed. The exact reviewed 121-path candidate was published through session6407.
     initial_attempt_receipt: /tmp/openmates-6407-reviewed-deploy.log
@@ -1146,3 +1263,289 @@ approval_and_ci_continuation_2026_09_23:
       imports and document intentional regexes without changing terminal sanitization behavior.
       Refresh the candidate after fixes. Existing Project settings UI CI remains applicable if its
       source is unchanged; real chat focus behavior is still verified directly on dev per U24.
+
+web_workspace_checkpoint:
+  task_id: f9815278-09c8-454e-80f3-1138174df040
+  user_direction: U26
+  state: browser_verification_passed_deployment_in_progress
+  existing_plan: docs/plans/projects-remote-sources/plan.yml
+  accepted_outcome: Connected Project source roots, nested folders, type-appropriate supported file
+    previews and fullscreen on-demand viewing without persisting remote files during browse/open.
+  supported_transport: Existing authenticated encrypted personal/Team bridge for bounded UTF-8 text.
+    Images/PDFs and binary or large-file progressive streaming remain unsupported by this bridge;
+    show explicit limitations rather than broken or falsely complete previews. No new binary protocol.
+  persistence_boundary: Browse/preview/fullscreen retain decrypted content only in client memory;
+    opaque relay envelopes are short-lived and single-consume. Explicit user import is a distinct
+    existing action and must reject incomplete content. No automatic upload or hosted embed creation.
+  implementation:
+  - Integrate remote roots and nested folder navigation into Project browsing; fix stored list-row activation.
+  - Separate bounded preview snippets from bounded fullscreen text and preserve completeness metadata.
+  - Add browser Team identity/routing parity, abort cleanup, safe errors and stale-response guards.
+  - Clear transient remote content on navigation or closure and show offline/protected/unsupported states.
+  verification:
+  - Focused virtual-preview/transport tests; representative bare component preview in isolated CI.
+  - Actual disposable foreground CLI source browser E2E in isolated CI, including nested navigation,
+    file fullscreen, no browse/open upload or Project-item persistence, and offline behavior.
+  - No real inference is needed for browser file viewing; live chat edits remain dev-only per U24.
+  focused_evidence:
+  - Fourteen UI service/crypto/request tests pass after the final valid-hash fixture correction;
+    eleven helper tests plus three transport tests. CLI serialization-budget tests pass2/2.
+  - Browser requests180KiB/4000 lines; source fits the exact serialized200KiB envelope budget,
+    marks trimmed text incomplete and removes its complete-file base. Ordinary64KiB and heavily
+    escaped180KiB cases are covered. Unknown UTF8 file types use safe text; known binary types do not.
+  - Review corrections preserve direct row actions, suppress nested-control duplicate activation,
+    fence refetch/import against source/navigation races, and use the refetched base hash/provenance.
+  current_coverage:
+  - projects-remote-sources.spec.ts now uses private CLI state and discovers the connected Project
+    from the workspace, browses src/lib/deep, and reads an end marker beyond the former20k snippet
+    limit. It checks no implicit persistence through close/reload, then retains deliberate import
+    and offline checks. Isolated E2E request8e3f3cc50aad2314b8de5c5fd9866bf9cc05de307a325c20a4571be48226fa0d,
+    run35860281860 passed1/1 with no skips, failures or flaky retries; the resulting connected
+    Project nested-files screenshot was inspected at /tmp/openmates-6407-connected-project-nested-files-passed.png.
+  - components/projects-remote-preview.spec.ts checks distinct view/import actions and incomplete
+    import blocking in bare desktop/mobile fixtures. Specification metadata and scoped lint pass.
+  - scripts/project_remote_access_live.mjs adds a UUID-named Project title and nested temporary
+    text fixture. These are outside the repository at runtime and contain only synthetic content.
+  ci_registration:
+    state: corrected_before_dispatch
+    checkpoint: The first component submission was rejected before dispatch because the new spec
+      lacked dependency classification; no CI run occurred. Register the spec in the existing
+      browser_component_contract group and publish a successor retained candidate before retrying.
+    translation_correction: Remove the redundant projects prefix from the new projects.yml keys
+      because the translation build already namespaces that source file. Component coverage now
+      asserts the translated privacy notice, import label and incomplete-content warning text.
+    helper_cleanup_correction: Remote-source fixture cleanup now attempts every registered cleanup
+      after an earlier failure and emits fixture IDs for deterministic reconciliation.
+    notification_lifecycle_correction: Before sending a delayed Project file completion notice,
+      recheck that the originating chat still exists so a deleted chat cannot trigger an email.
+    first_component_result: Candidate984800 component CI passed mobile and failed desktop because
+      the default five-second assertion ran before cold Vite hydration; retry failed identically.
+      Apply the shared component-preview readiness wait after all three navigations. The screenshot
+      also showed a real 200px code preview clipped by its 170px shell, so align the shell to 200px,
+      let its content fill that height and assert the embedded preview fits inside the shell.
+    component_verification: Candidate0d5c component run35857959662 passed both cases with no skips
+      or flaky retries; screenshots were reviewed. Preserve the proven product and component source.
+    browser_setup_correction: Candidate0d5c E2E run35858292047 reached authenticated browser setup
+      but the CLI helper received403 before fixture browsing. Retained CI logs confirm the helper
+      defaulted localhost API to Origin https://app.dev.openmates.org while the isolated server
+      allowed http://localhost:5173. Pass the URL-derived web origin to the login helper; no product
+      authentication behavior changed, and the actual browser verification remains pending.
+  owners:
+    ui: project_setup_surfaces
+    transport_helpers: project_browser_transport
+    browser_evidence_and_plan: root
+
+combined_candidate_checkpoint:
+  candidate: 0291e217163213a90b68d9cfaf2611bd445fa90d
+  state: deployment_attempt_failed_publication_not_confirmed
+  verification:
+  - Browser E2E request8e3f3cc50aad2314b8de5c5fd9866bf9cc05de307a325c20a4571be48226fa0d,
+    run35860281860 passed1/1 with no skips, failures or flaky retries.
+  - Component request0515fe04, run35857959662 passed2/2; screenshots were reviewed and remain
+    applicable because the final candidate preserves the verified product and component bytes.
+  - The final local CLI production ESM and declaration build passed; receipt is
+    /tmp/openmates-6407-final-cli-build.log.
+  deployment_hold: The reviewed deploy stopped before gates or publication because origin/dev moved
+    after candidate preparation. Across the35 selected paths, the only upstream overlap is regenerated
+    specifications/generated/assertion-index.yml; no reviewed product, test or helper source drifted.
+  reconciliation: Seed the successor from current origin/dev, reapply the same33 reviewed source
+    paths and regenerate both indexes so the unrelated upstream assertion entries are preserved.
+    Reuse the exact-byte component and browser evidence; no CI rerun is needed for generated-only drift.
+  latest_deploy_attempt: Reviewed deployment exec13839 exited1 because the original worktree HEAD,
+    index or selected files changed during deployment. Specification, lint, translations, SDK
+    boundary and the six-file pytest gates passed before that stop. Publication is not confirmed.
+  current_action: The reviewed AppArmor broker, installer, Git compatibility shim and source-policy
+    changes passed isolated kernel-integration CI. In parallel, the user explicitly requires the
+    approved web-chat Project scope now. Explicit Project mentions must activate the selected
+    Project focus before inference so hosted and remote browsing, fullscreen previews and editing
+    work from web chats. The browser remote-command origin reviewer was also confirmed missing and
+    is required now; without it a web code.run request waits until expiry because the source CLI is
+    not the requesting user interface. Dev-host setup and live command validation follow after the
+    kernel proof and explicit review of the concrete administrator-authenticated commands. The earlier combined
+    deployment, runtime refresh and real-AI checks remain separate and unverified.
+  remaining_verification: Real-AI Project file behavior and remote command execution are unverified.
+    Browser-only behavior runs in isolated CI; tests requiring real inference run directly on dev.
+  apparmor: U30 selects AppArmor-first kernel enforcement for terminal private content on the live
+    Project folder. The helper and installer are implemented and reviewed, but no profile has been
+    installed or exercised on the dev host. The isolated kernel fixture passes, but dev runtime
+    behavior remains unverified. Profiles are immutable per-policy artifacts cached until
+    reboot; per-command leases release without unloading them, so ordinary commands reuse a matching
+    profile. Pattern compilation widens Unicode and bracket-class wildcards conservatively when an
+    exact AppArmor representation is unsafe, and denies renaming protected ancestor directories so
+    a command cannot move private content outside the mediated pathname. This remains path-based
+    rather than data-taint enforcement.
+
+ignored_path_policy_checkpoint:
+  status: implementation_in_progress_apparmor_terminal_approved
+  user_direction: U28-U30
+  approval_scope: The user's explicit approval covers the defined ignored/private requirements and
+    six examples; no additional Specification-approval reprompt is required within that scope.
+  user_question: Determine whether files matched by .gitignore are impossible to inspect through
+    Project list, search, read and terminal tools, or whether their names or contents are anonymized.
+  confirmed_behavior:
+  - In a native Git root, remoteAccess.ts uses git check-ignore for ordinary untracked ignored paths;
+    their names and contents are omitted and only aggregate omission counts are returned. Tracked
+    files remain visible even when a later ignore pattern matches them.
+  - The .gitignore file itself remains readable and can reveal private-looking path patterns.
+  - Plain folders, nested repositories and fallback list/read paths do not apply one consistent
+    ignore policy. Native ripgrep applies ignore patterns, so native and fallback search can diverge.
+  - Terminal execution masks credential-classified values plus .git/config and configured aliases,
+    but does not generally deny paths because .gitignore matches them. Masked names can remain visible.
+  confirmed_gap: Current behavior is neither a deterministic cross-tool private-path boundary nor
+    a consistent anonymization contract across list, search, read and terminal execution.
+  approved_policy:
+  - Treat .gitignore as a discovery and direct-read filter rather than a secrecy boundary. Ignored
+    untracked files require explicit client user confirmation for a signed ephemeral exact-file grant
+    bound to Project, source, chat, request and path; no model or Project-file allowlist can grant it.
+  - Keep built-in private paths plus trusted additive .openmates/permissions.yml
+    file_access.private_paths as a deterministic deny boundary across list, search, read, import,
+    edit, recovery and terminal content access. Dedicated file tools hide matching names and content;
+    a terminal may reveal a filename but cannot obtain or mutate its private content.
+  - Enforce private policy at the source before bytes are read, transmitted or decrypted, and before
+    commands launch. Plain folders, nested repositories, native rg and fallback traversal must agree.
+  - Allow exact approved confined commands to use ordinary ignored dependencies and build outputs;
+    this command access neither exposes them to agent file tools nor overrides private paths.
+  authority: Built-ins and activated user additions are additive trusted state outside the
+    agent-writable Project. The permissions file is itself private; agent output, repository content,
+    deletion or edits cannot weaken active policy. Remote and hosted encryption remains unchanged.
+  approved_examples:
+  - An ignored local note remains absent until the user approves that exact file for one bound request.
+  - A tracked configuration file matching .gitignore remains filtered and needs its own exact grant.
+  - Git roots, nested repositories, plain folders, native search and fallback traversal return the
+    same ignored-file boundary.
+  - Built-in and custom private paths reveal neither names nor contents through dedicated file tools;
+    terminal filename visibility does not grant content access.
+  - An approved npm test may read ignored node_modules and write an allowed ignored test report.
+  - An approved shell command still cannot read .env, .git/config, the permissions file, or a custom
+    private certificate directly or through an alias.
+  contract_assertions:
+  - projects.files.ignored-exact-inclusion
+  - projects.files.private-path-deny
+  - code-run.remote.ignored-project-files
+  - code-run.remote.private-path-deny
+  implementation_status: Contracts, user documentation and the reviewed local implementation are
+    complete for the kernel-tested candidate, and the mandatory web-chat Project focus, source
+    discovery and origin-review slices are locally ready. Bounded host setup, dev runtime verification,
+    final publication and the separate earlier deployment remain pending.
+  implementation_evidence:
+  - The backend read/waiting focused suite passes 16 tests; the focused HMAC ignored-file grant case
+    passes 1 test. Independent ignored-file list, search and exact-read implementation may continue.
+  - The source policy helper suite reports 31 tests with 30 passing and 1 unsupported-host skip. This is focused
+    source evidence, not proof of live AppArmor enforcement or dev-host terminal behavior.
+  - Focused AppArmor broker tests pass 7 cases, installer tests pass 5 cases, Git compatibility shim
+    tests pass 5 cases, ignored-read tests pass 5 cases, and the full CLI bundle plus declaration
+    build passes. The build receipt is
+    /tmp/openmates-6407-u30-cli-build.log.
+  - backend/tests/test_remote_command_apparmor_live.py provides the kernel integration fixture.
+    The first two isolated runs failed before the kernel assertions. Explicit user-namespace setup
+    was then added to runtime and test preparation, and minimal toolchain mounts were added to the
+    fixture. Final request 6c96d4fadf0e06a024295d2fdcbf7e0738e8f2a53fe8f5eb5c4e57428e7ee91e
+    passed from source 4c8915b8fcc1e7c6470fbe12a4e143ee9b6715d7 at base
+    9f3b6921fb7661d80afc4c36376fa729226b0881 in run 35873282657. This is isolated
+    kernel proof, not dev-host setup or live Project command proof.
+  terminal_live_mount_gap:
+    finding: The current terminal sandbox masks private paths found before launch but exposes a live
+      Project mount. A matching private path created concurrently after mask construction can therefore
+      become visible to the running command, violating the deterministic deny boundary.
+    rejected_approach: U29 rejects a filtered temporary Project copy with checked writeback because
+      it behaves like another worktree or staging layer. Do not implement overlay copies, temporary
+      worktrees, staged source mirrors, or post-command writeback reconciliation for this boundary.
+    approved_architecture: U30 chooses a Linux AppArmor-first adapter that runs against the original
+      live Project folder and enforces private-content restrictions on every kernel access, including
+      newly created matching private paths, symlinks resolving into denied paths and known pre-existing
+      hard-link aliases. Filenames and ordinary metadata may be visible; content access and mutation
+      remain denied without copy, worktree, staging or writeback. The sandbox cannot create or rename
+      a denied source into an allowed alias, and source-owning peer processes should run under the same
+      policy. AppArmor does not taint file contents; an external unconfined owner deliberately copying
+      or hard-linking private data to a new allowed pathname republishes it outside this path boundary,
+      just as copying a secret into ordinary source would.
+    implementation: The reviewed broker and installer cache immutable per-policy profiles until reboot
+      and release per-command leases without unloading reusable profiles. Conservative widening for
+      Unicode and bracket-class rules fails closed, and protected ancestor-directory renames are denied.
+    current_followup:
+      finding: Ordinary Git commands failed when AppArmor denied the existing .git/config pathname that
+        the legacy confinement layer replaces with a readable empty mask. A compatibility shim and its
+        focused tests are now implemented locally without exempting that pathname.
+      rejected_shortcut: Exempting that pathname from AppArmor is unsafe because an external unconfined
+        owner could unlink and recreate it after command launch, exposing the replacement to the
+        confined command. That exemption is rejected.
+      required_outcome: Isolated kernel CI now proves the fixture, while later dev-host live validation
+        must still prove ordinary Git operation on a disposable real Project without weakening the
+        private-path boundary before claiming full runtime readiness.
+    host_setup: No dev-host setup has run. sudo -n is unavailable; after kernel proof, bounded setup
+      requires administrator authentication using the reviewed commands. No sysctl change is requested
+      or authorized. Unsupported enforcement fails visibly before launch.
+    verification: Kernel fixture CI passed in run 35873282657. Administrator-reviewed profile
+      installation, dev-host enforcement and live Project command behavior remain pending; the isolated
+      result does not establish those runtime outcomes.
+  task_account_status:
+    global_session: The earlier session expired while recording activity.
+    recovery: The documented PERSONAL account recovery succeeded without substituting a test account.
+    verification: Identity is verified as Glowingkitty user f21... with read access to the engineering
+      Project, and the scoped Task activity update was posted and confirmed.
+
+web_chat_project_checkpoint:
+  status: local_web_integration_complete_dev_verification_pending
+  user_direction: The user explicitly rejected deferring web-chat coding. Hosted and remote Project
+    browsing, fullscreen previews and editing from web chats remain mandatory approved scope.
+  focus_send_wiring:
+  - Current structured Project mentions capture transient send consent; plaintext mention syntax or
+    historical chat frames cannot synthesize activation intent.
+  - The durable encrypted-chat preflight must acknowledge first. The client then reloads the selected
+    Project and its decrypted current default focus with Team context, activates that exact focus and
+    only then dispatches chat_message_added. A distinct Project mention deterministically switches the
+    server binding, while ambiguous multi-Project sends fail closed.
+  - Focus-off revokes authenticated Project focus authority before clearing ordinary encrypted focus
+    metadata, and local state clears only after both backend steps succeed.
+  source_discovery: Remote folder and file mentions retain the exact source_id in their serialized
+    syntax. The active Project prompt now loads a fresh permission-scoped non-revoked source catalog
+    containing only source_id, type, live status and capabilities. Labels and encrypted content remain
+    absent, and deterministic dispatch authorization still rechecks the selected source.
+  command_origin: The bounded browser requesting-origin review lifecycle and approval transport are
+    implemented locally. Source-side CLI approval cannot substitute for the requesting user's decision.
+  local_verification: Focus and mention-routing suites pass 9 tests across 2 files. Targeted ESLint,
+    Specification test metadata, Plan YAML and diff checks pass. The focused backend source-routing
+    metadata test passes, including revoked-source exclusion and ciphertext omission; targeted Ruff
+    and Specification metadata checks pass.
+  remaining_verification: The file approval component passes 2 cases and terminal review passes 1,
+    with screenshots inspected. The connected-source browser case passed on retry; its initial
+    keyboard action race is fixed without weakening the assertion. The visible Project focus
+    lifecycle fix passes its focused regression.
+    Exactly two real-AI browser cases will verify hosted and remote file work directly on dev with
+    disposable state; these do not claim live terminal command execution.
+
+terminal_setup_product_requirement:
+  user_direction: Users must not need to run a developer-provided shell script for OpenMates to work.
+  decision: The temporary manual installer request is withdrawn. Supported Linux terminal protection
+    must have a normal CLI-managed setup path with clear capability detection and standard OS
+    authorization where necessary. Missing terminal setup must not disable Project browsing or file
+    editing, and must not silently weaken terminal protection.
+  status: Implemented locally; helper tests 4/4, CLI ESM/declaration build and bundled-source parity pass. No privileged host change made.
+  integration: Ship the exact reviewed guard assets with the CLI. Explicit remote-access
+    --enable-commands performs capability detection and, on an interactive supported Linux host,
+    invokes standard sudo authorization before verifying the installed capability. Preset enable
+    reuses this setup path, but presets remain optional for always-confirm terminal commands.
+    Ordinary file-only startup never initiates privileged setup. Noninteractive requests return a
+    stable setup-required error instead of hanging or weakening confinement.
+
+final_web_verification_checkpoint:
+  component_evidence:
+  - File approval card passes 2 cases and terminal review passes 1 on source
+    0c7276986c6083766899528c03bd5992705433e4; screenshots inspected for readability.
+  connected_browser_evidence: Run 35879480451 on source b2864b6eb1af3fd726e0057f05c4f9e0ae95a978
+    completes its sole case on retry (flaky=1, unexpected=0, skipped=0). Existing artifacts confirm
+    exact source and spec identity. Coordinator receipt retrieval rejects a harness-hash mismatch;
+    this is recorded rather than repaired or concealed. The initial keyboard action was split across
+    focus and global keypress calls; the final test targets locator.press with unchanged assertions.
+  real_inference: Pending dev deployment. Exactly two independent browser cases and three model
+    turns cover hosted encrypted create/update, approval, focus reopen/deactivation, remote original
+    file read/update, nested browsing and fullscreen content. Retries are disabled. All mutation
+    targets are disposable, and the personal dev account is used under the existing resource lease.
+
+final_scope_freeze:
+  user_direction: Come to an end; this is taking too long. Stop expansion and deliver the current patch.
+  action: Freeze source, publish the scoped patch through the required session integration gates, and
+    report actual availability and evidence. Do not begin additional optional checks or repair work.
+  unverified: The two real-AI hosted/remote browser cases are prepared but have not run. Actual dev
+    terminal execution is unverified because the one-time OS guard has not been installed. Do not
+    claim those checks passed or mark their Tasks complete merely because implementation is frozen.

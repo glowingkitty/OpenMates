@@ -51,6 +51,11 @@ import { notifyDeferredMessageFinalized } from "./deferredSendMessageEvents";
 import { activeTeamId } from "../../../stores/teamStore";
 import { isTeamAIInvocation, wrapTeamChatKey } from "../../../services/teamService";
 import { encryptWithChatKey } from "../../../services/cryptoService";
+import {
+  extractProjectFocusSendIntent,
+  ProjectFocusSendPreflightError,
+  type ProjectFocusSendIntent,
+} from "../../../services/projectFocusSendPreflight";
 
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY = "chat.anonymous_free_usage.daily_credits_exhausted";
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_DEDUPE_KEY = "anonymous-daily-credits-exhausted";
@@ -533,6 +538,18 @@ export async function handleSend(
     });
     vibrateMessageField();
     return;
+  }
+
+  let projectFocusIntent: ProjectFocusSendIntent | null = null;
+  try {
+    projectFocusIntent = extractProjectFocusSendIntent(editor.getJSON());
+  } catch (error) {
+    if (error instanceof ProjectFocusSendPreflightError && error.code === "MULTIPLE_PROJECTS") {
+      notificationStore.error("A message can activate one Project at a time.");
+      vibrateMessageField();
+      return;
+    }
+    throw error;
   }
 
   // CRITICAL: Prevent double-sends. On mobile, rapid taps or touch+click can
@@ -2086,6 +2103,8 @@ export async function handleSend(
 		await chatSyncService.sendNewMessage(
 			serverMessagePayload,
 			encryptedSuggestionToDelete,
+			undefined,
+			projectFocusIntent ?? undefined,
 		);
 		recordSendDebugStep("send_new_message_complete", {
 			chatIdToUse,
@@ -2203,6 +2222,7 @@ export async function executeDeferredSend(
   const snapshot = JSON.parse(
     JSON.stringify(readyCtx.editorSnapshot),
   ) as Record<string, unknown>;
+  const projectFocusIntent = extractProjectFocusSendIntent(snapshot);
 
   // -------------------------------------------------------------------------
   // 2. Walk embed nodes and patch contentRef from EmbedStore
@@ -2471,7 +2491,12 @@ export async function executeDeferredSend(
   try {
     // Notify backend about the active chat (it may be a different chat now)
     await chatSyncService.sendSetActiveChat(readyCtx.chatId);
-    await chatSyncService.sendNewMessage(messagePayload);
+    await chatSyncService.sendNewMessage(
+      messagePayload,
+      undefined,
+      undefined,
+      projectFocusIntent ?? undefined,
+    );
     console.info(
       `[executeDeferredSend] Deferred message sent for chat ${readyCtx.chatId.slice(-6)}`,
     );

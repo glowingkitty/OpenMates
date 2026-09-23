@@ -131,6 +131,7 @@
     "highlight.js": "^11.11.1",
     "highlightjs-svelte": "^1.0.6",
     "html-docx-js-typescript": "0.1.5",
+    "ignore": "7.0.5",
     "jspdf": "4.2.1",
     "jszip": "^3.10.1",
     "katex": "^0.17.0",

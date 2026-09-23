@@ -14,7 +14,8 @@
     "templates"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/cli.ts src/remoteAccessCrypto.ts --format esm --dts --clean",
+    "build": "tsup src/index.ts src/cli.ts src/remoteAccessCrypto.ts --format esm --dts --clean && node scripts/package-remote-command-apparmor.mjs",
+    "prepack": "npm run build && node scripts/package-remote-command-apparmor.mjs --check",
     "dev": "tsup src/index.ts src/cli.ts src/remoteAccessCrypto.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "test:unit:crypto": "node --test --experimental-strip-types tests/crypto.test.ts",
@@ -32,6 +33,7 @@
     "test:unit:sdk-workflows": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workflows.test.ts",
     "test:unit:remote-access": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/remoteSources.test.ts tests/remoteAccess.test.ts tests/projectSearchProtocol.test.ts",
     "test:unit:remote-access-crypto": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/remoteAccessCrypto.test.ts",
+    "test:unit:remote-command-setup": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/remoteCommandSetup.test.ts && npm run build && node scripts/package-remote-command-apparmor.mjs --check",
     "test:unit:teams": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/teams-permissions.test.ts",
     "test:unit:proton-bridge-connector": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/protonBridgeConnector.test.ts",
     "test:unit:proton-bridge-connector-integration": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/protonBridgeConnector.integration.test.ts",
@@ -74,6 +76,7 @@
     "@resvg/resvg-js": "^2.6.2",
     "@toon-format/toon": "2.3.1",
     "ahocorasick": "1.0.2",
+    "ignore": "7.0.5",
     "jszip": "^3.10.1",
     "proper-lockfile": "^4.1.2",
     "qrcode-terminal": "^0.12.0",

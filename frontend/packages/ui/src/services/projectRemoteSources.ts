@@ -8,6 +8,7 @@ export type ProjectSourceType = "local_folder" | "local_git_repository" | "remot
 export type ProjectSourceCapability = "read" | "search" | "import" | "write_request" | "run_command";
 export type ProjectSourceStatus = "connected" | "offline" | "permission_required" | "revoked";
 export type ProjectWriteMode = "apply_and_show" | "always_ask";
+export type ProjectRemoteAccessOperation = "list" | "search" | "read_text" | "create_file" | "update_file";
 
 export interface ProjectDefaultFocus {
   focus_id: string;
@@ -57,6 +58,7 @@ export interface RemoteFilePreviewInput {
   kind?: "file" | "folder";
   language?: string;
   snippet: string;
+  snippetTruncated?: boolean;
   baseHash?: string;
   sizeBytes?: number;
   lineCount?: number;
@@ -83,6 +85,7 @@ export interface VirtualRemoteFilePreview {
         kind: "file" | "folder";
         language: string;
         snippet: string;
+        snippet_truncated: boolean;
         base_hash?: string;
         size_bytes?: number;
         line_count?: number;
@@ -111,7 +114,13 @@ export interface RemoteFileUploadCandidate {
 
 export interface RemoteFileUploadCandidateInput {
   preview: VirtualRemoteFilePreview;
-  content: string | Blob;
+  readResult: RemoteFileCompleteRead;
+}
+
+export interface RemoteFileCompleteRead {
+  content: string;
+  truncated: boolean;
+  expectedBase: string | null;
 }
 
 export interface VirtualRemoteFullscreenDetail {
@@ -144,6 +153,42 @@ const MAX_REMOTE_PREVIEW_FIELD_CHARS = 1_024;
 const MAX_REMOTE_PREVIEW_POLICY_CHARS = 128;
 const MAX_REMOTE_PREVIEW_SAFETY_FLAGS = 20;
 const MAX_SAFE_UPLOAD_FILENAME_CHARS = 180;
+
+export type RemotePreviewKind = "code" | "text" | "markdown" | "json" | "unsupported";
+
+export interface RemotePreviewClassification {
+  kind: RemotePreviewKind;
+  language: string;
+  reason?: string;
+}
+
+const REMOTE_CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
+  c: "c", cpp: "cpp", css: "css", go: "go", h: "c", html: "html", java: "java",
+  js: "javascript", jsx: "javascript", py: "python", rs: "rust", sh: "bash", sql: "sql",
+  svelte: "svelte", swift: "swift", toml: "toml", ts: "typescript", tsx: "typescript",
+  xml: "xml", yaml: "yaml", yml: "yaml",
+};
+const REMOTE_BINARY_PREVIEW_EXTENSIONS = new Set([
+  "7z", "avi", "bin", "bmp", "dmg", "doc", "docx", "dylib", "exe", "gif", "gz", "ico", "jar",
+  "jpeg", "jpg", "mov", "mp3", "mp4", "odt", "pdf", "png", "ppt", "pptx", "rar", "so", "tar",
+  "ttf", "wasm", "webm", "webp", "woff", "woff2", "xls", "xlsx", "zip",
+]);
+
+export function classifyRemotePreviewPath(path: string): RemotePreviewClassification {
+  const name = path.replace(/\\/g, "/").split("/").pop()?.toLowerCase() ?? "";
+  const extension = name.includes(".") ? name.split(".").pop() ?? "" : "";
+  if (extension === "md" || extension === "mdx") return { kind: "markdown", language: "markdown" };
+  if (extension === "json" || extension === "jsonl") return { kind: "json", language: "json" };
+  if (extension === "txt" || extension === "log" || extension === "csv") return { kind: "text", language: "text" };
+  if (name === "dockerfile") return { kind: "code", language: "dockerfile" };
+  if (name === "makefile") return { kind: "code", language: "makefile" };
+  const language = REMOTE_CODE_LANGUAGE_BY_EXTENSION[extension];
+  if (language) return { kind: "code", language };
+  if (REMOTE_BINARY_PREVIEW_EXTENSIONS.has(extension)) {
+    return { kind: "unsupported", language: "text", reason: "This file type does not have a text preview" };
+  }
+  return { kind: "text", language: "text" };
+}
 
 export function buildProjectSourceCreatePayload(input: BuildProjectSourcePayloadInput): ProjectSourceCreatePayload {
   const capabilities = (input.capabilities ?? [])
@@ -182,6 +227,7 @@ export function normalizeRemoteFilePreview(input: RemoteFilePreviewInput): Virtu
         kind: input.kind ?? "file",
         language: input.language ?? "text",
         snippet: input.snippet,
+        snippet_truncated: input.snippetTruncated === true,
         ...(input.baseHash ? { base_hash: input.baseHash } : {}),
         ...(input.sizeBytes !== undefined ? { size_bytes: input.sizeBytes } : {}),
         ...(input.lineCount !== undefined ? { line_count: input.lineCount } : {}),
@@ -240,17 +286,22 @@ function assertOptionalNonNegativeInteger(value: number | undefined, field: stri
 export function buildRemoteFileUploadCandidate(input: RemoteFileUploadCandidateInput): RemoteFileUploadCandidate {
   const preview = input.preview;
   const content = preview.embed.content;
+  if (input.readResult.truncated || !input.readResult.expectedBase
+    || !/^[a-f0-9]{64}$/.test(input.readResult.expectedBase)) {
+    throw new Error("Remote file import requires complete, non-truncated content");
+  }
+  const metadataMatchesRead = content.base_hash === input.readResult.expectedBase;
   const mimeType = content.language ? `text/x-${content.language}` : "text/plain";
-  const uploadFile = new File([input.content], safeUploadFileName(content.display_name), { type: mimeType });
+  const uploadFile = new File([input.readResult.content], safeUploadFileName(content.display_name), { type: mimeType });
   return {
     file: uploadFile,
     metadata: {
       source_id: content.source_id,
       remote_path: content.path,
-      ...(content.base_hash ? { remote_base_hash: content.base_hash } : {}),
-      ...(content.content_hash ? { remote_content_hash: content.content_hash } : {}),
-      ...(content.mtime ? { remote_mtime: content.mtime } : {}),
-      ...(content.git_status ? { remote_git_status: content.git_status } : {}),
+      remote_base_hash: input.readResult.expectedBase,
+      ...(metadataMatchesRead && content.content_hash ? { remote_content_hash: content.content_hash } : {}),
+      ...(metadataMatchesRead && content.mtime ? { remote_mtime: content.mtime } : {}),
+      ...(metadataMatchesRead && content.git_status ? { remote_git_status: content.git_status } : {}),
       safety_flags: content.safety_flags,
       imported_from_remote_source: true,
     },
@@ -274,7 +325,10 @@ function safeUploadFileName(displayName: string): string {
   return sanitized.slice(0, MAX_SAFE_UPLOAD_FILENAME_CHARS);
 }
 
-export function buildVirtualRemoteFullscreenDetail(preview: VirtualRemoteFilePreview): VirtualRemoteFullscreenDetail {
+export function buildVirtualRemoteFullscreenDetail(
+  preview: VirtualRemoteFilePreview,
+  fullContent: string,
+): VirtualRemoteFullscreenDetail {
   const contentRef = `remote:${preview.embed.content.source_id}:${preview.embed.content.path}`;
   return {
     embedId: preview.embed.embed_id,
@@ -287,7 +341,7 @@ export function buildVirtualRemoteFullscreenDetail(preview: VirtualRemoteFilePre
       ...preview.embed.content,
       app_id: "code",
       skill_id: "code",
-      code: preview.embed.content.snippet,
+      code: fullContent,
       filename: preview.embed.content.display_name,
       ...(preview.embed.content.line_count !== undefined ? { line_count: preview.embed.content.line_count } : {}),
     },

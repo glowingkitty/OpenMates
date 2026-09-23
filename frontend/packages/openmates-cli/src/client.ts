@@ -60,11 +60,11 @@ import {
   saveAnonymousId,
 } from "./storage.js";
 import { loadServerConfig } from "./serverConfig.js";
-import { activateCliProjectFocus, registerCliProjectFileExecutor } from "./projectFileExecutor.js";
+import { activateCliProjectFocus, prepareCliProjectFocusForPreflight, registerCliProjectFileExecutor } from "./projectFileExecutor.js";
 import { registerRemoteCommandOriginClient, type DecryptedRemoteCommandEvent, type RemoteCommandReview, type RemoteCommandApprovalChoice } from "./remoteCommandClient.js";
-import type { ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
+import type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
 import type { HostedProjectFileHead } from "../../ui/src/services/hostedProjectFileExecutor.js";
-export type { ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
+export type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
 import {
   OpenMatesWsClient,
   WebSocketProtocolError,
@@ -6384,9 +6384,10 @@ export class OpenMatesClient {
   async sendMessage(params: {
     message: string;
     chatId?: string;
-    /** Explicit user-selected Project; activates its focus after chat persistence. */
+    /** Explicit user-selected Project; activates its focus before inference preflight. */
     projectId?: string;
     onProjectWriteApproval?: (request: ProjectWriteApprovalRequest) => boolean | Promise<boolean>;
+    onProjectReadApproval?: (request: ProjectReadApprovalRequest) => boolean | Promise<boolean>;
     onRemoteCommandReview?: (review: RemoteCommandReview) => RemoteCommandApprovalChoice | null | undefined | Promise<RemoteCommandApprovalChoice | null | undefined>;
     onRemoteCommandEvent?: (event: DecryptedRemoteCommandEvent) => void | Promise<void>;
     /** Client-generated ID for a new chat, allowing cleanup after an uncertain send outcome. */
@@ -6667,6 +6668,7 @@ export class OpenMatesClient {
       registerCliProjectFileExecutor({
         client: this, ws, chatId, chatKey: chatKeyBytes,
         requestApproval: params.onProjectWriteApproval,
+        requestReadApproval: params.onProjectReadApproval,
       });
       clientCapabilities.push("project_file_jobs");
       registerRemoteCommandOriginClient({ ws, client: this, chatId, onReview: params.onRemoteCommandReview, onEvent: params.onRemoteCommandEvent });
@@ -6880,13 +6882,29 @@ export class OpenMatesClient {
         };
       }
 
-      const preflightAck = ws.waitForMessage(
-        "chat_turn_preflight_ack",
-        (payload) => (payload as Record<string, unknown>).turn_id === turnId,
-      );
       let ackPayload: Record<string, unknown>;
       try {
-        await ws.sendAsync("chat_turn_preflight", preflightPayload);
+        if (params.projectId) {
+          await prepareCliProjectFocusForPreflight({
+            ws,
+            chatId,
+            teamId,
+            isNewChat,
+            encryptedChatKey,
+            createdAt,
+            activateFocus: () => activateCliProjectFocus(this, params.projectId!, chatId, teamId),
+          });
+        }
+        const preflightAck = ws.waitForMessage(
+          "chat_turn_preflight_ack",
+          (payload) => (payload as Record<string, unknown>).turn_id === turnId,
+        );
+        try {
+          await ws.sendAsync("chat_turn_preflight", preflightPayload);
+        } catch (error) {
+          void preflightAck.catch(() => {});
+          throw error;
+        }
         ackPayload = (await preflightAck).payload as Record<string, unknown>;
       } catch (error) {
         ws.close();
@@ -6895,14 +6913,6 @@ export class OpenMatesClient {
       if (typeof ackPayload.preflight_id !== "string" || !ackPayload.preflight_id) {
         ws.close();
         throw new Error("Encrypted chat preflight acknowledgement omitted preflight_id.");
-      }
-      if (params.projectId) {
-        try {
-          await activateCliProjectFocus(this, params.projectId, chatId, teamId);
-        } catch (error) {
-          ws.close();
-          throw error;
-        }
       }
       Object.assign(messagePayload, {
         protocol_version: protocolVersion,
@@ -6931,8 +6941,17 @@ export class OpenMatesClient {
       },
       params.responseTimeoutMs ?? DEFAULT_CHAT_MESSAGE_CONFIRMATION_TIMEOUT_MS,
     );
-    await ws.sendAsync("chat_message_added", messagePayload);
-    const confirmedPayload = (await confirmed).payload as Record<string, unknown>;
+    let confirmedPayload: Record<string, unknown>;
+    try {
+      await ws.sendAsync("chat_message_added", messagePayload);
+      confirmedPayload = (await confirmed).payload as Record<string, unknown>;
+    } catch (error) {
+      dispatchHandlersReady();
+      void confirmed.catch(() => {});
+      if (precollectedResponse) void precollectedResponse.catch(() => {});
+      ws.close();
+      throw error;
+    }
     if (
       !params.incognito &&
       typeof confirmedPayload.new_messages_v === "number" &&

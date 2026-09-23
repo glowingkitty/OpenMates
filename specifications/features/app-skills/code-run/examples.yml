@@ -18,10 +18,25 @@ remote_commands:
     when: The agent requests npm test, npm install, or npm test followed by a second shell command.
     then: Only the exact test match is preapproved. Other eligible requests ask; all retain explanations, scope and resource checks.
   - id: repo-policy-self-escalation
-    assertion_ids: [code-run.remote.command-lists]
+    assertion_ids: [code-run.remote.command-lists, code-run.remote.private-path-deny]
     given: An enabled list excludes package installation.
-    when: An agent edits .openmates/permissions.yml to add npm install or disable isolation.
-    then: The repository change cannot broaden active grants; permission changes require an explicit user action.
+    when: An agent tries to read or edit .openmates/permissions.yml, or runs a shell command intended to add npm install, remove private_paths, or disable isolation.
+    then: File and command access cannot expose or mutate the private policy file. Active grants and private masks remain unchanged; permission changes require an explicit user action outside agent-controlled Project operations.
+  - id: approved-test-uses-ignored-dependencies-and-build-output
+    assertion_ids: [code-run.remote.ignored-project-files]
+    given: node_modules/ and dist/ are Git-ignored, private paths do not overlap them, and the user approves exact npm test with read-write source access for its declared build output.
+    when: The confined command loads node_modules and writes dist/test-report.json.
+    then: The command may use those ignored paths within its reviewed scope. Their names and contents do not become agent list/search/direct-read results or durable artifacts unless a separate authorized rule permits that surface.
+  - id: approved-shell-cannot-open-private-source
+    assertion_ids: [code-run.remote.private-path-deny]
+    given: .env, .git/config, .openmates/permissions.yml, and private/customer.pem are covered by built-in or configured private rules.
+    when: A user approves an exact shell command that attempts to cat them directly, through a symlink, or through a known pre-existing hard-link alias.
+    then: The command may observe a filename or ordinary metadata but cannot open, read, map, execute, modify, rename, or link private content. If kernel enforcement cannot be established for the live folder, launch fails with unsupported confinement; approval does not turn a private path into command input or output.
+  - id: private-file-created-after-command-launch
+    assertion_ids: [code-run.remote.private-path-deny]
+    given: An approved long-running command uses the original Project folder under the current private-path policy.
+    when: Another local process creates a newly matching private file or a symlink resolving into a denied path after the command starts, and the command lists then opens it.
+    then: Its filename may appear, but the kernel applies the same policy at access time and denies content access or mutation without stopping ordinary direct edits elsewhere. No copied tree or writeback phase is involved. An external unconfined owner copying or hard-linking the bytes to a new allowed pathname would instead republish them outside pathname enforcement and is not claimed as data-taint protection.
   - id: command-change-after-review
     assertion_ids: [code-run.remote.explicit-approval]
     given: A user reviewed a command for one source, cwd and resource profile.

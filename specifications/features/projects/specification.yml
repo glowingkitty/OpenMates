@@ -29,6 +29,7 @@ scope:
     - Version-aware file creates and updates, safe recovery from intervening changes, and consistent conflict behavior when multiple chats use the same remote or OpenMates-stored file.
     - Brief coordination of same-file writes and atomic publication of encrypted hosted-file revisions without granting the server independent decryption capability.
     - Bounded waiting for an authorized file executor, a private email reminder after ten minutes, and explicit chat resume after a twenty-minute wait expires.
+    - A consistent split between Git-ignore discovery filtering, explicit exact-file inclusion, and non-overridable private-path denial across remote Project file operations.
   excludes:
     - Automatically materializing every repository test as a Project item.
     - Copying linked objects into Project-owned records or changing their canonical lifecycle state.
@@ -105,6 +106,19 @@ models:
     status: {type: enum, values: [active, deferred, deprecated], required: true}
     position: {type: integer, required: true}
 
+  ProjectFileAccessPolicy:
+    private_paths: {type: normalized_source_relative_path_pattern_list, required: true, constraints: {extends_builtin_private_paths: true, explicit_user_activation: true, trusted_state_outside_agent_writable_project: true, weakening_builtin_rules_forbidden: true}}
+    definition_source: {type: literal, value: .openmates/permissions.yml.file_access, required: true, constraints: {definition_only: true, agent_authority: false}}
+
+  ProjectIgnoredFileGrant:
+    project_id: {type: stable_id, required: true}
+    source_id: {type: stable_id, required: true}
+    chat_id: {type: stable_id, required: true}
+    request_id: {type: stable_id, required: true}
+    normalized_path: {type: source_relative_file_path, required: true, constraints: {exact_file_only: true}}
+    approval_proof: {type: client_signed_user_confirmation, required: true}
+    expires_at: {type: timestamp, required: true, constraints: {ephemeral: true}}
+
 assertions:
   - id: projects.files.search-scoped
     type: security
@@ -112,6 +126,14 @@ assertions:
   - id: projects.files.search-consistent
     type: behavior
     must: Filename and content search return bounded relative paths, line numbers and snippets with honest truncation/omission status. Literal/regex, ignore and protected-path behavior is consistent across supported search implementations; a missing rg binary cannot silently change query semantics or broaden access. Ordinary source and configuration are distinguishable from credential restrictions, and search permission never implies terminal execution or file-write permission.
+  - id: projects.files.ignored-exact-inclusion
+    type: security
+    must: Git-ignore patterns are a discovery and direct-file-access filter, not a secrecy boundary. Matching files are absent from Project list and search results and cannot be directly read, previewed, imported, or edited until the client obtains explicit user confirmation for that exact normalized source-relative file. The resulting signed ephemeral grant is bound to Project, source, chat, request, path, and expiry; it accepts files only, never directories or globs, cannot be supplied or persisted by the model or Project files, and never overrides a private-path denial. Pattern matching applies consistently regardless of Git index state and across Git roots, nested repositories, hosted or plain folders, native rg, and fallback traversal.
+    depends_on: [models.ProjectIgnoredFileGrant, examples.project_file_access_policy]
+  - id: projects.files.private-path-deny
+    type: privacy
+    must: A versioned built-in private-path set plus explicitly user-activated additions defined in .openmates/permissions.yml file_access.private_paths deterministically denies Project list, search, direct read, preview, import, edit, recovery, and terminal content access or mutation. Active additions live in trusted state outside the agent-writable Project; the permissions file itself is built-in private, and deleting or changing its Project copy cannot relax active policy. The source executor or authorized hosted-file client resolves normalized paths, symlinks and known aliases and enforces the current policy before reading bytes, transmitting ciphertext or plaintext, decrypting content, or committing a write. Dedicated Project list and search omit matching names and contents, while direct file operations return only a generic private-path denial. A confined terminal may reveal that a filename exists, but cannot open, read, map, execute, overwrite, rename, link, or otherwise obtain or change its private content. Pathname enforcement covers newly created matching private paths, symlinks resolving into denied paths, and known pre-existing hard-link aliases; the sandbox cannot create or rename a denied source into an allowed alias. An external unconfined owner deliberately copying or hard-linking private data to a new allowed pathname republishes that data outside this path-based boundary, just as copying a secret into ordinary source would; source-owning peers should use the same policy. Nested repositories, plain folders, native tools, fallbacks, and reconnects retain the same boundary. Agent output, repository content, command approval, an exact ignored-file grant, or an agent-authored policy edit cannot bypass or weaken built-ins or active user policy. Existing remote and hosted encryption remains unchanged, and the server gains no plaintext path or content authority.
+    depends_on: [models.ProjectFileAccessPolicy, examples.project_file_access_policy]
   - id: projects.files.executor-wait
     type: behavior
     must: When an authorized client or remote executor required for the next Project file operation is unavailable, expose a waiting state and release any write turn. Before the waiting deadline, work may resume automatically when an authorized capable executor is ready, within the original request and after current focus, role, path, write-policy, approval, and base checks. Another logged-in device is not automatically an authorized executor. The server must not bypass client-side encryption to keep working. Waiting alone must not run repeated model calls or consume model tokens.

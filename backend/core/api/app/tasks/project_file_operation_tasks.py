@@ -94,6 +94,39 @@ async def _project_file_operation_wait_notification(
     ):
         return False
 
+    chat_id = job.get("chat_id")
+    if not isinstance(chat_id, str) or not chat_id:
+        return False
+    try:
+        cached_chat = await task.cache_service.get(f"chat:{chat_id}:metadata")
+    except Exception:
+        logger.warning(
+            "Skipping Project file wait notification because chat deletion state could not be verified",
+            exc_info=True,
+        )
+        return False
+    if isinstance(cached_chat, dict) and cached_chat.get("deleted") is True:
+        return False
+    try:
+        chats = await task.directus_service.get_items(
+            "chats",
+            params={
+                "fields": "id",
+                "filter": {"id": {"_eq": chat_id}},
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+    except Exception:
+        logger.warning(
+            "Skipping Project file wait notification because chat existence could not be verified",
+            exc_info=True,
+        )
+        return False
+    if not any(isinstance(chat, dict) and chat.get("id") == chat_id for chat in chats or []):
+        return False
+
     users = await task.directus_service.get_items(
         "directus_users",
         params={

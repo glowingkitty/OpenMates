@@ -43,6 +43,7 @@ def _client_ciphertext() -> str:
     return base64.b64encode(raw).decode("ascii")
 
 
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
 def test_legacy_import_chat_source_fails_closed_without_direct_plaintext_writes() -> None:
     settings_path = Path(__file__).resolve().parents[1] / "core" / "api" / "app" / "routes" / "settings.py"
     source = settings_path.read_text()
@@ -58,6 +59,7 @@ def test_legacy_import_chat_source_fails_closed_without_direct_plaintext_writes(
     assert "create_item('messages'" not in import_chat_source
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_low_level_create_item_rejects_plaintext_chat_fields_before_directus_write() -> None:
     api_methods = _load_api_methods_module()
@@ -76,6 +78,7 @@ async def test_low_level_create_item_rejects_plaintext_chat_fields_before_direct
     directus._make_api_request.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_low_level_create_item_rejects_plaintext_message_fields_before_directus_write() -> None:
     api_methods = _load_api_methods_module()
@@ -95,6 +98,7 @@ async def test_low_level_create_item_rejects_plaintext_message_fields_before_dir
     directus._make_api_request.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_low_level_create_item_accepts_client_encrypted_message_fields() -> None:
     api_methods = _load_api_methods_module()
@@ -119,6 +123,7 @@ async def test_low_level_create_item_accepts_client_encrypted_message_fields() -
     directus._make_api_request.assert_awaited_once()
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_create_chat_rejects_vault_encrypted_metadata_before_directus_write() -> None:
     ChatMethods = _load_chat_methods_class()
@@ -131,6 +136,7 @@ async def test_create_chat_rejects_vault_encrypted_metadata_before_directus_writ
     directus.create_item.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_create_chat_treats_directus_unique_field_error_as_duplicate_race() -> None:
     ChatMethods = _load_chat_methods_class()
@@ -163,6 +169,44 @@ async def test_create_chat_treats_directus_unique_field_error_as_duplicate_race(
     )
 
 
+# contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity,chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_create_team_chat_routes_wrapped_key_to_team_wrapper() -> None:
+    ChatMethods = _load_chat_methods_class()
+    cache = SimpleNamespace(delete=AsyncMock(), increment_stat=AsyncMock())
+    wrappers = SimpleNamespace(
+        ensure_master_wrapper_for_chat=AsyncMock(),
+        ensure_team_wrapper_for_chat=AsyncMock(return_value=True),
+    )
+    directus = SimpleNamespace(
+        cache=cache,
+        chat_key_wrapper=wrappers,
+        create_item=AsyncMock(side_effect=lambda _collection, payload: (True, dict(payload))),
+    )
+    methods = ChatMethods(directus)
+
+    created, is_duplicate = await methods.create_chat_in_directus({
+        "id": "chat-team-1",
+        "hashed_user_id": "owner-hash",
+        "hashed_team_id": "team-hash",
+        "encrypted_chat_key": "team-wrapped-key",
+        "messages_v": 0,
+        "title_v": 0,
+        "metadata_v": 0,
+    })
+
+    assert created is not None
+    assert is_duplicate is False
+    wrappers.ensure_team_wrapper_for_chat.assert_awaited_once_with(
+        chat_id="chat-team-1",
+        hashed_team_id="team-hash",
+        encrypted_chat_key="team-wrapped-key",
+        team_key_epoch=1,
+    )
+    wrappers.ensure_master_wrapper_for_chat.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_update_chat_fields_rejects_vault_encrypted_metadata_before_directus_write() -> None:
     ChatMethods = _load_chat_methods_class()
@@ -175,6 +219,7 @@ async def test_update_chat_fields_rejects_vault_encrypted_metadata_before_direct
     directus.update_item.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_create_message_rejects_vault_encrypted_content_before_directus_write() -> None:
     ChatMethods = _load_chat_methods_class()
@@ -192,6 +237,7 @@ async def test_create_message_rejects_vault_encrypted_content_before_directus_wr
     directus.create_item.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_create_message_accepts_client_encrypted_content() -> None:
     ChatMethods = _load_chat_methods_class()

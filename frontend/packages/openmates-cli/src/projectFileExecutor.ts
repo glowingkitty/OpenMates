@@ -4,9 +4,34 @@ import type { OpenMatesClient } from "./client.js";
 import type { OpenMatesWsClient } from "./ws.js";
 import { decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
 import { requestProjectRemoteOperation } from "./projectRequester.js";
-import { createProjectFileJobExecutor, type ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
+import {
+  createProjectFileJobExecutor,
+  type ProjectReadApprovalRequest,
+  type ProjectWriteApprovalRequest,
+} from "../../ui/src/services/projectFileJobExecutor.js";
 import { executeHostedProjectFileJob, normalizeHostedProjectPath, type HostedProjectFile } from "../../ui/src/services/hostedProjectFileExecutor.js";
 import { toonEncodeContent } from "./embedCreator.js";
+
+function projectPrivatePaths(settingsText: string | null): string[] {
+  if (!settingsText) return [];
+  let settings: unknown;
+  try { settings = JSON.parse(settingsText); }
+  catch { throw Object.assign(new Error(), { code: "protected_path" }); }
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+    throw Object.assign(new Error(), { code: "protected_path" });
+  }
+  const fileAccess = (settings as Record<string, unknown>).file_access;
+  if (fileAccess === undefined) return [];
+  if (!fileAccess || typeof fileAccess !== "object" || Array.isArray(fileAccess)) {
+    throw Object.assign(new Error(), { code: "protected_path" });
+  }
+  const privatePaths = (fileAccess as Record<string, unknown>).private_paths;
+  if (privatePaths === undefined) return [];
+  if (!Array.isArray(privatePaths) || privatePaths.some((path) => typeof path !== "string")) {
+    throw Object.assign(new Error(), { code: "protected_path" });
+  }
+  return privatePaths;
+}
 
 export async function activateCliProjectFocus(client: OpenMatesClient, projectId: string, chatId: string, teamId: string | null): Promise<void> {
   const context = { teamId, personal: !teamId };
@@ -19,18 +44,57 @@ export async function activateCliProjectFocus(client: OpenMatesClient, projectId
   await client.activateProjectFocus(projectId, { chat_id: chatId, focus_id: focus.focus_id, instruction: focus.instructions }, context);
 }
 
+/**
+ * Establish the owned chat row before activating Project focus. The focus API
+ * intentionally refuses client-only chat IDs, while preflight must observe the
+ * focus before it commits the inference request.
+ */
+export async function prepareCliProjectFocusForPreflight(options: {
+  ws: OpenMatesWsClient;
+  chatId: string;
+  teamId: string | null;
+  isNewChat: boolean;
+  encryptedChatKey: string;
+  createdAt: number;
+  activateFocus: () => Promise<void>;
+}): Promise<void> {
+  if (options.isNewChat) {
+    const stored = options.ws.waitForMessage(
+      "encrypted_metadata_stored",
+      (payload) => (payload as Record<string, unknown>).chat_id === options.chatId,
+      20_000,
+    );
+    try {
+      await options.ws.sendAsync("encrypted_chat_metadata", {
+        chat_id: options.chatId,
+        ...(options.teamId ? { team_id: options.teamId } : {}),
+        encrypted_chat_key: options.encryptedChatKey,
+        created_at: options.createdAt,
+        versions: {},
+      });
+    } catch (error) {
+      void stored.catch(() => {});
+      throw error;
+    }
+    await stored;
+  }
+  await options.activateFocus();
+}
+
 export function registerCliProjectFileExecutor(options: {
   client: OpenMatesClient;
   ws: OpenMatesWsClient;
   chatId: string;
   chatKey: Uint8Array;
   requestApproval?: (request: ProjectWriteApprovalRequest) => boolean | Promise<boolean>;
+  requestReadApproval?: (request: ProjectReadApprovalRequest) => boolean | Promise<boolean>;
 }) {
   let closed = false;
   const executor = createProjectFileJobExecutor({
     isActiveChat: (chatId) => !closed && chatId === options.chatId,
     send: (event, payload) => options.ws.sendAsync(event, payload),
     requestApproval: options.requestApproval,
+    requestReadApproval: options.requestReadApproval,
     approve: async (request, digest) => {
       const focus = await options.client.getActiveProjectFocus(request.chatId);
       if (focus?.project_id !== request.projectId) throw Object.assign(new Error(), { code: "project_focus_required" });
@@ -46,21 +110,35 @@ export function registerCliProjectFileExecutor(options: {
         options.client.listProjectSources(job.project_id, context),
       ]);
       const projectKey = await options.client.decryptProjectKey(detail.project, context);
+      const settingsText = settings.encrypted_settings
+        ? await decryptWithAesGcmCombined(settings.encrypted_settings, projectKey)
+        : null;
+      if (settings.encrypted_settings && settingsText === null) {
+        throw Object.assign(new Error(), { code: "protected_path" });
+      }
+      const privatePaths = projectPrivatePaths(settingsText);
       const source = job.source_id ? sources.find((item) => item.source_id === job.source_id) : sources.length === 1 ? sources[0] : undefined;
       if (job.source_id && !source || !job.source_id && sources.length > 1) throw Object.assign(new Error(), { code: "source_selection_required" });
       return {
         projectKey,
+        sourceId: source?.source_id ?? null,
         writeMode: settings.selection_required ? null : settings.write_mode,
-        execute: async (currentJob, mutation) => {
+        execute: async (currentJob, mutation, approvedIgnoredRead) => {
           if (closed) throw Object.assign(new Error(), { code: "chat_inactive" });
           if (source) return requestProjectRemoteOperation({
             client: options.client, projectId: job.project_id, projectKey, source,
             operation: currentJob.operation,
             arguments: mutation ? { chat_id: job.chat_id, mutation } : currentJob.arguments,
             context,
+            ...(approvedIgnoredRead ? { approvedIgnoredRead } : {}),
           });
           return executeHostedProjectFileJob({
             projectId: job.project_id, projectKey, chatKey: options.chatKey, teamId: focus.team_id,
+            privatePaths,
+            isIgnoredReadApproved: (path, approvalJob) => Boolean(approvedIgnoredRead
+              && approvedIgnoredRead.path === path
+              && approvedIgnoredRead.chatId === approvalJob.chat_id
+              && approvedIgnoredRead.operationId === approvalJob.operation_id),
             encrypt: encryptWithAesGcmCombined, wrap: encryptBytesWithAesGcm,
             encodeContent: async (content) => toonEncodeContent(content),
             listFiles: async () => {

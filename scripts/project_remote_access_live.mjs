@@ -30,6 +30,7 @@ import {
 import { startRemoteAccessSource } from "../frontend/packages/openmates-cli/src/remoteAccess.ts";
 import { inspectRemoteCommandCapability } from "../frontend/packages/openmates-cli/src/remoteCommandRuntime.ts";
 import { OpenMatesWsClient } from "../frontend/packages/openmates-cli/src/ws.ts";
+import { requestProjectRemoteOperation } from "../frontend/packages/openmates-cli/src/projectRequester.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const CLI_DIR = join(ROOT, "frontend", "packages", "openmates-cli");
@@ -103,6 +104,7 @@ async function expectStatus(client, path, status, options = {}) {
 
 async function createFixture(client, teamId = null, teamKey = null, hosted = false) {
   const projectId = randomUUID();
+  const projectName = `Remote access live verification ${projectId.slice(0, 8)}`;
   const sourceId = randomUUID();
   const projectKey = randomBytes(32);
   const timestamp = Math.floor(Date.now() / 1000);
@@ -110,7 +112,7 @@ async function createFixture(client, teamId = null, teamKey = null, hosted = fal
   const projectPayload = {
     project_id: projectId,
     encrypted_project_key: teamId ? null : await encryptBytesWithAesGcm(projectKey, client.getMasterKeyBytes()),
-    encrypted_name: await encryptWithAesGcmCombined("Remote access live verification", projectKey),
+    encrypted_name: await encryptWithAesGcmCombined(projectName, projectKey),
     encrypted_description: await encryptWithAesGcmCombined("", projectKey),
     encrypted_icon: await encryptWithAesGcmCombined("folder", projectKey),
     encrypted_color: await encryptWithAesGcmCombined("default", projectKey),
@@ -794,13 +796,58 @@ async function stopForegroundCli(child) {
   await new Promise((resolvePromise) => child.once("exit", resolvePromise));
 }
 
+// contract-test: supporting surface=cli assertions=projects.files.ignored-exact-inclusion,projects.files.private-path-deny
+async function verifySourcePathPrivacy(client, fixture) {
+  const source = await waitForConnectedSource(client, fixture);
+  const context = fixture.teamId ? { teamId: fixture.teamId } : { personal: true };
+  const request = (operation, argumentsValue, approvedIgnoredRead) => requestProjectRemoteOperation({
+    client, projectId: fixture.projectId, projectKey: fixture.projectKey, source,
+    operation, arguments: argumentsValue, context, ...(approvedIgnoredRead ? { approvedIgnoredRead } : {}),
+  });
+  const denied = async (operation, argumentsValue, code, approvedIgnoredRead) => {
+    try { await request(operation, argumentsValue, approvedIgnoredRead); }
+    catch (error) {
+      requireValue(error.code === code, `Expected ${code}, received ${error.code ?? "unknown error"}`);
+      return;
+    }
+    throw new Error(`Expected ${code}, but the request succeeded`);
+  };
+  const listing = await request("list", { path: "." });
+  requireValue(!listing.entries.some(entry => ["debug.log", "other.log", "private", ".env"].includes(entry.path)),
+    "Ignored/private entries appeared in the remote directory listing");
+  const search = await request("search", { path: ".", query: "remoteDemo", mode: "literal", target: "content" });
+  requireValue(search.matches.length === 1 && search.matches[0].path === "src/remote-demo.ts",
+    "Remote search included ignored/private content or lost the permitted match");
+  await denied("read_text", { path: "debug.log", include_ignored: true }, "ignored_path_requires_approval");
+  const approval = { path: "debug.log", chatId: "fixture-explicit-user-read", operationId: randomUUID() };
+  const included = await request("read_text", { path: "debug.log" }, approval);
+  requireValue(included.content === "remoteDemo: disposable ignored log\n", "The explicitly included ignored file was not read");
+  await denied("read_text", { path: "other.log" }, "ignored_path_requires_approval");
+  await denied("read_text", { path: "private/customer-export.csv", include_ignored: true }, "protected_path",
+    { path: "private/customer-export.csv", chatId: approval.chatId, operationId: randomUUID() });
+}
+
 async function runServeFixture(client, fixture) {
   const rootPath = join(tmpdir(), `openmates-remote-access-serve-${randomUUID()}`);
   const sourceStorePath = join(cliStateDir, "remote-sources.json");
   const originalSourceStore = existsSync(sourceStorePath) ? readFileSync(sourceStorePath) : null;
   mkdirSync(join(rootPath, "src"), { recursive: true });
   writeFileSync(join(rootPath, "src", "remote-demo.ts"), 'export const remoteDemo = "OpenMates live remote preview";\nexport const imported = true;\n');
+  mkdirSync(join(rootPath, "src", "lib", "deep"), { recursive: true });
+  writeFileSync(join(rootPath, "src", "lib", "deep", "large-demo.ts"),
+    '// Bounded remote text fixture\n'.repeat(1_500)
+      + 'export const completeRemoteFile = "Remote fullscreen end marker";\n');
   writeFileSync(join(rootPath, ".env"), "REMOTE_ACCESS_SECRET=not-for-server\n");
+  if (mode === "serve" || mode === "serve-team") {
+    writeFileSync(join(rootPath, ".gitignore"), "*.log\n");
+    writeFileSync(join(rootPath, "debug.log"), "remoteDemo: disposable ignored log\n");
+    writeFileSync(join(rootPath, "other.log"), "remoteDemo: another excluded log\n");
+    mkdirSync(join(rootPath, "private"));
+    writeFileSync(join(rootPath, "private", "customer-export.csv"), "remoteDemo: PRIVATE_DUMMY_CANARY\n");
+    mkdirSync(join(rootPath, ".openmates"));
+    writeFileSync(join(rootPath, ".openmates", "permissions.yml"),
+      "schema_version: 1\npresets: []\nfile_access:\n  private_paths:\n    - private/\n");
+  }
   startRemoteAccessSource({
     sourceId: fixture.sourceId,
     projectId: fixture.projectId,
@@ -826,13 +873,25 @@ async function runServeFixture(client, fixture) {
       await verifyChatRemoteCommand(client, fixture, rootPath);
       return;
     }
+    await verifySourcePathPrivacy(client, fixture);
     process.stdout.write(`${JSON.stringify({
       event: "fixture_ready",
       project_id: fixture.projectId,
+      project_name: `Remote access live verification ${fixture.projectId.slice(0, 8)}`,
       source_id: fixture.sourceId,
       team_id: fixture.teamId ?? null,
+      path_privacy_verified: true,
     })}\n`);
     await new Promise((resolvePromise) => {
+      process.on("SIGUSR2", () => {
+        const content = readFileSync(join(rootPath, "src", "remote-demo.ts"));
+        process.stdout.write(`${JSON.stringify({
+          event: "remote_file_state",
+          path: "src/remote-demo.ts",
+          content_base64: content.toString("base64"),
+          size_bytes: content.byteLength,
+        })}\n`);
+      });
       process.once("SIGUSR1", () => {
         void stopForegroundCli(child).then(() => {
           bridgeStopped = true;
@@ -912,10 +971,23 @@ async function verifyChatFileEdits(client, remoteFixture, remoteRoot) {
   requireValue(resolve(remoteRoot).startsWith(`${resolve(tmpdir())}/openmates-remote-access-serve-`), "File test root is not disposable");
   const hostedFixture = await createFixture(client, null, null, true);
   const chats = [];
+  process.stdout.write(`${JSON.stringify({
+    event: "chat_file_fixtures_created",
+    remote_project_id: remoteFixture.projectId,
+    remote_source_id: remoteFixture.sourceId,
+    hosted_project_id: hostedFixture.projectId,
+  })}\n`);
+  let primaryError = null;
   try {
     for (const [kind, target] of [["remote", remoteFixture], ["hosted", hostedFixture]]) {
       const chatId = randomUUID();
-      chats.push(chatId);
+      chats.push({ kind, chatId });
+      process.stdout.write(`${JSON.stringify({
+        event: "chat_file_chat_created",
+        kind,
+        project_id: target.projectId,
+        chat_id: chatId,
+      })}\n`);
       const marker = `fixture-${randomUUID()}`;
       const first = await client.sendMessage({
         newChatId: chatId, projectId: target.projectId, personal: true,
@@ -941,9 +1013,39 @@ async function verifyChatFileEdits(client, remoteFixture, remoteRoot) {
       }
       process.stdout.write(`${JSON.stringify({ event: "chat_file_verified", kind, create: true, update: true, read_back: true })}\n`);
     }
-  } finally {
-    for (const chatId of chats) await client.deleteChat(chatId, { personal: true });
+  } catch (error) {
+    primaryError = error;
+  }
+
+  const cleanupFailures = [];
+  for (const { kind, chatId } of chats) {
+    try {
+      await client.deleteChat(chatId, { personal: true });
+    } catch (error) {
+      cleanupFailures.push({ resource: `${kind}_chat`, id: chatId, error });
+    }
+  }
+  try {
     await deleteFixture(client, hostedFixture);
+  } catch (error) {
+    cleanupFailures.push({ resource: "hosted_project", id: hostedFixture.projectId, error });
+  }
+  if (cleanupFailures.length > 0) {
+    process.stderr.write(`${JSON.stringify({
+      event: "chat_file_cleanup_failed",
+      failures: cleanupFailures.map(({ resource, id, error }) => ({
+        resource,
+        id,
+        message: error instanceof Error ? error.message : String(error),
+      })),
+    })}\n`);
+  }
+  if (primaryError) throw primaryError;
+  if (cleanupFailures.length > 0) {
+    throw new AggregateError(
+      cleanupFailures.map(({ error }) => error),
+      "One or more chat-files fixtures could not be cleaned up",
+    );
   }
 }
 
@@ -964,6 +1066,8 @@ let fixture;
 let teamId;
 let teamKey;
 let probes = [];
+let primaryError = null;
+const chatFileCleanupFailures = [];
 try {
   if (teamMode) {
     teamId = randomUUID();
@@ -989,11 +1093,39 @@ try {
   if (mode === "api" || mode === "api-team") probes = await runApiVerification(client, requesterClient, fixture, ownerId);
   else if (mode === "cli" || mode === "cli-team") await runCliVerification(client, fixture, ownerId);
   else await runServeFixture(client, fixture);
-  process.stdout.write(`${JSON.stringify({ success: true, mode, api_url: apiUrl, probes })}\n`);
+  if (mode !== "chat-files") process.stdout.write(`${JSON.stringify({ success: true, mode, api_url: apiUrl, probes })}\n`);
+} catch (error) {
+  primaryError = error;
 } finally {
-  await deleteFixture(client, fixture);
-  if (teamId) {
-    const response = await apiRequest(client, `/v1/teams/${teamId}`, { method: "DELETE" });
-    requireValue([200, 404].includes(response.status), `Team cleanup failed with HTTP ${response.status}`);
+  if (mode === "chat-files") {
+    try {
+      await deleteFixture(client, fixture);
+    } catch (error) {
+      chatFileCleanupFailures.push({ resource: "remote_project", id: fixture?.projectId ?? null, error });
+    }
+    if (chatFileCleanupFailures.length > 0) {
+      process.stderr.write(`${JSON.stringify({
+        event: "chat_file_cleanup_failed",
+        failures: chatFileCleanupFailures.map(({ resource, id, error }) => ({
+          resource,
+          id,
+          message: error instanceof Error ? error.message : String(error),
+        })),
+      })}\n`);
+    }
+  } else {
+    await deleteFixture(client, fixture);
+    if (teamId) {
+      const response = await apiRequest(client, `/v1/teams/${teamId}`, { method: "DELETE" });
+      requireValue([200, 404].includes(response.status), `Team cleanup failed with HTTP ${response.status}`);
+    }
   }
 }
+if (primaryError) throw primaryError;
+if (chatFileCleanupFailures.length > 0) {
+  throw new AggregateError(
+    chatFileCleanupFailures.map(({ error }) => error),
+    "The remote chat-files Project fixture could not be cleaned up",
+  );
+}
+if (mode === "chat-files") process.stdout.write(`${JSON.stringify({ success: true, mode, api_url: apiUrl, probes })}\n`);

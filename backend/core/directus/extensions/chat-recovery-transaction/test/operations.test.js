@@ -878,6 +878,39 @@ test('prepare_preflight accepts matching metadata for an existing empty draft sh
 });
 
 // contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('prepare_preflight completes a key-only empty shell but rejects conflicting encrypted metadata', async () => {
+  const metadata = prepareBody().encrypted_chat_metadata;
+  const shell = {
+    id: CHAT_ID,
+    hashed_user_id: OWNER,
+    encrypted_chat_key: metadata.encrypted_chat_key,
+    created_at: metadata.created_at,
+    updated_at: metadata.updated_at,
+    messages_v: 0,
+    title_v: 0,
+    metadata_v: 0,
+    last_message_timestamp: null,
+  };
+  const database = fakeDatabase({ chats: [shell], messages: [], chat_turn_preflights: [] });
+
+  const result = await executeOperation(database, 'prepare_preflight', prepareBody(), new Date('2029-01-01T00:00:00Z'));
+
+  assert.equal(result.state, 'PREPARED');
+  assert.equal(database.rows.chats[0].encrypted_title, metadata.encrypted_title);
+  assert.equal(database.rows.chats[0].messages_v, 1);
+
+  const conflicting = fakeDatabase({
+    chats: [{ ...shell, encrypted_title: 'different-encrypted-title' }],
+    messages: [],
+    chat_turn_preflights: [],
+  });
+  await assert.rejects(
+    executeOperation(conflicting, 'prepare_preflight', prepareBody(), new Date('2029-01-01T00:00:00Z')),
+    (error) => error instanceof ProtocolError && error.code === 'existing_chat_metadata_forbidden',
+  );
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('prepare_preflight rejects metadata for an existing non-empty chat', async () => {
   const metadata = prepareBody().encrypted_chat_metadata;
   const database = fakeDatabase({

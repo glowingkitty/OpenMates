@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { createProjectFileJobExecutor, type ProjectFileJob } from "../../ui/src/services/projectFileJobExecutor.js";
 import { executeHostedProjectFileJob, hostedProjectFileIdentity, projectFileContentHash, type HostedProjectFileAdapter, type HostedProjectFileHead } from "../../ui/src/services/hostedProjectFileExecutor.js";
 import { decryptWithAesGcmCombined, encryptWithAesGcmCombined, encryptBytesWithAesGcm, decryptBytesWithAesGcm } from "../src/crypto.js";
+import { prepareCliProjectFocusForPreflight } from "../src/projectFileExecutor.js";
+import type { OpenMatesWsClient } from "../src/ws.js";
 
 const projectId = "72dcdd3a-c264-4291-812b-02e820ca88c9";
 const chatId = "0b59bafd-14d8-46b7-94ab-fcf0df0fbb10";
@@ -12,6 +14,58 @@ function job(overrides: Partial<ProjectFileJob> = {}): ProjectFileJob {
     operation: "create_file", arguments: { path: "README.md", expected_base: null, content: "hello\n" },
     lease_token: "fixture-lease-token-long", lease_generation: 1, lease_expires_at: Math.floor(Date.now() / 1000) + 60, ...overrides };
 }
+
+// contract-test: supporting surface=cli assertions=projects.files.chat-focus-required,chats.persistence.client-encrypted
+test("Project focus preparation persists a new encrypted shell before activation and leaves existing chats stable", async () => {
+  const order: string[] = [];
+  const payloads: Record<string, unknown>[] = [];
+  let acknowledgeStored: (() => void) | undefined;
+  const ws = {
+    waitForMessage: (type: string) => {
+      order.push(`wait:${type}`);
+      return new Promise((resolve) => {
+        acknowledgeStored = () => {
+          order.push("ack:encrypted_metadata_stored");
+          resolve({ type, payload: { chat_id: chatId } });
+        };
+      });
+    },
+    sendAsync: async (type: string, payload: Record<string, unknown>) => {
+      order.push(`send:${type}`);
+      payloads.push(payload);
+      acknowledgeStored?.();
+    },
+  } as unknown as OpenMatesWsClient;
+
+  await prepareCliProjectFocusForPreflight({
+    ws, chatId, teamId: null, isNewChat: true, encryptedChatKey: "wrapped-chat-key", createdAt: 123,
+    activateFocus: async () => { order.push("activate"); },
+  });
+  order.push("preflight");
+  assert.deepEqual(order, [
+    "wait:encrypted_metadata_stored",
+    "send:encrypted_chat_metadata",
+    "ack:encrypted_metadata_stored",
+    "activate",
+    "preflight",
+  ]);
+  assert.deepEqual(payloads, [{
+    chat_id: chatId,
+    encrypted_chat_key: "wrapped-chat-key",
+    created_at: 123,
+    versions: {},
+  }]);
+
+  order.length = 0;
+  payloads.length = 0;
+  await prepareCliProjectFocusForPreflight({
+    ws, chatId, teamId: null, isNewChat: false, encryptedChatKey: "wrapped-chat-key", createdAt: 123,
+    activateFocus: async () => { order.push("activate"); },
+  });
+  order.push("preflight");
+  assert.deepEqual(order, ["activate", "preflight"]);
+  assert.deepEqual(payloads, []);
+});
 
 // contract-test: supporting surface=cli assertions=projects.files.write-policy-enforcement,projects.files.chat-focus-required
 test("always-ask releases the lease, approves exact proposal, then claims a fresh lease before writing", async () => {

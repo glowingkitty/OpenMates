@@ -94,6 +94,7 @@ from backend.apps.ai.processing.project_file_tools import (
     PROJECT_FILE_TOOL_TO_OPERATION,
     build_project_file_tools,
     build_project_focus_prompt,
+    build_project_source_routing_context,
 )
 from backend.apps.ai.processing.task_queue_continuation import (
     TASK_QUEUE_GUARD_MAX_RETRIES,
@@ -2968,6 +2969,7 @@ async def handle_main_processing(
         and cache_service is not None
     )
     active_project_focus = None
+    active_project_sources: list[dict[str, Any]] = []
     if project_file_tools_enabled or (
         "remote_command_jobs" in project_capabilities
         and not request_data.is_incognito
@@ -2984,17 +2986,56 @@ async def handle_main_processing(
         except Exception:
             logger.warning("%s Project focus authorization failed closed", log_prefix, exc_info=True)
             active_project_focus = None
+    if active_project_focus:
+        try:
+            from backend.core.api.app.services.project_remote_access_service import (
+                ProjectRemoteAccessError,
+                ProjectRemoteAccessService,
+            )
+
+            source_rows = await directus_service.project.list_sources(
+                active_project_focus["project_id"],
+                request_data.user_id,
+                team_id=active_project_focus.get("team_id"),
+            )
+            connected_source_ids: set[str] = set()
+            remote_access = ProjectRemoteAccessService(cache_service)
+            for source in source_rows:
+                source_id = source.get("source_id")
+                if source.get("status") == "revoked" or not isinstance(source_id, str) or not source_id:
+                    continue
+                try:
+                    await remote_access.get_active_binding(
+                        request_data.user_id,
+                        active_project_focus["project_id"],
+                        source_id,
+                        team_id=active_project_focus.get("team_id"),
+                        now=int(time.time()),
+                    )
+                    connected_source_ids.add(source_id)
+                except ProjectRemoteAccessError:
+                    pass
+            active_project_sources = build_project_source_routing_context(
+                source_rows,
+                connected_source_ids=connected_source_ids,
+            )
+        except Exception:
+            logger.warning("%s Project source discovery failed closed", log_prefix, exc_info=True)
+            active_project_sources = []
     request_data.active_project_focus = active_project_focus
     request_data.current_project = (
         {
-            key: active_project_focus.get(key)
-            for key in ("project_id", "project_id_hash", "team_id", "team_id_hash")
+            **{
+                key: active_project_focus.get(key)
+                for key in ("project_id", "project_id_hash", "team_id", "team_id_hash")
+            },
+            "sources": active_project_sources,
         }
         if active_project_focus
         else None
     )
     if active_project_focus:
-        prompt_parts.append(build_project_focus_prompt(active_project_focus))
+        prompt_parts.append(build_project_focus_prompt(active_project_focus, active_project_sources))
     suppress_task_runtime_tools = should_suppress_task_runtime_tools_for_app_skill(
         preselected_skills,
         user_requested_skills_only=user_requested_skills_only,

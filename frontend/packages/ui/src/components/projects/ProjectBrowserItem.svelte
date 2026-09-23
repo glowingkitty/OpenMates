@@ -10,37 +10,75 @@
   import type { Component } from 'svelte';
   import type { ProjectItemViewModel } from '../../services/projectService';
   import { decodeToonContent, resolveEmbed } from '../../services/embedResolver';
-  import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
+  import type { EmbedFullscreenDispatchDetail } from '../../services/embedFullscreenController';
   import { embedPreviewRegistry } from '../../services/embedPreviewRegistry';
+  import { embedAvailabilityVersion } from '../../services/embedStore';
 
-  let { item, viewMode = 'tile' }: { item: ProjectItemViewModel; viewMode?: 'tile' | 'list' } = $props();
+  interface ProjectBrowserResolvedEmbed {
+    embedData: Record<string, unknown>;
+    decodedContent: Record<string, unknown>;
+  }
+
+  let {
+    item,
+    viewMode = 'tile',
+    onOpenFullscreen,
+    loadProjectEmbed,
+    displayName = item.displayName,
+  }: {
+    item: ProjectItemViewModel;
+    viewMode?: 'tile' | 'list';
+    onOpenFullscreen: (detail: EmbedFullscreenDispatchDetail) => void;
+    loadProjectEmbed?: (item: ProjectItemViewModel) => Promise<ProjectBrowserResolvedEmbed | null>;
+    displayName?: string;
+  } = $props();
 
   let previewComponent = $state<{ component: unknown; props: Record<string, unknown> } | null>(null);
   let isLoading = $state(false);
+  let resolvedEmbedData = $state<Record<string, unknown> | null>(null);
+  let resolvedContent = $state<Record<string, unknown> | null>(null);
+  let childFullscreenDispatchedAt = 0;
+  let loadGeneration = 0;
 
   onMount(() => {
+    let mounted = false;
+    const unsubscribe = embedAvailabilityVersion.subscribe(() => {
+      if (mounted && item.item_type === 'embed') void loadPreview();
+    });
+    mounted = true;
     if (item.item_type === 'embed') {
       isLoading = true;
       void loadPreview();
     }
+    return unsubscribe;
   });
 
   async function loadPreview(): Promise<void> {
+    const generation = ++loadGeneration;
     isLoading = true;
     try {
-      const embedData = await resolveEmbed(item.target_id);
+      const projectEmbed = await loadProjectEmbed?.(item);
+      const embedData = projectEmbed?.embedData ?? await resolveEmbed(item.target_id);
+      if (generation !== loadGeneration) return;
       if (!embedData || typeof embedData !== 'object') {
         previewComponent = null;
+        resolvedEmbedData = null;
+        resolvedContent = null;
         return;
       }
 
-      const decodedContent = await decodeToonContent(embedData.content);
+      const decodedContent = projectEmbed?.decodedContent ?? await decodeToonContent(embedData.content);
+      if (generation !== loadGeneration) return;
       if (!decodedContent) {
         previewComponent = null;
+        resolvedEmbedData = null;
+        resolvedContent = null;
         return;
       }
 
       const decoded = decodedContent as Record<string, unknown>;
+      resolvedEmbedData = embedData;
+      resolvedContent = decoded;
       const appId = String(decoded.app_id || item.metadata.app_id || item.item_type);
       previewComponent = await embedPreviewRegistry.resolve({
         embedId: item.target_id,
@@ -51,18 +89,24 @@
           type: decoded.type || item.metadata.embed_type || embedData.type,
         },
         decodedContent: decoded,
-        onFullscreen: () => openEmbedFullscreen(embedData, decoded),
+        onFullscreen: () => {
+          childFullscreenDispatchedAt = performance.now();
+          openEmbedFullscreen(embedData, decoded);
+        },
       });
     } catch (error) {
+      if (generation !== loadGeneration) return;
       console.error('[ProjectBrowserItem] Failed to render project embed preview:', error);
       previewComponent = null;
+      resolvedEmbedData = null;
+      resolvedContent = null;
     } finally {
-      isLoading = false;
+      if (generation === loadGeneration) isLoading = false;
     }
   }
 
   function openEmbedFullscreen(embedData: Record<string, unknown>, decodedContent: Record<string, unknown>): void {
-    dispatchEmbedFullscreen({
+    const detail: EmbedFullscreenDispatchDetail = {
       embedId: item.target_id,
       embedData,
       decodedContent,
@@ -72,7 +116,22 @@
         contentRef: `embed:${item.target_id}`,
         status: embedData.status || 'finished',
       },
-    });
+      hasChatContext: false,
+    };
+    onOpenFullscreen(detail);
+  }
+
+  function activateItem(event?: MouseEvent | KeyboardEvent): void {
+    if (!resolvedEmbedData || !resolvedContent) return;
+    const target = event?.target instanceof Element ? event.target : null;
+    const nestedControl = target?.closest('button, a, input, [role="button"]');
+    if (nestedControl && nestedControl !== event?.currentTarget) return;
+    if (event instanceof MouseEvent) {
+      if (performance.now() - childFullscreenDispatchedAt < 100) return;
+    }
+    if (event instanceof KeyboardEvent && event.key !== 'Enter' && event.key !== ' ') return;
+    event?.preventDefault();
+    openEmbedFullscreen(resolvedEmbedData, resolvedContent);
   }
 
   // Svelte dynamic components are heterogeneous because each embed preview has a
@@ -84,7 +143,21 @@
   }
 </script>
 
-<article class="browser-item {viewMode}" data-testid="project-item-card" data-item-type={item.item_type}>
+<!-- The card contains an embed preview with its own controls, so a native button
+     would create invalid nested buttons. Keyboard and pointer activation match a button. -->
+<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
+<article
+  class="browser-item {viewMode}"
+  class:actionable={!!resolvedEmbedData && !!resolvedContent}
+  data-testid="project-item-card"
+  data-item-type={item.item_type}
+  role="button"
+  tabindex={resolvedEmbedData && resolvedContent ? 0 : undefined}
+  aria-disabled={!resolvedEmbedData || !resolvedContent}
+  aria-label={resolvedEmbedData && resolvedContent ? `Open ${displayName || 'Project item'}` : undefined}
+  onclick={activateItem}
+  onkeydown={activateItem}
+>
   {#if viewMode === 'tile' && item.item_type === 'embed'}
     <div class="embed-preview-shell">
       {#if isLoading}
@@ -93,13 +166,13 @@
         {@const Component = getRenderableComponent(previewComponent.component)}
         <Component {...previewComponent.props} />
       {:else}
-        <div class="embed-preview-fallback">{item.displayName || item.target_id}</div>
+        <div class="embed-preview-fallback">{displayName || item.target_id}</div>
       {/if}
     </div>
   {/if}
   <div class="browser-item-meta">
     <span class="item-kind">{item.metadata.embed_type?.toString() || item.item_type}</span>
-    <strong>{item.displayName || item.target_id}</strong>
+    <strong>{displayName || item.target_id}</strong>
     <small>{item.item_type}</small>
   </div>
 </article>
@@ -124,6 +197,15 @@
     min-height: 64px;
     padding: 0 14px;
     box-shadow: none;
+  }
+
+  .browser-item.actionable {
+    cursor: pointer;
+  }
+
+  .browser-item.actionable:focus-visible {
+    outline: 2px solid var(--color-focus, var(--color-font-primary));
+    outline-offset: 2px;
   }
 
   .embed-preview-shell {

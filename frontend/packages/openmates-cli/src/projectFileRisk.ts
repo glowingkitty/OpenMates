@@ -10,6 +10,7 @@
  */
 
 import { isProtectedProjectReadPath } from "../../ui/src/utils/projectSearchProtocol.js";
+import { createProjectPathPolicy } from "../../ui/src/utils/projectPathPolicy.js";
 
 export interface ProjectFileRiskResult {
   isHighRisk: boolean;
@@ -74,7 +75,7 @@ export function classifyProjectFileReadRisk(path: string, userProtectedPatterns:
   const normalizedPath = normalizePath(path);
   const reasons: string[] = [];
   if (isProtectedProjectReadPath(normalizedPath)) reasons.push("credential_file");
-  if (userProtectedPatterns.some((pattern) => matchesPattern(normalizedPath, normalizePath(pattern)))) {
+  if (matchesAdditionalPrivatePattern(normalizedPath, userProtectedPatterns)) {
     reasons.push("user_protected_pattern");
   }
   return { isHighRisk: reasons.length > 0, reasons: [...new Set(reasons)] };
@@ -90,7 +91,7 @@ export function classifyProjectFileRisk(path: string, userProtectedPatterns: str
     }
   }
 
-  if (userProtectedPatterns.some((pattern) => matchesPattern(normalizedPath, normalizePath(pattern)))) {
+  if (matchesAdditionalPrivatePattern(normalizedPath, userProtectedPatterns)) {
     reasons.push("user_protected_pattern");
   }
 
@@ -99,6 +100,13 @@ export function classifyProjectFileRisk(path: string, userProtectedPatterns: str
 
 function normalizePath(path: string): string {
   return path.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function matchesAdditionalPrivatePattern(path: string, patterns: string[]): boolean {
+  if (patterns.length === 0) return false;
+  const builtIn = createProjectPathPolicy({ ignoreFiles: [], privatePaths: [] });
+  const extended = createProjectPathPolicy({ ignoreFiles: [], privatePaths: patterns });
+  return extended.isPrivate(path) && !builtIn.isPrivate(path);
 }
 
 function matchesPattern(path: string, pattern: string): boolean {

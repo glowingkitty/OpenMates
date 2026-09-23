@@ -14,6 +14,8 @@ import {
 
 const YAML = `
 schema_version: 1
+file_access:
+  private_paths: [.secrets/**, /config/private.json]
 resource_profiles:
   writable:
     - id: test-cache
@@ -42,6 +44,7 @@ describe("remote command permission definitions", () => {
   // contract-test: supporting surface=cli assertions=code-run.remote.command-lists,code-run.remote.explicit-approval
   it("requires a trusted active grant bound to the exact repository definition", () => {
     const config = parseRemoteCommandPermissions(YAML);
+    assert.deepEqual(config.file_access.private_paths, [".secrets/**", "/config/private.json"]);
     const policy = config.presets[0]?.commands[0];
     assert.ok(policy);
     const digest = remoteCommandPresetDigest(config, "checks");
@@ -69,6 +72,16 @@ describe("remote command permission definitions", () => {
     assert.throws(() => parseRemoteCommandPermissions(YAML.replace("cwd: .", "cwd: ../outside")), /Project-relative/);
     assert.throws(() => parseRemoteCommandPermissions(YAML.replace("mode: foreground", "mode: background").replace("source_access: read_only", "source_access: read_write")), /background commands/);
     assert.throws(() => parseRemoteCommandPermissions(YAML.replace("registry.npmjs.org:443", "https://registry.npmjs.org")), /exact hostname/);
+    assert.throws(() => parseRemoteCommandPermissions(YAML.replace(".secrets/**", "'!public.txt'")), /additive/);
+    assert.throws(() => parseRemoteCommandPermissions(YAML.replace(".secrets/**", "../outside")), /parent path/);
+  });
+
+  // contract-test: direct surface=cli assertions=code-run.remote.private-path-deny
+  it("keeps file_access optional for existing repositories and normalizes private path globs", () => {
+    const legacy = parseRemoteCommandPermissions(YAML.replace(/file_access:\n {2}private_paths: \[[^\n]+\]\n/, ""));
+    assert.deepEqual(legacy.file_access.private_paths, []);
+    const normalized = parseRemoteCommandPermissions(YAML.replace(".secrets/**", "./.secrets/**"));
+    assert.deepEqual(normalized.file_access.private_paths, [".secrets/**", "/config/private.json"]);
   });
 
   // contract-test: supporting surface=cli assertions=code-run.remote.command-lists

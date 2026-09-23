@@ -47,6 +47,7 @@ import {
   type WorkflowRunContentRetention,
   type WorkflowSummary,
   type ProjectRecord,
+  type ProjectReadApprovalRequest,
   type ProjectSourceCapability,
   type ProjectWriteApprovalRequest,
   type ProjectSourceRecord,
@@ -174,6 +175,7 @@ import {
 } from "./remoteCommandClient.js";
 import { loadRemoteCommandPermissions, matchEnabledRemoteCommandPreset, remoteCommandPresetDigest } from "./remoteCommandPermissions.js";
 import { inspectRemoteCommandCapability } from "./remoteCommandRuntime.js";
+import { ensureRemoteCommandSetup } from "./remoteCommandSetup.js";
 import {
   disableRemoteCommandResourceGrant,
   enableRemoteCommandCredentialGrant,
@@ -3343,6 +3345,7 @@ async function handleProjects(
       }
       const presetId = requiredStringFlag(rest[3] ?? flags.preset, "preset ID");
       if (action === "enable") {
+        await ensureRemoteCommandSetupForCli(flags);
         const grant = enableRemoteCommandPreset(project.projectId, source.rootPath, presetId);
         if (flags.json === true) printJson({ project_id: project.projectId, source_id: source.sourceId, grant });
         else console.log(`Command preset enabled: ${presetId}`);
@@ -3642,6 +3645,9 @@ async function handleProjectFiles(
   if (!action || !["list", "search", "read"].includes(action)) {
     throw new CliContractError("unknown_projects_files_command", "Use 'projects files list', 'search', or 'read'.");
   }
+  if (flags["include-ignored"] === true && action !== "read") {
+    throw new CliContractError("include_ignored_read_only", "--include-ignored is allowed only for one exact file read.");
+  }
   const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "project"), flags, context);
   const sources = await client.listProjectSources(project.projectId, context);
   const source = await selectProjectSource(sources, flags);
@@ -3669,6 +3675,13 @@ async function handleProjectFiles(
     operation,
     arguments: argumentsValue,
     context,
+    ...(flags["include-ignored"] === true ? {
+      approvedIgnoredRead: {
+        path: String(argumentsValue.path),
+        chatId: `cli-direct-${randomUUID()}`,
+        operationId: `cli-direct-${randomUUID()}`,
+      },
+    } : {}),
   });
   printProjectFileResult(action, project.projectId, source.source_id, result, flags);
 }
@@ -4575,6 +4588,9 @@ async function handleRemoteAccess(
     }
 
     assertRemoteAccessPublicFlags(flags);
+    if (flags["enable-commands"] === true) {
+      await ensureRemoteCommandSetupForCli(flags);
+    }
     const hostingContext = await resolveRemoteAccessHostingContext(client, flags);
     const hostingFlags = {
       ...flags,
@@ -4671,6 +4687,21 @@ function assertRemoteAccessPublicFlags(flags: Record<string, string | boolean>):
   if (supplied.length > 0) {
     throw new Error(`Unsupported remote-access option${supplied.length === 1 ? "" : "s"}: ${supplied.map((name) => `--${name}`).join(", ")}`);
   }
+  if (flags["enable-commands"] !== undefined && flags["enable-commands"] !== true) {
+    throw new CliContractError("invalid_enable_commands", "--enable-commands does not accept a value.");
+  }
+}
+
+async function ensureRemoteCommandSetupForCli(flags: Record<string, string | boolean>): Promise<void> {
+  const current = inspectRemoteCommandCapability();
+  if (!current.supported && flags.json !== true && stdin.isTTY && stdout.isTTY) {
+    console.log("Remote commands need a one-time protected Linux host setup. Your operating system may ask for administrator authorization.");
+  }
+  const result = await ensureRemoteCommandSetup({
+    interactive: flags.json !== true && Boolean(stdin.isTTY && stdout.isTTY),
+    json: flags.json === true,
+  });
+  if (result.installed && flags.json !== true) console.log("Remote command protection installed.");
 }
 
 async function resolveRemoteAccessHostingContext(
@@ -5122,6 +5153,14 @@ export function renderProjectWriteApprovalRequest(request: ProjectWriteApprovalR
     ...(mutation.expected_base ? [`Expected base: ${mutation.expected_base}`] : []),
     `${bodyLabel}:`,
     escapeTerminalControls(body),
+  ].join("\n");
+}
+
+export function renderProjectReadApprovalRequest(request: ProjectReadApprovalRequest): string {
+  return [
+    "Project ignored-file read requested",
+    `Path: ${escapeTerminalControls(request.path)}`,
+    "This reads only this exact ignored file for the active chat.",
   ].join("\n");
 }
 
@@ -11727,6 +11766,20 @@ async function sendMessageStreaming(
       }
     : undefined;
 
+  const onProjectReadApproval = process.stdin.isTTY
+    ? async (request: ProjectReadApprovalRequest): Promise<boolean> => {
+        clearTyping();
+        process.stderr.write(`\n${renderProjectReadApprovalRequest(request)}\n`);
+        const rl = createInterface({ input: process.stdin, output: process.stderr });
+        try {
+          const answer = await rl.question("Read this exact ignored Project file? [y/N] ");
+          return answer.trim().toLowerCase() === "y" || answer.trim().toLowerCase() === "yes";
+        } finally {
+          rl.close();
+        }
+      }
+    : undefined;
+
   const onRemoteCommandReview = async (review: RemoteCommandReview): Promise<RemoteCommandApprovalChoice | null | undefined> => {
     clearTyping();
     process.stderr.write(`\n${renderRemoteCommandReview(review)}\n`);
@@ -12051,6 +12104,7 @@ async function sendMessageStreaming(
       chatId: params.chatId,
       projectId: params.projectId,
       onProjectWriteApproval,
+      onProjectReadApproval,
       onRemoteCommandReview,
       onRemoteCommandEvent,
       slug: params.slug,
@@ -14132,7 +14186,7 @@ Commands:
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates feedback [--help]                Assistant response feedback helpers
   openmates benchmark [--help]               Run real model benchmarks with usage tagged as benchmark spend
-  openmates remote-access [--path <folder>]  Attach a local Project source in the foreground
+  openmates remote-access [--path <folder>] [--enable-commands]  Attach a local Project source in the foreground
   openmates support                          Show voluntary financial support options
   openmates version                          Show CLI version and update availability
   openmates update                           Update the installed OpenMates CLI package
@@ -14184,13 +14238,16 @@ Options:
 
 function printRemoteAccessHelp(): void {
   console.log(`Remote access command:
-  openmates remote-access [--path <folder>]... [--project <slug|id|new>] [--write-policy apply_and_show|always_ask] [--task-cache <folder>] [--json]
+  openmates remote-access [--path <folder>]... [--project <slug|id|new>] [--write-policy apply_and_show|always_ask] [--task-cache <folder>] [--enable-commands] [--json]
 
 Behavior:
   Discovers repository Projects below the current working directory by default.
   Repeated --path values replace default discovery. For an unlinked folder, select
   an existing Project or explicitly choose 'new' to create one, then choose its
   write policy. Non-interactive setup requires --project and --write-policy.
+  --enable-commands performs one-time protected Linux host setup when needed.
+  It may request administrator authorization in an interactive terminal. Without
+  this flag, unavailable command protection does not affect Project file access.
   The command remains connected in the foreground;
   keep the terminal open or use zellij, tmux, or screen.
 
@@ -14656,7 +14713,7 @@ function printProjectsHelp(): void {
   openmates projects sources remove <project> --source <source-id> [--confirm <source-id>] [--personal|--team <team>] [--json]
   openmates projects files list <project> [--source <source-id>] [--path <relative-path>] [--depth <n>] [--personal|--team <team>] [--json]
   openmates projects files search <project> <query> [--source <source-id>] [--personal|--team <team>] [--json]
-  openmates projects files read <project> <relative-path> [--source <source-id>] [--personal|--team <team>] [--json]
+  openmates projects files read <project> <relative-path> [--include-ignored] [--source <source-id>] [--personal|--team <team>] [--json]
   openmates projects ask <name> [--description <text>] [--json]
   openmates projects history <project-id> [--limit <n>] [--json]
   openmates projects restore <project-id> --entry <history-entry-id> [--state before|after] [--json]

@@ -23,6 +23,7 @@ import {
   constants,
   existsSync,
   fstatSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -32,14 +33,17 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { join, resolve, relative } from "node:path";
 
-import { classifyProjectFileReadRisk } from "./projectFileRisk.js";
 import { canonicalProjectSourceRoot } from "./projectSourceRootPolicy.js";
 import {
-  PROJECT_CREDENTIAL_GLOBS,
+  loadProjectPathPolicy,
+  ProjectPathAccessError,
+  type LoadedProjectPathPolicy,
+} from "./projectPathPolicy.js";
+import {
   ProjectSearchProtocolError,
   matchesProjectSearchGlob,
   matchesProjectSearchQuery,
@@ -64,6 +68,7 @@ import {
   isProjectFileMutationOperation, projectFileMutationDigest, validateProjectFileMutation,
 } from "../../ui/src/utils/projectFileMutationProtocol.js";
 import { WebSocketProtocolError, type ProjectRemoteAccessRequestFrame } from "./ws.js";
+import { verifyProjectIgnoredReadGrant } from "../../ui/src/utils/projectIgnoredReadGrant.js";
 
 export interface RemoteAccessSearchMatch {
   path: string;
@@ -102,6 +107,7 @@ export interface RemoteAccessSearchOptions {
   glob?: string;
   userProtectedPatterns?: string[];
   runRg: RgRunner;
+  stateDirectory?: string;
 }
 
 export interface StartRemoteAccessSourceInput {
@@ -136,6 +142,7 @@ const MAX_APPROVED_ROOTS = 16;
 const DEFAULT_MAX_DIRECTORY_ENTRIES = 500;
 const DEFAULT_MAX_READ_BYTES = 200 * 1024;
 const DEFAULT_MAX_READ_LINES = 4_000;
+const REMOTE_ACCESS_RESULT_MAX_BYTES = 200 * 1024;
 const BINARY_PROBE_BYTES = 8 * 1024;
 const MAX_SOURCE_ID_LENGTH = 128;
 const BINARY_EXTENSIONS = new Set([
@@ -244,9 +251,19 @@ export function listRemoteAccessDirectory(options: {
   relativePath: string;
   maxEntries?: number;
   userProtectedPatterns?: string[];
+  stateDirectory?: string;
 }): { entries: RemoteAccessDirectoryEntry[]; omitted: number; excluded: number; truncated: boolean } {
-  const root = canonicalProjectSourceRoot(options.sourceRoot);
+  const root = canonicalProjectSourceRoot(options.sourceRoot, { stateDirectory: options.stateDirectory });
+  const policy = loadProjectPathPolicy(root, {
+    trustedPrivatePaths: options.userProtectedPatterns,
+    stateDirectory: options.stateDirectory,
+    targetPaths: [options.relativePath],
+  });
   const directory = resolveApprovedPath(root, options.relativePath);
+  const directoryPath = relative(root, directory).replace(/\\/g, "/");
+  if (directoryPath && (policy.isPrivate(directoryPath, true) || policy.isIgnored(directoryPath, true))) {
+    throw new ProjectPathAccessError("private_path", "Remote source directory is unavailable");
+  }
   if (!statSync(directory).isDirectory()) throw new Error("Remote source path is not a directory");
   const maxEntries = options.maxEntries ?? DEFAULT_MAX_DIRECTORY_ENTRIES;
   if (!Number.isInteger(maxEntries) || maxEntries <= 0 || maxEntries > DEFAULT_MAX_DIRECTORY_ENTRIES) {
@@ -260,8 +277,9 @@ export function listRemoteAccessDirectory(options: {
     if (
       entry.name === ".git"
       || entry.isSymbolicLink()
-      || isGitIgnoredPath(root, entryPath)
-      || classifyProjectFileReadRisk(entryPath, options.userProtectedPatterns ?? []).isHighRisk
+      || policy.isIgnored(entryPath, entry.isDirectory())
+      || policy.isPrivate(entryPath, entry.isDirectory())
+      || (entry.isFile() && lstatSync(join(directory, entry.name)).nlink > 1)
       || (entry.isFile() && isBinaryFile(join(directory, entry.name)))
     ) {
       excluded += 1;
@@ -286,15 +304,20 @@ export function readRemoteAccessTextFile(options: {
   maxBytes?: number;
   maxLines?: number;
   userProtectedPatterns?: string[];
+  stateDirectory?: string;
+  isIgnoredReadApproved?: (path: string) => boolean;
   beforeOpen?: () => void;
 }): { content: string; truncated: boolean; sizeBytes: number; lineCount: number; expected_base: string | null } {
-  const root = canonicalProjectSourceRoot(options.sourceRoot);
+  const root = canonicalProjectSourceRoot(options.sourceRoot, { stateDirectory: options.stateDirectory });
   const normalizedRelative = options.relativePath.replace(/\\/g, "/");
-  if (classifyProjectFileReadRisk(normalizedRelative, options.userProtectedPatterns ?? []).isHighRisk) {
-    throw new Error("Remote source file is protected");
-  }
-  if (isGitIgnoredPath(root, normalizedRelative)) throw new Error("Remote source file is ignored");
+  const policy = loadProjectPathPolicy(root, {
+    trustedPrivatePaths: options.userProtectedPatterns,
+    stateDirectory: options.stateDirectory,
+    targetPaths: [normalizedRelative],
+  });
+  policy.assertReadablePath(normalizedRelative, options.isIgnoredReadApproved);
   const requested = resolveApprovedPath(root, normalizedRelative);
+  if (lstatSync(requested).nlink > 1) throw new Error("Remote source file is a protected hardlink");
   options.beforeOpen?.();
   const maxBytes = normalizeBound(options.maxBytes, DEFAULT_MAX_READ_BYTES, "byte");
   const maxLines = normalizeBound(options.maxLines, DEFAULT_MAX_READ_LINES, "line");
@@ -328,6 +351,78 @@ export function readRemoteAccessTextFile(options: {
   } finally {
     if (descriptor !== undefined) closeSync(descriptor);
   }
+}
+
+export function remoteAccessReadLimits(args: Record<string, unknown>): { maxBytes: number; maxLines: number } {
+  const maxBytes = args.max_bytes;
+  const maxLines = args.max_lines;
+  return {
+    maxBytes: normalizeBound(typeof maxBytes === "number" ? maxBytes : maxBytes === undefined ? undefined : Number.NaN, DEFAULT_MAX_READ_BYTES, "byte"),
+    maxLines: normalizeBound(typeof maxLines === "number" ? maxLines : maxLines === undefined ? undefined : Number.NaN, DEFAULT_MAX_READ_LINES, "line"),
+  };
+}
+
+type RemoteTextReadResult = {
+  content: string;
+  truncated: boolean;
+  sizeBytes: number;
+  lineCount: number;
+  expected_base: string | null;
+};
+
+export function serializeRemoteAccessSuccessResponse(result: unknown): string {
+  const serialized = JSON.stringify({ ok: true, result });
+  if (new TextEncoder().encode(serialized).byteLength <= REMOTE_ACCESS_RESULT_MAX_BYTES) return serialized;
+  if (!isRemoteTextReadResult(result)) {
+    return JSON.stringify({ ok: false, error: "operation_failed" });
+  }
+
+  let low = 0;
+  let high = result.content.length;
+  let bounded = JSON.stringify({ ok: true, result: boundedRemoteTextResult(result, "") });
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const candidate = JSON.stringify({
+      ok: true,
+      result: boundedRemoteTextResult(result, safeTextPrefix(result.content, middle)),
+    });
+    if (new TextEncoder().encode(candidate).byteLength <= REMOTE_ACCESS_RESULT_MAX_BYTES) {
+      bounded = candidate;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return bounded;
+}
+
+function isRemoteTextReadResult(value: unknown): value is RemoteTextReadResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const result = value as Record<string, unknown>;
+  return typeof result.content === "string"
+    && typeof result.truncated === "boolean"
+    && typeof result.sizeBytes === "number"
+    && typeof result.lineCount === "number"
+    && (result.expected_base === null || typeof result.expected_base === "string");
+}
+
+function boundedRemoteTextResult(result: RemoteTextReadResult, content: string): RemoteTextReadResult {
+  return {
+    ...result,
+    content,
+    truncated: true,
+    lineCount: countTextLines(content),
+    expected_base: null,
+  };
+}
+
+function safeTextPrefix(content: string, length: number): string {
+  let end = Math.min(length, content.length);
+  if (end > 0) {
+    const code = content.charCodeAt(end - 1);
+    if (code >= 0xd800 && code <= 0xdbff) end -= 1;
+  }
+  return content.slice(0, end);
 }
 
 export async function runRemoteAccessBridge(options: {
@@ -554,6 +649,8 @@ async function handleLiveRemoteAccessRequest(
     requester_handshake?: RemoteAccessHandshake;
     operation?: ProjectRemoteAccessRequestFrame["operation"];
     arguments?: Record<string, unknown>;
+    ignored_read_grant?: unknown;
+    ignored_read_context?: { chatId?: unknown; operationId?: unknown };
   };
   try {
     bootstrap = JSON.parse(bootstrapText) as typeof bootstrap;
@@ -598,7 +695,7 @@ async function handleLiveRemoteAccessRequest(
       sourceHandshake.handshake,
       bootstrap.requester_handshake,
     );
-    let response: Record<string, unknown>;
+    let responseText: string;
     try {
       let result: unknown;
       if (isProjectFileMutationOperation(frame.operation)) {
@@ -626,21 +723,36 @@ async function handleLiveRemoteAccessRequest(
           },
         });
       } else {
-        result = await executeRemoteAccessOperation(binding.source.rootPath, frame.operation, bootstrap.arguments);
+        let approvedIgnoredPath: string | null = null;
+        const requestedPath = typeof bootstrap.arguments.path === "string" ? bootstrap.arguments.path : ".";
+        const ignoredReadContext = bootstrap.ignored_read_context;
+        if (frame.operation === "read_text" && bootstrap.ignored_read_grant !== undefined
+          && ignoredReadContext && typeof ignoredReadContext.chatId === "string"
+          && typeof ignoredReadContext.operationId === "string"
+          && await verifyProjectIgnoredReadGrant(binding.projectKey, bootstrap.ignored_read_grant, {
+            projectId: frame.project_id,
+            sourceId: frame.source_id,
+            requestId: frame.request_id,
+            chatId: ignoredReadContext.chatId,
+            operationId: ignoredReadContext.operationId,
+            path: requestedPath,
+          })) {
+          approvedIgnoredPath = requestedPath;
+        }
+        result = await executeRemoteAccessOperation(binding.source.rootPath, frame.operation, bootstrap.arguments, {
+          isIgnoredReadApproved: approvedIgnoredPath === null ? undefined : (path) => path === approvedIgnoredPath,
+        });
       }
-      response = {
-        ok: true,
-        result,
-      };
+      responseText = serializeRemoteAccessSuccessResponse(result);
     } catch (error) {
-      response = { ok: false, error: remoteAccessOperationErrorCode(error) };
+      responseText = JSON.stringify({ ok: false, error: remoteAccessOperationErrorCode(error) });
     }
     const envelope = await sealRemoteAccessEnvelope(
       sessionKey,
       identity,
       frame.request_id,
       "result",
-      new TextEncoder().encode(JSON.stringify(response)),
+      new TextEncoder().encode(responseText),
     );
     await ws.sendAsync("project_remote_access_complete", {
       source_session_id: sourceSessionId,
@@ -660,13 +772,20 @@ async function executeRemoteAccessOperation(
   sourceRoot: string,
   operation: ProjectRemoteAccessRequestFrame["operation"],
   args: Record<string, unknown>,
+  trustedOptions: { isIgnoredReadApproved?: (path: string) => boolean } = {},
 ): Promise<unknown> {
   const relativePath = typeof args.path === "string" ? args.path : ".";
   if (operation === "list") {
     return listRemoteAccessDirectory({ sourceRoot, relativePath });
   }
   if (operation === "read_text") {
-    return readRemoteAccessTextFile({ sourceRoot, relativePath });
+    const limits = remoteAccessReadLimits(args);
+    return readRemoteAccessTextFile({
+      sourceRoot,
+      relativePath,
+      ...limits,
+      isIgnoredReadApproved: trustedOptions.isIgnoredReadApproved,
+    });
   }
   if (operation !== "search") throw new Error("unsupported_operation");
   return searchRemoteSource({
@@ -681,32 +800,23 @@ async function executeRemoteAccessOperation(
   });
 }
 
-function remoteAccessOperationErrorCode(error: unknown): string {
+export function remoteAccessOperationErrorCode(error: unknown): string {
   if (error instanceof RemoteFileMutationError) return error.code;
   if (error instanceof ProjectSearchProtocolError) return error.code;
+  if (error instanceof ProjectPathAccessError) {
+    return error.code === "private_path" ? "protected_path" : error.code;
+  }
   const message = error instanceof Error ? error.message : "";
   if (message === "write_authorization_denied") return message;
   if (typeof (error as { code?: unknown })?.code === "string"
     && /authorization|focus|approval|write.policy|permission/i.test(String((error as { code: string }).code))) {
     return "write_authorization_denied";
   }
-  if (/protected|ignored/i.test(message)) return "protected_path";
+  if (/protected|private/i.test(message)) return "protected_path";
   if (/binary|unsupported/i.test(message)) return "unsupported_file";
   if (/symbolic link|approved source root|not a directory|not a regular file|ENOENT/i.test(message)) return "invalid_path";
   if (message === "regex_search_unavailable") return message;
   return "operation_failed";
-}
-
-function isGitIgnoredPath(sourceRoot: string, relativePath: string): boolean {
-  if (!existsSync(join(sourceRoot, ".git"))) return false;
-  const result = spawnSync("git", ["check-ignore", "--quiet", "--", relativePath], {
-    cwd: sourceRoot,
-    stdio: "ignore",
-  });
-  if (result.error) throw result.error;
-  if (result.status === 0) return true;
-  if (result.status === 1) return false;
-  throw new Error("Could not evaluate Git ignored-file policy");
 }
 
 function reconnectDelayMs(attempt: number): number {
@@ -800,7 +910,7 @@ export async function searchStoredRemoteAccessSource(options: StoredRemoteAccess
 }
 
 export async function searchRemoteSource(options: RemoteAccessSearchOptions): Promise<RemoteAccessSearchResult> {
-  const sourceRoot = canonicalProjectSourceRoot(options.sourceRoot);
+  const sourceRoot = canonicalProjectSourceRoot(options.sourceRoot, { stateDirectory: options.stateDirectory });
   const request = normalizeProjectSearchRequest({
     query: options.query,
     target: options.target,
@@ -809,27 +919,33 @@ export async function searchRemoteSource(options: RemoteAccessSearchOptions): Pr
     glob: options.glob,
     max_results: options.maxResults,
   });
-  const protectedPatterns = options.userProtectedPatterns ?? [];
+  const policy = loadProjectPathPolicy(sourceRoot, {
+    trustedPrivatePaths: options.userProtectedPatterns,
+    stateDirectory: options.stateDirectory,
+    discoverNestedIgnoreFiles: true,
+  });
   const targetPath = resolveApprovedPath(sourceRoot, request.path);
   const searchPath = relative(sourceRoot, targetPath).replace(/\\/g, "/") || ".";
-  if (classifyProjectFileReadRisk(searchPath, protectedPatterns).isHighRisk) {
+  if (searchPath !== "." && (policy.isPrivate(searchPath, statSync(targetPath).isDirectory())
+    || policy.isIgnored(searchPath, statSync(targetPath).isDirectory()))) {
     throw new Error("Remote source search path is protected");
   }
+  const hardlinkExclusions = collectSearchHardlinkExclusions(sourceRoot, targetPath, policy);
 
   try {
     if (request.target === "files") {
-      return await searchRemoteFileNamesWithRg(options.runRg, sourceRoot, searchPath, request, protectedPatterns);
+      return await searchRemoteFileNamesWithRg(options.runRg, sourceRoot, searchPath, request, policy, hardlinkExclusions);
     }
     const output = await options.runRg(
-      buildRgContentSearchArgs(request, searchPath, protectedPatterns),
+      buildRgContentSearchArgs(request, searchPath, policy, hardlinkExclusions),
       sourceRoot,
       request.maxResults + 1,
     );
-    return collectRgContentMatches(output, sourceRoot, request, protectedPatterns);
+    return collectRgContentMatches(output, sourceRoot, request, policy);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     if (request.mode === "regex") throw new ProjectSearchProtocolError("regex_search_unavailable");
-    return searchRemoteSourceWithoutRg(request, sourceRoot, targetPath, protectedPatterns);
+    return searchRemoteSourceWithoutRg(request, sourceRoot, targetPath, policy);
   }
 }
 
@@ -837,7 +953,7 @@ function collectRgContentMatches(
   output: string,
   sourceRoot: string,
   request: ReturnType<typeof normalizeProjectSearchRequest>,
-  userProtectedPatterns: string[],
+  policy: LoadedProjectPathPolicy,
 ): RemoteAccessSearchResult {
   const matches: RemoteAccessSearchMatch[] = [];
   let omitted = 0;
@@ -847,7 +963,7 @@ function collectRgContentMatches(
     const match = parseRgMatch(line);
     if (!match) continue;
     if (
-      shouldExcludeReadPath(sourceRoot, match.path, userProtectedPatterns)
+      shouldExcludeReadPath(sourceRoot, match.path, policy)
       || !isWithinSearchPath(match.path, request.path)
       || !matchesProjectSearchGlob(match.path, request.glob)
       || (match.line ?? 0) > DEFAULT_MAX_READ_LINES
@@ -868,7 +984,7 @@ function searchRemoteSourceWithoutRg(
   request: ReturnType<typeof normalizeProjectSearchRequest>,
   sourceRoot: string,
   targetPath: string,
-  userProtectedPatterns: string[],
+  policy: LoadedProjectPathPolicy,
 ): RemoteAccessSearchResult {
   const root = canonicalProjectSourceRoot(sourceRoot);
   const deadline = Date.now() + SEARCH_TIMEOUT_MS;
@@ -898,8 +1014,8 @@ function searchRemoteSourceWithoutRg(
         if (
           entry.name === ".git"
           || entry.isSymbolicLink()
-          || isGitIgnoredPath(root, relativePath)
-          || classifyProjectFileReadRisk(relativePath, userProtectedPatterns).isHighRisk
+          || policy.isIgnored(relativePath, entry.isDirectory())
+          || policy.isPrivate(relativePath, entry.isDirectory())
         ) {
           excluded += 1;
           continue;
@@ -919,7 +1035,7 @@ function searchRemoteSourceWithoutRg(
     for (const absolutePath of candidateFiles) {
       const relativePath = relative(root, absolutePath).replace(/\\/g, "/");
       if (
-        shouldExcludeReadPath(root, relativePath, userProtectedPatterns)
+        shouldExcludeReadPath(root, relativePath, policy)
         || isBinaryFile(absolutePath)
         || !matchesProjectSearchGlob(relativePath, request.glob)
       ) {
@@ -945,7 +1061,7 @@ function searchRemoteSourceWithoutRg(
         const read = readRemoteAccessTextFile({
           sourceRoot: root,
           relativePath,
-          userProtectedPatterns,
+          isIgnoredReadApproved: () => false,
         });
         if (read.sizeBytes > DEFAULT_MAX_READ_BYTES) {
           excluded += 1;
@@ -975,10 +1091,11 @@ async function searchRemoteFileNamesWithRg(
   sourceRoot: string,
   searchPath: string,
   request: ReturnType<typeof normalizeProjectSearchRequest>,
-  userProtectedPatterns: string[],
+  policy: LoadedProjectPathPolicy,
+  hardlinkExclusions: readonly string[],
 ): Promise<RemoteAccessSearchResult> {
   const output = await runRg(
-    buildRgFileListArgs(request, searchPath, userProtectedPatterns),
+    buildRgFileListArgs(request, searchPath, policy, hardlinkExclusions),
     sourceRoot,
     MAX_FALLBACK_SEARCH_FILES + 1,
   );
@@ -990,7 +1107,7 @@ async function searchRemoteFileNamesWithRg(
     const path = normalizeRgPath(rawPath);
     if (
       path === null
-      || shouldExcludeReadPath(sourceRoot, path, userProtectedPatterns)
+      || shouldExcludeReadPath(sourceRoot, path, policy)
       || !isWithinSearchPath(path, request.path)
       || !matchesProjectSearchGlob(path, request.glob)
     ) {
@@ -1032,9 +1149,10 @@ function assertSafeSourceId(sourceId: string): void {
 function buildRgContentSearchArgs(
   request: ReturnType<typeof normalizeProjectSearchRequest>,
   searchPath: string,
-  userProtectedPatterns: string[],
+  policy: LoadedProjectPathPolicy,
+  hardlinkExclusions: readonly string[],
 ): string[] {
-  const args = baseRgArgs(userProtectedPatterns);
+  const args = baseRgArgs(policy, hardlinkExclusions);
   args.push("--json", "--line-number", "--max-filesize", String(DEFAULT_MAX_READ_BYTES));
   if (request.mode === "literal") args.push("--fixed-strings");
   if (request.glob) args.push("--glob", request.glob);
@@ -1045,9 +1163,10 @@ function buildRgContentSearchArgs(
 function buildRgFileListArgs(
   request: ReturnType<typeof normalizeProjectSearchRequest>,
   searchPath: string,
-  userProtectedPatterns: string[],
+  policy: LoadedProjectPathPolicy,
+  hardlinkExclusions: readonly string[],
 ): string[] {
-  const args = baseRgArgs(userProtectedPatterns);
+  const args = baseRgArgs(policy, hardlinkExclusions);
   args.push("--files");
   if (request.glob) args.push("--glob", request.glob);
   args.push("--", searchPath);
@@ -1058,16 +1177,17 @@ function buildRgFilenameRegexArgs(query: string): string[] {
   return ["--no-config", "--color", "never", "--json", "--line-number", "--regexp", query, "--", "-"];
 }
 
-function baseRgArgs(userProtectedPatterns: string[]): string[] {
-  const args = ["--no-config", "--hidden", "--color", "never"];
+function baseRgArgs(policy: LoadedProjectPathPolicy, hardlinkExclusions: readonly string[]): string[] {
+  // --no-require-git keeps .gitignore semantics in attached plain folders too.
+  const args = ["--no-config", "--hidden", "--color", "never", "--no-require-git"];
   for (const pattern of [
     ".git",
     ".git/**",
     "**/.git/**",
-    ...PROJECT_CREDENTIAL_GLOBS,
     ...binaryRgGlobs(),
-    ...userProtectedPatterns,
-  ]) args.push("--glob", `!${pattern.replace(/\\/g, "/")}`);
+    ...policy.rgExclusionGlobs(),
+    ...hardlinkExclusions,
+  ]) args.push("--iglob", `!${pattern.replace(/\\/g, "/")}`);
   return args;
 }
 
@@ -1182,12 +1302,46 @@ export async function runRgCommand(
   });
 }
 
-function shouldExcludeReadPath(sourceRoot: string, relativePath: string, userProtectedPatterns: string[]): boolean {
+function shouldExcludeReadPath(sourceRoot: string, relativePath: string, policy: LoadedProjectPathPolicy): boolean {
   if (normalizeRgPath(relativePath) === null) return true;
   if (!isPathInsideRoot(sourceRoot, relativePath)) return true;
   if (isBinaryPath(relativePath)) return true;
-  if (isGitIgnoredPath(sourceRoot, relativePath)) return true;
-  return classifyProjectFileReadRisk(relativePath, userProtectedPatterns).isHighRisk;
+  return policy.isIgnored(relativePath) || policy.isPrivate(relativePath);
+}
+
+/** Enumerate metadata only so rg never opens a multiply-linked file before policy can inspect it. */
+function collectSearchHardlinkExclusions(
+  sourceRoot: string,
+  targetPath: string,
+  policy: LoadedProjectPathPolicy,
+): string[] {
+  const target = lstatSync(targetPath);
+  if (target.isFile()) {
+    const path = relative(sourceRoot, targetPath).replace(/\\/g, "/");
+    return target.nlink > 1 ? [path] : [];
+  }
+  if (!target.isDirectory()) return [];
+  const directories = [targetPath];
+  const hardlinks: string[] = [];
+  let inspected = 0;
+  while (directories.length > 0) {
+    const directory = directories.pop() as string;
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (++inspected > MAX_FALLBACK_SEARCH_FILES) {
+        throw new Error("Remote source search alias scan exceeded its bounded file limit");
+      }
+      if (entry.name === ".git" || entry.isSymbolicLink()) continue;
+      const absolute = join(directory, entry.name);
+      const path = relative(sourceRoot, absolute).replace(/\\/g, "/");
+      if (entry.isDirectory()) {
+        if (!policy.isIgnored(path, true) && !policy.isPrivate(path, true)) directories.push(absolute);
+        continue;
+      }
+      if (!entry.isFile() || policy.isIgnored(path) || policy.isPrivate(path)) continue;
+      if (lstatSync(absolute).nlink > 1) hardlinks.push(path);
+    }
+  }
+  return hardlinks;
 }
 
 function isWithinSearchPath(path: string, searchPath: string): boolean {
@@ -1270,6 +1424,12 @@ function resolveApprovedPath(sourceRoot: string, relativePath: string): string {
   if (!relativePath || relativePath.includes("\0")) throw new Error("Remote source path is invalid");
   const lexical = resolve(sourceRoot, relativePath);
   assertInsideRoot(sourceRoot, lexical);
+  const relation = relative(sourceRoot, lexical);
+  let current = sourceRoot;
+  for (const part of relation.split(/[\\/]/).filter(Boolean)) {
+    current = join(current, part);
+    if (lstatSync(current).isSymbolicLink()) throw new Error("Remote source path is a symbolic link");
+  }
   const canonical = realpathSync(lexical);
   assertInsideRoot(sourceRoot, canonical);
   return canonical;

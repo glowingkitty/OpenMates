@@ -28,6 +28,7 @@ import type { ProjectMentionAccessMode } from "../extensions/GenericMentionNode"
 import { getApiUrl } from "../../../config/api";
 import { getCurrentLanguage } from "../../../i18n/setup";
 import { proxyImage } from "../../../utils/imageProxy";
+import { buildProjectMentionSyntax } from "./projectMentionSyntax";
 
 /**
  * Types of mentionable items in the @ dropdown.
@@ -197,6 +198,7 @@ export interface SettingsMemoryEntryMentionResult extends MentionResult {
 export interface ProjectMentionResult extends MentionResult {
   type: "project" | "project_folder" | "project_file";
   projectId: string;
+  projectSourceId?: string;
   projectPath?: string;
   projectAccessMode: ProjectMentionAccessMode;
 }
@@ -393,21 +395,6 @@ function toProjectMentionAccessMode(writeMode: unknown): ProjectMentionAccessMod
   return writeMode === "apply_and_show" ? "read_write" : "read";
 }
 
-export function buildProjectMentionSyntax(
-  type: ProjectMentionResult["type"],
-  projectId: string,
-  accessMode: ProjectMentionAccessMode,
-  path?: string,
-): string {
-  if (type === "project") {
-    return `@project:${projectId}:${accessMode}`;
-  }
-  const encodedPath = encodeURIComponent(path ?? "/");
-  return type === "project_folder"
-    ? `@project-folder:${projectId}:${encodedPath}:${accessMode}`
-    : `@project-file:${projectId}:${encodedPath}:${accessMode}`;
-}
-
 function getStringField(value: unknown, field: string): string | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const fieldValue = (value as Record<string, unknown>)[field];
@@ -443,18 +430,20 @@ function buildProjectMentionResult(
   label: string,
   subtitle: string,
   path?: string,
+  sourceId?: string,
 ): ProjectMentionResult {
   const mentionDisplayName = toHyphenatedName(label);
   return {
-    id: path ? `${type}:${project.project_id}:${path}` : `${type}:${project.project_id}`,
+    id: path ? `${type}:${project.project_id}:${sourceId ?? "hosted"}:${path}` : `${type}:${project.project_id}`,
     type,
     displayName: label,
     mentionDisplayName,
     subtitle,
     icon: "project",
-    mentionSyntax: buildProjectMentionSyntax(type, project.project_id, accessMode, path),
-    searchTerms: buildSearchTerms(label, subtitle, project.name, project.project_id, path),
+    mentionSyntax: buildProjectMentionSyntax(type, project.project_id, accessMode, path, sourceId),
+    searchTerms: buildSearchTerms(label, subtitle, project.name, project.project_id, sourceId, path),
     projectId: project.project_id,
+    projectSourceId: sourceId,
     projectPath: path,
     projectAccessMode: accessMode,
   };
@@ -476,6 +465,7 @@ function buildProjectSourceMentionResults(
       `${project.name}-${sourceLabel}`,
       `Remote source folder: ${source.status}`,
       rootPath,
+      source.source_id,
     ),
   );
 
@@ -488,6 +478,7 @@ function buildProjectSourceMentionResults(
         `${project.name}-${basename(path)}`,
         path,
         path,
+        source.source_id,
       ),
     );
   }

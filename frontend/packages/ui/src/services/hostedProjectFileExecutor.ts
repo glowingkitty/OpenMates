@@ -3,6 +3,8 @@ import { applyProjectFilePatch } from "../utils/projectFilePatch";
 import { projectFileMutationDigest, type ProjectFileMutation } from "../utils/projectFileMutationProtocol";
 import type { ProjectFileJob } from "./projectFileJobExecutor";
 import { isProtectedProjectReadPath, normalizeProjectSearchRequest, matchesProjectSearchGlob, matchesProjectSearchQuery } from "../utils/projectSearchProtocol";
+import { createProjectPathPolicy, type ProjectIgnoreFile, type ProjectPathPolicy } from "../utils/projectPathPolicy";
+import { parse } from "yaml";
 
 export interface HostedProjectFile {
   embedId: string;
@@ -26,9 +28,18 @@ export interface HostedProjectFileAdapter {
   encodeContent: (content: Record<string, unknown>) => Promise<string>;
   commit: (payload: Record<string, unknown>) => Promise<Record<string, unknown>>;
   receipt: (embedId: string, job: ProjectFileJob, digest: string) => Promise<Record<string, unknown> | null>;
+  /** Decrypted from authoritative Project settings by the client, then added to file-local policy. */
+  privatePaths?: readonly string[];
+  /** Validates a caller-owned, ephemeral grant for this exact ignored-file read. */
+  isIgnoredReadApproved?: (path: string, job: ProjectFileJob) => boolean | Promise<boolean>;
 }
 
 const bytes = (value: string) => new TextEncoder().encode(value);
+const PERMISSIONS_PATH = ".openmates/permissions.yml";
+const MAX_IGNORE_FILES = 64;
+const MAX_CONTROL_FILE_BYTES = 64 * 1024;
+const MAX_CONTROL_BYTES = 256 * 1024;
+const MAX_PRIVATE_PATHS = 256;
 function failure(code: string): never { throw Object.assign(new Error(code), { code }); }
 function hasControlCharacters(value: string): boolean {
   for (const character of value) {
@@ -64,11 +75,167 @@ function textContent(head: HostedProjectFileHead): string {
   return content;
 }
 
+interface HostedProjectPolicyState {
+  files: HostedProjectFile[];
+  policy: ProjectPathPolicy;
+  excluded: number;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function parsePrivatePaths(content: string): string[] {
+  let document: unknown;
+  try {
+    document = parse(content, { schema: "core", uniqueKeys: true, maxAliasCount: 0 });
+  } catch {
+    failure("protected_path");
+  }
+  if (document === null || document === undefined) return [];
+  if (!isRecord(document)) failure("protected_path");
+  const fileAccess = document.file_access;
+  if (fileAccess === undefined) return [];
+  if (!isRecord(fileAccess)) failure("protected_path");
+  const privatePaths = fileAccess.private_paths;
+  if (privatePaths === undefined) return [];
+  if (!Array.isArray(privatePaths) || privatePaths.length > MAX_PRIVATE_PATHS
+      || privatePaths.some((path) => typeof path !== "string" || !path || bytes(path).length > 4_096)) {
+    failure("protected_path");
+  }
+  return privatePaths as string[];
+}
+
+async function loadProjectPolicy(adapter: HostedProjectFileAdapter, listed: HostedProjectFile[]): Promise<HostedProjectPolicyState> {
+  const files: HostedProjectFile[] = [];
+  const privateEmbedIds = new Set<string>();
+  let excluded = 0;
+  for (const file of listed) {
+    let path: string;
+    try { path = normalizeHostedProjectPath(file.path); }
+    catch {
+      // A protected or malformed metadata link taints the ciphertext target. An
+      // otherwise innocuous alias must not make the same embed readable.
+      privateEmbedIds.add(file.embedId);
+      excluded++;
+      continue;
+    }
+    files.push({ ...file, path });
+  }
+
+  const ignoreControls = files
+    .filter((file) => file.path === ".gitignore" || file.path.endsWith("/.gitignore"))
+    .sort((left, right) => left.path.split("/").length - right.path.split("/").length || left.path.localeCompare(right.path));
+  const permissionsControls = files.filter((file) => file.path === PERMISSIONS_PATH);
+  if (ignoreControls.length > MAX_IGNORE_FILES || permissionsControls.length > 1) failure("protected_path");
+  const controls = [...ignoreControls, ...permissionsControls];
+  if (new Set(controls.map((file) => file.path)).size !== controls.length) failure("protected_path");
+
+  const privatePaths = adapter.privatePaths;
+  if (privatePaths !== undefined && (!Array.isArray(privatePaths) || privatePaths.length > MAX_PRIVATE_PATHS
+      || privatePaths.some((path) => typeof path !== "string" || !path || bytes(path).length > 4_096))) {
+    failure("protected_path");
+  }
+  let controlBytes = 0;
+  const ignoreFiles: ProjectIgnoreFile[] = [];
+  let filePrivatePaths: string[] = [];
+  if (permissionsControls[0]) {
+    if (privateEmbedIds.has(permissionsControls[0].embedId)) failure("protected_path");
+    let content: string;
+    try { content = textContent(await adapter.readHead(permissionsControls[0].embedId)); }
+    catch { failure("protected_path"); }
+    const size = bytes(content).length;
+    controlBytes += size;
+    if (size > MAX_CONTROL_FILE_BYTES || controlBytes > MAX_CONTROL_BYTES) failure("protected_path");
+    filePrivatePaths = parsePrivatePaths(content);
+  }
+
+  let privatePolicy: ProjectPathPolicy;
+  try {
+    privatePolicy = createProjectPathPolicy({
+      ignoreFiles: [],
+      privatePaths: [...(privatePaths ?? []), ...filePrivatePaths],
+    });
+  } catch {
+    failure("protected_path");
+  }
+  for (const file of files) {
+    if (file.path === PERMISSIONS_PATH || privatePolicy.isPrivate(file.path)) privateEmbedIds.add(file.embedId);
+  }
+  for (const control of ignoreControls) {
+    // An authoritative or file-local private rule takes effect before the ignore body is decrypted.
+    if (privateEmbedIds.has(control.embedId)) {
+      if (control.path === ".gitignore") failure("protected_path");
+      continue;
+    }
+    let currentIgnorePolicy: ProjectPathPolicy;
+    try {
+      currentIgnorePolicy = createProjectPathPolicy({
+        ignoreFiles,
+        privatePaths: [...(privatePaths ?? []), ...filePrivatePaths],
+      });
+    } catch {
+      failure("protected_path");
+    }
+    // Git does not read a nested ignore file excluded by a parent policy. Do not decrypt it either.
+    if (currentIgnorePolicy.isIgnored(control.path, false)) continue;
+    let content: string;
+    try { content = textContent(await adapter.readHead(control.embedId)); }
+    catch { failure("protected_path"); }
+    const size = bytes(content).length;
+    controlBytes += size;
+    if (size > MAX_CONTROL_FILE_BYTES || controlBytes > MAX_CONTROL_BYTES) failure("protected_path");
+    ignoreFiles.push({ path: control.path, content });
+  }
+
+  let policy: ProjectPathPolicy;
+  try {
+    policy = createProjectPathPolicy({
+      ignoreFiles,
+      privatePaths: [...(privatePaths ?? []), ...filePrivatePaths],
+    });
+  } catch {
+    failure("protected_path");
+  }
+  const visibleFiles = files.filter((file) => {
+    if (!privateEmbedIds.has(file.embedId)) return true;
+    excluded++;
+    return false;
+  });
+  return { files: visibleFiles, policy, excluded };
+}
+
+function isPrivate(policy: ProjectPathPolicy, path: string): boolean {
+  return path === PERMISSIONS_PATH || policy.isPrivate(path);
+}
+
+function isPolicyControl(path: string): boolean {
+  return path === PERMISSIONS_PATH || path === ".gitignore" || path.endsWith("/.gitignore");
+}
+
+async function assertDirectPathAllowed(
+  adapter: HostedProjectFileAdapter,
+  policy: ProjectPathPolicy,
+  job: ProjectFileJob,
+  path: string,
+): Promise<void> {
+  if (isPrivate(policy, path)) failure("protected_path");
+  if (job.operation !== "read_text" && isPolicyControl(path)) failure("protected_path");
+  if (!policy.isIgnored(path, false)) return;
+  if (job.operation !== "read_text" || !adapter.isIgnoredReadApproved) failure("ignored_path_requires_approval");
+  let approved = false;
+  try { approved = await adapter.isIgnoredReadApproved(path, job); }
+  catch { /* A failed grant validation denies the read. */ }
+  if (!approved) failure("ignored_path_requires_approval");
+}
+
 export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdapter, job: ProjectFileJob, mutation?: ProjectFileMutation): Promise<Record<string, unknown>> {
-  const files = await adapter.listFiles();
+  const loaded = await loadProjectPolicy(adapter, await adapter.listFiles());
+  const { files, policy } = loaded;
   if (job.operation === "list") {
     const prefix = job.arguments.path === undefined || job.arguments.path === "." || job.arguments.path === "" ? "" : `${normalizeHostedProjectPath(job.arguments.path)}/`;
-    const matched = files.filter((file) => file.path.startsWith(prefix));
+    const matched = files.filter((file) => file.path.startsWith(prefix)
+      && !isPrivate(policy, file.path) && !policy.isIgnored(file.path, false));
     return { entries: matched.slice(0, 500).map((file) => ({ path: file.path, kind: "file" })), truncated: matched.length > 500 };
   }
   if (job.operation === "search") {
@@ -76,12 +243,11 @@ export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdap
     const search = normalizeProjectSearchRequest(job.arguments);
     if (search.mode === "regex") failure("regex_search_unavailable");
     const prefix = search.path === "." ? "" : normalizeHostedProjectPath(search.path);
-    let excluded = 0;
+    let excluded = loaded.excluded;
     const candidates: HostedProjectFile[] = [];
     for (const file of files) {
-      let path: string;
-      try { path = normalizeHostedProjectPath(file.path); }
-      catch { excluded++; continue; }
+      const path = file.path;
+      if (isPrivate(policy, path) || policy.isIgnored(path, false)) { excluded++; continue; }
       if ((!prefix || path === prefix || path.startsWith(`${prefix}/`)) && matchesProjectSearchGlob(path, search.glob)) {
         candidates.push({ ...file, path });
       }
@@ -124,6 +290,7 @@ export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdap
     };
   }
   const path = normalizeHostedProjectPath(job.arguments.path);
+  await assertDirectPathAllowed(adapter, policy, job, path);
   const found = files.filter((file) => file.path === path);
   if (found.length > 1) failure("ambiguous_file_path");
   if (job.operation === "read_text") {
@@ -133,7 +300,6 @@ export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdap
     return { path, content, expected_base: await projectFileContentHash(content), revision: head.revision, size_bytes: bytes(content).length, truncated: false };
   }
   if (!mutation) failure("invalid_file_mutation");
-  if (path === ".openmates/permissions.yml") failure("protected_path");
   const creating = mutation.operation === "create_file";
   const embedId = found[0]?.embedId ?? await hostedProjectFileIdentity(adapter.projectKey, path, "embed");
   const digest = await projectFileMutationDigest(adapter.projectKey, adapter.projectId, job.chat_id, mutation);

@@ -1395,6 +1395,10 @@ def check_approval(path: Path, session_id: str, specification_id: str, fingerpri
     if record.get("confirmation") != "explicit_user_confirmation":
         return f"unconfirmed approval for {specification_id}"
     if record.get("fingerprint") != fingerprint:
+        # A later, explicitly approved Plan batch can supersede a stale direct
+        # receipt. The batch still validates the exact current bundle hash.
+        if _check_batch_approval(session, session_id, specification_id, fingerprint) is None:
+            return None
         return f"stale approval for {specification_id}: bundle fingerprint changed"
     review_artifact = record.get("review_artifact")
     if not isinstance(review_artifact, dict) or review_artifact.get("fingerprint") != fingerprint:

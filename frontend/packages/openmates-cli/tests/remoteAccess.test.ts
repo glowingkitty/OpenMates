@@ -26,6 +26,7 @@ import {
   listRemoteAccessDirectory,
   projectRemoteAccessLifecyclePayload,
   readRemoteAccessTextFile,
+  remoteAccessOperationErrorCode,
   remoteAccessSourceType,
   resolveRemoteAccessRoots,
   resolveRemoteCachePath,
@@ -470,6 +471,32 @@ const timer = setInterval(() => {
         () => readRemoteAccessTextFile({ sourceRoot: root, relativePath: "private-notes.txt" }),
         /ignored/,
       );
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=projects.files.private-path-deny
+  it("reports a direct private file read with the stable public protected-path code", () => {
+    const home = join(tmpdir(), `openmates-remote-private-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const root = join(home, "repo");
+    mkdirSync(join(root, ".openmates"), { recursive: true });
+    mkdirSync(join(root, "private"), { recursive: true });
+    writeFileSync(
+      join(root, ".openmates", "permissions.yml"),
+      "schema_version: 1\npresets: []\nfile_access:\n  private_paths:\n    - private/\n",
+    );
+    writeFileSync(join(root, "private", "customer-export.csv"), "PRIVATE_DUMMY_CANARY\n");
+    try {
+      let readError: unknown;
+      assert.throws(
+        () => readRemoteAccessTextFile({ sourceRoot: root, relativePath: "private/customer-export.csv" }),
+        (error: unknown) => {
+          readError = error;
+          return true;
+        },
+      );
+      assert.equal(remoteAccessOperationErrorCode(readError), "protected_path");
     } finally {
       rmSync(home, { recursive: true, force: true });
     }

@@ -21,7 +21,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
 import lockfile from "proper-lockfile";
 
 import { applyProjectFilePatch, ProjectFilePatchError } from "../../ui/src/utils/projectFilePatch.js";
@@ -30,6 +29,7 @@ import {
   type ProjectFileMutation,
 } from "../../ui/src/utils/projectFileMutationProtocol.js";
 import { classifyProjectFileReadRisk } from "./projectFileRisk.js";
+import { loadProjectPathPolicy, ProjectPathAccessError } from "./projectPathPolicy.js";
 import { canonicalProjectSourceRoot } from "./projectSourceRootPolicy.js";
 import { acquireRemoteProjectFileEditLock } from "./remoteCommandSourceLock.js";
 
@@ -288,11 +288,17 @@ function enforcePathPolicy(root: string, path: string, userProtectedPatterns: st
     || classifyProjectFileReadRisk(path, userProtectedPatterns).isHighRisk) {
     throw new RemoteFileMutationError("protected_path", "Project file path is protected");
   }
-  if (!existsSync(join(root, ".git"))) return;
-  const ignored = spawnSync("git", ["check-ignore", "--quiet", "--", path], { cwd: root, stdio: "ignore" });
-  if (ignored.error) throw ignored.error;
-  if (ignored.status === 0) throw new RemoteFileMutationError("protected_path", "Project file path is ignored");
-  if (ignored.status !== 1) throw new RemoteFileMutationError("protected_path", "Could not evaluate ignored-file policy");
+  try {
+    loadProjectPathPolicy(root, {
+      trustedPrivatePaths: userProtectedPatterns,
+      targetPaths: [path],
+    }).assertWritablePath(path);
+  } catch (error) {
+    if (error instanceof ProjectPathAccessError) {
+      throw new RemoteFileMutationError("protected_path", "Project file path is ignored or private");
+    }
+    throw error;
+  }
 }
 
 function openPinnedParent(root: string, path: string): PinnedParent {

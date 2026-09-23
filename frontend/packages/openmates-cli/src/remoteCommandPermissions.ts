@@ -49,6 +49,9 @@ export interface RemoteCredentialProfileDefinition {
 
 export interface RemoteCommandPermissions {
   schema_version: 1;
+  file_access: {
+    private_paths: string[];
+  };
   presets: RemoteCommandPresetDefinition[];
   resource_profiles: {
     writable: RemoteWritableProfileDefinition[];
@@ -155,15 +158,27 @@ export function matchEnabledRemoteCommandPreset(options: {
 
 function validateRoot(value: unknown): RemoteCommandPermissions {
   const root = record(value, "permissions");
-  exactKeys(root, ["schema_version", "presets", "resource_profiles"], "permissions");
+  exactKeys(root, ["schema_version", "file_access", "presets", "resource_profiles"], "permissions");
   if (root.schema_version !== 1) throw new RemoteCommandPermissionsError("schema_version must be 1");
+  const fileAccess = root.file_access === undefined
+    ? { private_paths: [] }
+    : validateFileAccess(root.file_access);
   const resources = root.resource_profiles === undefined
     ? { writable: [], network: [], credentials: [] }
     : validateResources(root.resource_profiles);
   const presets = array(root.presets, "presets").map((item, index) => validatePreset(item, index));
   uniqueIds(presets, "preset");
   validateReferences(presets, resources);
-  return { schema_version: 1, presets, resource_profiles: resources };
+  return { schema_version: 1, file_access: fileAccess, presets, resource_profiles: resources };
+}
+
+function validateFileAccess(value: unknown): RemoteCommandPermissions["file_access"] {
+  const fileAccess = record(value, "file_access");
+  exactKeys(fileAccess, ["private_paths"], "file_access");
+  const privatePaths = optionalArray(fileAccess.private_paths, "file_access.private_paths")
+    .map((item, index) => projectPrivatePath(item, `file_access.private_paths[${index}]`));
+  assertUnique(privatePaths, "file_access.private_paths");
+  return { private_paths: privatePaths };
 }
 
 function validateResources(value: unknown): RemoteCommandPermissions["resource_profiles"] {
@@ -277,6 +292,33 @@ function projectRelativePath(value: unknown, context: string): string {
     throw new RemoteCommandPermissionsError(`${context} must be a normalized Project-relative path`);
   }
   return normalized;
+}
+
+function projectPrivatePath(value: unknown, context: string): string {
+  let path = boundedString(value, context, 1, 1_024);
+  if (path.startsWith("./")) path = path.slice(2);
+  if (!path.trim() || path.startsWith("!") || path.startsWith("#") || path.startsWith("//")
+    || path.includes("\\") || hasControlCharacter(path)) {
+    throw new RemoteCommandPermissionsError(`${context} must be an additive Project-relative path glob`);
+  }
+  if (/^[A-Za-z]:/.test(path) || (isAbsolute(path) && !path.startsWith("/"))) {
+    throw new RemoteCommandPermissionsError(`${context} must be Project-relative`);
+  }
+  const segments = path.replace(/^\//, "").replace(/\/$/, "").split("/");
+  if (segments.some((segment) => segment === "..")) {
+    throw new RemoteCommandPermissionsError(`${context} cannot contain a parent path segment`);
+  }
+  if (segments.every((segment) => segment.length === 0)) {
+    throw new RemoteCommandPermissionsError(`${context} must identify a Project path`);
+  }
+  return path;
+}
+
+function hasControlCharacter(value: string): boolean {
+  return [...value].some((character) => {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127;
+  });
 }
 
 function networkDestination(value: unknown, context: string): string {

@@ -30,6 +30,7 @@ import {
   type RemoteCommandStatus,
 } from "./remoteCommandRuntime.js";
 import { createRemoteHttpsConnectNetworkAdapter } from "./remoteCommandNetwork.js";
+import type { RemoteCommandAppArmorConfinement } from "./remoteCommandAppArmor.js";
 import {
   loadRemoteCommandPermissions,
   type RemoteCommandPermissions,
@@ -64,6 +65,7 @@ export interface RemoteCommandSourceRuntimeHooks {
     claim: RemoteCommandNetworkClaim,
     preflight: RemoteCommandPreflight,
   ) => Promise<RemoteCommandNetworkConfinement>;
+  prepareAppArmorConfinement?: (preflight: RemoteCommandPreflight) => Promise<RemoteCommandAppArmorConfinement>;
   now?: () => Date;
   maxRetainedOutputBytes?: number;
 }
@@ -256,6 +258,7 @@ export class RemoteCommandSourceController {
       ...(hooks.capability ? { capability: hooks.capability } : {}),
       ...(hooks.launchSandbox ? { launchSandbox: hooks.launchSandbox } : {}),
       prepareNetworkConfinement: hooks.prepareNetworkConfinement ?? createRemoteHttpsConnectNetworkAdapter(),
+      ...(hooks.prepareAppArmorConfinement ? { prepareAppArmorConfinement: hooks.prepareAppArmorConfinement } : {}),
       ...(hooks.now ? { now: hooks.now } : {}),
       ...(hooks.maxRetainedOutputBytes === undefined ? {} : { maxRetainedOutputBytes: hooks.maxRetainedOutputBytes }),
     };

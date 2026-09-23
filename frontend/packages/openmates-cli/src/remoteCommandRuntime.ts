@@ -18,6 +18,13 @@ import {
   canonicalOpenMatesStateDirectory,
   canonicalProjectSourceRoot,
 } from "./projectSourceRootPolicy.js";
+import { loadProjectPathPolicy, type LoadedProjectPathPolicy } from "./projectPathPolicy.js";
+import {
+  inspectRemoteCommandAppArmorCapability,
+  prepareRemoteCommandAppArmorConfinement,
+  REMOTE_COMMAND_BWRAP,
+  type RemoteCommandAppArmorConfinement,
+} from "./remoteCommandAppArmor.js";
 
 export type RemoteCommandStatus = "authorizing" | "running" | "succeeded" | "failed" | "stopped" | "timed_out";
 
@@ -83,8 +90,14 @@ export interface RemoteCommandPreflight {
   writable_targets: readonly Readonly<RemoteCommandWritableTarget>[];
   network: Readonly<RemoteCommandNetworkClaim> | null;
   credentials: readonly Readonly<RemoteCommandCredentialClaim>[];
+  /** Sticky effective private-path policy, pinned into the exact approval digest. */
+  path_policy_digest: string;
+  /** Conservative live path-denial patterns installed by the trusted AppArmor broker. */
+  private_path_globs: readonly string[];
   /** Existing credential/control paths hidden from the sandbox source mount. */
   masked_project_paths: readonly Readonly<{ path: string; kind: "file" | "directory" }>[];
+  /** In-Project policy and agent rule paths kept immutable for source-writing commands. */
+  protected_project_paths: readonly Readonly<{ path: string; kind: "file" | "directory" }>[];
 }
 
 export type RemoteCommandApproval =
@@ -169,6 +182,7 @@ export interface RemoteCommandRuntimeOptions {
   revalidateAuthority: (preflight: RemoteCommandPreflight) => Promise<RemoteCommandAuthority>;
   resolvePresetState?: () => Promise<RemoteCommandPresetState>;
   prepareNetworkConfinement?: (claim: RemoteCommandNetworkClaim, preflight: RemoteCommandPreflight) => Promise<RemoteCommandNetworkConfinement>;
+  prepareAppArmorConfinement?: (preflight: RemoteCommandPreflight) => Promise<RemoteCommandAppArmorConfinement>;
   capability?: () => RemoteCommandCapability;
   launchSandbox?: (launch: RemoteCommandSandboxLaunch) => RemoteCommandSandboxProcess;
   now?: () => Date;
@@ -193,6 +207,7 @@ const MAX_ARGUMENT_BYTES = 16 * 1024;
 const MAX_PROJECT_MASK_SCAN_ENTRIES = 250_000;
 const MIN_DEADLINE_MS = 100;
 const MAX_DEADLINE_MS = 24 * 60 * 60 * 1000;
+const GIT_CONFIG_PRIVATE_GLOB = "**/.git/config";
 const SAFE_ENVIRONMENT = Object.freeze({
   PATH: "/usr/local/bin:/usr/bin:/bin",
   HOME: "/tmp/openmates-home",
@@ -235,6 +250,7 @@ export class RemoteCommandRuntime {
     this.#emitStatus(job);
 
     let network: RemoteCommandNetworkConfinement | null = null;
+    let appArmor: RemoteCommandAppArmorConfinement | null = null;
     try {
       const capability = (this.#options.capability ?? inspectRemoteCommandCapability)();
       assertCapability(capability);
@@ -258,19 +274,33 @@ export class RemoteCommandRuntime {
       if (this.#canceled(job)) return snapshot(job);
       if (approval.kind === "preset") await this.#validatePresetApproval(preflight, approval);
       if (this.#canceled(job)) return snapshot(job);
-      assertProjectCredentialMaskCurrent(preflight);
+      assertProjectPathPolicyCurrent(preflight);
       job.redactionSecrets = credentialValues(preflight, authority);
+      appArmor = await this.#prepareAppArmor(preflight);
+      // The broker profile is immutable. Recheck after its privileged setup so
+      // a policy edit during preparation cannot launch under stale denials.
+      assertProjectPathPolicyCurrent(preflight);
+      if (this.#canceled(job)) {
+        await appArmor.dispose();
+        appArmor = null;
+        job.redactionSecrets = [];
+        return snapshot(job);
+      }
       network = await this.#prepareNetwork(preflight);
       if (this.#canceled(job)) {
         if (network?.dispose) await network.dispose();
         network = null;
+        await appArmor.dispose();
+        appArmor = null;
         job.redactionSecrets = [];
         return snapshot(job);
       }
-      const launch = prepareSandboxLaunch(preflight, authority, capability, network);
+      const launch = prepareSandboxLaunch(preflight, authority, capability, network, appArmor);
       if (this.#canceled(job)) {
         if (network?.dispose) await network.dispose();
         network = null;
+        await appArmor.dispose();
+        appArmor = null;
         job.redactionSecrets = [];
         return snapshot(job);
       }
@@ -283,11 +313,16 @@ export class RemoteCommandRuntime {
       this.#collectOutput(job, process.stdout, "stdout");
       this.#collectOutput(job, process.stderr, "stderr");
       job.timer = setTimeout(() => void this.#requestStop(job, "timed_out"), preflight.policy.deadline_ms);
-      void this.#complete(job, process, network?.dispose ?? null);
+      void this.#complete(job, process, [
+        ...(network?.dispose ? [{ dispose: network.dispose, errorCode: "network_profile_unavailable" as const }] : []),
+        { dispose: appArmor.dispose, errorCode: "confinement_unavailable" as const },
+      ]);
       network = null;
+      appArmor = null;
       return snapshot(job);
     } catch (error) {
       if (network?.dispose) await network.dispose().catch(() => undefined);
+      if (appArmor) await appArmor.dispose().catch(() => undefined);
       if (this.#canceled(job)) {
         job.redactionSecrets = [];
         return snapshot(job);
@@ -433,6 +468,27 @@ export class RemoteCommandRuntime {
     return prepared;
   }
 
+  async #prepareAppArmor(preflight: RemoteCommandPreflight): Promise<RemoteCommandAppArmorConfinement> {
+    try {
+      const prepare = this.#options.prepareAppArmorConfinement ?? ((current: RemoteCommandPreflight) => (
+        prepareRemoteCommandAppArmorConfinement({
+          execution_id: current.execution_id,
+          source_root: current.source_root,
+          private_policy_digest: current.path_policy_digest,
+          private_globs: current.private_path_globs,
+          exact_private_aliases: current.masked_project_paths,
+          exact_readonly_paths: current.protected_project_paths,
+        }, current.toolchain_paths)
+      ));
+      return await prepare(preflight);
+    } catch (error) {
+      throw new RemoteCommandError(
+        "confinement_unavailable",
+        error instanceof Error ? error.message : "AppArmor command confinement could not be prepared",
+      );
+    }
+  }
+
   #createJob(preflight: RemoteCommandPreflight): MutableJob {
     let resolveCompletion!: (job: RemoteCommandJob) => void;
     const completion = new Promise<RemoteCommandJob>((resolvePromise) => { resolveCompletion = resolvePromise; });
@@ -515,7 +571,11 @@ export class RemoteCommandRuntime {
     await job.process.terminate();
   }
 
-  async #complete(job: MutableJob, process: RemoteCommandSandboxProcess, disposeNetwork: (() => Promise<void>) | null): Promise<void> {
+  async #complete(
+    job: MutableJob,
+    process: RemoteCommandSandboxProcess,
+    confinements: Array<{ dispose: () => Promise<void>; errorCode: "network_profile_unavailable" | "confinement_unavailable" }>,
+  ): Promise<void> {
     try {
       const result = await process.wait();
       job.exit_code = result.code;
@@ -536,15 +596,15 @@ export class RemoteCommandRuntime {
       }
     } finally {
       if (job.timer) clearTimeout(job.timer);
-      if (disposeNetwork) {
+      for (const confinement of confinements) {
         try {
-          await disposeNetwork();
+          await confinement.dispose();
         } catch (error) {
           if (job.status === "succeeded") {
             job.status = "failed";
-            job.error_code = "network_profile_unavailable";
+            job.error_code = confinement.errorCode;
             job.error_message = redactCredentialValues(
-              error instanceof Error ? error.message : "Failed to clean up network confinement",
+              error instanceof Error ? error.message : "Failed to release command confinement",
               job.redactionSecrets,
             );
           }
@@ -607,8 +667,8 @@ export function createRemoteCommandPreflight(request: RemoteCommandRequest): Rem
   const canonicalPolicy = { ...request.policy, argv: [...request.policy.argv], cwd: relative(root, cwd).split(sep).join("/") || "." };
   const toolchains = request.toolchain_paths.map(canonicalDirectory);
   assertUnique(toolchains, "toolchain paths");
-  if (toolchains.some((path) => path === root || isInside(path, root))) {
-    throw new RemoteCommandError("invalid_request", "A toolchain mount cannot contain the Project source root");
+  if (toolchains.some((path) => pathsOverlap(path, root))) {
+    throw new RemoteCommandError("invalid_request", "A toolchain mount cannot overlap the Project source root");
   }
   if (toolchains.some((path) => path === privateState || isInside(path, privateState))) {
     throw new RemoteCommandError(
@@ -650,8 +710,22 @@ export function createRemoteCommandPreflight(request: RemoteCommandRequest): Rem
     if (!claim.environment.length || claim.environment.some((name) => !/^[A-Z_][A-Z0-9_]{0,127}$/.test(name))) {
       throw new RemoteCommandError("invalid_request", `Invalid credential environment for profile: ${claim.profile_id}`);
     }
+    if (claim.environment.includes("LD_PRELOAD")) {
+      throw new RemoteCommandError("invalid_request", "Credential profiles cannot override the Git config compatibility boundary");
+    }
     assertUnique(claim.environment, `credential profile ${claim.profile_id}`);
   }
+  let pathPolicy: LoadedProjectPathPolicy;
+  try {
+    pathPolicy = loadProjectPathPolicy(root);
+  } catch (error) {
+    throw new RemoteCommandError(
+      "confinement_unavailable",
+      error instanceof Error ? error.message : "Project private-path policy cannot be established",
+    );
+  }
+  const projectPathProtection = discoverProjectPathProtection(root, pathPolicy);
+  const privatePathGlobs = [...new Set([...pathPolicy.privateGlobs(), GIT_CONFIG_PRIVATE_GLOB])].sort();
   const digestInput = {
     execution_id: executionId,
     project_id: request.project_id,
@@ -661,11 +735,14 @@ export function createRemoteCommandPreflight(request: RemoteCommandRequest): Rem
     writable_targets: writable,
     network,
     credentials,
+    path_policy_digest: pathPolicy.privateDigest,
+    private_path_globs: privatePathGlobs,
+    masked_project_paths: projectPathProtection.masked,
+    protected_project_paths: projectPathProtection.protected,
   };
   const preflight: RemoteCommandPreflight = {
     ...digestInput,
     request_digest: sha256(stableJson(digestInput)),
-    masked_project_paths: discoverProjectCredentialMasks(root),
   };
   return deepFreeze(preflight);
 }
@@ -674,11 +751,15 @@ export function inspectRemoteCommandCapability(): RemoteCommandCapability {
   if (process.platform !== "linux") {
     return { supported: false, platform: process.platform, mechanism: null, reason: `OS-enforced command confinement is not implemented for ${process.platform}` };
   }
-  const executable = "/usr/bin/bwrap";
+  const executable = REMOTE_COMMAND_BWRAP;
   if (!existsSync(executable)) {
-    return { supported: false, platform: process.platform, mechanism: null, reason: "bubblewrap is not installed at /usr/bin/bwrap" };
+    return { supported: false, platform: process.platform, mechanism: null, reason: `OpenMates bubblewrap launcher is not installed at ${executable}` };
   }
-  const probe = spawnSync(executable, ["--unshare-user", "--unshare-pid", "--unshare-net", "--ro-bind", "/", "/", "--", "/bin/true"], {
+  const appArmor = inspectRemoteCommandAppArmorCapability({ bwrapPath: executable });
+  if (!appArmor.supported) {
+    return { supported: false, platform: process.platform, mechanism: null, reason: appArmor.reason };
+  }
+  const probe = spawnSync(executable, ["--unshare-user", "--unshare-pid", "--unshare-net", "--disable-userns", "--assert-userns-disabled", "--ro-bind", "/", "/", "--", "/bin/true"], {
     encoding: "utf8",
     timeout: 5_000,
     env: { PATH: SAFE_ENVIRONMENT.PATH },
@@ -706,12 +787,20 @@ function prepareSandboxLaunch(
   authority: RemoteCommandAuthority,
   capability: RemoteCommandCapability,
   network: RemoteCommandNetworkConfinement | null,
+  appArmor: RemoteCommandAppArmorConfinement,
 ): RemoteCommandSandboxLaunch {
   if (!capability.executable) throw new RemoteCommandError("confinement_unavailable", "Sandbox executable is unavailable");
-  const args = ["--unshare-all", "--die-with-parent", "--new-session", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--dir", "/tmp/openmates-home"];
+  const args = ["--unshare-all", "--unshare-user", "--disable-userns", "--assert-userns-disabled", "--die-with-parent", "--new-session", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--dir", "/tmp/openmates-home"];
   for (const path of preflight.toolchain_paths) args.push("--ro-bind", path, path);
   addStandardToolchainSymlinks(args, preflight.toolchain_paths);
   args.push(preflight.policy.source_access === "read_write" ? "--bind" : "--ro-bind", preflight.source_root, "/project");
+  if (preflight.policy.source_access === "read_write") {
+    for (const protectedPath of preflight.protected_project_paths) {
+      args.push("--ro-bind", join(preflight.source_root, protectedPath.path), `/project/${protectedPath.path}`);
+    }
+  }
+  // Private masks must be the final mounts below /project so a read-only
+  // control directory cannot reveal a private descendant again.
   for (const masked of preflight.masked_project_paths) {
     const destination = `/project/${masked.path}`;
     if (masked.kind === "directory") args.push("--tmpfs", destination);
@@ -722,18 +811,27 @@ function prepareSandboxLaunch(
     for (const target of preflight.writable_targets) args.push("--bind", target.host_path, writableSandboxPath(target.profile_id));
   }
   if (network) args.push(...network.bwrap_args);
-  const sandboxCommand = network?.sandbox_command;
-  const commandArgv = sandboxCommand
-    ? [sandboxCommand.executable, ...sandboxCommand.args, "--", ...preflight.policy.argv]
+  const networkCommand = network?.sandbox_command;
+  const approvedCommand = networkCommand
+    ? [networkCommand.executable, ...networkCommand.args, "--", ...preflight.policy.argv]
     : preflight.policy.argv;
+  const commandArgv = [appArmor.sandbox_command.executable, ...appArmor.sandbox_command.args, "--", ...approvedCommand];
   args.push("--chdir", preflight.policy.cwd === "." ? "/project" : `/project/${preflight.policy.cwd}`, "--", ...commandArgv);
   const networkEnvironment = network?.environment ?? {};
   for (const name of Object.keys(networkEnvironment)) {
-    if (name in SAFE_ENVIRONMENT || preflight.credentials.some((claim) => claim.environment.includes(name))) {
+    if (name in SAFE_ENVIRONMENT || name === "LD_PRELOAD" || preflight.credentials.some((claim) => claim.environment.includes(name))) {
       throw new RemoteCommandError("network_profile_unavailable", `Network transport attempted to override protected environment variable: ${name}`);
     }
   }
-  const environment: Record<string, string> = { ...SAFE_ENVIRONMENT, ...networkEnvironment };
+  const appArmorEnvironment = appArmor.sandbox_environment;
+  if (!appArmorEnvironment
+    || Object.keys(appArmorEnvironment).length !== 1
+    || typeof appArmorEnvironment.LD_PRELOAD !== "string"
+    || !isAbsolute(appArmorEnvironment.LD_PRELOAD)
+    || appArmorEnvironment.LD_PRELOAD.includes("\0")) {
+    throw new RemoteCommandError("confinement_unavailable", "AppArmor confinement returned an invalid Git config compatibility library");
+  }
+  const environment: Record<string, string> = { ...SAFE_ENVIRONMENT, ...networkEnvironment, ...appArmorEnvironment };
   for (const target of preflight.writable_targets) environment[`OPENMATES_WRITABLE_${target.profile_id.toUpperCase().replaceAll("-", "_")}`] = writableSandboxPath(target.profile_id);
   for (const requested of preflight.credentials) {
     const granted = authority.credential_profiles.find((profile) => profile.profile_id === requested.profile_id);
@@ -827,8 +925,23 @@ function addStandardToolchainSymlinks(args: string[], toolchainPaths: readonly s
   }
 }
 
+interface ProjectPathProtection {
+  masked: Array<{ path: string; kind: "file" | "directory" }>;
+  protected: Array<{ path: string; kind: "file" | "directory" }>;
+}
+
 function discoverProjectCredentialMasks(root: string): Array<{ path: string; kind: "file" | "directory" }> {
-  const entries: Array<{ path: string; kind: "file" | "directory"; inode: string | null; protected: boolean }> = [];
+  return discoverProjectPathProtection(root, null).masked;
+}
+
+function discoverProjectPathProtection(root: string, policy: LoadedProjectPathPolicy | null): ProjectPathProtection {
+  const entries: Array<{
+    path: string;
+    kind: "file" | "directory";
+    inode: string | null;
+    masked: boolean;
+    protected: boolean;
+  }> = [];
   const directories = [""];
   let visited = 0;
   try {
@@ -842,18 +955,28 @@ function discoverProjectCredentialMasks(root: string): Array<{ path: string; kin
         const path = parent ? `${parent}/${entry.name}` : entry.name;
         const fullPath = join(root, path);
         const stat = lstatSync(fullPath);
-        let protectedPath = classifyProjectFileReadRisk(path).isHighRisk || path.toLowerCase() === ".git/config";
+        const kind = entry.isDirectory() ? "directory" as const : "file" as const;
+        let masked = policy
+          ? policy.isPrivate(path, kind === "directory") || path.toLowerCase() === ".git/config"
+          : classifyProjectFileReadRisk(path).isHighRisk || path.toLowerCase() === ".git/config";
+        let protectedPath = isProjectControlPath(path, kind);
         if (entry.isSymbolicLink()) {
           try {
             const target = realpathSync(fullPath);
-            if (!isInside(root, target)) protectedPath = true;
-            else protectedPath ||= classifyProjectFileReadRisk(relative(root, target).split(sep).join("/")).isHighRisk;
+            if (!isInside(root, target)) masked = true;
+            else {
+              const targetPath = relative(root, target).split(sep).join("/");
+              const targetKind = statSync(target).isDirectory() ? "directory" as const : "file" as const;
+              masked ||= policy
+                ? policy.isPrivate(targetPath, targetKind === "directory") || targetPath.toLowerCase() === ".git/config"
+                : classifyProjectFileReadRisk(targetPath).isHighRisk || targetPath.toLowerCase() === ".git/config";
+              protectedPath ||= isProjectControlPath(targetPath, targetKind);
+            }
           } catch {
             // Broken links cannot expose content through the sandbox.
           }
         }
-        const kind = entry.isDirectory() ? "directory" as const : "file" as const;
-        entries.push({ path, kind, inode: entry.isSymbolicLink() ? null : `${stat.dev}:${stat.ino}`, protected: protectedPath });
+        entries.push({ path, kind, inode: entry.isSymbolicLink() ? null : `${stat.dev}:${stat.ino}`, masked, protected: protectedPath });
         if (entry.isDirectory()) directories.push(path);
       }
     }
@@ -864,23 +987,54 @@ function discoverProjectCredentialMasks(root: string): Array<{ path: string; kin
       `Project credential paths cannot be enumerated safely: ${error instanceof Error ? error.message : "unknown error"}`,
     );
   }
+  const maskedInodes = new Set(entries.filter((entry) => entry.masked && entry.inode).map((entry) => entry.inode));
   const protectedInodes = new Set(entries.filter((entry) => entry.protected && entry.inode).map((entry) => entry.inode));
-  const candidates = entries
-    .filter((entry) => entry.protected || (entry.inode !== null && protectedInodes.has(entry.inode)))
+  const maskedCandidates = entries
+    .filter((entry) => entry.masked || (entry.inode !== null && maskedInodes.has(entry.inode)))
     .sort((left, right) => left.path.split("/").length - right.path.split("/").length || left.path.localeCompare(right.path));
   const masks: Array<{ path: string; kind: "file" | "directory" }> = [];
-  for (const candidate of candidates) {
+  for (const candidate of maskedCandidates) {
     if (masks.some((mask) => mask.kind === "directory" && candidate.path.startsWith(`${mask.path}/`))) continue;
     masks.push({ path: candidate.path, kind: candidate.kind });
   }
-  return masks;
+  const protectedPaths: Array<{ path: string; kind: "file" | "directory" }> = [];
+  for (const candidate of entries
+    .filter((entry) => entry.protected || (entry.inode !== null && protectedInodes.has(entry.inode)))
+    .sort((left, right) => left.path.split("/").length - right.path.split("/").length || left.path.localeCompare(right.path))) {
+    if (masks.some((mask) => mask.path === candidate.path || (mask.kind === "directory" && candidate.path.startsWith(`${mask.path}/`)))) continue;
+    if (protectedPaths.some((item) => item.kind === "directory" && candidate.path.startsWith(`${item.path}/`))) continue;
+    protectedPaths.push({ path: candidate.path, kind: candidate.kind });
+  }
+  return { masked: masks, protected: protectedPaths };
 }
 
-function assertProjectCredentialMaskCurrent(preflight: RemoteCommandPreflight): void {
-  const current = discoverProjectCredentialMasks(preflight.source_root);
-  if (stableJson(current) !== stableJson(preflight.masked_project_paths)) {
-    throw new RemoteCommandError("confinement_unavailable", "Project credential paths changed during command authorization; prepare a fresh execution");
+function assertProjectPathPolicyCurrent(preflight: RemoteCommandPreflight): void {
+  let policy: LoadedProjectPathPolicy;
+  try {
+    policy = loadProjectPathPolicy(preflight.source_root);
+  } catch (error) {
+    throw new RemoteCommandError(
+      "confinement_unavailable",
+      error instanceof Error ? error.message : "Project private-path policy cannot be revalidated",
+    );
   }
+  const current = discoverProjectPathProtection(preflight.source_root, policy);
+  if (policy.privateDigest !== preflight.path_policy_digest
+    || stableJson([...new Set([...policy.privateGlobs(), GIT_CONFIG_PRIVATE_GLOB])].sort()) !== stableJson(preflight.private_path_globs)
+    || stableJson(current.masked) !== stableJson(preflight.masked_project_paths)
+    || stableJson(current.protected) !== stableJson(preflight.protected_project_paths)) {
+    throw new RemoteCommandError("confinement_unavailable", "Project private-path policy changed during command authorization; prepare a fresh execution");
+  }
+}
+
+function isProjectControlPath(path: string, kind: "file" | "directory"): boolean {
+  const normalized = path.toLowerCase();
+  if (normalized === ".openmates/permissions.yml") return true;
+  if (kind === "file" && (normalized === "agents.md" || normalized.endsWith("/agents.md")
+    || normalized === "claude.md" || normalized.endsWith("/claude.md"))) return true;
+  return normalized === ".openmates/rules" || normalized.startsWith(".openmates/rules/")
+    || normalized === ".claude/rules" || normalized.startsWith(".claude/rules/")
+    || normalized === ".agents/rules" || normalized.startsWith(".agents/rules/");
 }
 
 function assertCapability(capability: RemoteCommandCapability): void {
