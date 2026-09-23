@@ -1155,6 +1155,7 @@ describe("server preflight and Caddy planning", () => {
       "SECRET__BRAVE__API_KEY=sk-brave",
       "SECRET__GOOGLE__OAUTH_CLIENT_ID=client-id",
       "OPENOBSERVE_ROOT_PASSWORD=secret",
+      "APNS_PRIVATE_KEY=private-key-material",
       "APP_AI_WORKER_CONCURRENCY=3",
     ].join("\n"));
 
@@ -1163,6 +1164,7 @@ describe("server preflight and Caddy planning", () => {
       ["SECRET__GOOGLE__OAUTH_CLIENT_ID", "integrations", "<redacted>"],
       ["OPENOBSERVE_ROOT_PASSWORD", "observability", "<redacted>"],
       ["SECRET__BRAVE__API_KEY", "providers", "<redacted>"],
+      ["APNS_PRIVATE_KEY", "runtime", "<redacted>"],
       ["DATABASE_NAME", "runtime", "directus"],
     ]);
     assert.equal(redactEnvValue("SECRET__OPENAI__API_KEY", "IMPORTED_TO_VAULT"), "IMPORTED_TO_VAULT");
