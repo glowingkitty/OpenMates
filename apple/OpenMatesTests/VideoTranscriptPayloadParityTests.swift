@@ -62,6 +62,106 @@ final class VideoTranscriptPayloadParityTests: XCTestCase {
 
     // contract-test: direct surface=gui.apple assertions=videos.transcript.surface-parity
     @MainActor
+    func testParentPreviewMetadataRetainsVideoURLBeforeChildHydrates() {
+        let payload = VideoTranscriptPayload(data: [
+            "result_count": AnyCodable(1),
+            "preview_results": AnyCodable([[
+                "url": "https://www.youtube.com/watch?v=8S0FDjFBj8o"
+            ]])
+        ])
+
+        XCTAssertEqual(payload.sourceURL, "https://www.youtube.com/watch?v=8S0FDjFBj8o")
+        XCTAssertEqual(payload.videoID, "8S0FDjFBj8o")
+        XCTAssertNotNil(payload.videoThumbnailURL)
+        XCTAssertTrue(payload.transcript.isEmpty)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=videos.transcript.surface-parity
+    @MainActor
+    func testPersistedParentMetadataAndChildTranscriptMergeForFullscreen() {
+        let parent: [String: AnyCodable] = [
+            "preview_results": AnyCodable([[
+                "url": "https://www.youtube.com/watch?v=8S0FDjFBj8o",
+                "title": "Parent preview title",
+                "thumbnail_url": "https://i.ytimg.com/vi/8S0FDjFBj8o/hqdefault.jpg"
+            ]])
+        ]
+        let child: [String: AnyCodable] = [
+            "type": AnyCodable("transcript_result"),
+            "transcript": AnyCodable("Hydrated child transcript"),
+            "word_count": AnyCodable(3)
+        ]
+
+        let payload = VideoTranscriptPayload(
+            data: VideoTranscriptPayload.mergedData(parent: parent, child: child)
+        )
+
+        XCTAssertEqual(payload.title, "Parent preview title")
+        XCTAssertEqual(payload.sourceURL, "https://www.youtube.com/watch?v=8S0FDjFBj8o")
+        XCTAssertEqual(payload.transcript, "Hydrated child transcript")
+        XCTAssertEqual(payload.wordCount, 3)
+        XCTAssertNotNil(payload.videoThumbnailURL)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=videos.transcript.surface-parity
+    @MainActor
+    func testTranscriptChildrenStayScopedToTheirPersistedParent() {
+        let firstParent = transcriptRecord(
+            id: "transcript-parent-a",
+            type: "app:videos:get_transcript",
+            data: ["preview_results": AnyCodable([["title": "First"]])],
+            embedIds: "transcript-child-a"
+        )
+        let secondParent = transcriptRecord(
+            id: "transcript-parent-b",
+            type: "app:videos:get_transcript",
+            data: ["preview_results": AnyCodable([["title": "Second"]])],
+            embedIds: "transcript-child-b"
+        )
+        let unlinkedParent = transcriptRecord(
+            id: "transcript-parent-unlinked",
+            type: "app:videos:get_transcript",
+            data: [:]
+        )
+        let firstChild = transcriptRecord(
+            id: "transcript-child-a",
+            type: "videos-video",
+            data: ["transcript": AnyCodable("First transcript")],
+            parentEmbedId: firstParent.id
+        )
+        let secondChild = transcriptRecord(
+            id: "transcript-child-b",
+            type: "videos-video",
+            data: ["transcript": AnyCodable("Second transcript")],
+            parentEmbedId: secondParent.id
+        )
+        let records = [firstChild, secondChild].reduce(into: [String: EmbedRecord]()) {
+            $0[$1.id] = $1
+        }
+
+        let first = AppSkillUseRenderer.videoTranscriptData(
+            embed: firstParent,
+            parentData: firstParent.rawData ?? [:],
+            allEmbedRecords: records
+        )
+        let second = AppSkillUseRenderer.videoTranscriptData(
+            embed: secondParent,
+            parentData: secondParent.rawData ?? [:],
+            allEmbedRecords: records
+        )
+        let unlinked = AppSkillUseRenderer.videoTranscriptData(
+            embed: unlinkedParent,
+            parentData: unlinkedParent.rawData ?? [:],
+            allEmbedRecords: records
+        )
+
+        XCTAssertEqual(VideoTranscriptPayload(data: first).transcript, "First transcript")
+        XCTAssertEqual(VideoTranscriptPayload(data: second).transcript, "Second transcript")
+        XCTAssertTrue(VideoTranscriptPayload(data: unlinked).transcript.isEmpty)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=videos.transcript.surface-parity
+    @MainActor
     func testMalformedCompactToonRowDoesNotConsumeFollowingMetadata() throws {
         let persistedToon = #"""
         app_id: videos
@@ -86,5 +186,25 @@ final class VideoTranscriptPayloadParityTests: XCTestCase {
         XCTAssertEqual(record.rawData?["result_count"]?.value as? String, "1")
         XCTAssertEqual(record.rawData?["status"]?.value as? String, "finished")
         XCTAssertEqual(record.rawData?["embed_ref"]?.value as? String, "youtube.com-public")
+    }
+
+    private func transcriptRecord(
+        id: String,
+        type: String,
+        data: [String: AnyCodable],
+        parentEmbedId: String? = nil,
+        embedIds: String? = nil
+    ) -> EmbedRecord {
+        EmbedRecord(
+            id: id,
+            type: type,
+            status: .finished,
+            data: .raw(data),
+            parentEmbedId: parentEmbedId,
+            appId: "videos",
+            skillId: type == "videos-video" ? "transcript_result" : "get_transcript",
+            embedIds: embedIds,
+            createdAt: nil
+        )
     }
 }

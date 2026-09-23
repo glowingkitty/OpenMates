@@ -27,6 +27,10 @@ struct EmbedFullscreenContainer: View {
     var onOpenEmbed: (EmbedRecord, EmbedRecord) -> Void = { _, _ in }
     var onClose: () -> Void = {}
     var isSidePanel = false
+    /// Web `EmbedHeader` switches at the browser viewport breakpoint, not at
+    /// the width of a side-by-side embed pane. This remains separate from the
+    /// pane width used to size the header frame.
+    var responsiveViewportWidth: CGFloat? = nil
     var showChat = false
     var onShowChat: () -> Void = {}
 
@@ -187,7 +191,8 @@ struct EmbedFullscreenContainer: View {
                                 onNavigateNext: { withAnimation { navigateFullscreen(by: 1) } },
                                 headerCTA: headerCTA(for: embed),
                                 topContentInset: safeAreaInsets.top,
-                                viewportWidth: proxy.size.width
+                                viewportWidth: proxy.size.width,
+                                responsiveViewportWidth: responsiveViewportWidth
                             )
                             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { headerFrame = $0 }
                             .zIndex(2)
@@ -963,6 +968,16 @@ struct EmbedHeaderCTA {
     }
 }
 
+enum EmbedFullscreenHeaderLayout {
+    static func isNarrow(viewportWidth: CGFloat?, fallbackCompact: Bool) -> Bool {
+        viewportWidth.map { $0 <= 730 } ?? fallbackCompact
+    }
+
+    static func height(viewportWidth: CGFloat?, fallbackCompact: Bool, topContentInset: CGFloat) -> CGFloat {
+        (isNarrow(viewportWidth: viewportWidth, fallbackCompact: fallbackCompact) ? 190 : 240) + topContentInset
+    }
+}
+
 struct EmbedFullscreenHeader: View {
     let embed: EmbedRecord
     var hasPreviousEmbed = false
@@ -972,16 +987,26 @@ struct EmbedFullscreenHeader: View {
     var headerCTA: EmbedHeaderCTA?
     var topContentInset: CGFloat = 0
     var viewportWidth: CGFloat? = nil
+    var responsiveViewportWidth: CGFloat? = nil
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     // Match the web's width breakpoint, including narrow macOS windows and
     // iPad split views whose platform size class may remain regular.
-    private var isNarrow: Bool { viewportWidth.map { $0 <= 730 } ?? (horizontalSizeClass == .compact) }
+    private var isNarrow: Bool {
+        EmbedFullscreenHeaderLayout.isNarrow(
+            viewportWidth: responsiveViewportWidth ?? viewportWidth,
+            fallbackCompact: horizontalSizeClass == .compact
+        )
+    }
     private var embedType: EmbedType? { EmbedType.normalized(rawValue: embed.type) }
     private var appId: String { embed.appId ?? embedType?.appId ?? "web" }
     private var headerHeight: CGFloat {
-        (isNarrow ? 190 : 240) + topContentInset
+        EmbedFullscreenHeaderLayout.height(
+            viewportWidth: responsiveViewportWidth ?? viewportWidth,
+            fallbackCompact: horizontalSizeClass == .compact,
+            topContentInset: topContentInset
+        )
     }
     private var headerFrameHeight: CGFloat {
         headerHeight

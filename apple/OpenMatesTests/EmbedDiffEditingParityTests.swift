@@ -210,6 +210,38 @@ final class EmbedDiffEditingParityTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    @MainActor
+    func testCompositeHydrationIncludesEncryptedChildrenWithoutDecodedPayloads() {
+        let parent = embed(
+            id: "search-parent",
+            type: "app-skill-use",
+            data: ["type": "app_skill_use"],
+            embedIds: "search-child"
+        )
+        let encryptedChild = EmbedRecord(
+            id: "search-child",
+            type: "web-website",
+            status: .finished,
+            data: nil,
+            encryptedContent: "encrypted-child-content",
+            parentEmbedId: parent.id,
+            appId: "web",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: "2026-01-01T00:00:01Z"
+        )
+
+        XCTAssertTrue(ChatViewModel.hasUndecryptedRequiredEmbed(
+            ids: [parent.id, encryptedChild.id],
+            records: [parent.id: parent, encryptedChild.id: encryptedChild]
+        ))
+        XCTAssertFalse(ChatViewModel.hasUndecryptedRequiredEmbed(
+            ids: [parent.id],
+            records: [parent.id: parent, encryptedChild.id: encryptedChild]
+        ))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testEmbedRecordDecodesVersionMetadataFromWebPayload() throws {
         let json = """
         {
@@ -311,6 +343,25 @@ final class EmbedHeaderActionLayoutParityTests: XCTestCase {
         XCTAssertTrue(EmbedHeaderActionPolicy.overlaps(control: control, header: CGRect(x: 0, y: -100, width: 390, height: 190)))
         XCTAssertFalse(EmbedHeaderActionPolicy.overlaps(control: control, header: CGRect(x: 0, y: -190, width: 390, height: 190)))
         XCTAssertFalse(EmbedHeaderActionPolicy.overlaps(control: control, header: .zero))
+    }
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testFullscreenHeaderBreakpointUsesWorkspaceViewportInsteadOfNarrowSidePane() {
+        XCTAssertFalse(
+            EmbedFullscreenHeaderLayout.isNarrow(viewportWidth: 1_100, fallbackCompact: true),
+            "A narrow side pane in a wide iPad workspace keeps the web viewport's desktop header"
+        )
+        XCTAssertTrue(
+            EmbedFullscreenHeaderLayout.isNarrow(viewportWidth: 700, fallbackCompact: false),
+            "A genuinely narrow fullscreen viewport uses the web's compact header"
+        )
+        XCTAssertEqual(
+            EmbedFullscreenHeaderLayout.height(viewportWidth: 1_100, fallbackCompact: true, topContentInset: 0),
+            240
+        )
+        XCTAssertEqual(
+            EmbedFullscreenHeaderLayout.height(viewportWidth: 700, fallbackCompact: false, topContentInset: 0),
+            190
+        )
     }
 }
 

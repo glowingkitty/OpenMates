@@ -2011,9 +2011,10 @@ final class ChatViewModel: ObservableObject {
                 record.childEmbedIds.isEmpty &&
                 !embedRecords.values.contains { $0.parentEmbedId == record.id }
         }
-        let hasEncryptedUndecryptedRecord = referencedRecords.contains { record in
-            record.rawData == nil && (record.encryptedContent != nil || record.encryptedType != nil)
-        }
+        let hasEncryptedUndecryptedRecord = Self.hasUndecryptedRequiredEmbed(
+            ids: requiredEmbedIds,
+            records: embedRecords
+        )
         NativeSyncPerfLog.info(
             "phase=loadEmbedsStart chat=\(chatId.prefix(8)) requestedMessages=\(requestedMessageIds.count) referenced=\(referencedEmbedIds.count) children=\(referencedChildIds.count) loaded=\(loadedEmbedIds.count) unresolvedComposite=\(hasUnresolvedCompositeParent) encryptedUndecrypted=\(hasEncryptedUndecryptedRecord)"
         )
@@ -2078,6 +2079,15 @@ final class ChatViewModel: ObservableObject {
         }
 
         return result
+    }
+
+    static func hasUndecryptedRequiredEmbed(
+        ids: Set<String>,
+        records: [String: EmbedRecord]
+    ) -> Bool {
+        ids.compactMap { records[$0] }.contains { record in
+            record.rawData == nil && (record.encryptedContent != nil || record.encryptedType != nil)
+        }
     }
 
     private func visibleWindow(from rawMessages: [Message], anchorMessageId: String? = nil,

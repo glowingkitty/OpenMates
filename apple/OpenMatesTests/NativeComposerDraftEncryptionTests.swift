@@ -156,6 +156,69 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertFalse(String(reflecting: updated).contains(updatedMarkdown))
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
+    func testRecordingSnapshotIsEncryptedAndRestoresOnlyWhenMarkdownReferencesIt() async throws {
+        let fixture = try loadFixture()
+        let key = try masterKey(fixture)
+        let schema = Schema([PersistedComposerDraft.self])
+        let configuration = ModelConfiguration(
+            "ComposerRecordingDraftTests",
+            schema: schema,
+            isStoredInMemoryOnly: true
+        )
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let repository = OfflineStore(modelContainer: container)
+        let service = DraftService(
+            repository: repository,
+            legacyStore: RecordingLegacyComposerDraftStore(),
+            masterKeyProvider: { key }
+        )
+        let referenced = recordingFixture(
+            id: "recording-referenced",
+            aesKey: "synthetic-private-aes-key",
+            transcript: "Synthetic private transcript"
+        )
+        let unreferenced = recordingFixture(
+            id: "recording-unreferenced",
+            aesKey: "synthetic-unused-aes-key",
+            transcript: "Synthetic unused transcript"
+        )
+        let markdown = """
+        ```json
+        {"type":"audio-recording","embed_id":"recording-referenced"}
+        ```
+        """
+
+        try await service.saveDraft(
+            canonicalMarkdown: markdown,
+            preview: "Recording",
+            chatId: chatId,
+            revision: 21,
+            draftVersion: 1,
+            recordings: [referenced, unreferenced]
+        )
+
+        let storedRecord = try await repository.record(chatId: chatId)
+        let stored = try XCTUnwrap(storedRecord)
+        let encryptedPayload = try XCTUnwrap(stored.encryptedRecordingPayload)
+        XCTAssertNotNil(Data(base64Encoded: encryptedPayload))
+        XCTAssertFalse(String(reflecting: stored).contains("synthetic-private-aes-key"))
+        XCTAssertFalse(String(reflecting: stored).contains("Synthetic private transcript"))
+        let rows = try container.mainContext.fetch(FetchDescriptor<PersistedComposerDraft>())
+        let row = try XCTUnwrap(rows.first)
+        XCTAssertEqual(row.encryptedRecordingPayload, encryptedPayload)
+        XCTAssertFalse(String(reflecting: row).contains("synthetic-private-aes-key"))
+        XCTAssertFalse(String(reflecting: row).contains("Synthetic private transcript"))
+
+        let loadedDraft = try await service.loadDraft(chatId: chatId)
+        let loaded = try XCTUnwrap(loadedDraft)
+        XCTAssertEqual(loaded.recordings.map(\.id), ["recording-referenced"])
+        XCTAssertEqual(loaded.recordings.first?.rawData?["aes_key"]?.value as? String,
+                       "synthetic-private-aes-key")
+        XCTAssertEqual(loaded.recordings.first?.rawData?["transcript_corrected"]?.value as? String,
+                       "Synthetic private transcript")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted
     func testLoadDecryptsRepositoryRecordBackToCanonicalDraft() async throws {
         let fixture = try loadFixture()
@@ -409,6 +472,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
             chatId: chatId,
             encryptedMarkdown: "format-d-ciphertext-markdown",
             encryptedPreview: "format-d-ciphertext-preview",
+            encryptedRecordingPayload: "format-d-ciphertext-recording",
             revision: 13,
             draftVersion: 1
         )
@@ -417,6 +481,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let initialRecord = try await repository.record(chatId: chatId)
         var stored = try XCTUnwrap(initialRecord)
         XCTAssertEqual(stored.encryptedMarkdown, initial.encryptedMarkdown)
+        XCTAssertEqual(stored.encryptedRecordingPayload, initial.encryptedRecordingPayload)
         XCTAssertFalse(String(reflecting: stored).contains(canonicalMarkdown))
 
         stored.encryptedMarkdown = "updated-format-d-ciphertext"
@@ -429,6 +494,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
 
         let persisted = try container.mainContext.fetch(FetchDescriptor<PersistedComposerDraft>())
         XCTAssertEqual(persisted.count, 1)
+        XCTAssertEqual(persisted.first?.encryptedRecordingPayload, initial.encryptedRecordingPayload)
         XCTAssertFalse(String(reflecting: persisted).contains(canonicalMarkdown))
 
         try await repository.remove(chatId: chatId)
@@ -569,6 +635,27 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
             repository: repository,
             legacyStore: legacyStore,
             masterKeyProvider: { masterKey }
+        )
+    }
+
+    private func recordingFixture(id: String, aesKey: String, transcript: String) -> EmbedRecord {
+        EmbedRecord(
+            id: id,
+            type: "audio-recording",
+            status: .finished,
+            data: .raw([
+                "aes_key": AnyCodable(aesKey),
+                "aes_nonce": AnyCodable("synthetic-nonce"),
+                "filename": AnyCodable("synthetic-recording.m4a"),
+                "s3_url": AnyCodable("https://media.invalid/synthetic-recording.m4a"),
+                "title": AnyCodable(transcript),
+                "transcript_corrected": AnyCodable(transcript),
+            ]),
+            parentEmbedId: nil,
+            appId: "audio",
+            skillId: "transcribe",
+            embedIds: nil,
+            createdAt: "1"
         )
     }
 

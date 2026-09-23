@@ -82,10 +82,10 @@ final class DraftSyncCoordinator {
         newChatDraftId = nil
     }
 
-    func restoreNewChatDraftId(from records: [ComposerDraftRecord]) {
+    func restoreNewChatDraftId(from records: [ComposerDraftRecord], cachedChats: [Chat] = []) {
         guard newChatDraftId == nil else { return }
         let recordIds = Set(records.map(\.chatId))
-        newChatDraftId = chatStore.chats.first(where: { chat in
+        newChatDraftId = (chatStore.chats + cachedChats).first(where: { chat in
             recordIds.contains(chat.id) && isDraftOnlyChat(chat)
         })?.id
     }
@@ -104,6 +104,7 @@ final class DraftSyncCoordinator {
             chatId: resolvedChatId,
             encryptedMarkdown: record.encryptedMarkdown,
             encryptedPreview: record.encryptedPreview,
+            encryptedRecordingPayload: record.encryptedRecordingPayload,
             revision: record.revision,
             draftVersion: record.draftVersion
         )
@@ -370,7 +371,6 @@ final class DraftSyncCoordinator {
 
     private func isDraftOnlyChat(_ chat: Chat) -> Bool {
         (chat.messagesV ?? 0) == 0
-            && chat.lastMessageAt == nil
             && chatStore.messages(for: chat.id).isEmpty
     }
 

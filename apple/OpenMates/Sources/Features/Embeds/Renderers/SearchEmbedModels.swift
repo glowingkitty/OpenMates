@@ -59,14 +59,21 @@ struct SearchSkillPreviewModel {
 
     private static func previewRecords(from embed: EmbedRecord) -> [EmbedRecord] {
         let raw = embed.rawData ?? [:]
-        let previewResults = EmbedFieldReader.dictionaryArray(raw, key: "preview_results")
-        guard !previewResults.isEmpty else { return [] }
+        let inlineResults = EmbedFieldReader.dictionaryArray(raw, key: "results")
+        let previewResults = inlineResults.isEmpty
+            ? EmbedFieldReader.dictionaryArray(raw, key: "preview_results")
+            : inlineResults
+        let resolvedResults = previewResults.isEmpty
+            ? resultsFromEncodedPayload(raw["results_toon"]?.value as? String)
+            : previewResults
+        guard !resolvedResults.isEmpty else { return [] }
 
-        return previewResults.enumerated().map { index, result in
+        return resolvedResults.enumerated().map { index, result in
             var recordData = result.mapValues { AnyCodable($0) }
             recordData["app_id"] = recordData["app_id"] ?? AnyCodable(embed.appId ?? "web")
             return EmbedRecord(
-                id: "\(embed.id)-preview-\(index)",
+                id: EmbedFieldReader.string(recordData, keys: ["embed_id", "id"])
+                    ?? "\(embed.id)-preview-\(index)",
                 type: Self.previewChildType(for: embed),
                 status: .finished,
                 data: .raw(recordData),
@@ -77,6 +84,16 @@ struct SearchSkillPreviewModel {
                 createdAt: embed.createdAt
             )
         }
+    }
+
+    private static func resultsFromEncodedPayload(_ payload: String?) -> [[String: Any]] {
+        guard let payload, !payload.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        let decoded = EmbedRecord.parseContent(payload)
+        if let results = decoded["results"] as? [[String: Any]] { return results }
+        if let results = decoded["results"] as? [Any] {
+            return results.compactMap { $0 as? [String: Any] }
+        }
+        return decoded["url"] == nil ? [] : [decoded]
     }
 
     private static func previewChildType(for embed: EmbedRecord) -> String {

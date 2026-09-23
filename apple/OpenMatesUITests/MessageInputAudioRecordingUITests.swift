@@ -12,6 +12,65 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
     }
 
     // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
+    func testRealAccountRecordingAppearsInComposerAndSurvivesRelaunch() throws {
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(
+            extraArguments: ["--ui-test-start-new-chat"]
+        )
+        // Keep this dedicated simulator's test-account session when present.
+        // The unauthenticated header can remain in the accessibility tree while
+        // SwiftUI transitions; tapping that stale button has no screen hit point.
+        if !app.buttons["referral-cta"].waitForExistence(timeout: 10) {
+            RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        }
+
+        let microphone = element(in: app, identifier: "record-audio-button")
+        XCTAssertTrue(microphone.waitForExistence(timeout: 15))
+        XCTAssertTrue(microphone.isHittable)
+        microphone.tap()
+        let recording = element(in: app, identifier: "record-overlay")
+        XCTAssertTrue(recording.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        let finish = element(in: app, identifier: "record-finish-button")
+        XCTAssertTrue(finish.waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 3)
+        finish.tap()
+
+        let card = element(in: app, identifier: "native-composer-preview-recording-finished")
+        XCTAssertTrue(card.waitForExistence(timeout: 90), "The real upload must finish in the composer")
+        let field = element(in: app, identifier: "message-field")
+        XCTAssertTrue(field.frame.contains(card.frame), "Recording preview must fit inside the message field")
+        let initialScreenshot = XCTAttachment(screenshot: app.screenshot())
+        initialScreenshot.name = "Real recording in message field"
+        initialScreenshot.lifetime = .keepAlways
+        add(initialScreenshot)
+
+        // Give the encrypted draft write its normal short completion window;
+        // the user can then force-quit and still recover the finished card.
+        Thread.sleep(forTimeInterval: 2)
+
+        app.terminate()
+        app.launchArguments = ["--ui-test-start-new-chat"]
+        app.launch()
+        let restoredCard = element(in: app, identifier: "native-composer-preview-recording-finished")
+        XCTAssertTrue(
+            restoredCard.waitForExistence(timeout: 30),
+            "The audio draft must restore after relaunch"
+        )
+        let restoredField = element(in: app, identifier: "message-field")
+        XCTAssertTrue(restoredField.frame.contains(restoredCard.frame),
+                      "Restored recording must remain inside the expanded message field")
+        XCTAssertTrue(element(in: app, identifier: "native-composer-audio-play-button")
+            .waitForExistence(timeout: 20),
+                      "Restored recording must retain its playback controls")
+        let restoredScreenshot = XCTAttachment(screenshot: app.screenshot())
+        restoredScreenshot.name = "Restored real recording in message field"
+        restoredScreenshot.lifetime = .keepAlways
+        add(restoredScreenshot)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
     func testRestoredRecordingDraftShowsAudioCardInsteadOfGenericAttachment() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -356,6 +415,31 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         assertRecordingOverlayCopy(in: app)
         XCTAssertTrue(element(in: app, identifier: "record-cancel-button").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testLiveTranscriptKeepsNewestLineInSingleLineRecordingViewport() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--dev-preview", "chat-opening",
+            "--ui-test-force-recording-overlay",
+            "--ui-test-recording-multiline-transcript"
+        ]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        let liveTranscript = element(in: app, identifier: "release-text")
+        XCTAssertTrue(liveTranscript.waitForExistence(timeout: 5))
+        XCTAssertEqual(liveTranscript.label, "Earlier transcript line\nNewest transcript line")
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "Recording overlay newest live transcript line"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        // The accessibility frame includes the clipped, offscreen transcript
+        // flow. The attached rendered screenshot proves the one-line viewport;
+        // ChatAudioPipelineTests checks the measured scroll-to-last-line offset.
+        XCTAssertTrue(element(in: app, identifier: "record-finish-button").isHittable)
     }
 
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send,message-input.send.ownership

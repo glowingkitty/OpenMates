@@ -254,10 +254,17 @@ final class AudioRecordingRealtimeSession {
             break
         case .transcript(let transcript):
             liveTranscript = transcript
+            // Delta events are already visible to the user. Preserve the latest
+            // nonempty text when the server omits a terminal correction event.
+            if !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                rawTranscript = transcript
+            }
             presentationHandler?(transcript, false)
         case .transcriptionDone(let result):
             liveTranscript = result.transcript
-            rawTranscript = result.transcript
+            if !result.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                rawTranscript = result.transcript
+            }
             rawTranscriptHandler?(result.transcript)
             presentationHandler?(result.transcript, false)
         case .correctionDone(let correction):
@@ -274,6 +281,12 @@ final class AudioRecordingRealtimeSession {
             ))
         }
     }
+
+    #if DEBUG
+    func receiveForTesting(_ event: AudioRealtimeTranscriptionClient.Event) async {
+        await receive(event)
+    }
+    #endif
 
     private func settle(_ result: AudioRecordingRealtimeResult?) {
         guard settledResult == nil else { return }
@@ -616,6 +629,85 @@ final class VoiceRecorder: ObservableObject {
     #endif
 }
 
+enum RecordingLiveTranscriptViewportMetrics {
+    // RecordAudio.svelte: 16px paragraph text at 1.3 line-height.
+    static let lineHeight: CGFloat = 16 * 1.3
+
+    static func normalizedTranscript(_ transcript: String?) -> String? {
+        let normalized = transcript?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    static func bottomOffset(contentHeight: CGFloat, viewportHeight: CGFloat) -> CGFloat {
+        max(0, contentHeight - viewportHeight)
+    }
+}
+
+private struct RecordingLiveTranscriptContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct RecordingLiveTranscriptViewportHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct RecordingLiveTranscriptViewport: View {
+    let transcript: String
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var contentHeight: CGFloat = 0
+    @State private var viewportHeight: CGFloat = 0
+
+    var body: some View {
+        Text(verbatim: transcript)
+            .lineLimit(1)
+            .hidden()
+            .accessibilityHidden(true)
+            .frame(height: RecordingLiveTranscriptViewportMetrics.lineHeight)
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: RecordingLiveTranscriptViewportHeightKey.self,
+                        value: proxy.size.height
+                    )
+                }
+            }
+            .overlay(alignment: .top) {
+                Text(verbatim: transcript)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: RecordingLiveTranscriptContentHeightKey.self,
+                                value: proxy.size.height
+                            )
+                        }
+                    }
+                    .offset(y: -RecordingLiveTranscriptViewportMetrics.bottomOffset(
+                        contentHeight: contentHeight,
+                        viewportHeight: viewportHeight
+                    ))
+                    .animation(
+                        reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.22),
+                        value: contentHeight
+                    )
+            }
+            .clipped()
+            .onPreferenceChange(RecordingLiveTranscriptContentHeightKey.self) { contentHeight = $0 }
+            .onPreferenceChange(RecordingLiveTranscriptViewportHeightKey.self) { viewportHeight = $0 }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(transcript)
+    }
+}
+
 struct ComposerRecordingOverlay: View {
     static let recordingPanelHeight: CGFloat = 220
     private static let minimumTouchTargetSize: CGFloat = 44
@@ -637,11 +729,11 @@ struct ComposerRecordingOverlay: View {
         VStack(spacing: 0) {
             VStack(spacing: .spacing4) {
                 VStack(spacing: .spacing1) {
-                    Text(recordingHeading)
+                    recordingHeading
                         .font(.omP.weight(.bold))
                         .foregroundStyle(Color.white)
                         .multilineTextAlignment(.center)
-                        .lineLimit(1)
+                        .frame(maxWidth: 560)
                         .accessibilityIdentifier("release-text")
 
                     Text(AppStrings.recordingShortcuts)
@@ -783,11 +875,24 @@ struct ComposerRecordingOverlay: View {
     }
 
     private var normalizedLiveTranscript: String? {
-        let transcript = liveTranscript?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return transcript.isEmpty ? nil : transcript
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-recording-multiline-transcript") {
+            return "Earlier transcript line\nNewest transcript line"
+        }
+        #endif
+        return RecordingLiveTranscriptViewportMetrics.normalizedTranscript(liveTranscript)
     }
 
-    private var recordingHeading: String {
-        recorder.error ?? normalizedLiveTranscript ?? AppStrings.recordingActive
+    @ViewBuilder
+    private var recordingHeading: some View {
+        if let error = recorder.error {
+            Text(error)
+                .lineLimit(1)
+        } else if let transcript = normalizedLiveTranscript {
+            RecordingLiveTranscriptViewport(transcript: transcript)
+        } else {
+            Text(AppStrings.recordingActive)
+                .lineLimit(1)
+        }
     }
 }

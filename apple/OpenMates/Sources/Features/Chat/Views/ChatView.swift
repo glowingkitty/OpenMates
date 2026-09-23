@@ -1030,6 +1030,7 @@ struct ChatView: View {
                 closeEmbedFullscreenRoute()
             },
             isSidePanel: chatWorkspaceWidth >= 1024,
+            responsiveViewportWidth: chatWorkspaceWidth > 0 ? chatWorkspaceWidth : nil,
             showChat: chatWorkspaceWidth >= 1024 && hideSplitChat,
             onShowChat: { hideSplitChat = false }
         )
@@ -1047,6 +1048,14 @@ struct ChatView: View {
         fullscreenPreviousEmbeds = []
         selectedEmbed = embed
         showEmbedFullscreen = true
+        // Search parents can finish before their encrypted result children are
+        // decoded locally. Retry the scoped graph load when the user opens the
+        // result so fullscreen does not remain on a stale empty snapshot.
+        Task { @MainActor in
+            await viewModel.loadEmbeds(for: viewModel.messages.map(\.id))
+            guard showEmbedFullscreen, selectedEmbed?.id == embed.id else { return }
+            selectedEmbed = viewModel.embedRecords[embed.id] ?? embed
+        }
     }
 
     private func openInitialEmbedIfReady() {

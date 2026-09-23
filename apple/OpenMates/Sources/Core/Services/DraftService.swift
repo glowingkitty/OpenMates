@@ -112,7 +112,10 @@ final class DraftService: ObservableObject {
                 guard !Task.isCancelled, lifecycle == draftLifecycleGeneration,
                       scope == OfflineStore.shared.scopeGeneration else { return }
                 syncCoordinator?.restoreDeletionMarkers(deletionVersions)
-                syncCoordinator?.restoreNewChatDraftId(from: records)
+                syncCoordinator?.restoreNewChatDraftId(
+                    from: records,
+                    cachedChats: records.compactMap { OfflineStore.shared.loadChat(id: $0.chatId) }
+                )
                 for record in records {
                     if let deletedVersion = deletionVersions[record.chatId], deletedVersion >= record.draftVersion { continue }
                     guard !Task.isCancelled, lifecycle == draftLifecycleGeneration,
@@ -150,7 +153,8 @@ final class DraftService: ObservableObject {
         preview: String,
         chatId: String,
         revision: Int,
-        draftVersion: Int
+        draftVersion: Int,
+        recordings: [EmbedRecord]? = nil
     ) async throws {
         guard !canonicalMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             try await clearDraft(chatId: chatId)
@@ -169,8 +173,10 @@ final class DraftService: ObservableObject {
             }
         }
         var effectiveDraftVersion = draftVersion
+        var existingRecord: ComposerDraftRecord?
         do {
             if let existing = try await repository.record(chatId: resolvedChatId) {
+                existingRecord = existing
                 if chatId == DraftSyncCoordinator.syntheticNewChatId {
                     effectiveDraftVersion = existing.draftVersion
                 } else if existing.draftVersion > draftVersion {
@@ -191,6 +197,8 @@ final class DraftService: ObservableObject {
             chatId: resolvedChatId,
             revision: revision,
             draftVersion: effectiveDraftVersion,
+            recordings: recordings,
+            existingEncryptedRecordingPayload: existingRecord?.encryptedRecordingPayload,
             masterKey: masterKey
         )
         try requireCurrentSave()
@@ -209,6 +217,14 @@ final class DraftService: ObservableObject {
     }
 
     func loadDraft(chatId: String) async throws -> ComposerDraft? {
+        if chatId == DraftSyncCoordinator.syntheticNewChatId,
+           syncCoordinator?.activeNewChatDraftId == nil {
+            let records = try await repository.allRecords()
+            syncCoordinator?.restoreNewChatDraftId(
+                from: records,
+                cachedChats: records.compactMap { OfflineStore.shared.loadChat(id: $0.chatId) }
+            )
+        }
         let resolvedChatId = syncCoordinator?.resolveChatId(chatId, hasNonEmptyDraft: false) ?? chatId
         let draftGeneration = draftGenerationByChatId[resolvedChatId]
         let readGeneration = draftReadGenerationByChatId[resolvedChatId]
@@ -225,17 +241,24 @@ final class DraftService: ObservableObject {
             guard let stored = try await repository.record(chatId: resolvedChatId) else { return nil }
             record = stored
         } catch {
+            NativeDiagnostics.warning(
+                "Draft load failed phase=record errorType=\(type(of: error)) synthetic=\(chatId == DraftSyncCoordinator.syntheticNewChatId)",
+                category: "composer_drafts"
+            )
             throw ComposerDraftError.verificationFailed
         }
         let masterKey = try await requireMasterKey()
+        var loadPhase = "markdownDecrypt"
         do {
             let markdown = try await crypto.decryptContent(
                 base64String: record.encryptedMarkdown,
                 key: masterKey
             )
             let preview: String
+            let recordings: [EmbedRecord]
             var expectedEncryptedPreview = record.encryptedPreview
             if record.encryptedPreview.isEmpty {
+                loadPhase = "previewRepair"
                 preview = String(markdown.prefix(160))
                 let encryptedPreview = try await crypto.encryptWithMasterKey(preview, masterKey: masterKey)
                 try requireCurrentLoad()
@@ -247,27 +270,49 @@ final class DraftService: ObservableObject {
                 guard repaired.applied else { throw ComposerDraftError.versionConflict }
                 expectedEncryptedPreview = encryptedPreview
             } else {
+                loadPhase = "previewDecrypt"
                 preview = try await crypto.decryptContent(
                     base64String: record.encryptedPreview,
                     key: masterKey
                 )
             }
+            if let encryptedPayload = record.encryptedRecordingPayload {
+                loadPhase = "recordingPayloadDecrypt"
+                let plaintext = try await crypto.decryptContent(
+                    base64String: encryptedPayload,
+                    key: masterKey
+                )
+                recordings = try Self.decodeRecordingPayload(
+                    plaintext,
+                    referencedBy: markdown
+                )
+            } else {
+                recordings = []
+            }
+            loadPhase = "recordRecheck"
             guard let latest = try await repository.record(chatId: record.chatId),
                   latest.revision == record.revision, latest.draftVersion == record.draftVersion,
                   latest.encryptedMarkdown == record.encryptedMarkdown,
-                  latest.encryptedPreview == expectedEncryptedPreview else {
+                  latest.encryptedPreview == expectedEncryptedPreview,
+                  latest.encryptedRecordingPayload == record.encryptedRecordingPayload else {
                 throw ComposerDraftError.versionConflict
             }
+            loadPhase = "generationCheck"
             try requireCurrentLoad()
             currentDraft = markdown
             draftPreviews[record.chatId] = preview
             return ComposerDraft(
                 canonicalMarkdown: markdown,
                 preview: preview,
+                recordings: recordings,
                 revision: record.revision,
                 draftVersion: record.draftVersion
             )
         } catch {
+            NativeDiagnostics.warning(
+                "Draft load failed phase=\(loadPhase) errorType=\(type(of: error)) synthetic=\(chatId == DraftSyncCoordinator.syntheticNewChatId)",
+                category: "composer_drafts"
+            )
             throw ComposerDraftError.verificationFailed
         }
     }
@@ -294,6 +339,8 @@ final class DraftService: ObservableObject {
                 chatId: chatId,
                 revision: 13,
                 draftVersion: 1,
+                recordings: nil,
+                existingEncryptedRecordingPayload: nil,
                 masterKey: masterKey
             )
             do {
@@ -436,6 +483,8 @@ final class DraftService: ObservableObject {
         chatId: String,
         revision: Int,
         draftVersion: Int,
+        recordings: [EmbedRecord]?,
+        existingEncryptedRecordingPayload: String?,
         masterKey: SymmetricKey
     ) async throws -> ComposerDraftRecord {
         let encryptedMarkdown = try await crypto.encryptWithMasterKey(
@@ -446,12 +495,132 @@ final class DraftService: ObservableObject {
             preview,
             masterKey: masterKey
         )
+        let encryptedRecordingPayload: String?
+        if let recordings {
+            let referencedIDs = Self.recordingIDs(referencedBy: canonicalMarkdown)
+            let payload = ComposerDraftRecordingPayload(
+                version: 1,
+                recordings: recordings
+                    .filter { referencedIDs.contains($0.id) }
+                    .compactMap(ComposerDraftRecordingSnapshot.init)
+            )
+            if payload.recordings.isEmpty {
+                encryptedRecordingPayload = nil
+            } else {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.sortedKeys]
+                let data = try encoder.encode(payload)
+                guard let plaintext = String(data: data, encoding: .utf8) else {
+                    throw ComposerDraftError.verificationFailed
+                }
+                encryptedRecordingPayload = try await crypto.encryptWithMasterKey(
+                    plaintext,
+                    masterKey: masterKey
+                )
+            }
+        } else {
+            encryptedRecordingPayload = existingEncryptedRecordingPayload
+        }
         return ComposerDraftRecord(
             chatId: chatId,
             encryptedMarkdown: encryptedMarkdown,
             encryptedPreview: encryptedPreview,
+            encryptedRecordingPayload: encryptedRecordingPayload,
             revision: revision,
             draftVersion: draftVersion
+        )
+    }
+
+    private static func decodeRecordingPayload(
+        _ plaintext: String,
+        referencedBy markdown: String
+    ) throws -> [EmbedRecord] {
+        guard let data = plaintext.data(using: .utf8) else {
+            throw ComposerDraftError.verificationFailed
+        }
+        let payload = try JSONDecoder().decode(ComposerDraftRecordingPayload.self, from: data)
+        guard payload.version == 1 else { throw ComposerDraftError.verificationFailed }
+        let referencedIDs = recordingIDs(referencedBy: markdown)
+        return payload.recordings
+            .filter { referencedIDs.contains($0.id) }
+            .map(\.embedRecord)
+    }
+
+    private static func recordingIDs(referencedBy markdown: String) -> Set<String> {
+        let nodes = (try? ComposerMarkdownAdapter.parse(markdown).nodes) ?? []
+        return Set(nodes
+            .filter { $0.embedType == "recording" }
+            .compactMap { $0.contentRef?.replacingOccurrences(of: "embed:", with: "") })
+    }
+}
+
+private struct ComposerDraftRecordingPayload: Codable, Sendable {
+    let version: Int
+    let recordings: [ComposerDraftRecordingSnapshot]
+}
+
+private struct ComposerDraftRecordingSnapshot: Codable, Sendable {
+    let id: String
+    let type: String
+    let status: EmbedStatus
+    let rawData: [String: AnyCodable]
+    let encryptedContent: String?
+    let encryptedType: String?
+    let encryptedTextPreview: String?
+    let parentEmbedId: String?
+    let appId: String?
+    let skillId: String?
+    let embedIds: String?
+    let hashedChatId: String?
+    let hashedUserId: String?
+    let versionNumber: Int?
+    let contentHash: String?
+    let versionHistory: [EmbedVersionMetadata]
+    let versionHistoryReadonly: Bool
+    let createdAt: String?
+
+    init?(_ record: EmbedRecord) {
+        guard record.type == "audio-recording", let rawData = record.rawData else { return nil }
+        self.id = record.id
+        self.type = record.type
+        self.status = record.status
+        self.rawData = rawData
+        self.encryptedContent = record.encryptedContent
+        self.encryptedType = record.encryptedType
+        self.encryptedTextPreview = record.encryptedTextPreview
+        self.parentEmbedId = record.parentEmbedId
+        self.appId = record.appId
+        self.skillId = record.skillId
+        self.embedIds = record.embedIds
+        self.hashedChatId = record.hashedChatId
+        self.hashedUserId = record.hashedUserId
+        self.versionNumber = record.versionNumber
+        self.contentHash = record.contentHash
+        self.versionHistory = record.versionHistory
+        self.versionHistoryReadonly = record.versionHistoryReadonly
+        self.createdAt = record.createdAt
+    }
+
+    var embedRecord: EmbedRecord {
+        EmbedRecord(
+            id: id,
+            type: type,
+            status: status,
+            data: .raw(rawData),
+            encryptedContent: encryptedContent,
+            encryptedType: encryptedType,
+            encryptedTextPreview: encryptedTextPreview,
+            parentEmbedId: parentEmbedId,
+            appId: appId,
+            skillId: skillId,
+            embedIds: embedIds,
+            hashedChatId: hashedChatId,
+            hashedUserId: hashedUserId,
+            versionNumber: versionNumber,
+            contentHash: contentHash,
+            versionHistory: versionHistory,
+            versionHistoryReadonly: versionHistoryReadonly,
+            createdAt: createdAt
         )
     }
 }

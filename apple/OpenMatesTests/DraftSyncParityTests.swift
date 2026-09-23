@@ -24,6 +24,56 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertEqual(coordinator.reserveNewChatDraftId(preferredId: "later-id"), recordingChatID)
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
+    func testLocalRecordingCompanionSurvivesEchoesAndClearsOnRemoteReplacement() {
+        let local = ComposerDraftRecord(
+            chatId: "recording-draft",
+            encryptedMarkdown: "local-format-d-markdown",
+            encryptedPreview: "local-format-d-preview",
+            encryptedRecordingPayload: "local-format-d-recording",
+            revision: 3,
+            draftVersion: 4
+        )
+
+        let acknowledged = ComposerDraftMutation.acknowledgement(
+            chatId: local.chatId,
+            version: 5
+        ).applying(to: local)
+        XCTAssertEqual(acknowledged.record?.encryptedRecordingPayload,
+                       local.encryptedRecordingPayload)
+
+        let echo = ComposerDraftMutation.content(ComposerDraftRecord(
+            chatId: local.chatId,
+            encryptedMarkdown: local.encryptedMarkdown,
+            encryptedPreview: local.encryptedPreview,
+            revision: local.revision,
+            draftVersion: 5
+        )).applying(to: local)
+        XCTAssertEqual(echo.record?.encryptedRecordingPayload,
+                       local.encryptedRecordingPayload)
+
+        var missingPreview = local
+        missingPreview.encryptedPreview = ""
+        let previewRepair = ComposerDraftMutation.previewRepair(ComposerDraftRecord(
+            chatId: local.chatId,
+            encryptedMarkdown: local.encryptedMarkdown,
+            encryptedPreview: "repaired-format-d-preview",
+            revision: local.revision,
+            draftVersion: local.draftVersion
+        )).applying(to: missingPreview)
+        XCTAssertEqual(previewRepair.record?.encryptedRecordingPayload,
+                       local.encryptedRecordingPayload)
+
+        let replacement = ComposerDraftMutation.content(ComposerDraftRecord(
+            chatId: local.chatId,
+            encryptedMarkdown: "remote-format-d-markdown",
+            encryptedPreview: "remote-format-d-preview",
+            revision: local.revision,
+            draftVersion: 6
+        )).applying(to: local)
+        XCTAssertNil(replacement.record?.encryptedRecordingPayload)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.lifecycle
     func testFirstNewChatDraftAllocatesOneStableUUIDAndSendsOnlyCiphertext() async throws {
         let repository = DraftSyncRecordingRepository(records: [
@@ -48,6 +98,7 @@ final class DraftSyncParityTests: XCTestCase {
             chatId: "composer:new-chat",
             encryptedMarkdown: "format-d-encrypted-markdown",
             encryptedPreview: "format-d-encrypted-preview",
+            encryptedRecordingPayload: "local-only-format-d-recording",
             revision: 13,
             draftVersion: 0
         )
@@ -65,6 +116,7 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertEqual(message.payload["chat_id"] as? String, firstId)
         XCTAssertEqual(message.payload["encrypted_draft_md"] as? String, record.encryptedMarkdown)
         XCTAssertEqual(message.payload["encrypted_draft_preview"] as? String, record.encryptedPreview)
+        XCTAssertFalse(String(reflecting: message.payload).contains("local-only-format-d-recording"))
         XCTAssertFalse(String(reflecting: message.payload).contains("composer:new-chat"))
         XCTAssertTrue(offline.queuedUpdates.isEmpty)
         let syntheticRecord = try await repository.record(chatId: "composer:new-chat")
@@ -220,6 +272,29 @@ final class DraftSyncParityTests: XCTestCase {
             coordinator.resolveChatId(DraftSyncCoordinator.syntheticNewChatId, hasNonEmptyDraft: false),
             "restored-draft"
         )
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
+    func testCachedDraftOnlyChatRestoresAliasDespiteServerActivityTimestamp() {
+        let chatStore = ChatStore()
+        let coordinator = DraftSyncCoordinator(
+            repository: DraftSyncRecordingRepository(),
+            chatStore: chatStore,
+            transport: DraftSyncRecordingTransport(isConnected: false),
+            offlineActions: DraftSyncRecordingOfflineActions()
+        )
+        let cachedChat = makeChat(
+            id: "recording-draft", draftV: 2,
+            lastMessageAt: "2026-01-01T00:00:00Z"
+        )
+        coordinator.restoreNewChatDraftId(
+            from: [ComposerDraftRecord(
+                chatId: "recording-draft", encryptedMarkdown: "ciphertext",
+                encryptedPreview: "preview", revision: 1, draftVersion: 2
+            )],
+            cachedChats: [cachedChat]
+        )
+        XCTAssertEqual(coordinator.activeNewChatDraftId, "recording-draft")
     }
 
     // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.lifecycle
@@ -557,11 +632,13 @@ final class DraftSyncParityTests: XCTestCase {
         try JSONSerialization.data(withJSONObject: value)
     }
 
-    private func makeChat(id: String, messagesV: Int = 0, draftV: Int = 1) -> Chat {
+    private func makeChat(
+        id: String, messagesV: Int = 0, draftV: Int = 1, lastMessageAt: String? = nil
+    ) -> Chat {
         Chat(
             id: id,
             title: id,
-            lastMessageAt: nil,
+            lastMessageAt: lastMessageAt,
             createdAt: "2026-01-01T00:00:00Z",
             updatedAt: nil,
             isArchived: false,

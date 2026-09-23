@@ -85,6 +85,73 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         }
     }
 
+    // contract-test: direct surface=gui.apple assertions=videos.transcript.surface-parity
+    func testExistingVideoTranscriptChildHydratesFullscreenContent() throws {
+        guard let transcriptChatQuery = RealAccountTestCredentials.configurationValue(
+            for: "OPENMATES_TEST_VIDEO_TRANSCRIPT_CHAT_QUERY"
+        ), !transcriptChatQuery.isEmpty else {
+            throw XCTSkip("Configure the test-account chat containing a video transcript")
+        }
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let reuseAuthentication = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_REUSE_AUTH") == "1"
+        let app = RealAccountUITestSupport.launchApp(
+            disableAuthCache: !reuseAuthentication,
+            extraArguments: reuseAuthentication ? [] : ["--ui-test-open-login"]
+        )
+        if !reuseAuthentication {
+            RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        }
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 35))
+
+        for query in [transcriptChatQuery] {
+            openChatsPanel(in: app, allowingSearch: true)
+            let searchButton = app.buttons.matching(NSPredicate(
+                format: "identifier == %@ OR label == %@", "search-button", "Search"
+            )).firstMatch
+            let existingSearch = app.textFields.matching(NSPredicate(format: "placeholderValue == %@", "Search")).firstMatch
+            if !existingSearch.exists {
+                XCTAssertTrue(searchButton.waitForExistence(timeout: 10))
+                searchButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
+            let search = app.textFields.matching(NSPredicate(
+                format: "identifier == %@ OR placeholderValue == %@", "search-input", "Search"
+            )).firstMatch
+            XCTAssertTrue(search.waitForExistence(timeout: 10))
+            search.tap()
+            if let value = search.value as? String, !value.isEmpty {
+                search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count))
+            }
+            search.typeText(query)
+            let result = app.buttons.matching(identifier: "search-chat-item").firstMatch
+            XCTAssertTrue(result.waitForExistence(timeout: 45))
+            result.tap()
+            let openedChat = app.descendants(matching: .any).matching(NSPredicate(
+                format: "identifier BEGINSWITH %@", "chat-view-"
+            )).firstMatch
+            XCTAssertTrue(openedChat.waitForExistence(timeout: 15), "Search result must open its chat")
+
+            let preview = app.descendants(matching: .any)["video-transcript-preview"].firstMatch
+            guard preview.waitForExistence(timeout: 15) else { continue }
+            preview.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+
+            let transcript = app.staticTexts["video-transcript-fullscreen-text"].firstMatch
+            XCTAssertTrue(transcript.waitForExistence(timeout: 15), "Persisted transcript child must render in fullscreen")
+            XCTAssertFalse(
+                transcript.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                "Persisted transcript content must be nonempty"
+            )
+            XCTAssertFalse(app.descendants(matching: .any)["video-transcript-fullscreen-empty"].exists)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Existing video transcript fullscreen"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            return
+        }
+
+        XCTFail("Configured embed chats did not expose a video transcript preview")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,sync.surface.semantic-parity
     func testExistingLongChatScrollsToFinalMessageRepeatedly() throws {
         guard let query = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_LONG_CHAT_QUERY") else {

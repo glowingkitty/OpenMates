@@ -7,6 +7,35 @@ import XCTest
 
 @MainActor
 final class ChatAudioPipelineTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testLiveTranscriptViewportPreservesStreamTextAndAdvancesToNewestRenderedLine() {
+        let streamUpdates = [
+            "Earlier transcript line",
+            "Earlier transcript line\nNewest transcript line"
+        ]
+        let presentedUpdates = streamUpdates.compactMap {
+            RecordingLiveTranscriptViewportMetrics.normalizedTranscript($0)
+        }
+
+        XCTAssertEqual(presentedUpdates, streamUpdates)
+        XCTAssertEqual(
+            presentedUpdates.last,
+            "Earlier transcript line\nNewest transcript line",
+            "The display viewport must not discard earlier text needed by final recording metadata"
+        )
+        XCTAssertEqual(
+            RecordingLiveTranscriptViewportMetrics.bottomOffset(contentHeight: 44, viewportHeight: 22),
+            22,
+            "A two-line update must shift by one line so the newest rendered line stays visible"
+        )
+        XCTAssertEqual(
+            RecordingLiveTranscriptViewportMetrics.bottomOffset(contentHeight: 66, viewportHeight: 22),
+            44,
+            "Later stream updates must continue advancing the bounded viewport"
+        )
+
+    }
+
     // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
     func testRealtimeFinishWithoutTerminalEventSettlesForBatchFallback() async {
         let session = AudioRecordingRealtimeSession(finishTimeout: .milliseconds(20))
@@ -15,6 +44,21 @@ final class ChatAudioPipelineTests: XCTestCase {
         let result = await session.awaitResult()
 
         XCTAssertNil(result)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle
+    func testRealtimeFinishKeepsVisibleTranscriptWhenTerminalEventIsMissing() async throws {
+        let session = AudioRecordingRealtimeSession(finishTimeout: .milliseconds(20))
+        await session.receiveForTesting(.transcript("Schedule a review"))
+        await session.receiveForTesting(.transcript("Schedule a review tomorrow"))
+        session.finish()
+
+        let settled = await session.awaitResult()
+        let result = try XCTUnwrap(settled)
+
+        XCTAssertEqual(result.transcript, "Schedule a review tomorrow")
+        XCTAssertEqual(result.transcriptOriginal, "Schedule a review tomorrow")
+        XCTAssertFalse(result.useCorrected)
     }
 
     // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send,chats.message.identity-idempotent

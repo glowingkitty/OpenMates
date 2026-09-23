@@ -72,6 +72,19 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         return dict
     }
 
+    var hasInlineSearchResults: Bool {
+        guard let rawData else { return false }
+        for key in ["results", "preview_results"] {
+            if let values = rawData[key]?.value as? [Any], !values.isEmpty {
+                return true
+            }
+        }
+        guard let encoded = rawData["results_toon"]?.value as? String else { return false }
+        let decoded = Self.parseContent(encoded)
+        if let results = decoded["results"] as? [Any] { return !results.isEmpty }
+        return decoded["url"] != nil
+    }
+
     var isAppSkillUse: Bool {
         let rawType = rawData?["type"]?.value as? String
         return rawType == "app_skill_use"
@@ -175,7 +188,7 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             let semanticType = appId.flatMap { appId in
                 skillId.flatMap { EmbedType.normalized(rawValue: "app:\(appId):\($0)") }
             }
-            let hasInlinePreviewResults = parent.rawData?["preview_results"] != nil
+            let hasInlinePreviewResults = parent.hasInlineSearchResults
             let requiresExternalChildren = !declaredChildren.isEmpty ||
                 (semanticType?.isComposite == true && !hasInlinePreviewResults)
             guard requiresExternalChildren else { return nil }
@@ -406,7 +419,10 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         case createdAt
     }
 
-    private static func parseContent(_ content: String) -> [String: Any] {
+    /// Decode a JSON or TOON object stored inside an already-decoded embed field.
+    /// Search skills use this for the legacy `results_toon` payload that can be
+    /// present without separately persisted child records.
+    static func parseContent(_ content: String) -> [String: Any] {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         if let data = trimmed.data(using: .utf8),
            let json = try? JSONSerialization.jsonObject(with: data),

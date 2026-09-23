@@ -1,6 +1,8 @@
 // OpenMates custom design primitives — replacements for native iOS controls.
 // These match the web app's Svelte components and CSS custom properties exactly.
 // Never use Form, List, Toggle, Picker, NavigationStack, etc. in product UI — use these instead.
+// Specification: specifications/features/message-input/specification.yml
+// Assertion: message-input.layout.responsive-parity
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
@@ -10,6 +12,8 @@
 //          frontend/packages/ui/src/components/settings/elements/SettingsConfirmBlock.svelte
 //          frontend/packages/ui/src/components/settings/elements/SettingsPageContainer.svelte
 //          frontend/packages/ui/src/components/Toggle.svelte
+//          frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+// CSS:     frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
 // CSS:     Toggle: 52x32 track, 24px thumb, grey-30 off / primary gradient on
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -49,6 +53,7 @@ extension EnvironmentValues {
 
 struct OMMessageInputField<ActionButtons: View>: View {
     @ObservedObject var session: NativeComposerSession
+    @State private var measuredEditorHeight: CGFloat = 0
     let isFocused: Binding<Bool>
     let compact: Bool
     let placeholder: String
@@ -68,7 +73,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
 
     private let expandedHorizontalPadding: CGFloat = 16
     private let expandedTopPadding: CGFloat = 16
-    private let expandedBottomPadding: CGFloat = 60
+    private let expandedBottomPadding = MessageComposerMetric.expandedBottomReservedHeight
 
     private var fieldHeight: CGFloat {
         compact ? compactHeight : expandedMinHeight
@@ -78,15 +83,25 @@ struct OMMessageInputField<ActionButtons: View>: View {
         compact ? compactHeight : max(expandedMinHeight, MessageComposerMetric.expandedMaxHeight)
     }
 
+    private var containsEmbed: Bool {
+        session.controller.document.nodes.contains(where: { $0.kind == "embed" })
+    }
+
     private var resolvedFieldHeight: CGFloat {
         if compact { return compactHeight }
         if expandedMinHeight > MessageComposerMetric.focusedEmptyHeight {
             return expandedMinHeight
         }
-        if session.controller.document.nodes.contains(where: { $0.kind == "embed" }) {
+        if containsEmbed {
             return fieldMaxHeight
         }
-        return MessageComposerMetric.focusedEmptyHeight
+        return min(
+            MessageComposerMetric.collapsedTextFieldMaxHeight,
+            max(
+                MessageComposerMetric.focusedEmptyHeight,
+                measuredEditorHeight + expandedBottomPadding
+            )
+        )
     }
 
     private var cornerRadius: CGFloat {
@@ -123,6 +138,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
                     isFocused: isFocused,
                     isEditable: isComposerEditable,
                     accessibilityHint: accessibilityHint,
+                    measuredHeight: $measuredEditorHeight,
                     piiDecorations: piiDecorations,
                     onExcludePII: onExcludePII,
                     onSubmit: onSubmit

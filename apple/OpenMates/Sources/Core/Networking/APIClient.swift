@@ -206,6 +206,13 @@ actor APIClient {
         nativeClientHeaders.forEach { key, value in
             request.setValue(value, forHTTPHeaderField: key)
         }
+        // The upload service is on upload.openmates.org, while sign-in uses
+        // api.dev.openmates.org or api.openmates.org. URLSession does not always
+        // attach the shared app-group cookie across those hosts. Use only the
+        // cookies scoped by HTTPCookieStorage to this upload URL.
+        if let cookieHeader = OpenMatesSharedEnvironment.cookieHeader(for: uploadURL) {
+            request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        }
         request.httpBody = body
         return request
     }

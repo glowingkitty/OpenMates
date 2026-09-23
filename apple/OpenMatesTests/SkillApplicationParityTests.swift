@@ -6,6 +6,7 @@ import XCTest
 @testable import OpenMates
 
 final class SkillApplicationParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testShortcutSkillFormatterUnwrapsRestSdkEnvelope() throws {
         let response: [String: Any] = [
             "success": true,
@@ -38,6 +39,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertTrue(formatted.contains("Venue: Park Stage, Berlin"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testShortcutSkillFormatterPreservesUnknownPayloadAsJson() throws {
         let response: [String: Any] = [
             "success": true,
@@ -54,6 +56,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertTrue(formatted.contains("42"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
     func testCodeFixturesClassifyApplicationCodeAndDocsStates() throws {
         let codeSkills = DevEmbedPreviewFixtures.skills(for: .code)
         let skillsById = Dictionary(uniqueKeysWithValues: codeSkills.map { ($0.id, $0) })
@@ -81,6 +84,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(docs.rawData?["library"]?.value as? String, "svelte")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testCompositeSkillFixturesPreserveChildEmbedRelationships() throws {
         let webSearch = try XCTUnwrap(
             DevEmbedPreviewFixtures.skills(for: .web).first { $0.id == "web-search" }
@@ -89,7 +93,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertTrue(webSearch.primaryEmbed.isAppSkillUse)
         XCTAssertEqual(webSearch.primaryEmbed.type, EmbedType.webSearch.rawValue)
         XCTAssertEqual(webSearch.primaryEmbed.childEmbedIds, webSearch.childEmbeds.map(\.id))
-        XCTAssertEqual(webSearch.childEmbeds.count, 3)
+        XCTAssertEqual(webSearch.childEmbeds.count, 4)
 
         for child in webSearch.childEmbeds {
             XCTAssertEqual(child.type, EmbedType.webWebsite.rawValue)
@@ -98,6 +102,7 @@ final class SkillApplicationParityTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testRelatedEmbedGraphIncludesChildrenForReferencedCompositeParent() throws {
         let webSearch = try XCTUnwrap(
             DevEmbedPreviewFixtures.skills(for: .web).first { $0.id == "web-search" }
@@ -113,6 +118,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(Set(related.map(\.id)), Set(webSearch.allRecords.keys))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity
     func testSearchPreviewModelUsesParentPreviewMetadataWithoutChildHydration() throws {
         let parent = EmbedRecord(
             id: "metadata-only-news-parent",
@@ -147,6 +153,71 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertTrue(model.websiteResults.first?.faviconURL?.contains("news.example") == true)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity
+    func testPersistedWebSearchUsesInlineResultsToonWhenChildRecordsAreMissing() throws {
+        let parent = EmbedRecord(
+            id: "inline-results-web-search",
+            type: EmbedType.webSearch.rawValue,
+            status: .finished,
+            data: .raw([
+                "type": AnyCodable("app_skill_use"),
+                "app_id": AnyCodable("web"),
+                "skill_id": AnyCodable("search"),
+                "query": AnyCodable("OpenMates Apple app"),
+                "provider": AnyCodable("Brave Search"),
+                "result_count": AnyCodable(1),
+                "results_toon": AnyCodable("""
+                    results[1]{embed_id,title,url,snippet}:
+                      cited-result,OpenMates,https://openmates.org,Private AI assistants
+                    """),
+            ]),
+            parentEmbedId: nil,
+            appId: "web",
+            skillId: "search",
+            embedIds: nil,
+            createdAt: "2026-09-23T00:00:00Z"
+        )
+
+        let model = SearchSkillPreviewModel(embed: parent, allEmbedRecords: [parent.id: parent])
+
+        XCTAssertEqual(model.websiteResults.map(\.id), ["cited-result"])
+        XCTAssertEqual(model.websiteResults.map(\.title), ["OpenMates"])
+        XCTAssertEqual(model.previewResultCount, 1)
+        XCTAssertTrue(EmbedRecord.unresolvedCompositeParentIds(
+            referencedIds: [parent.id],
+            from: [parent],
+            context: "test.inlineResultsToon"
+        ).isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity
+    func testPersistedWebSearchUsesInlineResultsArrayWhenChildRecordsAreMissing() throws {
+        let parent = EmbedRecord(
+            id: "inline-results-array-web-search",
+            type: EmbedType.webSearch.rawValue,
+            status: .finished,
+            data: .raw([
+                "query": AnyCodable("native results"),
+                "provider": AnyCodable("Brave Search"),
+                "results": AnyCodable([[
+                    "title": "Native result",
+                    "url": "https://example.com/native",
+                ]]),
+            ]),
+            parentEmbedId: nil,
+            appId: "web",
+            skillId: "search",
+            embedIds: nil,
+            createdAt: "2026-09-23T00:00:00Z"
+        )
+
+        let model = SearchSkillPreviewModel(embed: parent, allEmbedRecords: [parent.id: parent])
+
+        XCTAssertEqual(model.websiteResults.map(\.title), ["Native result"])
+        XCTAssertEqual(model.previewResultCount, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity
     func testPersistedWebSearchResolvesReferencedChildrenAndFaviconMetadata() throws {
         let parent = EmbedRecord(
             id: "persisted-web-search",
@@ -200,6 +271,7 @@ final class SkillApplicationParityTests: XCTestCase {
     }
 
     @MainActor
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testBusinessCompanyFinancialsModelPreservesSecFilingMetadata() throws {
         let parent = EmbedRecord(
             id: "business-financials-parent",
@@ -259,6 +331,7 @@ final class SkillApplicationParityTests: XCTestCase {
     }
 
     @MainActor
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testBusinessCompanyFinancialsModelUsesInlineLegacyResults() throws {
         let parent = EmbedRecord(
             id: "business-financials-inline-parent",
@@ -286,6 +359,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(model.financialResults.first?.form, "10-K")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testFileMediaFixturesUseSyntheticPublicPayloads() throws {
         let imageUpload = try XCTUnwrap(
             DevEmbedPreviewFixtures.skills(for: .images).first { $0.id == "images-upload" }?.primaryEmbed
@@ -310,6 +384,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(generatedVideo.rawData?["title"]?.value as? String, "Product launch promo")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testFinanceCheckAccountsFixtureUsesRegisteredAppSkillType() throws {
         let embed = try XCTUnwrap(
             DevEmbedPreviewFixtures.skills(for: .finance).first { $0.id == "finance-check-accounts" }?.primaryEmbed
@@ -324,6 +399,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertNil(embed.rawData?["secret"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testDiagramsMermaidFixtureDecodesSourcePayload() throws {
         let diagramsSkills = DevEmbedPreviewFixtures.skills(for: .diagrams)
         let mermaid = try XCTUnwrap(diagramsSkills.first { $0.id == "diagrams-mermaid" }?.primaryEmbed)

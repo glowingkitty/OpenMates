@@ -135,6 +135,32 @@ struct AppSkillUseRenderer: View {
             .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) })
     }
 
+    /// Finished authenticated app-skill embeds persist their full result in a
+    /// child record and keep only lightweight preview metadata on the parent.
+    /// Prefer that child for transcript rendering while retaining inline data
+    /// for legacy/demo payloads and processing placeholders.
+    private var videoTranscriptData: [String: AnyCodable] {
+        Self.videoTranscriptData(embed: embed, parentData: data, allEmbedRecords: allEmbedRecords)
+    }
+
+    static func videoTranscriptData(
+        embed: EmbedRecord,
+        parentData: [String: AnyCodable],
+        allEmbedRecords: [String: EmbedRecord]
+    ) -> [String: AnyCodable] {
+        if !VideoTranscriptPayload(data: parentData).transcript.isEmpty {
+            return parentData
+        }
+        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        let linked = explicit.isEmpty
+            ? allEmbedRecords.values.filter { $0.parentEmbedId == embed.id }
+            : explicit
+        guard let childData = linked.compactMap(\.rawData).first(where: {
+            !VideoTranscriptPayload(data: $0).transcript.isEmpty
+        }) else { return parentData }
+        return VideoTranscriptPayload.mergedData(parent: parentData, child: childData)
+    }
+
     private var parentResultCount: Int {
         EmbedFieldReader.int(data, keys: ["result_count"]) ?? childEmbeds.count
     }
@@ -202,7 +228,7 @@ struct AppSkillUseRenderer: View {
         } else if appId == "images", skillId == "view" {
             return AnyView(ImageEmbedRenderer(data: data, mode: .preview))
         } else if appId == "videos", skillId == "get_transcript" || skillId == "get-transcript" {
-            return AnyView(TranscriptRenderer(data: data, mode: .preview))
+            return AnyView(TranscriptRenderer(data: videoTranscriptData, mode: .preview))
         } else if appId == "videos", skillId == "create" {
             return AnyView(RemotionVideoCreateRenderer(embedId: embed.id, data: data, mode: .preview))
         } else if appId == "code", skillId == "get_docs" {
@@ -315,7 +341,7 @@ struct AppSkillUseRenderer: View {
         } else if appId == "images", skillId == "view" {
             ImageEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "videos", skillId == "get_transcript" || skillId == "get-transcript" {
-            TranscriptRenderer(data: data, mode: .fullscreen)
+            TranscriptRenderer(data: videoTranscriptData, mode: .fullscreen)
         } else if appId == "videos", skillId == "create" {
             RemotionVideoCreateRenderer(embedId: embed.id, data: data, mode: .fullscreen)
         } else if appId == "code", skillId == "get_docs" {

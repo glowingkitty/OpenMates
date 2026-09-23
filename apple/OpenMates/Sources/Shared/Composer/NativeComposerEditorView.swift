@@ -23,6 +23,7 @@ struct NativeComposerEditorView: UIViewRepresentable {
     let isFocused: Binding<Bool>
     let isEditable: Bool
     let accessibilityHint: String
+    var measuredHeight: Binding<CGFloat> = .constant(0)
     var piiDecorations: [NativeComposerPIIDecoration] = []
     var onExcludePII: (String) -> Void = { _ in }
     let onSubmit: () -> Void
@@ -36,16 +37,18 @@ struct NativeComposerEditorView: UIViewRepresentable {
         textView.backgroundColor = .clear
         textView.isScrollEnabled = true
         textView.showsVerticalScrollIndicator = false
-        textView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
+        textView.textContainerInset = UIEdgeInsets(
+            top: MessageComposerMetric.editorVerticalInset,
+            left: .spacing6,
+            bottom: MessageComposerMetric.editorVerticalInset,
+            right: .spacing6
+        )
         return textView
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
         guard let width = proposal.width else { return nil }
-        let contentSize = uiView.sizeThatFits(
-            CGSize(width: width, height: .greatestFiniteMagnitude)
-        )
-        return CGSize(width: width, height: min(contentSize.height, 250))
+        return CGSize(width: width, height: resolvedHeight(for: uiView, width: width))
     }
 
     func updateUIView(_ textView: UITextView, context: Context) {
@@ -54,10 +57,31 @@ struct NativeComposerEditorView: UIViewRepresentable {
         context.coordinator.adapter.updatePIIDecorations(piiDecorations, onExclude: onExcludePII)
         context.coordinator.adapter.synchronize(textView)
         textView.isEditable = isEditable
+        if textView.bounds.width > 0 {
+            publishMeasuredHeight(resolvedHeight(for: textView, width: textView.bounds.width))
+        }
         if isFocused.wrappedValue, !textView.isFirstResponder {
             textView.becomeFirstResponder()
         } else if !isFocused.wrappedValue, textView.isFirstResponder {
             textView.resignFirstResponder()
+        }
+    }
+
+    private func resolvedHeight(for textView: UITextView, width: CGFloat) -> CGFloat {
+        let contentSize = textView.sizeThatFits(
+            CGSize(width: width, height: .greatestFiniteMagnitude)
+        )
+        let containsEmbed = session.controller.document.nodes.contains(where: { $0.kind == "embed" })
+        return MessageComposerMetric.editorHeight(
+            for: contentSize.height,
+            containsEmbed: containsEmbed
+        )
+    }
+
+    private func publishMeasuredHeight(_ height: CGFloat) {
+        guard abs(measuredHeight.wrappedValue - height) > 0.5 else { return }
+        DispatchQueue.main.async {
+            measuredHeight.wrappedValue = height
         }
     }
 
@@ -93,6 +117,7 @@ struct NativeComposerEditorView: NSViewRepresentable {
     let isFocused: Binding<Bool>
     let isEditable: Bool
     let accessibilityHint: String
+    var measuredHeight: Binding<CGFloat> = .constant(0)
     var piiDecorations: [NativeComposerPIIDecoration] = []
     var onExcludePII: (String) -> Void = { _ in }
     let onSubmit: () -> Void
@@ -104,7 +129,10 @@ struct NativeComposerEditorView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let textView = context.coordinator.adapter.makePlatformView()
         textView.drawsBackground = false
-        textView.textContainerInset = NSSize(width: 12, height: 14)
+        textView.textContainerInset = NSSize(
+            width: .spacing6,
+            height: MessageComposerMetric.editorVerticalInset
+        )
         let scrollView = NSScrollView()
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = false

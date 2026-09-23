@@ -42,4 +42,28 @@ final class APIClientUploadTransportTests: XCTestCase {
         }
         XCTAssertEqual(request.httpBody, body)
     }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testUploadRequestForwardsOnlyCookiesScopedToUploadHost() throws {
+        let uploadURL = try XCTUnwrap(URL(string: "https://uploads.example.test/v1/upload/file"))
+        let webAppURL = try XCTUnwrap(URL(string: "https://app.example.test"))
+        let cookie = try XCTUnwrap(HTTPCookie(properties: [
+            .domain: ".example.test",
+            .path: "/",
+            .name: "auth_refresh_token",
+            .value: "test-session",
+            .secure: "TRUE"
+        ]))
+        OpenMatesSharedEnvironment.cookieStorage.setCookie(cookie)
+        defer { OpenMatesSharedEnvironment.cookieStorage.deleteCookie(cookie) }
+
+        let request = APIClient.makeUploadRequest(
+            uploadURL: uploadURL,
+            webAppURL: webAppURL,
+            boundary: "fixture-boundary",
+            body: Data()
+        )
+
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Cookie"), "auth_refresh_token=test-session")
+    }
 }

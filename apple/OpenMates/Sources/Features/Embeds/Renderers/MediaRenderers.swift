@@ -1593,7 +1593,10 @@ struct VideoTranscriptPayload: Equatable {
     }
 
     static func flattenedResults(in data: [String: AnyCodable]) -> [[String: Any]] {
-        let candidates = EmbedFieldReader.dictionaryArray(data, key: "results")
+        let candidates = ["results", "preview_results"]
+            .lazy
+            .map { EmbedFieldReader.dictionaryArray(data, key: $0) }
+            .first { !$0.isEmpty } ?? []
         let flattened = candidates.flatMap { candidate -> [[String: Any]] in
             let nested = dictionaryArray(candidate["results"])
             return nested.isEmpty ? [candidate] : nested
@@ -1602,6 +1605,30 @@ struct VideoTranscriptPayload: Equatable {
         return EmbedFieldReader.string(data, keys: ["transcript", "formatted_transcript", "text", "content"]) == nil
             ? []
             : [data.mapValues(\.value)]
+    }
+
+    /// Reconstitute the web fullscreen payload from its persisted parent and
+    /// child records. Parent preview metadata supplies title/thumbnail fields;
+    /// the child supplies the full transcript and wins on duplicate keys.
+    static func mergedData(
+        parent: [String: AnyCodable],
+        child: [String: AnyCodable]
+    ) -> [String: AnyCodable] {
+        var merged = parent
+        if let preview = EmbedFieldReader.dictionaryArray(parent, key: "preview_results").first {
+            for (key, value) in preview where merged[key] == nil {
+                merged[key] = AnyCodable(value)
+            }
+        }
+        for (key, value) in child {
+            merged[key] = value
+        }
+        let normalizedResult = merged.reduce(into: [String: Any]()) { result, field in
+            guard field.key != "results", field.key != "preview_results" else { return }
+            result[field.key] = field.value.value
+        }
+        merged["results"] = AnyCodable([normalizedResult])
+        return merged
     }
 
     private static func dictionary(_ value: Any?) -> [String: Any] {

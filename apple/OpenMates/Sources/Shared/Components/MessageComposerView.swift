@@ -3,6 +3,8 @@
 // ActionButtons.svelte shell: hosts provide destination/send plumbing, while
 // this component owns the field shape, action row placement, gradient icons,
 // and stable accessibility identifiers used by parity tests.
+// Specification: specifications/features/message-input/specification.yml
+// Assertion: message-input.layout.responsive-parity
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
@@ -22,11 +24,27 @@ enum MessageComposerMetric {
     static let expandedMinHeight: CGFloat = 100
     /// Browser-computed focused empty field height at 393x852: 117.59px from MessageInput's editor line box plus action row.
     static let focusedEmptyHeight: CGFloat = 118
+    /// Web ProseMirror body typography uses a 1.6 line-height at 16px.
+    static let editorLineHeight: CGFloat = 25.6
+    /// Keep the three most recent lines visible in the collapsed composer before its editor scrolls.
+    static let collapsedVisibleLineCount: CGFloat = 3
+    /// Matches the native editor's 14pt top and bottom text-container insets.
+    static let editorVerticalInset: CGFloat = .spacing6 + .spacing1
+    /// Space reserved below the editor for the web-parity action row.
+    static let expandedBottomReservedHeight: CGFloat = .spacing20 + .spacing10
+    static let collapsedTextEditorMaxHeight: CGFloat =
+        (editorVerticalInset * 2) + (editorLineHeight * collapsedVisibleLineCount)
+    static let collapsedTextFieldMaxHeight: CGFloat =
+        collapsedTextEditorMaxHeight + expandedBottomReservedHeight
     /// Web `MessageInput.styles.css`: `.message-field { max-height: 350px; }`.
     static let expandedMaxHeight: CGFloat = 350
     static let expandedCornerRadius: CGFloat = 24
     /// Web `MessageInput.styles.css`: `.message-field.inline-compact { min-height/max-height: 48px; border-radius: radius-full; }`.
     static let inlineCompactHeight: CGFloat = 48
+
+    static func editorHeight(for contentHeight: CGFloat, containsEmbed: Bool) -> CGFloat {
+        min(contentHeight, containsEmbed ? 250 : collapsedTextEditorMaxHeight)
+    }
 }
 
 enum MessageComposerPresentation {

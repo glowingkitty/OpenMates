@@ -32,6 +32,22 @@ import AppKit
 enum MainAppLayoutParity {
     static let settingsPanelWidth: CGFloat = 323
 
+    struct PaneDragOffsets: Equatable {
+        let chats: CGFloat
+        let settings: CGFloat
+    }
+
+    static func paneDragOffsets(target: ShellSwipeTarget?, dragOffset: CGFloat) -> PaneDragOffsets {
+        switch target {
+        case .openChats, .closeChats:
+            return PaneDragOffsets(chats: dragOffset, settings: 0)
+        case .openSettings, .closeSettings:
+            return PaneDragOffsets(chats: 0, settings: dragOffset)
+        case nil:
+            return PaneDragOffsets(chats: 0, settings: 0)
+        }
+    }
+
     static func sideBySideSettingsWidth(isOpen: Bool, dragOffset: CGFloat) -> CGFloat {
         if isOpen {
             return max(0, min(settingsPanelWidth, settingsPanelWidth - max(0, dragOffset)))
@@ -88,13 +104,6 @@ struct MainAppView: View {
 
     private static let encryptedUserStorageRetryLimit = 3
     private static let encryptedUserStorageRetryDelayMilliseconds = 200
-
-    private enum ShellSwipeTarget {
-        case openChats
-        case closeChats
-        case openSettings
-        case closeSettings
-    }
 
     private struct PendingExternalEmbedOpen: Equatable {
         let chatId: String
@@ -622,11 +631,21 @@ struct MainAppView: View {
             let viewportWidth = geo.size.width
             let compactShell = isCompactShell(width: viewportWidth)
             let compactPanelWidth = viewportWidth
+            let paneDragOffsets = MainAppLayoutParity.paneDragOffsets(
+                target: shellSwipeTarget,
+                dragOffset: shellDragOffset
+            )
             let chatsPanelOffset = compactShell
-                ? (isChatsPanelOpen ? max(0, compactPanelWidth + shellDragOffset) : max(0, shellDragOffset))
+                ? (isChatsPanelOpen
+                    ? max(0, compactPanelWidth + paneDragOffsets.chats)
+                    : max(0, paneDragOffsets.chats))
                 : 0
 
-            WorkspaceSidebarLayout(width: viewportWidth, isOpen: isChatsPanelOpen, dragOffset: shellDragOffset) {
+            WorkspaceSidebarLayout(
+                width: viewportWidth,
+                isOpen: isChatsPanelOpen,
+                dragOffset: paneDragOffsets.chats
+            ) {
                 chatsPanel
             } content: {
                 activeAppChrome(viewportWidth: regularMainWidth(for: viewportWidth))
@@ -635,7 +654,7 @@ struct MainAppView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
             .contentShape(Rectangle())
-            .simultaneousGesture(shellSwipeGesture(viewportWidth: viewportWidth))
+            .simultaneousGesture(shellSwipeGesture(viewportSize: geo.size))
             .animation(workspaceReduceMotion ? nil : .timingCurve(0.25, 0.1, 0.25, 1, duration: 0.3), value: isChatsPanelOpen)
             .overlay(alignment: .bottomLeading) {
                 shellMetricsProbe(viewportWidth: viewportWidth, compactPanelWidth: compactPanelWidth)
@@ -731,8 +750,15 @@ struct MainAppView: View {
 
     private func regularMainWidth(for viewportWidth: CGFloat) -> CGFloat {
         guard !isCompactShell(width: viewportWidth) else { return viewportWidth }
-        guard isChatsPanelOpen else { return max(0, viewportWidth - 10) }
-        return max(0, viewportWidth - Self.desktopChatsPanelWidth - .spacing5)
+        let chatsDragOffset = MainAppLayoutParity.paneDragOffsets(
+            target: shellSwipeTarget,
+            dragOffset: shellDragOffset
+        ).chats
+        return max(0, viewportWidth - WorkspaceSidebarLayoutPolicy.leadingInset(
+            width: viewportWidth,
+            isOpen: isChatsPanelOpen,
+            dragOffset: chatsDragOffset
+        ))
     }
 
     private func selectedChatDidChange(_ oldValue: String?, _ chatId: String?) {
@@ -1149,90 +1175,69 @@ struct MainAppView: View {
         }
     }
 
-    private func shellSwipeGesture(viewportWidth: CGFloat) -> some Gesture {
+    private func shellSwipeGesture(viewportSize: CGSize) -> some Gesture {
+        // A shell-wide recognizer at 8pt can cancel taps on nested chat search
+        // results while the keyboard is open. Edge swipes still exceed 45pt.
         DragGesture(minimumDistance: 45)
-            .onChanged { value in
-                updateShellSwipeProgress(value, viewportWidth: viewportWidth)
-            }
-            .onEnded { value in
-                handleShellSwipe(value, viewportWidth: viewportWidth)
-            }
+            .onChanged { updateShellSwipeProgress($0, viewportSize: viewportSize) }
+            .onEnded { handleShellSwipe($0, viewportSize: viewportSize) }
     }
 
-    private func updateShellSwipeProgress(_ value: DragGesture.Value, viewportWidth: CGFloat) {
-        let dx = value.translation.width
-        let dy = value.translation.height
-        guard abs(dx) > abs(dy) * 1.2 else {
+    private func updateShellSwipeProgress(_ value: DragGesture.Value, viewportSize: CGSize) {
+        if ShellSwipePolicy.isCancelledByVerticalMovement(value.translation) {
+            shellSwipeTarget = nil
             shellDragOffset = 0
             return
         }
-
-        let target = currentShellSwipeTarget(for: value, viewportWidth: viewportWidth)
-        switch target {
+        guard abs(value.translation.width) > abs(value.translation.height) * 1.2 else {
+            shellDragOffset = 0
+            return
+        }
+        switch currentShellSwipeTarget(for: value, viewportSize: viewportSize) {
         case .openChats:
-            shellDragOffset = min(dx, min(viewportWidth - 10, 390))
+            shellDragOffset = min(value.translation.width, min(viewportSize.width - 10, 390))
         case .closeChats:
-            shellDragOffset = min(0, dx)
+            shellDragOffset = min(0, value.translation.width)
         case .openSettings:
-            shellDragOffset = max(dx, -min(viewportWidth - 40, 323))
+            shellDragOffset = max(value.translation.width, -min(viewportSize.width - 40, 323))
         case .closeSettings:
-            shellDragOffset = min(dx, min(viewportWidth - 40, 323))
+            shellDragOffset = min(value.translation.width, min(viewportSize.width - 40, 323))
         case nil:
             shellDragOffset = 0
         }
     }
 
-    private func handleShellSwipe(_ value: DragGesture.Value, viewportWidth: CGFloat) {
-        let dx = value.translation.width
-        let dy = value.translation.height
+    private func handleShellSwipe(_ value: DragGesture.Value, viewportSize: CGSize) {
         defer {
             shellSwipeTarget = nil
             shellDragOffset = 0
         }
-        guard abs(dx) > 70, abs(dx) > abs(dy) * 1.35 else { return }
-        guard let target = currentShellSwipeTarget(for: value, viewportWidth: viewportWidth) else { return }
+        guard !ShellSwipePolicy.isCancelledByVerticalMovement(value.translation),
+              let target = currentShellSwipeTarget(for: value, viewportSize: viewportSize) else { return }
+        let open = ShellSwipePolicy.shouldSettleOpen(
+            target: target, translation: value.translation, viewportWidth: viewportSize.width
+        )
 
         withAnimation(.easeInOut(duration: 0.24)) {
             switch target {
-            case .openChats:
-                isChatsPanelOpen = true
-            case .closeChats:
-                isChatsPanelOpen = false
-            case .openSettings:
-                showSettings = true
-            case .closeSettings:
-                showSettings = false
+            case .openChats, .closeChats:
+                isChatsPanelOpen = open
+            case .openSettings, .closeSettings:
+                showSettings = open
             }
         }
     }
 
-    private func currentShellSwipeTarget(for value: DragGesture.Value, viewportWidth: CGFloat) -> ShellSwipeTarget? {
-        if let shellSwipeTarget {
-            return shellSwipeTarget
-        }
-
-        let dx = value.translation.width
-        let startedNearLeftEdge = value.startLocation.x <= 42
-        let startedNearRightEdge = value.startLocation.x >= viewportWidth - 42
-        let settingsPanelWidth = min(viewportWidth - 40, 323)
-        let settingsIsOverlay = showSettings && !isSettingsSideBySide(width: viewportWidth)
-        let startedInSettingsPanel = value.startLocation.x >= viewportWidth - settingsPanelWidth
-        let target: ShellSwipeTarget?
-
-        if settingsIsOverlay, dx > 0 {
-            target = .closeSettings
-        } else if showSettings, dx > 0, startedInSettingsPanel {
-            target = .closeSettings
-        } else if !isChatsPanelOpen, startedNearLeftEdge, dx > 0 {
-            target = .openChats
-        } else if isChatsPanelOpen, dx < 0 {
-            target = .closeChats
-        } else if !showSettings, startedNearRightEdge, dx < 0 {
-            target = .openSettings
-        } else {
-            target = nil
-        }
-
+    private func currentShellSwipeTarget(for value: DragGesture.Value, viewportSize: CGSize) -> ShellSwipeTarget? {
+        if let shellSwipeTarget { return shellSwipeTarget }
+        let target = ShellSwipePolicy.target(
+            startLocation: value.startLocation,
+            translation: value.translation,
+            viewportSize: viewportSize,
+            chatsOpen: isChatsPanelOpen,
+            settingsOpen: showSettings,
+            settingsSideBySide: isSettingsSideBySide(width: viewportSize.width)
+        )
         shellSwipeTarget = target
         return target
     }
@@ -1268,7 +1273,15 @@ struct MainAppView: View {
             )
 
             chatContainer {
-                WorkspaceSettingsLayout(windowWidth: currentViewportWidth, windowFrame: workspaceWindowFrame, isOpen: $showSettings, dragOffset: shellDragOffset) {
+                WorkspaceSettingsLayout(
+                    windowWidth: currentViewportWidth,
+                    windowFrame: workspaceWindowFrame,
+                    isOpen: $showSettings,
+                    dragOffset: MainAppLayoutParity.paneDragOffsets(
+                        target: shellSwipeTarget,
+                        dragOffset: shellDragOffset
+                    ).settings
+                ) {
                     shellContent
                 } settings: {
                     settingsPanel(width: 323, closesOnExampleChatOpen: currentViewportWidth <= 1100)
@@ -1298,9 +1311,13 @@ struct MainAppView: View {
 
     private func resolvedSideBySideSettingsWidth(viewportWidth: CGFloat) -> CGFloat {
         guard isSettingsSideBySide(width: viewportWidth) else { return 0 }
+        let settingsDragOffset = MainAppLayoutParity.paneDragOffsets(
+            target: shellSwipeTarget,
+            dragOffset: shellDragOffset
+        ).settings
         return MainAppLayoutParity.sideBySideSettingsWidth(
             isOpen: showSettings,
-            dragOffset: shellDragOffset
+            dragOffset: settingsDragOffset
         )
     }
 
@@ -1435,12 +1452,20 @@ struct MainAppView: View {
 
             // Settings panel — web: 323px, fixed right, translateX slide
             let panelWidth = min(viewportWidth - 40, 323)
-            let dragReveal = !showSettings ? max(0, -shellDragOffset) : max(0, panelWidth - shellDragOffset)
+            let settingsDragOffset = MainAppLayoutParity.paneDragOffsets(
+                target: shellSwipeTarget,
+                dragOffset: shellDragOffset
+            ).settings
+            let dragReveal = !showSettings
+                ? max(0, -settingsDragOffset)
+                : max(0, panelWidth - settingsDragOffset)
             if showSettings || dragReveal > 0 {
                 HStack(spacing: 0) {
                     Spacer(minLength: 0)
                     settingsPanel(width: panelWidth, closesOnExampleChatOpen: true)
-                        .offset(x: showSettings ? max(0, shellDragOffset) : max(0, panelWidth + shellDragOffset))
+                        .offset(x: showSettings
+                            ? max(0, settingsDragOffset)
+                            : max(0, panelWidth + settingsDragOffset))
                 }
                 .transition(.move(edge: .trailing))
             }
@@ -5129,6 +5154,7 @@ struct NewChatWelcomeView: View {
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
     @StateObject private var composerRecorder = VoiceRecorder()
     @State private var isFocused = false
+    @State private var measuredWelcomeComposerHeight: CGFloat = 0
 
     private var messageText: String {
         get { composerSession.canonicalMarkdown }
@@ -5341,7 +5367,12 @@ struct NewChatWelcomeView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let composerReserve: CGFloat = isComposerActive ? (activePIIMatches.isEmpty ? 156 : 236) : 100
+            let composerReserve: CGFloat = isComposerActive
+                ? max(
+                    activePIIMatches.isEmpty ? 156 : 236,
+                    measuredWelcomeComposerHeight + .spacing8
+                )
+                : 100
 
             ZStack(alignment: .bottom) {
                 Color.clear
@@ -5443,6 +5474,11 @@ struct NewChatWelcomeView: View {
                 }
                 .task(id: modelContext) { await modelHost.activate(modelContext) }
                 .onDisappear { modelHost.deactivate() }
+                .onGeometryChange(for: CGFloat.self) { geometry in
+                    geometry.size.height
+                } action: { height in
+                    measuredWelcomeComposerHeight = height
+                }
             }
             .animation(.easeInOut(duration: 0.2), value: isComposerActive)
         }
@@ -5873,7 +5909,14 @@ struct NewChatWelcomeView: View {
                     onRetry: { _ in },
                     onRemove: { _ in pendingComposerEmbeds.removeAll { $0.id == embed.id } }
                 )
-                OfflineStore.shared.persistEmbeds([embed.record], chatId: modelDraftID)
+                // A completed recording is a durable composer atom. Persist its
+                // markdown and encrypted companion snapshot atomically; the
+                // normal typing debounce can be cancelled by an immediate close.
+                draftSaveTask?.cancel()
+                await saveNewChatDraft(
+                    markdown: composerSession.canonicalMarkdown,
+                    revision: composerSession.revision
+                )
                 cleanupWelcomeRecordingTemporaryFile()
             } catch {
                 pendingComposerEmbeds.removeAll { $0.id == embed.id }
@@ -6107,6 +6150,9 @@ struct NewChatWelcomeView: View {
             )
             isComposerActivated = true
         }
+        if arguments.contains("--ui-test-welcome-seed-suggestions") {
+            suggestions = Self.defaultSuggestions(selected: effectiveInterestTagIds)
+        }
         if arguments.contains("--ui-test-welcome-seed-pending-content"), pendingComposerEmbeds.isEmpty {
             addPendingComposerEmbed(filename: "welcome-file.pdf", kind: .file)
             addPendingComposerEmbed(
@@ -6336,6 +6382,8 @@ struct NewChatWelcomeView: View {
             )
         }
         .frame(height: 106)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("new-chat-suggestions")
     }
 
     private func inspirationCarousel(_ activeInspiration: DailyInspirationBanner.DailyInspiration, containerSize: CGSize) -> some View {
@@ -6628,40 +6676,74 @@ struct NewChatWelcomeView: View {
     private func restoreNewChatDraft() async {
         guard isAuthenticated, !isCreatingChat else { return }
         do {
-            if let draft = try await DraftService.shared.loadDraft(chatId: "composer:new-chat"),
+            NativeDiagnostics.info(
+                "New-chat audio restore started scopeActive=\(OfflineStore.shared.activeScopeId != nil) draftAliasActive=\(DraftService.shared.activeNewChatDraftId != nil)",
+                category: "apple_composer"
+            )
+            if let draft = try await loadNewChatDraftForRestore(),
                !isCreatingChat, composerSession.canonicalMarkdown.isEmpty {
                 if let activeDraftID = DraftService.shared.activeNewChatDraftId {
                     modelDraftID = activeDraftID
                 }
                 composerSession.replaceMarkdown(draft.canonicalMarkdown)
-                let cachedRecordings = Dictionary(
-                    OfflineStore.shared.loadEmbeds(chatId: modelDraftID)
-                        .filter { $0.type == "audio-recording" }
-                        .map { ($0.id, $0) },
-                    uniquingKeysWith: { first, _ in first }
-                )
-                for node in composerSession.controller.document.nodes where node.embedType == "recording" {
-                    guard let durableID = node.contentRef?.replacingOccurrences(of: "embed:", with: ""),
-                          let record = cachedRecordings[durableID],
-                          let embed = ComposerPendingEmbed.restoredRecording(from: record) else { continue }
-                    pendingComposerEmbeds.append(embed)
-                    try? composerSession.controller.configureEmbedPreview(
-                        id: node.id, embedRecord: record, localPreviewData: nil
-                    )
-                    try? composerSession.configureEmbedActions(
-                        nodeID: node.id,
-                        onOpen: { _ in },
-                        onRetry: { _ in },
-                        onRemove: { _ in pendingComposerEmbeds.removeAll { $0.id == durableID } }
-                    )
-                    restoreCachedRecordingAudio(nodeID: node.id, durableID: durableID, record: record)
-                }
+                hydrateNewChatRecordingEmbeds(draft.recordings)
+            } else {
+                NativeDiagnostics.info("New-chat audio restore found no loadable draft", category: "apple_composer")
             }
         } catch ComposerDraftError.masterKeyUnavailable {
             return
         } catch {
             NativeDiagnostics.warning("New-chat draft restore failed: \(type(of: error))", category: "apple_composer")
         }
+    }
+
+    private func loadNewChatDraftForRestore() async throws -> ComposerDraft? {
+        // The first encrypted read can cross a startup draft-sync update. Keep
+        // DraftService's strict version check and retry the latest snapshot.
+        for attempt in 0..<5 {
+            do {
+                return try await DraftService.shared.loadDraft(chatId: DraftSyncCoordinator.syntheticNewChatId)
+            } catch {
+                guard case ComposerDraftError.verificationFailed = error, attempt < 4 else { throw error }
+                try await Task.sleep(for: .milliseconds(250 * (attempt + 1)))
+            }
+        }
+        return nil
+    }
+
+    private func hydrateNewChatRecordingEmbeds(_ recordings: [EmbedRecord]) {
+        let cachedRecordings = Dictionary(
+            recordings
+                .map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let recordingNodes = composerSession.controller.document.nodes.filter { $0.embedType == "recording" }
+        NativeDiagnostics.info(
+            "New-chat audio hydrate nodes=\(recordingNodes.count) cachedRecordings=\(cachedRecordings.count) aliasActive=\(DraftService.shared.activeNewChatDraftId != nil)",
+            category: "apple_composer"
+        )
+        for node in recordingNodes {
+            guard let durableID = node.contentRef?.replacingOccurrences(of: "embed:", with: ""),
+                  let record = cachedRecordings[durableID],
+                  let embed = ComposerPendingEmbed.restoredRecording(from: record) else { continue }
+            if !pendingComposerEmbeds.contains(where: { $0.id == embed.id }) {
+                pendingComposerEmbeds.append(embed)
+            }
+            try? composerSession.controller.configureEmbedPreview(
+                id: node.id, embedRecord: record, localPreviewData: nil
+            )
+            try? composerSession.configureEmbedActions(
+                nodeID: node.id,
+                onOpen: { _ in },
+                onRetry: { _ in },
+                onRemove: { _ in pendingComposerEmbeds.removeAll { $0.id == durableID } }
+            )
+            restoreCachedRecordingAudio(nodeID: node.id, durableID: durableID, record: record)
+        }
+        NativeDiagnostics.info(
+            "New-chat audio hydrate completed pending=\(pendingComposerEmbeds.count)",
+            category: "apple_composer"
+        )
     }
 
     private func restoreCachedRecordingAudio(nodeID: String, durableID: String, record: EmbedRecord) {
@@ -6697,13 +6779,18 @@ struct NewChatWelcomeView: View {
         let activeDraftId = DraftService.shared.activeNewChatDraftId
         guard chatId == DraftSyncCoordinator.syntheticNewChatId || chatId == activeDraftId else { return }
         do {
-            let draft = try await DraftService.shared.loadDraft(chatId: DraftSyncCoordinator.syntheticNewChatId)
+            let draft = try await loadNewChatDraftForRestore()
             let markdown = draft?.canonicalMarkdown ?? ""
             guard !isCreatingChat, revision == composerSession.revision,
-                  scopeGeneration == OfflineStore.shared.scopeGeneration,
-                  markdown != composerSession.canonicalMarkdown else { return }
-            suppressNextDraftSave = true
-            composerSession.replaceMarkdown(markdown)
+                  scopeGeneration == OfflineStore.shared.scopeGeneration else { return }
+            if let activeDraftID = DraftService.shared.activeNewChatDraftId {
+                modelDraftID = activeDraftID
+            }
+            if markdown != composerSession.canonicalMarkdown {
+                suppressNextDraftSave = true
+                composerSession.replaceMarkdown(markdown)
+            }
+            hydrateNewChatRecordingEmbeds(draft?.recordings ?? [])
         } catch ComposerDraftError.masterKeyUnavailable {
             return
         } catch {
@@ -6751,7 +6838,10 @@ struct NewChatWelcomeView: View {
                 preview: String(markdown.prefix(160)),
                 chatId: "composer:new-chat",
                 revision: revision,
-                draftVersion: 0
+                draftVersion: 0,
+                recordings: pendingComposerEmbeds
+                    .map(\.record)
+                    .filter { $0.type == "audio-recording" }
             )
         } catch ComposerDraftError.masterKeyUnavailable {
             return
@@ -7774,12 +7864,17 @@ private struct WelcomeComposer: View {
         !pendingComposerEmbeds.isEmpty
     }
 
+    private var hasComposerEmbedNodes: Bool {
+        session.controller.document.nodes.contains { $0.kind == "embed" }
+    }
+
     private var isOpen: Bool {
         hasContent || isFocused || isActivated || isExpanded || isOverlayActive || anonymousAttachmentPending || hasPendingComposerEmbeds
     }
 
     private var isDraftPreview: Bool {
-        hasContent && !isFocused && !isExpanded && !isOverlayActive && !hasPendingComposerEmbeds
+        hasContent && !isFocused && !isExpanded && !isOverlayActive
+            && !hasPendingComposerEmbeds && !hasComposerEmbedNodes
     }
 
     private var isSubmitBlocked: Bool {

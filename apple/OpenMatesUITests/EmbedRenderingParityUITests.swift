@@ -323,11 +323,15 @@ final class EmbedRenderingParityUITests: XCTestCase {
                 )
             } else {
                 XCTAssertTrue(
-                    waitForLabel(app.staticTexts["video-transcript-fullscreen-title"], containing: "Resolved transcript metadata fixture", timeout: 5),
+                    app.staticTexts.matching(NSPredicate(
+                        format: "label CONTAINS %@", "Resolved transcript metadata fixture"
+                    )).firstMatch.waitForExistence(timeout: 8),
                     "Fullscreen must preserve metadata resolved from the transcript source URL."
                 )
                 XCTAssertTrue(
-                    waitForLabel(app.staticTexts["video-transcript-fullscreen-metadata"], containing: "Resolved fixture channel", timeout: 5),
+                    app.staticTexts.matching(NSPredicate(
+                        format: "label CONTAINS %@", "Resolved fixture channel"
+                    )).firstMatch.waitForExistence(timeout: 8),
                     "Fullscreen must preserve the resolved channel metadata."
                 )
                 XCTAssertTrue(

@@ -11,6 +11,9 @@ struct ComposerDraftRecord: Sendable {
     let chatId: String
     var encryptedMarkdown: String
     var encryptedPreview: String
+    /// Master-key Format D ciphertext for local-only recording snapshots.
+    /// This field never participates in the draft sync wire contract.
+    var encryptedRecordingPayload: String? = nil
     let revision: Int
     let draftVersion: Int
     var clearedDraftVersion: Int = 0
@@ -20,6 +23,7 @@ struct ComposerDraftRecord: Sendable {
 struct ComposerDraft: Sendable {
     let canonicalMarkdown: String
     let preview: String
+    let recordings: [EmbedRecord]
     let revision: Int
     let draftVersion: Int
 }
@@ -88,6 +92,13 @@ enum ComposerDraftMutation: Sendable {
             else { return unchanged }
             record.clearedDraftVersion = clearedVersion
             record.isDeleted = false
+            // The companion is local-only. Server echoes carry the same markdown
+            // ciphertext and preserve it; a genuine remote replacement clears it.
+            if record.encryptedRecordingPayload == nil,
+               let local,
+               record.encryptedMarkdown == local.encryptedMarkdown {
+                record.encryptedRecordingPayload = local.encryptedRecordingPayload
+            }
             return ComposerDraftApplication(record: record, applied: true)
         case .previewRepair(var record):
             // Preview derivation awaits decryption/encryption. It may only fill
@@ -96,11 +107,13 @@ enum ComposerDraftMutation: Sendable {
                   local.draftVersion == record.draftVersion, local.revision == record.revision,
                   local.encryptedMarkdown == record.encryptedMarkdown else { return unchanged }
             record.clearedDraftVersion = clearedVersion
+            record.encryptedRecordingPayload = local.encryptedRecordingPayload
             return ComposerDraftApplication(record: record, applied: true)
         case .acknowledgement(_, let version):
             guard let local, !local.isDeleted, version >= currentVersion else { return unchanged }
             return ComposerDraftApplication(record: ComposerDraftRecord(chatId: local.chatId,
                 encryptedMarkdown: local.encryptedMarkdown, encryptedPreview: local.encryptedPreview,
+                encryptedRecordingPayload: local.encryptedRecordingPayload,
                 revision: local.revision, draftVersion: version, clearedDraftVersion: clearedVersion), applied: true)
         case .deletion(_, let version):
             guard ComposerDraftVersionPolicy.acceptsDeletion(version: version, currentVersion: currentVersion)
@@ -146,6 +159,8 @@ final class PersistedComposerDraft {
     @Attribute(.unique) var chatId: String
     var encryptedMarkdown: String
     var encryptedPreview: String
+    // Optional so existing SwiftData stores migrate without a mandatory value.
+    var encryptedRecordingPayload: String? = nil
     var revision: Int
     var draftVersion: Int
     var clearedDraftVersion: Int?
@@ -156,6 +171,7 @@ final class PersistedComposerDraft {
         self.chatId = record.chatId
         self.encryptedMarkdown = record.encryptedMarkdown
         self.encryptedPreview = record.encryptedPreview
+        self.encryptedRecordingPayload = record.encryptedRecordingPayload
         self.revision = record.revision
         self.draftVersion = record.draftVersion
         self.clearedDraftVersion = record.clearedDraftVersion
@@ -165,6 +181,7 @@ final class PersistedComposerDraft {
     func update(from record: ComposerDraftRecord) {
         encryptedMarkdown = record.encryptedMarkdown
         encryptedPreview = record.encryptedPreview
+        encryptedRecordingPayload = record.encryptedRecordingPayload
         revision = record.revision
         draftVersion = record.draftVersion
         clearedDraftVersion = record.clearedDraftVersion
@@ -176,6 +193,7 @@ final class PersistedComposerDraft {
             chatId: chatId,
             encryptedMarkdown: encryptedMarkdown,
             encryptedPreview: encryptedPreview,
+            encryptedRecordingPayload: encryptedRecordingPayload,
             revision: revision,
             draftVersion: draftVersion,
             clearedDraftVersion: clearedDraftVersion ?? 0,

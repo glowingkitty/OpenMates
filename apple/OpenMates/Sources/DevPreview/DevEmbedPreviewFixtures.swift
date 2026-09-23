@@ -1107,27 +1107,35 @@ enum DevEmbedPreviewFixtures {
     }
 
     private static var videoTranscript: DevEmbedPreviewSkill {
+        let parentID = "preview-video-transcript-1"
+        let child = record(
+            id: "preview-video-transcript-result-1",
+            type: EmbedType.videosVideo.rawValue,
+            appId: "videos",
+            skillId: "transcript_result",
+            data: [
+                "type": "transcript_result",
+                "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "transcript": "[00:00:00.000] Grouped transcript fixture proof text renders in fullscreen.",
+                "word_count": 9,
+                "characters_count": 75,
+                "language": "en",
+                "hash": "fixture-transcript-hash"
+            ],
+            parentEmbedId: parentID
+        )
         let embed = appSkill(
-            id: "preview-video-transcript-1",
+            id: parentID,
             type: EmbedType.videosTranscript.rawValue,
             appId: "videos",
             skillId: "get_transcript",
             data: [
-                "results": [[
-                    "id": "fixture-transcript-request",
-                    "results": [[
-                        "type": "transcript_result",
-                        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                        "transcript": "[00:00:00.000] Grouped transcript fixture proof text renders in fullscreen.",
-                        "word_count": 9,
-                        "characters_count": 75,
-                        "language": "en",
-                        "hash": "fixture-transcript-hash"
-                    ]]
-                ]]
-            ]
+                "result_count": 1,
+                "preview_results": [["url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"]]
+            ],
+            embedIds: child.id
         )
-        return skill(id: "videos-get-transcript", label: "Get Transcript", primary: embed)
+        return skill(id: "videos-get-transcript", label: "Get Transcript", primary: embed, children: [child])
     }
 
     private static var videoGenerate: DevEmbedPreviewSkill {

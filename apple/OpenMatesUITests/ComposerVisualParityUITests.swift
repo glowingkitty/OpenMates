@@ -95,6 +95,84 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertFalse(app.buttons["composer-attachment-drawing"].exists, "Outside tap should dismiss the attachment menu")
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testCollapsedComposerGrowsThroughThreeLinesThenScrollsAboveActions() throws {
+        let app = launchFocusedWelcomeComposer(
+            extraArguments: ["--ui-test-welcome-seed-suggestions"]
+        )
+        let editor = waitForMessageEditor(in: app)
+        let field = element(in: app, identifier: "message-field")
+        let suggestions = element(in: app, identifier: "new-chat-suggestions")
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(suggestions.waitForExistence(timeout: 5))
+        let initialHeight = field.frame.height
+
+        editor.typeText("First line")
+        XCTAssertTrue(
+            waitForSuggestions(suggestions, above: field),
+            "Welcome suggestions must settle above the active composer"
+        )
+        let oneLineSuggestionsMaxY = suggestions.frame.maxY
+        XCTAssertLessThanOrEqual(
+            oneLineSuggestionsMaxY,
+            field.frame.minY,
+            "Welcome suggestions must remain above the active composer"
+        )
+
+        editor.typeText("\nSecond line\nThird line")
+        XCTAssertTrue(
+            waitForSuggestions(
+                suggestions,
+                above: field,
+                maxYLessThan: oneLineSuggestionsMaxY - 20
+            ),
+            "Welcome suggestions must follow the growing composer upward"
+        )
+
+        let threeLineHeight = field.frame.height
+        XCTAssertGreaterThan(
+            threeLineHeight,
+            initialHeight + 20,
+            "The collapsed composer should expand upward to reveal three recent lines"
+        )
+        XCTAssertLessThan(
+            suggestions.frame.maxY,
+            oneLineSuggestionsMaxY - 20,
+            "Welcome suggestions should move upward as the multiline composer grows"
+        )
+        XCTAssertLessThanOrEqual(
+            suggestions.frame.maxY,
+            field.frame.minY,
+            "Three visible lines must not overlap the welcome suggestions"
+        )
+        let sendButton = app.buttons["send-button"]
+        XCTAssertTrue(sendButton.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(
+            editor.frame.maxY,
+            sendButton.frame.minY + 2,
+            "Multiline text must remain above the bottom action controls"
+        )
+
+        editor.typeText("\nFourth line\nFifth line")
+
+        XCTAssertEqual(
+            field.frame.height,
+            threeLineHeight,
+            accuracy: 4,
+            "After three visible lines, the editor should scroll instead of growing over the controls"
+        )
+        XCTAssertLessThanOrEqual(
+            suggestions.frame.maxY,
+            field.frame.minY,
+            "Scrollable fourth and fifth lines must keep suggestions above the composer"
+        )
+        XCTAssertTrue(
+            (editor.value as? String)?.contains("Fifth line") == true,
+            "The newest line should remain in the scrollable editor value"
+        )
+        attachScreenshot(name: "Collapsed composer three-line scrolling cap")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testFocusedWelcomeComposerActionButtonsAreNotNoOpsWhenSignedOut() throws {
         assertSignedOutWelcomeActionShowsSignupCTA("composer-attachment-files")
@@ -308,6 +386,24 @@ final class ComposerVisualParityUITests: XCTestCase {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if element.frame.height >= minimumHeight { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return false
+    }
+
+    private func waitForSuggestions(
+        _ suggestions: XCUIElement,
+        above field: XCUIElement,
+        maxYLessThan upperBound: CGFloat? = nil,
+        timeout: TimeInterval = 5
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let suggestionsMaxY = suggestions.frame.maxY
+            if suggestionsMaxY <= field.frame.minY,
+               upperBound.map({ suggestionsMaxY < $0 }) ?? true {
+                return true
+            }
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
         return false
