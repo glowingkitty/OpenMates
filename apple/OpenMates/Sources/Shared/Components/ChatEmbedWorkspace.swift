@@ -16,6 +16,7 @@ struct ChatEmbedWorkspace<Transcript: View, Embed: View>: View {
             let split = embedOpen && geometry.size.width >= 1024
             let chatWidth: CGFloat = split ? 400 : geometry.size.width
             let leading: CGFloat = split && !chatHidden ? 410 : 0
+            let embedWidth = max(0, geometry.size.width - leading)
             ZStack(alignment: .leading) {
                 transcript()
                     .environment(\.workspacePaneIsVisible, parentVisible && (!embedOpen || (split && !chatHidden)))
@@ -30,14 +31,23 @@ struct ChatEmbedWorkspace<Transcript: View, Embed: View>: View {
                     .allowsHitTesting(!embedOpen || (split && !chatHidden))
                     .accessibilityHidden(embedOpen && (!split || chatHidden))
                 if embedOpen {
-                    embed()
-                        .environment(\.workspacePaneIsVisible, parentVisible)
-                        .frame(width: max(0, geometry.size.width - leading), height: geometry.size.height)
-                        .clipShape(RoundedRectangle(cornerRadius: 17))
-                        .accessibilityElement(children: .contain)
-                        .accessibilityIdentifier("workspace-embed")
-                        .offset(x: leading)
-                        .transition(reduceMotion ? .identity : .modifier(active: WorkspaceEmbedReveal(progress: 0), identity: WorkspaceEmbedReveal(progress: 1)))
+                    // Lay the pane out after a real leading reservation. Offsetting
+                    // an already clipped child leaves AppKit rendering clipped to
+                    // its pre-offset bounds, so a 410pt strip at the trailing edge
+                    // appears blank even though the accessibility frame is correct.
+                    HStack(spacing: 0) {
+                        Color.clear
+                            .frame(width: leading, height: geometry.size.height)
+                            .accessibilityHidden(true)
+                        embed()
+                            .environment(\.workspacePaneIsVisible, parentVisible)
+                            .frame(width: embedWidth, height: geometry.size.height)
+                            .clipShape(RoundedRectangle(cornerRadius: 17))
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("workspace-embed")
+                            .transition(reduceMotion ? .identity : .modifier(active: WorkspaceEmbedReveal(progress: 0), identity: WorkspaceEmbedReveal(progress: 1)))
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)

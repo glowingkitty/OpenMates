@@ -45,6 +45,44 @@ enum MainAppLayoutParity {
     }
 }
 
+enum MainAppChatHeaderActionPolicy {
+    enum ShareDestination: Equatable {
+        case publicLink
+        case ownerSettings
+    }
+
+    struct Actions: Equatable {
+        let shareDestination: ShareDestination
+        let exposesOwnerSettings: Bool
+    }
+
+    static func actions(isPublic: Bool) -> Actions {
+        if isPublic {
+            return Actions(shareDestination: .publicLink, exposesOwnerSettings: false)
+        }
+        return Actions(shareDestination: .ownerSettings, exposesOwnerSettings: true)
+    }
+}
+
+enum NativeClientLifecyclePolicy {
+    static func isCompletionCapable(_ phase: ScenePhase) -> Bool {
+        switch phase {
+        case .active:
+            return true
+        case .inactive:
+            #if os(macOS)
+            return true
+            #else
+            return false
+            #endif
+        case .background:
+            return false
+        @unknown default:
+            return false
+        }
+    }
+}
+
 struct MainAppView: View {
     let launchCommand: AppWindowLaunchCommand?
 
@@ -790,16 +828,14 @@ struct MainAppView: View {
 
     private func scenePhaseDidChange(_ oldValue: ScenePhase, _ newValue: ScenePhase) {
         guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
-        switch newValue {
-        case .active:
+        let isCompletionCapable = NativeClientLifecyclePolicy.isCompletionCapable(newValue)
+        if isCompletionCapable {
             sendNativeClientForegroundAndActiveChat()
-        case .inactive, .background:
-            sendNativeClientLifecycle(isForeground: false)
-        @unknown default:
+        } else {
             sendNativeClientLifecycle(isForeground: false)
         }
 
-        guard newValue == .active else { return }
+        guard isCompletionCapable else { return }
         Task { await flushQueuedNotificationReplies() }
         switch wsManager.connectionState {
         case .connected, .connecting, .reconnecting:
@@ -817,7 +853,7 @@ struct MainAppView: View {
             await DraftService.shared.reconcileAfterReconnect()
             await flushQueuedNotificationReplies()
         }
-        if scenePhase == .active {
+        if NativeClientLifecyclePolicy.isCompletionCapable(scenePhase) {
             sendNativeClientForegroundAndActiveChat()
         } else {
             sendNativeClientLifecycle(isForeground: false)
@@ -1368,6 +1404,25 @@ struct MainAppView: View {
         }
     }
 
+    /// Public/example chats already have a stable web route and can be shared
+    /// without opening authenticated chat-sharing settings.
+    private func sharePublicChat(_ chatId: String) {
+        Task {
+            let webURL = await APIClient.shared.webAppURL
+            let encodedChatId = chatId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? chatId
+            guard let shareURL = URL(string: "\(webURL.absoluteString)#chat-id=\(encodedChatId)") else { return }
+            #if os(iOS)
+            let activity = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
+            guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let presenter = scene.windows.first(where: \.isKeyWindow)?.rootViewController else { return }
+            presenter.present(activity, animated: true)
+            #elseif os(macOS)
+            let picker = NSSharingServicePicker(items: [shareURL])
+            picker.show(relativeTo: .zero, of: NSApp.keyWindow?.contentView ?? NSView(), preferredEdge: .minY)
+            #endif
+        }
+    }
+
     private func settingsSlidePanel(viewportWidth: CGFloat) -> some View {
         ZStack(alignment: .trailing) {
             // Dimmed backdrop — web: .active-chat-container.dimmed opacity 0.3
@@ -1627,6 +1682,7 @@ struct MainAppView: View {
             )
         } else if isAuthenticated, let chatId = selectedChatId {
             let isPublic = publicChatGroup(for: chatId) != nil
+            let headerActions = MainAppChatHeaderActionPolicy.actions(isPublic: isPublic)
             let initialWindow: [Message] = isPublic ? [] : ChatHistoryWindowPolicy.initialMessages(
                 chatStore.messages(for: chatId), anchor: chatStore.chat(for: chatId)?.lastVisibleMessageId)
             ChatView(
@@ -1643,11 +1699,18 @@ struct MainAppView: View {
                 searchTarget: searchSelection?.chatId == chatId ? searchSelection : nil,
                 initialEmbedId: pendingExternalEmbedOpen?.chatId == chatId ? pendingExternalEmbedOpen?.embedId : nil,
                 isSettingsOpen: currentViewportWidth > 1100 && showSettings,
-                onShareChat: { openShareSettings(for: chatId) },
-                onOpenChatSettings: {
+                onShareChat: {
+                    switch headerActions.shareDestination {
+                    case .publicLink:
+                        sharePublicChat(chatId)
+                    case .ownerSettings:
+                        openShareSettings(for: chatId)
+                    }
+                },
+                onOpenChatSettings: headerActions.exposesOwnerSettings ? {
                     settingsShareChatId = nil
                     showSettings = true
-                },
+                } : nil,
                 onCloseChat: openNewChatScreen,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
@@ -1680,7 +1743,7 @@ struct MainAppView: View {
                 searchTarget: searchSelection?.chatId == chatId ? searchSelection : nil,
                 initialEmbedId: pendingExternalEmbedOpen?.chatId == chatId ? pendingExternalEmbedOpen?.embedId : nil,
                 isSettingsOpen: currentViewportWidth > 1100 && showSettings,
-                onOpenChatSettings: { showSettings = true },
+                onShareChat: { sharePublicChat(chatId) },
                 onCloseChat: openNewChatScreen,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
@@ -2841,6 +2904,7 @@ struct MainAppView: View {
             encryptedCategory: payload.encryptedCategory ?? existing?.encryptedCategory,
             encryptedIcon: existing?.encryptedIcon,
             encryptedChatSummary: existing?.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: existing?.encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: existing?.encryptedAutoSpeakResponse,
             encryptedChatKey: payload.encryptedChatKey ?? existing?.encryptedChatKey,
             messagesV: payload.messagesV ?? existing?.messagesV,
@@ -2896,6 +2960,7 @@ struct MainAppView: View {
             encryptedCategory: existing?.encryptedCategory,
             encryptedIcon: existing?.encryptedIcon,
             encryptedChatSummary: existing?.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: existing?.encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: existing?.encryptedAutoSpeakResponse,
             encryptedChatKey: payload.encryptedChatKey ?? existing?.encryptedChatKey,
             messagesV: existing?.messagesV,
@@ -3033,6 +3098,7 @@ struct MainAppView: View {
             encryptedCategory: existingChat.encryptedCategory,
             encryptedIcon: existingChat.encryptedIcon,
             encryptedChatSummary: existingChat.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: existingChat.encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: existingChat.encryptedAutoSpeakResponse,
             encryptedChatKey: existingChat.encryptedChatKey,
             messagesV: nextMessagesV,
@@ -3103,6 +3169,7 @@ struct MainAppView: View {
             encryptedCategory: existing.encryptedCategory,
             encryptedIcon: existing.encryptedIcon,
             encryptedChatSummary: existing.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: existing.encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: existing.encryptedAutoSpeakResponse,
             encryptedChatKey: existing.encryptedChatKey,
             messagesV: existing.messagesV,

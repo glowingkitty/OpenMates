@@ -1543,21 +1543,17 @@ struct VideoPlayerView: View {
 
 // MARK: - Transcript
 
-private extension AppStrings {
-    static var transcriptYouTubeVideo: String { localized("embeds.youtube_video") }
-    static var transcriptVia: String { localized("embeds.via") }
-    static var transcriptWords: String { localized("embeds.document_word_plural") }
-    static var transcriptNoResults: String { localized("embeds.search_no_results") }
-}
-
 struct VideoTranscriptPayload: Equatable {
     let title: String?
     let channelName: String?
     let channelThumbnailURL: URL?
+    let videoThumbnailURL: URL?
     let sourceURL: String?
+    let videoID: String?
     let transcript: String
     let wordCount: Int
     let language: String?
+    let duration: String?
 
     init(data: [String: AnyCodable]?) {
         let root = data ?? [:]
@@ -1577,6 +1573,13 @@ struct VideoTranscriptPayload: Equatable {
         channelThumbnailURL = EmbedFieldReader.proxiedImageURL(thumbnail, maxWidth: 58).flatMap(URL.init(string:))
         sourceURL = Self.string(result, keys: ["url"])
             ?? EmbedFieldReader.string(root, keys: ["url"])
+        videoID = Self.string(result, keys: ["video_id"])
+            ?? EmbedFieldReader.string(root, keys: ["video_id"])
+            ?? Self.youtubeVideoID(from: sourceURL)
+        let videoThumbnail = Self.string(metadata, keys: ["thumbnail_url", "thumbnail", "thumbnail_original"])
+            ?? Self.string(result, keys: ["thumbnail_url", "thumbnail", "thumbnail_original"])
+            ?? videoID.map { "https://i.ytimg.com/vi/\($0)/hqdefault.jpg" }
+        videoThumbnailURL = EmbedFieldReader.proxiedImageURL(videoThumbnail, maxWidth: 640).flatMap(URL.init(string:))
         transcript = Self.string(result, keys: ["transcript", "formatted_transcript", "text", "content"])
             ?? EmbedFieldReader.string(root, keys: ["transcript", "formatted_transcript", "text", "content"])
             ?? ""
@@ -1585,6 +1588,8 @@ struct VideoTranscriptPayload: Equatable {
         }
         language = Self.string(result, keys: ["language"])
             ?? EmbedFieldReader.string(root, keys: ["language"])
+        duration = Self.string(metadata, keys: ["duration", "duration_formatted"])
+            ?? Self.string(result, keys: ["duration", "duration_formatted"])
     }
 
     static func flattenedResults(in data: [String: AnyCodable]) -> [[String: Any]] {
@@ -1629,21 +1634,59 @@ struct VideoTranscriptPayload: Equatable {
         }
         return nil
     }
+
+    private static func youtubeVideoID(from sourceURL: String?) -> String? {
+        guard let sourceURL, let components = URLComponents(string: sourceURL) else { return nil }
+        if components.host?.lowercased().hasSuffix("youtu.be") == true {
+            return components.path.split(separator: "/").first.map(String.init)
+        }
+        guard components.host?.lowercased().contains("youtube.com") == true else { return nil }
+        return components.queryItems?.first(where: { $0.name == "v" })?.value
+    }
 }
 
 struct VideoTranscriptMetadata: Decodable, Equatable {
     let title: String?
     let channelName: String?
     let channelThumbnail: String?
+    let videoId: String?
+    let thumbnails: Thumbnails?
+    let duration: Duration?
+
+    struct Thumbnails: Decodable, Equatable {
+        let `default`: String?
+        let medium: String?
+        let high: String?
+        let standard: String?
+        let maxres: String?
+    }
+
+    struct Duration: Decodable, Equatable {
+        let totalSeconds: Double?
+        let formatted: String?
+
+        enum CodingKeys: String, CodingKey {
+            case totalSeconds = "total_seconds"
+            case formatted
+        }
+    }
 
     enum CodingKeys: String, CodingKey {
         case title
         case channelName = "channel_name"
         case channelThumbnail = "channel_thumbnail"
+        case videoId = "video_id"
+        case thumbnails
+        case duration
     }
 
     var channelThumbnailURL: URL? {
         EmbedFieldReader.proxiedImageURL(channelThumbnail, maxWidth: 58).flatMap(URL.init(string:))
+    }
+
+    var videoThumbnailURL: URL? {
+        let raw = thumbnails?.maxres ?? thumbnails?.standard ?? thumbnails?.high ?? thumbnails?.medium ?? thumbnails?.default
+        return EmbedFieldReader.proxiedImageURL(raw, maxWidth: 640).flatMap(URL.init(string:))
     }
 }
 
@@ -1681,6 +1724,7 @@ struct TranscriptRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
+    @Environment(\.openURL) private var openURL
     @State private var fetchedMetadata: VideoTranscriptMetadata?
 
     private var payload: VideoTranscriptPayload { VideoTranscriptPayload(data: data) }
@@ -1689,6 +1733,10 @@ struct TranscriptRenderer: View {
     private var channelThumbnailURL: URL? {
         fetchedMetadata?.channelThumbnailURL ?? payload.channelThumbnailURL
     }
+    private var videoThumbnailURL: URL? {
+        fetchedMetadata?.videoThumbnailURL ?? payload.videoThumbnailURL
+    }
+    private var duration: String? { fetchedMetadata?.duration?.formatted ?? payload.duration }
 
     var body: some View {
         Group {
@@ -1733,29 +1781,18 @@ struct TranscriptRenderer: View {
             .accessibilityIdentifier("video-transcript-preview")
 
         case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing8) {
-                VStack(alignment: .leading, spacing: .spacing2) {
-                    Text(title ?? AppStrings.transcriptYouTubeVideo)
-                        .font(.omH3)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.fontPrimary)
-                        .accessibilityIdentifier("video-transcript-fullscreen-title")
+            VStack(alignment: .center, spacing: .spacing8) {
+                if payload.sourceURL != nil {
+                    transcriptVideoPreview
+                }
 
-                    HStack(spacing: .spacing3) {
-                        if let channelName {
-                            Text(channelName)
-                        }
-                        if payload.wordCount > 0 {
-                            Text("\(payload.wordCount.formatted()) \(AppStrings.transcriptWords)")
-                        }
-                        if let language = payload.language {
-                            Text(language.uppercased())
-                        }
-                    }
-                    .font(.omSmall)
-                    .foregroundStyle(Color.fontSecondary)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("video-transcript-fullscreen-metadata")
+                if payload.wordCount > 0 {
+                    Text("\(payload.wordCount.formatted()) \(AppStrings.transcriptWords):")
+                        .font(.omP)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontPrimary)
+                        .frame(maxWidth: 722, alignment: .center)
+                        .accessibilityIdentifier("video-transcript-fullscreen-metadata")
                 }
 
                 if payload.transcript.isEmpty {
@@ -1769,10 +1806,16 @@ struct TranscriptRenderer: View {
                         .foregroundStyle(Color.fontPrimary)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
+                        .padding(.spacing10)
+                        .frame(maxWidth: 722, alignment: .leading)
+                        .background(Color.grey10)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                        .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
                         .accessibilityIdentifier("video-transcript-fullscreen-text")
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, .spacing10)
+            .frame(maxWidth: .infinity, alignment: .top)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("video-transcript-fullscreen")
             }
@@ -1784,4 +1827,51 @@ struct TranscriptRenderer: View {
             fetchedMetadata = try? await VideoTranscriptMetadataLoader.load(sourceURL: sourceURL)
         }
     }
+
+    private var transcriptVideoPreview: some View {
+        Button {
+            guard let sourceURL = payload.sourceURL, let url = URL(string: sourceURL) else { return }
+            openURL(url)
+        } label: {
+            VStack(spacing: 0) {
+                ZStack {
+                    if let videoThumbnailURL {
+                        CachedRemoteImage(url: videoThumbnailURL) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            LinearGradient.appVideos
+                        }
+                    } else {
+                        LinearGradient.appVideos
+                    }
+
+                    Icon("play", size: 36)
+                        .foregroundStyle(Color.grey0.opacity(0.9))
+                        .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+                }
+                .frame(height: 139)
+                .clipped()
+
+                EmbedBasicInfoBar(
+                    appId: "videos",
+                    skillIconName: "videos",
+                    title: title ?? AppStrings.transcriptYouTubeVideo,
+                    subtitle: [channelName, duration].compactMap { $0 }.joined(separator: " · ").nonEmpty,
+                    faviconURL: nil,
+                    showSkillIcon: false
+                )
+            }
+            .frame(width: 300, height: 200)
+            .background(Color.grey25)
+            .clipShape(RoundedRectangle(cornerRadius: 30))
+            .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(AppStrings.openVideo)
+        .accessibilityIdentifier("video-transcript-video-preview")
+    }
+}
+
+private extension String {
+    var nonEmpty: String? { isEmpty ? nil : self }
 }

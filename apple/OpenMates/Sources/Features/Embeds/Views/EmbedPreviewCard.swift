@@ -496,6 +496,8 @@ struct EmbedPreviewCard: View {
         switch (appId, skillId) {
         case ("events", "search"), ("web", "search"), ("news", "search"), ("images", "search"), ("videos", "search"):
             return LocalizationManager.shared.text("common.search")
+        case ("videos", "get_transcript"), ("videos", "get-transcript"):
+            return AppStrings.videoGetTranscript
         case ("travel", "search_connections"):
             return "Search connections"
         case ("code", "get_docs"):

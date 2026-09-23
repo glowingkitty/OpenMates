@@ -67,6 +67,8 @@ final class VoiceRecorderTests: XCTestCase {
         ))
         let writer = try AudioRecordingFileWriter(url: url, sourceFormat: format)
         let receivedPCM = expectation(description: "audio tap forwards PCM from the realtime queue")
+        let recorder = VoiceRecorder()
+        recorder.isRecording = true
         let tap = VoiceRecorder.makePCMInputTapHandler(
             writer: writer,
             handler: { samples, sampleRate in
@@ -75,7 +77,7 @@ final class VoiceRecorderTests: XCTestCase {
                 XCTAssertEqual(sampleRate, 44_100)
                 receivedPCM.fulfill()
             },
-            recorder: VoiceRecorder()
+            recorder: recorder
         )
 
         DispatchQueue(label: "org.openmates.tests.audio-tap").async {
@@ -90,11 +92,23 @@ final class VoiceRecorderTests: XCTestCase {
                 return
             }
             buffer.frameLength = 512
-            buffer.floatChannelData?[0][0] = 0.2
+            guard let channel = buffer.floatChannelData?[0] else {
+                XCTFail("Could not access synthetic microphone samples")
+                receivedPCM.fulfill()
+                return
+            }
+            for frame in 0..<Int(buffer.frameLength) {
+                channel[frame] = sin(Float(frame) * 2 * .pi * 440 / 44_100) * 0.2
+            }
             tap(buffer, AVAudioTime())
         }
 
         await fulfillment(of: [receivedPCM], timeout: 5)
+        for _ in 0..<20 where recorder.waveformSamples.last == 0 {
+            await Task.yield()
+        }
+        XCTAssertGreaterThan(recorder.waveformSamples.last ?? 0, 0)
+        XCTAssertNotNil(recorder.recordingWaveform(duration: 0.1))
         XCTAssertTrue(writer.finish())
     }
 

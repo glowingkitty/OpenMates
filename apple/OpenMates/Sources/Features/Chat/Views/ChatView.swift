@@ -118,6 +118,16 @@ private struct ChatScrollSentinelPreferenceKey: PreferenceKey {
     }
 }
 
+private enum ChatMoreLeadingAlignment: AlignmentID {
+    static func defaultValue(in dimensions: ViewDimensions) -> CGFloat {
+        dimensions[.leading]
+    }
+}
+
+private extension HorizontalAlignment {
+    static let chatMoreLeading = HorizontalAlignment(ChatMoreLeadingAlignment.self)
+}
+
 private struct ChatVisibleMessagePreferenceKey: PreferenceKey {
     static let defaultValue: Set<String> = []
 
@@ -129,6 +139,7 @@ private struct ChatVisibleMessagePreferenceKey: PreferenceKey {
 private struct ChatScrollBoundaries: Equatable {
     let isAtTop: Bool
     let isAtBottom: Bool
+    let contentOffsetY: CGFloat
 }
 
 /// Current systems report scroll visibility directly; older systems project row
@@ -168,10 +179,12 @@ private struct ChatTranscriptScrollTracking: ViewModifier {
                     if phase == .interacting || phase == .decelerating { onUserScroll() }
                 }
                 .onScrollGeometryChange(for: ChatScrollBoundaries.self) { geometry in
-                    ChatScrollBoundaries(
-                        isAtTop: geometry.contentOffset.y + geometry.contentInsets.top <= 8,
+                    let contentOffsetY = max(0, geometry.contentOffset.y + geometry.contentInsets.top)
+                    return ChatScrollBoundaries(
+                        isAtTop: contentOffsetY <= 8,
                         isAtBottom: geometry.contentSize.height + geometry.contentInsets.bottom
-                            - geometry.contentOffset.y <= geometry.containerSize.height + 8)
+                            - geometry.contentOffset.y <= geometry.containerSize.height + 8,
+                        contentOffsetY: contentOffsetY)
                 } action: { _, boundaries in
                     onBoundariesChanged(boundaries)
                 }
@@ -183,9 +196,11 @@ private struct ChatTranscriptScrollTracking: ViewModifier {
         } else {
             content
                 .onPreferenceChange(ChatScrollSentinelPreferenceKey.self) { values in
+                    let contentOffsetY = max(0, -(values[.top] ?? 0))
                     onBoundariesChanged(ChatScrollBoundaries(
-                        isAtTop: (values[.top] ?? 0) >= -8,
-                        isAtBottom: values[.bottom].map { $0 <= viewportHeight + 8 } ?? false))
+                        isAtTop: contentOffsetY <= 8,
+                        isAtBottom: values[.bottom].map { $0 <= viewportHeight + 8 } ?? false,
+                        contentOffsetY: contentOffsetY))
                 }
                 .onPreferenceChange(ChatVisibleMessagePreferenceKey.self, perform: onVisibleMessagesChanged)
         }
@@ -224,6 +239,19 @@ private enum ChatMessageLayoutMetric {
     static let userCompactReserve: CGFloat = 20
     /// Web `chat.css`: `.message-align-left { max-width: calc(100% - 70px); }`.
     static let assistantDesktopReserve: CGFloat = 70
+}
+
+enum ChatFollowUpTapPolicy {
+    enum Action: Equatable {
+        case requestAuthentication
+        case continueInNewChat
+        case sendInCurrentChat
+    }
+
+    static func action(isPublic: Bool, isAuthenticated: Bool) -> Action {
+        guard isPublic else { return .sendInCurrentChat }
+        return isAuthenticated ? .continueInNewChat : .requestAuthentication
+    }
 }
 
 struct ChatView: View {
@@ -289,6 +317,8 @@ struct ChatView: View {
     @State private var showReminder = false
     @State private var chatHeaderMoreOpen = false
     @State private var chatHeaderActionsOverlapBanner = true
+    @State private var chatBannerHeight: CGFloat = 0
+    @State private var chatTranscriptContentOffsetY: CGFloat = 0
     @State private var isPIIRevealed = false
     @State private var showAttachmentMenu = false
     @State private var showCameraCapture = false
@@ -837,13 +867,6 @@ struct ChatView: View {
         return viewModel.messages
     }
 
-    private var followUpSuggestionCategory: String? {
-        if case .loaded(_, let appId, _) = effectiveBannerState {
-            return appId
-        }
-        return viewModel.chat?.category ?? viewModel.chat?.appId
-    }
-
     private func isDraftOnlyChat(_ chat: Chat) -> Bool {
         let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return title.isEmpty
@@ -859,10 +882,6 @@ struct ChatView: View {
         let preview = draftService.draftPreview(chatId: chat.id)?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let preview, !preview.isEmpty else { return nil }
         return preview
-    }
-
-    private var followUpSuggestionIcon: String? {
-        publicChatIconName(for: chatId) ?? viewModel.chat?.icon
     }
 
     // MARK: - Embed fullscreen helper
@@ -1061,6 +1080,19 @@ struct ChatView: View {
 
     // MARK: - Message list
 
+    private func updateChatHeaderBannerOverlap(contentOffsetY: CGFloat, bannerHeight: CGFloat) {
+        guard bannerHeight > 0 else { return }
+        let overlaps = contentOffsetY < max(0, bannerHeight - 64)
+        guard overlaps != chatHeaderActionsOverlapBanner else { return }
+        if reduceMotion {
+            chatHeaderActionsOverlapBanner = overlaps
+        } else {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                chatHeaderActionsOverlapBanner = overlaps
+            }
+        }
+    }
+
     private var messageList: some View {
         GeometryReader { scrollGeo in
             let displayProjection = ChatTranscriptDisplayProjection(
@@ -1089,17 +1121,14 @@ struct ChatView: View {
                                 )
                                     .id("banner")
                                     .onGeometryChange(for: CGFloat.self) { geometry in
-                                        geometry.frame(in: .named("chat-scroll")).maxY
-                                    } action: { bannerBottom in
-                                        let overlaps = bannerBottom > 64
-                                        guard overlaps != chatHeaderActionsOverlapBanner else { return }
-                                        if reduceMotion {
-                                            chatHeaderActionsOverlapBanner = overlaps
-                                        } else {
-                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                chatHeaderActionsOverlapBanner = overlaps
-                                            }
-                                        }
+                                        geometry.size.height
+                                    } action: { height in
+                                        guard height != chatBannerHeight else { return }
+                                        chatBannerHeight = height
+                                        updateChatHeaderBannerOverlap(
+                                            contentOffsetY: chatTranscriptContentOffsetY,
+                                            bannerHeight: height
+                                        )
                                     }
                             }
 
@@ -1228,13 +1257,11 @@ struct ChatView: View {
                                 if !viewModel.hasNewerMessages && !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
                                     FollowUpSuggestions(
                                         suggestions: viewModel.followUpSuggestions,
-                                        category: followUpSuggestionCategory,
-                                        icon: followUpSuggestionIcon
+                                        compact: scrollGeo.size.width <= 500
                                     ) { suggestion in
-                                        messageText = suggestion
+                                        handleFollowUpSuggestionTap(suggestion)
                                     }
-                                    .padding(.leading, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 75)
-                                    .padding(.trailing, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 20)
+                                    .accessibilityIdentifier("follow-up-suggestions")
                                     .id("follow-up-suggestions")
                                 }
                             }
@@ -1282,6 +1309,11 @@ struct ChatView: View {
                         onBoundariesChanged: { boundaries in
                             let reachedTop = !isAtTop && boundaries.isAtTop
                             let reachedBottom = !isAtBottom && boundaries.isAtBottom
+                            chatTranscriptContentOffsetY = boundaries.contentOffsetY
+                            updateChatHeaderBannerOverlap(
+                                contentOffsetY: boundaries.contentOffsetY,
+                                bannerHeight: chatBannerHeight
+                            )
                             if isAtTop != boundaries.isAtTop { isAtTop = boundaries.isAtTop }
                             if isAtBottom != boundaries.isAtBottom { isAtBottom = boundaries.isAtBottom }
                             if reachedTop { pageHistoryAtBoundary(isTop: true, proxy: proxy) }
@@ -1328,6 +1360,8 @@ struct ChatView: View {
                 .onChange(of: chatId) { _, _ in
                     chatHeaderMoreOpen = false
                     chatHeaderActionsOverlapBanner = true
+                    chatBannerHeight = 0
+                    chatTranscriptContentOffsetY = 0
                     resetScrollRestoration()
                     proxy.scrollTo("scroll-top", anchor: .top)
                 }
@@ -1432,7 +1466,17 @@ struct ChatView: View {
             id: "ui-test-history-assistant",
             chatId: "ui-test-chat-history",
             role: .assistant,
-            content: "Synthetic assistant history fixture with an independently readable link: https://example.invalid/history",
+            content: """
+            Synthetic assistant history fixture with an independently readable link: https://example.invalid/history
+
+            This public fixture intentionally includes enough deterministic transcript content to scroll the banner fully past the fixed header actions. That lets the UI contract exercise both the banner-overlay and standard control styles instead of stopping at a non-scrollable initial layout.
+
+            The additional paragraph also keeps the final composer-clearance and keyboard-dismissal checks representative of a normal conversation whose history extends beyond one viewport.
+
+            A longer answer is common when a mate explains its sources, summarizes several findings, and gives the reader useful next steps. Keeping that shape in the fixture makes a swipe move through actual message content while the header controls remain fixed over the transcript viewport.
+
+            Once the gradient banner has moved above those controls, their translucent white treatment should switch to the standard gradient icon and neutral background. Scrolling back to the beginning should restore the overlay treatment because the controls again intersect the banner.
+            """,
             encryptedContent: nil,
             createdAt: "2026-01-01T00:00:01Z",
             updatedAt: nil,
@@ -1832,7 +1876,7 @@ struct ChatView: View {
     }
 
     private var chatFloatingActions: some View {
-        ZStack(alignment: .topLeading) {
+        ZStack(alignment: Alignment(horizontal: .chatMoreLeading, vertical: .top)) {
             HStack(spacing: .spacing2) {
                 chatFloatingAction(
                     icon: "bug",
@@ -1849,9 +1893,9 @@ struct ChatView: View {
                     }
                 }
 
-                chatFloatingAction(icon: "more", label: "More", accessibilityIdentifier: "chat-more-button") {
-                    chatHeaderMoreOpen.toggle()
-                }
+                chatMoreTrigger
+                    .alignmentGuide(.chatMoreLeading) { dimensions in dimensions[.leading] }
+                    .zIndex(chatHeaderMoreOpen ? 2 : 0)
 
                 Spacer(minLength: .spacing6)
 
@@ -1865,28 +1909,11 @@ struct ChatView: View {
             }
 
             if chatHeaderMoreOpen {
-                VStack(alignment: .leading, spacing: .spacing2) {
-                    if chatContainerWidth < 460, onShareChat != nil {
-                        chatFloatingMenuAction(icon: "share", label: AppStrings.share, identifier: "chat-more-share-button") {
-                            chatHeaderMoreOpen = false
-                            onShareChat?()
-                        }
-                    }
-                    chatFloatingMenuAction(icon: "settings", label: AppStrings.settings, identifier: "chat-details-button") {
-                        chatHeaderMoreOpen = false
-                        onOpenChatSettings?()
-                    }
-                    chatFloatingMenuAction(icon: "reminder", label: AppStrings.setReminder, identifier: "chat-reminders-button") {
-                        chatHeaderMoreOpen = false
-                        showReminder = true
-                    }
-                }
-                .padding(.spacing3)
-                .background(Color.grey10)
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 6)
-                .offset(x: chatContainerWidth >= 640 ? 54 : 0, y: 52)
-                .accessibilityIdentifier("chat-more-actions")
+                chatHeaderMoreActions
+                    .alignmentGuide(.chatMoreLeading) { dimensions in dimensions[.leading] }
+                    .offset(y: 52)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topLeading)))
+                    .zIndex(3)
             }
         }
         .frame(maxWidth: .infinity)
@@ -1895,10 +1922,57 @@ struct ChatView: View {
         .accessibilityValue(chatHeaderActionsOverlapBanner ? "banner-overlay" : "standard")
     }
 
+    private var chatHeaderMoreActions: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            if chatContainerWidth < 460, onShareChat != nil {
+                chatFloatingMenuAction(icon: "share", label: AppStrings.share, identifier: "chat-more-share-button") {
+                    chatHeaderMoreOpen = false
+                    onShareChat?()
+                }
+            }
+            if let onOpenChatSettings {
+                chatFloatingMenuAction(icon: "settings", label: AppStrings.settings, identifier: "chat-details-button") {
+                    chatHeaderMoreOpen = false
+                    onOpenChatSettings()
+                }
+            }
+            chatFloatingMenuAction(icon: "reminder", label: AppStrings.setReminder, identifier: "chat-reminders-button") {
+                chatHeaderMoreOpen = false
+                showReminder = true
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat-more-actions")
+    }
+
     private var splitChatHideAction: some View {
         chatFloatingAction(icon: "close", label: AppStrings.close, accessibilityIdentifier: "workspace-hide-chat") {
             hideSplitChat = true
         }
+    }
+
+    private var chatMoreTrigger: some View {
+        let label = LocalizationManager.shared.text("common.more_actions")
+        return ZStack {
+            Icon("more", size: 22).foregroundStyle(LinearGradient.primary)
+                .opacity(chatHeaderActionsOverlapBanner ? 0 : 1)
+                .accessibilityHidden(true)
+            Icon("more", size: 22).foregroundStyle(.white)
+                .opacity(chatHeaderActionsOverlapBanner ? 1 : 0)
+                .accessibilityHidden(true)
+        }
+        .frame(width: 44, height: 44)
+        .background(chatHeaderActionsOverlapBanner ? Color.white.opacity(0.2) : Color.grey10)
+        .clipShape(Circle())
+        .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+        .contentShape(Circle())
+        .onTapGesture { chatHeaderMoreOpen.toggle() }
+        .accessibilityElement()
+        .accessibilityLabel(label)
+        .accessibilityIdentifier("chat-more-button")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { chatHeaderMoreOpen.toggle() }
     }
 
     private func chatFloatingAction(
@@ -1926,13 +2000,12 @@ struct ChatView: View {
             .background(chatHeaderActionsOverlapBanner ? Color.white.opacity(0.2) : Color.grey10)
             .clipShape(Capsule())
             .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+            .accessibilityHidden(true)
         }
         .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
         .help(Text(label))
         .accessibilityLabel(label)
         .accessibilityIdentifier(accessibilityIdentifier ?? "chat-floating-action-\(icon)")
-        .accessibilityAddTraits(.isButton)
     }
 
     private func chatFloatingMenuAction(
@@ -1944,11 +2017,18 @@ struct ChatView: View {
         Button(action: action) {
             HStack(spacing: .spacing3) {
                 Icon(icon, size: 20).foregroundStyle(LinearGradient.primary)
-                Text(label).font(.omSmall.weight(.semibold)).foregroundStyle(Color.grey100)
-                Spacer(minLength: .spacing4)
+                Text(label)
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(Color.grey100)
+                    .multilineTextAlignment(.leading)
             }
-            .frame(minWidth: 170, minHeight: 40)
+            .padding(.horizontal, .spacing4)
+            .frame(minHeight: 40, alignment: .leading)
             .contentShape(Rectangle())
+            .background(Color.grey10)
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+            .fixedSize(horizontal: true, vertical: false)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)
@@ -3479,6 +3559,58 @@ struct ChatView: View {
                     resolvedComposerEmbeds.removeValue(forKey: nodeID)
                 }
                 if composerSession.revision == clearedRevision { try? await DraftService.shared.clearDraft(chatId: sendingOwner.chatID) }
+            }
+        }
+    }
+
+    private func handleFollowUpSuggestionTap(_ suggestion: String) {
+        let isPublic = isDemoOrLegalChat || isExampleChat
+        switch ChatFollowUpTapPolicy.action(
+            isPublic: isPublic,
+            isAuthenticated: authManager.state == .authenticated
+        ) {
+        case .requestAuthentication:
+            NotificationCenter.default.post(name: .openAuth, object: nil)
+        case .continueInNewChat:
+            continuePublicChat(with: suggestion)
+        case .sendInCurrentChat:
+            messageText = suggestion
+            sendMessage()
+        }
+    }
+
+    private func continuePublicChat(with content: String) {
+        guard let wsManager, let chatStore else { return }
+        let now = ChatSendPipeline.isoString(from: Date())
+        let chat = Chat(
+            id: UUID().uuidString.lowercased(),
+            title: nil,
+            lastMessageAt: nil,
+            createdAt: now,
+            updatedAt: now,
+            isArchived: false,
+            isPinned: false,
+            appId: nil,
+            encryptedTitle: nil,
+            encryptedChatKey: nil,
+            messagesV: 0,
+            titleV: 0,
+            draftV: 0
+        )
+
+        Task { @MainActor in
+            do {
+                let result = try await ChatSendPipeline().sendUserMessage(
+                    content: content,
+                    in: chat,
+                    existingMessages: [],
+                    wsManager: wsManager,
+                    chatStore: chatStore,
+                    waitForRemoteSend: false
+                )
+                onOpenChat?(result.chat.id)
+            } catch {
+                viewModel.error = error.localizedDescription
             }
         }
     }

@@ -308,6 +308,35 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(merged?.isHiddenCandidate, true)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.followups.non-destructive-reconciliation,chats.surface.semantic-parity
+    func testOlderMetadataCannotReplaceEncryptedFollowUpsInMemoryOrOffline() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("FollowUpMetadataFenceTests", schema: schema, isStoredInMemoryOnly: true)
+        let offlineStore = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        let store = ChatStore()
+        store.setBridge(OfflineSyncBridge(chatStore: store, offlineStore: offlineStore))
+        let current = makeChat(
+            id: "chat-follow-ups",
+            title: "Current",
+            metadataV: 8,
+            encryptedFollowUpRequestSuggestions: "newer-ciphertext"
+        )
+        let older = makeChat(
+            id: "chat-follow-ups",
+            title: "Older page",
+            metadataV: 7,
+            encryptedFollowUpRequestSuggestions: "older-ciphertext"
+        )
+
+        store.upsertChat(current)
+        store.upsertChat(older)
+
+        XCTAssertEqual(store.chat(for: current.id)?.encryptedFollowUpRequestSuggestions, "newer-ciphertext")
+        XCTAssertEqual(store.chat(for: current.id)?.metadataV, 8)
+        XCTAssertEqual(offlineStore.loadChat(id: current.id)?.encryptedFollowUpRequestSuggestions, "newer-ciphertext")
+        XCTAssertEqual(offlineStore.loadChat(id: current.id)?.metadataV, 8)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chat-navigation.open.local-first-coherent
     func testContinuationUsesActualWireDraftPresenceInsteadOfVersion() throws {
         let decoder = JSONDecoder()
@@ -574,6 +603,7 @@ final class ChatSyncParityTests: XCTestCase {
         isPinned: Bool = false,
         draftV: Int? = nil,
         encryptedTitle: String? = nil,
+        encryptedFollowUpRequestSuggestions: String? = nil,
         hasNonEmptyDraft: Bool? = nil
     ) -> Chat {
         Chat(
@@ -586,6 +616,7 @@ final class ChatSyncParityTests: XCTestCase {
             isPinned: isPinned,
             appId: "ai",
             encryptedTitle: encryptedTitle,
+            encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions,
             encryptedChatKey: nil,
             messagesV: messagesV,
             titleV: title == nil ? 0 : 1,

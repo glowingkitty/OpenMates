@@ -47,6 +47,37 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         attachScreenshot(name: "Chat history responsive parity")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history
+    func testHeaderActionsOverflowAndBannerScrollStyleMatchWebContract() throws {
+        let app = launchFixture()
+        let actions = element(in: app, identifier: "chat-top-actions")
+        XCTAssertTrue(actions.waitForExistence(timeout: 12), app.debugDescription)
+        XCTAssertEqual(actions.value as? String, "banner-overlay")
+        XCTAssertTrue(element(in: app, identifier: "report-issue-button").exists)
+        XCTAssertTrue(element(in: app, identifier: "chat-more-button").exists)
+        XCTAssertTrue(element(in: app, identifier: "chat-close-button").exists)
+        XCTAssertFalse(element(in: app, identifier: "chat-share-button").exists)
+
+        element(in: app, identifier: "chat-more-button").tap()
+        let moreMenu = element(in: app, identifier: "chat-more-actions")
+        XCTAssertTrue(moreMenu.waitForExistence(timeout: 3))
+        XCTAssertTrue(element(in: app, identifier: "chat-more-share-button").exists)
+        XCTAssertTrue(element(in: app, identifier: "chat-details-button").exists)
+        let reminder = element(in: app, identifier: "chat-reminders-button")
+        XCTAssertTrue(reminder.exists)
+        XCTAssertFalse(reminder.label.hasPrefix("chat."), "Reminder action must resolve its translation")
+        XCTAssertLessThan(moreMenu.frame.width, actions.frame.width - 24, "More actions should size to their labels")
+        attachScreenshot(name: "Chat header compact overflow on banner")
+
+        element(in: app, identifier: "chat-more-button").tap()
+        let history = element(in: app, identifier: "chat-history-container")
+        for _ in 0..<6 where (actions.value as? String) != "standard" {
+            history.swipeUp()
+        }
+        XCTAssertEqual(actions.value as? String, "standard")
+        attachScreenshot(name: "Chat header standard style after banner scroll")
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
     func testRTLAndAccessibilityDynamicTypePreserveSemanticOrderAndClearance() throws {
         let app = launchFixture(

@@ -1,6 +1,8 @@
 // Chat store with offline persistence backing via SwiftData.
 // Holds decrypted chat list and per-chat message arrays in memory.
 // Persists to OfflineStore on every mutation for cold-boot and offline access.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.followups.non-destructive-reconciliation, chats.surface.semantic-parity
 
 import Foundation
 import SwiftUI
@@ -437,6 +439,7 @@ private extension Chat {
             encryptedCategory: encryptedCategory,
             encryptedIcon: encryptedIcon,
             encryptedChatSummary: encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: encryptedAutoSpeakResponse,
             encryptedChatKey: encryptedChatKey,
             messagesV: messagesVersion,
@@ -479,6 +482,7 @@ extension Chat {
             encryptedCategory: encryptedCategory,
             encryptedIcon: encryptedIcon,
             encryptedChatSummary: encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: ciphertext,
             encryptedChatKey: encryptedChatKey,
             messagesV: messagesV,
@@ -521,6 +525,7 @@ private extension Chat {
             encryptedCategory: encryptedCategory,
             encryptedIcon: encryptedIcon,
             encryptedChatSummary: encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: encryptedAutoSpeakResponse,
             encryptedChatKey: encryptedChatKey,
             messagesV: messagesV,
@@ -557,6 +562,7 @@ private extension Chat {
         let resolvedClearedVersion = clears
             ? max(clearedDraftV ?? 0, max(draftV ?? 0, incomingVersion))
             : max(clearedDraftV ?? 0, incoming.clearedDraftV ?? 0)
+        let acceptsIncomingMetadata = (incoming.metadataV ?? 0) >= (metadataV ?? 0)
         return Chat(
             id: id,
             title: incoming.title ?? title,
@@ -573,6 +579,9 @@ private extension Chat {
             encryptedCategory: incoming.encryptedCategory ?? encryptedCategory,
             encryptedIcon: incoming.encryptedIcon ?? encryptedIcon,
             encryptedChatSummary: incoming.encryptedChatSummary ?? encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: acceptsIncomingMetadata
+                ? (incoming.encryptedFollowUpRequestSuggestions ?? encryptedFollowUpRequestSuggestions)
+                : encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: (incoming.metadataV ?? incoming.titleV ?? 0) >= (metadataV ?? titleV ?? 0) ? (incoming.encryptedAutoSpeakResponse ?? encryptedAutoSpeakResponse) : encryptedAutoSpeakResponse,
             encryptedChatKey: incoming.encryptedChatKey ?? encryptedChatKey,
             messagesV: [messagesV, incoming.messagesV].compactMap { $0 }.max(),
@@ -612,6 +621,7 @@ private extension Chat {
             encryptedCategory: encryptedCategory,
             encryptedIcon: encryptedIcon,
             encryptedChatSummary: encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: encryptedAutoSpeakResponse,
             encryptedChatKey: encryptedChatKey,
             messagesV: messagesV,
@@ -651,6 +661,7 @@ private extension Chat {
             encryptedCategory: encryptedCategory,
             encryptedIcon: encryptedIcon,
             encryptedChatSummary: encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: encryptedAutoSpeakResponse,
             encryptedChatKey: encryptedChatKey,
             messagesV: messagesV,

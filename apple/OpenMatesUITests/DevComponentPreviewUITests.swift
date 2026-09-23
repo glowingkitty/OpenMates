@@ -82,6 +82,33 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertTrue(expand.waitForExistence(timeout: 3))
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,chats.surface.semantic-parity
+    func testFollowUpSuggestionsRenderAsRightAlignedQuickSendActions() {
+        let app = launch(component: "follow-up-suggestions", variant: "legacy-markup")
+        let wrapper = element(app, "suggestions-wrapper")
+        XCTAssertTrue(wrapper.waitForExistence(timeout: 10))
+
+        let actions = app.buttons.matching(identifier: "follow-up-suggestion-item")
+        XCTAssertEqual(actions.count, 4, "Web limits the visible quick-send list to four unique actions")
+        let first = actions.element(boundBy: 0)
+        XCTAssertEqual(first.label, "Compare the sources")
+        XCTAssertFalse(first.label.contains("[web-search]"))
+        XCTAssertFalse(first.label.contains("<strong>"))
+
+        let rightEdges = (0..<actions.count).map { actions.element(boundBy: $0).frame.maxX }
+        XCTAssertLessThanOrEqual(
+            (rightEdges.max() ?? 0) - (rightEdges.min() ?? 0),
+            2,
+            "Quick-send actions should share the web list's trailing alignment"
+        )
+        attachScreenshot("Follow-up quick-send actions")
+
+        XCTAssertTrue(first.isHittable)
+        first.tap()
+        assertAction("quick-sent-Compare the sources", in: app)
+        XCTAssertTrue(first.waitForNonExistence(timeout: 2), "The selected list should fade out immediately")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testEmbedPreviewOpensChildAndMinimizesBackToCard() {
         let app = launch(component: "embed-preview")

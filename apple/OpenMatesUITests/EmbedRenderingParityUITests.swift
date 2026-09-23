@@ -308,6 +308,10 @@ final class EmbedRenderingParityUITests: XCTestCase {
 
             if surface == "preview" {
                 XCTAssertTrue(app.descendants(matching: .any)["video-transcript-preview"].waitForExistence(timeout: 8))
+                XCTAssertTrue(
+                    app.staticTexts["Get Transcript"].waitForExistence(timeout: 5),
+                    "The preview footer must use the localized web skill catalog name."
+                )
                 let title = app.staticTexts["video-transcript-title"]
                 XCTAssertTrue(
                     waitForLabel(title, containing: "Resolved transcript metadata fixture", timeout: 5),
@@ -325,6 +329,14 @@ final class EmbedRenderingParityUITests: XCTestCase {
                 XCTAssertTrue(
                     waitForLabel(app.staticTexts["video-transcript-fullscreen-metadata"], containing: "Resolved fixture channel", timeout: 5),
                     "Fullscreen must preserve the resolved channel metadata."
+                )
+                XCTAssertTrue(
+                    app.buttons["video-transcript-video-preview"].waitForExistence(timeout: 8),
+                    "Fullscreen must include the linked web-style video preview above the transcript."
+                )
+                XCTAssertTrue(
+                    waitForLabel(app.staticTexts["video-transcript-fullscreen-metadata"], containing: "words", timeout: 5),
+                    "Fullscreen must show the transcript word count above the content."
                 )
                 let transcript = app.staticTexts["video-transcript-fullscreen-text"]
                 XCTAssertTrue(transcript.waitForExistence(timeout: 8), "Grouped skill results must load the actual transcript in fullscreen.")

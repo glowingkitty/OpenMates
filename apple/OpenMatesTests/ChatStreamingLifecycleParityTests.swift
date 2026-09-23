@@ -401,17 +401,74 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         ))
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation
+    func testProtocolOnlyChunkDoesNotMaterializeEmptyAssistantTurn() {
+        let protocolOnlyContent = """
+        ```json_embed
+        {"type":"app_skill_use","embed_id":"embed-search"}
+        ```
+        """
+
+        XCTAssertFalse(ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
+            content: protocolOnlyContent,
+            thinkingContent: "",
+            embedCount: 0
+        ))
+        XCTAssertTrue(ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
+            content: "Visible answer",
+            thinkingContent: "",
+            embedCount: 0
+        ))
+        XCTAssertTrue(ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
+            content: protocolOnlyContent,
+            thinkingContent: "Provider-supplied thinking",
+            embedCount: 0
+        ))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.completion.pending-delivery,chats.surface.semantic-parity
+    func testNativeLifecycleCompletionCapabilityMatchesPlatformSceneSemantics() {
+        XCTAssertTrue(NativeClientLifecyclePolicy.isCompletionCapable(.active))
+        XCTAssertFalse(NativeClientLifecyclePolicy.isCompletionCapable(.background))
+        #if os(macOS)
+        XCTAssertTrue(NativeClientLifecyclePolicy.isCompletionCapable(.inactive))
+        #else
+        XCTAssertFalse(NativeClientLifecyclePolicy.isCompletionCapable(.inactive))
+        #endif
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.followups.non-destructive-reconciliation
-    func testEmptyFollowUpPayloadNeverClearsAcceptedSuggestions() {
+    func testAcceptedSendClearsPriorFollowUpsAndEmptyResponseKeepsThemCleared() {
+        let priorTurn = ["Question one", "Question two"]
+        let afterAcceptedSend = ChatFollowUpSuggestionPolicy.clearForAcceptedSend(priorTurn)
+        let afterEmptyCompletion = ChatFollowUpSuggestionPolicy.acceptCompletedResponse([])
+        let persistedEmpty = ChatViewModel.decodeFollowUpSuggestions("[]")
+        let afterReload = ChatFollowUpSuggestionPolicy.restore(
+            stored: persistedEmpty,
+            hasStoredCiphertext: true,
+            legacyExtracted: priorTurn
+        )
+
+        XCTAssertEqual(afterAcceptedSend, [])
+        XCTAssertEqual(afterEmptyCompletion, [])
+        XCTAssertEqual(afterReload, [])
+        XCTAssertEqual(
+            ChatFollowUpSuggestionPolicy.reconcile(current: afterAcceptedSend, incoming: ["Question three"]),
+            ["Question three"]
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.followups.non-destructive-reconciliation
+    func testLegacyEmptyFollowUpPayloadDoesNotEraseAcceptedSuggestionsWithoutStoredCiphertext() {
         let accepted = ["Question one", "Question two"]
 
         XCTAssertEqual(
-            ChatFollowUpSuggestionPolicy.reconcile(current: accepted, incoming: []),
+            ChatFollowUpSuggestionPolicy.restore(
+                stored: accepted,
+                hasStoredCiphertext: false,
+                legacyExtracted: []
+            ),
             accepted
-        )
-        XCTAssertEqual(
-            ChatFollowUpSuggestionPolicy.reconcile(current: accepted, incoming: ["Question three"]),
-            ["Question three"]
         )
     }
 

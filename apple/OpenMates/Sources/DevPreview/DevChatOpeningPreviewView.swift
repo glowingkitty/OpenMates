@@ -77,6 +77,9 @@ struct DevChatOpeningPreviewView: View {
                         initialMessages: initialWindow,
                         initialEmbeds: [],
                         chatStore: chatStore,
+                        onShareChat: {},
+                        onOpenChatSettings: {},
+                        onCloseChat: {},
                         onReportIssue: { reportIssuePrefill = $0 }
                     )
                     .environment(\.layoutDirection, uiTestLayoutDirection)

@@ -1,6 +1,8 @@
 // Shared basic information bar for native embed previews.
 // Mirrors BasicInfosBar.svelte's desktop preview layout: app gradient circle,
 // optional skill icon or title favicon, and title/status text.
+// Specification: specifications/features/message-input/specification.yml
+// Assertion: message-input.recording.lifecycle
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
@@ -26,6 +28,25 @@ struct EmbedBasicInfoBar: View {
     let subtitle: String?
     let faviconURL: String?
     let showSkillIcon: Bool
+    let trailingAction: AnyView?
+
+    init(
+        appId: String,
+        skillIconName: String,
+        title: String,
+        subtitle: String?,
+        faviconURL: String?,
+        showSkillIcon: Bool,
+        trailingAction: AnyView? = nil
+    ) {
+        self.appId = appId
+        self.skillIconName = skillIconName
+        self.title = title
+        self.subtitle = subtitle
+        self.faviconURL = faviconURL
+        self.showSkillIcon = showSkillIcon
+        self.trailingAction = trailingAction
+    }
 
     var body: some View {
         HStack(spacing: showSkillIcon ? 10 : 6) {
@@ -70,6 +91,11 @@ struct EmbedBasicInfoBar: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let trailingAction {
+                trailingAction
+                    .padding(.trailing, 10)
+            }
         }
         .frame(height: Constants.height)
         .background(Color.grey30)

@@ -68,6 +68,7 @@ indirect enum DevPreviewJSONValue: Codable, Hashable {
 enum DevPreviewComponent: String, CaseIterable, Hashable {
     case composer
     case chatHeader = "chat-header"
+    case followUpSuggestions = "follow-up-suggestions"
     case message
     case embedPreview = "embed-preview"
     case embedFullscreen = "embed-fullscreen"
@@ -106,6 +107,8 @@ enum DevPreviewComponentRegistry {
             return .init(component: component, webComponentPath: "enter_message/MessageInput", nativeRendererNames: ["MessageComposerView", "NativeComposerSession"], variants: ["model", "default", "focused", "filled", "attachment", "disabled"], hostSupport: .componentHost)
         case .chatHeader:
             return .init(component: component, webComponentPath: "ChatHeader", nativeRendererNames: ["ChatBannerView"], variants: ["default", "loading", "incognito", "draft", "long-title"], hostSupport: .componentHost)
+        case .followUpSuggestions:
+            return .init(component: component, webComponentPath: "FollowUpSuggestions", nativeRendererNames: ["FollowUpSuggestions"], variants: ["default", "legacy-markup", "long"], hostSupport: .componentHost)
         case .message:
             return .init(component: component, webComponentPath: "ChatMessage", nativeRendererNames: ["MessageBubble"], variants: ["default", "user", "assistant", "thinking", "markdown", "citations", "streaming", "streaming-long", "streaming-reduced-motion"], hostSupport: .componentHost)
         case .embedPreview:

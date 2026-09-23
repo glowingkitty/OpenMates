@@ -106,6 +106,9 @@ REQUIRED_EMBED_SHOWCASE_APPS = {
     "web",
     "workflows",
 }
+REQUIRED_EMBED_REGISTRY_DIMENSIONS = {
+    "iphone-light-ltr",
+}
 REQUIRED_APP_SPECIFIC_EMBED_IDENTIFIERS = {
     "models3d-generate-fullscreen",
     "models3d-generate-preview",
@@ -268,10 +271,11 @@ def validate_contract(path: Path, *, surface: str | None = None) -> list[str]:
         if viewport != SETTINGS_VIEWPORT:
             errors.append("settings viewport must be 390x844")
 
-    for text in walk_values(contract):
+    for value in walk_values(contract):
         for pattern in PRIVATE_VALUE_PATTERNS:
-            if pattern.search(text):
+            if pattern.search(value):
                 errors.append(f"contract contains private or volatile value matching {pattern.pattern!r}")
+                break
 
     return errors
 
@@ -313,21 +317,64 @@ def validate_embeds_contract(contract: dict[str, Any]) -> list[str]:
         fullscreen = surface_entry.get("fullscreen")
         if not isinstance(fullscreen, dict):
             errors.append(f"embeds contract surface {key or '<unknown>'} must include fullscreen capture")
-        artifacts = surface_entry.get("artifacts")
-        if not isinstance(artifacts, dict) or not isinstance(artifacts.get("section"), str) or not isinstance(artifacts.get("fullscreen"), str):
-            errors.append(f"embeds contract surface {key or '<unknown>'} must include section and fullscreen artifacts")
+        # Legacy per-app surfaces remain useful DOM contracts, but requiring
+        # separate section/fullscreen PNGs duplicates the exhaustive registry
+        # captures below. Keep the complete DOM inventory without hundreds of
+        # redundant screenshots.
 
     registry_surfaces = contract.get("registrySurfaces")
     if not isinstance(registry_surfaces, list):
         errors.append("embeds contract requires registrySurfaces array")
         registry_surfaces = []
-    missing_registry = [
-        entry.get("registryKey")
-        for entry in registry_surfaces
-        if isinstance(entry, dict) and entry.get("exists") is not True
-    ]
-    if missing_registry:
-        errors.append("embeds contract has missing registry surfaces: " + ", ".join(sorted(str(key) for key in missing_registry)))
+
+    if isinstance(dimension, dict) and dimension.get("id") in REQUIRED_EMBED_REGISTRY_DIMENSIONS:
+        registry_source = _read_repo_file("frontend/packages/ui/src/data/embedRegistry.generated.ts")
+        preview_keys = _extract_ts_object_keys(registry_source, "EMBED_PREVIEW_COMPONENTS")
+        fullscreen_keys = _extract_ts_object_keys(registry_source, "EMBED_FULLSCREEN_COMPONENTS")
+        expected = {(key, "preview") for key in preview_keys} | {
+            (key, "fullscreen") for key in fullscreen_keys
+        }
+        actual: set[tuple[str, str]] = set()
+        for entry in registry_surfaces:
+            if not isinstance(entry, dict):
+                errors.append("embeds contract registry surface entries must be objects")
+                continue
+            key, surface = entry.get("registryKey"), entry.get("surface")
+            if not isinstance(key, str) or surface not in {"preview", "fullscreen"}:
+                errors.append("embeds contract registry surface has invalid key or surface")
+                continue
+            identity = (key, surface)
+            if identity in actual:
+                errors.append(f"embeds contract has duplicate registry surface: {key}:{surface}")
+            actual.add(identity)
+            if entry.get("exists") is not True or entry.get("renderError") is True:
+                errors.append(f"embeds contract registry surface did not render: {key}:{surface}")
+            if not isinstance(entry.get("capture"), dict):
+                errors.append(f"embeds contract registry surface missing rendered capture: {key}:{surface}")
+            screenshot = entry.get("screenshotPath")
+            if not isinstance(screenshot, str) or not screenshot.strip():
+                errors.append(f"embeds contract registry surface missing screenshot: {key}:{surface}")
+            elif screenshot.startswith(("/", "~")) or re.match(r"^[A-Za-z]:[/\\]", screenshot):
+                errors.append(f"embeds contract registry screenshot must be relative: {key}:{surface}")
+
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        if missing:
+            errors.append(
+                f"embeds contract missing {len(missing)} registry surfaces: "
+                + ", ".join(f"{key}:{surface}" for key, surface in missing[:8])
+            )
+        if extra:
+            errors.append(
+                f"embeds contract has {len(extra)} unknown registry surfaces: "
+                + ", ".join(f"{key}:{surface}" for key, surface in extra[:8])
+            )
+
+    for value in walk_values(contract):
+        for pattern in PRIVATE_VALUE_PATTERNS:
+            if pattern.search(value):
+                errors.append(f"contract contains private or volatile value matching {pattern.pattern!r}")
+                break
 
     return errors
 

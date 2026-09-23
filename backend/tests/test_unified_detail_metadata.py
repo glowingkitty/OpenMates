@@ -566,6 +566,84 @@ def test_post_processing_summary_updates_sync_cache_before_version_broadcast(mon
     assert persisted["metadata_v"] == 5
 
 
+@pytest.mark.parametrize(
+    "encrypted_suggestions",
+    ["cipher-follow-up-array", "cipher-empty-follow-up-array"],
+    ids=["populated", "authoritative-empty-replacement"],
+)
+def test_post_processing_follow_up_suggestions_are_versioned_and_broadcast(
+    monkeypatch,
+    encrypted_suggestions: str,
+) -> None:
+    persistence_calls: list[dict] = []
+
+    async def persist_metadata(
+        _chat_id,
+        metadata,
+        _task_id,
+        _hashed_user_id=None,
+        _user_id=None,
+        _hashed_team_id=None,
+    ) -> bool:
+        persistence_calls.append(metadata)
+        return True
+
+    monkeypatch.setattr(
+        post_processing_metadata_handler,
+        "_async_persist_encrypted_chat_metadata",
+        persist_metadata,
+    )
+
+    manager = ChatMetadataManager()
+    asyncio.run(
+        handle_post_processing_metadata(
+            websocket=None,
+            manager=manager,
+            cache_service=PostProcessingCache([], metadata_v=8),
+            directus_service=ChatMetadataDirectus(is_owner=True, metadata_v=8),
+            encryption_service=None,
+            user_id="owner-1",
+            user_id_hash="owner-hash",
+            device_fingerprint_hash="device-1",
+            payload=chat_metadata_payload(
+                versions={"metadata_v": 8, "title_v": 7, "messages_v": 12},
+                encrypted_follow_up_suggestions=encrypted_suggestions,
+            ),
+        )
+    )
+
+    assert len(persistence_calls) == 1
+    persisted = persistence_calls[0]
+    assert persisted["encrypted_follow_up_request_suggestions"] == encrypted_suggestions
+    assert persisted["metadata_v"] == 9
+    assert persisted["title_v"] == 7
+    assert persisted["messages_v"] == 12
+
+    confirmation = manager.personal_messages[0][0]
+    assert confirmation["payload"]["versions"] == {
+        "metadata_v": 9,
+        "title_v": 7,
+        "messages_v": 12,
+    }
+
+    assert len(manager.broadcasts) == 1
+    broadcast, user_id, excluded_device = manager.broadcasts[0]
+    assert user_id == "owner-1"
+    assert excluded_device == "device-1"
+    assert broadcast == {
+        "type": "encrypted_chat_metadata",
+        "payload": {
+            "chat_id": "chat-1",
+            "versions": {
+                "metadata_v": 9,
+                "title_v": 7,
+                "messages_v": 12,
+            },
+            "encrypted_follow_up_request_suggestions": encrypted_suggestions,
+        },
+    }
+
+
 def test_post_processing_does_not_ack_failed_persistence(monkeypatch) -> None:
     async def reject_persistence(*args, **kwargs) -> bool:
         return False

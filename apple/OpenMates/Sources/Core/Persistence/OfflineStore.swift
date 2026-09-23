@@ -1,6 +1,8 @@
 // Offline persistence layer — stores chats, messages, and embeds locally using SwiftData.
 // Enables full offline access to previously loaded conversations.
 // Syncs with the in-memory ChatStore and resolves conflicts on reconnection.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.followups.non-destructive-reconciliation, chats.surface.semantic-parity
 
 import CryptoKit
 import Foundation
@@ -16,6 +18,7 @@ final class PersistedChat {
     var encryptedCategory: String?
     var encryptedIcon: String?
     var encryptedChatSummary: String?
+    var encryptedFollowUpRequestSuggestions: String?
     var encryptedAutoSpeakResponse: String?
     var encryptedChatKey: String?
     var icon: String?
@@ -53,6 +56,7 @@ final class PersistedChat {
         self.encryptedCategory = chat.encryptedCategory
         self.encryptedIcon = chat.encryptedIcon
         self.encryptedChatSummary = chat.encryptedChatSummary
+        self.encryptedFollowUpRequestSuggestions = chat.encryptedFollowUpRequestSuggestions
         self.encryptedAutoSpeakResponse = chat.encryptedAutoSpeakResponse
         self.encryptedChatKey = chat.encryptedChatKey
         self.icon = chat.icon
@@ -91,6 +95,7 @@ final class PersistedChat {
             encryptedCategory: encryptedCategory,
             encryptedIcon: encryptedIcon,
             encryptedChatSummary: encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: encryptedAutoSpeakResponse,
             encryptedChatKey: encryptedChatKey,
             messagesV: messagesV,
@@ -426,11 +431,16 @@ final class OfflineStore: ObservableObject {
                 predicate: #Predicate { $0.id == targetId }
             )
             if let existing = try? context.fetch(descriptor).first {
+                let acceptsIncomingMetadata = (chat.metadataV ?? 0) >= (existing.metadataV ?? 0)
                 existing.title = chat.title
                 existing.encryptedTitle = chat.encryptedTitle
                 existing.encryptedCategory = chat.encryptedCategory
                 existing.encryptedIcon = chat.encryptedIcon
                 existing.encryptedChatSummary = chat.encryptedChatSummary
+                if acceptsIncomingMetadata {
+                    existing.encryptedFollowUpRequestSuggestions = chat.encryptedFollowUpRequestSuggestions
+                        ?? existing.encryptedFollowUpRequestSuggestions
+                }
                 existing.encryptedAutoSpeakResponse = chat.encryptedAutoSpeakResponse ?? existing.encryptedAutoSpeakResponse
                 existing.encryptedChatKey = chat.encryptedChatKey
                 existing.icon = chat.icon
@@ -446,6 +456,7 @@ final class OfflineStore: ObservableObject {
                 existing.titleV = chat.titleV
                 existing.draftV = chat.draftV
                 existing.clearedDraftV = chat.clearedDraftV
+                existing.metadataV = max(existing.metadataV ?? 0, chat.metadataV ?? 0)
                 existing.hasNonEmptyDraft = chat.hasNonEmptyDraft ?? (chat.draftV == 0 ? false : existing.hasNonEmptyDraft)
                 existing.parentId = chat.parentId
                 existing.isSubChat = chat.isSubChat

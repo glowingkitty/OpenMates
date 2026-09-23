@@ -1,5 +1,7 @@
 // App icon component — renders a gradient circle with the app's icon.
 // Maps app IDs to their gradient and icon from the design token system.
+// Specification: specifications/features/message-input/specification.yml
+// Assertion: message-input.layout.responsive-parity (audio recording preview icon)
 
 import SwiftUI
 
@@ -29,6 +31,7 @@ struct AppIconView: View {
 
         switch appId {
         case "ai": return .appAi
+        case "audio": return .appAudio
         case "openmates": return .openMatesOfficial
         case "health": return .appHealth
         case "nutrition": return .appNutrition

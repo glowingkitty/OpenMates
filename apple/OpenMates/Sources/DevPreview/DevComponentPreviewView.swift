@@ -41,7 +41,7 @@ struct DevComponentPreviewView: View {
         guard let component = configuration.component else { return "Select a component preview." }
         let allowedKeys: Set<String>
         switch component {
-        case .login, .signup, .history, .sidebar, .welcome: allowedKeys = []
+        case .login, .signup, .history, .sidebar, .welcome, .followUpSuggestions: allowedKeys = []
         case .composer: allowedKeys = ["text", "placeholder"]
         case .chatHeader: allowedKeys = ["title", "summary", "appId"]
         case .message: allowedKeys = configuration.variant.hasPrefix("streaming") ? [] : ["content", "thinkingContent"]
@@ -194,6 +194,13 @@ private struct DevComponentPreviewCanvas: View {
                            viewportHeight: viewport.height,
                            onPrevious: { headerIndex -= 1; lastAction = "previous-chat" },
                            onNext: { headerIndex += 1; lastAction = "next-chat" })
+        case .followUpSuggestions:
+            FollowUpSuggestions(
+                suggestions: followUpSuggestionFixture,
+                compact: viewport.width <= 500
+            ) { suggestion in
+                lastAction = "quick-sent-\(suggestion)"
+            }
         case .message:
             if configuration.variant.hasPrefix("streaming") {
                 DevProgressiveMessageFixture(variant: configuration.variant)
@@ -222,6 +229,33 @@ private struct DevComponentPreviewCanvas: View {
             }
         default:
             EmptyView()
+        }
+    }
+
+    private var followUpSuggestionFixture: [String] {
+        switch configuration.variant {
+        case "legacy-markup":
+            return [
+                "[web-search] <strong>Compare</strong> the sources",
+                "Explain the result in simpler terms",
+                "Plan the next step",
+                "Show a practical example",
+                "This fifth action stays outside the visible limit",
+            ]
+        case "long":
+            return [
+                "Explain how this recommendation changes when the available space becomes narrow",
+                "Compare the tradeoffs with a different approach",
+                "Show a concise practical example",
+                "What should I verify next?",
+            ]
+        default:
+            return [
+                "Explain this in simpler terms",
+                "Compare the main options",
+                "Show a practical example",
+                "What should I do next?",
+            ]
         }
     }
 

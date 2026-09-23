@@ -125,7 +125,7 @@ actor AudioRealtimeTranscriptionClient {
         case completion
     }
 
-    typealias AuthenticationProvider = @MainActor @Sendable () async throws -> Authentication
+    typealias AuthenticationProvider = @MainActor @Sendable (_ forceRefresh: Bool) async throws -> Authentication
     typealias EventHandler = @Sendable (Event) async -> Void
     typealias TransportFactory = @Sendable () -> any AudioRealtimeSocketTransport
 
@@ -154,6 +154,7 @@ actor AudioRealtimeTranscriptionClient {
     private var rawResult: TranscriptionResult?
     private var correctionSettled = false
     private var didSendEnd = false
+    private var authenticationRetryStarted = false
 
     init(
         authenticationProvider: @escaping AuthenticationProvider,
@@ -171,9 +172,9 @@ actor AudioRealtimeTranscriptionClient {
         eventHandler: @escaping EventHandler
     ) -> AudioRealtimeTranscriptionClient {
         AudioRealtimeTranscriptionClient(
-            authenticationProvider: { @MainActor [weak authManager] in
+            authenticationProvider: { @MainActor [weak authManager] forceRefresh in
                 guard let authManager else { throw AudioRealtimeTranscriptionError.authenticationUnavailable }
-                if tokenNeedsRefresh(authManager.webSocketToken) {
+                if forceRefresh || tokenNeedsRefresh(authManager.webSocketToken) {
                     await authManager.validateSessionAfterOfflineBootstrap()
                 }
                 guard authManager.state == .authenticated,
@@ -202,7 +203,7 @@ actor AudioRealtimeTranscriptionClient {
 
         let authentication: Authentication
         do {
-            authentication = try await authenticationProvider()
+            authentication = try await authenticationProvider(false)
         } catch let error as AudioRealtimeTranscriptionError {
             await fail(error)
             throw error
@@ -294,10 +295,56 @@ actor AudioRealtimeTranscriptionClient {
         } catch is CancellationError {
             return
         } catch let error as AudioRealtimeTranscriptionError {
+            if await retryConnectionBeforeReady() { return }
             await fail(error)
         } catch {
+            if await retryConnectionBeforeReady() { return }
             await fail(.connectionEndedEarly)
         }
+    }
+
+    /// Match the browser client: a rejected/closed first handshake gets one
+    /// forced session refresh while the already captured PCM remains queued.
+    /// This is deliberately limited to the pre-ready phase so a provider failure
+    /// after streaming starts cannot duplicate billable audio.
+    private func retryConnectionBeforeReady() async -> Bool {
+        guard !hasReceivedReady,
+              !authenticationRetryStarted,
+              phase == .connecting || phase == .finishing else { return false }
+        authenticationRetryStarted = true
+        readinessTimeoutTask?.cancel()
+        readinessTimeoutTask = nil
+        let previousTransport = transport
+        transport = nil
+        await previousTransport?.close(code: 1_000, reason: Data("refreshing authentication".utf8))
+        guard canContinueAuthenticationRetry else { return false }
+
+        var replacementTransport: (any AudioRealtimeSocketTransport)?
+        do {
+            let authentication = try await authenticationProvider(true)
+            guard canContinueAuthenticationRetry else { return false }
+            let request = try Self.makeRequest(authentication: authentication)
+            let replacement = transportFactory()
+            replacementTransport = replacement
+            try await replacement.connect(request)
+            guard canContinueAuthenticationRetry else {
+                await replacement.close(code: 1_000, reason: Data("retry cancelled".utf8))
+                return false
+            }
+            transport = replacement
+            receiveTask = Task { [weak self] in
+                await self?.receiveLoop()
+            }
+            scheduleReadinessTimeout()
+            return true
+        } catch {
+            await replacementTransport?.close(code: 1_000, reason: Data("retry failed".utf8))
+            return false
+        }
+    }
+
+    private var canContinueAuthenticationRetry: Bool {
+        !Task.isCancelled && !hasReceivedReady && (phase == .connecting || phase == .finishing)
     }
 
     private func handleServerMessage(_ text: String) async throws {

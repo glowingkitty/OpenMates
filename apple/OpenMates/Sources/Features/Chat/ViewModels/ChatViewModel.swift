@@ -4,6 +4,8 @@
 // Subscribes to StreamingClient for real-time AI response chunks.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.followups.non-destructive-reconciliation, chats.surface.semantic-parity
 
 import Foundation
 import SwiftUI
@@ -201,15 +203,28 @@ enum ChatStreamingPresentationPolicy {
         thinkingContent: String,
         embedCount: Int
     ) -> Bool {
-        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !ChatMessageStreamingRenderPolicy.visibleContent(content)
+            .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || !thinkingContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || embedCount > 0
     }
 }
 
 enum ChatFollowUpSuggestionPolicy {
+    static func clearForAcceptedSend(_ current: [String]) -> [String] {
+        current.isEmpty ? current : []
+    }
+
     static func reconcile(current: [String], incoming: [String]) -> [String] {
         incoming.isEmpty ? current : incoming
+    }
+
+    static func acceptCompletedResponse(_ incoming: [String]) -> [String] {
+        Array(incoming.prefix(18))
+    }
+
+    static func restore(stored: [String], hasStoredCiphertext: Bool, legacyExtracted: [String]) -> [String] {
+        hasStoredCiphertext ? stored : reconcile(current: stored, incoming: legacyExtracted)
     }
 }
 
@@ -394,6 +409,7 @@ final class ChatViewModel: ObservableObject {
     func loadChat(id: String, initialChat: Chat? = nil, initialMessages: [Message] = [], initialEmbeds: [EmbedRecord] = []) async {
         loadGeneration += 1
         let generation = loadGeneration
+        followUpSuggestions = []
         cancelOlderMessagesLoad()
         embedHydrationTask?.cancel()
         isLoading = true
@@ -416,6 +432,7 @@ final class ChatViewModel: ObservableObject {
             await ensureChatKey(for: loadedChat)
 
             loadedChat = await decryptMetadata(for: loadedChat)
+            let storedFollowUps = await decryptFollowUpSuggestions(for: loadedChat)
             chat = loadedChat
 
             let messagesResponse: [Message] = try await api.request(.get, path: "/v1/chats/\(id)/messages")
@@ -425,7 +442,11 @@ final class ChatViewModel: ObservableObject {
             let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: id)
             let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
             embedRecords = embedded.records
-            followUpSuggestions = extractFollowUpSuggestions(from: embedded.messages)
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
+                stored: storedFollowUps,
+                hasStoredCiphertext: loadedChat.encryptedFollowUpRequestSuggestions != nil,
+                legacyExtracted: extractFollowUpSuggestions(from: embedded.messages)
+            )
 
             messages = embedded.messages
             refreshWindowBoundaries()
@@ -496,12 +517,18 @@ final class ChatViewModel: ObservableObject {
         let start = NativeSyncPerfLog.now()
         await ensureChatKey(for: loadedChat)
         loadedChat = await decryptMetadata(for: loadedChat)
+        let storedFollowUps = await decryptFollowUpSuggestions(for: loadedChat)
         guard generation == loadGeneration else { return }
         if NativeSyncPerfLog.verboseCrypto {
             print("[ChatViewModel][loadSynced] chat=\(loadedChat.id.prefix(8)) afterMetadata title=\(loadedChat.title != nil) category=\(loadedChat.category != nil) icon=\(loadedChat.icon != nil) summary=\(loadedChat.chatSummary != nil) hasKey=\(ChatKeyManager.shared.hasKey(for: loadedChat.id))")
         }
 
         chat = loadedChat
+        followUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
+            stored: storedFollowUps,
+            hasStoredCiphertext: loadedChat.encryptedFollowUpRequestSuggestions != nil,
+            legacyExtracted: followUpSuggestions
+        )
         // A warm shell supplies a bounded seed, while its store retains the raw
         // history. Never mistake that seed for the complete paging/send source.
         let storedMessages = chatStore?.messages(for: loadedChat.id) ?? []
@@ -588,9 +615,10 @@ final class ChatViewModel: ObservableObject {
         let directEmbedRefs = embedded.messages.flatMap { $0.embedRefs ?? [] }.count
         embedRecords = existingRecords.merging(embedded.records) { _, new in new }
         let renderedMessages = embedded.messages
-        followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
-            current: followUpSuggestions,
-            incoming: extractFollowUpSuggestions(from: renderedMessages)
+        followUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
+            stored: followUpSuggestions,
+            hasStoredCiphertext: loadedChat.encryptedFollowUpRequestSuggestions != nil,
+            legacyExtracted: extractFollowUpSuggestions(from: renderedMessages)
         )
 
         messages = renderedMessages
@@ -1095,6 +1123,7 @@ final class ChatViewModel: ObservableObject {
             )
             chat = result.chat
             appendOrReplaceLocalMessage(result.message)
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.clearForAcceptedSend(followUpSuggestions)
             if broadcastToSiblings {
                 await broadcastMessageToSiblingSubChats(
                     result.message.content ?? content,
@@ -1128,6 +1157,7 @@ final class ChatViewModel: ObservableObject {
             )
             chat = result.chat
             appendOrReplaceTransientMessage(result.message)
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.clearForAcceptedSend(followUpSuggestions)
             isStreaming = true
             streamingContent = ""
             try await sendPipeline.sendIncognitoUserMessage(
@@ -1191,6 +1221,7 @@ final class ChatViewModel: ObservableObject {
             chat = updatedChat
             chatStore?.upsertChat(updatedChat)
             appendOrReplaceLocalMessage(userMessage)
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.clearForAcceptedSend(followUpSuggestions)
             isStreaming = true
             streamingContent = ""
             streamingMessageId = assistantMessageId
@@ -1219,10 +1250,7 @@ final class ChatViewModel: ObservableObject {
             chat = updatedChat
             chatStore?.upsertChat(updatedChat)
             appendOrReplaceLocalMessage(assistant)
-            followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
-                current: followUpSuggestions,
-                incoming: response.followUpSuggestions
-            )
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.acceptCompletedResponse(response.followUpSuggestions)
             isStreaming = false
             streamingContent = ""
             streamingMessageId = nil
@@ -1253,6 +1281,7 @@ final class ChatViewModel: ObservableObject {
             encryptedCategory: chat.encryptedCategory,
             encryptedIcon: chat.encryptedIcon,
             encryptedChatSummary: chat.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: chat.encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: chat.encryptedAutoSpeakResponse,
             encryptedChatKey: chat.encryptedChatKey,
             messagesV: messageCount,
@@ -1505,10 +1534,7 @@ final class ChatViewModel: ObservableObject {
 
         case .postProcessingCompleted(let chatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle):
             guard chat?.id == chatId else { return }
-            followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
-                current: followUpSuggestions,
-                incoming: Array(followUps.prefix(18))
-            )
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.acceptCompletedResponse(followUps)
             Task { @MainActor in
                 await sendPipeline.sendPostProcessingMetadata(
                     chatId: chatId,
@@ -1878,6 +1904,7 @@ final class ChatViewModel: ObservableObject {
             encryptedCategory: currentChat.encryptedCategory,
             encryptedIcon: currentChat.encryptedIcon,
             encryptedChatSummary: currentChat.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: currentChat.encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: currentChat.encryptedAutoSpeakResponse,
             encryptedChatKey: currentChat.encryptedChatKey,
             messagesV: currentChat.messagesV,
@@ -2146,6 +2173,27 @@ final class ChatViewModel: ObservableObject {
             }
             .prefix(6)
             .map { String($0) }
+    }
+
+    private func decryptFollowUpSuggestions(for chat: Chat) async -> [String] {
+        guard let encrypted = chat.encryptedFollowUpRequestSuggestions,
+              let plaintext = await ChatKeyManager.shared.decryptChatField(
+                chatId: chat.id,
+                encryptedValue: encrypted,
+                fieldName: "encrypted_follow_up_request_suggestions"
+              ) else { return [] }
+        return Self.decodeFollowUpSuggestions(plaintext)
+    }
+
+    static func decodeFollowUpSuggestions(_ plaintext: String) -> [String] {
+        guard let data = plaintext.data(using: .utf8),
+              let decoded = try? JSONSerialization.jsonObject(with: data) as? [Any] else { return [] }
+        let suggestions: [String] = decoded.compactMap { value -> String? in
+            guard let suggestion = value as? String else { return nil }
+            let trimmed = suggestion.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        return Array(suggestions.prefix(18))
     }
 
     private func cleanFollowUpSuggestion(_ suggestion: String) -> String {
@@ -4713,9 +4761,11 @@ final class ChatSendPipeline {
                 "chat_id": chatId,
                 "encrypted_chat_key": keyMaterial.encryptedChatKey
             ]
-            if !followUpSuggestions.isEmpty {
-                payload["encrypted_follow_up_suggestions"] = try await encryptStringArray(Array(followUpSuggestions.prefix(18)), key: keyMaterial.key)
-            }
+            let encryptedFollowUpSuggestions = try await encryptStringArray(
+                Array(followUpSuggestions.prefix(18)),
+                key: keyMaterial.key
+            )
+            payload["encrypted_follow_up_suggestions"] = encryptedFollowUpSuggestions
             if !chatTags.isEmpty {
                 payload["encrypted_chat_tags"] = try await encryptStringArray(Array(chatTags.prefix(10)), key: keyMaterial.key)
             }
@@ -4738,20 +4788,25 @@ final class ChatSendPipeline {
                 }
                 payload["encrypted_new_chat_suggestions"] = encryptedSuggestions
             }
-            guard payload.count > 2 else { return }
-            if encryptedSummary != nil || encryptedUpdatedTitle != nil || chat.encryptedChatKey != keyMaterial.encryptedChatKey {
-                chatStore?.upsertChat(copyChat(
-                    chat,
-                    title: updatedTitle?.isEmpty == false ? updatedTitle : chat.title,
-                    updatedAt: Self.isoString(from: Date()),
-                    chatSummary: chatSummary?.isEmpty == false ? chatSummary : chat.chatSummary,
-                    encryptedTitle: encryptedUpdatedTitle ?? chat.encryptedTitle,
-                    encryptedChatSummary: encryptedSummary ?? chat.encryptedChatSummary,
-                    encryptedAutoSpeakResponse: chat.encryptedAutoSpeakResponse,
-                    encryptedChatKey: keyMaterial.encryptedChatKey
-                ))
+            let acknowledgement = try await wsManager.sendAndWait(
+                WSOutboundMessage(type: "update_post_processing_metadata", payload: payload),
+                responseType: "post_processing_metadata_stored"
+            ) { fields in
+                fields["chat_id"] as? String == chatId
             }
-            try await wsManager.send(WSOutboundMessage(type: "update_post_processing_metadata", payload: payload))
+            let acceptedMetadataVersion = (acknowledgement.fields["versions"] as? [String: Any])?["metadata_v"] as? Int
+            chatStore?.upsertChat(copyChat(
+                chat,
+                title: updatedTitle?.isEmpty == false ? updatedTitle : chat.title,
+                updatedAt: Self.isoString(from: Date()),
+                chatSummary: chatSummary?.isEmpty == false ? chatSummary : chat.chatSummary,
+                encryptedTitle: encryptedUpdatedTitle ?? chat.encryptedTitle,
+                encryptedChatSummary: encryptedSummary ?? chat.encryptedChatSummary,
+                encryptedFollowUpRequestSuggestions: encryptedFollowUpSuggestions,
+                encryptedAutoSpeakResponse: chat.encryptedAutoSpeakResponse,
+                encryptedChatKey: keyMaterial.encryptedChatKey,
+                metadataV: acceptedMetadataVersion ?? chat.metadataV
+            ))
         } catch {
             print("[ChatSendPipeline] Failed to send post-processing metadata: \(error)")
         }
@@ -4917,10 +4972,12 @@ final class ChatSendPipeline {
         encryptedCategory: String? = nil,
         encryptedIcon: String? = nil,
         encryptedChatSummary: String? = nil,
+        encryptedFollowUpRequestSuggestions: String? = nil,
         encryptedAutoSpeakResponse: String? = nil,
         encryptedChatKey: String? = nil,
         messagesV: Int? = nil,
-        titleV: Int? = nil
+        titleV: Int? = nil,
+        metadataV: Int? = nil
     ) -> Chat {
         Chat(
             id: chat.id,
@@ -4938,12 +4995,13 @@ final class ChatSendPipeline {
             encryptedCategory: encryptedCategory ?? chat.encryptedCategory,
             encryptedIcon: encryptedIcon ?? chat.encryptedIcon,
             encryptedChatSummary: encryptedChatSummary ?? chat.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions ?? chat.encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: encryptedAutoSpeakResponse ?? chat.encryptedAutoSpeakResponse,
             encryptedChatKey: encryptedChatKey ?? chat.encryptedChatKey,
             messagesV: messagesV ?? chat.messagesV,
             titleV: titleV ?? chat.titleV,
             draftV: chat.draftV,
-            metadataV: chat.metadataV,
+            metadataV: metadataV ?? chat.metadataV,
             lastVisibleMessageId: chat.lastVisibleMessageId,
             parentId: chat.parentId,
             isSubChat: chat.isSubChat,

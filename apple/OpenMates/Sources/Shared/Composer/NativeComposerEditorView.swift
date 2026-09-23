@@ -3,6 +3,8 @@
 // A coordinator retains stable adapter and platform-view identities across redraws.
 // Focus and canonical changes flow through the session without reparsing on edits.
 // Localized accessibility and host submit behavior remain explicit inputs.
+// Specification: specifications/features/message-input/specification.yml
+// Assertion: message-input.layout.responsive-parity
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
@@ -33,6 +35,7 @@ struct NativeComposerEditorView: UIViewRepresentable {
         let textView = context.coordinator.adapter.makePlatformView()
         textView.backgroundColor = .clear
         textView.isScrollEnabled = true
+        textView.showsVerticalScrollIndicator = false
         textView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
         return textView
     }
@@ -104,7 +107,7 @@ struct NativeComposerEditorView: NSViewRepresentable {
         textView.textContainerInset = NSSize(width: 12, height: 14)
         let scrollView = NSScrollView()
         scrollView.drawsBackground = false
-        scrollView.hasVerticalScroller = true
+        scrollView.hasVerticalScroller = false
         scrollView.documentView = textView
         return scrollView
     }

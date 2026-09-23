@@ -107,7 +107,9 @@ enum AppStrings {
     static var renameChat: String { L("chat.rename") }
     static var chatTitle: String { L("chat.title") }
     static var conversationForked: String { L("chat.forked") }
-    static var setReminder: String { L("chat.set_reminder") }
+    // Specification: specifications/features/chats/specification.yml
+    // Assertion: chats.layout.responsive-history
+    static var setReminder: String { L("chat.header.set_reminder") }
     static var chats: String { L("common.chats") }
     static var summary: String { L("common.summary") }
     static var explore: String { L("common.explore") }
@@ -776,8 +778,18 @@ enum AppStrings {
     }
 
     // MARK: - Embeds
-    static var voiceRecording: String { L("embed.voice_recording") }
-    static var transcription: String { L("embed.transcription") }
+    static var audioRecording: String { L("app_skills.audio.transcribe.audio_recording") }
+    static var audioRecordingDescription: String { L("app_skills.audio.transcribe.description") }
+    static var audioTranscriptUnavailable: String { L("app_skills.audio.transcribe.no_transcript") }
+    static var audioAutoCorrecting: String { L("app_skills.audio.transcribe.auto_correcting") }
+    static var voiceRecording: String { audioRecording }
+    static var transcription: String { L("app_skills.audio.transcribe.edit_transcript") }
+    static func audioTranscribedBy(model: String) -> String {
+        LocalizationManager.shared.text(
+            "app_skills.audio.transcribe.transcribed_by",
+            replacements: ["model": model]
+        )
+    }
     static var play: String { L("audio.play") }
     static var pause: String { L("audio.pause") }
     static var locationNearby: String { L("embeds.maps_location.nearby") }
@@ -788,6 +800,11 @@ enum AppStrings {
     static var snippets: String { L("embeds.snippets") }
     static var viaBraveSearch: String { L("embeds.via_brave_search") }
     static var via: String { L("embeds.via") }
+    static var videoGetTranscript: String { L("app_skills.videos.get_transcript") }
+    static var transcriptYouTubeVideo: String { L("embeds.youtube_video") }
+    static var transcriptVia: String { L("embeds.via") }
+    static var transcriptWords: String { L("embeds.document_word_plural") }
+    static var transcriptNoResults: String { L("embeds.search_no_results") }
     static var searchFailed: String { L("embeds.search_failed") }
     static var embedStoredEncrypted: String { L("embeds.stored_encrypted") }
     static var embedClickToShowDetails: String { L("embeds.click_to_show_details") }

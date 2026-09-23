@@ -274,8 +274,8 @@ final class VoiceRecorder: ObservableObject {
     static let waveformSampleInterval: TimeInterval = 0.05
     static let waveformMinimumVisibleLevel = 0.04
 
-    private static let waveformMinimumDecibels: Float = -46
-    private static let waveformMaximumDecibels: Float = -18
+    nonisolated private static let waveformMinimumDecibels: Float = -46
+    nonisolated private static let waveformMaximumDecibels: Float = -18
 
     @Published var isRecording = false
     @Published var duration: TimeInterval = 0
@@ -307,6 +307,21 @@ final class VoiceRecorder: ObservableObject {
             AVAudioSession.sharedInstance().requestRecordPermission { granted in
                 continuation.resume(returning: granted)
             }
+        }
+        #elseif os(macOS)
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            return true
+        case .notDetermined:
+            return await withCheckedContinuation { continuation in
+                AVCaptureDevice.requestAccess(for: .audio) { granted in
+                    continuation.resume(returning: granted)
+                }
+            }
+        case .denied, .restricted:
+            return false
+        @unknown default:
+            return false
         }
         #else
         return true
@@ -410,7 +425,7 @@ final class VoiceRecorder: ObservableObject {
         recordingURL = nil
     }
 
-    static func normalizedWaveformLevel(forAveragePower averagePower: Float) -> Double {
+    nonisolated static func normalizedWaveformLevel(forAveragePower averagePower: Float) -> Double {
         guard averagePower.isFinite, averagePower > waveformMinimumDecibels else { return 0 }
         let decibelRange = waveformMaximumDecibels - waveformMinimumDecibels
         let normalized = (averagePower - waveformMinimumDecibels) / decibelRange
@@ -520,10 +535,9 @@ final class VoiceRecorder: ObservableObject {
             let finiteSample = sample.isFinite ? Double(sample) : 0
             return partial + finiteSample * finiteSample
         } / Double(samples.count)
-        // Speech captured by the device microphone commonly occupies the lower
-        // portion of full scale. The multiplier keeps quiet speech visible while
-        // the final clamp protects the envelope contract.
-        return min(1, max(0, sqrt(meanSquare) * 8))
+        guard meanSquare > 0 else { return 0 }
+        let averagePower = Float(20 * log10(sqrt(meanSquare)))
+        return normalizedWaveformLevel(forAveragePower: averagePower)
     }
 
     @discardableResult

@@ -274,7 +274,7 @@ async def handle_post_processing_metadata(
 
             accepted_versions = None
             cache_updates = []
-            if encrypted_title or encrypted_chat_summary:
+            if encrypted_title or encrypted_chat_summary or encrypted_follow_up_suggestions:
                 accepted_versions = await allocate_chat_metadata_versions(
                     cache_service,
                     directus_service,
@@ -352,6 +352,10 @@ async def handle_post_processing_metadata(
                     broadcast_payload["encrypted_title"] = encrypted_title
                 if encrypted_chat_summary:
                     broadcast_payload["encrypted_chat_summary"] = encrypted_chat_summary
+                if encrypted_follow_up_suggestions:
+                    broadcast_payload["encrypted_follow_up_request_suggestions"] = (
+                        encrypted_follow_up_suggestions
+                    )
                 await manager.broadcast_to_user(
                     message={"type": "encrypted_chat_metadata", "payload": broadcast_payload},
                     user_id=user_id,

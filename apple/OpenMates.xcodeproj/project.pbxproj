@@ -352,6 +352,8 @@
 		C0FFEE000000000000021004 /* RemindersPublicContentParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000021001 /* RemindersPublicContentParityTests.swift */; };
 		C0FFEE000000000000022004 /* SkillApplicationParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000022001 /* SkillApplicationParityUITests.swift */; };
 		C0FFEE000000000000023004 /* SkillApplicationParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000023001 /* SkillApplicationParityTests.swift */; };
+		B7A710000000000000000002 /* VideoTranscriptPayloadParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A710000000000000000001 /* VideoTranscriptPayloadParityTests.swift */; };
+		B7A720000000000000000002 /* ComposerAudioPreviewContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A720000000000000000001 /* ComposerAudioPreviewContentTests.swift */; };
 		C0FFEE000000000000024004 /* SettingsFullParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000024001 /* SettingsFullParityTests.swift */; };
 		A22E00000000000000000011 /* SettingsModeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E00000000000000000001 /* SettingsModeModels.swift */; };
 		A22E00000000000000000012 /* SettingsModeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E00000000000000000001 /* SettingsModeModels.swift */; };
@@ -1207,6 +1209,8 @@
 		C0FFEE000000000000021001 /* RemindersPublicContentParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersPublicContentParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000022001 /* SkillApplicationParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillApplicationParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000023001 /* SkillApplicationParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillApplicationParityTests.swift; sourceTree = "<group>"; };
+		B7A710000000000000000001 /* VideoTranscriptPayloadParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoTranscriptPayloadParityTests.swift; sourceTree = "<group>"; };
+		B7A720000000000000000001 /* ComposerAudioPreviewContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerAudioPreviewContentTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000024001 /* SettingsFullParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsFullParityTests.swift; sourceTree = "<group>"; };
 		A22E00000000000000000001 /* SettingsModeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModeModels.swift; sourceTree = "<group>"; };
 		A22E00000000000000000002 /* SettingsLearningModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLearningModeView.swift; sourceTree = "<group>"; };
@@ -2095,6 +2099,8 @@
 				C0FFEE000000000000019001 /* SettingsBillingParityTests.swift */,
 				C0FFEE000000000000021001 /* RemindersPublicContentParityTests.swift */,
 				C0FFEE000000000000023001 /* SkillApplicationParityTests.swift */,
+				B7A710000000000000000001 /* VideoTranscriptPayloadParityTests.swift */,
+				B7A720000000000000000001 /* ComposerAudioPreviewContentTests.swift */,
 				C0FFEE000000000000024001 /* SettingsFullParityTests.swift */,
 				B66000000000000000000001 /* SettingsMemoriesMatesParityTests.swift */,
 				A22E00000000000000000003 /* SettingsModesParityTests.swift */,
@@ -3540,6 +3546,8 @@
 				C0FFEE000000000000019004 /* SettingsBillingParityTests.swift in Sources */,
 				C0FFEE000000000000021004 /* RemindersPublicContentParityTests.swift in Sources */,
 				C0FFEE000000000000023004 /* SkillApplicationParityTests.swift in Sources */,
+				B7A710000000000000000002 /* VideoTranscriptPayloadParityTests.swift in Sources */,
+				B7A720000000000000000002 /* ComposerAudioPreviewContentTests.swift in Sources */,
 				C0FFEE000000000000024004 /* SettingsFullParityTests.swift in Sources */,
 				B66000000000000000000004 /* SettingsMemoriesMatesParityTests.swift in Sources */,
 				A22E00000000000000000015 /* SettingsModesParityTests.swift in Sources */,

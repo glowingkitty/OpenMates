@@ -74,7 +74,10 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
 
     var isAppSkillUse: Bool {
         let rawType = rawData?["type"]?.value as? String
-        return rawType == "app_skill_use" || rawType == "app-skill-use" || type == "app-skill-use"
+        return rawType == "app_skill_use"
+            || rawType == "app-skill-use"
+            || type == "app_skill_use"
+            || type == "app-skill-use"
     }
 
     static func dictionaryById(
@@ -415,6 +418,8 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
 
     private static func normalizedType(_ rawType: String, appId: String?, skillId: String?) -> String {
         switch rawType {
+        case "app_skill_use":
+            return "app-skill-use"
         case "image_result":
             return EmbedType.imagesImageResult.rawValue
         case "company_financial_result":
@@ -462,6 +467,18 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             let rawLine = lines[index]
             let indentation = rawLine.prefix { $0 == " " || $0 == "\t" }.count
             let trimmed = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let table = parseTabularHeader(trimmed) {
+                let parsed = parseTabularRows(
+                    lines: lines,
+                    start: index + 1,
+                    parentIndentation: indentation,
+                    columns: table.columns,
+                    expectedCount: table.count
+                )
+                result[table.key] = parsed.rows
+                index = parsed.nextIndex
+                continue
+            }
             guard !trimmed.isEmpty, let separator = trimmed.firstIndex(of: ":") else {
                 index += 1
                 continue
@@ -482,6 +499,166 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             index += 1
         }
         return result
+    }
+
+    /// TOON encodes arrays of uniform objects as compact CSV-like tables, for
+    /// example `results[1]{type,url,transcript}:`. Persisted web chats use this
+    /// representation for app-skill results. Keep this decoder local and
+    /// deterministic so encrypted content has the same shape as the web TOON
+    /// decoder after decryption.
+    private static func parseTabularHeader(_ line: String) -> (key: String, count: Int, columns: [String])? {
+        guard line.hasSuffix(":"),
+              let openCount = line.firstIndex(of: "["),
+              let closeCount = line[openCount...].firstIndex(of: "]"),
+              line.index(after: closeCount) < line.endIndex,
+              line[line.index(after: closeCount)] == "{",
+              let closeColumns = line[closeCount...].lastIndex(of: "}") else {
+            return nil
+        }
+
+        let key = String(line[..<openCount]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let countStart = line.index(after: openCount)
+        let columnsStart = line.index(closeCount, offsetBy: 2)
+        guard !key.isEmpty,
+              let count = Int(line[countStart..<closeCount]),
+              columnsStart <= closeColumns else {
+            return nil
+        }
+        let columns = line[columnsStart..<closeColumns]
+            .split(separator: ",", omittingEmptySubsequences: false)
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+        guard !columns.isEmpty, columns.allSatisfy({ !$0.isEmpty }) else { return nil }
+        return (key, count, columns)
+    }
+
+    private static func parseTabularRows(
+        lines: [String],
+        start: Int,
+        parentIndentation: Int,
+        columns: [String],
+        expectedCount: Int
+    ) -> (rows: [[String: Any]], nextIndex: Int) {
+        guard expectedCount > 0 else { return ([], start) }
+        var rows: [[String: Any]] = []
+        var index = start
+        var record = ""
+
+        while index < lines.count, rows.count < expectedCount {
+            let rawLine = lines[index]
+            let indentation = rawLine.prefix { $0 == " " || $0 == "\t" }.count
+            let beginsRecord = record.isEmpty
+            // A compact table row is always indented below its header. Stop at
+            // the next sibling key even when the preceding row is malformed,
+            // otherwise one unterminated quote can consume all later metadata.
+            if indentation <= parentIndentation { break }
+
+            let fragment = beginsRecord
+                ? rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                : rawLine
+            record += record.isEmpty ? fragment : "\n\(fragment)"
+            index += 1
+
+            guard tabularRecordIsComplete(record),
+                  let fields = parseTabularFields(record),
+                  fields.count == columns.count else {
+                continue
+            }
+            rows.append(Dictionary(uniqueKeysWithValues: zip(columns, fields.map(parseTabularScalar))))
+            record = ""
+        }
+
+        return (rows, index)
+    }
+
+    private static func tabularRecordIsComplete(_ record: String) -> Bool {
+        var insideQuotes = false
+        var index = record.startIndex
+        while index < record.endIndex {
+            let character = record[index]
+            if character == "\\" {
+                let next = record.index(after: index)
+                if insideQuotes, next < record.endIndex {
+                    index = record.index(after: next)
+                    continue
+                }
+            }
+            if character == "\"" {
+                let next = record.index(after: index)
+                if insideQuotes, next < record.endIndex, record[next] == "\"" {
+                    index = record.index(after: next)
+                    continue
+                }
+                insideQuotes.toggle()
+            }
+            index = record.index(after: index)
+        }
+        return !insideQuotes
+    }
+
+    private struct TabularField {
+        let value: String
+        let wasQuoted: Bool
+    }
+
+    private static func parseTabularFields(_ record: String) -> [TabularField]? {
+        var fields: [TabularField] = []
+        var field = ""
+        var insideQuotes = false
+        var wasQuoted = false
+        var index = record.startIndex
+
+        while index < record.endIndex {
+            let character = record[index]
+            if character == "\\", insideQuotes {
+                let next = record.index(after: index)
+                if next < record.endIndex {
+                    // Keep the canonical JSON-compatible escape intact. It is
+                    // decoded after field boundaries and quote state are known.
+                    field.append(character)
+                    field.append(record[next])
+                    index = record.index(after: next)
+                    continue
+                }
+            }
+            if character == "\"" {
+                let next = record.index(after: index)
+                if insideQuotes, next < record.endIndex, record[next] == "\"" {
+                    field.append("\\\"")
+                    index = record.index(after: next)
+                    continue
+                }
+                if !insideQuotes {
+                    guard field.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+                    field = ""
+                    wasQuoted = true
+                }
+                insideQuotes.toggle()
+            } else if character == ",", !insideQuotes {
+                fields.append(TabularField(value: field, wasQuoted: wasQuoted))
+                field = ""
+                wasQuoted = false
+            } else {
+                field.append(character)
+            }
+            index = record.index(after: index)
+        }
+        guard !insideQuotes else { return nil }
+        fields.append(TabularField(value: field, wasQuoted: wasQuoted))
+        return fields
+    }
+
+    private static func parseTabularScalar(_ field: TabularField) -> Any {
+        if field.wasQuoted {
+            let encoded = Data("\"\(field.value)\"".utf8)
+            return (try? JSONDecoder().decode(String.self, from: encoded)) ?? field.value
+        }
+        let value = field.value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value == "null" { return NSNull() }
+        if value == "true" { return true }
+        if value == "false" { return false }
+        if let integer = Int(value) { return integer }
+        if let double = Double(value) { return double }
+        return value
     }
 
     private static func logDuplicateIds(_ duplicateIds: [String: Int], context: String) {
@@ -619,6 +796,7 @@ enum EmbedType: String, CaseIterable {
     case recording
     case codeRepo = "code-repo"
     case codeCode = "code-code"
+    case codeNotebook = "code-notebook"
     case codeApplication = "code-application"
     case designIconResult = "design-icon-result"
     case docsDoc = "docs-doc"
@@ -633,6 +811,7 @@ enum EmbedType: String, CaseIterable {
     case maps
     case mathPlot = "math-plot"
     case pdf
+    case fileFile = "file-file"
     case models3dModelResult = "models3d-model-result"
     case sheetsSheet = "sheets-sheet"
     case focusModeActivation = "focus-mode-activation"
@@ -692,6 +871,9 @@ enum EmbedType: String, CaseIterable {
 
     // App skill use embeds
     case codeGetDocs = "app:code:get_docs"
+    case audioGenerate = "app:audio:generate"
+    case audioSpeak = "app:audio:speak"
+    case calendarListCalendars = "app:calendar:list-calendars"
     case imagesGenerate = "app:images:generate"
     case imagesGenerateDraft = "app:images:generate_draft"
     case financeCheckAccounts = "app:finance:check_accounts"
@@ -765,7 +947,7 @@ enum EmbedType: String, CaseIterable {
         let raw = rawValue
         guard raw.hasPrefix("app:") else {
             switch self {
-            case .codeRepo, .codeCode, .codeApplication: return "code"
+            case .codeRepo, .codeCode, .codeNotebook, .codeApplication: return "code"
             case .designIconResult: return "design"
             case .docsDoc: return "docs"
             case .diagramsMermaid: return "diagrams"
@@ -779,6 +961,7 @@ enum EmbedType: String, CaseIterable {
             case .mathPlot: return "math"
             case .models3dModelResult: return "models3d"
             case .pdf: return "pdf"
+            case .fileFile: return "file"
             case .sheetsSheet: return "sheets"
             case .webWebsite: return "web"
             case .businessCompanyFinancialResult: return "business"
@@ -812,6 +995,7 @@ enum EmbedType: String, CaseIterable {
         case .codeRepoSearch: return "Repository Search"
         case .codeRepo: return "Repository"
         case .codeCode: return "Code"
+        case .codeNotebook: return "Notebook"
         case .codeApplication: return "Application"
         case .codeGetDocs: return "Docs"
         case .designSearchIcons: return "Icon Search"
@@ -822,7 +1006,9 @@ enum EmbedType: String, CaseIterable {
         case .electronicsPcbSchematic: return "PCB Schematic"
         case .electronicsSearch: return "Component Search"
         case .electronicsComponent: return "Component"
-        case .calendarGetEvents, .calendarCreateEvent, .calendarUpdateEvent, .calendarDeleteEvent: return "Calendar"
+        case .calendarListCalendars, .calendarGetEvents, .calendarCreateEvent, .calendarUpdateEvent, .calendarDeleteEvent: return "Calendar"
+        case .audioGenerate: return "Generate audio"
+        case .audioSpeak: return "Speak"
         case .fitnessSearchLocations: return "Fitness Locations"
         case .fitnessSearchClasses: return "Fitness Classes"
         case .fitnessLocation: return "Fitness Location"
@@ -842,6 +1028,7 @@ enum EmbedType: String, CaseIterable {
         case .models3dModelResult: return "3D Model"
         case .musicGenerate: return "Music"
         case .pdf: return "PDF"
+        case .fileFile: return "File"
         case .sheetsSheet: return "Sheet"
         case .recording: return "Recording"
         case .videosSearch: return "Video Search"

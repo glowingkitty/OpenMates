@@ -282,6 +282,13 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
         XCTAssertEqual(pane.frame.width, 400, accuracy: 2)
         XCTAssertEqual(embedPane.frame.minX - pane.frame.maxX, 10, accuracy: 2)
         XCTAssertEqual(embedPane.frame.width, workspace.frame.width - 410, accuracy: 2)
+        XCTAssertEqual(embedPane.frame.maxX, workspace.frame.maxX, accuracy: 2,
+                       "The split embed pane must consume the complete trailing workspace width")
+        let fullscreenHeader = app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch
+        XCTAssertTrue(fullscreenHeader.waitForExistence(timeout: 3))
+        XCTAssertEqual(fullscreenHeader.frame.minX, embedPane.frame.minX, accuracy: 2)
+        XCTAssertEqual(fullscreenHeader.frame.maxX, embedPane.frame.maxX, accuracy: 2,
+                       "Fullscreen content must render across the complete pane, without a blank chat-width strip")
         let child = app.buttons["embed-preview-preview-web-search-result-1"].firstMatch
         XCTAssertTrue(child.waitForExistence(timeout: 5))
         if !child.isHittable { app.swipeUp() }

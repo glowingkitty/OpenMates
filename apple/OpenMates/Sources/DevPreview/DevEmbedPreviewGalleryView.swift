@@ -106,6 +106,12 @@ struct DevNativeComposerEmbedGalleryView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: .spacing10) {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityIdentifier("dev-native-composer-embed-gallery")
+                    .accessibilityValue("\(registry.registeredTypes.count)")
+
                 lifecycleShowcase
                 ForEach(registry.registeredTypes, id: \.self) { embedType in
                     if let descriptor = registry.descriptor(for: embedType) {
@@ -113,7 +119,7 @@ struct DevNativeComposerEmbedGalleryView: View {
                             descriptor: descriptor,
                             node: fixtureNode(embedType: embedType, state: state(for: embedType)),
                             lifecycle: state(for: embedType),
-                            embedRecord: nil,
+                            embedRecord: fixtureRecord(embedType: embedType, state: state(for: embedType)),
                             allEmbedRecords: [:],
                             actions: actions
                         )
@@ -123,8 +129,6 @@ struct DevNativeComposerEmbedGalleryView: View {
             .padding(.spacing12)
         }
         .background(Color.grey0)
-        .accessibilityIdentifier("dev-native-composer-embed-gallery")
-        .accessibilityValue("\(registry.registeredTypes.count)")
     }
 
     private var lifecycleShowcase: some View {
@@ -135,7 +139,7 @@ struct DevNativeComposerEmbedGalleryView: View {
                         descriptor: descriptor,
                         node: fixtureNode(embedType: "recording", state: state),
                         lifecycle: state,
-                        embedRecord: nil,
+                        embedRecord: fixtureRecord(embedType: "recording", state: state),
                         allEmbedRecords: [:],
                         actions: actions
                     )
@@ -169,6 +173,42 @@ struct DevNativeComposerEmbedGalleryView: View {
                 mediaKind: embedType
             )
         ).updatingStatus(state.rawValue)
+    }
+
+    private func fixtureRecord(
+        embedType: String,
+        state: AppleComposerEmbedLifecycleState
+    ) -> EmbedRecord? {
+        guard embedType == "recording" else { return nil }
+        let status: EmbedStatus = switch state {
+        case .finished: .finished
+        case .error: .error
+        case .cancelled: .cancelled
+        default: .processing
+        }
+        return EmbedRecord(
+            id: "composer:fixture:\(embedType):\(state.rawValue)",
+            type: embedType,
+            status: status,
+            data: .raw([
+                "title": AnyCodable("Native voice note"),
+                "duration": AnyCodable(42.0),
+                "transcript_original": AnyCodable("Live transcript from the native recording fixture."),
+                "transcript_corrected": AnyCodable("Corrected transcript from the native recording fixture."),
+                "use_corrected": AnyCodable(state == .finished),
+                "model": AnyCodable("voxtral-mini-transcribe-realtime-2602"),
+                "waveform": AnyCodable([
+                    "version": 1,
+                    "kind": "rms-envelope",
+                    "samples": [18, 44, 80, 34, 100, 62, 28]
+                ] as [String: Any])
+            ]),
+            parentEmbedId: nil,
+            appId: "audio",
+            skillId: "transcribe",
+            embedIds: nil,
+            createdAt: "2026-09-23T09:00:00Z"
+        )
     }
 }
 
@@ -296,27 +336,98 @@ struct DevEmbedSharePreviewView: View {
 struct DevEmbedPreviewGalleryView: View {
     @State private var selectedApp: DevEmbedPreviewApp
 
+    private enum CanonicalSurface: String {
+        case preview
+        case fullscreen
+    }
+
+    private struct CanonicalRequest {
+        let registryKey: String
+        let surface: CanonicalSurface
+
+        static var current: CanonicalRequest? {
+            let arguments = ProcessInfo.processInfo.arguments
+            guard let key = value(after: "--embed-registry-key", in: arguments),
+                  let rawSurface = value(after: "--embed-surface", in: arguments),
+                  let surface = CanonicalSurface(rawValue: rawSurface) else { return nil }
+            return CanonicalRequest(registryKey: key, surface: surface)
+        }
+
+        private static func value(after flag: String, in arguments: [String]) -> String? {
+            guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
+            return arguments[index + 1]
+        }
+    }
+
     init(initialApp: DevEmbedPreviewApp) {
         _selectedApp = State(initialValue: initialApp)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: .spacing12) {
-                    ForEach(DevEmbedPreviewFixtures.skills(for: selectedApp)) { skill in
-                        DevEmbedPreviewSkillSection(skill: skill)
+        Group {
+            if let request = CanonicalRequest.current {
+                canonicalSurface(request)
+            } else {
+                VStack(spacing: 0) {
+                    header
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: .spacing12) {
+                            ForEach(DevEmbedPreviewFixtures.skills(for: selectedApp)) { skill in
+                                DevEmbedPreviewSkillSection(skill: skill)
+                            }
+                        }
+                        .padding(.horizontal, .spacing8)
+                        .padding(.vertical, .spacing8)
                     }
+                    .background(Color.grey0)
                 }
-                .padding(.horizontal, .spacing8)
-                .padding(.vertical, .spacing8)
+                .accessibilityIdentifier("dev-embed-preview-gallery")
             }
-            .background(Color.grey0)
         }
         .background(Color.grey0.ignoresSafeArea())
         .environment(\.colorScheme, .light)
-        .accessibilityIdentifier("dev-embed-preview-gallery")
+    }
+
+    @ViewBuilder
+    private func canonicalSurface(_ request: CanonicalRequest) -> some View {
+        if let skill = DevEmbedPreviewFixtures.skill(forRegistryKey: request.registryKey) {
+            switch request.surface {
+            case .preview:
+                VStack {
+                    EmbedPreviewCard(
+                        embed: skill.primaryEmbed,
+                        allEmbedRecords: skill.allRecords,
+                        variant: .compact
+                    ) {}
+                    .frame(width: 300, height: 200)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("dev-embed-canonical-preview")
+                .accessibilityValue("\(request.registryKey)|default")
+
+            case .fullscreen:
+                EmbedFullscreenContainer(
+                    embeds: [skill.primaryEmbed],
+                    initialEmbedId: skill.primaryEmbed.id,
+                    allEmbedRecords: skill.allRecords,
+                    chatId: nil
+                )
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("dev-embed-canonical-fullscreen")
+                .accessibilityValue("\(request.registryKey)|default")
+            }
+        } else {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                Text("Missing native registry fixture")
+                    .font(.omH4)
+                Text(request.registryKey)
+                    .font(.omSmall)
+            }
+            .padding(.spacing8)
+            .accessibilityIdentifier("dev-embed-registry-missing")
+            .accessibilityValue(request.registryKey)
+        }
     }
 
     private var header: some View {
@@ -357,6 +468,12 @@ private struct DevEmbedPreviewSkillSection: View {
                     .foregroundStyle(Color.fontPrimary)
             }
             .accessibilityIdentifier("dev-preview-skill-\(skill.id)")
+            .accessibilityValue(skill.primaryEmbed.type)
+
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("dev-preview-registry-key-\(skill.primaryEmbed.type)")
 
             DevEmbedTemplateControls()
 

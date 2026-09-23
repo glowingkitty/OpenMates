@@ -1127,7 +1127,7 @@ enum DevEmbedPreviewFixtures {
                 ]]
             ]
         )
-        return skill(id: "videos-get-transcript", label: "Transcript", primary: embed)
+        return skill(id: "videos-get-transcript", label: "Get Transcript", primary: embed)
     }
 
     private static var videoGenerate: DevEmbedPreviewSkill {

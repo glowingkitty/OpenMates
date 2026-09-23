@@ -6,6 +6,47 @@ import XCTest
 @testable import OpenMates
 
 final class RemindersPublicContentParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testAuthenticatedPublicChatHeaderUsesPublicActions() {
+        let actions = MainAppChatHeaderActionPolicy.actions(isPublic: true)
+
+        XCTAssertEqual(actions.shareDestination, .publicLink)
+        XCTAssertFalse(actions.exposesOwnerSettings)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testAuthenticatedPrivateChatHeaderKeepsOwnerActions() {
+        let actions = MainAppChatHeaderActionPolicy.actions(isPublic: false)
+
+        XCTAssertEqual(actions.shareDestination, .ownerSettings)
+        XCTAssertTrue(actions.exposesOwnerSettings)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testPublicFollowUpTapRequiresAuthenticationForGuests() {
+        XCTAssertEqual(
+            ChatFollowUpTapPolicy.action(isPublic: true, isAuthenticated: false),
+            .requestAuthentication
+        )
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testPublicFollowUpTapContinuesInNewChatForAuthenticatedUsers() {
+        XCTAssertEqual(
+            ChatFollowUpTapPolicy.action(isPublic: true, isAuthenticated: true),
+            .continueInNewChat
+        )
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testPrivateFollowUpTapKeepsCurrentChatQuickSend() {
+        XCTAssertEqual(
+            ChatFollowUpTapPolicy.action(isPublic: false, isAuthenticated: true),
+            .sendInCurrentChat
+        )
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testDailyInspirationDecodesWebCompatiblePayload() throws {
         let data = Data(
             #"""
@@ -38,6 +79,7 @@ final class RemindersPublicContentParityTests: XCTestCase {
         XCTAssertNil(inspiration.startedChatId)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testDemoChatDecodesReadOnlyPublicFixture() throws {
         let data = Data(
             #"""
@@ -74,6 +116,7 @@ final class RemindersPublicContentParityTests: XCTestCase {
         XCTAssertEqual(chat.metadata?.featured, true)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testPublicChatCategoriesClassifyNativeGroups() {
         XCTAssertEqual(PublicChatCategory.intro.displayName, "Introduction")
         XCTAssertEqual(PublicChatCategory.example.icon, "chat")

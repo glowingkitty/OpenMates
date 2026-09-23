@@ -90,6 +90,7 @@ struct AppSkillUseRenderer: View {
         case ("web", "read"): return "Read"
         case ("math", "calculate"): return "Calculate"
         case ("reminder", "set-reminder"): return "Reminder"
+        case ("videos", "get_transcript"), ("videos", "get-transcript"): return AppStrings.videoGetTranscript
         default:
             return EmbedType(rawValue: embed.type)?.displayName ?? skillId.replacingOccurrences(of: "_", with: " ")
         }

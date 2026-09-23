@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import OpenMates
 
@@ -190,6 +191,126 @@ final class AudioRealtimeTranscriptionClientTests: XCTestCase {
         XCTAssertEqual(closeCalls, 1)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testRejectedInitialHandshakeRefreshesAuthenticationOnceAndRetainsQueuedAudio() async throws {
+        let firstTransport = FakeAudioRealtimeTransport()
+        let retryTransport = FakeAudioRealtimeTransport()
+        let transports = AudioRealtimeTransportSequence([firstTransport, retryTransport])
+        let recorder = AudioRealtimeEventRecorder()
+        let authenticationCalls = AudioRealtimeAuthenticationRecorder()
+        let authentication = AudioRealtimeTranscriptionClient.Authentication(
+            apiBaseURL: URL(string: "https://api.example.test")!,
+            webOrigin: "https://example.test",
+            sessionID: "native-session",
+            webSocketToken: token(expiry: Int(Date().timeIntervalSince1970) + 300)
+        )
+        let client = AudioRealtimeTranscriptionClient(
+            authenticationProvider: { forceRefresh in
+                await authenticationCalls.record(forceRefresh: forceRefresh)
+                return authentication
+            },
+            transportFactory: { transports.next() },
+            eventHandler: { event in await recorder.record(event) }
+        )
+
+        try await client.start(chatID: "chat-1")
+        try await client.append(samples: [0.25], sourceSampleRate: 16_000)
+        await firstTransport.pushFailure(AudioRealtimeTranscriptionError.connectionEndedEarly)
+        await authenticationCalls.waitForCount(2)
+        await retryTransport.push(#"{"type":"session.ready"}"#)
+        await retryTransport.waitForSentMessageCount(2)
+
+        let refreshValues = await authenticationCalls.values()
+        let firstCloseCalls = await firstTransport.closeCalls()
+        let retryMessageTypes = await retryTransport.sentMessages().compactMap(messageType)
+        XCTAssertEqual(refreshValues, [false, true])
+        XCTAssertEqual(firstCloseCalls, 1)
+        XCTAssertEqual(retryMessageTypes, ["input_audio.append", "session.metadata"])
+        await client.cancel()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testSecondPreReadyFailureStopsAfterSingleAuthenticationRetry() async throws {
+        let firstTransport = FakeAudioRealtimeTransport()
+        let retryTransport = FakeAudioRealtimeTransport()
+        let transports = AudioRealtimeTransportSequence([firstTransport, retryTransport])
+        let recorder = AudioRealtimeEventRecorder()
+        let authenticationCalls = AudioRealtimeAuthenticationRecorder()
+        let authentication = AudioRealtimeTranscriptionClient.Authentication(
+            apiBaseURL: URL(string: "https://api.example.test")!,
+            webOrigin: "https://example.test",
+            sessionID: "native-session",
+            webSocketToken: token(expiry: Int(Date().timeIntervalSince1970) + 300)
+        )
+        let client = AudioRealtimeTranscriptionClient(
+            authenticationProvider: { forceRefresh in
+                await authenticationCalls.record(forceRefresh: forceRefresh)
+                return authentication
+            },
+            transportFactory: { transports.next() },
+            eventHandler: { event in await recorder.record(event) }
+        )
+
+        try await client.start()
+        await firstTransport.pushFailure(AudioRealtimeTranscriptionError.connectionEndedEarly)
+        await authenticationCalls.waitForCount(2)
+        await retryTransport.pushFailure(AudioRealtimeTranscriptionError.connectionEndedEarly)
+        await recorder.waitForFailure()
+
+        let refreshValues = await authenticationCalls.values()
+        let events = await recorder.events()
+        XCTAssertEqual(refreshValues, [false, true])
+        XCTAssertEqual(events.filter { $0 == .status(.failed(.connectionEndedEarly)) }.count, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testCancellationDuringAuthenticationRefreshDoesNotOpenReplacementSocket() async throws {
+        let firstTransport = FakeAudioRealtimeTransport()
+        let retryTransport = FakeAudioRealtimeTransport()
+        let transports = AudioRealtimeTransportSequence([firstTransport, retryTransport])
+        let recorder = AudioRealtimeEventRecorder()
+        let authenticationCalls = AudioRealtimeAuthenticationRecorder()
+        let refreshCancellation = AudioRealtimeCounter()
+        let authentication = AudioRealtimeTranscriptionClient.Authentication(
+            apiBaseURL: URL(string: "https://api.example.test")!,
+            webOrigin: "https://example.test",
+            sessionID: "native-session",
+            webSocketToken: token(expiry: Int(Date().timeIntervalSince1970) + 300)
+        )
+        let client = AudioRealtimeTranscriptionClient(
+            authenticationProvider: { forceRefresh in
+                await authenticationCalls.record(forceRefresh: forceRefresh)
+                if forceRefresh {
+                    do {
+                        try await Task.sleep(for: .seconds(30))
+                    } catch {
+                        await refreshCancellation.increment()
+                        throw error
+                    }
+                }
+                return authentication
+            },
+            transportFactory: { transports.next() },
+            eventHandler: { event in await recorder.record(event) }
+        )
+
+        try await client.start()
+        await firstTransport.pushFailure(AudioRealtimeTranscriptionError.connectionEndedEarly)
+        await authenticationCalls.waitForCount(2)
+        await client.cancel()
+        await refreshCancellation.waitForCount(1)
+
+        let refreshValues = await authenticationCalls.values()
+        let transportFactoryCalls = transports.callCount()
+        let retryCloseCalls = await retryTransport.closeCalls()
+        let events = await recorder.events()
+        XCTAssertEqual(refreshValues, [false, true])
+        XCTAssertEqual(transportFactoryCalls, 1)
+        XCTAssertEqual(retryCloseCalls, 0)
+        XCTAssertEqual(events.filter { $0 == .status(.cancelled) }.count, 1)
+        XCTAssertFalse(events.contains { if case .status(.failed) = $0 { true } else { false } })
+    }
+
     private func makeClient(
         transport: FakeAudioRealtimeTransport,
         recorder: AudioRealtimeEventRecorder
@@ -201,7 +322,7 @@ final class AudioRealtimeTranscriptionClientTests: XCTestCase {
             webSocketToken: token(expiry: Int(Date().timeIntervalSince1970) + 300)
         )
         return AudioRealtimeTranscriptionClient(
-            authenticationProvider: { authentication },
+            authenticationProvider: { _ in authentication },
             transportFactory: { transport },
             eventHandler: { event in await recorder.record(event) }
         )
@@ -222,6 +343,7 @@ private actor FakeAudioRealtimeTransport: AudioRealtimeSocketTransport {
     private var request: URLRequest?
     private var sent: [String] = []
     private var incoming: [String] = []
+    private var incomingFailures: [AudioRealtimeTranscriptionError] = []
     private var receivers: [CheckedContinuation<String, any Error>] = []
     private var sendWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
     private var closes = 0
@@ -238,6 +360,7 @@ private actor FakeAudioRealtimeTransport: AudioRealtimeSocketTransport {
     }
 
     func receive() async throws -> String {
+        if !incomingFailures.isEmpty { throw incomingFailures.removeFirst() }
         if !incoming.isEmpty { return incoming.removeFirst() }
         return try await withCheckedThrowingContinuation { continuation in
             receivers.append(continuation)
@@ -259,6 +382,14 @@ private actor FakeAudioRealtimeTransport: AudioRealtimeSocketTransport {
         }
     }
 
+    func pushFailure(_ error: AudioRealtimeTranscriptionError) {
+        if !receivers.isEmpty {
+            receivers.removeFirst().resume(throwing: error)
+        } else {
+            incomingFailures.append(error)
+        }
+    }
+
     func sentMessages() -> [String] { sent }
     func closeCalls() -> Int { closes }
 
@@ -267,6 +398,66 @@ private actor FakeAudioRealtimeTransport: AudioRealtimeSocketTransport {
         await withCheckedContinuation { continuation in
             sendWaiters.append((count, continuation))
         }
+    }
+}
+
+private final class AudioRealtimeTransportSequence: @unchecked Sendable {
+    private let lock = NSLock()
+    private var transports: [FakeAudioRealtimeTransport]
+    private var calls = 0
+
+    init(_ transports: [FakeAudioRealtimeTransport]) {
+        self.transports = transports
+    }
+
+    func next() -> any AudioRealtimeSocketTransport {
+        lock.lock()
+        defer { lock.unlock() }
+        precondition(!transports.isEmpty, "Test requested more transports than expected")
+        calls += 1
+        return transports.removeFirst()
+    }
+
+    func callCount() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return calls
+    }
+}
+
+private actor AudioRealtimeCounter {
+    private var count = 0
+    private var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
+
+    func increment() {
+        count += 1
+        let ready = waiters.filter { count >= $0.0 }
+        waiters.removeAll { count >= $0.0 }
+        ready.forEach { $0.1.resume() }
+    }
+
+    func waitForCount(_ expected: Int) async {
+        if count >= expected { return }
+        await withCheckedContinuation { waiters.append((expected, $0)) }
+    }
+}
+
+private actor AudioRealtimeAuthenticationRecorder {
+    private var recorded: [Bool] = []
+    private var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
+
+    func record(forceRefresh: Bool) {
+        recorded.append(forceRefresh)
+        let ready = waiters.filter { recorded.count >= $0.0 }
+        waiters.removeAll { recorded.count >= $0.0 }
+        ready.forEach { $0.1.resume() }
+    }
+
+    func values() -> [Bool] { recorded }
+
+    func waitForCount(_ count: Int) async {
+        if recorded.count >= count { return }
+        await withCheckedContinuation { waiters.append((count, $0)) }
     }
 }
 
