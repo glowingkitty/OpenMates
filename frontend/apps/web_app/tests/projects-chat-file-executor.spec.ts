@@ -113,7 +113,6 @@ function waitForFixtureEvent(
 async function createProject(page: Page, name: string, writeMode: 'always_ask' | 'apply_and_show'): Promise<string> {
   await page.goto('/projects', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30_000 });
-  await page.getByTestId(`project-write-policy-${writeMode.replaceAll('_', '-')}`).check();
   const created = page.waitForResponse(
     (response: Response) => response.request().method() === 'POST'
       && new URL(response.url()).pathname === '/v1/projects'
@@ -121,6 +120,8 @@ async function createProject(page: Page, name: string, writeMode: 'always_ask' |
   );
   await page.getByTestId('project-input-textarea').fill(name);
   await page.getByTestId('project-input-submit').click();
+  await page.getByTestId(`project-write-policy-${writeMode.replaceAll('_', '-')}`).check();
+  await page.getByTestId('project-write-policy-confirm').click();
   const response = await created;
   expect(response.request().postDataJSON()).toMatchObject({ write_mode: writeMode });
   const body = await response.json() as { project?: { project_id?: string } };

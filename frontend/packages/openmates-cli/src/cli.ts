@@ -4793,6 +4793,7 @@ async function resolveRemoteAccessBindings(
 
   const bindings: LiveRemoteAccessBinding[] = [];
   for (const item of resolved) {
+    await ensureProjectDefaultFocus(client, item.project, context, item.rootPath);
     const sourceType = remoteAccessSourceType(item.rootPath);
     const source = startRemoteAccessSource({
       sourceId: item.sourceId,
@@ -4901,9 +4902,30 @@ async function decryptProjectDefaultFocus(
   project: DecryptedProject,
   context: { teamId?: string | null; personal?: boolean },
 ): Promise<ProjectDefaultFocusEnvelope> {
+  return ensureProjectDefaultFocus(client, project, context);
+}
+
+async function ensureProjectDefaultFocus(
+  client: OpenMatesClient,
+  project: DecryptedProject,
+  context: { teamId?: string | null; personal?: boolean },
+  rootPath?: string,
+): Promise<ProjectDefaultFocusEnvelope> {
   const settings = await client.getProjectSettings(project.projectId, context);
   if (!settings.encrypted_settings) {
-    throw new CliContractError("project_focus_missing", "This Project does not have an encrypted default focus.");
+    const importedInstructions = rootPath ? readRootProjectInstructions(rootPath) : null;
+    const focus = buildProjectDefaultFocus(
+      project.name,
+      importedInstructions?.instructions,
+      importedInstructions?.source,
+    );
+    await client.updateProjectSettings(project.projectId, {
+      write_mode: settings.write_mode === "always_ask" ? "always_ask" : "apply_and_show",
+      default_focus_id: focus.focus_id,
+      encrypted_settings: await encryptWithAesGcmCombined(JSON.stringify({ default_focus: focus }), project.projectKey),
+      updated_at: nowSeconds(),
+    }, context);
+    return focus;
   }
   const plaintext = await decryptWithAesGcmCombined(settings.encrypted_settings, project.projectKey);
   if (!plaintext) throw new CliContractError("project_focus_invalid", "The Project default focus could not be decrypted.");

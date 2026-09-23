@@ -35,9 +35,10 @@ test.describe('Project-linked Plans V1 flow', () => {
 		const created = page.waitForResponse(
 			(response) => response.request().method() === 'POST' && response.url().endsWith('/v1/projects') && response.ok()
 		);
-		await page.getByTestId('project-write-policy-apply-and-show').check();
 		await page.getByTestId('project-input-textarea').fill(projectName);
 		await page.getByTestId('project-input-submit').click();
+		await page.getByTestId('project-write-policy-apply-and-show').check();
+		await page.getByTestId('project-write-policy-confirm').click();
 		const projectId = (await (await created).json()).project.project_id;
 		await expect(page).toHaveURL(projectHashUrlPattern(projectId));
 		await expect(page.getByTestId('workspace-detail-title')).toHaveText(projectName, { timeout: 30000 });

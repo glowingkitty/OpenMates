@@ -101,6 +101,7 @@
   let isSaving = $state(false);
   let newProjectName = $state('');
   let newProjectWriteMode = $state<ProjectWriteMode | null>(null);
+  let pendingProjectName = $state<string | null>(null);
   let newFolderName = $state('');
   let uploadInput = $state<HTMLInputElement>();
   let hasLoadError = $state(false);
@@ -303,8 +304,20 @@
     await selectProjectById(item.id);
   }
 
-  async function handleCreateProject(): Promise<void> {
+  function requestProjectCreation(): void {
     const name = newProjectName.trim();
+    if (!name || isSaving) return;
+    pendingProjectName = name;
+    newProjectWriteMode = null;
+  }
+
+  function cancelProjectCreation(): void {
+    pendingProjectName = null;
+    newProjectWriteMode = null;
+  }
+
+  async function handleCreateProject(): Promise<void> {
+    const name = pendingProjectName?.trim() ?? '';
     if (!name || !newProjectWriteMode || isSaving) return;
     isSaving = true;
     try {
@@ -320,6 +333,7 @@
       sources = [];
       newProjectName = '';
       newProjectWriteMode = null;
+      pendingProjectName = null;
       setProjectUrlState(project.project_id);
       broadcastProjectFilesChanged(project.project_id);
       broadcastProjectSelected(project);
@@ -854,15 +868,14 @@
 </script>
 
 {#snippet createProjectForm(compact = false)}
-  <form class="create-row" class:compact onsubmit={(event) => { event.preventDefault(); void handleCreateProject(); }}>
+  <form class="create-row" class:compact onsubmit={(event) => { event.preventDefault(); requestProjectCreation(); }}>
     <input
       data-testid="project-name-input"
       bind:value={newProjectName}
       placeholder="New project name"
       aria-label="New project name"
     />
-    {@render writePolicyChoice()}
-    <button data-testid="project-create-button" type="submit" disabled={isSaving || !newProjectName.trim() || !newProjectWriteMode}>
+    <button data-testid="project-create-button" type="submit" disabled={isSaving || !newProjectName.trim()}>
       Create project
     </button>
   </form>
@@ -1229,28 +1242,46 @@
         onStartInspiration={handleStartProjectInspiration}
       >
         <svelte:fragment slot="composer">
-          <div class="project-create-controls">
-            {@render writePolicyChoice()}
-            <WorkspacePromptComposer
-              surface="projects"
-              bind:value={newProjectName}
-              placeholder="Name a new project"
-              submitLabel="Create project"
-              submittingLabel="Creating..."
-              disabled={isSaving || !newProjectWriteMode}
-              submitting={isSaving}
-              testId="project-input-composer"
-              inputTestId="project-input-textarea"
-              submitTestId="project-input-submit"
-              micTestId="project-input-mic"
-              onSubmit={handleCreateProject}
-              onMicClick={showProjectVoiceInputUnavailable}
-            />
-          </div>
+          <WorkspacePromptComposer
+            surface="projects"
+            bind:value={newProjectName}
+            placeholder="Name a new project"
+            submitLabel="Create project"
+            submittingLabel="Creating..."
+            disabled={isSaving}
+            submitting={isSaving}
+            testId="project-input-composer"
+            inputTestId="project-input-textarea"
+            submitTestId="project-input-submit"
+            micTestId="project-input-mic"
+            onSubmit={requestProjectCreation}
+            onMicClick={showProjectVoiceInputUnavailable}
+          />
         </svelte:fragment>
       </WorkspaceHomeShell>
     {/if}
   </section>
+{/if}
+
+{#if pendingProjectName}
+  <div class="project-policy-overlay" data-testid="project-write-policy-dialog">
+    <div
+      class="project-policy-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="project-policy-title"
+    >
+      <h2 id="project-policy-title">Choose write permissions</h2>
+      <p>How may OpenMates change files in <strong>{pendingProjectName}</strong>?</p>
+      {@render writePolicyChoice()}
+      <div class="project-policy-actions">
+        <button class="secondary-action" data-testid="project-write-policy-cancel" type="button" onclick={cancelProjectCreation}>Cancel</button>
+        <button data-testid="project-write-policy-confirm" type="button" disabled={isSaving || !newProjectWriteMode} onclick={() => void handleCreateProject()}>
+          {isSaving ? 'Creating...' : 'Create project'}
+        </button>
+      </div>
+    </div>
+  </div>
 {/if}
 
 {#if activeRemoteFullscreen}
@@ -1308,39 +1339,6 @@
     background: var(--color-grey-20);
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     color: var(--color-font-primary);
-  }
-
-  /* The Project policy selector makes this composer taller than the shared
-     prompt-only composer. Dock it in layout so it cannot cover Project cards. */
-  .projects-page :global(.workspace-home-shell[data-surface='projects']) {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .projects-page :global(.workspace-home-shell[data-surface='projects'] .workspace-scroll-layer) {
-    flex: 1 1 auto;
-    height: auto;
-  }
-
-  .projects-page :global(.workspace-home-shell[data-surface='projects'] .workspace-composer-slot) {
-    position: relative;
-    inset: auto;
-    flex: 0 0 auto;
-    transform: none;
-  }
-
-  .project-create-controls {
-    display: grid;
-    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-    align-items: center;
-    gap: var(--spacing-4);
-    width: min(100%, 1080px);
-  }
-
-  .project-create-controls .write-policy-choice {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-    box-sizing: border-box;
   }
 
   .projects-sidebar-panel {
@@ -1449,6 +1447,43 @@
 
   .write-policy-choice small {
     color: var(--color-font-secondary);
+  }
+
+  .project-policy-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-index-popover);
+    display: grid;
+    place-items: center;
+    padding: var(--spacing-5);
+    background: color-mix(in srgb, var(--color-grey-0) 70%, transparent);
+  }
+
+  .project-policy-dialog {
+    display: grid;
+    gap: var(--spacing-4);
+    width: min(100%, 560px);
+    padding: var(--spacing-6);
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-20);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .project-policy-dialog h2,
+  .project-policy-dialog p {
+    margin: 0;
+  }
+
+  .project-policy-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+  }
+
+  .project-policy-actions .secondary-action {
+    background: var(--color-grey-30);
+    color: var(--color-font-primary);
   }
 
   input {
@@ -1890,11 +1925,6 @@
   }
 
   @media (max-width: 800px) {
-    .project-create-controls,
-    .project-create-controls .write-policy-choice {
-      grid-template-columns: 1fr;
-    }
-
     .section-title,
     .project-detail-topbar {
       flex-direction: column;

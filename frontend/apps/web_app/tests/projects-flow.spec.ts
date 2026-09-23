@@ -41,9 +41,7 @@ test.describe('Projects v1 flow', () => {
     await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
     await expect(page.getByTestId('project-input-composer')).toBeVisible();
     await expect(page.getByTestId('project-input-mic')).toBeVisible();
-    await expect(page.getByTestId('project-write-policy-apply-and-show')).not.toBeChecked();
-    await expect(page.getByTestId('project-write-policy-always-ask')).not.toBeChecked();
-    await page.getByTestId('project-write-policy-apply-and-show').check();
+    await expect(page.getByTestId('project-write-policy-dialog')).toHaveCount(0);
 
     const projectName = `E2E Project ${Date.now()}`;
     const created = page.waitForResponse(
@@ -52,6 +50,11 @@ test.describe('Projects v1 flow', () => {
     await page.getByTestId('project-input-textarea').fill(projectName);
     await expect(page.getByTestId('project-input-submit')).toBeVisible();
     await page.getByTestId('project-input-submit').click();
+    await expect(page.getByTestId('project-write-policy-dialog')).toBeVisible();
+    await expect(page.getByTestId('project-write-policy-apply-and-show')).not.toBeChecked();
+    await expect(page.getByTestId('project-write-policy-always-ask')).not.toBeChecked();
+    await page.getByTestId('project-write-policy-apply-and-show').check();
+    await page.getByTestId('project-write-policy-confirm').click();
     const createdResponse = await created;
     const createPayload = createdResponse.request().postDataJSON();
     expect(createPayload.write_mode).toBe('apply_and_show');
@@ -90,7 +93,6 @@ test.describe('Projects v1 flow', () => {
 	test('edits and persists a project write policy without replacing encrypted settings', async ({ page }) => {
     await page.goto('/projects');
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
-    await page.getByTestId('project-write-policy-apply-and-show').check();
 
     const projectName = `E2E Project settings ${Date.now()}`;
     const created = page.waitForResponse(
@@ -98,6 +100,8 @@ test.describe('Projects v1 flow', () => {
     );
     await page.getByTestId('project-input-textarea').fill(projectName);
     await page.getByTestId('project-input-submit').click();
+    await page.getByTestId('project-write-policy-apply-and-show').check();
+    await page.getByTestId('project-write-policy-confirm').click();
     const projectId = (await (await created).json()).project.project_id;
     const settingsPath = `/#settings/projects/${encodeURIComponent(projectId)}`;
     const settingsResponseMatches = (response: Response) =>

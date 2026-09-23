@@ -234,7 +234,12 @@ project_write_policy:
     assertion_ids: [projects.files.write-policy-setup]
     given: Alice creates a new hosted Project or adds an existing remote folder as a Project.
     when: Setup presents the write-permission question.
-    then: Apply and show changes is the default option and Always ask before writes is available. Alice must explicitly answer; leaving the question unanswered does not complete setup or authorize writes.
+    then: The question appears only after Alice initiates creation or addition. Apply and show changes is presented first and Always ask before writes is available. Neither is preselected; leaving the question unanswered does not complete setup or authorize writes.
+  - id: legacy-project-default
+    assertion_ids: [projects.files.write-policy-setup, projects.focus.default-owned]
+    given: Alice opens a Project created before write policies and encrypted default Project focuses existed.
+    when: An authorized client first needs the Project settings or starts its connected source.
+    then: The Project assumes Apply and show changes, and the client stores a new encrypted Work on (project name) focus without exposing its plaintext to the server. The Projects workspace does not interrupt Alice with the setup question.
   - id: routine-request-applies-and-shows
     assertion_ids: [projects.files.write-policy-enforcement]
     given: Alice selected Apply and show changes and Work on OpenMates is active in this chat with all other permissions satisfied.

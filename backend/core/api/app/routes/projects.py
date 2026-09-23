@@ -456,8 +456,8 @@ class ProjectWriteApprovalRequest(BaseModel):
 def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not settings:
         return {
-            "write_mode": None,
-            "selection_required": True,
+            "write_mode": "apply_and_show",
+            "selection_required": False,
             "default_focus_id_hash": None,
             "encrypted_settings": None,
             "updated_at": None,
@@ -465,7 +465,7 @@ def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, 
     stored_mode = settings.get("write_mode")
     write_mode = "apply_and_show" if stored_mode == "auto_approve_safe_writes" else stored_mode
     if write_mode not in {"apply_and_show", "always_ask"}:
-        write_mode = None
+        write_mode = "apply_and_show"
     return {
         "write_mode": write_mode,
         "selection_required": write_mode is None,

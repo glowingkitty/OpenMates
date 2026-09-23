@@ -4,7 +4,7 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r63
+revision: r64
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '6407'
 approved_by_user: true
@@ -20,7 +20,7 @@ approvals:
 specification_refs:
 - specification: feature.projects@1
   role: primary
-  fingerprint: 91a6c3e9bbc0474b017e43fecc03a4d5fe7811ec817ccee3806041d3bada5ae2
+  fingerprint: 096846bbfd905d649adcfd26e218d95b98643f3d0d8fa406e2ac03056bd06094
 - specification: feature.focus-modes@1
   role: related
 - specification: feature.app-skill.code-run@1
@@ -1562,3 +1562,32 @@ deployment_handoff:
     Project in a web chat to activate its visible focus, then request a small edit in a disposable
     Project. Remote folders use the updated CLI. Terminal protection setup is integrated into normal
     remote-access --enable-commands with standard OS authorization; no separate shell script is needed.
+
+final_registry_confirmation:
+  status: Delivered for user testing; no further automatic implementation or testing is running.
+  cli_version: 0.21.0-alpha.4
+  cli_publish_fix_commit: 86b475a6864faa84f6cb30889839fb857ad6b9ad
+  publish_workflow: https://github.com/glowingkitty/OpenMates/actions/runs/35885597622
+  registry: The pinned version and alpha tag are both confirmed available; all three guard assets are included.
+  deployment: Web alias and backend are confirmed on implementation commit 66a7576; API health is 200.
+  verification_remaining: Real-AI hosted/remote web-chat edits and actual installed dev-host terminal execution.
+
+projects_creation_policy_correction:
+  status: ready_for_scoped_deployment
+  user_direction: The Projects workspace must not show the write-policy question continuously. Web
+    and CLI creation or folder-addition flows ask after the user initiates that operation. Existing
+    Projects assume Apply and show changes.
+  implementation:
+  - The web workspace now collects the Project name first, then opens a focused setup dialog with
+    neither policy preselected. The same two-step flow is used by the sidebar creator.
+  - Legacy settings serialize with Apply and show changes. An authorized web or CLI client creates
+    the missing Work on (project) focus and encrypts it with the Project key before storing it; the
+    server retains ciphertext and the focus hash only.
+  - Starting a previously linked CLI source initializes missing legacy settings before registering
+    the live bridge. New Project and folder setup continues to require an explicit policy answer.
+  personal_dev_account: The documented Glowingkitty account and Project 96033196-e4b1-431e-b773-ba221e952fed
+    were restored after the session expired. Its legacy settings now use apply_and_show with an
+    encrypted default focus, and source a265557a-4465-45a0-a6e7-e3bcd90c99fc reports connected.
+  verification: Focused backend settings/authorization tests pass 26/26; the browser settings
+    migration test passes 7/7 in its file; ProjectsPage compiles; CLI ESM and declaration builds pass;
+    scoped diff validation passes. Existing unrelated repository-wide type errors remain outside scope.

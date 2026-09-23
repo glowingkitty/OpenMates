@@ -58,9 +58,10 @@ test.describe('Unified workspace detail pages', () => {
 			const created = page.waitForResponse(
 				(response) => response.request().method() === 'POST' && response.url().endsWith('/v1/projects') && response.ok()
 			);
-			await page.getByTestId('project-write-policy-apply-and-show').check();
 			await page.getByTestId('project-input-textarea').fill(title);
 			await page.getByTestId('project-input-submit').click();
+			await page.getByTestId('project-write-policy-apply-and-show').check();
+			await page.getByTestId('project-write-policy-confirm').click();
 			projectId = (await (await created).json()).project.project_id;
 			await expectUnifiedDetail(page, 'projects', projectId);
 		} finally {

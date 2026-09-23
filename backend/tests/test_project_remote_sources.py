@@ -382,8 +382,8 @@ async def test_get_project_settings_returns_default_without_row() -> None:
 
     assert response == {
         "settings": {
-            "write_mode": None,
-            "selection_required": True,
+            "write_mode": "apply_and_show",
+            "selection_required": False,
             "default_focus_id_hash": None,
             "encrypted_settings": None,
             "updated_at": None,

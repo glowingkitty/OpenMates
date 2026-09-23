@@ -11,6 +11,7 @@ import {
   approveProjectWrite,
   deactivateProjectFocus,
   getActiveProjectFocus,
+  getProjectSettings,
   getProjectFileRevisionReceipt,
   PROJECT_BROWSER_REMOTE_READ_MAX_BYTES,
   PROJECT_BROWSER_REMOTE_READ_MAX_LINES,
@@ -47,6 +48,37 @@ const source = {
 
 describe("Project browser remote-access transport", () => {
   beforeEach(() => vi.restoreAllMocks());
+
+  // contract-test: direct surface=gui.web assertions=projects.files.write-policy-setup,projects.focus.default-owned,projects.files.no-server-decryption-authority
+  it("initializes legacy Project settings with the apply-and-show default and encrypted focus", async () => {
+    const calls: Array<{ url: string; method: string; body: Record<string, unknown> }> = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {};
+      calls.push({ url, method, body });
+      if (method === "GET") {
+        return Response.json({ settings: {
+          write_mode: "apply_and_show", selection_required: false,
+          default_focus_id_hash: null, encrypted_settings: null, updated_at: null,
+        } });
+      }
+      return Response.json({ settings: {
+        write_mode: body.write_mode, selection_required: false,
+        default_focus_id_hash: "focus-hash", encrypted_settings: body.encrypted_settings, updated_at: body.updated_at,
+      } });
+    });
+
+    const settings = await getProjectSettings(project, { teamId: "team-1" });
+
+    expect(settings.writeMode).toBe("apply_and_show");
+    expect(settings.settings.default_focus).toMatchObject({ name: "Work on Project", source: "generated" });
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.url).toContain("team_id=team-1");
+    expect(calls[1]?.method).toBe("PATCH");
+    expect(calls[1]?.body).toMatchObject({ write_mode: "apply_and_show" });
+    expect(String(calls[1]?.body.encrypted_settings)).not.toContain("Work on Project");
+  });
 
   // contract-test: direct surface=gui.web assertions=projects.access.explicit-context,projects.keys.client-wrapped,projects.files.no-server-decryption-authority
   it("binds Team routing, v2 identity, and conservative read limits before a cancellable poll", async () => {

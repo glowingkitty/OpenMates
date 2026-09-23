@@ -342,8 +342,8 @@ async def test_settings_missing_state_and_explicit_setup_contract() -> None:
         directus_service=directus,
     )
     assert missing["settings"] == {
-        "write_mode": None,
-        "selection_required": True,
+        "write_mode": "apply_and_show",
+        "selection_required": False,
         "default_focus_id_hash": None,
         "encrypted_settings": None,
         "updated_at": None,

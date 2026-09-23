@@ -824,14 +824,35 @@ export async function getProjectSettings(project: ProjectViewModel, context: Pro
     `/v1/projects/${project.project_id}/settings`,
     { team_id: context.teamId },
   ));
+  if (!data.settings.encrypted_settings) {
+    const defaultFocus = buildDefaultProjectFocus(project.name);
+    const writeMode = normalizeProjectWriteMode(data.settings.write_mode) ?? "apply_and_show";
+    const initialized = await requestJson<{ settings: ProjectSettingsRecord }>(withProjectRemoteQuery(
+      `/v1/projects/${project.project_id}/settings`,
+      { team_id: context.teamId },
+    ), {
+      method: "PATCH",
+      body: JSON.stringify({
+        write_mode: writeMode,
+        default_focus_id: defaultFocus.focus_id,
+        encrypted_settings: await encryptWithEmbedKey(JSON.stringify({ default_focus: defaultFocus }), project.projectKey),
+        updated_at: nowSeconds(),
+      }),
+    });
+    return decryptProjectSettings(initialized.settings, project.projectKey);
+  }
   return decryptProjectSettings(data.settings, project.projectKey);
 }
 
 export async function updateProjectSettings(
   project: ProjectViewModel,
   writeMode: ProjectWriteMode,
+  context: ProjectApiContext = {},
 ): Promise<ProjectSettingsViewModel> {
-  const data = await requestJson<{ settings: ProjectSettingsRecord }>(`/v1/projects/${project.project_id}/settings`, {
+  const data = await requestJson<{ settings: ProjectSettingsRecord }>(withProjectRemoteQuery(
+    `/v1/projects/${project.project_id}/settings`,
+    { team_id: context.teamId },
+  ), {
     method: "PATCH",
     body: JSON.stringify({
       write_mode: writeMode,
