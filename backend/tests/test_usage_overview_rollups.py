@@ -6,6 +6,7 @@ import pytest
 
 from backend.core.api.app.services.usage_overview_service import (
     UsageOverviewService,
+    aggregate_landing_daily_items,
     aggregate_usage_entries,
     aggregate_workflow_daily_items,
     period_for_timestamp,
@@ -109,6 +110,114 @@ def test_workflow_daily_items_use_semantic_sources_and_app_skill_groups() -> Non
     ]
     assert items[1]["total_credits"] == 10
     assert items[1]["entry_count"] == 2
+
+
+# contract-test: direct surface=rest_api assertions=billing.usage.landing-complete
+def test_landing_daily_items_reconcile_every_usage_context_exactly_once() -> None:
+    timestamp = int(datetime(2026, 9, 23, 12, tzinfo=timezone.utc).timestamp())
+    entries = [
+        {"source": "chat", "chat_id": "chat-1", "app_id": "ai", "skill_id": "ask", "credits": 2, "created_at": timestamp, "updated_at": timestamp},
+        {"source": "chat", "chat_id": "incognito", "app_id": "ai", "skill_id": "ask", "credits": 3, "created_at": timestamp + 1, "updated_at": timestamp + 1},
+        {"source": "direct", "app_id": "audio", "skill_id": "transcribe", "type": "realtime_transcription_interrupted", "duration_seconds": 11, "credits": 8, "created_at": timestamp + 2, "updated_at": timestamp + 2},
+        {"source": "api_key", "api_key_hash": "api-hash", "app_id": "web", "skill_id": "search", "credits": 5, "created_at": timestamp + 3, "updated_at": timestamp + 3},
+        {"source": "direct", "device_hash": "device-hash", "app_id": "code", "skill_id": "run", "credits": 7, "created_at": timestamp + 4, "updated_at": timestamp + 4},
+        {"source": "workflow", "app_id": "weather", "skill_id": "forecast", "credits": 11, "created_at": timestamp + 5, "updated_at": timestamp + 5},
+        {"source": "workflow_test", "app_id": "web", "skill_id": "search", "credits": 13, "created_at": timestamp + 6, "updated_at": timestamp + 6},
+        {"source": "benchmark", "app_id": "ai", "skill_id": "ask", "credits": 17, "created_at": timestamp + 7, "updated_at": timestamp + 7},
+        {"source": "chat", "app_id": "ai", "skill_id": "ask", "credits": 19, "created_at": timestamp + 8, "updated_at": timestamp + 8},
+    ]
+
+    days = aggregate_landing_daily_items(entries, ["2026-09-23"])
+
+    assert len(days) == 1
+    items = days[0]["items"]
+    assert {item["type"] for item in items} == {
+        "chat",
+        "incognito",
+        "app",
+        "api_key",
+        "device",
+        "workflow",
+        "workflow_test",
+        "benchmark",
+        "unattributed",
+    }
+    assert sum(item["entry_count"] for item in items) == len(entries)
+    assert sum(item["total_credits"] for item in items) == sum(entry["credits"] for entry in entries)
+    assert days[0]["total_credits"] == 85
+    interrupted = next(item for item in items if item["usage_type"] == "realtime_transcription_interrupted")
+    assert interrupted["type"] == "app"
+    assert interrupted["started_minutes"] == 1
+    assert interrupted["navigation_target"] == "none"
+    assert next(item for item in items if item["type"] == "chat")["navigation_target"] == "chat"
+
+
+# contract-test: direct surface=rest_api assertions=billing.usage.landing-complete
+@pytest.mark.asyncio
+async def test_landing_daily_items_read_all_owner_scoped_pages_without_content() -> None:
+    class FakeDirectus:
+        def __init__(self):
+            self.params: list[dict] = []
+
+        async def get_items(self, collection, params=None, **kwargs):
+            assert collection == "usage"
+            self.params.append(params)
+            offset = params["offset"]
+            count = 100 if offset == 0 else 1
+            return [
+                {
+                    "id": f"usage-{offset + index}",
+                    "source": "direct",
+                    "app_id": "audio",
+                    "skill_id": "transcribe",
+                    "type": "realtime_transcription_interrupted",
+                    "created_at": 1_758_600_000 + index,
+                    "updated_at": 1_758_600_000 + index,
+                    "encrypted_credits_costs_total": "cipher:8",
+                    "encrypted_code_run_duration_seconds": "cipher:11",
+                }
+                for index in range(count)
+            ]
+
+    class FakeEncryption:
+        async def decrypt_many_with_user_key(self, values, key_id):
+            assert key_id == "vault-key"
+            return [value.removeprefix("cipher:") for value in values]
+
+    directus = FakeDirectus()
+    service = UsageOverviewService(directus, FakeEncryption())
+
+    days = await service.get_landing_daily_items(
+        user_id_hash="owner-hash",
+        user_vault_key_id="vault-key",
+        period_start=1_758_600_000,
+        dates=["2025-09-23"],
+    )
+
+    assert [params["offset"] for params in directus.params] == [0, 100]
+    assert all(params["filter"]["user_id_hash"] == {"_eq": "owner-hash"} for params in directus.params)
+    assert all("content" not in params["fields"] for params in directus.params)
+    assert sum(item["entry_count"] for day in days for item in day["items"]) == 101
+    assert sum(item["total_credits"] for day in days for item in day["items"]) == 808
+
+
+# contract-test: supporting surface=rest_api assertions=billing.usage.landing-complete
+@pytest.mark.asyncio
+async def test_landing_pagination_detects_usage_before_a_gap() -> None:
+    class FakeDirectus:
+        async def get_items(self, collection, params=None, **kwargs):
+            assert collection == "usage"
+            assert params["filter"] == {
+                "user_id_hash": {"_eq": "owner-hash"},
+                "created_at": {"_lt": 1234},
+            }
+            assert params["fields"] == "id"
+            assert params["limit"] == 1
+            return [{"id": "older-charge"}]
+
+    service = UsageOverviewService(FakeDirectus(), object())
+
+    assert await service.has_landing_usage_before("owner-hash", 1234) is True
 
 
 # contract-test: direct surface=rest_api assertions=workflows.billing.skill-usage

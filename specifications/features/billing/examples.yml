@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.billing@4
+specification: feature.billing@5
 
 credit_charges:
   - id: personal-ai-charge
@@ -139,6 +139,16 @@ usage_receipts:
     user_input_tokens: 80
     app_skill_tokens: 13720
     expect: {sub_items_sum_to_input: true, app_skill_hint_visible: true}
+
+usage_landing:
+  - id: interrupted-recording-without-chat
+    given: A user records eleven seconds of audio, the provider accepts the stream, and the user cancels before any chat is created.
+    when: The user opens the Usage landing page after the eight-credit charge commits.
+    then: Today's list includes one Audio — Get Transcript item described as an interrupted recording billed for one started minute, shows eight credits, contributes eight credits to the day total, and offers no chat link.
+  - id: mixed-context-day-reconciles-once
+    given: One day contains paid chat and incognito turns, a standalone app call, API-key and device calls, a workflow run and test, a benchmark, and one legacy charge whose original context no longer exists.
+    when: The user opens the Usage landing page.
+    then: Every committed charge is represented exactly once in a concise context-labeled row or group, the visible rows sum to the displayed day total, app work already included in a chat is not repeated as standalone app usage, and only rows with real destinations are navigable.
 
 self_host_guards:
   - id: self-host-no-cloud-payments

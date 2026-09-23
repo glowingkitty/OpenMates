@@ -178,6 +178,7 @@ async def test_realtime_audio_billing_rounds_started_minutes_once(
         "provider_cost_usd_per_minute": 0.006,
         "price_markup_percent": 20,
         "credits_per_started_minute": 8,
+        "usage_type": audio_realtime.REALTIME_USAGE_TYPE,
         "chat_id": "chat-1",
     }
 
@@ -443,6 +444,7 @@ async def test_realtime_audio_bills_accepted_audio_when_recording_is_interrupted
     assert billed_calls[0]["audio_seconds"] == (
         len(audio_bytes) / audio_realtime.PCM_BYTES_PER_SECOND
     )
+    assert billed_calls[0]["interrupted"] is True
     assert released == [(None, "lock", "token")]
 
 

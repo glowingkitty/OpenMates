@@ -214,6 +214,7 @@
         "components/map-load-recovery.spec.ts",
         "components/newsroom-surface.spec.ts",
         "components/report-issue-confirmation.spec.ts",
+        "components/settings-usage-overview.spec.ts",
         "components/embed-workspace.spec.ts",
         "components/panel-responsiveness.spec.ts",
         "composer-model-routing.spec.ts",
@@ -331,7 +332,8 @@
         "settings-gift-card-bank-transfer.spec.ts",
         "settings-support-bank-transfer.spec.ts",
         "signup-flow-bank-transfer.spec.ts",
-        "signup-free-testing-credits.spec.ts"
+        "signup-free-testing-credits.spec.ts",
+        "workflow-billing-usage.spec.ts"
       ]
     },
     "ai_cached_pipeline_pending": {

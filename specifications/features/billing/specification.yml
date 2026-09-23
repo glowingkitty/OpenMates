@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.billing
-version: 4
-status: approved
+version: 5
+status: draft
 title: Billing And Payments
 summary: >
   Authenticated OpenMates Cloud users can buy and spend credits, inspect usage,
@@ -113,6 +113,29 @@ models:
       default: 0
       constraints: {minimum: 0, computed_as_input_remainder_when_visible: true}
 
+  UsageLandingItem:
+    origin:
+      type: enum
+      values: [chat, app, api_key, device, workflow, workflow_test, benchmark, incognito, unattributed]
+      required: true
+    description:
+      type: localized_short_text
+      required: true
+      constraints: {identifies_billable_activity: true, identifies_context_without_fabricating_chat: true}
+    total_credits:
+      type: integer
+      required: true
+      constraints: {minimum: 0}
+    entry_count:
+      type: integer
+      required: true
+      constraints: {minimum: 1}
+    navigation_target:
+      type: enum
+      values: [chat, app_usage, api_key_or_device_usage, workflow_usage, none]
+      required: true
+      constraints: {only_when_target_exists: true}
+
 assertions:
   - id: billing.access.authenticated-first-party
     type: security
@@ -158,6 +181,10 @@ assertions:
     type: behavior
     must: Billing usage details show receipt-style token rows where system prompt, user input, and optional app-skill token sub-items reconcile with the total input token row for a chat usage entry.
     depends_on: [models.UsageTokenBreakdown, examples.usage_receipts]
+  - id: billing.usage.landing-complete
+    type: invariant
+    must: The Usage landing page represents every committed usage entry for the authorized billing subject exactly once, either individually or in a clearly labeled non-overlapping group; shows a concise localized description, entry count, and credits for chat, standalone app, API-key, device, workflow, workflow-test, benchmark, incognito, and otherwise unattributed usage; links only to contexts that actually exist; and makes each displayed day total equal the sum of its displayed items without double-counting app work already attributed to a chat or another context.
+    depends_on: [models.UsageLandingItem, examples.usage_landing]
   - id: billing.self-host.cloud-guard
     type: invariant
     must: Self-hosted builds do not expose cloud payment collection routes, workers, provider dependencies, or payment UI while preserving non-charging usage accounting.
@@ -190,4 +217,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [credit_charges, settlement_concurrency, settlement_recovery, credit_purchases, billing_documents, storage_failures, bank_transfers, usage_receipts, self_host_guards]
+  required_groups: [credit_charges, settlement_concurrency, settlement_recovery, credit_purchases, billing_documents, storage_failures, bank_transfers, usage_receipts, usage_landing, self_host_guards]

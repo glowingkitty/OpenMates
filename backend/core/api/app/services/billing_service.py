@@ -26,6 +26,10 @@ MAX_BALANCE_CAS_RETRIES = 3
 BALANCE_CAS_RETRY_BASE_SECONDS = 0.05
 EXPLICIT_USAGE_SOURCES = frozenset({"benchmark", "workflow", "workflow_test"})
 WORKFLOW_USAGE_SOURCES = frozenset({"workflow", "workflow_test"})
+DEFAULT_USAGE_TYPE = "skill_execution"
+EXPLICIT_USAGE_TYPES = frozenset(
+    {"realtime_transcription", "realtime_transcription_interrupted"}
+)
 
 
 def _resolve_usage_source(
@@ -40,6 +44,13 @@ def _resolve_usage_source(
     if api_key_hash:
         return "api_key"
     return "chat" if chat_id else "direct"
+
+
+def _resolve_usage_type(usage_details: Optional[Dict[str, Any]]) -> str:
+    explicit_type = usage_details.get("usage_type") if usage_details else None
+    if explicit_type in EXPLICIT_USAGE_TYPES:
+        return str(explicit_type)
+    return DEFAULT_USAGE_TYPE
 
 class BillingService:
     def __init__(
@@ -401,7 +412,7 @@ class BillingService:
                     user_id_hash=user_id_hash,
                     app_id=app_id.strip(),
                     skill_id=skill_id.strip(),
-                    usage_type="skill_execution",
+                    usage_type=_resolve_usage_type(usage_details),
                     timestamp=transaction_timestamp,
                     credits_charged=credits_to_deduct,
                     user_vault_key_id=vault_key_id,
@@ -620,7 +631,7 @@ class BillingService:
                     user_id_hash=user_id_hash,
                     app_id=app_id.strip(),  # Ensure no leading/trailing whitespace
                     skill_id=skill_id.strip(),  # Ensure no leading/trailing whitespace
-                    usage_type="skill_execution",
+                    usage_type=_resolve_usage_type(usage_details),
                     timestamp=timestamp,
                     credits_charged=credits_to_deduct,
                     user_vault_key_id=_vault_key_id_for_usage,

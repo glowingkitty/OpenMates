@@ -89,20 +89,6 @@ LLM_PROVIDER_VAULT_PATHS = (
 LOCAL_LLM_SERVER_IDS = {"ollama", "lm_studio", "custom_openai_compatible"}
 
 
-def _usage_overview_order_value(value: Any) -> float:
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str) and value:
-        try:
-            return float(value)
-        except ValueError:
-            try:
-                return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
-            except ValueError:
-                return 0.0
-    return 0.0
-
-
 def _has_configured_secret_value(value: Optional[str]) -> bool:
     return bool(value and value.strip() and value.strip() != "IMPORTED_TO_VAULT")
 
@@ -2101,32 +2087,6 @@ async def get_daily_overview(
         # Hash user ID
         user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
         
-        if reconcile:
-            user_vault_key_id = await cache_service.get_user_vault_key_id(current_user.id)
-            if not user_vault_key_id:
-                user_profile_result = await directus_service.get_user_profile(current_user.id)
-                if not user_profile_result or not user_profile_result[0]:
-                    raise HTTPException(status_code=404, detail="User profile not found")
-                user_vault_key_id = user_profile_result[1].get("vault_key_id")
-                if not user_vault_key_id:
-                    raise HTTPException(status_code=500, detail="User encryption key not found")
-                await cache_service.update_user(current_user.id, {"vault_key_id": user_vault_key_id})
-
-            # The web Usage screen opts into this bounded repair; no background scan runs.
-            daily_data = await directus_service.usage.get_reconciled_daily_overview(
-                user_id_hash=user_id_hash,
-                user_vault_key_id=user_vault_key_id,
-                days=days
-            )
-        else:
-            daily_data = await directus_service.usage.get_daily_overview(
-                user_id_hash=user_id_hash,
-                days=days,
-            )
-
-        # Workflow runs and node tests are app-only billing contexts, so they do
-        # not have chat/API summary rows. Merge a contentless projection from the
-        # authoritative usage rows into the existing Overview response.
         user_vault_key_id = await cache_service.get_user_vault_key_id(current_user.id)
         if not user_vault_key_id:
             user_profile_result = await directus_service.get_user_profile(current_user.id)
@@ -2139,49 +2099,72 @@ async def get_daily_overview(
 
         from backend.core.api.app.services.usage_overview_service import UsageOverviewService
 
-        oldest_day = (
+        oldest_day_start = (
             datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
             - timedelta(days=days - 1)
         )
-        workflow_items_by_date = await UsageOverviewService(
+        dates = [
+            (oldest_day_start + timedelta(days=index)).strftime("%Y-%m-%d")
+            for index in range(days)
+        ]
+
+        # Summary rows remain useful only for encrypted chat-title/icon metadata.
+        # Credits and counts come from the authoritative raw rows below, so every
+        # source is represented once even when a summary write was missed.
+        summary_daily_data = await directus_service.usage.get_daily_overview(
+            user_id_hash=user_id_hash,
+            days=days,
+        )
+        chat_metadata_by_key = {
+            (str(day.get("date")), str(item.get("chat_id"))): item
+            for day in summary_daily_data
+            for item in (day.get("items") or [])
+            if item.get("type") == "chat" and item.get("chat_id")
+        }
+
+        overview_service = UsageOverviewService(
             directus_service=directus_service,
             encryption_service=encryption_service,
-        ).get_workflow_daily_items(
+        )
+        daily_data = await overview_service.get_landing_daily_items(
             user_id_hash=user_id_hash,
             user_vault_key_id=user_vault_key_id,
-            period_start=int(oldest_day.timestamp()),
+            period_start=int(oldest_day_start.timestamp()),
+            dates=dates,
         )
         for day in daily_data:
-            workflow_items = workflow_items_by_date.get(str(day.get("date")), [])
-            if not workflow_items:
-                continue
-            day["items"] = [*(day.get("items") or []), *workflow_items]
-            day["items"].sort(
-                key=lambda item: _usage_overview_order_value(item.get("updated_at")),
-                reverse=True,
-            )
-            day["total_credits"] = int(day.get("total_credits") or 0) + sum(
-                int(item.get("total_credits") or 0) for item in workflow_items
-            )
-        
-        # Calculate total days available by checking if the oldest requested day has data
-        # If the last day has data, there might be more days available
-        has_more_days = False
-        if daily_data and len(daily_data) >= days:
-            # Check if the oldest day has any items - if so, there might be more
-            oldest_day = daily_data[-1] if daily_data else None
-            if oldest_day and oldest_day.get("items"):
-                has_more_days = True
-        
+            date = str(day.get("date"))
+            for item in day.get("items") or []:
+                chat_id = item.get("chat_id")
+                if not chat_id:
+                    continue
+                metadata = chat_metadata_by_key.get((date, str(chat_id)))
+                if not metadata:
+                    continue
+                for field in (
+                    "encrypted_title",
+                    "encrypted_category",
+                    "encrypted_icon",
+                    "encrypted_chat_key",
+                    "is_deleted",
+                ):
+                    if field in metadata:
+                        item[field] = metadata[field]
+
+        has_more_days = await overview_service.has_landing_usage_before(
+            user_id_hash=user_id_hash,
+            period_start=int(oldest_day_start.timestamp()),
+        )
+
         logger.info(f"Successfully fetched {len(daily_data)} days of daily overview for user {current_user.id}")
-        
+
         return {
             "days": daily_data,
             "requested_days": days,
             "total_days": len(daily_data),
             "has_more_days": has_more_days
         }
-        
+
     except HTTPException as e:
         raise e
     except Exception as e:

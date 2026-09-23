@@ -39,7 +39,7 @@ Usage Settings - View usage statistics and export usage data
     interface UsageEntry {
         id: string;
         type: string;
-        source?: string; // "chat", "api_key", "direct", "workflow", or "workflow_test"
+        source?: string; // "chat", "api_key", "direct", "benchmark", "workflow", or "workflow_test"
         app_id?: string; // Cleartext - always available for new entries
         skill_id?: string; // Cleartext - always available for new entries
         model_used?: string;
@@ -104,11 +104,14 @@ Usage Settings - View usage statistics and export usage data
 
     // Daily overview item interface (returned from API)
     interface DailyOverviewItem {
-        type: 'chat' | 'api_key' | 'workflow' | 'workflow_test';
+        type: 'chat' | 'incognito' | 'app' | 'api_key' | 'device' | 'workflow' | 'workflow_test' | 'benchmark' | 'unattributed';
         chat_id: string | null;
         api_key_hash: string | null;
         app_id?: string | null;
         skill_id?: string | null;
+        usage_type?: string | null;
+        started_minutes?: number;
+        navigation_target?: 'chat' | 'app_usage' | 'api_key_or_device_usage' | 'workflow_usage' | 'none';
         total_credits: number;
         entry_count: number;
         updated_at: string | number | null;
@@ -1355,6 +1358,45 @@ Usage Settings - View usage statistics and export usage data
         return translationKey ? $text(translationKey) : null;
     }
 
+    function formatRequestCount(count: number): string {
+        return `${count} ${$text(count === 1 ? 'settings.usage.request' : 'settings.usage.requests')}`;
+    }
+
+    function formatStartedMinutes(count: number): string {
+        return `${count} ${$text(count === 1 ? 'settings.usage.started_minute' : 'settings.usage.started_minutes')}`;
+    }
+
+    function getDeviceUsageTitle(identifier: string | null): string {
+        if (identifier?.startsWith('apple-ios:')) return $text('settings.usage.apple_ios_device');
+        if (identifier?.startsWith('apple-macos:')) return $text('settings.usage.apple_macos_device');
+        if (identifier?.startsWith('apple:')) return $text('settings.usage.apple_device');
+        return $text('settings.usage.cli_device');
+    }
+
+    function getContextUsageSubtitle(item: DailyOverviewItem): string {
+        const skillName = getWorkflowSkillName(item.app_id, item.skill_id);
+        const parts: string[] = [];
+        if (item.type === 'app') {
+            if (skillName) parts.push(skillName);
+            parts.push($text(item.usage_type === 'realtime_transcription_interrupted'
+                ? 'settings.usage.interrupted_recording'
+                : 'settings.usage.standalone_app_activity'));
+            if ((item.started_minutes || 0) > 0) parts.push(formatStartedMinutes(item.started_minutes || 0));
+        } else if (item.type === 'api_key') {
+            parts.push($text('settings.usage.api_key_activity'));
+        } else if (item.type === 'device') {
+            parts.push($text('settings.usage.device_activity'));
+        } else if (item.type === 'benchmark') {
+            parts.push($text('settings.usage.benchmark'));
+            if (skillName) parts.push(skillName);
+        } else if (item.type === 'unattributed') {
+            parts.push($text('settings.usage.context_unavailable'));
+            if (skillName) parts.push(skillName);
+        }
+        parts.push(formatRequestCount(item.entry_count));
+        return parts.join(' · ');
+    }
+
     /**
      * Shorten a decrypted API key prefix for display so users can identify keys without leaking full values.
      */
@@ -2008,7 +2050,7 @@ Usage Settings - View usage statistics and export usage data
                     </div>
                 {:else}
                     {#each day.items as item}
-                        {#if item.type === 'chat' && item.chat_id}
+                        {#if (item.type === 'chat' || item.type === 'incognito') && item.chat_id}
                             <!-- Chat item - clickable to drill down -->
                             {@const cached = chatMetadataMap.get(item.chat_id)}
                             {@const metadata = cached?.metadata}
@@ -2033,7 +2075,7 @@ Usage Settings - View usage statistics and export usage data
                                 iconColor={itemIconColor}
                                 lucideIcon={LucideIcon}
                                 title={title}
-                                subtitleBottom={`${item.entry_count} ${item.entry_count === 1 ? 'request' : 'requests'}`}
+                                subtitleBottom={formatRequestCount(item.entry_count)}
                                 creditsDisplay={formatCredits(item.total_credits)}
                                 data-testid="usage-overview-chat-row"
                                 onClick={async () => {
@@ -2054,13 +2096,48 @@ Usage Settings - View usage statistics and export usage data
                                 iconBackground="none"
                                 title={workflowAppName}
                                 subtitleBottom={workflowSkillName
-                                    ? `${workflowContextLabel} · ${workflowSkillName}`
-                                    : workflowContextLabel}
+                                    ? `${workflowContextLabel} · ${workflowSkillName} · ${formatRequestCount(item.entry_count)}`
+                                    : `${workflowContextLabel} · ${formatRequestCount(item.entry_count)}`}
                                 creditsDisplay={formatCredits(item.total_credits)}
                                 data-testid="usage-overview-workflow-row"
                             />
+                        {:else if item.type === 'app'}
+                            <SettingsItem
+                                type="quickaction"
+                                icon={item.app_id && appsMetadata[item.app_id] ? getAppIconName(item.app_id) : 'app_store'}
+                                iconBackground="none"
+                                title={item.app_id ? getAppName(item.app_id) : $text('settings.usage.workflow_app_activity')}
+                                subtitleBottom={getContextUsageSubtitle(item)}
+                                creditsDisplay={formatCredits(item.total_credits)}
+                                data-testid="usage-overview-app-row"
+                            />
+                        {:else if item.type === 'api_key' || item.type === 'device'}
+                            <SettingsItem
+                                type="quickaction"
+                                icon={item.type === 'api_key' ? 'coding' : 'devices'}
+                                iconBackground="none"
+                                title={item.type === 'api_key'
+                                    ? $text('settings.usage.api_key_details')
+                                    : getDeviceUsageTitle(item.api_key_hash)}
+                                subtitleBottom={getContextUsageSubtitle(item)}
+                                creditsDisplay={formatCredits(item.total_credits)}
+                                data-testid="usage-overview-api-device-row"
+                            />
+                        {:else if item.type === 'benchmark' || item.type === 'unattributed'}
+                            <SettingsItem
+                                type="quickaction"
+                                icon={item.type === 'benchmark' ? 'coding' : 'help-circle'}
+                                iconBackground="none"
+                                title={item.type === 'benchmark' && item.app_id
+                                    ? getAppName(item.app_id)
+                                    : $text(item.type === 'benchmark'
+                                        ? 'settings.usage.benchmark'
+                                        : 'settings.usage.unknown_activity')}
+                                subtitleBottom={getContextUsageSubtitle(item)}
+                                creditsDisplay={formatCredits(item.total_credits)}
+                                data-testid="usage-overview-other-row"
+                            />
                         {/if}
-                        <!-- api_key items are intentionally excluded from the overview tab -->
                     {/each}
                 {/if}
             {/each}

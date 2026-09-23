@@ -46,6 +46,8 @@ MAX_CHUNK_BYTES = 256 * 1024
 MAX_AUDIO_SECONDS = 20 * 60
 LOCK_TTL_SECONDS = MAX_AUDIO_SECONDS + 120
 REALTIME_CREDITS_PER_MINUTE = REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
+REALTIME_USAGE_TYPE = "realtime_transcription"
+INTERRUPTED_REALTIME_USAGE_TYPE = "realtime_transcription_interrupted"
 
 
 def _origin_is_allowed(websocket: WebSocket) -> bool:
@@ -134,6 +136,7 @@ async def _bill_realtime_usage(
     request_id: str,
     audio_seconds: float,
     chat_id: Optional[str],
+    interrupted: bool = False,
 ) -> None:
     if audio_seconds <= 0:
         return
@@ -150,6 +153,11 @@ async def _bill_realtime_usage(
             (REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER - 1) * 100
         ),
         "credits_per_started_minute": REALTIME_CREDITS_PER_MINUTE,
+        "usage_type": (
+            INTERRUPTED_REALTIME_USAGE_TYPE
+            if interrupted
+            else REALTIME_USAGE_TYPE
+        ),
     }
     if chat_id:
         usage_details["chat_id"] = chat_id
@@ -448,6 +456,7 @@ async def realtime_transcription(
                     request_id=provider_request_id,
                     audio_seconds=bytes_received / PCM_BYTES_PER_SECOND,
                     chat_id=chat_id,
+                    interrupted=True,
                 )
             except Exception:
                 logger.exception("Realtime audio disconnect billing failed")

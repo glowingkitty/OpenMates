@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Literal
@@ -21,6 +22,8 @@ ROLLUP_VERSION = 1
 WORKFLOW_USAGE_SOURCES = frozenset({"workflow", "workflow_test"})
 WORKFLOW_USAGE_PAGE_SIZE = 100
 MAX_WORKFLOW_USAGE_PAGES = 200
+LANDING_USAGE_PAGE_SIZE = 100
+MAX_LANDING_USAGE_PAGES = 200
 WORKFLOW_OVERVIEW_FIELDS = ",".join(
     [
         "id",
@@ -30,6 +33,23 @@ WORKFLOW_OVERVIEW_FIELDS = ",".join(
         "app_id",
         "skill_id",
         "encrypted_credits_costs_total",
+    ]
+)
+LANDING_OVERVIEW_FIELDS = ",".join(
+    [
+        "id",
+        "type",
+        "source",
+        "created_at",
+        "updated_at",
+        "app_id",
+        "skill_id",
+        "chat_id",
+        "root_chat_id",
+        "api_key_hash",
+        "device_hash",
+        "encrypted_credits_costs_total",
+        "encrypted_code_run_duration_seconds",
     ]
 )
 OVERVIEW_USAGE_FIELDS = ",".join(
@@ -138,6 +158,19 @@ def _string_value(value: Any) -> str | None:
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None
+
+
+def _float_value(value: Any) -> float:
+    if isinstance(value, bool):
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            return float(value.strip())
+        except ValueError:
+            return 0.0
+    return 0.0
 
 
 def _new_totals() -> dict[str, int]:
@@ -277,6 +310,108 @@ def aggregate_workflow_daily_items(entries: Iterable[dict[str, Any]]) -> dict[st
     return by_date
 
 
+def _landing_origin(entry: dict[str, Any]) -> tuple[str, str | None]:
+    """Resolve one authoritative usage row to its single landing-page context."""
+    source = _string_value(entry.get("source")) or "chat"
+    chat_id = _string_value(entry.get("root_chat_id")) or _string_value(entry.get("chat_id"))
+    api_key_hash = _string_value(entry.get("api_key_hash"))
+    device_hash = _string_value(entry.get("device_hash"))
+
+    if source in WORKFLOW_USAGE_SOURCES:
+        return source, None
+    if source == "benchmark":
+        return "benchmark", None
+    if api_key_hash or source == "api_key":
+        return "api_key", api_key_hash
+    if device_hash and not chat_id:
+        if device_hash.startswith("apple-"):
+            return "device", device_hash
+        return "device", f"cli:{device_hash}"
+    if chat_id:
+        return ("incognito" if chat_id == "incognito" else "chat"), chat_id
+    if source == "direct" and (_string_value(entry.get("app_id")) or _string_value(entry.get("skill_id"))):
+        return "app", None
+    return "unattributed", None
+
+
+def aggregate_landing_daily_items(
+    entries: Iterable[dict[str, Any]],
+    dates: Iterable[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Represent every committed usage row once in non-overlapping daily groups."""
+    buckets: dict[tuple[str, str, str, str, str, str], dict[str, Any]] = {}
+    for entry in entries:
+        created_at = _int_value(entry.get("created_at"))
+        if created_at <= 0:
+            continue
+        date = _utc_datetime(created_at).strftime("%Y-%m-%d")
+        origin, context_identifier = _landing_origin(entry)
+        app_id = _string_value(entry.get("app_id")) or ""
+        skill_id = _string_value(entry.get("skill_id")) or ""
+        usage_type = _string_value(entry.get("type")) or "skill_execution"
+        group_identifier = context_identifier or ""
+        if origin in {"chat", "incognito", "api_key", "device"}:
+            group_app_id = ""
+            group_skill_id = ""
+            group_usage_type = ""
+        else:
+            group_app_id = app_id
+            group_skill_id = skill_id
+            group_usage_type = usage_type
+        key = (
+            date,
+            origin,
+            group_identifier,
+            group_app_id,
+            group_skill_id,
+            group_usage_type,
+        )
+        bucket = buckets.setdefault(
+            key,
+            {
+                "type": origin,
+                "chat_id": context_identifier if origin in {"chat", "incognito"} else None,
+                "api_key_hash": context_identifier if origin in {"api_key", "device"} else None,
+                "app_id": app_id or None,
+                "skill_id": skill_id or None,
+                "usage_type": usage_type,
+                "total_credits": 0,
+                "entry_count": 0,
+                "updated_at": 0,
+                "started_minutes": 0,
+                "navigation_target": "chat" if origin in {"chat", "incognito"} else "none",
+            },
+        )
+        bucket["total_credits"] += _int_value(entry.get("credits"))
+        bucket["entry_count"] += 1
+        bucket["updated_at"] = max(
+            _int_value(bucket.get("updated_at")),
+            _int_value(entry.get("updated_at")) or created_at,
+        )
+        if app_id == "audio" and skill_id == "transcribe":
+            duration_seconds = _float_value(entry.get("duration_seconds"))
+            bucket["started_minutes"] += max(1, math.ceil(duration_seconds / 60))
+
+    days_map: dict[str, dict[str, Any]] = {
+        date: {"date": date, "total_credits": 0, "items": []}
+        for date in (dates or [])
+    }
+    for (date, _origin, _identifier, _app_id, _skill_id, _usage_type), item in buckets.items():
+        day = days_map.setdefault(date, {"date": date, "total_credits": 0, "items": []})
+        day["items"].append(item)
+        day["total_credits"] += _int_value(item.get("total_credits"))
+
+    for day in days_map.values():
+        day["items"].sort(
+            key=lambda item: _int_value(item.get("updated_at")),
+            reverse=True,
+        )
+        day["total_credits"] = sum(
+            _int_value(item.get("total_credits")) for item in day["items"]
+        )
+    return sorted(days_map.values(), key=lambda day: day["date"], reverse=True)
+
+
 class UsageOverviewService:
     def __init__(self, directus_service: Any, encryption_service: EncryptionService):
         self.directus_service = directus_service
@@ -307,6 +442,7 @@ class UsageOverviewService:
             "system_prompt_tokens": "encrypted_system_prompt_tokens",
             "server_provider": "encrypted_server_provider",
             "server_region": "encrypted_server_region",
+            "duration_seconds": "encrypted_code_run_duration_seconds",
         }
         processed_entries: list[dict[str, Any]] = []
         encrypted_values: list[str] = []
@@ -322,6 +458,10 @@ class UsageOverviewService:
                 "updated_at": entry.get("updated_at"),
                 "app_id": entry.get("app_id"),
                 "skill_id": entry.get("skill_id"),
+                "chat_id": entry.get("chat_id"),
+                "root_chat_id": entry.get("root_chat_id"),
+                "api_key_hash": entry.get("api_key_hash"),
+                "device_hash": entry.get("device_hash"),
                 "tool_inference_iterations": entry.get("tool_inference_iterations"),
                 }
             )
@@ -332,7 +472,7 @@ class UsageOverviewService:
                     encrypted_refs.append((entry_index, field))
                     encrypted_values.append(encrypted_value)
             # Tests and local fakes may pass already-decrypted rows.
-            for field in ("credits", "input_tokens", "output_tokens", "user_input_tokens", "system_prompt_tokens", "model_used", "server_provider", "server_region"):
+            for field in ("credits", "input_tokens", "output_tokens", "user_input_tokens", "system_prompt_tokens", "model_used", "server_provider", "server_region", "duration_seconds"):
                 if field not in processed_entries[entry_index] and entry.get(field) is not None:
                     processed_entries[entry_index][field] = entry.get(field)
 
@@ -343,12 +483,74 @@ class UsageOverviewService:
                     continue
                 if field in {"credits", "input_tokens", "output_tokens", "user_input_tokens", "system_prompt_tokens"}:
                     processed_entries[entry_index][field] = _int_value(result)
+                elif field == "duration_seconds":
+                    processed_entries[entry_index][field] = _float_value(result)
                 else:
                     processed_entries[entry_index][field] = result
         for processed_entry in processed_entries:
             if "credits" not in processed_entry:
                 processed_entry["credits"] = 0
         return processed_entries
+
+    async def get_landing_daily_items(
+        self,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        period_start: int,
+        dates: Iterable[str],
+    ) -> list[dict[str, Any]]:
+        """Read every recent owner-scoped charge and build the complete Usage landing view."""
+        raw_entries: list[dict[str, Any]] = []
+        for page_index in range(MAX_LANDING_USAGE_PAGES):
+            page = await self.directus_service.get_items(
+                "usage",
+                params={
+                    "filter": {
+                        "user_id_hash": {"_eq": user_id_hash},
+                        "created_at": {"_gte": period_start},
+                    },
+                    "fields": LANDING_OVERVIEW_FIELDS,
+                    "sort": ["-created_at", "-id"],
+                    "limit": LANDING_USAGE_PAGE_SIZE,
+                    "offset": page_index * LANDING_USAGE_PAGE_SIZE,
+                },
+                no_cache=True,
+            )
+            page_entries = list(page or [])
+            raw_entries.extend(page_entries)
+            if len(page_entries) < LANDING_USAGE_PAGE_SIZE:
+                break
+        else:
+            raise RuntimeError(
+                "Usage landing overview exceeded its bounded pagination limit; refusing a partial response"
+            )
+
+        decrypted_entries = await self._decrypt_overview_entries(
+            raw_entries,
+            user_vault_key_id,
+        )
+        return aggregate_landing_daily_items(decrypted_entries, dates)
+
+    async def has_landing_usage_before(
+        self,
+        user_id_hash: str,
+        period_start: int,
+    ) -> bool:
+        """Return whether an older owner-scoped charge can be loaded."""
+        rows = await self.directus_service.get_items(
+            "usage",
+            params={
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "created_at": {"_lt": period_start},
+                },
+                "fields": "id",
+                "sort": ["-created_at"],
+                "limit": 1,
+            },
+            no_cache=True,
+        )
+        return bool(rows)
 
     async def get_workflow_daily_items(
         self,
