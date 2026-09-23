@@ -9,6 +9,21 @@ import XCTest
 
 @MainActor
 final class DraftSyncParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
+    func testRecordingReservesSameNewChatIdentityForUploadDraftAndSend() {
+        let coordinator = DraftSyncCoordinator(
+            repository: DraftSyncRecordingRepository(),
+            chatStore: ChatStore(),
+            transport: DraftSyncRecordingTransport(isConnected: false),
+            offlineActions: DraftSyncRecordingOfflineActions()
+        )
+        let recordingChatID = "recording-draft-id"
+
+        XCTAssertEqual(coordinator.reserveNewChatDraftId(preferredId: recordingChatID), recordingChatID)
+        XCTAssertEqual(coordinator.resolveChatId("composer:new-chat", hasNonEmptyDraft: true), recordingChatID)
+        XCTAssertEqual(coordinator.reserveNewChatDraftId(preferredId: "later-id"), recordingChatID)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.lifecycle
     func testFirstNewChatDraftAllocatesOneStableUUIDAndSendsOnlyCiphertext() async throws {
         let repository = DraftSyncRecordingRepository(records: [

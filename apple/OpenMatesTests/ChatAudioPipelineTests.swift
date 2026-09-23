@@ -7,6 +7,16 @@ import XCTest
 
 @MainActor
 final class ChatAudioPipelineTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testRealtimeFinishWithoutTerminalEventSettlesForBatchFallback() async {
+        let session = AudioRecordingRealtimeSession(finishTimeout: .milliseconds(20))
+        session.finish()
+
+        let result = await session.awaitResult()
+
+        XCTAssertNil(result)
+    }
+
     // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send,chats.message.identity-idempotent
     func testRealtimeUploadOverlapsCorrectionSkipsBatchAndUnblocksSameMessageIdentity() async throws {
         let correctionGate = AudioPipelineGate()

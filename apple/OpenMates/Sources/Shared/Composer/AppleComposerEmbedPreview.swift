@@ -357,6 +357,7 @@ private struct ComposerAudioPreview: View {
     let lifecycle: AppleComposerEmbedLifecycleState
     let lifecycleLabel: String
     let content: ComposerAudioPreviewContent
+    let localAudioData: Data?
     @StateObject private var player: ComposerAudioPreviewPlayer
 
     init(
@@ -368,6 +369,7 @@ private struct ComposerAudioPreview: View {
     ) {
         self.lifecycle = lifecycle
         self.lifecycleLabel = lifecycleLabel
+        self.localAudioData = localAudioData
         let fallbackTitle: String? = switch lifecycle {
         case .transcribing, .correcting, .finished: title
         case .draft, .uploading, .processing, .error, .cancelled: nil
@@ -431,6 +433,9 @@ private struct ComposerAudioPreview: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("native-composer-audio-content")
+        }
+        .onChange(of: localAudioData) { _, data in
+            player.replace(data: data)
         }
     }
 
@@ -635,10 +640,9 @@ enum ComposerAudioPlaybackProgress {
 private final class ComposerAudioPreviewPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published private(set) var isPlaying = false
     @Published private(set) var progress = 0.0
+    @Published private(set) var isAvailable = false
     private var player: AVAudioPlayer?
     private var progressTask: Task<Void, Never>?
-
-    var isAvailable: Bool { player != nil }
 
     init(data: Data?) {
         if let data {
@@ -647,6 +651,18 @@ private final class ComposerAudioPreviewPlayer: NSObject, ObservableObject, AVAu
         }
         super.init()
         player?.delegate = self
+        isAvailable = player != nil
+    }
+
+    func replace(data: Data?) {
+        stopProgressUpdates()
+        player?.stop()
+        player = data.flatMap { try? AVAudioPlayer(data: $0) }
+        player?.delegate = self
+        player?.prepareToPlay()
+        isPlaying = false
+        progress = 0
+        isAvailable = player != nil
     }
 
     func togglePlayback() {

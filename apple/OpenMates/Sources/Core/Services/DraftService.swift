@@ -3,6 +3,8 @@
 // Durable repositories store ciphertext metadata only, never editor state.
 // Legacy UserDefaults plaintext is removed only after decrypt verification.
 // Dependencies remain injectable for deterministic migration tests.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.drafts.preview-persistence, message-input.recording.lifecycle
 
 import Combine
 import CryptoKit
@@ -137,6 +139,10 @@ final class DraftService: ObservableObject {
 
     var activeNewChatDraftId: String? {
         syncCoordinator?.activeNewChatDraftId
+    }
+
+    func reserveNewChatDraftId(preferredId: String) -> String {
+        syncCoordinator?.reserveNewChatDraftId(preferredId: preferredId) ?? preferredId
     }
 
     func saveDraft(

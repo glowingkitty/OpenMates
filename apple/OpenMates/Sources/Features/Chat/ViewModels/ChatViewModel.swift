@@ -3,7 +3,7 @@
 // processing, then client-encrypted metadata/messages for permanent storage.
 // Subscribes to StreamingClient for real-time AI response chunks.
 // Specification: specifications/features/message-input/specification.yml
-// Assertions: message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context
+// Assertions: message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context, message-input.recording.lifecycle, message-input.drafts.preview-persistence
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.followups.non-destructive-reconciliation, chats.surface.semantic-parity
 
@@ -2864,6 +2864,32 @@ struct ComposerPendingEmbed: Identifiable {
 
     var canPersistDirectly: Bool {
         content != nil
+    }
+
+    @MainActor
+    static func restoredRecording(from record: EmbedRecord) -> ComposerPendingEmbed? {
+        guard record.type == "audio-recording", let raw = record.rawData else { return nil }
+        let object = raw.mapValues(\.value)
+        guard JSONSerialization.isValidJSONObject(object),
+              let encoded = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+              let content = String(data: encoded, encoding: .utf8) else { return nil }
+        let filename = raw["filename"]?.value as? String ?? AppStrings.audioRecording
+        let preview = raw["title"]?.value as? String
+            ?? raw["transcript_corrected"]?.value as? String
+            ?? raw["transcript"]?.value as? String
+        return ComposerPendingEmbed(
+            id: record.id,
+            type: record.type,
+            referenceType: "audio-recording",
+            status: record.status.rawValue,
+            content: content,
+            textPreview: preview,
+            record: record,
+            localData: nil,
+            filename: filename,
+            size: 0,
+            piiMappings: []
+        )
     }
 
     #if DEBUG

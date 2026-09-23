@@ -9,6 +9,28 @@ import XCTest
 
 @MainActor
 final class NativeComposerSessionTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
+    func testCachedRecordingRestoresTranscriptAndDurableSendPayload() throws {
+        let record = EmbedRecord(
+            id: "recording-restore", type: "audio-recording", status: .finished,
+            data: .raw([
+                "filename": AnyCodable("recording.m4a"),
+                "title": AnyCodable("Recorded summary"),
+                "transcript": AnyCodable("Recorded words"),
+                "waveform": AnyCodable(["samples": [12, 42, 70]])
+            ]),
+            parentEmbedId: nil, appId: "audio", skillId: "transcribe",
+            embedIds: nil, createdAt: "1"
+        )
+
+        let restored = try XCTUnwrap(ComposerPendingEmbed.restoredRecording(from: record))
+        XCTAssertEqual(restored.id, record.id)
+        XCTAssertEqual(restored.referenceType, "audio-recording")
+        XCTAssertEqual(restored.textPreview, "Recorded summary")
+        XCTAssertEqual(restored.record.rawData?["transcript"]?.value as? String, "Recorded words")
+        XCTAssertNotNil(restored.serverPayload)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
     func testTextMutationPublishesCanonicalMarkdownAndRevision() throws {
         let session = NativeComposerSession(canonicalMarkdown: "Hello")

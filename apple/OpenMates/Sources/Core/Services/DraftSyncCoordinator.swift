@@ -3,6 +3,8 @@
 // Receipts, broadcasts, reconnect versions, and authoritative chat deletion are
 // applied without echoing remote updates or inferring deletion from partial pages.
 // Composer rendering and plaintext editor state remain outside this service.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.drafts.preview-persistence, message-input.recording.lifecycle
 
 import Foundation
 
@@ -40,6 +42,12 @@ final class DraftSyncCoordinator {
     private let isCurrentSession: () -> Bool
 
     var activeNewChatDraftId: String? { newChatDraftId }
+
+    func reserveNewChatDraftId(preferredId: String) -> String {
+        if let newChatDraftId { return newChatDraftId }
+        newChatDraftId = preferredId
+        return preferredId
+    }
 
     init(
         repository: any ComposerDraftRepository,

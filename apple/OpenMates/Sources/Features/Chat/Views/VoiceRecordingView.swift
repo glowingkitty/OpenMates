@@ -158,6 +158,12 @@ final class AudioRecordingRealtimeSession {
     private var pcmForwarder: OrderedRealtimePCMForwarder?
     private var resultWaiters: [CheckedContinuation<AudioRecordingRealtimeResult?, Never>] = []
     private var settledResult: AudioRecordingRealtimeResult??
+    private let finishTimeout: Duration
+    private var finishTimeoutTask: Task<Void, Never>?
+
+    init(finishTimeout: Duration = .seconds(8)) {
+        self.finishTimeout = finishTimeout
+    }
 
     func begin(
         authManager: AuthManager,
@@ -191,6 +197,25 @@ final class AudioRecordingRealtimeSession {
 
     func finish() {
         pcmForwarder?.finish()
+        guard settledResult == nil else { return }
+        finishTimeoutTask?.cancel()
+        finishTimeoutTask = Task { @MainActor [weak self, finishTimeout] in
+            try? await Task.sleep(for: finishTimeout)
+            guard !Task.isCancelled, let self else { return }
+            if let rawTranscript = self.rawTranscript, !rawTranscript.isEmpty {
+                self.settle(AudioRecordingRealtimeResult(
+                    title: nil,
+                    transcript: rawTranscript,
+                    transcriptOriginal: rawTranscript,
+                    transcriptCorrected: nil,
+                    useCorrected: false,
+                    model: AudioRealtimeTranscriptionClient.model,
+                    correctionModel: nil
+                ))
+            } else {
+                self.settle(nil)
+            }
+        }
     }
 
     func cancel() async {
@@ -252,6 +277,8 @@ final class AudioRecordingRealtimeSession {
 
     private func settle(_ result: AudioRecordingRealtimeResult?) {
         guard settledResult == nil else { return }
+        finishTimeoutTask?.cancel()
+        finishTimeoutTask = nil
         settledResult = .some(result)
         isConnecting = false
         presentationHandler?(liveTranscript, false)

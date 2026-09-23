@@ -9,6 +9,10 @@
 // CSS:     frontend/packages/ui/src/styles/fields.css
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send
+
+import Combine
 import Foundation
 
 #if canImport(UIKit)
@@ -17,7 +21,10 @@ import UIKit
 import AppKit
 #endif
 
-final class ComposerTextAttachment: NSTextAttachment {
+// TextKit calls the provider on the UI thread; controller mutations are MainActor
+// confined. This reference crosses assumeIsolated only to host that same view.
+final class ComposerTextAttachment: NSTextAttachment, ObservableObject, @unchecked Sendable {
+    let objectWillChange = ObservableObjectPublisher()
     let nodeID: String
     private(set) var nodeSnapshot: ComposerNodeV1?
     #if !OPENMATES_SHARE_EXTENSION
@@ -70,13 +77,21 @@ final class ComposerTextAttachment: NSTextAttachment {
 
     func update(node: ComposerNodeV1) {
         guard node.id == nodeID else { return }
+        guard nodeSnapshot != node else { return }
+        objectWillChange.send()
         nodeSnapshot = node
     }
 
     #if !OPENMATES_SHARE_EXTENSION
     func updatePreview(embedRecord: EmbedRecord?, localPreviewData: Data?) {
+        objectWillChange.send()
         self.embedRecord = embedRecord
         self.localPreviewData = localPreviewData
+    }
+
+    func updateActions(_ actions: AppleComposerEmbedActions) {
+        objectWillChange.send()
+        embedActions = actions
     }
     #endif
 

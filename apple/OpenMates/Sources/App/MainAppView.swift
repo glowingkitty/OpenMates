@@ -3,7 +3,7 @@
 // Sidebar shows chat list; detail shows active chat or empty state.
 // Manages WebSocket connection and phased sync lifecycle.
 // Specification: specifications/features/message-input/specification.yml
-// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context, message-input.drafts.preview-persistence
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/apps/web_app/src/routes/+page.svelte  (top-level layout)
@@ -5750,6 +5750,7 @@ struct NewChatWelcomeView: View {
             activeRecordingRealtimeSession = nil
             return
         }
+        modelDraftID = DraftService.shared.reserveNewChatDraftId(preferredId: modelDraftID)
         let session = AudioRecordingRealtimeSession()
         activeRecordingRealtimeSession = session
         session.begin(authManager: authManager, chatID: modelDraftID) { transcript, isConnecting in
@@ -5797,6 +5798,7 @@ struct NewChatWelcomeView: View {
             addGuestRecordingPreview(url: url, duration: duration)
             return
         }
+        modelDraftID = DraftService.shared.reserveNewChatDraftId(preferredId: modelDraftID)
         let context = finishWelcomeRealtimeRecording(duration: duration)
         let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
         do {
@@ -5846,6 +5848,7 @@ struct NewChatWelcomeView: View {
             guard let embed else {
                 try? composerSession.removeEmbed(nodeID: nodeID)
                 cleanupWelcomeRecordingTemporaryFile()
+                isComposerActivated = !composerSession.canonicalMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 showRecordHint(duration: 0)
                 return
             }
@@ -5870,11 +5873,13 @@ struct NewChatWelcomeView: View {
                     onRetry: { _ in },
                     onRemove: { _ in pendingComposerEmbeds.removeAll { $0.id == embed.id } }
                 )
+                OfflineStore.shared.persistEmbeds([embed.record], chatId: modelDraftID)
                 cleanupWelcomeRecordingTemporaryFile()
             } catch {
                 pendingComposerEmbeds.removeAll { $0.id == embed.id }
                 try? composerSession.removeEmbed(nodeID: nodeID)
                 cleanupWelcomeRecordingTemporaryFile()
+                isComposerActivated = !composerSession.canonicalMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 NativeDiagnostics.error(
                     "Welcome recording resolution failed: \(type(of: error))",
                     category: "apple_composer"
@@ -6095,6 +6100,12 @@ struct NewChatWelcomeView: View {
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("--ui-test-welcome-mic-granted") {
             micPermissionState = .granted
+        }
+        if arguments.contains("--ui-test-welcome-restored-recording") {
+            composerSession.replaceMarkdown(
+                "```json\n{\"type\":\"audio-recording\",\"embed_id\":\"ui-test-recording\"}\n```"
+            )
+            isComposerActivated = true
         }
         if arguments.contains("--ui-test-welcome-seed-pending-content"), pendingComposerEmbeds.isEmpty {
             addPendingComposerEmbed(filename: "welcome-file.pdf", kind: .file)
@@ -6619,12 +6630,63 @@ struct NewChatWelcomeView: View {
         do {
             if let draft = try await DraftService.shared.loadDraft(chatId: "composer:new-chat"),
                !isCreatingChat, composerSession.canonicalMarkdown.isEmpty {
+                if let activeDraftID = DraftService.shared.activeNewChatDraftId {
+                    modelDraftID = activeDraftID
+                }
                 composerSession.replaceMarkdown(draft.canonicalMarkdown)
+                let cachedRecordings = Dictionary(
+                    OfflineStore.shared.loadEmbeds(chatId: modelDraftID)
+                        .filter { $0.type == "audio-recording" }
+                        .map { ($0.id, $0) },
+                    uniquingKeysWith: { first, _ in first }
+                )
+                for node in composerSession.controller.document.nodes where node.embedType == "recording" {
+                    guard let durableID = node.contentRef?.replacingOccurrences(of: "embed:", with: ""),
+                          let record = cachedRecordings[durableID],
+                          let embed = ComposerPendingEmbed.restoredRecording(from: record) else { continue }
+                    pendingComposerEmbeds.append(embed)
+                    try? composerSession.controller.configureEmbedPreview(
+                        id: node.id, embedRecord: record, localPreviewData: nil
+                    )
+                    try? composerSession.configureEmbedActions(
+                        nodeID: node.id,
+                        onOpen: { _ in },
+                        onRetry: { _ in },
+                        onRemove: { _ in pendingComposerEmbeds.removeAll { $0.id == durableID } }
+                    )
+                    restoreCachedRecordingAudio(nodeID: node.id, durableID: durableID, record: record)
+                }
             }
         } catch ComposerDraftError.masterKeyUnavailable {
             return
         } catch {
             NativeDiagnostics.warning("New-chat draft restore failed: \(type(of: error))", category: "apple_composer")
+        }
+    }
+
+    private func restoreCachedRecordingAudio(nodeID: String, durableID: String, record: EmbedRecord) {
+        let raw = record.rawData
+        guard let s3URL = EmbedMediaPayload.s3URL(from: raw),
+              let aesKey = EmbedMediaPayload.string(raw, keys: ["aes_key"]) else { return }
+        let s3Key = EmbedMediaPayload.s3Key(from: raw)
+        let nonce = EmbedMediaPayload.string(raw, keys: ["aes_nonce"])
+        let encryption = EmbedMediaPayload.encryption(from: raw)
+        guard nonce != nil || encryption != nil else { return }
+        let draftID = modelDraftID
+        Task { @MainActor in
+            guard let audioData = try? await S3MediaClient.shared.fetchAndDecrypt(
+                s3Url: s3URL,
+                aesKeyHex: aesKey,
+                aesNonceHex: nonce,
+                encryption: encryption,
+                s3Key: s3Key
+            ), modelDraftID == draftID,
+               composerSession.controller.document.nodes.contains(where: {
+                   $0.id == nodeID && $0.contentRef == "embed:\(durableID)"
+               }) else { return }
+            try? composerSession.controller.configureEmbedPreview(
+                id: nodeID, embedRecord: record, localPreviewData: audioData
+            )
         }
     }
 
@@ -6653,6 +6715,12 @@ struct NewChatWelcomeView: View {
         guard isAuthenticated, !isCreatingChat else { return }
         draftSaveTask?.cancel()
         let markdown = composerSession.canonicalMarkdown
+        // An unresolved recording is a real composer atom but has no durable
+        // markdown yet. Clearing this empty projection would release its chat ID
+        // while the upload is still associating the recording with that ID.
+        if isRecordingUploadPending && markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return
+        }
         let revision = composerSession.revision
         draftSaveTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(500))
@@ -6665,12 +6733,18 @@ struct NewChatWelcomeView: View {
         guard isAuthenticated, !isCreatingChat else { return }
         draftSaveTask?.cancel()
         let markdown = composerSession.canonicalMarkdown
+        if isRecordingUploadPending && markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return
+        }
         let revision = composerSession.revision
         Task { @MainActor in await saveNewChatDraft(markdown: markdown, revision: revision) }
     }
 
     private func saveNewChatDraft(markdown: String, revision: Int) async {
         guard !Task.isCancelled, !isCreatingChat else { return }
+        if isRecordingUploadPending && markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return
+        }
         do {
             try await DraftService.shared.saveDraft(
                 canonicalMarkdown: markdown,

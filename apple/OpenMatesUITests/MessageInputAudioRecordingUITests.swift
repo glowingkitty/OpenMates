@@ -11,6 +11,26 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
+    func testRestoredRecordingDraftShowsAudioCardInsteadOfGenericAttachment() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-welcome-restored-recording"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 3) {
+            skipInterests.tap()
+        }
+
+        XCTAssertTrue(element(in: app, identifier: "native-composer-preview-recording-finished")
+            .waitForExistence(timeout: 8))
+        XCTAssertTrue(element(in: app, identifier: "native-composer-audio-content").exists)
+    }
+
     // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.recording.lifecycle
     func testIdleWelcomeComposerShowsAiAndMicAndRecordsWithoutKeyboard() throws {
         let app = XCUIApplication()

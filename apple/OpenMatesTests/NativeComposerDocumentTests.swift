@@ -8,6 +8,19 @@ import XCTest
 @testable import OpenMates
 
 final class NativeComposerDocumentTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
+    func testRestoredRecordingReferenceUsesNativePreviewFamilyAndKeepsWireType() throws {
+        let markdown = "```json\n{\"type\":\"audio-recording\",\"embed_id\":\"recording-1\"}\n```"
+        let document = try ComposerMarkdownAdapter.parse(markdown)
+        let node = try XCTUnwrap(document.nodes.first(where: { $0.kind == "embed" }))
+
+        XCTAssertEqual(node.embedType, "recording")
+        XCTAssertEqual(node.contentRef, "embed:recording-1")
+        XCTAssertNotNil(AppleComposerRendererRegistry.shared.descriptor(for: node.embedType ?? ""))
+        XCTAssertEqual(try ComposerMarkdownAdapter.serialize(document), markdown)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
     func testSharedFixturesParseAndSerializeCanonically() throws {
         let fixture = try loadFixture()
         XCTAssertEqual(fixture.schemaVersion, 1)
@@ -24,6 +37,7 @@ final class NativeComposerDocumentTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
     func testSharedSelectionFixturesUseUTF16Offsets() throws {
         for testCase in try loadFixture().cases {
             for selection in testCase.selectionFixtures {
@@ -36,6 +50,7 @@ final class NativeComposerDocumentTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
     func testInvalidSharedDocumentsFailWithoutPartialSerialization() throws {
         for invalidCase in try loadFixture().invalidDocuments {
             XCTAssertThrowsError(
