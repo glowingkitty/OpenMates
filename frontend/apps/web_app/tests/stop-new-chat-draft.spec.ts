@@ -558,6 +558,39 @@ test.describe('first draft Send continuity', () => {
 		});
 	});
 
+	// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.drafts.preview-persistence,drafts.draft-only.lifecycle
+	test('keeps the live composer and suggestions through the first autosave', async ({ page }: { page: Page }) => {
+		test.setTimeout(90000);
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await loginToTestAccount(page, () => undefined, async () => undefined, { waitForEditor: true });
+		await startNewChat(page);
+
+		const editor = page.getByTestId('message-editor');
+		const editable = editor.locator('[contenteditable="true"]');
+		await fillMessageEditor(page, editor, 'What is the capital of ');
+		const suggestions = page.getByTestId('suggestions-wrapper');
+		await expect(suggestions).toBeVisible();
+		const suggestionNode = await suggestions.elementHandle();
+		const editableNode = await editable.elementHandle();
+		expect(suggestionNode).not.toBeNull();
+		expect(editableNode).not.toBeNull();
+
+		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		expect(await suggestionNode!.evaluate((element) => element.isConnected)).toBe(true);
+		expect(await editableNode!.evaluate((element) => element.isConnected)).toBe(true);
+		await expect(editable).toBeFocused();
+		await page.keyboard.insertText(withMockMarker('Germany?', 'chat_flow_capital'));
+		await expect(editor).toContainText('What is the capital of Germany?');
+
+		const send = page.getByTestId('composer-send-button');
+		await expect(send).toBeVisible();
+		const bounds = await send.boundingBox();
+		expect(bounds).not.toBeNull();
+		await page.mouse.click(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+		await expect(page.getByTestId('message-user')).toHaveCount(1);
+		await expect(page.getByTestId('message-user')).toContainText('What is the capital of Germany?');
+	});
+
 	for (const sidebarOpen of [false, true]) {
 		// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.drafts.preview-persistence,drafts.draft-only.lifecycle
 		test(`sends once across first draft activation with sidebar ${sidebarOpen ? 'open' : 'closed'}`, async ({ page }: { page: Page }, testInfo: TestInfo) => {

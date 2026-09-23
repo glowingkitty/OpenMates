@@ -13961,7 +13961,7 @@
                          <!-- New-chat suggestions are tied to the active message input. The short
                               recently-focused grace lets suggestion clicks land without keeping the
                               rail visible on the inactive welcome screen. -->
-                         {#if showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
+                         {#if (showWelcome || isActiveDraftOnlyChat) && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}
@@ -14013,7 +14013,7 @@
                         <!-- Chat search suggestions — shown when typing in an open chat's message input.
                              Searches existing chats and shows matching results as horizontal cards.
                              Hidden entirely when no results found (unlike NewChatSuggestions which shows defaults). -->
-                        {#if !showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
+                        {#if !showWelcome && !isActiveDraftOnlyChat && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
                             <ChatSearchSuggestions
                                 messageInputContent={activeSuggestionSearchText}
                                 onChatNavigate={handleChatNavigate}
