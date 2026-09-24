@@ -3,6 +3,10 @@
 // Wires up auth, push notifications, font registration, and WebSocket lifecycle.
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.persistence.client-encrypted, chats.streaming.progressive-presentation
+// Specification: specifications/features/chat-navigation/specification.yml
+// Assertions: chat-navigation.open.local-first-coherent
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.focus.parent-state
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
@@ -163,6 +167,23 @@ final class AppSessionCoordinator: ObservableObject {
     private var offlineBridgeStorage: OfflineSyncBridge?
     private var didLoadFromDisk = false
     private var didStartNetworkMonitoring = false
+    private var didConfigureDraftSync = false
+    private var openWindowIDs: [UUID] = []
+    @Published var isInitialSyncComplete = false
+
+    var hasLoadedAuthenticatedRuntime: Bool { didLoadFromDisk }
+
+    func registerWindow(_ id: UUID) {
+        if !openWindowIDs.contains(id) { openWindowIDs.append(id) }
+    }
+
+    func unregisterWindow(_ id: UUID) {
+        openWindowIDs.removeAll { $0 == id }
+    }
+
+    func ownsSharedSync(_ id: UUID) -> Bool {
+        openWindowIDs.first == id
+    }
 
     private init() {
         webSocketManager.configureRecoveryCoordinator(ChatCompletionRecoveryCoordinator(
@@ -193,6 +214,12 @@ final class AppSessionCoordinator: ObservableObject {
         return bridge
     }
 
+    func configureDraftSyncIfNeeded() {
+        guard !didConfigureDraftSync, let bridge = offlineBridgeStorage else { return }
+        DraftService.shared.configureSync(chatStore: chatStore, transport: webSocketManager, offlineActions: bridge)
+        didConfigureDraftSync = true
+    }
+
     func resetTransientRuntime() {
         AssistantSpeechAppRuntime.shared.reset()
         // Invalidate stream readers/producers before clearing or replacing the
@@ -206,6 +233,9 @@ final class AppSessionCoordinator: ObservableObject {
         webSocketManager.recoveryCoordinator?.reset()
         chatStore.clearInMemory()
         didLoadFromDisk = false
+        didConfigureDraftSync = false
+        isInitialSyncComplete = false
+        openWindowIDs.removeAll()
     }
 
     func markRecoveryInitialSyncReady() async {
@@ -237,7 +267,6 @@ struct OpenMatesApp: App {
     #elseif os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.openWindow) private var openWindow
-    @FocusedValue(\.newChatCommand) private var focusedNewChatCommand
     #endif
 
     init() {
@@ -334,11 +363,7 @@ struct OpenMatesApp: App {
                 .keyboardShortcut("n", modifiers: .command)
 
                 Button(AppStrings.newChat) {
-                    if let focusedNewChatCommand {
-                        focusedNewChatCommand()
-                    } else {
-                        AppWindowCommandCenter.shared.openNewChatWindow()
-                    }
+                    AppWindowCommandCenter.shared.openNewChatWindow()
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             }
@@ -414,17 +439,6 @@ private struct AppWindowCommandInstaller: ViewModifier {
         content.onAppear {
             AppWindowCommandCenter.shared.openMainWindow = openMainWindow
         }
-    }
-}
-
-private struct NewChatCommandKey: FocusedValueKey {
-    typealias Value = @MainActor () -> Void
-}
-
-extension FocusedValues {
-    var newChatCommand: (@MainActor () -> Void)? {
-        get { self[NewChatCommandKey.self] }
-        set { self[NewChatCommandKey.self] = newValue }
     }
 }
 

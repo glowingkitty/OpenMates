@@ -4,11 +4,76 @@
 // Partial sync pages must never become deletion evidence.
 // The focused coordinator is tested independently from composer rendering.
 
+import CryptoKit
 import XCTest
 @testable import OpenMates
 
 @MainActor
 final class DraftSyncParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.lifecycle,message-input.drafts.preview-persistence
+    func testTwoNewChatWindowsKeepDistinctDraftsWhenAliasMovesDuringSave() async throws {
+        let firstID = "window-a-draft"
+        let secondID = "window-b-draft"
+        let keyGate = FirstDraftKeyGate(key: SymmetricKey(size: .bits256))
+        let repository = DraftSyncRecordingRepository()
+        let chatStore = ChatStore()
+        let transport = DraftSyncRecordingTransport(isConnected: false)
+        let offlineActions = DraftSyncRecordingOfflineActions()
+        let service = DraftService(
+            repository: repository,
+            legacyStore: DraftWindowLegacyStore(),
+            masterKeyProvider: { await keyGate.provide() }
+        )
+        service.configureSync(
+            chatStore: chatStore,
+            transport: transport,
+            offlineActions: offlineActions
+        )
+
+        XCTAssertEqual(service.beginFreshNewChatDraft(preferredId: firstID), firstID)
+        let firstSave = Task {
+            try await service.saveDraft(
+                canonicalMarkdown: "First window draft", preview: "First window draft",
+                chatId: firstID, revision: 1, draftVersion: 0, useStoredDraftVersion: true
+            )
+        }
+        await keyGate.waitUntilFirstRequest()
+        defer { Task { await keyGate.releaseFirst() } }
+
+        XCTAssertEqual(service.beginFreshNewChatDraft(preferredId: secondID), secondID)
+        try await service.saveDraft(
+            canonicalMarkdown: "Second window draft", preview: "Second window draft",
+            chatId: secondID, revision: 1, draftVersion: 0, useStoredDraftVersion: true
+        )
+        await keyGate.releaseFirst()
+        try await firstSave.value
+
+        let firstStoredRecord = try await repository.record(chatId: firstID)
+        let firstStored = try XCTUnwrap(firstStoredRecord)
+        try await repository.upsert(ComposerDraftRecord(
+            chatId: firstID,
+            encryptedMarkdown: firstStored.encryptedMarkdown,
+            encryptedPreview: firstStored.encryptedPreview,
+            revision: firstStored.revision,
+            draftVersion: 3
+        ))
+        try await service.saveDraft(
+            canonicalMarkdown: "First window continued", preview: "First window continued",
+            chatId: firstID, revision: 2, draftVersion: 0, useStoredDraftVersion: true
+        )
+
+        let firstDraft = try await service.loadDraft(chatId: firstID)
+        let secondDraft = try await service.loadDraft(chatId: secondID)
+        XCTAssertEqual(firstDraft?.canonicalMarkdown, "First window continued")
+        XCTAssertEqual(secondDraft?.canonicalMarkdown, "Second window draft")
+        let updatedFirstRecord = try await repository.record(chatId: firstID)
+        XCTAssertEqual(updatedFirstRecord?.draftVersion, 3)
+        XCTAssertTrue(chatStore.chat(for: firstID)?.hasNonEmptyDraft == true)
+        XCTAssertTrue(chatStore.chat(for: secondID)?.hasNonEmptyDraft == true)
+        XCTAssertEqual(service.activeNewChatDraftId, secondID)
+        XCTAssertEqual(Set(offlineActions.queuedUpdates.map(\.chatId)), Set([firstID, secondID]))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
     func testRecordingReservesSameNewChatIdentityForUploadDraftAndSend() {
         let coordinator = DraftSyncCoordinator(
@@ -813,4 +878,40 @@ private final class DraftSyncRecordingOfflineActions: DraftSyncOfflineActions {
     func queueDraftDelete(chatId: String) { queuedDeletes.append(chatId) }
     func cascadeDeleteChat(chatId: String) { cascadedChatIds.append(chatId) }
     func cascadeDeleteDraftOnlyChat(chatId: String) { cascadedChatIds.append(chatId) }
+}
+
+private actor DraftWindowLegacyStore: LegacyComposerDraftStore {
+    func drafts() async -> [String: String] { [:] }
+    func removeDraft(chatId: String) async { }
+}
+
+private actor FirstDraftKeyGate {
+    private let key: SymmetricKey
+    private var firstRequestSeen = false
+    private var firstBlocked: CheckedContinuation<Void, Never>?
+    private var requestWaiter: CheckedContinuation<Void, Never>?
+
+    init(key: SymmetricKey) { self.key = key }
+
+    func provide() async -> SymmetricKey {
+        if !firstRequestSeen {
+            firstRequestSeen = true
+            await withCheckedContinuation { continuation in
+                firstBlocked = continuation
+                requestWaiter?.resume()
+                requestWaiter = nil
+            }
+        }
+        return key
+    }
+
+    func waitUntilFirstRequest() async {
+        if firstRequestSeen { return }
+        await withCheckedContinuation { requestWaiter = $0 }
+    }
+
+    func releaseFirst() {
+        firstBlocked?.resume()
+        firstBlocked = nil
+    }
 }

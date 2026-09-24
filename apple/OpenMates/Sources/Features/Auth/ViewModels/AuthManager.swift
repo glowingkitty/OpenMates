@@ -121,10 +121,13 @@ final class AuthManager: ObservableObject {
         defer { isCheckingSession = false }
         Self._shared = self
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--ui-test-authenticated-chat-navigation") {
+        let isWindowDraftFixture = ProcessInfo.processInfo.arguments.contains("--ui-test-window-drafts")
+        if isWindowDraftFixture, state == .authenticated,
+           currentUser?.id == "ui-test-window-drafts-user" { return }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-authenticated-chat-navigation") || isWindowDraftFixture {
             currentUser = UserProfile(
-                id: "ui-test-chat-navigation-user",
-                username: "ui-test-chat-navigation",
+                id: isWindowDraftFixture ? "ui-test-window-drafts-user" : "ui-test-chat-navigation-user",
+                username: isWindowDraftFixture ? "ui-test-window-drafts" : "ui-test-chat-navigation",
                 email: nil,
                 credits: 0,
                 language: "en",
@@ -148,6 +151,17 @@ final class AuthManager: ObservableObject {
                 followUpSuggestionsEnabled: nil,
                 quickTipsEnabled: nil
             )
+            if isWindowDraftFixture, let currentUser {
+                do {
+                    try await crypto.saveMasterKey(SymmetricKey(data: Data(repeating: 0x42, count: 32)), for: currentUser.id)
+                    try activateOfflineScope(for: currentUser)
+                    OfflineStore.shared.clearAll()
+                } catch {
+                    NativeDiagnostics.error("Window draft UI fixture setup failed: \(type(of: error))", category: "apple_composer")
+                    state = .unauthenticated
+                    return
+                }
+            }
             webSocketToken = nil
             sessionValidationState = .offlineAuthenticated
             state = .authenticated
@@ -167,6 +181,9 @@ final class AuthManager: ObservableObject {
     }
 
     func validateSessionAfterOfflineBootstrap() async {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-window-drafts") { return }
+        #endif
         await validateSessionAgainstServer(keepOfflineSessionOnFailure: currentUser != nil)
     }
 

@@ -16,6 +16,7 @@ final class ChatHistoryMacParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
     func testWideAndNarrowWindowsPreserveTranscriptWidthAndComposerClearance() throws {
         let app = launchFixture()
         let window = app.windows.firstMatch
@@ -29,6 +30,7 @@ final class ChatHistoryMacParityUITests: XCTestCase {
         attachScreenshot(name: "macOS chat history narrow")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history,message-input.actions.visibility
     func testKeyboardPointerAndFocusOrderRemainOperable() throws {
         let app = launchFixture()
         let history = element(in: app, identifier: "chat-history-container")
@@ -47,6 +49,34 @@ final class ChatHistoryMacParityUITests: XCTestCase {
         history.click()
         XCTAssertTrue(history.isHittable)
         XCTAssertFalse(app.tables.firstMatch.exists, "Chat product UI must not use default List/table chrome")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity,message-input.actions.visibility
+    func testEmptyWelcomeComposerExpandsOnFocusAndCollapsesAfterDismissal() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat", "-AppleLanguages", "(en)"]
+        app.launch()
+
+        let field = element(in: app, identifier: "message-field")
+        let editor = element(in: app, identifier: "message-editor")
+        let fullscreen = app.buttons["message-input-fullscreen-button"]
+        XCTAssertTrue(field.waitForExistence(timeout: 12), app.debugDescription)
+        XCTAssertTrue(editor.waitForExistence(timeout: 8))
+        XCTAssertFalse(fullscreen.exists, "The inactive welcome composer must remain collapsed")
+        let idleHeight = field.frame.height
+        attachScreenshot(name: "macOS welcome composer inactive without caret")
+
+        field.click()
+        XCTAssertTrue(fullscreen.waitForExistence(timeout: 5), "Focusing must expose the expanded composer controls")
+        XCTAssertGreaterThan(field.frame.height, idleHeight + 20)
+        attachScreenshot(name: "macOS welcome composer focused and expanded")
+
+        let outside = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+        outside.click()
+        let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: fullscreen)
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+        XCTAssertLessThanOrEqual(field.frame.height, idleHeight + 4)
+        attachScreenshot(name: "macOS welcome composer collapsed after dismissal")
     }
 
     private func launchFixture() -> XCUIApplication {

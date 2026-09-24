@@ -182,12 +182,21 @@ final class DraftService: ObservableObject {
         return resolved
     }
 
+    /// A window may finish its own new-chat draft after another window has
+    /// moved the legacy synthetic alias. Release only the matching selection.
+    func releaseNewChatDraftId(ifMatches chatId: String) {
+        guard syncCoordinator?.activeNewChatDraftId == chatId else { return }
+        syncCoordinator?.resetNewChatDraftId()
+        persistNewChatDraftId(nil)
+    }
+
     func saveDraft(
         canonicalMarkdown: String,
         preview: String,
         chatId: String,
         revision: Int,
         draftVersion: Int,
+        useStoredDraftVersion: Bool = false,
         recordings: [EmbedRecord]? = nil,
         attachments: [ComposerDraftAttachment]? = nil
     ) async throws {
@@ -215,7 +224,7 @@ final class DraftService: ObservableObject {
         do {
             if let existing = try await repository.record(chatId: resolvedChatId) {
                 existingRecord = existing
-                if chatId == DraftSyncCoordinator.syntheticNewChatId {
+                if chatId == DraftSyncCoordinator.syntheticNewChatId || useStoredDraftVersion {
                     effectiveDraftVersion = existing.draftVersion
                 } else if existing.draftVersion > draftVersion {
                     throw ComposerDraftError.versionConflict

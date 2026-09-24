@@ -104,6 +104,7 @@ def test_commands_pin_one_build_and_do_not_delete_simulators(tmp_path: Path) -> 
     assert "OpenMates_iOS" in ios
     assert "OpenMates_macOS" in macos
     assert "ARCHS=arm64 x86_64" in macos
+    assert macos[macos.index("-jobs") + 1] == "1"
     assert "simctl" not in all_text
     assert "delete" not in all_text
     assert "VERCEL" not in SCRIPT.read_text(encoding="utf-8")
@@ -188,12 +189,43 @@ def test_macos_stamping_signs_extension_before_parent_app(tmp_path: Path, monkey
     release = load_module()
     calls = []
     monkeypatch.setattr(release, "run_logged", lambda command, log_path, timeout: calls.append(command))
+    archive = make_archive(tmp_path, "macos")
+    extension_info = archive / "Products/Applications/OpenMates.app/Contents/PlugIns/OpenMatesShareExtension_macOS.appex/Contents/Info.plist"
+    write_plist(extension_info, {"CFBundleIdentifier": "org.openmates.app.sharemacos"})
 
-    release.stamp_unsigned_macos_archive(tmp_path / "OpenMates-macOS.xcarchive", tmp_path / "stamp.log")
+    release.stamp_unsigned_macos_archive(archive, tmp_path / "stamp.log", "TEAMID")
 
     assert "OpenMatesShareExtension_macOS.appex" in calls[0][-1]
     assert calls[1][-1].endswith("OpenMates.app")
     assert all("--entitlements" in command for command in calls)
+    with Path(calls[1][-2]).open("rb") as handle:
+        app_entitlements = plistlib.load(handle)
+    with Path(calls[0][-2]).open("rb") as handle:
+        share_entitlements = plistlib.load(handle)
+    assert app_entitlements["com.apple.developer.aps-environment"] == "production"
+    assert "aps-environment" not in app_entitlements
+    assert app_entitlements["keychain-access-groups"] == ["TEAMID.org.openmates.app"] * 2
+    assert "$(OPENMATES_DEV_WEBCREDENTIALS)" not in app_entitlements["com.apple.developer.associated-domains"]
+    assert share_entitlements["keychain-access-groups"] == [
+        "TEAMID.org.openmates.app.sharemacos", "TEAMID.org.openmates.app"
+    ]
+
+
+def test_macos_archive_rejects_missing_or_unresolved_apns_entitlement(tmp_path: Path, monkeypatch) -> None:
+    release = load_module()
+    archive = make_archive(tmp_path, "macos")
+
+    def signed_entitlements(bundle: Path) -> dict:
+        if bundle.name == "OpenMates.app":
+            return {"com.apple.security.app-sandbox": True, "com.apple.developer.aps-environment": environment}
+        return {"com.apple.security.app-sandbox": True}
+
+    monkeypatch.setattr(release, "signed_entitlements", signed_entitlements)
+    for environment in (None, "$(APS_ENVIRONMENT)", "development"):
+        with pytest.raises(release.ReleaseError, match="concrete production APNs entitlement"):
+            release.validate_release_entitlements(archive, "macos")
+    environment = "production"
+    release.validate_release_entitlements(archive, "macos")
 
 
 def test_platform_processing_requires_both_platform_records() -> None:

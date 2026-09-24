@@ -462,7 +462,8 @@ def archive_command(platform: str, release_dir: Path, build_number: int, team_id
     if credentials:
         command[command.index(f"DEVELOPMENT_TEAM={team_id}"):command.index(f"DEVELOPMENT_TEAM={team_id}")] = credentials.xcode_arguments()
     if platform == "macos":
-        command.extend(["ARCHS=arm64 x86_64", "ONLY_ACTIVE_ARCH=NO", "CODE_SIGNING_ALLOWED=NO"])
+        # Limit concurrent universal-architecture Swift compiles on 8 GB Macs.
+        command.extend(["-jobs", "1", "ARCHS=arm64 x86_64", "ONLY_ACTIVE_ARCH=NO", "CODE_SIGNING_ALLOWED=NO"])
     command.append("archive")
     return command
 
@@ -634,21 +635,63 @@ def validate_release_entitlements(path: Path, platform: str) -> None:
     extension_entitlements = signed_entitlements(extension)
     if entitlements.get("com.apple.security.app-sandbox") is not True:
         raise ReleaseError("macOS app archive is missing the App Sandbox entitlement")
+    if entitlements.get("com.apple.developer.aps-environment") != "production":
+        raise ReleaseError("macOS app archive is missing a concrete production APNs entitlement")
     if extension_entitlements.get("com.apple.security.app-sandbox") is not True:
         raise ReleaseError("macOS share extension archive is missing the App Sandbox entitlement")
 
 
-def stamp_unsigned_macos_archive(path: Path, log_path: Path) -> None:
+def resolved_macos_entitlements(source: Path, team_id: str, bundle_id: str) -> dict[str, object]:
+    """Expand Xcode build variables before ad hoc signing an unsigned archive."""
+    variables = {
+        "$(APS_ENVIRONMENT)": "production",
+        "$(AppIdentifierPrefix)": f"{team_id}.",
+        "$(CFBundleIdentifier)": bundle_id,
+    }
+
+    def resolve(value: object) -> object:
+        if isinstance(value, str):
+            if value == "$(OPENMATES_DEV_WEBCREDENTIALS)":
+                return None
+            for name, replacement in variables.items():
+                value = value.replace(name, replacement)
+            if "$(" in value:
+                raise ReleaseError("Unresolved macOS entitlement build variable")
+            return value
+        if isinstance(value, list):
+            return [resolved for item in value if (resolved := resolve(item)) is not None]
+        if isinstance(value, dict):
+            return {key: resolve(item) for key, item in value.items()}
+        return value
+
+    entitlements = resolve(load_plist(source))
+    if not isinstance(entitlements, dict):
+        raise ReleaseError("macOS entitlements must be a dictionary")
+    return entitlements
+
+
+def stamp_unsigned_macos_archive(path: Path, log_path: Path, team_id: str) -> None:
     app = path / "Products" / "Applications" / "OpenMates.app"
     extension = app / "Contents" / "PlugIns" / "OpenMatesShareExtension_macOS.appex"
+    app_bundle_id = load_plist(app / "Contents" / "Info.plist").get("CFBundleIdentifier")
+    extension_bundle_id = load_plist(extension / "Contents" / "Info.plist").get("CFBundleIdentifier")
+    if app_bundle_id != BUNDLE_ID or extension_bundle_id != f"{BUNDLE_ID}.sharemacos":
+        raise ReleaseError("macOS archive bundle identifiers do not match the signing targets")
+    entitlement_paths = (
+        ("apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements", log_path.with_name("macos-share-entitlements.plist"), extension_bundle_id),
+        ("apple/OpenMates/Resources/OpenMatesMacOS.entitlements", log_path.with_name("macos-app-entitlements.plist"), app_bundle_id),
+    )
+    for source, destination, bundle_id in entitlement_paths:
+        with destination.open("wb") as handle:
+            plistlib.dump(resolved_macos_entitlements(REPO_ROOT / source, team_id, bundle_id), handle)
     commands = (
         [
             "codesign", "--force", "--sign", "-", "--timestamp=none", "--entitlements",
-            "apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements", str(extension),
+            str(entitlement_paths[0][1]), str(extension),
         ],
         [
             "codesign", "--force", "--sign", "-", "--timestamp=none", "--entitlements",
-            "apple/OpenMates/Resources/OpenMatesPasskey.entitlements", str(app),
+            str(entitlement_paths[1][1]), str(app),
         ],
     )
     for index, command in enumerate(commands, 1):
@@ -719,7 +762,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print_dry_run(commands, version, build_number)
             return 0
 
-        release_lock = acquire_release_lock(release_dir)
+        _release_lock = acquire_release_lock(release_dir)
         ensure_disk_space(REPO_ROOT, args.min_free_gb)
         if not args.verify_only:
             if prepare_build_keychain():
@@ -809,7 +852,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"stage={stage} status=started log={platform}-archive.log")
                 run_logged(archive_command(platform, release_dir, build_number, settings.team_id, credentials), release_dir / f"{platform}-archive.log")
                 if platform == "macos":
-                    stamp_unsigned_macos_archive(path, release_dir / "macos-entitlements.log")
+                    stamp_unsigned_macos_archive(path, release_dir / "macos-entitlements.log", settings.team_id)
                 if source_identity()["content_sha256"] != source["content_sha256"]:
                     raise ReleaseError("Apple release source changed during archive creation")
                 identity = validate_archive(path, platform, version, build_number)

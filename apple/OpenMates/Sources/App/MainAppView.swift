@@ -9,7 +9,7 @@
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
 // Specification: specifications/features/chat-navigation/specification.yml
-// Assertions: chat-navigation.order.sidebar-header-match, chat-navigation.draft-only.addressable, chat-navigation.empty-new-chat.excluded
+// Assertions: chat-navigation.order.sidebar-header-match, chat-navigation.draft-only.addressable, chat-navigation.empty-new-chat.excluded, chat-navigation.open.local-first-coherent
 // Specification: specifications/architecture/drafts/specification.yml
 // Assertions: drafts.draft-only.presentation, drafts.established-chat.presentation-unchanged
 
@@ -188,12 +188,12 @@ struct MainAppView: View {
     @State private var isReauthenticatingCachedSession = false
     @State private var actionChat: Chat?
     @State private var didBootstrapAuthenticatedSession = false
+    @State private var windowRuntimeID = UUID()
     @State private var didApplyLaunchCommand = false
     @State private var shellSwipeTarget: ShellSwipeTarget?
     @State private var shellDragOffset: CGFloat = 0
     @State private var visibleUserChatLimit = Self.initialUserChatLimit
     @State private var lastActiveSidebarSelection: ChatSidebarDisplayPolicy.RetainedSelection?
-    @State private var isInitialSyncComplete = false
     @State private var syncProcessingTask: Task<Void, Never>?
     @State private var backgroundSyncFlushTask: Task<Void, Never>?
     @State private var pendingAssistantResponseFlushTask: Task<Void, Never>?
@@ -343,6 +343,14 @@ struct MainAppView: View {
         #endif
     }
 
+    private var isWindowDraftUITestEnabled: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-test-window-drafts")
+        #else
+        false
+        #endif
+    }
+
     private func isSettingsSideBySide(width: CGFloat) -> Bool {
         !paneMetrics(width: currentViewportWidth > 0 ? currentViewportWidth : width).settingsOverlays
     }
@@ -423,7 +431,7 @@ struct MainAppView: View {
                 .frame(width: 1, height: 1)
                 .accessibilityIdentifier("chat-sync-complete")
                 .accessibilityLabel("Chat sync complete")
-                .accessibilityValue(isInitialSyncComplete ? "true" : "false")
+                .accessibilityValue(appSession.isInitialSyncComplete ? "true" : "false")
         }
         .onOpenURL { url in
             deepLinkHandler.handle(url: url)
@@ -514,6 +522,7 @@ struct MainAppView: View {
         }
         #endif
         .task {
+            if isAuthenticated { appSession.registerWindow(windowRuntimeID) }
             #if os(iOS)
             phoneWatchLoginBridge.start(isAuthenticated: { authManager.state == .authenticated })
             #endif
@@ -523,6 +532,9 @@ struct MainAppView: View {
                 isChatsPanelOpen = fixture == "sidebar"
                 workflowStore.showFixture(fixture)
             }
+        }
+        .onDisappear {
+            appSession.unregisterWindow(windowRuntimeID)
         }
     }
 
@@ -571,9 +583,6 @@ struct MainAppView: View {
     private var shellWithOverlays: some View {
         rootShell
         #if os(macOS)
-        .focusedSceneValue(\.newChatCommand) {
-            openNewChatScreen()
-        }
         .background {
             MacWindowTitleUpdater(title: currentWindowTitle)
                 .frame(width: 0, height: 0)
@@ -831,6 +840,7 @@ struct MainAppView: View {
 
     private func authStateDidChange(_ oldValue: AuthManager.AuthState, _ newState: AuthManager.AuthState) {
         if newState == .authenticated {
+            appSession.registerWindow(windowRuntimeID)
             showAuthSheet = false
             authFlowState.reset()
             Task {
@@ -1075,9 +1085,9 @@ struct MainAppView: View {
     }
 
     private func resetToUnauthenticatedSession() {
-        traceNativeStartupSync("phase=startupReset markerWasComplete=\(isInitialSyncComplete)")
+        traceNativeStartupSync("phase=startupReset markerWasComplete=\(appSession.isInitialSyncComplete)")
         didBootstrapAuthenticatedSession = false
-        isInitialSyncComplete = false
+        appSession.isInitialSyncComplete = false
         syncProcessingTask?.cancel()
         syncProcessingTask = nil
         backgroundSyncFlushTask?.cancel()
@@ -1127,6 +1137,8 @@ struct MainAppView: View {
         } else if shouldStartRecordingForUITest {
             openNewChatRecordingScreen()
         } else if launchCommand?.action == .newChat {
+            openFocusedNewChatScreen()
+        } else if launchCommand?.action == .newWindow {
             openNewChatScreen()
         } else if shouldStartFreshNewChatForUITest {
             openNewChatScreen()
@@ -1647,12 +1659,13 @@ struct MainAppView: View {
                 totalChatCount: totalChatCount,
                 serverSuggestions: syncedNewChatSuggestions,
                 accountInterestTagIds: accountInterestTagIds,
+                restoreExistingNewChatDraft: launchCommand == nil,
                 freshSessionRequest: freshNewChatRequest,
                 focusRequest: newChatFocusRequest,
                 recordRequest: newChatRecordRequest,
                 cameraCaptureRequest: newChatCameraCaptureRequest,
                 isSettingsOpen: currentViewportWidth > 1100 && showSettings,
-                onCreateChatWithMessage: { message, piiMappings, composerEmbeds, speechScope in
+                onCreateChatWithMessage: { message, piiMappings, composerEmbeds, speechScope, draftID in
                     let now = ChatSendPipeline.isoString(from: Date())
                     if incognitoManager.isEnabled {
                         let chatId = makeTransientChat(isIncognito: true)
@@ -1677,7 +1690,7 @@ struct MainAppView: View {
                         }
                         return chatId
                     } else if isAuthenticated {
-                        let chatId = DraftService.shared.activeNewChatDraftId ?? UUID().uuidString.lowercased()
+                        let chatId = draftID
                         #if DEBUG
                         if ProcessInfo.processInfo.arguments.contains("--ui-test-welcome-send-stage") {
                             print("[WelcomeSendStage] speech-transfer-start")
@@ -1730,6 +1743,15 @@ struct MainAppView: View {
                 onChatCreated: { chatId in
                     selectedChatId = chatId
                     showNewChat = false
+                },
+                onDraftPersisted: { chatId, wasFocused in
+                    guard showNewChat, selectedChatId == nil,
+                          chatStore.chat(for: chatId)?.hasNonEmptyDraft == true else { return false }
+                    DraftService.shared.releaseNewChatDraftId(ifMatches: chatId)
+                    if wasFocused { chatInputFocusRequest += 1 }
+                    selectedChatId = chatId
+                    showNewChat = false
+                    return true
                 },
                 onOpenChat: { chatId in
                     selectedChatId = chatId
@@ -2366,16 +2388,19 @@ struct MainAppView: View {
     private func bootstrapAuthenticatedSession() async {
         guard isAuthenticated, !didBootstrapAuthenticatedSession else { return }
         didBootstrapAuthenticatedSession = true
-        isInitialSyncComplete = false
+        if !appSession.hasLoadedAuthenticatedRuntime {
+            appSession.isInitialSyncComplete = false
+        }
         traceNativeStartupSync("phase=startupBootstrap marker=false")
 
         print("[MainApp] Bootstrapping authenticated session")
 
-        // Clear stale in-memory content before loading real user data, then
-        // immediately re-add public sections. Web always keeps intro/example/
-        // announcement/legal groups visible outside the user-chat display cap.
-        chatStore.clearInMemory()
-        totalChatCount = 0
+        // The account runtime and chat store are shared across macOS windows.
+        // A later window must preserve chats already loaded by the first one.
+        if !appSession.hasLoadedAuthenticatedRuntime {
+            chatStore.clearInMemory()
+        }
+        totalChatCount = chatStore.chats.filter { isVisibleUserChat($0) }.count
         selectedChatId = nil
         showNewChat = false
         visibleUserChatLimit = Self.initialUserChatLimit
@@ -2390,11 +2415,13 @@ struct MainAppView: View {
         if let user = authManager.currentUser?.id { appSession.modelPreferences.activate(server: ServerProfile.current().apiBaseURL.absoluteString, user: user) }
         let bridge = appSession.prepareAuthenticatedRuntime(lastOpenedChatId: authManager.currentUser?.lastOpened)
         syncBridge = bridge
-        DraftService.shared.configureSync(
-            chatStore: chatStore,
-            transport: wsManager,
-            offlineActions: bridge
-        )
+        appSession.configureDraftSyncIfNeeded()
+
+        if isWindowDraftUITestEnabled {
+            appSession.isInitialSyncComplete = true
+            resumeNewChatScreen()
+            return
+        }
 
         Task { await authManager.validateSessionAfterOfflineBootstrap() }
         Task { await loadAccountTopicPreferences() }
@@ -2872,6 +2899,7 @@ struct MainAppView: View {
     }
 
     private func handleChatUpdate(_ notification: Notification) {
+        guard appSession.ownsSharedSync(windowRuntimeID) else { return }
         guard let type = notification.userInfo?["type"] as? String,
               let raw = notification.userInfo?["raw"] as? Data else {
             Task { await loadInitialData() }
@@ -3312,6 +3340,7 @@ struct MainAppView: View {
     }
 
     private func handleSyncEvent(_ notification: Notification) {
+        guard appSession.ownsSharedSync(windowRuntimeID) else { return }
         guard let type = notification.userInfo?["type"] as? String else { return }
         guard let raw = notification.userInfo?["raw"] as? Data else {
             print("[MainApp][sync] event type=\(type) missing raw payload; falling back to full load")
@@ -3344,6 +3373,7 @@ struct MainAppView: View {
     ]
 
     private func handleHistoryRequest(_ notification: Notification) {
+        guard appSession.ownsSharedSync(windowRuntimeID) else { return }
         guard let raw = notification.userInfo?["raw"] as? Data else { return }
         Task { @MainActor in
             do {
@@ -3357,6 +3387,7 @@ struct MainAppView: View {
     }
 
     private func handlePendingDeferredSend(_ notification: Notification) {
+        guard appSession.ownsSharedSync(windowRuntimeID) else { return }
         if notification.userInfo?["dispatchThroughActiveComposer"] as? Bool == true {
             return
         }
@@ -3379,6 +3410,7 @@ struct MainAppView: View {
     }
 
     private func handleEmbedUpdate(_ notification: Notification) {
+        guard appSession.ownsSharedSync(windowRuntimeID) else { return }
         // Forward embed updates so the active ChatView can reload its embeds.
         // The notification carries the raw WS data; ChatViewModel listens for
         // embed refresh signals via NotificationCenter.
@@ -3574,7 +3606,7 @@ struct MainAppView: View {
                     backgroundSyncFlushTask = nil
                     await flushBackgroundSyncedContent(reason: "syncComplete")
                 }
-                isInitialSyncComplete = true
+                appSession.isInitialSyncComplete = true
                 traceNativeStartupSync("phase=startupMarkerComplete marker=true")
                 syncBridge?.startOfflinePrefetchIfEligible(reason: "startupSyncComplete")
                 ChatKeyManager.shared.markInitialSyncReady()
@@ -5162,7 +5194,7 @@ struct NewChatWelcomeView: View {
     let isIncognito: Bool
     @EnvironmentObject private var authManager: AuthManager
     @StateObject private var modelHost = NativeComposerModelHost()
-    @State private var modelDraftID = DraftService.shared.activeNewChatDraftId ?? UUID().uuidString.lowercased()
+    @State private var modelDraftID = UUID().uuidString.lowercased()
     let inspirations: [DailyInspirationBanner.DailyInspiration]
     let isAuthenticated: Bool
     let currentUser: UserProfile?
@@ -5170,13 +5202,15 @@ struct NewChatWelcomeView: View {
     let totalChatCount: Int
     let serverSuggestions: [NewChatSuggestionsView.ChatSuggestion]
     let accountInterestTagIds: [InterestTagId]
+    let restoreExistingNewChatDraft: Bool
     let freshSessionRequest: Int
     let focusRequest: Int
     let recordRequest: Int
     let cameraCaptureRequest: Int
     let isSettingsOpen: Bool
-    let onCreateChatWithMessage: (String, [PIIMapping], [ComposerPendingEmbed], AssistantSpeechScope?) async throws -> String
+    let onCreateChatWithMessage: (String, [PIIMapping], [ComposerPendingEmbed], AssistantSpeechScope?, String) async throws -> String
     let onChatCreated: (String) -> Void
+    let onDraftPersisted: (String, Bool) -> Bool
     let onOpenChat: (String) -> Void
     let onShowChatActions: (String) -> Void
     let onInspirationViewed: (String) -> Void
@@ -5193,6 +5227,8 @@ struct NewChatWelcomeView: View {
     @State private var landingProgressRestartToken = 0
     @State private var landingIntroRequestIndex = 0
     @State private var isComposerActivated = false
+    @State private var didAdoptPersistedDraft = false
+    @State private var hasClaimedLegacyDraft = false
     @State private var isComposerExpanded = false
     @State private var guestSelectedInterestTagIds: [InterestTagId] = []
     @State private var appliedGuestInterestTagIds: [InterestTagId] = []
@@ -5706,7 +5742,9 @@ struct NewChatWelcomeView: View {
             draftSaveTask?.cancel()
             attachmentUploadTasks.values.forEach { $0.cancel() }
             attachmentUploadTasks.removeAll()
-            Task { @MainActor in _ = await flushNewChatDraft() }
+            if !didAdoptPersistedDraft {
+                Task { @MainActor in _ = await flushNewChatDraft() }
+            }
             if composerOverlay == .recording || recordAttemptActive {
                 cancelWelcomeRecording()
             } else {
@@ -5754,7 +5792,6 @@ struct NewChatWelcomeView: View {
     }
 
     private func enqueueWelcomeImageUpload(data: Data, filename: String) {
-        modelDraftID = DraftService.shared.reserveNewChatDraftId(preferredId: modelDraftID)
         let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
         do {
             try composerSession.insertPendingEmbed(
@@ -6112,7 +6149,6 @@ struct NewChatWelcomeView: View {
             activeRecordingRealtimeSession = nil
             return
         }
-        modelDraftID = DraftService.shared.reserveNewChatDraftId(preferredId: modelDraftID)
         let session = AudioRecordingRealtimeSession()
         activeRecordingRealtimeSession = session
         session.begin(authManager: authManager, chatID: modelDraftID) { transcript, isConnecting in
@@ -6160,7 +6196,6 @@ struct NewChatWelcomeView: View {
             addGuestRecordingPreview(url: url, duration: duration)
             return
         }
-        modelDraftID = DraftService.shared.reserveNewChatDraftId(preferredId: modelDraftID)
         let context = finishWelcomeRealtimeRecording(duration: duration)
         let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
         do {
@@ -6250,11 +6285,17 @@ struct NewChatWelcomeView: View {
                 // markdown and encrypted companion snapshot atomically; the
                 // normal typing debounce can be cancelled by an immediate close.
                 draftSaveTask?.cancel()
+                let draftID = modelDraftID
+                let revision = composerSession.revision
+                let markdown = composerSession.canonicalMarkdown
                 try await saveNewChatDraft(
-                    markdown: composerSession.canonicalMarkdown,
-                    revision: composerSession.revision
+                    markdown: markdown,
+                    revision: revision
                 )
                 cleanupWelcomeRecordingTemporaryFile()
+                adoptPersistedNewChatDraftIfCurrent(
+                    draftID: draftID, revision: revision, markdown: markdown, wasFocused: isFocused
+                )
             } catch {
                 pendingComposerEmbeds.removeAll { $0.id == embed.id }
                 try? composerSession.removeEmbed(nodeID: nodeID)
@@ -6573,14 +6614,21 @@ struct NewChatWelcomeView: View {
     }
 
     private func dismissWelcomeComposer() {
-        let hasDraftContent = !composerSession.canonicalMarkdown
+        let markdown = composerSession.canonicalMarkdown
+        let hasDraftContent = !markdown
             .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || !pendingComposerEmbeds.isEmpty
             || composerSession.controller.document.nodes.contains { $0.kind == "embed" }
         if hasDraftContent {
+            let draftID = modelDraftID
+            let revision = composerSession.revision
             Task { @MainActor in
                 guard await flushNewChatDraft() else { return }
+                guard modelDraftID == draftID, composerSession.revision == revision else { return }
                 completeWelcomeComposerDismissal(clearDraftContent: false)
+                adoptPersistedNewChatDraftIfCurrent(
+                    draftID: draftID, revision: revision, markdown: markdown, wasFocused: false
+                )
             }
             return
         }
@@ -7083,17 +7131,26 @@ struct NewChatWelcomeView: View {
     }
 
     private func restoreNewChatDraft() async {
-        guard isAuthenticated, !isCreatingChat else { return }
+        guard restoreExistingNewChatDraft, isAuthenticated, !isCreatingChat else { return }
+        let initialDraftID = modelDraftID
+        let initialFreshRequest = freshSessionRequest
+        let selectedAlias = DraftService.shared.activeNewChatDraftId
         do {
             NativeDiagnostics.info(
                 "New-chat audio restore started scopeActive=\(OfflineStore.shared.activeScopeId != nil) draftAliasActive=\(DraftService.shared.activeNewChatDraftId != nil)",
                 category: "apple_composer"
             )
-            if let draft = try await loadNewChatDraftForRestore(),
-               !Task.isCancelled, !isCreatingChat, composerSession.canonicalMarkdown.isEmpty {
-                if let activeDraftID = DraftService.shared.activeNewChatDraftId {
-                    modelDraftID = activeDraftID
-                }
+            let draft = try await loadNewChatDraftForRestore(
+                chatId: selectedAlias ?? DraftSyncCoordinator.syntheticNewChatId
+            )
+            let restoredID = selectedAlias ?? DraftService.shared.activeNewChatDraftId
+            if let draft, let restoredID,
+               !Task.isCancelled, !isCreatingChat,
+               freshSessionRequest == initialFreshRequest,
+               modelDraftID == initialDraftID,
+               composerSession.canonicalMarkdown.isEmpty {
+                modelDraftID = restoredID
+                hasClaimedLegacyDraft = true
                 composerSession.replaceMarkdown(draft.canonicalMarkdown)
                 hydrateNewChatDraftEmbeds(draft.attachments)
             } else {
@@ -7142,9 +7199,8 @@ struct NewChatWelcomeView: View {
         isComposerExpanded = false
         isFocused = false
 
-        modelDraftID = DraftService.shared.beginFreshNewChatDraft(
-            preferredId: UUID().uuidString.lowercased()
-        )
+        DraftService.shared.releaseNewChatDraftId(ifMatches: modelDraftID)
+        modelDraftID = UUID().uuidString.lowercased()
         if !composerSession.canonicalMarkdown.isEmpty {
             suppressNextDraftSave = true
             composerSession.replaceMarkdown("")
@@ -7154,12 +7210,12 @@ struct NewChatWelcomeView: View {
         return true
     }
 
-    private func loadNewChatDraftForRestore() async throws -> ComposerDraft? {
+    private func loadNewChatDraftForRestore(chatId: String) async throws -> ComposerDraft? {
         // The first encrypted read can cross a startup draft-sync update. Keep
         // DraftService's strict version check and retry the latest snapshot.
         for attempt in 0..<5 {
             do {
-                return try await DraftService.shared.loadDraft(chatId: DraftSyncCoordinator.syntheticNewChatId)
+                return try await DraftService.shared.loadDraft(chatId: chatId)
             } catch {
                 guard case ComposerDraftError.verificationFailed = error, attempt < 4 else { throw error }
                 try await Task.sleep(for: .milliseconds(250 * (attempt + 1)))
@@ -7261,18 +7317,26 @@ struct NewChatWelcomeView: View {
 
     private func applyInboundNewChatDraftIfCurrent(chatId: String) async {
         guard !isCreatingChat else { return }
+        if chatId != modelDraftID && chatId != DraftSyncCoordinator.syntheticNewChatId {
+            guard restoreExistingNewChatDraft, freshSessionRequest == 0,
+                  !hasClaimedLegacyDraft,
+                  composerSession.canonicalMarkdown.isEmpty,
+                  DraftService.shared.activeNewChatDraftId == chatId else { return }
+            modelDraftID = chatId
+            hasClaimedLegacyDraft = true
+        }
+        let requestedDraftID = modelDraftID
         let revision = composerSession.revision
         let scopeGeneration = OfflineStore.shared.scopeGeneration
-        let activeDraftId = DraftService.shared.activeNewChatDraftId
-        guard chatId == DraftSyncCoordinator.syntheticNewChatId || chatId == activeDraftId else { return }
+        guard chatId == requestedDraftID ||
+                (chatId == DraftSyncCoordinator.syntheticNewChatId &&
+                 DraftService.shared.activeNewChatDraftId == requestedDraftID) else { return }
         do {
-            let draft = try await loadNewChatDraftForRestore()
+            let draft = try await loadNewChatDraftForRestore(chatId: requestedDraftID)
             let markdown = draft?.canonicalMarkdown ?? ""
             guard !isCreatingChat, revision == composerSession.revision,
+                  modelDraftID == requestedDraftID,
                   scopeGeneration == OfflineStore.shared.scopeGeneration else { return }
-            if let activeDraftID = DraftService.shared.activeNewChatDraftId {
-                modelDraftID = activeDraftID
-            }
             if markdown != composerSession.canonicalMarkdown {
                 suppressNextDraftSave = true
                 composerSession.replaceMarkdown(markdown)
@@ -7296,15 +7360,39 @@ struct NewChatWelcomeView: View {
             return
         }
         let revision = composerSession.revision
+        let draftID = modelDraftID
         draftSaveTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(500))
+            #if DEBUG
+            let debounceMilliseconds = ProcessInfo.processInfo.arguments.contains("--ui-test-window-drafts") ? 3_000 : 500
+            #else
+            let debounceMilliseconds = 500
+            #endif
+            try? await Task.sleep(for: .milliseconds(debounceMilliseconds))
             guard !Task.isCancelled else { return }
             do {
                 try await saveNewChatDraft(markdown: markdown, revision: revision)
+                if !Task.isCancelled {
+                    adoptPersistedNewChatDraftIfCurrent(
+                        draftID: draftID, revision: revision, markdown: markdown, wasFocused: isFocused
+                    )
+                }
             } catch {
                 NativeDiagnostics.warning("New-chat draft save failed: \(type(of: error))", category: "apple_composer")
             }
         }
+    }
+
+    private func adoptPersistedNewChatDraftIfCurrent(
+        draftID: String, revision: Int, markdown: String, wasFocused: Bool
+    ) {
+        guard !markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              attachmentUploadTasks.isEmpty,
+              !isRecordingUploadPending,
+              !recordAttemptActive,
+              composerOverlay == nil,
+              composerSession.revision == revision,
+              modelDraftID == draftID else { return }
+        didAdoptPersistedDraft = onDraftPersisted(draftID, wasFocused)
     }
 
     private func flushNewChatDraft() async -> Bool {
@@ -7332,12 +7420,14 @@ struct NewChatWelcomeView: View {
            isRecordingUploadPending || !pendingComposerEmbeds.isEmpty {
             throw CancellationError()
         }
+        let draftID = modelDraftID
         try await DraftService.shared.saveDraft(
             canonicalMarkdown: markdown,
             preview: String(markdown.prefix(160)),
-            chatId: "composer:new-chat",
+            chatId: draftID,
             revision: revision,
             draftVersion: 0,
+            useStoredDraftVersion: true,
             attachments: pendingComposerEmbeds.map {
                 ComposerDraftAttachment(embedRecord: $0.record, localData: $0.localData)
             }
@@ -7416,7 +7506,8 @@ struct NewChatWelcomeView: View {
                     routedText,
                     redaction.mappings,
                     pendingEmbeds,
-                    isIncognito ? nil : AssistantSpeechAppRuntime.shared.scope(for: modelDraftID)
+                    isIncognito ? nil : AssistantSpeechAppRuntime.shared.scope(for: modelDraftID),
+                    modelDraftID
                 )
                 recordWelcomeSendStage("create-returned")
                 guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
@@ -7443,7 +7534,8 @@ struct NewChatWelcomeView: View {
                 isFocused = false
                 anonymousAttachmentPending = false
                 pendingComposerEmbeds = []
-                try? await DraftService.shared.clearDraft(chatId: "composer:new-chat")
+                try? await DraftService.shared.clearDraft(chatId: modelDraftID)
+                DraftService.shared.releaseNewChatDraftId(ifMatches: modelDraftID)
                 guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
                     accountGeneration: OfflineStore.shared.scopeGeneration, chatID: modelDraftID),
                     context == modelContext, modelHost.sendGeneration == routingGeneration else { return }

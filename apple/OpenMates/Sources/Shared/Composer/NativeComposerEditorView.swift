@@ -129,6 +129,12 @@ struct NativeComposerEditorView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let textView = context.coordinator.adapter.makePlatformView()
         textView.drawsBackground = false
+        textView.isSelectable = isFocused.wrappedValue
+        textView.isEditable = isEditable && isFocused.wrappedValue
+        textView.addGestureRecognizer(NSClickGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.focusEditorFromClick)
+        ))
         textView.textContainerInset = NSSize(
             width: .spacing6,
             height: MessageComposerMetric.editorVerticalInset
@@ -137,6 +143,19 @@ struct NativeComposerEditorView: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = false
         scrollView.documentView = textView
+        // AppKit may choose the first editable view when this scroll view joins a
+        // window, after the first SwiftUI update has already run.
+        Task { @MainActor [weak scrollView] in
+            guard let textView = scrollView?.documentView as? NSTextView,
+                  let window = textView.window else { return }
+            if isFocused.wrappedValue {
+                if window.firstResponder !== textView {
+                    window.makeFirstResponder(textView)
+                }
+            } else if window.firstResponder === textView {
+                window.makeFirstResponder(nil)
+            }
+        }
         return scrollView
     }
 
@@ -145,14 +164,24 @@ struct NativeComposerEditorView: NSViewRepresentable {
         context.coordinator.onFocusChange = { isFocused.wrappedValue = $0 }
         context.coordinator.onSubmit = onSubmit
         context.coordinator.adapter.synchronize(textView)
-        textView.isEditable = isEditable
-        if isFocused.wrappedValue {
-            textView.window?.makeFirstResponder(textView)
+        // AppKit can make an editable text view first responder when a window
+        // opens. Keep the idle editor out of that selection until the composer
+        // host receives a click and sets its focus binding.
+        textView.isSelectable = isFocused.wrappedValue
+        textView.isEditable = isEditable && isFocused.wrappedValue
+        if let window = textView.window {
+            if isFocused.wrappedValue {
+                if window.firstResponder !== textView {
+                    window.makeFirstResponder(textView)
+                }
+            } else if window.firstResponder === textView {
+                window.makeFirstResponder(nil)
+            }
         }
     }
 
     @MainActor
-    final class Coordinator {
+    final class Coordinator: NSObject {
         let adapter: NativeComposerTextView
         var onFocusChange: (Bool) -> Void = { _ in }
         var onSubmit: () -> Void = { }
@@ -170,8 +199,13 @@ struct NativeComposerEditorView: NSViewRepresentable {
                 onFocusChange: { _ in },
                 onSubmit: { }
             )
+            super.init()
             adapter.onFocusChange = { [weak self] focused in self?.onFocusChange(focused) }
             adapter.onSubmit = { [weak self] in self?.onSubmit() }
+        }
+
+        @objc func focusEditorFromClick() {
+            onFocusChange(true)
         }
     }
 }
