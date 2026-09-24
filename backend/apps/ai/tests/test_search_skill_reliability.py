@@ -62,6 +62,22 @@ def test_neutral_repository_search_drops_invented_generic_ranking_defaults() -> 
         "requests": [{"query": "typescript markdown editor", "count": 10}]
     }
 
+    quoted_variant, quoted_removed = omit_unstated_generic_repository_criteria(
+        {
+            "requests": [
+                {
+                    "query": "markdown editor language:TypeScript",
+                    "relevance_criteria": '"Popular, active, or well-known TypeScript Markdown editor libraries and components"',
+                }
+            ]
+        },
+        "Find TypeScript Markdown editor libraries on GitHub.",
+    )
+    assert quoted_removed == 1
+    assert quoted_variant == {
+        "requests": [{"query": "markdown editor language:TypeScript"}]
+    }
+
 
 # contract-test: supporting surface=gui.web assertions=app-skills.search-relevance.optional-and-inferred
 def test_repository_search_keeps_explicit_or_goal_specific_ranking() -> None:

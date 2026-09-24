@@ -26,12 +26,19 @@ _GENERIC_REPOSITORY_RANKING_CONCEPTS: dict[str, set[str]] = {
     "quality": {
         "compatible",
         "documented",
+        "established",
         "high",
+        "known",
         "mature",
+        "notable",
+        "prominent",
         "quality",
         "reliable",
         "secure",
+        "trusted",
+        "used",
         "well",
+        "widely",
     },
 }
 _GENERIC_REPOSITORY_RANKING_WORDS = frozenset().union(
@@ -39,6 +46,8 @@ _GENERIC_REPOSITORY_RANKING_WORDS = frozenset().union(
 )
 _REPOSITORY_SUBJECT_WORDS = {
     "code",
+    "component",
+    "components",
     "editor",
     "editors",
     "framework",
@@ -47,10 +56,14 @@ _REPOSITORY_SUBJECT_WORDS = {
     "libraries",
     "option",
     "options",
+    "package",
+    "packages",
     "project",
     "projects",
     "repository",
     "repositories",
+    "solution",
+    "solutions",
     "software",
     "tool",
     "tools",

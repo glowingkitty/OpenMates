@@ -1900,7 +1900,7 @@ assertions:
       surface: gui.web
     - &id225
       path: backend/apps/ai/tests/test_search_skill_reliability.py
-      line: 67
+      line: 83
       name: test_repository_search_keeps_explicit_or_goal_specific_ranking
       surface: gui.web
     - &id237
