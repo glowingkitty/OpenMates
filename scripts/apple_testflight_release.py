@@ -71,6 +71,31 @@ class ReleaseError(RuntimeError):
     """An expected, actionable release failure."""
 
 
+def prepare_build_keychain(home: Path | None = None) -> bool:
+    """Unlock the existing signing keychain for unattended Xcode archives."""
+    home = home or Path.home()
+    password_path = home / ".config/openmates/apple-build-keychain-password"
+    keychain = home / "Library/Keychains/openmates-build.keychain-db"
+    if not password_path.is_file() or not keychain.is_file():
+        return False
+    password = password_path.read_text(encoding="utf-8").strip()
+    if not password:
+        raise ReleaseError("Apple build keychain password file is empty")
+    commands = (
+        ("unlock", ["security", "unlock-keychain", "-p", password, str(keychain)]),
+        ("keep unlocked", ["security", "set-keychain-settings", "-lut", "21600", str(keychain)]),
+        ("permit codesign", [
+            "security", "set-key-partition-list", "-S", "apple-tool:,apple:,codesign:",
+            "-s", "-k", password, str(keychain),
+        ]),
+    )
+    for label, command in commands:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=90)
+        if result.returncode:
+            raise ReleaseError(f"Could not {label} Apple build keychain (exit {result.returncode})")
+    return True
+
+
 @dataclass(frozen=True)
 class ProjectSettings:
     version: str
@@ -697,6 +722,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         release_lock = acquire_release_lock(release_dir)
         ensure_disk_space(REPO_ROOT, args.min_free_gb)
         if not args.verify_only:
+            if prepare_build_keychain():
+                print("build_keychain=unlocked")
             generate_release_inputs(release_dir)
         source = source_identity()
         fingerprint = release_fingerprint(source, version, build_number, export_sha)

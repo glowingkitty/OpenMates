@@ -120,6 +120,33 @@ def test_commands_support_signed_in_xcode_without_api_credentials(tmp_path: Path
     assert "-authenticationKeyPath" not in export
 
 
+def test_release_unlocks_existing_build_keychain_before_archiving(tmp_path: Path, monkeypatch) -> None:
+    release = load_module()
+    password_path = tmp_path / ".config/openmates/apple-build-keychain-password"
+    password_path.parent.mkdir(parents=True)
+    password_path.write_text("local-secret", encoding="utf-8")
+    keychain = tmp_path / "Library/Keychains/openmates-build.keychain-db"
+    keychain.parent.mkdir(parents=True)
+    keychain.touch()
+    commands = []
+
+    def run(command, **_kwargs):
+        commands.append(command)
+        return release.subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(release.subprocess, "run", run)
+    assert release.prepare_build_keychain(tmp_path)
+    assert [command[1] for command in commands] == [
+        "unlock-keychain", "set-keychain-settings", "set-key-partition-list"
+    ]
+    assert commands[-1][-1] == str(keychain)
+
+
+def test_release_without_local_build_keychain_uses_default_signing(tmp_path: Path) -> None:
+    release = load_module()
+    assert release.prepare_build_keychain(tmp_path) is False
+
+
 def test_archive_distribution_is_a_resumable_upload_receipt(tmp_path: Path) -> None:
     release = load_module()
     archive = make_archive(tmp_path, "ios")
