@@ -1,0 +1,244 @@
+schema_version: 2
+id: assistant-speech-efficient-playback
+title: Faster, demand-driven assistant response speech
+status: draft
+goal: >
+  Make assistant speech feel faster, generate only paragraphs a listener is likely
+  to hear, keep playback continuous when generation is timely, give gentle audible
+  feedback while a selected paragraph is pending, and charge exactly for generated
+  speech without duplicate or missing credits.
+
+scope:
+  in:
+    - Assistant response speech after voice messages, chat Auto speak response, and the web Speak response action.
+    - Versioned mate voice profiles, browser playback, paragraph dispatch, cancellation, and speech billing.
+    - Existing encrypted segment files, owner authorization, replay, and chat usage attribution.
+  out:
+    - The separately invoked audio.speak app skill and its pricing.
+    - Changing CLI batch-generation semantics without a separate CLI decision.
+    - Relaying partial provider audio or plaintext to the browser.
+
+current_state:
+  - Assistant response speech sends ElevenLabs voice_settings.speed 1.1 for the eleven_v3_conversational profile; browser playback has no playbackRate setting.
+  - Automatic speech dispatches each immutable segment as the AI emits it. The manual web request sends all projected segments and dispatches every missing one immediately.
+  - Close dismisses local playback but leaves already queued generation running; Stop cancels only unclaimed queued work.
+  - The existing billing worker sums ready character counts once a sealed manifest has no queued, generating, or retryable-error segments. A manifest marked committed is not revisited for a later successful retry.
+  - One historical-message real-provider smoke recorded one 3-credit usage entry for one 29-character segment and no extra charge on replay. It does not prove multi-segment stop/retry billing.
+
+decisions:
+  - id: pace
+    status: active
+    decision: >
+      Verify the live model's response to the current 1.1 speed request with a
+      short paired sample, because ElevenLabs documentation conflicts about
+      v3 speed support. Prefer a provider speed of up to 1.2 if it measurably
+      works and remains intelligible. Otherwise use a modest pitch-preserving
+      playback rate on assistant speech only, consistently for generated and
+      cached clips. Do not transcode and store duplicate faster assets.
+    reason: The live model's support is unclear and the current browser queue has no rate adjustment.
+    decided_at: '2026-09-24'
+  - id: demand
+    status: active
+    decision: >
+      Register immutable paragraph identities and chapter order as they appear,
+      but dispatch only the first playable paragraph. Keep later speakable text
+      transient in the authorized client or existing AI stream until requested;
+      durable metadata contains no plaintext. Reuse matching ready assets.
+      Starting the next response, Close, or Stop cancels unclaimed work and
+      prevents further prefetch. An in-flight provider call may finish and be
+      charged if its asset becomes ready.
+    reason: Waiting to dispatch unplayed text is the direct provider-cost reduction.
+    decided_at: '2026-09-24'
+  - id: prefetch
+    status: active
+    decision: >
+      Prefetch at most one next paragraph while actually playing. Trigger when
+      remaining playback time is at most the measured p95 of request, safety,
+      synthesis, encryption, publication, and client decryption latency plus a
+      small margin. Use an initial 6-second lead until measurements are available;
+      request immediately at playback start when the current paragraph is shorter
+      than that lead. Recalculate on seek, rate change, pause, resume, and skip.
+      Do not claim a zero-gap guarantee when provider latency exceeds the lead.
+    reason: Playback time and measured end-to-end readiness latency bound the best useful lead.
+    decided_at: '2026-09-24'
+  - id: pending_sound
+    status: active
+    decision: >
+      Selecting an unready paragraph dispatches it immediately, makes it current,
+      and repeats a calm prerecorded, locally bundled confirmation cue at a
+      restrained interval while waiting. Stop the cue immediately on ready,
+      pause, Close, failure, or a different selection. No provider request or
+      credit charge is created for the cue. Respect browser autoplay policy and
+      keep the existing visible Loading/retry controls.
+    reason: A static cue gives feedback during an unavoidable selected-chapter wait without provider cost.
+    decided_at: '2026-09-24'
+  - id: billing
+    status: active
+    decision: >
+      Settle each newly ready provider-generated segment promptly and idempotently.
+      Maintain a monotone, message-scoped count of settled characters and charge
+      only the increase in ceil(total/14), so paragraph boundaries do not change
+      the user's total price. Use a durable segment-specific settlement identity
+      and atomic manifest claim to survive concurrent workers and retries. A
+      zero-credit increment is still recorded as settled. Group segment charges
+      into one message total in usage UI. This changes the existing one-row
+      contract and needs a reviewed Specification update before implementation.
+    reason: Waiting for every paragraph to finish cannot promptly settle a response whose later paragraphs may never be requested.
+    decided_at: '2026-09-24'
+
+implementation_state:
+  subject_commit: 5771efd68e562f1b7e10ccc067a40a402e9a7c1d
+approvals:
+  specification: {status: pending}
+  plan: {status: pending}
+
+scenarios:
+  - id: S-1
+    title: A user starts and stops a spoken response
+    given:
+      - A response has several paragraphs and only the first has a ready file.
+    when:
+      - The listener stops during the first paragraph.
+    then:
+      - Later paragraphs have no provider request or charge, and the first ready file can be replayed.
+  - id: S-2
+    title: A listener continues or skips ahead
+    given:
+      - The next chapter is unready and provider readiness latency has been measured.
+    when:
+      - Playback nears the current chapter end or the listener selects a later chapter.
+    then:
+      - Only the needed chapter is requested; speech continues when ready and a calm cue repeats during a selected wait.
+  - id: S-3
+    title: A generated chapter is charged once
+    given:
+      - The provider generated a paragraph and its encrypted asset became ready.
+    when:
+      - Billing retries, the user stops, or another paragraph later becomes ready.
+    then:
+      - Exactly the cumulative rounded increase is charged once and the usage total remains attributable to the assistant message.
+  - id: S-4
+    title: The assistant speaks at a more useful pace
+    given:
+      - A supported mate voice speaks generated and cached chapters.
+    when:
+      - The listener plays the response at its default pace.
+    then:
+      - Speech is audibly faster yet intelligible, with accurate chapter timing and no duplicate audio asset.
+
+implementation:
+  - Amend feature.assistant-response-speech examples and assertions for Close/Stop cancellation, demand-driven generation, pending cue, pace, and incremental billing; get the exact Specification approval required by the existing product workflow.
+  - Measure short/long paragraph provider and asset-ready latency, and paired audible pace for a few mate voices and languages without logging text. Pick a supported speed strategy and a lead time from that evidence.
+  - Add an owner-scoped, idempotent dispatch action for one registered segment. For streamed auto-speak, retain only bounded transient plaintext until playback asks for it; a reload may reproject from the owner's decrypted message through the existing request path. Reject stale source hashes, voice versions, or superseded messages.
+  - Drive dispatch from queue playback time and explicit chapter selection; use ready-asset reuse, one-ahead prefetch, backpressure, and cancellation of unclaimed work. Preserve the existing first-segment and autoplay behavior.
+  - Add the pending cue with a single lifecycle owner, then tune it in component preview for mobile and desktop and in browser playback tests.
+  - Add a durable incremental billing ledger and idempotent internal charge identities. Reconcile provider-success/asset-ready, retries, stop, crash-after-charge, and delayed billing failures. Keep failed, cached, and prerecorded clips free; flag unsettled ready segments for repair.
+  - Report segment dispatch count, cancelled-before-dispatch count, latency to ready, paragraph transition gap, and billed-vs-ready character totals without plaintext or default user identifiers. Compare provider calls and billed credits before and after on short-listening scenarios.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Voice-message, Auto speak, and manual web paths request the first needed paragraph; stopping prevents later provider calls and charges while preserving ready-file replay.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB]
+  - id: AC-2
+    scenario: S-2
+    text: Continuous listening prefetches only one next chapter near its end; skipping requests the selected chapter once and plays a static cue only while waiting.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-QUEUE, T-WEB]
+  - id: AC-3
+    scenario: S-3
+    text: Each ready provider-generated chapter settles once; total credits equal message-level rounded characters after stop, retry, races, and later chapters.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BILLING]
+  - id: AC-4
+    scenario: S-4
+    text: Paired real-provider samples or pitch-preserving playback verify faster intelligible narration for generated and replayed chapters.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-PACE]
+
+tests:
+  - id: T-QUEUE
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
+    command: pnpm --dir frontend/packages/ui exec vitest run src/services/__tests__/assistantSpeechQueue.test.ts
+    assertions: [one-ahead timer, skip, pause, cancellation, pending cue lifecycle]
+    covers: [AC-2]
+    red_phase: {required: false, expected: not_applicable, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {}}
+  - id: T-WEB
+    type: playwright
+    file: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --help
+    target: isolated_github_ci
+    execution_environment: isolated_github_ci
+    assertions: [voice-message, auto, manual, stop, skip, pending playback]
+    covers: [AC-1, AC-2]
+    red_phase: {required: false, expected: not_applicable, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {}}
+  - id: T-BILLING
+    type: pytest
+    file: backend/tests/test_assistant_speech_worker.py
+    command: python3 -m pytest backend/tests/test_assistant_speech_worker.py -q
+    assertions: [per-segment idempotency, cumulative rounding, cancellation, retry, crash recovery]
+    covers: [AC-3]
+    red_phase: {required: false, expected: not_applicable, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {}}
+  - id: T-PACE
+    type: manual
+    assertions: [paired provider speed support, intelligibility, ready latency, real billing trace]
+    covers: [AC-4]
+    red_phase: {required: false, expected: not_applicable, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {}}
+
+tasks:
+  - id: TASK-8823
+    title: Approve demand-driven assistant speech contract
+    status: pending
+    phase: awaiting_approval
+    covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]}
+    expected_files: [specifications/features/assistant-response-speech/specification.yml, specifications/features/assistant-response-speech/examples.yml]
+    verification_ids: [T-QUEUE, T-WEB, T-BILLING, T-PACE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership: {files: [specifications/features/assistant-response-speech/specification.yml], shared_files: []}
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-8823
+    approach: Plan the contract changes from the current implementation and provider documentation.
+    outcome: planned
+    recorded_at: '2026-09-24'
+handoff:
+  current_task_id: TASK-8823
+  next_action: Draft the exact Specification and examples for user review, then implement dependent Tasks after approval.
+  command: python3 scripts/specifications.py validate specifications/features/assistant-response-speech
+  expected_outcome: Changed assertions and human-readable examples validate before review artifact generation.
+  blocker: null
+  last_verified_commit: 5771efd68e562f1b7e10ccc067a40a402e9a7c1d
+
+source_evidence:
+  - backend/apps/audio/assistant_speech/voice_profiles.py
+  - backend/apps/audio/assistant_speech/segment_task.py
+  - backend/apps/audio/assistant_speech/persistence.py
+  - backend/apps/audio/assistant_speech/billing_task.py
+  - backend/apps/ai/tasks/stream_consumer.py
+  - backend/core/api/app/routes/handlers/websocket_handlers/assistant_speech_handler.py
+  - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+  - frontend/packages/ui/src/services/assistantSpeechController.ts
+  - specifications/features/assistant-response-speech/specification.yml
+  - https://elevenlabs.io/docs/help-center/product/core-capabilities/text-to-speech/can-i-change-the-pace-of-the-voice
+  - https://elevenlabs.io/docs/eleven-creative/playground/text-to-speech
+  - https://elevenlabs.io/docs/eleven-api/guides/how-to/websockets/realtime-tts
