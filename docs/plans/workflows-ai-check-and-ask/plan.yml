@@ -1,7 +1,7 @@
 schema_version: 2
 id: workflows-ai-check-and-ask
 title: Workflow AI Check and Ask AI
-status: implementing
+status: verified
 goal: >
   Let people add a plain-language boolean Check or a tool-isolated Ask AI text step
   to Workflows, with an understandable web editor and identical saved behavior
@@ -66,7 +66,7 @@ acceptance_criteria:
     scenario: S-1
     text: AI Check uses only projected earlier values, Jev then structured fallback, and exactly one true/false/Unsure branch with encrypted decision detail and retry reuse.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BACKEND, T-WEB]
@@ -74,7 +74,7 @@ acceptance_criteria:
     scenario: S-2
     text: Ask AI produces one downstream-referenceable answer, cannot invoke tools even for adversarial instructions, and bills actual Test/run usage once.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BACKEND, T-CLIENT, V-LIVE]
@@ -82,7 +82,7 @@ acceptance_criteria:
     scenario: S-3
     text: All create/update paths reject reliable new app-call requests, permit existing-output processing, and return a neutral warning when both evaluators cannot verify.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-BACKEND, T-CLIENT]
@@ -90,7 +90,7 @@ acceptance_criteria:
     scenario: S-3
     text: Web shows ranked chips above the multiline editor after one idle second, an app-skill warning below, and blocks only a reliable violation; stale responses never alter current text state.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids: [T-WEB]
@@ -98,7 +98,7 @@ acceptance_criteria:
     scenario: S-3
     text: Authoring sends only bounded text and reference labels/types, is free, coalesced and cached, and obeys account/IP and fallback spend limits; limit exhaustion preserves neutral Save behavior.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BACKEND]
@@ -110,7 +110,16 @@ tests:
     covers: [AC-1, AC-2, AC-3, AC-5]
     assertions: [Graph validation, branch routing, bounded projection, no-tool Ask, fallback, warning, cache, limits and billing idempotency.]
     red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Approved specifications establish missing feature behavior.}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workflow_ai_check_and_ask.py backend/tests/test_workflow_app_skill_adapter.py -q
+        run_id: local-workflow-ai-backend-20260924
+        timestamp: '2026-09-24T18:12:41Z'
+        subject_commit: 05fc991f33e8d81d7ba143ced7bc59dd77847951
+        result: 18 passed; graph validation, bounded data, fallback and Unsure routing, tool isolation, rate limits, and retry-safe charging passed.
   - id: T-WEB
     type: playwright
     file: frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts
@@ -120,7 +129,19 @@ tests:
     covers: [AC-1, AC-4]
     assertions: [Exact and AI Check branches, Ask AI selector/editor, ranked chips, warnings and non-blocking uncertainty.]
     red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Approved specifications establish missing feature behavior.}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/ci_coordinator.py submit --session 2666 --source 05fc991f33e8d81d7ba143ced7bc59dd77847951 --mode e2e --spec workflows-ai-authoring.spec.ts
+        run_id: '36039017179'
+        timestamp: '2026-09-24T18:12:41Z'
+        subject_commit: 05fc991f33e8d81d7ba143ced7bc59dd77847951
+        harness_commit: a8c3799093fdfa40ec6910ae95a02a5e85684699
+        target: isolated_github_ci
+        deployment_reference: github-actions-run-36039017179
+        result: 1 passed with no skips or flakes; isolated cleanup completed and no private account files remained.
   - id: T-CLIENT
     type: unit
     file: frontend/packages/openmates-cli/tests/workflows.test.ts
@@ -128,17 +149,34 @@ tests:
     covers: [AC-2, AC-3]
     assertions: [CLI and SDK expose shared create/update rejection and neutral warnings; existing output references remain valid.]
     red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Approved specifications establish missing feature behavior.}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/workflows.test.ts; node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/sdk-workflows.test.ts; python3 -m pytest packages/openmates-python/tests/test_workflows.py -q
+        run_id: local-workflow-ai-clients-20260924
+        timestamp: '2026-09-24T18:12:41Z'
+        subject_commit: 05fc991f33e8d81d7ba143ced7bc59dd77847951
+        result: 9 CLI workflow tests, 5 npm SDK workflow tests, and 6 Python SDK workflow tests passed.
 verifications:
   - id: V-LIVE
     kind: manual_check
     phase: final
-    status: pending
+    status: passed
     required_for_done: true
     covers: [AC-1, AC-2]
-    evidence: {status: pending, note: Real Jev and Gemini inference on a disposable dev account after scoped deploy; never in CI.}
+    evidence:
+      status: passed
+      command: openmates workflows step-test <disposable-workflow> ask; openmates workflows step-test <disposable-workflow> check; openmates workflows delete <disposable-workflow> --yes
+      run_id: dev-workflow-ai-live-20260924
+      timestamp: '2026-09-24T18:12:41Z'
+      subject_commit: 05fc991f33e8d81d7ba143ced7bc59dd77847951
+      target: https://api.dev.openmates.org
+      reason: Real provider execution was required because deterministic fixtures cannot prove the deployed Jev and Gemini credentials, routing, tool isolation and normal credit path work together.
+      summary: A disabled disposable workflow produced Answer READY through Gemini 3.8 Flash with normal usage charging; Jev then returned reliable true through bounded_decision_primary using only the Answer reference and charged one credit. The workflow and its runs were deleted.
 implementation_state:
-  subject_commit: 1c5e24c757d7d553dc7e823c268b743b9b188183
+  subject_commit: 05fc991f33e8d81d7ba143ced7bc59dd77847951
 approvals:
   specification: {status: approved, approved_at: '2026-09-24', source: Explicit user approval of both exact review PDF fingerprints in this Codex chat.}
   plan: {status: approved, approved_at: '2026-09-24', source: User instructed implementation after approving the specifications and cost controls.}
@@ -156,8 +194,8 @@ decisions:
 tasks:
   - id: TASK-1
     title: d687fb28-d000-4695-9fd7-62f3fa7b82c4 — AI Check runtime and Unsure
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
     expected_files: [backend/core/api/app/services/workflow_models.py, backend/core/api/app/services/workflow_runner.py, backend/tests/test_workflow_ai_check_and_ask.py]
     verification_ids: [T-BACKEND, V-LIVE]
@@ -167,8 +205,8 @@ tasks:
     ownership: {owner: codex, files: [backend/core/api/app/services/workflow_models.py, backend/core/api/app/services/workflow_runner.py], shared_files: []}
   - id: TASK-2
     title: 20dc1f4e-0804-43f2-a4fb-83a34d21013e — Ask AI runtime and shared validation
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers: {scenarios: [S-2, S-3], acceptance_criteria: [AC-2, AC-3, AC-5]}
     expected_files: [backend/core/api/app/services/workflow_app_skill_adapter.py, backend/core/api/app/routes/workflows.py, backend/tests/test_workflow_ai_check_and_ask.py]
     verification_ids: [T-BACKEND, T-CLIENT, V-LIVE]
@@ -178,8 +216,8 @@ tasks:
     ownership: {owner: codex, files: [backend/core/api/app/services/workflow_app_skill_adapter.py, backend/core/api/app/routes/workflows.py], shared_files: [backend/core/api/app/services/workflow_models.py]}
   - id: TASK-3
     title: ac38f33f-af9d-4da8-887d-a941473efc1f — web and CLI SDK parity
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-2, AC-3, AC-4]}
     expected_files: [frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte, frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts, frontend/packages/openmates-cli/tests/workflows.test.ts]
     verification_ids: [T-WEB, T-CLIENT]
@@ -193,9 +231,15 @@ attempts:
     outcome: planned
     approach: Implement bounded graph/runtime behavior against approved Workflow assertions before UI wiring.
     recorded_at: '2026-09-24'
+  - id: A-2
+    task_id: TASK-3
+    outcome: succeeded
+    approach: Implement all approved surfaces, prove focused backend and client contracts, pass exact-source component and authenticated E2E checks, then verify real Gemini Ask AI and Jev AI Check execution on dev.
+    recorded_at: '2026-09-24'
 handoff:
-  current_task_id: TASK-1
-  next_action: Implement the typed AI Check graph and execution contract with focused unit tests.
-  command: python3 -m pytest backend/tests/test_workflow_ai_check_and_ask.py
-  expected_outcome: Reliable boolean or Unsure routing with no unrelated context or duplicate billing.
-  last_verified_commit: 1c5e24c757d7d553dc7e823c268b743b9b188183
+  current_task_id: TASK-3
+  next_action: No remaining implementation action; preserve the exact-source CI and disposable dev-provider receipts.
+  command: python3 scripts/plan_verify.py docs/plans/workflows-ai-check-and-ask/plan.yml --phase complete
+  expected_outcome: The completed plan remains verified against the deployed implementation commit.
+  last_verified_commit: 05fc991f33e8d81d7ba143ced7bc59dd77847951
+  blocker: null
