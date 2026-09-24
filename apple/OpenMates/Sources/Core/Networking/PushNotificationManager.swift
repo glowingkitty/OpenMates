@@ -1,6 +1,8 @@
 // APNs push notification registration and handling.
 // Registers device token with backend, handles notification categories,
 // and routes taps to the appropriate chat.
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.handoff.exact-private
 
 import Foundation
 import CryptoKit
@@ -577,7 +579,11 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
                 defer { completion.complete() }
                 guard actionIdentifier == UNNotificationDefaultActionIdentifier,
                       let destination = payload.destination(currentProfile: ServerProfile.current()) else { return }
+                #if os(iOS)
                 UIApplication.shared.open(destination)
+                #elseif os(macOS)
+                NSWorkspace.shared.open(destination)
+                #endif
             }
             return
         }
