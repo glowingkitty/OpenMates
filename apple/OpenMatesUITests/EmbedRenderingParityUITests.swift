@@ -304,6 +304,14 @@ final class EmbedRenderingParityUITests: XCTestCase {
             waitForLabel(routeLabel, containing: "preview-web-search-1", timeout: 5),
             "Closing child fullscreen did not return to the parent fullscreen route"
         )
+        XCTAssertTrue(
+            app.buttons["embed-minimize"].firstMatch.waitForExistence(timeout: 3),
+            "Returning from a child must re-present the reused parent container"
+        )
+        XCTAssertTrue(
+            app.buttons.matching(identifier: "embed-minimize").allElementsBoundByIndex.contains(where: { $0.isHittable }),
+            "The returned parent controls must remain interactive"
+        )
 
         tapFirstHittableButton(app: app, identifier: "embed-minimize")
         XCTAssertTrue(
@@ -314,6 +322,55 @@ final class EmbedRenderingParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Embed fullscreen route stack must not render default List/table chrome")
 
         attachScreenshot(name: "Fullscreen parent child route stack")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testModels3DChildCloseRestoresInteractiveParentSurface() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "models3d"]
+        app.launchEnvironment["DEV_PREVIEW"] = "embeds"
+        app.launchEnvironment["DEV_PREVIEW_APP"] = "models3d"
+        app.launch()
+
+        let routeHarness = app.descendants(matching: .any)["dev-embed-fullscreen-route-harness"]
+        scrollUntilHittable(app: app, element: routeHarness)
+        XCTAssertTrue(routeHarness.isHittable, "3D model fullscreen route harness did not become visible")
+
+        let routeLabel = app.staticTexts["dev-embed-active-route"]
+        XCTAssertTrue(
+            waitForLabel(routeLabel, containing: "preview-models3d-search-1", timeout: 5),
+            "The 3D model parent fullscreen route was not active"
+        )
+
+        let firstChildButton = app.buttons["dev-embed-route-open-first-child"]
+        XCTAssertTrue(firstChildButton.waitForExistence(timeout: 3))
+        firstChildButton.tap()
+        XCTAssertTrue(
+            waitForLabel(routeLabel, containing: "preview-models3d-result-1", timeout: 5),
+            "The 3D model child fullscreen route did not open"
+        )
+
+        tapFirstHittableButton(app: app, identifier: "embed-minimize")
+        XCTAssertTrue(
+            waitForLabel(routeLabel, containing: "preview-models3d-search-1", timeout: 5),
+            "Closing the 3D model child did not restore its parent"
+        )
+        XCTAssertTrue(
+            app.buttons.matching(identifier: "embed-minimize").allElementsBoundByIndex.contains(where: { $0.isHittable }),
+            "The restored 3D model parent fullscreen must remain interactive"
+        )
+
+        tapFirstHittableButton(app: app, identifier: "embed-minimize")
+        let reset = app.buttons["dev-embed-route-reset"]
+        XCTAssertTrue(reset.waitForExistence(timeout: 3))
+        XCTAssertTrue(reset.isHittable, "Closing the parent must restore interaction to the underlying surface")
+        reset.tap()
+        XCTAssertTrue(
+            waitForLabel(routeLabel, containing: "preview-models3d-search-1", timeout: 5),
+            "The underlying surface remained unresponsive after closing 3D model fullscreen"
+        )
+
+        attachScreenshot(name: "3D model fullscreen dismissal remains interactive")
     }
 
     // contract-test: direct surface=gui.apple assertions=videos.transcript.surface-parity

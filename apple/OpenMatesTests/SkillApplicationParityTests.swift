@@ -695,6 +695,25 @@ final class SkillApplicationParityTests: XCTestCase {
             EmbedMediaPayload.s3URL(from: model.resolvedData),
             "https://direct.example.invalid/original.enc"
         )
+        let noncePrefixedUpload: [String: AnyCodable] = [
+            "aes_key": AnyCodable("synthetic-key"),
+            "aes_nonce": AnyCodable(""),
+            "files": AnyCodable([
+                "original": ["s3_key": "original.enc"],
+            ]),
+        ]
+        let missingMetadata: [String: AnyCodable] = [
+            "aes_key": AnyCodable("synthetic-key"),
+            "files": AnyCodable([
+                "original": ["s3_key": "original.enc"],
+            ]),
+        ]
+
+        XCTAssertEqual(
+            EmbedMediaPayload.encryption(from: noncePrefixedUpload),
+            S3MediaClient.noncePrefixedEncryption
+        )
+        XCTAssertNil(EmbedMediaPayload.encryption(from: missingMetadata))
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity

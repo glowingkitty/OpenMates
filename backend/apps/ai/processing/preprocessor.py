@@ -654,7 +654,9 @@ ONBOARDING_TRIGGER_PHRASES: tuple[str, ...] = (
     "how does this work",
     "what can you do",
     "how do i use this",
-    "what is this",
+    # "What is this?" commonly refers to an attached image or document.
+    # Keep platform routing behind explicit app/brand wording instead.
+    "what is this app",
 
     # --- es (Spanish) ---
     "esta aplicación",     # this app

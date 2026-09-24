@@ -443,7 +443,13 @@ final class OfflineStore: ObservableObject {
                     existing.title = chat.title
                     existing.encryptedTitle = chat.encryptedTitle
                 } else if incomingTitleVersion == storedTitleVersion && storedTitleVersion > 0 {
-                    if existing.title == nil { existing.title = chat.title }
+                    // Persist same-revision plaintext hydration only when it is
+                    // tied to the stored ciphertext (or the stored row is an
+                    // incomplete snapshot with no ciphertext yet).
+                    if existing.title == nil,
+                       existing.encryptedTitle == nil || existing.encryptedTitle == chat.encryptedTitle {
+                        existing.title = chat.title
+                    }
                     if existing.encryptedTitle == nil { existing.encryptedTitle = chat.encryptedTitle }
                 } else if storedTitleVersion == 0 {
                     existing.title = nil

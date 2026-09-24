@@ -7,6 +7,77 @@ import XCTest
 
 @MainActor
 final class ChatAudioPipelineTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send,chats.message.identity-idempotent
+    func testRecordingDeferredSendRetainsEmbedAndIdentityAcrossReconnect() async throws {
+        let nodeID = "composer:embed:recording-reconnect"
+        let document = ComposerDocumentV1(version: 1, nodes: [
+            .embed(
+                id: nodeID,
+                embedType: "recording",
+                canonicalSource: "",
+                referenceOnly: true,
+                display: .init(title: "recording.m4a", mediaKind: "audio")
+            ).updatingStatus(AppleComposerEmbedLifecycleState.uploading.rawValue)
+        ])
+        let queued = ComposerSendSnapshot(
+            requestId: "request-reconnect",
+            messageId: "message-reconnect",
+            destinationId: "chat-reconnect",
+            documentRevision: 11,
+            document: document,
+            blockers: [.init(nodeId: nodeID, generation: 1)]
+        )
+        let recording = ComposerPendingEmbed.from(
+            upload: Self.uploadFixture(embedId: "server-recording-reconnect"),
+            localData: nil,
+            transcription: nil,
+            duration: 2.4
+        )
+        let frozen = try XCTUnwrap(ComposerDeferredEmbedSnapshot(
+            document: document,
+            resolvedEmbeds: [nodeID: recording]
+        ))
+        XCTAssertNil(ComposerDeferredEmbedSnapshot(document: document, resolvedEmbeds: [:]))
+
+        let coordinator = ComposerPendingSendCoordinator()
+        let dispatches = AudioPipelineDispatchRecorder()
+        let enqueued = await coordinator.enqueue(queued)
+        XCTAssertTrue(enqueued)
+        await coordinator.updateNode(nodeId: nodeID, generation: 1, state: .finished)
+        await coordinator.resumeReady { _ in throw AudioPipelineTransportError.disconnected }
+        let failedStatus = await coordinator.status(requestId: queued.requestId)
+        XCTAssertEqual(failedStatus, .failed)
+
+        // A later composer change must not replace the uploaded recording attached
+        // to this exact message. Reconnect retries the same queue entry once.
+        let replacement = ComposerPendingEmbed.from(
+            upload: Self.uploadFixture(embedId: "server-recording-later"),
+            localData: nil,
+            transcription: nil,
+            duration: 1.0
+        )
+        let changedComposer = ComposerDeferredEmbedSnapshot(
+            document: document,
+            resolvedEmbeds: [nodeID: replacement]
+        )
+        XCTAssertNotEqual(frozen.embeds.first?.id, changedComposer?.embeds.first?.id)
+        let frozenEmbedID = frozen.embeds.first?.id
+        let retried = await coordinator.retryFailed(requestId: queued.requestId)
+        XCTAssertTrue(retried)
+        await coordinator.resumeReady { snapshot in
+            await dispatches.append(messageID: snapshot.messageId, embedID: frozenEmbedID)
+        }
+        await coordinator.resumeReady { snapshot in
+            await dispatches.append(messageID: snapshot.messageId, embedID: frozenEmbedID)
+        }
+        let sent = await dispatches.values()
+        XCTAssertEqual(sent, [
+            .init(messageID: "message-reconnect", embedID: "server-recording-reconnect")
+        ])
+        let completedStatus = await coordinator.status(requestId: queued.requestId)
+        XCTAssertEqual(completedStatus, .completed)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.inline-entity-interaction,message-input.recording.lifecycle
     func testSentRecordingTypeSurvivesInlineGrouping() {
         let recording = EmbedRecord(
@@ -323,6 +394,10 @@ final class ChatAudioPipelineTests: XCTestCase {
         let data = try XCTUnwrap(content.data(using: .utf8))
         return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
+}
+
+private enum AudioPipelineTransportError: Error {
+    case disconnected
 }
 
 private actor AudioPipelineGate {

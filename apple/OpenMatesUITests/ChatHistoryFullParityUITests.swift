@@ -127,6 +127,32 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         assertComposerClearsFinalContent(in: app)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testStreamingThinkingAndComposerStopMatchWebContract() throws {
+        let app = launchFixture(extraArguments: ["--ui-test-streaming-presentation"])
+        let stage = element(in: app, identifier: "streaming-banner")
+        let stop = element(in: app, identifier: "stop-processing-button")
+
+        XCTAssertTrue(stage.waitForExistence(timeout: 12), app.debugDescription)
+        XCTAssertFalse(stage.label.contains("embed."), "Stage status exposed an untranslated key")
+        XCTAssertTrue(stop.waitForExistence(timeout: 8), app.debugDescription)
+        XCTAssertTrue(stop.isHittable)
+        XCTAssertGreaterThanOrEqual(stop.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(stop.frame.height, 44)
+        XCTAssertFalse(element(in: app, identifier: "send-button").exists)
+
+        let history = element(in: app, identifier: "chat-history-container")
+        let thinking = element(in: app, identifier: "thinking-content")
+        for _ in 0..<5 where !thinking.exists {
+            history.swipeUp()
+        }
+        XCTAssertTrue(thinking.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertLessThanOrEqual(thinking.frame.height, 202, "Streaming thinking content must remain bounded")
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "**")).count, 0)
+        XCTAssertTrue(app.staticTexts["Bounded thinking detail"].exists)
+        attachScreenshot(name: "Streaming stage thinking and composer stop")
+    }
+
     private func launchFixture(
         extraArguments: [String] = [],
         environment: [String: String] = [:]

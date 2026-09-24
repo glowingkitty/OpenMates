@@ -451,7 +451,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,message-input.embeds.gated-send,chats.persistence.client-encrypted,chats.rendering.inline-entity-interaction
     func testPasswordOtpPhotoAttachmentSendsAndPersistsAfterRelaunch() throws {
-        let prompt = "Use the image viewing skill to inspect the attached image and confirm that the file is accessible. Keep the reply brief."
+        let prompt = "Use the image viewing skill to inspect the attached image. What single color fills it? Reply with that color."
         let filename = "quick-action-photo.png"
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
@@ -485,6 +485,10 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
         let assistant = app.descendants(matching: .any).matching(identifier: "message-assistant").firstMatch
         XCTAssertTrue(assistant.waitForExistence(timeout: 20), "The image request must receive an assistant response")
+        XCTAssertTrue(
+            assistant.label.localizedCaseInsensitiveContains("red"),
+            "The assistant must identify the red pixels in the uploaded image, proving actual image access"
+        )
         let assistantSkill = assistant.descendants(matching: .button)
             .matching(identifier: "embed-preview").firstMatch
         XCTAssertTrue(

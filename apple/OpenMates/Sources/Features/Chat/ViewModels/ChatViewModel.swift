@@ -572,6 +572,8 @@ final class ChatViewModel: ObservableObject {
         self.chatStore = chatStore
     }
 
+    var isSendTransportReady: Bool { wsManager?.connectionState == .connected }
+
     func loadChat(id: String, initialChat: Chat? = nil, initialMessages: [Message] = [], initialEmbeds: [EmbedRecord] = []) async {
         loadGeneration += 1
         let generation = loadGeneration
@@ -1267,7 +1269,8 @@ final class ChatViewModel: ObservableObject {
         excludedPIIOriginals: Set<String> = [],
         excludedPIIPlaceholders: Set<String> = [],
         broadcastToSiblings: Bool = false,
-        composerEmbeds explicitComposerEmbeds: [ComposerPendingEmbed]? = nil
+        composerEmbeds explicitComposerEmbeds: [ComposerPendingEmbed]? = nil,
+        messageId: String? = nil
     ) async {
         guard let currentChat = chat else { return }
         if hasNewerMessages {
@@ -1304,11 +1307,13 @@ final class ChatViewModel: ObservableObject {
                 existingMessages: allMessages,
                 wsManager: wsManager,
                 chatStore: chatStore,
+                waitForInferenceReceipt: messageId != nil,
                 composerEmbeds: composerEmbeds,
                 piiMappings: mergedPIIMappings,
                 excludedPIIOriginals: excludedPIIOriginals,
                 excludedPIIPlaceholders: excludedPIIPlaceholders,
-                broadcastToSiblings: broadcastToSiblings
+                broadcastToSiblings: broadcastToSiblings,
+                messageId: messageId
             )
             let provisionalTitle = allMessages.contains(where: { $0.role == .user })
                 ? nil
@@ -2815,6 +2820,16 @@ struct UploadedFileVariant: Decodable, Equatable, Sendable {
     let width: Int?
     let height: Int?
     let format: String?
+    let encryption: String?
+
+    init(s3Key: String, sizeBytes: Int?, width: Int?, height: Int?, format: String?, encryption: String? = nil) {
+        self.s3Key = s3Key
+        self.sizeBytes = sizeBytes
+        self.width = width
+        self.height = height
+        self.format = format
+        self.encryption = encryption
+    }
 }
 
 struct AudioRecordingWaveform: Codable, Equatable, Sendable {
@@ -3372,6 +3387,7 @@ private struct ComposerUploadClassification {
                 if let width = variant.width { item["width"] = width }
                 if let height = variant.height { item["height"] = height }
                 if let format = variant.format { item["format"] = format }
+                if let encryption = variant.encryption { item["encryption"] = encryption }
                 return item
             },
             "aes_key": upload.aesKey,
@@ -4203,6 +4219,14 @@ final class ChatSendPipeline {
     private let crypto = CryptoManager.shared
     private static var encryptedUserStorageClaimed = Set<String>()
     private var completedAssistantStorageSent = Set<String>()
+    private struct PreparedTurn {
+        let result: SendResult
+        let accountScope: UUID
+        let turnId: String
+        let preflightPayload: [String: Any]
+        let outboundPayload: [String: Any]
+    }
+    private var preparedTurns: [String: PreparedTurn] = [:]
 
     struct SendResult {
         let chat: Chat
@@ -4393,19 +4417,38 @@ final class ChatSendPipeline {
         excludedPIIPlaceholders: Set<String> = [],
         broadcastToSiblings: Bool = false,
         beforeRemoteSend: ((String, [String: Any], [String: Any]) throws -> Void)? = nil,
-        validateRemoteSend: (() throws -> Void)? = nil
+        validateRemoteSend: (() throws -> Void)? = nil,
+        messageId requestedMessageId: String? = nil
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
+        if let requestedMessageId, let prepared = preparedTurns[requestedMessageId] {
+            guard prepared.result.chat.id == chat.id,
+                  prepared.accountScope == OfflineStore.shared.scopeGeneration else {
+                preparedTurns.removeValue(forKey: requestedMessageId)
+                throw ChatSendError.webSocketUnavailable
+            }
+            try await sendRemoteUserMessage(chatId: chat.id, activateChat: activateChat,
+                wsManager: wsManager, turnId: prepared.turnId,
+                preflightPayload: prepared.preflightPayload,
+                outboundPayload: prepared.outboundPayload,
+                waitForInferenceReceipt: true, validateRemoteSend: validateRemoteSend)
+            preparedTurns.removeValue(forKey: requestedMessageId)
+            return prepared.result
+        }
         // Pin speech/account context before encryption and preference awaits.
+        let accountScope = OfflineStore.shared.scopeGeneration
         let speechScope = AssistantSpeechAppRuntime.shared.scope(for: chat.id)
         let validateSendContext: () throws -> Void = {
+            guard OfflineStore.shared.scopeGeneration == accountScope else {
+                throw ChatSendError.webSocketUnavailable
+            }
             try validateRemoteSend?()
             if let speechScope { try AssistantSpeechAppRuntime.shared.requireCurrent(speechScope, socket: wsManager) }
         }
         let now = Date()
         let createdAt = Self.isoString(from: now)
         let createdAtUnix = Int(now.timeIntervalSince1970)
-        let messageId = "\(chat.id.suffix(10))-\(UUID().uuidString)"
+        let messageId = requestedMessageId ?? "\(chat.id.suffix(10))-\(UUID().uuidString)"
         let keyMaterial = try await ensureChatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
         let contentWithEmbedReferences = Self.contentByAppendingComposerEmbedReferences(
             content,
@@ -4582,6 +4625,14 @@ final class ChatSendPipeline {
         }
         chatStore?.appendMessage(message, to: chat.id)
 
+        if requestedMessageId != nil {
+            preparedTurns[messageId] = PreparedTurn(
+                result: SendResult(chat: updatedChat, message: message),
+                accountScope: OfflineStore.shared.scopeGeneration,
+                turnId: turnId, preflightPayload: preflightPayload,
+                outboundPayload: outboundPayload)
+        }
+
         if waitForRemoteSend {
             try await sendRemoteUserMessage(
                 chatId: chat.id,
@@ -4593,6 +4644,7 @@ final class ChatSendPipeline {
                 waitForInferenceReceipt: waitForInferenceReceipt,
                 validateRemoteSend: validateSendContext
             )
+            preparedTurns.removeValue(forKey: messageId)
         } else {
             Task { @MainActor in
                 do {
@@ -4636,7 +4688,17 @@ final class ChatSendPipeline {
         let textOnly = (try? NSRegularExpression(pattern: embedFencePattern))?
             .stringByReplacingMatches(in: content, range: contentRange, withTemplate: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        if let textOnly, !textOnly.isEmpty { return textOnly }
+        let cleanedText = titleByReplacingEmbedReferences(
+            textOnly ?? content,
+            embedTypes: composerEmbeds.map(\.type)
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        let embedLabel = composerEmbeds.first.map { titleLabel(for: $0.type) }
+        if !cleanedText.isEmpty {
+            if let embedLabel, !cleanedText.hasPrefix(embedLabel) {
+                return "\(embedLabel) \(cleanedText)"
+            }
+            return cleanedText
+        }
 
         return composerEmbeds.lazy
             .filter { $0.type == "audio-recording" }
@@ -4646,9 +4708,27 @@ final class ChatSendPipeline {
                       preview != embed.filename.trimmingCharacters(in: .whitespacesAndNewlines) else {
                     return nil
                 }
-                return preview
+                return "\(titleLabel(for: embed.type)) \(preview)"
             }
-            .first
+            .first ?? embedLabel
+    }
+
+    static func titleByReplacingEmbedReferences(_ title: String, embedTypes: [String]) -> String {
+        let label = embedTypes.first.map { titleLabel(for: $0) } ?? "[Attachment]"
+        let pattern = #"\[\[embed(?:ref)?:[^\]]+\]\]"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return title }
+        let range = NSRange(title.startIndex..<title.endIndex, in: title)
+        let replaced = regex.stringByReplacingMatches(in: title, range: range, withTemplate: label)
+        return replaced.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    private static func titleLabel(for type: String) -> String {
+        let normalized = type.lowercased()
+        if normalized.contains("image") { return "[Image]" }
+        if normalized.contains("audio") || normalized.contains("recording") { return "[Audio]" }
+        if normalized.contains("video") { return "[Video]" }
+        if normalized.contains("pdf") { return "[PDF]" }
+        return "[File]"
     }
 
     private static func containsEmbedReference(_ embedId: String, in content: String) -> Bool {
@@ -4758,17 +4838,44 @@ final class ChatSendPipeline {
         waitForInferenceReceipt: Bool = false,
         validateRemoteSend: (() throws -> Void)? = nil
     ) async throws {
-        if activateChat {
-            try await wsManager.send(WSOutboundMessage(type: "set_active_chat", payload: ["chat_id": chatId]))
+        let scope = OfflineStore.shared.scopeGeneration
+        for attempt in 0..<2 {
+            do {
+                try validateRemoteSend?()
+                if activateChat {
+                    try await wsManager.send(WSOutboundMessage(type: "set_active_chat", payload: ["chat_id": chatId]))
+                }
+                try await sendSavedChatTurn(
+                    turnId: turnId,
+                    preflightPayload: preflightPayload,
+                    outboundPayload: outboundPayload,
+                    transport: wsManager,
+                    waitForInferenceReceipt: waitForInferenceReceipt,
+                    validateRemoteSend: validateRemoteSend
+                )
+                return
+            } catch WebSocketError.notConnected where waitForInferenceReceipt && attempt == 0 {
+                try await waitForReconnect(wsManager, accountScope: scope, validateRemoteSend: validateRemoteSend)
+            } catch WebSocketError.messageTimeout where waitForInferenceReceipt && attempt == 0 {
+                try await waitForReconnect(wsManager, accountScope: scope, validateRemoteSend: validateRemoteSend)
+            }
         }
-        try await sendSavedChatTurn(
-            turnId: turnId,
-            preflightPayload: preflightPayload,
-            outboundPayload: outboundPayload,
-            transport: wsManager,
-            waitForInferenceReceipt: waitForInferenceReceipt,
-            validateRemoteSend: validateRemoteSend
-        )
+        throw ChatSendError.webSocketUnavailable
+    }
+
+    private func waitForReconnect(_ transport: ChatWebSocketTransport, accountScope: UUID,
+                                  validateRemoteSend: (() throws -> Void)?) async throws {
+        guard let socket = transport as? WebSocketManager else { throw ChatSendError.webSocketUnavailable }
+        for _ in 0..<120 {
+            try Task.checkCancellation()
+            guard OfflineStore.shared.scopeGeneration == accountScope else {
+                throw ChatSendError.webSocketUnavailable
+            }
+            try validateRemoteSend?()
+            if socket.connectionState == .connected { return }
+            try await Task.sleep(for: .milliseconds(250))
+        }
+        throw WebSocketError.notConnected
     }
 
     func sendSavedChatTurn(
@@ -4924,7 +5031,12 @@ final class ChatSendPipeline {
             encryptedPIIMappings = try await encryptPIIMappings(userMessage.piiMappings ?? [], key: keyMaterial.key)
         }
         let isNewChatMetadata = ChatGeneratedMetadataPolicy.needsGeneratedTitle(chat)
-        let generatedTitle = metadata.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let generatedTitle = metadata.title.map {
+            Self.titleByReplacingEmbedReferences(
+                $0.trimmingCharacters(in: .whitespacesAndNewlines),
+                embedTypes: userMessage.embedRefs?.map(\.type) ?? []
+            )
+        }
         // The prompt title belongs only in the view model's in-memory presentation.
         // The generated title is the first authoritative encrypted title.
         let titleForStorage = generatedTitle?.isEmpty == false ? generatedTitle : nil

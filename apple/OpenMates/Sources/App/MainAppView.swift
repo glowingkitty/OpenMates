@@ -1710,7 +1710,8 @@ struct MainAppView: View {
                             existingMessages: [],
                             wsManager: wsManager,
                             chatStore: chatStore,
-                            waitForRemoteSend: false,
+                            waitForRemoteSend: true,
+                            waitForInferenceReceipt: true,
                             composerEmbeds: composerEmbeds,
                             piiMappings: ChatSendPipeline().combinedPIIMappings(
                                 textMappings: piiMappings,
@@ -5456,7 +5457,14 @@ struct NewChatWelcomeView: View {
         GeometryReader { proxy in
             let containerMaxY = proxy.frame(in: .global).maxY
             let keyboardOverlap = max(0, containerMaxY - (keyboardEndMinY ?? containerMaxY))
-            let suggestionsAreVisible = isComposerActive && !suggestions.isEmpty
+            // The web composer gives atomic embeds the full editor lane. Keeping
+            // suggestions mounted above a 300x200 attachment on a phone reduces
+            // the remaining field height enough for its metadata bar to slide
+            // under the bottom action row.
+            let suggestionsAreVisible = isComposerActive
+                && !suggestions.isEmpty
+                && pendingComposerEmbeds.isEmpty
+                && !composerSession.controller.document.nodes.contains(where: { $0.kind == "embed" })
             let suggestionsReserve = suggestionsAreVisible
                 ? measuredWelcomeSuggestionsHeight + .spacing8
                 : 0
@@ -5868,7 +5876,7 @@ struct NewChatWelcomeView: View {
               pendingComposerEmbeds.isEmpty,
               attachmentUploadTasks.isEmpty,
               !composerSession.controller.document.nodes.contains(where: { $0.kind == "embed" }),
-              let data = Data(base64Encoded: Self.livePhotoUploadFixtureBase64) else { return }
+              let data = Self.livePhotoUploadFixtureData() else { return }
         handleAttachmentSelection(
             data: data,
             filename: "quick-action-photo.png",
@@ -5879,8 +5887,19 @@ struct NewChatWelcomeView: View {
     }
 
     #if DEBUG
-    static let livePhotoUploadFixtureBase64 =
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    static func livePhotoUploadFixtureData() -> Data? {
+        #if os(iOS)
+        // A large, uniform red image lets the real AI test prove that images.view
+        // received pixels, rather than merely showing an upload/skill card.
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 256, height: 256))
+        return renderer.pngData { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 256, height: 256))
+        }
+        #else
+        return Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+        #endif
+    }
     #endif
 
     private func addPendingComposerEmbed(filename: String, kind: WelcomeComposerPendingKind, data: Data? = nil, duration: TimeInterval? = nil) {
@@ -8394,15 +8413,11 @@ private struct WelcomeComposer: View {
 
     private var responsiveFieldHeight: CGFloat {
         guard hasComposerEmbedNodes else { return MessageComposerMetric.expandedMinHeight }
-        // Preserve the web-sized 200pt embed card, but let its scrollable field
-        // contract when the iPhone keyboard and suggestions share the viewport.
-        return min(
-            MessageComposerMetric.embedTextFieldMaxHeight,
-            max(
-                MessageComposerMetric.focusedEmptyHeight + .spacing1,
-                availableHeight - .spacing10
-            )
-        )
+        // Keep the complete 200pt card and its metadata above the 60pt action
+        // reserve. The TextKit editor owns scrolling once three text lines are
+        // visible; shrinking the outer field would instead cover the card with
+        // the plus/model/audio/send row.
+        return MessageComposerMetric.embedTextFieldMaxHeight
     }
 
     var body: some View {

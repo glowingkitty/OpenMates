@@ -452,6 +452,11 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             return EmbedType.businessCompanyFinancialResult.rawValue
         case "website", "web_result", "search_result":
             return EmbedType.webWebsite.rawValue
+        case "event":
+            // Event search child records are persisted with the backend child
+            // type (`event`). The web registry maps that contract to its
+            // frontend renderer (`events-event`) before rendering.
+            return EmbedType.eventsEvent.rawValue
         default:
             break
         }
@@ -931,6 +936,7 @@ enum EmbedType: String, CaseIterable {
         case "audio-recording": return .recording
         case "images-image": return .image
         case "company_financial_result": return .businessCompanyFinancialResult
+        case "event": return .eventsEvent
         default: return EmbedType(rawValue: rawValue)
         }
     }

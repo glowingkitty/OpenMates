@@ -582,7 +582,6 @@ private struct DevEmbedFullscreenRouteHarness: View {
                     },
                     onClose: closeRoute
                 )
-                .id(activeEmbed.id)
                 .frame(height: 560)
                 .clipShape(RoundedRectangle(cornerRadius: .radius8))
                 .overlay {

@@ -231,12 +231,14 @@ final class ComposerVisualParityUITests: XCTestCase {
         let audio = element(in: app, identifier: "native-composer-audio-content")
         let imageCard = element(in: app, identifier: "native-composer-preview-image-finished")
         let audioCard = element(in: app, identifier: "native-composer-preview-recording-finished")
+        let actionRow = element(in: app, identifier: "action-buttons")
 
         XCTAssertTrue(image.waitForExistence(timeout: 5), "Expected image-specific composer preview content")
         XCTAssertTrue(imageInfoBar.waitForExistence(timeout: 5), "Expected the web-parity image metadata bar")
         XCTAssertTrue(audio.waitForExistence(timeout: 5), "Expected audio-specific composer preview content")
         XCTAssertTrue(imageCard.waitForExistence(timeout: 5))
         XCTAssertTrue(audioCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(actionRow.waitForExistence(timeout: 5))
         assertEmbed(imageCard, isLeftAlignedIn: field)
         assertEmbed(audioCard, isLeftAlignedIn: field)
         XCTAssertEqual(imageCard.frame.width, 300, accuracy: 3)
@@ -251,6 +253,13 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(image.frame.maxY, imageCard.frame.maxY - 3)
         XCTAssertEqual(imageInfoBar.frame.height, 61, accuracy: 3)
         XCTAssertEqual(imageInfoBar.frame.maxY, imageCard.frame.maxY, accuracy: 3)
+        XCTAssertLessThanOrEqual(
+            imageInfoBar.frame.maxY,
+            actionRow.frame.minY + 3,
+            "The image caption must remain entirely above the bottom composer controls"
+        )
+        XCTAssertTrue(app.buttons["composer-attachment-toggle"].isHittable)
+        XCTAssertTrue(app.buttons["record-audio-button"].isHittable)
         XCTAssertFalse(
             imageCard.buttons["native-composer-preview-action-close"].exists,
             "Web image previews do not overlay a generic close button"

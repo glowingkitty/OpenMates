@@ -198,7 +198,23 @@ enum EmbedMediaPayload {
 
     static func encryption(from raw: [String: AnyCodable]?) -> String? {
         if let direct = string(raw, keys: ["encryption"]) { return direct }
-        return originalVariant(from: raw)?["encryption"] as? String
+        if let variantMarker = originalVariant(from: raw)?["encryption"] as? String,
+           !variantMarker.isEmpty {
+            return variantMarker
+        }
+
+        // The upload API represents nonce-prefixed media with an empty
+        // top-level `aes_nonce` and an encryption marker on each file variant.
+        // Older Apple upload models did not preserve the variant marker when
+        // constructing the encrypted embed. Recognize only that exact shape so
+        // current uploads remain readable while absent legacy metadata still
+        // fails closed.
+        if let rawNonce = raw?["aes_nonce"]?.value as? String,
+           rawNonce.isEmpty,
+           string(raw, keys: ["aes_key"]) != nil {
+            return S3MediaClient.noncePrefixedEncryption
+        }
+        return nil
     }
 
     static func string(_ raw: [String: AnyCodable]?, keys: [String]) -> String? {

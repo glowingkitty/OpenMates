@@ -7350,6 +7350,7 @@ async def handle_main_processing(
                         isinstance(b, dict) and b.get("type") in ("text", "image_url")
                         for b in results[0]
                     )
+                    and any(b.get("type") == "image_url" for b in results[0])
                 )
                 if is_multimodal_result:
                     # Bypass all TOON encoding — set tool_result_content_str to the raw content

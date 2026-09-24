@@ -176,7 +176,7 @@ private struct EventFullscreenDetails: View {
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.grey60)
                         .textCase(.uppercase)
-                    Text(description)
+                    Text(EventValue.markdown(description))
                         .font(.omP)
                         .foregroundStyle(Color.fontPrimary)
                         .lineSpacing(4)
@@ -702,6 +702,13 @@ struct EventResultSummary: Identifiable {
 }
 
 enum EventValue {
+    static func markdown(_ value: String) -> AttributedString {
+        (try? AttributedString(
+            markdown: value,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        )) ?? AttributedString(value)
+    }
+
     static func string(_ data: [String: AnyCodable], _ keys: [String]) -> String? {
         for key in keys {
             if let value = data[key]?.value as? String, !value.isEmpty, value != "null" { return value }

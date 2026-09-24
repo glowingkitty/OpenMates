@@ -101,13 +101,28 @@ private enum ComposerOverlay: Equatable {
     case recording
 }
 
+struct ComposerDeferredEmbedSnapshot {
+    let embeds: [ComposerPendingEmbed]
+
+    init?(document: ComposerDocumentV1, resolvedEmbeds: [String: ComposerPendingEmbed]) {
+        let nodeIDs = document.nodes.filter { $0.kind == "embed" }.map(\.id)
+        let embeds = nodeIDs.compactMap { resolvedEmbeds[$0] }
+        guard embeds.count == nodeIDs.count else { return nil }
+        self.embeds = embeds
+    }
+}
+
 private struct ComposerDeferredSendContext {
     let excludedPIIIds: Set<String>
     let broadcastToSiblings: Bool
+    let owner: ComposerModelSendOwnership
+    var embedSnapshot: ComposerDeferredEmbedSnapshot?
 }
 
 private enum ComposerDeferredSendError: Error {
     case missingContext
+    case missingEmbed
+    case transportUnavailable
     case sendFailed
 }
 
@@ -276,6 +291,41 @@ enum ChatAssistantIdentityPolicy {
     }
 }
 
+/// Mirrors the web processing-text gradient sweep while preserving a static
+/// readable color when Reduce Motion is enabled.
+private struct ProcessingTextShimmer: ViewModifier {
+    @State private var phase: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(
+                reduceMotion
+                    ? AnyShapeStyle(Color.grey60)
+                    : AnyShapeStyle(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.grey60, location: 0),
+                                .init(color: Color.grey60, location: 0.4),
+                                .init(color: Color.grey40, location: 0.5),
+                                .init(color: Color.grey60, location: 0.6),
+                                .init(color: Color.grey60, location: 1)
+                            ],
+                            startPoint: UnitPoint(x: phase - 1, y: 0.5),
+                            endPoint: UnitPoint(x: phase, y: 0.5)
+                        )
+                    )
+            )
+            .onAppear {
+                guard !reduceMotion else { return }
+                phase = 0
+                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                    phase = 2
+                }
+            }
+    }
+}
+
 struct ChatView: View {
     #if DEBUG
     var isolatedHistory = false
@@ -397,6 +447,8 @@ struct ChatView: View {
     @State private var deferredComposerSendNodeIDs: [String: Set<String>] = [:]
     @State private var resolvedComposerEmbeds: [String: ComposerPendingEmbed] = [:]
     @State private var deferredComposerSendRevisions: Set<Int> = []
+    @State private var stopButtonPulsing = false
+    @State private var deferredSocketConnectedEpoch = 0
     @State private var isInputFocused = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -433,12 +485,25 @@ struct ChatView: View {
         latestAssistantMessageId != nil && !viewModel.isStreaming
     }
 
-    private var activeProcessingSteps: [ProcessingDetailsView.ProcessingStep] {
-        guard viewModel.streamingLifecycle.shouldShowProcessingDetails,
-              let step = viewModel.streamingLifecycle.preprocessingStep else {
-            return []
+    private var isStreamingPresentationActive: Bool {
+        viewModel.isStreaming || isUITestStreamingPresentationEnabled
+    }
+
+    private var streamingStageText: String {
+        switch viewModel.streamingLifecycle.phase {
+        case .sending:
+            return AppStrings.sendingMessage
+        case .processing:
+            return viewModel.streamingLifecycle.preprocessingStep
+                .map(ProcessingDetailsView.ProcessingStep.stageLabel(for:))
+                ?? AppStrings.selectingMateAndModel
+        case .thinking:
+            return AppStrings.thinkingHeaderStreaming
+        case .queued:
+            return viewModel.streamingLifecycle.queuedMessageText ?? AppStrings.messageQueued
+        case .typing, .streaming, .cancelling, .idle, .completed, .error:
+            return AppStrings.aiResponding
         }
-        return [.fromPreprocessing(step)]
     }
 
     var body: some View {
@@ -530,7 +595,7 @@ struct ChatView: View {
                         Task { await viewModel.deactivateActiveFocusMode() }
                     }
 
-                    if viewModel.isStreaming {
+                    if isStreamingPresentationActive {
                         streamingBanner
                     }
 
@@ -688,6 +753,11 @@ struct ChatView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
             handleComposerDeferredSend(notification)
+        }
+        .onReceive((wsManager ?? AppSessionCoordinator.shared.webSocketManager).$connectionState) { state in
+            guard state == .connected else { return }
+            deferredSocketConnectedEpoch += 1
+            Task { @MainActor in await retryDeferredComposerSendsAfterReconnect() }
         }
     }
 
@@ -1229,11 +1299,8 @@ struct ChatView: View {
                                         embeds: displayProjection.embeds(for: message),
                                         allEmbedRecords: displayProjection.embedRecords,
                                         streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
-                                        thinkingContent: message.id == viewModel.streamingLifecycle.messageId
-                                            ? viewModel.streamingLifecycle.thinkingContent
-                                            : message.thinkingContent,
-                                        isThinkingStreaming: message.id == viewModel.streamingLifecycle.messageId
-                                            && viewModel.streamingLifecycle.isThinkingStreaming,
+                                        thinkingContent: thinkingContent(for: message),
+                                        isThinkingStreaming: isThinkingStreaming(for: message),
                                         piiMappings: displayProjection.piiMappings,
                                         isPIIRevealed: isPIIRevealed,
                                         containerWidth: scrollGeo.size.width,
@@ -1285,13 +1352,6 @@ struct ChatView: View {
                                     .disabled(viewModel.isLoadingOlder)
                                     .accessibilityIdentifier("load-newer-messages")
                                     .id("load-newer")
-                                }
-
-                                if !viewModel.hasNewerMessages && !activeProcessingSteps.isEmpty {
-                                    ProcessingDetailsView(steps: activeProcessingSteps, isComplete: false)
-                                        .padding(.leading, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 86)
-                                        .padding(.trailing, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 12)
-                                        .id("processing-details")
                                 }
 
                                 if !viewModel.hasNewerMessages && showAssistantFeedback {
@@ -1474,6 +1534,11 @@ struct ChatView: View {
     private var isUITestChatHistoryAudioParityEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-chat-history-audio-parity")
             || ProcessInfo.processInfo.environment["UI_TEST_CHAT_HISTORY_AUDIO_PARITY"] == "1"
+    }
+
+    private var isUITestStreamingPresentationEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-streaming-presentation")
+            || ProcessInfo.processInfo.environment["UI_TEST_STREAMING_PRESENTATION"] == "1"
     }
 
     private func chatHistoryLayoutMetricsProbe(containerSize: CGSize) -> some View {
@@ -1693,6 +1758,34 @@ struct ChatView: View {
         )
     }
     #endif
+
+    #if !DEBUG
+    private var isUITestStreamingPresentationEnabled: Bool { false }
+    #endif
+
+    private func thinkingContent(for message: Message) -> String? {
+        #if DEBUG
+        if isUITestStreamingPresentationEnabled,
+           message.id == "ui-test-history-assistant" {
+            return Array(repeating: "**Bounded thinking detail**", count: 24)
+                .joined(separator: "\n\n")
+        }
+        #endif
+        return message.id == viewModel.streamingLifecycle.messageId
+            ? viewModel.streamingLifecycle.thinkingContent
+            : message.thinkingContent
+    }
+
+    private func isThinkingStreaming(for message: Message) -> Bool {
+        #if DEBUG
+        if isUITestStreamingPresentationEnabled,
+           message.id == "ui-test-history-assistant" {
+            return true
+        }
+        #endif
+        return message.id == viewModel.streamingLifecycle.messageId
+            && viewModel.streamingLifecycle.isThinkingStreaming
+    }
 
     private func chatHistoryFixtureIdentifier(for message: Message) -> String? {
         #if DEBUG
@@ -2170,26 +2263,47 @@ struct ChatView: View {
     }
 
     private var streamingBanner: some View {
-        HStack(spacing: .spacing3) {
-            ProgressView()
-                .scaleEffect(0.8)
-            Text(AppStrings.aiResponding)
-                .font(.omXs)
-                .foregroundStyle(Color.fontSecondary)
-            Spacer()
-            Button(AppStrings.stop) {
-                viewModel.stopStreaming()
-            }
-            .font(.omXs)
-            .foregroundStyle(Color.error)
-            .help(Text(AppStrings.stopResponse))
-            .accessibilityLabel(AppStrings.stopResponse)
+        Text(streamingStageText)
+            .font(.omP)
+            .fontWeight(.medium)
+            .modifier(ProcessingTextShimmer())
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, .spacing8)
+            .padding(.bottom, .spacing3)
+            .background(
+                LinearGradient(
+                    colors: [.clear, Color.grey20, Color.grey20],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(streamingStageText)
+            .accessibilityIdentifier("streaming-banner")
+    }
+
+    private var composerStopButton: some View {
+        Button {
+            viewModel.stopStreaming()
+        } label: {
+            Icon("stop_processing", size: 28)
+                .foregroundStyle(Color.error)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                .opacity(stopButtonPulsing ? 0.55 : 1)
         }
-        .padding(.horizontal, .spacing4)
-        .padding(.vertical, .spacing2)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(AppStrings.aiResponding)
-        .accessibilityIdentifier("streaming-banner")
+        .buttonStyle(.plain)
+        .help(Text(AppStrings.stopResponse))
+        .accessibilityLabel(AppStrings.stopResponse)
+        .accessibilityIdentifier("stop-processing-button")
+        .onAppear {
+            guard !reduceMotion else { return }
+            stopButtonPulsing = false
+            withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
+                stopButtonPulsing = true
+            }
+        }
+        .onDisappear { stopButtonPulsing = false }
     }
 
     // MARK: - New chat CTA (replaces input for demo/intro/legal chats)
@@ -2518,7 +2632,9 @@ struct ChatView: View {
                             #endif
                         }, onFiles: { showAttachmentMenu = true },
                         model: { NativeComposerModelHostView(host: modelHost, viewportWidth: actionGeometry.size.width) }, speech: { ComposerSpeechHostView(chatID: chatId, supported: !IncognitoChatSession.isIncognitoChatId(chatId)) }, record: { EmptyView() }, submit: {
-                if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerHasEmbed && !viewModel.isStreaming {
+                if isStreamingPresentationActive {
+                    composerStopButton
+                } else if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerHasEmbed {
                     recordActionControls
                 } else {
                     MessageComposerSendButton(
@@ -3054,7 +3170,12 @@ struct ChatView: View {
         deferredComposerSendRevisions.insert(snapshot.documentRevision)
         deferredComposerSendContexts[requestID] = ComposerDeferredSendContext(
             excludedPIIIds: piiExclusions,
-            broadcastToSiblings: broadcastToSiblingSubChats
+            broadcastToSiblings: broadcastToSiblingSubChats,
+            owner: ComposerModelSendOwnership(
+                server: ServerProfile.current().apiBaseURL.absoluteString,
+                accountGeneration: OfflineStore.shared.scopeGeneration,
+                chatID: destinationID
+            )
         )
         deferredComposerSendNodeIDs[requestID] = Set(document.nodes.map(\.id))
         viewModel.error = nil
@@ -3063,6 +3184,7 @@ struct ChatView: View {
             guard await composerPendingSendCoordinator.enqueue(snapshot) else {
                 deferredComposerSendRevisions.remove(snapshot.documentRevision)
                 deferredComposerSendContexts.removeValue(forKey: requestID)
+                deferredComposerSendNodeIDs.removeValue(forKey: requestID)
                 return
             }
             await resumeDeferredComposerSends()
@@ -3083,31 +3205,61 @@ struct ChatView: View {
     }
 
     private func resumeDeferredComposerSends() async {
+        let connectedEpoch = deferredSocketConnectedEpoch
         await composerPendingSendCoordinator.resumeReady { snapshot in
             try await dispatchDeferredComposerSend(snapshot)
+        }
+        // A reconnect can finish while the coordinator still marks a send as
+        // dispatching. Its retry call then sees no failed entry yet. Once that
+        // in-flight dispatch settles, retry any failure from this transition.
+        if deferredSocketConnectedEpoch != connectedEpoch, viewModel.isSendTransportReady {
+            for requestID in Array(deferredComposerSendContexts.keys) {
+                _ = await composerPendingSendCoordinator.retryFailed(requestId: requestID)
+            }
+            await composerPendingSendCoordinator.resumeReady { snapshot in
+                try await dispatchDeferredComposerSend(snapshot)
+            }
         }
     }
 
     private func retryDeferredComposerSendIfNeeded() -> Bool {
         guard !deferredComposerSendContexts.isEmpty else { return false }
         Task { @MainActor in
-            for requestID in deferredComposerSendContexts.keys {
-                if await composerPendingSendCoordinator.retryFailed(requestId: requestID) {
-                    await resumeDeferredComposerSends()
-                    return
-                }
-            }
+            await retryDeferredComposerSendsAfterReconnect()
         }
         return true
     }
 
     @MainActor
+    private func retryDeferredComposerSendsAfterReconnect() async {
+        guard viewModel.isSendTransportReady else { return }
+        for requestID in Array(deferredComposerSendContexts.keys) {
+            _ = await composerPendingSendCoordinator.retryFailed(requestId: requestID)
+        }
+        await resumeDeferredComposerSends()
+    }
+
+    @MainActor
     private func dispatchDeferredComposerSend(_ snapshot: ComposerSendSnapshot) async throws {
-        guard let context = deferredComposerSendContexts[snapshot.requestId] else {
+        guard var context = deferredComposerSendContexts[snapshot.requestId] else {
             throw ComposerDeferredSendError.missingContext
         }
+        guard context.owner.matches(
+            server: ServerProfile.current().apiBaseURL.absoluteString,
+            accountGeneration: OfflineStore.shared.scopeGeneration,
+            chatID: viewModel.chat?.id
+        ) else { throw ComposerDeferredSendError.missingContext }
+        guard viewModel.isSendTransportReady else { throw ComposerDeferredSendError.transportUnavailable }
         let snapshotNodeIDs = deferredComposerSendNodeIDs[snapshot.requestId] ?? []
-        let embeds = snapshotNodeIDs.compactMap { resolvedComposerEmbeds[$0] }
+        if context.embedSnapshot == nil {
+            guard let embedSnapshot = ComposerDeferredEmbedSnapshot(
+                document: snapshot.document,
+                resolvedEmbeds: resolvedComposerEmbeds
+            ) else { throw ComposerDeferredSendError.missingEmbed }
+            context.embedSnapshot = embedSnapshot
+            deferredComposerSendContexts[snapshot.requestId] = context
+        }
+        let embeds = context.embedSnapshot?.embeds ?? []
         let excludedOriginals = excludedPIIOriginals(in: snapshot.document, excludedIds: context.excludedPIIIds)
         let rewriteMappings = PIIDetector.mergePIIMappings(cumulativePIIMappings + embeds.flatMap(\.piiMappings))
         let rewrite = ComposerPIIDecorations.rewriteKnownPIIPlaceholders(
@@ -3128,11 +3280,18 @@ struct ChatView: View {
             piiMappings: piiMappings,
             excludedPIIOriginals: excludedOriginals,
             broadcastToSiblings: context.broadcastToSiblings,
-            composerEmbeds: embeds
+            composerEmbeds: embeds,
+            messageId: snapshot.messageId
         )
         guard viewModel.error == nil else { throw ComposerDeferredSendError.sendFailed }
 
-        try composerSession.removeSentSnapshotNodes(snapshot.document)
+        // Delivery has already succeeded. A local editor cleanup failure must not
+        // turn this into a network retry with the same accepted message.
+        do {
+            try composerSession.removeSentSnapshotNodes(snapshot.document)
+        } catch {
+            NativeDiagnostics.error("Composer sent snapshot cleanup failed: \(type(of: error))", category: "apple_composer")
+        }
         detectedPIIMatches = []
         piiExclusions = []
         mentionQuery = nil

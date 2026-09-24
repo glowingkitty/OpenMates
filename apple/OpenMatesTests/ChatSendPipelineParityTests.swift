@@ -499,7 +499,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(repeated, audioOnly)
         XCTAssertEqual(
             ChatSendPipeline.provisionalTitleSource(content: audioOnly, composerEmbeds: [embed]),
-            "Recorded request"
+            "[Audio] Recorded request"
         )
     }
 
@@ -514,7 +514,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
 
         XCTAssertEqual(
             ChatSendPipeline.provisionalTitleSource(content: content, composerEmbeds: [embed]),
-            "Summarize this"
+            "[Image] Summarize this"
         )
         XCTAssertTrue(canonical.contains("Summarize this"))
         XCTAssertTrue(canonical.contains("\"embed_id\": \"ui-test-pending-image\""))
@@ -527,6 +527,41 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(contentObject?["embed_ref"] as? String, "ui-test-image.png")
         XCTAssertEqual(embed.record.rawData?["embed_ref"]?.value as? String, "ui-test-image.png")
         XCTAssertEqual(embed.record.type, "images-image")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity,message-input.embeds.gated-send
+    func testImageUploadPreservesMediaEncryptionAndTitlesHideEmbedIdentifiers() throws {
+        let uploadJSON = """
+        {
+          "embed_id": "image-1", "filename": "photo.jpg", "content_type": "image/jpeg",
+          "files": {"original": {"s3_key": "media/photo.jpg", "encryption": "aes-gcm-nonce-prefixed-v1"}},
+          "s3_base_url": "https://example.invalid", "aes_key": "key", "aes_nonce": "",
+          "vault_wrapped_aes_key": "wrapped"
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let upload = try decoder.decode(UploadFileResponse.self, from: Data(uploadJSON.utf8))
+        let embed = ComposerPendingEmbed.from(
+            upload: upload, localData: nil, transcription: nil, duration: nil
+        )
+        let contentData = try XCTUnwrap(embed.content?.data(using: .utf8))
+        let contentObject = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: contentData) as? [String: Any]
+        )
+        let files = try XCTUnwrap(contentObject["files"] as? [String: [String: Any]])
+        XCTAssertEqual(files["original"]?["encryption"] as? String, "aes-gcm-nonce-prefixed-v1")
+        XCTAssertEqual(contentObject["embed_ref"] as? String, "photo.jpg")
+        XCTAssertEqual(
+            ChatSendPipeline.provisionalTitleSource(content: "what is this?", composerEmbeds: [embed]),
+            "[Image] what is this?"
+        )
+        XCTAssertEqual(
+            ChatSendPipeline.titleByReplacingEmbedReferences(
+                "[[embed:image-1]] what is this?", embedTypes: ["images-image"]
+            ),
+            "[Image] what is this?"
+        )
     }
 
     // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle

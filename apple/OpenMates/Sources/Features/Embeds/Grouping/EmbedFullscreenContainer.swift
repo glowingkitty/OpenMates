@@ -11,6 +11,10 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+//                specifications/features/app-skills/code-run/specification.yml
+// Assertions: chats.surface.semantic-parity,
+//             code-run.artifacts.parent-child-navigation
 
 import SwiftUI
 #if os(iOS)
@@ -167,6 +171,15 @@ struct EmbedFullscreenContainer: View {
             selection = EmbedFullscreenSelection()
             selection.reconcile(in: embeds, initialID: initialEmbedId)
             resetPerEmbedState()
+            // Child fullscreen routes reuse this container when Close returns
+            // to their parent. The child has already animated this surface out,
+            // so make the newly selected parent visible again. Without this the
+            // full-screen view remains mounted offscreen and intercepts the chat.
+            if !isPresented {
+                withAnimation(isSidePanel ? nil : .easeOut(duration: 0.28)) {
+                    isPresented = true
+                }
+            }
         }
         .onDisappear {
             #if DEBUG

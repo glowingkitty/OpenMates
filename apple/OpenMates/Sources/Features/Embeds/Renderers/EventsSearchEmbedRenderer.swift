@@ -20,11 +20,7 @@ struct EventsSearchEmbedRenderer: View {
     let onOpenEmbed: (EmbedRecord) -> Void
 
     private var childEmbeds: [EmbedRecord] {
-        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
-        if !explicit.isEmpty { return explicit }
-        return allEmbedRecords.values
-            .filter { $0.parentEmbedId == embed.id || EmbedType(rawValue: $0.type) == .eventsEvent }
-            .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) }
+        EventsSearchEmbedModel.childEmbeds(for: embed, in: allEmbedRecords)
     }
 
     private var events: [EventResultSummary] {
@@ -48,12 +44,34 @@ struct EventsSearchEmbedRenderer: View {
     }
 }
 
+enum EventsSearchEmbedModel {
+    static func query(
+        from data: [String: AnyCodable]?,
+        events: [EventResultSummary]
+    ) -> String {
+        EventValue.string(data ?? [:], ["query", "title"])
+            ?? events.first?.title
+            ?? "Events"
+    }
+
+    static func childEmbeds(
+        for parent: EmbedRecord,
+        in records: [String: EmbedRecord]
+    ) -> [EmbedRecord] {
+        let explicit = parent.childEmbedIds.compactMap { records[$0] }
+        if !explicit.isEmpty { return explicit }
+        return records.values
+            .filter { $0.parentEmbedId == parent.id }
+            .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) }
+    }
+}
+
 private struct EventsSearchPreview: View {
     let data: [String: AnyCodable]?
     let events: [EventResultSummary]
 
     private var query: String {
-        EventValue.string(data ?? [:], ["query", "title"]) ?? events.first?.title ?? "Events"
+        EventsSearchEmbedModel.query(from: data, events: events)
     }
 
     private var providerText: String? {
@@ -148,9 +166,27 @@ private struct EventsSearchFullscreen: View {
 
 extension EventResultSummary {
     static func list(from data: [String: AnyCodable]?) -> [EventResultSummary] {
-        guard let raw = data?["results"]?.value as? [[String: Any]] else { return [] }
+        guard let data else { return [] }
+        let raw: [[String: Any]]
+        if let direct = dictionaries(from: data["results"]?.value) {
+            raw = direct
+        } else if let preview = dictionaries(from: data["preview_results"]?.value) {
+            raw = preview
+        } else if let encoded = data["results_toon"]?.value as? String {
+            raw = dictionaries(from: EmbedRecord.parseContent(encoded)["results"]) ?? []
+        } else {
+            raw = []
+        }
         return raw.enumerated().map { index, dict in
             EventResultSummary(embedId: "legacy-event-\(index)", data: dict.mapValues(AnyCodable.init))
         }
+    }
+
+    private static func dictionaries(from value: Any?) -> [[String: Any]]? {
+        if let value = value as? [[String: Any]] { return value }
+        if let value = value as? [[String: AnyCodable]] {
+            return value.map { $0.mapValues(\.value) }
+        }
+        return nil
     }
 }

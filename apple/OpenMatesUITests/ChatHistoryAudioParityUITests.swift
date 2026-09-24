@@ -7,6 +7,7 @@
 import XCTest
 
 final class ChatHistoryAudioParityUITests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=chats.rendering.inline-entity-interaction,message-input.recording.lifecycle
     @MainActor
     func testOrderedSemanticHistoryAndSentAudioSurviveColdBoot() throws {
         continueAfterFailure = false
@@ -24,6 +25,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         attachScreenshot(name: "Semantic sent audio after cold boot")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
     @MainActor
     func testSentAudioProcessingAndErrorStatesAreExplicit() throws {
         continueAfterFailure = false
@@ -80,8 +82,13 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         XCTAssertTrue(previewPlay.waitForExistence(timeout: 10))
         XCTAssertTrue(previewPlay.isHittable)
         XCTAssertTrue(application.descendants(matching: .any)["recording-transcript"].exists)
-        XCTAssertTrue(application.descendants(matching: .any)["recording-model"].exists)
-        XCTAssertTrue(application.descendants(matching: .any)["recording-correction-state"].exists)
+
+        let details = application.descendants(matching: .any)["recording-preview"]
+        let infoBar = application.descendants(matching: .any)["recording-preview-info-bar"]
+        XCTAssertTrue(details.exists)
+        XCTAssertTrue(infoBar.exists)
+        XCTAssertEqual(infoBar.frame.height, 61, accuracy: 3)
+        XCTAssertLessThanOrEqual(details.frame.maxY, infoBar.frame.minY + 2)
 
         let recording = recordingCard(in: application, value: "Ready")
         recording.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()

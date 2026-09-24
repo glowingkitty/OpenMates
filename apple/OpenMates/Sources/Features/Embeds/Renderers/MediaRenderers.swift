@@ -1108,8 +1108,7 @@ struct RecordingRenderer: View {
         Group {
             switch mode {
             case .preview:
-                recordingContent(compact: true)
-                    .padding(.spacing6)
+                recordingPreview
             case .fullscreen:
                 recordingContent(compact: false)
                     .padding(.spacing12)
@@ -1120,6 +1119,78 @@ struct RecordingRenderer: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .task(id: isPlaying) { await updatePlaybackProgress() }
         .onDisappear { audioPlayer?.pause() }
+    }
+
+    private var recordingPreview: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                if let samples = waveformSamples {
+                    RecordingPreviewWaveform(samples: samples, progress: progress)
+                }
+
+                if let activeTranscript, !activeTranscript.isEmpty {
+                    Text(activeTranscript)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(4)
+                        .textSelection(.disabled)
+                        .accessibilityIdentifier("recording-transcript")
+                } else {
+                    Text(AppStrings.localized("app_skills.audio.transcribe.no_transcript"))
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .italic()
+                        .accessibilityIdentifier("recording-transcript")
+                }
+            }
+            .padding(.horizontal, .spacing8)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .accessibilityIdentifier("recording-preview")
+
+            EmbedBasicInfoBar(
+                appId: "audio",
+                skillIconName: "microphone",
+                title: AppStrings.localized("app_skills.audio.transcribe.audio_recording"),
+                subtitle: Self.formatDuration(effectiveDuration),
+                faviconURL: nil,
+                showSkillIcon: false,
+                trailingAction: AnyView(recordingPreviewPlayButton)
+            )
+            .accessibilityIdentifier("recording-preview-info-bar")
+        }
+    }
+
+    private var recordingPreviewPlayButton: some View {
+        Button(action: togglePlayback) {
+            Circle()
+                .fill(LinearGradient.appAudio)
+                .frame(width: 36, height: 36)
+                .overlay {
+                    if isLoading {
+                        ProgressView().tint(Color.grey0)
+                    } else {
+                        Icon(isPlaying ? "pause" : "play", size: 16)
+                            .foregroundStyle(Color.grey0)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .disabled(isLoading || !hasPlayableMetadata)
+        .accessibilityLabel(isPlaying ? AppStrings.pause : AppStrings.play)
+        .accessibilityIdentifier("recording-playback-toggle")
+    }
+
+    private var waveformSamples: [Double]? {
+        guard let waveform = data?["waveform"]?.value as? [String: Any],
+              let rawSamples = waveform["samples"] as? [Any] else { return nil }
+        let samples = rawSamples.compactMap { value -> Double? in
+            if let value = value as? Double { return value }
+            if let value = value as? Int { return Double(value) }
+            if let value = value as? NSNumber { return value.doubleValue }
+            return nil
+        }.map { min(1, max(0.06, $0 / 100)) }
+        return samples.isEmpty ? nil : samples
     }
 
     private func recordingContent(compact: Bool) -> some View {
@@ -1375,6 +1446,34 @@ struct RecordingRenderer: View {
     private static func formatDuration(_ seconds: Double) -> String {
         let safeSeconds = max(0, Int(seconds.rounded(.down)))
         return "\(safeSeconds / 60):\(String(format: "%02d", safeSeconds % 60))"
+    }
+}
+
+private struct RecordingPreviewWaveform: View {
+    let samples: [Double]
+    let progress: Double
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                HStack(alignment: .center, spacing: 1) {
+                    ForEach(Array(samples.enumerated()), id: \.offset) { _, sample in
+                        Capsule()
+                            .fill(LinearGradient.appAudio)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: max(2, 30 * sample))
+                    }
+                }
+
+                Capsule()
+                    .fill(LinearGradient.appAudio)
+                    .frame(width: 2, height: 30)
+                    .offset(x: max(0, min(proxy.size.width - 2, proxy.size.width * progress)))
+            }
+        }
+        .frame(height: 30)
+        .accessibilityHidden(true)
+        .accessibilityIdentifier("recording-preview-waveform")
     }
 }
 

@@ -6,11 +6,15 @@ final class APIClientUploadTransportTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     @MainActor
     func testLivePhotoUploadFixtureIsAValidDecodablePNG() throws {
-        let data = try XCTUnwrap(Data(base64Encoded: NewChatWelcomeView.livePhotoUploadFixtureBase64))
+        let data = try XCTUnwrap(NewChatWelcomeView.livePhotoUploadFixtureData())
         let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
 
         XCTAssertEqual(CGImageSourceGetCount(source), 1)
-        XCTAssertNotNil(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        #if os(iOS)
+        XCTAssertGreaterThanOrEqual(image.width, 256)
+        XCTAssertEqual(image.height, image.width)
+        #endif
         XCTAssertEqual(CGImageSourceGetType(source) as String?, "public.png")
     }
 

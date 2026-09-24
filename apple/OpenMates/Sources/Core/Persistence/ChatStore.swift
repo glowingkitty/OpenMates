@@ -626,11 +626,29 @@ private extension Chat {
         let acceptsIncomingSummary = (incoming.metadataV ?? 0) > (metadataV ?? 0)
             || ((incoming.metadataV ?? 0) == (metadataV ?? 0)
                 && chatSummary == nil && encryptedChatSummary == nil)
-        let acceptsIncomingTitle = (incoming.titleV ?? 0) > (titleV ?? 0)
-            || ((incoming.titleV ?? 0) == (titleV ?? 0) && title == nil && encryptedTitle == nil)
+        let incomingTitleVersion = incoming.titleV ?? 0
+        let currentTitleVersion = titleV ?? 0
+        let acceptsNewerTitleRevision = incomingTitleVersion > currentTitleVersion
+        // Metadata decryption returns a copy of the same encrypted revision with
+        // its plaintext fields filled in. Accept that hydration without opening
+        // the chat, while refusing plaintext tied to different ciphertext at the
+        // same version. A partial local row with no ciphertext may still be
+        // enriched by the complete snapshot for that revision.
+        let acceptsCurrentTitleHydration = incomingTitleVersion == currentTitleVersion
+            && title == nil
+            && incoming.title != nil
+            && (encryptedTitle == nil || encryptedTitle == incoming.encryptedTitle)
+        let resolvedTitle = acceptsNewerTitleRevision
+            ? incoming.title
+            : (acceptsCurrentTitleHydration ? incoming.title : title)
+        let resolvedEncryptedTitle = acceptsNewerTitleRevision
+            ? incoming.encryptedTitle
+            : (incomingTitleVersion == currentTitleVersion
+                ? (encryptedTitle ?? incoming.encryptedTitle)
+                : encryptedTitle)
         return Chat(
             id: id,
-            title: acceptsIncomingTitle ? (incoming.title ?? title) : title,
+            title: resolvedTitle,
             lastMessageAt: incoming.lastMessageAt ?? lastMessageAt,
             createdAt: createdAt,
             updatedAt: incoming.updatedAt ?? updatedAt,
@@ -640,7 +658,7 @@ private extension Chat {
             category: incoming.category ?? category,
             icon: incoming.icon ?? icon,
             chatSummary: acceptsIncomingSummary ? (incoming.chatSummary ?? chatSummary) : chatSummary,
-            encryptedTitle: acceptsIncomingTitle ? (incoming.encryptedTitle ?? encryptedTitle) : encryptedTitle,
+            encryptedTitle: resolvedEncryptedTitle,
             encryptedCategory: incoming.encryptedCategory ?? encryptedCategory,
             encryptedIcon: incoming.encryptedIcon ?? encryptedIcon,
             encryptedChatSummary: acceptsIncomingSummary

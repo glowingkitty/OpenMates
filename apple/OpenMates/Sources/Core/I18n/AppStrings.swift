@@ -2,6 +2,8 @@
 // These resolve through LocalizationManager, which loads translations from the
 // web app's i18n JSON files. All keys match the web app's translation paths.
 // Every user-visible string in the app must use these keys — no hardcoded English.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.streaming.progressive-presentation, chats.surface.semantic-parity
 
 import Foundation
 
@@ -86,6 +88,15 @@ enum AppStrings {
     static var typeFollowup: String { L("enter_message.placeholder.followup_touch") }
     static var startTyping: String { L("chat.start_typing") }
     static var aiResponding: String { L("enter_message.processing") }
+    static var sendingMessage: String { L("enter_message.sending") }
+    static var selectingMateAndModel: String { L("enter_message.status.selecting_mate_and_model") }
+    static var selectingMate: String { L("enter_message.status.selecting_mate") }
+    static var selectingModel: String { L("enter_message.status.selecting_model") }
+    static var analyzingMessage: String { L("enter_message.status.analyzing_message") }
+    static var thinkingHeaderStreaming: String { L("chat.thinking.header_streaming") }
+    static var thinkingHeaderDone: String { L("chat.thinking.header_done") }
+    static var thinkingExpand: String { L("chat.thinking.expand") }
+    static var thinkingCollapse: String { L("chat.thinking.collapse") }
     static var stopResponse: String { L("chat.stop_response") }
     static var messageQueued: String { L("enter_message.message_queued") }
     static var loadEarlierMessages: String { L("chat.load_earlier") }

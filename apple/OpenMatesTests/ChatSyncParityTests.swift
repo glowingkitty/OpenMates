@@ -379,6 +379,92 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(merged?.isHiddenCandidate, true)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
+    func testSameRevisionTitleHydrationPopulatesSidebarAndPersistsForColdBoot() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("TitleHydrationTests", schema: schema, isStoredInMemoryOnly: true)
+        let offlineStore = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        let store = ChatStore()
+        store.setBridge(OfflineSyncBridge(chatStore: store, offlineStore: offlineStore))
+        let encrypted = makeChat(
+            id: "chat-title",
+            title: nil,
+            titleV: 4,
+            encryptedTitle: "current-title-ciphertext"
+        )
+        let hydrated = makeChat(
+            id: encrypted.id,
+            title: "Hydrated research title",
+            titleV: 4,
+            encryptedTitle: encrypted.encryptedTitle
+        )
+
+        store.upsertChat(encrypted)
+        store.upsertChat(hydrated)
+
+        XCTAssertEqual(store.chat(for: encrypted.id)?.displayTitle, "Hydrated research title")
+        XCTAssertEqual(offlineStore.loadChat(id: encrypted.id)?.displayTitle, "Hydrated research title")
+        XCTAssertEqual(offlineStore.loadStartupChats(lastOpenedChatId: encrypted.id, limit: 20).first?.title,
+                       "Hydrated research title")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.local-state.precedence,chats.persistence.client-encrypted
+    func testSameRevisionTitleHydrationRejectsPlaintextForDifferentCiphertext() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("TitleHydrationFenceTests", schema: schema, isStoredInMemoryOnly: true)
+        let offlineStore = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        let store = ChatStore()
+        store.setBridge(OfflineSyncBridge(chatStore: store, offlineStore: offlineStore))
+        let current = makeChat(
+            id: "chat-title",
+            title: nil,
+            titleV: 4,
+            encryptedTitle: "current-title-ciphertext"
+        )
+        let mismatched = makeChat(
+            id: current.id,
+            title: "Plaintext from another revision",
+            titleV: 4,
+            encryptedTitle: "different-title-ciphertext"
+        )
+
+        store.upsertChat(current)
+        store.upsertChat(mismatched)
+
+        XCTAssertNil(store.chat(for: current.id)?.title)
+        XCTAssertEqual(store.chat(for: current.id)?.encryptedTitle, "current-title-ciphertext")
+        XCTAssertNil(offlineStore.loadChat(id: current.id)?.title)
+        XCTAssertEqual(offlineStore.loadChat(id: current.id)?.encryptedTitle, "current-title-ciphertext")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.local-state.precedence,chats.surface.semantic-parity
+    func testNewerEncryptedTitleRevisionClearsOlderDecryptedTitleUntilHydrated() {
+        let store = ChatStore()
+        store.performWithoutPersistence {
+            store.upsertChat(makeChat(
+                id: "chat-title",
+                title: "Old title",
+                titleV: 3,
+                encryptedTitle: "old-title-ciphertext"
+            ))
+            store.upsertChat(makeChat(
+                id: "chat-title",
+                title: nil,
+                titleV: 4,
+                encryptedTitle: "new-title-ciphertext"
+            ))
+            store.upsertChat(makeChat(
+                id: "chat-title",
+                title: "Stale title",
+                titleV: 3,
+                encryptedTitle: "stale-title-ciphertext"
+            ))
+        }
+
+        XCTAssertNil(store.chat(for: "chat-title")?.title)
+        XCTAssertEqual(store.chat(for: "chat-title")?.encryptedTitle, "new-title-ciphertext")
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.followups.non-destructive-reconciliation,chats.surface.semantic-parity
     func testOlderMetadataCannotReplaceEncryptedFollowUpsInMemoryOrOffline() throws {
         let schema = Schema([PersistedChat.self, PersistedMessage.self])
