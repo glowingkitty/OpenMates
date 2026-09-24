@@ -7,27 +7,25 @@
 #   - meetup:            Meetup.com internal GraphQL (lat/lon, global, includes descriptions)
 #   - luma:              Luma.com internal REST API (78 featured cities, includes descriptions)
 #   - eventbrite:        Eventbrite web API search (includes descriptions via event pages)
-#   - google_events:     Google Events via SerpAPI (aggregates Eventbrite, Ticketmaster, etc.)
 #   - resident_advisor:  RA (ra.co) scraping — electronic music, clubs, DJ events
 #   - siegessaeule:      Siegessäule scraping — Berlin LGBTQ+ events (Berlin-only)
 #
 # Provider selection via the 'provider' request field:
-#   "auto"              (default) — searches all applicable providers in parallel, merges results
+#   "auto"              (default) — searches general and relevant specialist providers
 #   "meetup"            — Meetup only
 #   "luma"              — Luma only (requires city to be in Luma's 78 featured cities)
 #   "eventbrite"        — Eventbrite only (caps at 10 results with descriptions)
-#   "google_events"     — Google Events only (requires SerpAPI key)
 #   "resident_advisor"  — Resident Advisor only (electronic music cities)
 #   "siegessaeule"      — Siegessäule only (Berlin LGBTQ+ events)
 #
-# In "auto" mode, all providers are queried simultaneously. Results from all
-# providers are merged, deduplicated by URL, sorted by date, and sliced to count.
+# In "auto" mode, selected providers run concurrently. Results are merged,
+# deduplicated by URL, sorted by date, and sliced to count.
 #
 # Architecture:
 #   - Direct async execution in the app-events container (no Celery task dispatch)
 #   - Each request in the 'requests' array is processed independently
 #   - Multiple requests are processed in parallel via asyncio.gather
-#   - Within each request, all providers run concurrently via asyncio.gather
+#   - Within each request, selected providers run concurrently
 #
 # Pricing: 5 credits per request
 #   Cost basis: Meetup ~200 KB via Webshare proxy + Luma list + description pages
@@ -52,7 +50,6 @@ from pydantic import BaseModel, Field
 from backend.apps.base_skill import BaseSkill
 from backend.apps.events.providers import berlin_philharmonic as berlin_philharmonic_provider
 from backend.apps.events.providers import eventbrite as eventbrite_provider
-from backend.apps.events.providers import google_events as google_events_provider
 from backend.apps.events.providers import luma as luma_provider
 from backend.apps.events.providers import meetup as meetup_provider
 from backend.apps.events.providers import pretalx as pretalx_provider
@@ -64,7 +61,6 @@ from backend.apps.events.skills.provider_routing import (
     select_ambiguous_specialists,
 )
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.providers.serpapi import get_serpapi_key_async
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS,
     normalize_relevance_criteria,
@@ -76,10 +72,11 @@ from backend.shared.python_utils.search_relevance import (
 
 logger = logging.getLogger(__name__)
 
-# Valid provider values. "auto" runs all applicable providers in parallel.
-_VALID_PROVIDERS = {"auto", "meetup", "luma", "eventbrite", "google_events", "resident_advisor", "siegessaeule", "berlin_philharmonic", "pretalx"}
+# Valid provider values. "auto" routes to applicable, relevant providers.
+_VALID_PROVIDERS = {"auto", "meetup", "luma", "eventbrite", "resident_advisor", "siegessaeule", "berlin_philharmonic", "pretalx"}
 
-# Normalize provider names from LLM tool calls (e.g. "Google Events" -> "google_events").
+# Normalize provider names from LLM tool calls. Retain retired Google aliases only
+# so explicit requests receive a clear error instead of falling back to auto.
 _PROVIDER_ALIASES: Dict[str, str] = {
     "none": "auto",
     "google events": "google_events",
@@ -112,7 +109,6 @@ _PROVIDER_LABELS: Dict[str, str] = {
     "meetup": "Meetup",
     "luma": "Luma",
     "eventbrite": "Eventbrite",
-    "google_events": "Google Events",
     "resident_advisor": "Resident Advisor",
     "siegessaeule": "Siegessäule",
     "berlin_philharmonic": "Berlin Philharmonic",
@@ -166,7 +162,7 @@ _FINALIST_ENRICHMENT_DEADLINE_SECONDS = 2.0
 
 # Location-free online discovery is supported only by providers whose public
 # search contracts do not require a city or coordinates.
-_LOCATION_FREE_ONLINE_PROVIDERS = {"eventbrite", "google_events"}
+_LOCATION_FREE_ONLINE_PROVIDERS = {"eventbrite"}
 
 # Jev's events rubric assigns 1 to a weak but defensible relationship. Results
 # below that floor are omitted instead of padding the response with unrelated
@@ -327,7 +323,7 @@ class SearchResponse(BaseModel):
         default_factory=list,
         description=(
             "List of provider IDs searched for the request "
-            "(e.g. ['meetup', 'luma', 'eventbrite', 'google_events']). "
+            "(e.g. ['meetup', 'luma', 'eventbrite']). "
             "Providers can be present even when they returned zero results."
         ),
     )
@@ -363,7 +359,8 @@ class SearchSkill(BaseSkill):
     Supports multiple parallel search requests via the 'requests' array pattern.
     Each request can specify its own provider, location, date range, and filters.
 
-    In "auto" mode (default), all applicable providers are queried simultaneously.
+    In "auto" mode (default), applicable general and relevant specialist providers
+    are queried concurrently.
     Results are merged, deduplicated by URL, sorted by start date, and limited to
     the requested count.
 
@@ -383,11 +380,12 @@ class SearchSkill(BaseSkill):
         else:
             provider_choice = str(request.get("provider", "auto")).lower().strip()
             provider_choice = _PROVIDER_ALIASES.get(provider_choice, provider_choice)
-            provider_ids = (
-                [provider_choice]
-                if provider_choice in _VALID_PROVIDERS and provider_choice != "auto"
-                else [provider_id for provider_id in _PROVIDER_LABELS]
-            )
+            if provider_choice == "auto":
+                provider_ids = list(_PROVIDER_LABELS)
+            elif provider_choice in _VALID_PROVIDERS:
+                provider_ids = [provider_choice]
+            else:
+                provider_ids = []
 
         providers = [provider_id for provider_id in provider_ids if provider_id in _PROVIDER_LABELS]
         provider = providers[0] if len(providers) == 1 else "auto"
@@ -965,42 +963,6 @@ class SearchSkill(BaseSkill):
             logger.warning("Luma search failed for query=%r city=%r: %s", query, location_str, exc)
             return [], 0, str(exc)
 
-    async def _search_google_events(
-        self,
-        query: str,
-        location_str: str,
-        start_date: Optional[str],
-        end_date: Optional[str],
-        event_type: Optional[str],
-        count: int,
-        secrets_manager: Optional[SecretsManager] = None,
-    ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
-        """
-        Search Google Events via SerpAPI and return (events, total_available, error_or_None).
-        Never raises — errors are returned as the third tuple element.
-
-        Requires SerpAPI key in Vault. Returns empty results with error message
-        if the key is not configured.
-        """
-        try:
-            events, total = await google_events_provider.search_events_async(
-                query=query,
-                location=location_str,
-                start_date=start_date,
-                end_date=end_date,
-                event_type=event_type,
-                count=count,
-                secrets_manager=secrets_manager,
-            )
-            return events, total, None
-        except ValueError as exc:
-            # Missing API key — not a transient error.
-            logger.warning("Google Events search unavailable: %s", exc)
-            return [], 0, str(exc)
-        except Exception as exc:
-            logger.warning("Google Events search failed for query=%r: %s", query, exc)
-            return [], 0, str(exc)
-
     async def _search_eventbrite(
         self,
         query: str,
@@ -1284,10 +1246,14 @@ class SearchSkill(BaseSkill):
                 _PROVIDER_ALIASES.get(str(p).lower().strip(), str(p).lower().strip())
                 for p in raw_providers
             ]
+            if "google_events" in requested_providers:
+                return (request_id, [], "Google Events is no longer available; choose another provider or auto.", 0, [])
         else:
             # Legacy format: single provider string (or "auto")
             provider_choice = str(req.get("provider", "auto")).lower().strip()
             provider_choice = _PROVIDER_ALIASES.get(provider_choice, provider_choice)
+            if provider_choice == "google_events":
+                return (request_id, [], "Google Events is no longer available; choose another provider or auto.", 0, [])
             if provider_choice not in _VALID_PROVIDERS:
                 logger.warning(
                     "Unknown provider %r for request %s — refusing provider fallback",
@@ -1334,8 +1300,8 @@ class SearchSkill(BaseSkill):
             return (
                 request_id,
                 [],
-                f"Provider {provider_choice} requires a location; use eventbrite, "
-                "google_events, or auto for location-free ONLINE searches.",
+                f"Provider {provider_choice} requires a location; use eventbrite "
+                "or auto for location-free ONLINE searches.",
                 0,
                 searched_provider_ids,
             )
@@ -1432,22 +1398,6 @@ class SearchSkill(BaseSkill):
             if luma_err and not luma_events:
                 return (request_id, [], f"Luma search failed: {luma_err}", 0, searched_provider_ids)
             all_events = luma_events
-            total_available = total
-
-        elif provider_choice == "google_events":
-            # Google Events only (via SerpAPI)
-            ge_events, total, ge_err = await self._search_google_events(
-                query=query,
-                location_str=luma_city,
-                start_date=start_date,
-                end_date=end_date,
-                event_type=event_type,
-                count=candidate_target,
-                secrets_manager=secrets_manager,
-            )
-            if ge_err and not ge_events:
-                return (request_id, [], f"Google Events search failed: {ge_err}", 0, searched_provider_ids)
-            all_events = ge_events
             total_available = total
 
         elif provider_choice == "eventbrite":
@@ -1595,11 +1545,6 @@ class SearchSkill(BaseSkill):
                     event_type=event_type,
                     count=per_provider_count, proxy_url=proxy_url,
                 ),
-                "google_events": lambda: self._search_google_events(
-                    query=query, location_str=luma_city,
-                    start_date=start_date, end_date=end_date, event_type=event_type,
-                    count=per_provider_count, secrets_manager=secrets_manager,
-                ),
                 "resident_advisor": lambda: self._search_resident_advisor(
                     query=query, location_str=luma_city,
                     start_date=start_date, end_date=end_date, count=per_provider_count,
@@ -1628,11 +1573,7 @@ class SearchSkill(BaseSkill):
                 immediate_ids.append("pretalx")
 
             # Start general and deterministic specialist searches immediately.
-            # Credential lookup and ambiguous Jev routing run alongside them.
-            key_task = None
-            if not requested_providers and "google_events" in immediate_ids:
-                immediate_ids.remove("google_events")
-                key_task = asyncio.create_task(get_serpapi_key_async(secrets_manager))
+            # Ambiguous Jev routing runs alongside them.
             routing_task = (
                 asyncio.create_task(select_ambiguous_specialists(
                     query=query,
@@ -1660,26 +1601,15 @@ class SearchSkill(BaseSkill):
                 (pid, asyncio.create_task(run_provider(pid)))
                 for pid in immediate_ids if pid in dispatch
             ]
-            decision_tasks = [task for task in (key_task, routing_task) if task]
-            if decision_tasks:
+            if routing_task:
                 completed_decisions, pending_decisions = await asyncio.wait(
-                    decision_tasks, timeout=0.9,
+                    [routing_task], timeout=0.9,
                 )
                 for pending_decision in pending_decisions:
                     pending_decision.cancel()
                 if pending_decisions:
                     await asyncio.gather(*pending_decisions, return_exceptions=True)
-                if key_task:
-                    try:
-                        if key_task in completed_decisions and key_task.result():
-                            task_entries.append((
-                                "google_events", asyncio.create_task(run_provider("google_events")),
-                            ))
-                        else:
-                            logger.info("Google Events skipped: SerpAPI credential unavailable or check timed out")
-                    except Exception as exc:
-                        logger.warning("Google Events credential check failed: %s", exc)
-                if routing_task and routing_task in completed_decisions:
+                if routing_task in completed_decisions:
                     for pid in routing_task.result():
                         if pid in dispatch and pid not in immediate_ids:
                             task_entries.append((pid, asyncio.create_task(run_provider(pid))))

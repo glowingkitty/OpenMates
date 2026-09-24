@@ -15,7 +15,7 @@ from backend.shared.providers.typesafe.models import NoulAnswer
 
 logger = logging.getLogger(__name__)
 
-GENERAL_PROVIDERS = frozenset({"meetup", "luma", "eventbrite", "google_events"})
+GENERAL_PROVIDERS = frozenset({"meetup", "luma", "eventbrite"})
 SPECIALIST_PROVIDERS = frozenset({"resident_advisor", "siegessaeule", "berlin_philharmonic"})
 _JEV_ROUTING_BUDGET_SECONDS = 0.9
 _JEV_INCLUDE_THRESHOLD = 0.70

@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Siegessäule is selected only by auto specialist routing or explicit request.
 # The skill's provider-work deadline protects the batch from its slow proxy path.
 _VALID_PROVIDER_IDS = frozenset({
-    "meetup", "luma", "eventbrite", "google_events", "resident_advisor",
+    "meetup", "luma", "eventbrite", "resident_advisor",
     "siegessaeule", "berlin_philharmonic", "pretalx",
 })
 
@@ -35,7 +35,6 @@ _NAME_TO_ID: Dict[str, str] = {
     "meetup": "meetup",
     "luma": "luma",
     "eventbrite": "eventbrite",
-    "google events": "google_events",
     "resident advisor": "resident_advisor",
     "siegessäule": "siegessaeule",
     "siegessaeule": "siegessaeule",

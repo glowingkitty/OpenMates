@@ -10365,7 +10365,7 @@ providers.travel.serpapi_v2.heading:
   verified_by_human: []
 providers.travel.serpapi_v2.description:
   context: SerpAPI disclosure covering all current search uses
-  en: SerpAPI powers flight, hotel, Google Events, Amazon product, and Google Lens reverse-image searches. It receives the relevant query and localization filters without an OpenMates user identifier. Reverse-image search also sends a short-lived URL to a decrypted copy of the selected image and any optional refinement query.
+  en: SerpAPI powers flight, hotel, Amazon product, and Google Lens reverse-image searches. It receives the relevant query and localization filters without an OpenMates user identifier. Reverse-image search also sends a short-lived URL to a decrypted copy of the selected image and any optional refinement query.
   verified_by_human: []
 providers.travel.transitous.heading:
   context: Provider heading for Transitous

@@ -76,7 +76,7 @@ FEATURE_TIPS = [
         "feature_id": "events-search",
         "icon": "calendar-search",
         "title": "Find events",
-        "description": "Search Meetup, Luma, Google Events, Resident Advisor, and more.",
+        "description": "Search Meetup, Luma, Eventbrite, Resident Advisor, and more.",
         "settings_path": "apps/events/skill/search",
         "phrase": "Looking for something to do? OpenMates can search events across multiple sources.",
         "category": "openmates_official",

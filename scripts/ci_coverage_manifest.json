@@ -566,7 +566,7 @@
     },
     "cli-workflows-search-controls-real.spec.ts": {
       "dependency": "original_workflow_events_provider_credentials",
-      "next_action": "Workflow queue and canonical trigger scanner are implemented. Original web/news steps already use explicit fixture queries, but the Events step is an unmarked auto-provider AI meetup search including SerpAPI Google Events. Enable only after dedicated provider credentials/request caps are authorized; preserve original search/control-step assertions and do not substitute a fixture for the live Events step.",
+      "next_action": "Workflow queue and canonical trigger scanner are implemented. Original web/news steps already use explicit fixture queries, but the Events step is an unmarked auto-provider AI meetup search using live event sources. Enable only after dedicated provider credentials/request caps are authorized; preserve original search/control-step assertions and do not substitute a fixture for the live Events step.",
       "user_input_required": true,
       "source_environment_names": []
     },
@@ -973,7 +973,7 @@
     },
     "skill-events-search.spec.ts": {
       "dependency": "original_direct_cli_provider_credentials",
-      "next_action": "Committed chat caches are present, but the original direct CLI phase requires the original auto-provider Events path, including Google Events via SerpAPI. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
+      "next_action": "Committed chat caches are present, but the original direct CLI phase requires the original auto-provider Events path with live event sources. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
       "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",

@@ -766,12 +766,11 @@ provider_groups:
         used_for:
           - flight search (via Google Flights)
           - hotel search (via Google Hotels)
-          - events search (via Google Events)
           - Amazon product search
           - reverse-image search (via Google Lens)
         data_shared:
           - Flight and hotel search queries (origin, destination, dates, preferences)
-          - Event and product search queries and localization filters
+          - Product search queries and localization filters
           - A short-lived URL to a decrypted copy of an image, plus any optional refinement query, for reverse-image search
           - Note: Shared without user identifiers
       flightradar24:

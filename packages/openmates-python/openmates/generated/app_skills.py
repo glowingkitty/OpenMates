@@ -923,10 +923,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Search for local or online events, meetups, hackathons, conferences, workshops, '
                  'networking events, parties, concerts, or any community gathering. Use ONLY this '
                  'skill for event searches — do NOT additionally call web.search or any other '
-                 'search skill for the same query. Sources: Meetup, Luma, Eventbrite, Google '
-                 'Events, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ '
-                 'events), Berlin Philharmonic (classical concerts in Berlin), and official event '
-                 'schedules for GPN24, 39C3, 38C3',
+                 'search skill for the same query. Sources: Meetup, Luma, Eventbrite, Resident '
+                 'Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin '
+                 'Philharmonic (classical concerts in Berlin), and official event schedules for '
+                 'GPN24, 39C3, 38C3, and 37C3. Use',
   'description_key': 'events.search.description',
   'output_schema': {'properties': {'events': {'example': [{'canonical_url': 'https://example.invalid/events/ai',
                                                            'date_end': '2026-09-23T20:00:00+02:00',
@@ -1075,20 +1075,21 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                 'type': 'array'}},
                     'type': 'object'},
   'schema': {'properties': {'provider': {'description': "The event provider to use. 'auto' "
-                                                        '(default) queries all providers in '
-                                                        'parallel for best coverage. Use specific '
-                                                        'providers when the user asks about a '
-                                                        "particular platform/type: 'Eventbrite' "
-                                                        "for Eventbrite-only results, 'Resident "
-                                                        "Advisor' for electronic music/clubs, "
-                                                        "'Siegessäule' for Berlin LGBTQ+ events, "
-                                                        "'GPN24', '39C3', '38C3', or '37C3' for "
-                                                        'official schedules of those events.\n',
+                                                        '(default) searches general sources in '
+                                                        'parallel and adds relevant specialist '
+                                                        'sources for the topic and region. Use a '
+                                                        'specific provider when the user asks '
+                                                        'about a particular platform/type: '
+                                                        "'Eventbrite' for Eventbrite-only results, "
+                                                        "'Resident Advisor' for electronic "
+                                                        "music/clubs, 'Siegessäule' for Berlin "
+                                                        "LGBTQ+ events, 'GPN24', '39C3', '38C3', "
+                                                        "or '37C3' for official schedules of those "
+                                                        'events.\n',
                                          'enum': ['auto',
                                                   'Meetup',
                                                   'Luma',
                                                   'Eventbrite',
-                                                  'Google Events',
                                                   'Resident Advisor',
                                                   'Siegessäule',
                                                   'Berlin Philharmonic',
@@ -1343,8 +1344,6 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'Meetup',
                                                                                         'Luma',
                                                                                         'Eventbrite',
-                                                                                        'Google '
-                                                                                        'Events',
                                                                                         'Resident '
                                                                                         'Advisor',
                                                                                         'Siegessäule',
@@ -1375,8 +1374,6 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                 'items': {'enum': ['Meetup',
                                                                                                    'Luma',
                                                                                                    'Eventbrite',
-                                                                                                   'Google '
-                                                                                                   'Events',
                                                                                                    'Resident '
                                                                                                    'Advisor',
                                                                                                    'Siegessäule',
@@ -7595,7 +7592,7 @@ class EventsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches — do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Google Events, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3
+        """Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches — do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3, and 37C3. Use
 
         Description key: events.search.description
         Skill: events/search

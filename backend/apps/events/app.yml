@@ -72,7 +72,7 @@ skills:
       networking events, parties, concerts, or any community gathering. Use ONLY this
       skill for event searches — do NOT additionally call web.search or any other
       search skill for the same query.
-      Sources: Meetup, Luma, Eventbrite, Google Events, Resident Advisor (electronic music/clubs),
+      Sources: Meetup, Luma, Eventbrite, Resident Advisor (electronic music/clubs),
       Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin),
       and official event schedules for GPN24, 39C3, 38C3, and 37C3.
       Use 'auto' provider for best coverage.
@@ -120,10 +120,6 @@ skills:
         id: eventbrite
         scope: global
         no_api_key: true
-      - name: Google Events
-        id: google_events
-        scope: global
-        api_key_vault_path: kv/data/providers/serpapi
       - name: Resident Advisor
         id: resident_advisor
         scope: global
@@ -187,7 +183,6 @@ skills:
             - "Meetup"
             - "Luma"
             - "Eventbrite"
-            - "Google Events"
             - "Resident Advisor"
             - "Siegessäule"
             - "Berlin Philharmonic"
@@ -267,7 +262,6 @@ skills:
                   - "Meetup"
                   - "Luma"
                   - "Eventbrite"
-                  - "Google Events"
                   - "Resident Advisor"
                   - "Siegessäule"
                   - "Berlin Philharmonic"
@@ -283,7 +277,6 @@ skills:
                     - "Meetup"
                     - "Luma"
                     - "Eventbrite"
-                    - "Google Events"
                     - "Resident Advisor"
                     - "Siegessäule"
                     - "Berlin Philharmonic"

@@ -964,19 +964,18 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "events",
     "skill_method_py": "search",
     "description_key": "events.search.description",
-    "description": "Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches \u2014 do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Google Events, Resident Advisor (electronic music/clubs), Siegess\u00e4ule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3",
+    "description": "Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches \u2014 do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Resident Advisor (electronic music/clubs), Siegess\u00e4ule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3, and 37C3. Use",
     "schema": {
       "type": "object",
       "properties": {
         "provider": {
           "type": "string",
-          "description": "The event provider to use. 'auto' (default) queries all providers in parallel for best coverage. Use specific providers when the user asks about a particular platform/type: 'Eventbrite' for Eventbrite-only results, 'Resident Advisor' for electronic music/clubs, 'Siegess\u00e4ule' for Berlin LGBTQ+ events, 'GPN24', '39C3', '38C3', or '37C3' for official schedules of those events.\n",
+          "description": "The event provider to use. 'auto' (default) searches general sources in parallel and adds relevant specialist sources for the topic and region. Use a specific provider when the user asks about a particular platform/type: 'Eventbrite' for Eventbrite-only results, 'Resident Advisor' for electronic music/clubs, 'Siegess\u00e4ule' for Berlin LGBTQ+ events, 'GPN24', '39C3', '38C3', or '37C3' for official schedules of those events.\n",
           "enum": [
             "auto",
             "Meetup",
             "Luma",
             "Eventbrite",
-            "Google Events",
             "Resident Advisor",
             "Siegess\u00e4ule",
             "Berlin Philharmonic",
@@ -1049,7 +1048,6 @@ export const APP_SKILL_METADATA = [
                   "Meetup",
                   "Luma",
                   "Eventbrite",
-                  "Google Events",
                   "Resident Advisor",
                   "Siegess\u00e4ule",
                   "Berlin Philharmonic",
@@ -1067,7 +1065,6 @@ export const APP_SKILL_METADATA = [
                     "Meetup",
                     "Luma",
                     "Eventbrite",
-                    "Google Events",
                     "Resident Advisor",
                     "Siegess\u00e4ule",
                     "Berlin Philharmonic",
@@ -5486,7 +5483,7 @@ export class EventsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches — do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Google Events, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3
+   * Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches — do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3, and 37C3. Use
    * Description key: events.search.description
    * Skill: events/search
    */

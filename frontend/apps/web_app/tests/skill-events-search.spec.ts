@@ -42,7 +42,6 @@ const EVENT_SEARCH_PROVIDERS = [
 	'Meetup',
 	'Luma',
 	'Eventbrite',
-	'Google Events',
 	'Resident Advisor',
 	'Siegessäule',
 	'Berlin Philharmonic',
@@ -56,7 +55,6 @@ const EVENT_SEARCH_CARD_ICON_PROVIDERS = [
 	'Meetup',
 	'Luma',
 	'Eventbrite',
-	'Google Events',
 	'Resident Advisor',
 	'Siegessäule',
 	'Berlin Philharmonic'
@@ -209,6 +207,7 @@ test.describe('App: Events / Skill: search', () => {
 		expect(skillData.providers).toContain('meetup');
 		expect(skillData.providers).toContain('luma');
 		expect(skillData.providers).toContain('eventbrite');
+		expect(skillData.providers).not.toContain('google_events');
 		expect(skillData.providers).not.toContain('resident_advisor');
 		expect(skillData.providers).not.toContain('siegessaeule');
 		expect(skillData.providers).not.toContain('berlin_philharmonic');

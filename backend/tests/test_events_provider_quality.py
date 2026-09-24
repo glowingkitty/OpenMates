@@ -8,7 +8,6 @@ import httpx
 import pytest
 
 from backend.apps.events.providers import berlin_philharmonic
-from backend.apps.events.providers import google_events
 from backend.apps.events.providers import siegessaeule
 
 
@@ -28,20 +27,6 @@ def test_philharmonic_filter_uses_requested_epoch_window() -> None:
     assert f"time_start:>={start_epoch}" in expression
     assert f"time_start:<{end_epoch}" in expression
     assert berlin_philharmonic._epoch_to_iso(start_epoch) == "2026-10-01T00:00:00Z"
-
-
-# contract-test: direct surface=rest_api assertions=events-search.request.validated
-def test_google_virtual_event_chip_normalizes_results_as_online() -> None:
-    event = google_events._normalize_event(
-        {
-            "title": "Remote Rust Workshop",
-            "link": "https://example.invalid/rust",
-            "date": {"when": "Oct 10, 6 PM"},
-        },
-        requested_event_type="ONLINE",
-    )
-
-    assert event["event_type"] == "ONLINE"
 
 
 # contract-test: direct surface=rest_api assertions=events-search.providers.explicit,events-search.request.validated
