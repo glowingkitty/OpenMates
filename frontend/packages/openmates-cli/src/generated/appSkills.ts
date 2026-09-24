@@ -362,7 +362,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "code",
     "skill_method_py": "search_repos",
     "description_key": "code.search_repos.description",
-    "description": "Search GitHub repositories instead of web.search for repositories, open-source libraries, or repo examples. Keep query focused on topic. If the user states a material use, audience, maintenance need, or technical preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Omit relevance_criteria only for a neutral search fully expressed by query; never invent preferences. Returns licensed repository embeds.",
+    "description": "Search GitHub repositories instead of web.search for repositories or open-source libraries. Use relevance_criteria only for an explicit user-stated purpose, audience, quality, maintenance, license, or technical preference that should change ordering. Never infer generic quality, popularity, recency, or maintenance. Plain discovery such as \"Find TypeScript Markdown editor libraries on GitHub\" is neutral: omit relevance_criteria. Keep query topical. Returns licensed repositories.",
     "schema": {
       "type": "object",
       "properties": {
@@ -386,7 +386,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional concise natural-language repository-ranking goal, separate from the repository query. Set it whenever the user states a material intended use, audience, maintenance need, technical constraint, desired quality, or preference that should change ordering. Omit only for a neutral repository search fully expressed by query; never invent preferences.\n"
+                "description": "Optional concise natural-language repository-ranking goal, separate from the repository query. Set it only when the user explicitly states a purpose, audience, maintenance need, license constraint, desired quality, or preference that should change ordering. Omit it for broad or neutral discovery. Never add unstated defaults such as popular, modern, well-maintained, secure, documented, or compatible.\n"
               }
             },
             "required": [
@@ -2317,7 +2317,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "models3d",
     "skill_method_py": "search",
     "description_key": "app_skills.models3d.search.description",
-    "description": "Search public catalogs for existing printable or downloadable 3D models; do not generate models. Keep query focused on the object. If the user states a material purpose, compatibility need, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Keep free-only and sort constraints structured. Omit relevance_criteria only for a neutral search fully expressed by query; never invent preferences.",
+    "description": "Search public catalogs for existing printable or downloadable 3D models; do not generate models. Use relevance_criteria only for an explicit user-stated purpose, compatibility need, quality, or preference that should change ordering. Never infer printability, quality, popularity, portability, or compatibility. Plain discovery such as \"Find adjustable laptop stand 3D models\" is neutral: omit relevance_criteria. Keep query focused on the object and keep free-only and sort constraints structured.",
     "schema": {
       "type": "object",
       "properties": {
@@ -2367,7 +2367,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional concise natural-language model-selection goal, separate from the object query. Populate it faithfully when the user states a material purpose or preference that should change result ordering; omit it only for a neutral search fully expressed by query and never invent preferences.\n"
+                "description": "Optional concise natural-language model-selection goal, separate from the object query. Set it only when the user explicitly states a purpose, compatibility need, desired quality, or preference that should change ordering. Omit it for broad or neutral discovery. Never add unstated defaults such as popular, high-quality, printable, portable, safe, or compatible.\n"
               }
             },
             "required": [
@@ -5441,7 +5441,7 @@ export class CodeAppSkills {
     return this.runSkill<T>("code", "run", input, options);
   }
   /**
-   * Search GitHub repositories instead of web.search for repositories, open-source libraries, or repo examples. Keep query focused on topic. If the user states a material use, audience, maintenance need, or technical preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Omit relevance_criteria only for a neutral search fully expressed by query; never invent preferences. Returns licensed repository embeds.
+   * Search GitHub repositories instead of web.search for repositories or open-source libraries. Use relevance_criteria only for an explicit user-stated purpose, audience, quality, maintenance, license, or technical preference that should change ordering. Never infer generic quality, popularity, recency, or maintenance. Plain discovery such as "Find TypeScript Markdown editor libraries on GitHub" is neutral: omit relevance_criteria. Keep query topical. Returns licensed repositories.
    * Description key: code.search_repos.description
    * Skill: code/search_repos
    */
@@ -5630,7 +5630,7 @@ export class Models3dAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search public catalogs for existing printable or downloadable 3D models; do not generate models. Keep query focused on the object. If the user states a material purpose, compatibility need, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Keep free-only and sort constraints structured. Omit relevance_criteria only for a neutral search fully expressed by query; never invent preferences.
+   * Search public catalogs for existing printable or downloadable 3D models; do not generate models. Use relevance_criteria only for an explicit user-stated purpose, compatibility need, quality, or preference that should change ordering. Never infer printability, quality, popularity, portability, or compatibility. Plain discovery such as "Find adjustable laptop stand 3D models" is neutral: omit relevance_criteria. Keep query focused on the object and keep free-only and sort constraints structured.
    * Description key: app_skills.models3d.search.description
    * Skill: models3d/search
    */

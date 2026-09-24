@@ -129,12 +129,12 @@ skills:
       expose_post: true
     preprocessor_hint: >
       Search public catalogs for existing printable or downloadable 3D models;
-      do not generate models. Keep query focused on the object. If the user
-      states a material purpose, compatibility need, or preference that should
-      change ordering, put it in relevance_criteria even if related words could
-      also be added to query. Keep free-only and sort constraints structured.
-      Omit relevance_criteria only for a neutral search fully expressed by query;
-      never invent preferences.
+      do not generate models. Use relevance_criteria only for an explicit
+      user-stated purpose, compatibility need, quality, or preference that should
+      change ordering. Never infer printability, quality, popularity,
+      portability, or compatibility. Plain discovery such as "Find adjustable
+      laptop stand 3D models" is neutral: omit relevance_criteria. Keep query
+      focused on the object and keep free-only and sort constraints structured.
     class_path: backend.apps.models3d.skills.search_skill.SearchSkill
     providers:
       - name: Printables
@@ -184,10 +184,11 @@ skills:
                 maxLength: 1000
                 description: >
                   Optional concise natural-language model-selection goal, separate
-                  from the object query. Populate it faithfully when the user states
-                  a material purpose or preference that should change result ordering;
-                  omit it only for a neutral search fully expressed by query and
-                  never invent preferences.
+                  from the object query. Set it only when the user explicitly states
+                  a purpose, compatibility need, desired quality, or preference that
+                  should change ordering. Omit it for broad or neutral discovery.
+                  Never add unstated defaults such as popular, high-quality,
+                  printable, portable, safe, or compatible.
             required:
               - query
       required:

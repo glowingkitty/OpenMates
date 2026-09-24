@@ -359,4 +359,6 @@ def test_search_repos_app_schema_guides_relevance_criteria():
     assert item_schema["properties"]["relevance_criteria"]["maxLength"] == 1000
     assert "relevance_criteria" not in item_schema.get("required", [])
     assert "relevance_criteria" in skill["preprocessor_hint"]
-    assert "never invent" in skill["preprocessor_hint"]
+    assert "Find TypeScript Markdown editor libraries on GitHub" in skill["preprocessor_hint"]
+    assert "Never infer generic quality" in skill["preprocessor_hint"]
+    assert "popular, modern, well-maintained" in item_schema["properties"]["relevance_criteria"]["description"]

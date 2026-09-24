@@ -457,13 +457,13 @@ skills:
     description_translation_key: code.search_repos.description
     icon_image: search.svg
     preprocessor_hint: >
-      Search GitHub repositories instead of web.search for repositories,
-      open-source libraries, or repo examples. Keep query focused on topic. If
-      the user states a material use, audience, maintenance need, or technical
-      preference that should change ordering, put it in
-      relevance_criteria even if related words could also be added to query.
-      Omit relevance_criteria only for a neutral search fully expressed by query;
-      never invent preferences. Returns licensed repository embeds.
+      Search GitHub repositories instead of web.search for repositories or
+      open-source libraries. Use relevance_criteria only for an explicit
+      user-stated purpose, audience, quality, maintenance, license, or technical
+      preference that should change ordering. Never infer generic quality,
+      popularity, recency, or maintenance. Plain discovery such as "Find
+      TypeScript Markdown editor libraries on GitHub" is neutral: omit
+      relevance_criteria. Keep query topical. Returns licensed repositories.
     class_path: backend.apps.code.skills.search_repos_skill.SearchReposSkill
     pricing:
       per_unit:
@@ -504,11 +504,12 @@ skills:
                 maxLength: 1000
                 description: >
                   Optional concise natural-language repository-ranking goal,
-                  separate from the repository query. Set it whenever the user
-                  states a material intended use, audience, maintenance need,
-                  technical constraint, desired quality, or preference that
-                  should change ordering. Omit only for a neutral repository
-                  search fully expressed by query; never invent preferences.
+                  separate from the repository query. Set it only when the user
+                  explicitly states a purpose, audience, maintenance need,
+                  license constraint, desired quality, or preference that should
+                  change ordering. Omit it for broad or neutral discovery. Never
+                  add unstated defaults such as popular, modern, well-maintained,
+                  secure, documented, or compatible.
             required:
               - query
       required:

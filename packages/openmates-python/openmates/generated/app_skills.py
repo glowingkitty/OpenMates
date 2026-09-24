@@ -300,13 +300,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'code',
   'app_namespace_py': 'code',
   'app_namespace_ts': 'code',
-  'description': 'Search GitHub repositories instead of web.search for repositories, open-source '
-                 'libraries, or repo examples. Keep query focused on topic. If the user states a '
-                 'material use, audience, maintenance need, or technical preference that should '
-                 'change ordering, put it in relevance_criteria even if related words could also '
-                 'be added to query. Omit relevance_criteria only for a neutral search fully '
-                 'expressed by query; never invent preferences. Returns licensed repository '
-                 'embeds.',
+  'description': 'Search GitHub repositories instead of web.search for repositories or open-source '
+                 'libraries. Use relevance_criteria only for an explicit user-stated purpose, '
+                 'audience, quality, maintenance, license, or technical preference that should '
+                 'change ordering. Never infer generic quality, popularity, recency, or '
+                 'maintenance. Plain discovery such as "Find TypeScript Markdown editor libraries '
+                 'on GitHub" is neutral: omit relevance_criteria. Keep query topical. Returns '
+                 'licensed repositories.',
   'description_key': 'code.search_repos.description',
   'schema': {'properties': {'requests': {'description': 'Array of repository search requests. Each '
                                                         'request searches GitHub for public '
@@ -348,18 +348,18 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'query. '
                                                                                                         'Set '
                                                                                                         'it '
-                                                                                                        'whenever '
+                                                                                                        'only '
+                                                                                                        'when '
                                                                                                         'the '
                                                                                                         'user '
+                                                                                                        'explicitly '
                                                                                                         'states '
                                                                                                         'a '
-                                                                                                        'material '
-                                                                                                        'intended '
-                                                                                                        'use, '
+                                                                                                        'purpose, '
                                                                                                         'audience, '
                                                                                                         'maintenance '
                                                                                                         'need, '
-                                                                                                        'technical '
+                                                                                                        'license '
                                                                                                         'constraint, '
                                                                                                         'desired '
                                                                                                         'quality, '
@@ -370,19 +370,25 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'change '
                                                                                                         'ordering. '
                                                                                                         'Omit '
-                                                                                                        'only '
+                                                                                                        'it '
                                                                                                         'for '
-                                                                                                        'a '
+                                                                                                        'broad '
+                                                                                                        'or '
                                                                                                         'neutral '
-                                                                                                        'repository '
-                                                                                                        'search '
-                                                                                                        'fully '
-                                                                                                        'expressed '
-                                                                                                        'by '
-                                                                                                        'query; '
-                                                                                                        'never '
-                                                                                                        'invent '
-                                                                                                        'preferences.\n',
+                                                                                                        'discovery. '
+                                                                                                        'Never '
+                                                                                                        'add '
+                                                                                                        'unstated '
+                                                                                                        'defaults '
+                                                                                                        'such '
+                                                                                                        'as '
+                                                                                                        'popular, '
+                                                                                                        'modern, '
+                                                                                                        'well-maintained, '
+                                                                                                        'secure, '
+                                                                                                        'documented, '
+                                                                                                        'or '
+                                                                                                        'compatible.\n',
                                                                                          'maxLength': 1000,
                                                                                          'type': 'string'}},
                                                    'required': ['query'],
@@ -3316,11 +3322,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_py': 'models3d',
   'app_namespace_ts': 'models3d',
   'description': 'Search public catalogs for existing printable or downloadable 3D models; do not '
-                 'generate models. Keep query focused on the object. If the user states a material '
-                 'purpose, compatibility need, or preference that should change ordering, put it '
-                 'in relevance_criteria even if related words could also be added to query. Keep '
-                 'free-only and sort constraints structured. Omit relevance_criteria only for a '
-                 'neutral search fully expressed by query; never invent preferences.',
+                 'generate models. Use relevance_criteria only for an explicit user-stated '
+                 'purpose, compatibility need, quality, or preference that should change ordering. '
+                 'Never infer printability, quality, popularity, portability, or compatibility. '
+                 'Plain discovery such as "Find adjustable laptop stand 3D models" is neutral: '
+                 'omit relevance_criteria. Keep query focused on the object and keep free-only and '
+                 'sort constraints structured.',
   'description_key': 'app_skills.models3d.search.description',
   'schema': {'properties': {'requests': {'description': 'Array of 3D model search requests. Each '
                                                         'request searches public 3D model catalogs '
@@ -3378,38 +3385,46 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'the '
                                                                                                         'object '
                                                                                                         'query. '
-                                                                                                        'Populate '
+                                                                                                        'Set '
                                                                                                         'it '
-                                                                                                        'faithfully '
+                                                                                                        'only '
                                                                                                         'when '
                                                                                                         'the '
                                                                                                         'user '
+                                                                                                        'explicitly '
                                                                                                         'states '
                                                                                                         'a '
-                                                                                                        'material '
-                                                                                                        'purpose '
+                                                                                                        'purpose, '
+                                                                                                        'compatibility '
+                                                                                                        'need, '
+                                                                                                        'desired '
+                                                                                                        'quality, '
                                                                                                         'or '
                                                                                                         'preference '
                                                                                                         'that '
                                                                                                         'should '
                                                                                                         'change '
-                                                                                                        'result '
-                                                                                                        'ordering; '
-                                                                                                        'omit '
+                                                                                                        'ordering. '
+                                                                                                        'Omit '
                                                                                                         'it '
-                                                                                                        'only '
                                                                                                         'for '
-                                                                                                        'a '
+                                                                                                        'broad '
+                                                                                                        'or '
                                                                                                         'neutral '
-                                                                                                        'search '
-                                                                                                        'fully '
-                                                                                                        'expressed '
-                                                                                                        'by '
-                                                                                                        'query '
-                                                                                                        'and '
-                                                                                                        'never '
-                                                                                                        'invent '
-                                                                                                        'preferences.\n',
+                                                                                                        'discovery. '
+                                                                                                        'Never '
+                                                                                                        'add '
+                                                                                                        'unstated '
+                                                                                                        'defaults '
+                                                                                                        'such '
+                                                                                                        'as '
+                                                                                                        'popular, '
+                                                                                                        'high-quality, '
+                                                                                                        'printable, '
+                                                                                                        'portable, '
+                                                                                                        'safe, '
+                                                                                                        'or '
+                                                                                                        'compatible.\n',
                                                                                          'maxLength': 1000,
                                                                                          'type': 'string'},
                                                                   'sort': {'default': 'best_match',
@@ -7502,7 +7517,7 @@ class CodeAppSkills:
         return self._run_skill("code", "run", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search_repos(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search GitHub repositories instead of web.search for repositories, open-source libraries, or repo examples. Keep query focused on topic. If the user states a material use, audience, maintenance need, or technical preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Omit relevance_criteria only for a neutral search fully expressed by query; never invent preferences. Returns licensed repository embeds.
+        """Search GitHub repositories instead of web.search for repositories or open-source libraries. Use relevance_criteria only for an explicit user-stated purpose, audience, quality, maintenance, license, or technical preference that should change ordering. Never infer generic quality, popularity, recency, or maintenance. Plain discovery such as "Find TypeScript Markdown editor libraries on GitHub" is neutral: omit relevance_criteria. Keep query topical. Returns licensed repositories.
 
         Description key: code.search_repos.description
         Skill: code/search_repos
@@ -7658,7 +7673,7 @@ class Models3dAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search public catalogs for existing printable or downloadable 3D models; do not generate models. Keep query focused on the object. If the user states a material purpose, compatibility need, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Keep free-only and sort constraints structured. Omit relevance_criteria only for a neutral search fully expressed by query; never invent preferences.
+        """Search public catalogs for existing printable or downloadable 3D models; do not generate models. Use relevance_criteria only for an explicit user-stated purpose, compatibility need, quality, or preference that should change ordering. Never infer printability, quality, popularity, portability, or compatibility. Plain discovery such as "Find adjustable laptop stand 3D models" is neutral: omit relevance_criteria. Keep query focused on the object and keep free-only and sort constraints structured.
 
         Description key: app_skills.models3d.search.description
         Skill: models3d/search

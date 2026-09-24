@@ -429,5 +429,7 @@ def test_models3d_app_metadata_declares_parent_child_search_embeds() -> None:
             request_properties["relevance_criteria"]["description"],
         )
     )
-    assert "material" in guidance
-    assert "never invent" in guidance
+    assert "explicitly states" in guidance
+    assert "Find adjustable laptop stand 3D models" in guidance
+    assert "Never infer printability" in guidance
+    assert "popular, high-quality" in guidance
