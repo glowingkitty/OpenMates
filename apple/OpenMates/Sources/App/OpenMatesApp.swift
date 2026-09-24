@@ -248,13 +248,7 @@ struct OpenMatesApp: App {
         mainWindowScene
 
         #if os(macOS)
-        #if DEBUG
-        if DevPreviewLaunchConfiguration.current == nil {
-            quickCaptureMenuBarScene
-        }
-        #else
         quickCaptureMenuBarScene
-        #endif
         #endif
     }
 

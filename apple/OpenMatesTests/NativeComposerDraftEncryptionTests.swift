@@ -219,6 +219,66 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
                        "Synthetic private transcript")
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send,drafts.persistence.local-first-encrypted
+    func testImageAttachmentBytesAreEncryptedAndRestoreAcrossDraftServiceRelaunch() async throws {
+        let repository = RecordingComposerDraftRepository()
+        let key = SymmetricKey(size: .bits256)
+        let imageData = Data("synthetic-private-image-bytes".utf8)
+        let record = EmbedRecord(
+            id: "draft-image",
+            type: "images-image",
+            status: .finished,
+            data: .raw([
+                "app_id": AnyCodable("images"),
+                "filename": AnyCodable("draft-photo.png"),
+                "title": AnyCodable("draft-photo.png"),
+                "type": AnyCodable("image"),
+                "status": AnyCodable("finished")
+            ]),
+            parentEmbedId: nil,
+            appId: "images",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: "1760000000"
+        )
+        let markdown = """
+        ```json
+        {"type":"image","embed_id":"draft-image"}
+        ```
+        """
+        let savingService = DraftService(
+            repository: repository,
+            legacyStore: RecordingLegacyComposerDraftStore(),
+            masterKeyProvider: { key }
+        )
+
+        try await savingService.saveDraft(
+            canonicalMarkdown: markdown,
+            preview: "Photo draft",
+            chatId: chatId,
+            revision: 22,
+            draftVersion: 1,
+            attachments: [ComposerDraftAttachment(embedRecord: record, localData: imageData)]
+        )
+
+        let storedRecord = await repository.record(chatId: chatId)
+        let stored = try XCTUnwrap(storedRecord)
+        let encryptedPayload = try XCTUnwrap(stored.encryptedRecordingPayload)
+        XCTAssertFalse(encryptedPayload.contains(imageData.base64EncodedString()))
+        XCTAssertFalse(String(reflecting: stored).contains("synthetic-private-image-bytes"))
+
+        let relaunchedService = DraftService(
+            repository: repository,
+            legacyStore: RecordingLegacyComposerDraftStore(),
+            masterKeyProvider: { key }
+        )
+        let restoredDraft = try await relaunchedService.loadDraft(chatId: chatId)
+        let restored = try XCTUnwrap(restoredDraft)
+        XCTAssertEqual(restored.attachments.map { $0.embedRecord.id }, ["draft-image"])
+        XCTAssertEqual(restored.attachments.first?.localData, imageData)
+        XCTAssertTrue(restored.recordings.isEmpty)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted
     func testLoadDecryptsRepositoryRecordBackToCanonicalDraft() async throws {
         let fixture = try loadFixture()

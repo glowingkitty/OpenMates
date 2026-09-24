@@ -210,6 +210,67 @@ enum ChatStreamingPresentationPolicy {
     }
 }
 
+enum ChatGeneratedMetadataPolicy {
+    static func applying(_ metadata: StreamingClient.ChatMetadata, to chat: Chat) -> Chat {
+        let title = metadata.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let category = metadata.category?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let icon = metadata.iconNames.first?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentTitle = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let metadataIsUninitialized = currentTitle.isEmpty
+            && (chat.titleV ?? 0) == 0
+        return Chat(
+            id: chat.id,
+            title: metadataIsUninitialized && title?.isEmpty == false ? title : chat.title,
+            lastMessageAt: chat.lastMessageAt,
+            createdAt: chat.createdAt,
+            updatedAt: chat.updatedAt,
+            isArchived: chat.isArchived,
+            isPinned: chat.isPinned,
+            appId: chat.appId,
+            category: metadataIsUninitialized && category?.isEmpty == false ? category : chat.category,
+            icon: metadataIsUninitialized && icon?.isEmpty == false ? icon : chat.icon,
+            chatSummary: chat.chatSummary,
+            encryptedTitle: chat.encryptedTitle,
+            encryptedCategory: chat.encryptedCategory,
+            encryptedIcon: chat.encryptedIcon,
+            encryptedChatSummary: chat.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: chat.encryptedFollowUpRequestSuggestions,
+            encryptedAutoSpeakResponse: chat.encryptedAutoSpeakResponse,
+            encryptedChatKey: metadata.encryptedChatKey ?? chat.encryptedChatKey,
+            messagesV: chat.messagesV,
+            titleV: chat.titleV,
+            draftV: chat.draftV,
+            metadataV: chat.metadataV,
+            lastVisibleMessageId: chat.lastVisibleMessageId,
+            parentId: chat.parentId,
+            isSubChat: chat.isSubChat,
+            subChatSettings: chat.subChatSettings,
+            budgetLimit: chat.budgetLimit,
+            budgetSpent: chat.budgetSpent,
+            encryptedActiveFocusId: chat.encryptedActiveFocusId,
+            activeFocusId: chat.activeFocusId
+        )
+    }
+}
+
+struct ChatEncryptedMetadataAcceptedVersions: Equatable {
+    let messages: Int?
+    let title: Int?
+    let metadata: Int?
+}
+
+enum ChatEncryptedMetadataAcknowledgementPolicy {
+    static func acceptedVersions(from fields: [String: Any]) -> ChatEncryptedMetadataAcceptedVersions? {
+        guard fields["status"] as? String == "queued_for_storage" else { return nil }
+        let versions = fields["versions"] as? [String: Any]
+        return ChatEncryptedMetadataAcceptedVersions(
+            messages: versions?["messages_v"] as? Int,
+            title: versions?["title_v"] as? Int,
+            metadata: versions?["metadata_v"] as? Int
+        )
+    }
+}
+
 enum ChatFollowUpSuggestionPolicy {
     static func clearForAcceptedSend(_ current: [String]) -> [String] {
         current.isEmpty ? current : []
@@ -1409,6 +1470,9 @@ final class ChatViewModel: ObservableObject {
 
         case .typingStarted(let chatId, let messageId, let metadata):
             streamingMessageId = messageId
+            if let metadata, let currentChat = chat, currentChat.id == chatId {
+                chat = ChatGeneratedMetadataPolicy.applying(metadata, to: currentChat)
+            }
             if let userMessageId = metadata?.userMessageId {
                 userMessageIdByAssistantMessageId[messageId] = userMessageId
             }
@@ -4583,10 +4647,27 @@ final class ChatSendPipeline {
         payload["encrypted_sender_name"] = encryptedSenderName
         if let encryptedUserCategory { payload["encrypted_category"] = encryptedUserCategory }
 
-        try await wsManager.send(WSOutboundMessage(type: "encrypted_chat_metadata", payload: payload))
-        chatStore?.upsertChat(updatedChat)
+        let acknowledgement = try await wsManager.sendAndWait(
+            WSOutboundMessage(type: "encrypted_chat_metadata", payload: payload),
+            responseTypes: ["encrypted_metadata_stored", "incomplete_chat_metadata", "chat_key_mismatch"]
+        ) { fields in
+            fields["chat_id"] as? String == chat.id
+                && fields["message_id"] as? String == userMessage.id
+        }
+        guard let acceptedVersions = ChatEncryptedMetadataAcknowledgementPolicy.acceptedVersions(
+            from: acknowledgement.fields
+        ) else {
+            throw ChatSendError.webSocketUnavailable
+        }
+        let acceptedChat = copyChat(
+            updatedChat,
+            messagesV: acceptedVersions.messages,
+            titleV: acceptedVersions.title,
+            metadataV: acceptedVersions.metadata
+        )
+        chatStore?.upsertChat(acceptedChat)
         storageCompleted = true
-        return updatedChat
+        return acceptedChat
     }
 
     func claimEncryptedUserStorage(messageId: String) -> Bool {

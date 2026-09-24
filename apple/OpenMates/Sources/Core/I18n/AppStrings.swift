@@ -819,6 +819,7 @@ enum AppStrings {
     static var suggestionsExploreNext: String { L("chat.suggestions.explore_next") }
     static var suggestionsHeader: String { L("chat.suggestions.header_tap") }
     static var codeRun: String { L("app_skills.code.run") }
+    static var codeSearchRepos: String { L("app_skills.code.search_repos") }
     static var codeRunCode: String { L("app_skills.code.run_code") }
     static var codeRunOutput: String { L("app_skills.code.run.output") }
     static var codeRunViewCode: String { L("app_skills.code.run.view_code") }

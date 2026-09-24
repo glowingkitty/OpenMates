@@ -5,6 +5,7 @@
 import XCTest
 @testable import OpenMates
 
+@MainActor
 final class SkillApplicationParityTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testShortcutSkillFormatterUnwrapsRestSdkEnvelope() throws {
@@ -64,8 +65,10 @@ final class SkillApplicationParityTests: XCTestCase {
         let code = try XCTUnwrap(skillsById["code-code"]?.primaryEmbed)
         XCTAssertEqual(code.type, EmbedType.codeCode.rawValue)
         XCTAssertEqual(code.appId, "code")
-        XCTAssertEqual(code.rawData?["language"]?.value as? String, "svelte")
-        XCTAssertEqual(code.rawData?["filename"]?.value as? String, "MyComponent.svelte")
+        let normalizedCode = AppleCodeEmbedContent(data: code.rawData)
+        XCTAssertEqual(normalizedCode.language, "html")
+        XCTAssertEqual(normalizedCode.filename, "index.html")
+        XCTAssertTrue(normalizedCode.code.contains("Rendered index.html"))
         XCTAssertFalse(code.isAppSkillUse)
 
         let application = try XCTUnwrap(skillsById["code-application"]?.primaryEmbed)
@@ -215,6 +218,215 @@ final class SkillApplicationParityTests: XCTestCase {
 
         XCTAssertEqual(model.websiteResults.map(\.title), ["Native result"])
         XCTAssertEqual(model.previewResultCount, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity
+    func testPersistedWebSearchFlattensGroupedInlineResults() throws {
+        let parent = EmbedRecord(
+            id: "grouped-results-web-search",
+            type: EmbedType.webSearch.rawValue,
+            status: .finished,
+            data: .raw([
+                "query": AnyCodable("grouped native results"),
+                "results": AnyCodable([[
+                    "id": "request-1",
+                    "results": [[
+                        "title": "Grouped result",
+                        "url": "https://example.com/grouped",
+                    ]],
+                ]]),
+            ]),
+            parentEmbedId: nil,
+            appId: "web",
+            skillId: "search",
+            embedIds: nil,
+            createdAt: "2026-09-23T00:00:00Z"
+        )
+
+        let model = SearchSkillPreviewModel(embed: parent, allEmbedRecords: [parent.id: parent])
+
+        XCTAssertEqual(model.websiteResults.map(\.title), ["Grouped result"])
+        XCTAssertEqual(model.websiteResults.map(\.url), ["https://example.com/grouped"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity
+    func testPersistedWebSearchMergesPartiallyHydratedChildrenOverInlineResults() throws {
+        let parent = EmbedRecord(
+            id: "partially-hydrated-web-search",
+            type: EmbedType.webSearch.rawValue,
+            status: .finished,
+            data: .raw([
+                "query": AnyCodable("native child graph"),
+                "result_count": AnyCodable(2),
+                "results_toon": AnyCodable("""
+                    results[2]{embed_id,title,url}:
+                      web-b,Inline B,https://example.com/b
+                      web-a,Inline A,https://example.com/a
+                    count: 2
+                    """),
+            ]),
+            parentEmbedId: nil,
+            appId: "web",
+            skillId: "search",
+            embedIds: "web-b|web-a",
+            createdAt: "2026-09-23T00:00:00Z"
+        )
+        let hydrated = EmbedRecord(
+            id: "web-a",
+            type: EmbedType.webWebsite.rawValue,
+            status: .finished,
+            data: .raw([
+                "title": AnyCodable("Hydrated A"),
+                "url": AnyCodable("https://example.com/a"),
+            ]),
+            parentEmbedId: parent.id,
+            appId: "web",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: "2026-09-23T00:00:01Z"
+        )
+
+        let model = SearchSkillPreviewModel(
+            embed: parent,
+            allEmbedRecords: [parent.id: parent, hydrated.id: hydrated]
+        )
+
+        XCTAssertEqual(model.websiteResults.map(\.id), ["web-b", "web-a"])
+        XCTAssertEqual(model.websiteResults.map(\.title), ["Inline B", "Hydrated A"])
+        XCTAssertEqual(model.previewResultCount, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testRepositorySearchResolvesPersistedChildEmbedsInParentOrder() throws {
+        let parent = EmbedRecord(
+            id: "persisted-repository-search",
+            type: EmbedType.codeRepoSearch.rawValue,
+            status: .finished,
+            data: .raw([
+                "query": AnyCodable("swift encrypted chat"),
+                "provider": AnyCodable("GitHub"),
+                "result_count": AnyCodable(2),
+            ]),
+            parentEmbedId: nil,
+            appId: "code",
+            skillId: "search_repos",
+            embedIds: "repository-b|repository-a",
+            createdAt: "2026-09-23T00:00:00Z"
+        )
+        let first = EmbedRecord(
+            id: "repository-a",
+            type: EmbedType.codeRepo.rawValue,
+            status: .finished,
+            data: .raw(["full_name": AnyCodable("openmates/apple-a"), "url": AnyCodable("https://github.com/openmates/apple-a")]),
+            parentEmbedId: parent.id,
+            appId: "code",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: "2026-09-23T00:00:01Z"
+        )
+        let second = EmbedRecord(
+            id: "repository-b",
+            type: EmbedType.codeRepo.rawValue,
+            status: .finished,
+            data: .raw(["full_name": AnyCodable("openmates/apple-b"), "url": AnyCodable("https://github.com/openmates/apple-b")]),
+            parentEmbedId: parent.id,
+            appId: "code",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: "2026-09-23T00:00:02Z"
+        )
+
+        let model = CodeRepoSearchModel(
+            embed: parent,
+            allEmbedRecords: [parent.id: parent, first.id: first, second.id: second]
+        )
+
+        XCTAssertEqual(model.repositoryEmbeds.map(\.id), [second.id, first.id])
+        XCTAssertEqual(model.resultCount, 2)
+        XCTAssertEqual(model.resultCountLabel, "2 repositories")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testRepositorySearchUsesParentResultsToonUntilChildrenHydrate() throws {
+        let parent = EmbedRecord(
+            id: "inline-repository-search",
+            type: EmbedType.codeRepoSearch.rawValue,
+            status: .finished,
+            data: .raw([
+                "query": AnyCodable("svelte markdown editor"),
+                "provider": AnyCodable("GitHub"),
+                "result_count": AnyCodable(2),
+                "results_toon": AnyCodable("""
+                    results[2]{embed_id,full_name,url,stars}:
+                      repo-1,openmates/repo-one,https://github.com/openmates/repo-one,128
+                      repo-2,openmates/repo-two,https://github.com/openmates/repo-two,64
+                    count: 2
+                    """),
+            ]),
+            parentEmbedId: nil,
+            appId: "code",
+            skillId: "search_repos",
+            embedIds: "repo-1|repo-2",
+            createdAt: "2026-09-23T00:00:00Z"
+        )
+
+        let model = CodeRepoSearchModel(embed: parent, allEmbedRecords: [parent.id: parent])
+
+        XCTAssertEqual(model.repositoryEmbeds.map(\.id), ["repo-1", "repo-2"])
+        XCTAssertEqual(model.repositoryEmbeds.map(\.type), [EmbedType.codeRepo.rawValue, EmbedType.codeRepo.rawValue])
+        XCTAssertEqual(model.repositoryEmbeds.first?.rawData?["full_name"]?.value as? String, "openmates/repo-one")
+        XCTAssertEqual(model.resultCount, 2)
+        XCTAssertEqual(model.resultCountLabel, "2 repositories")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testRepositorySearchMergesPartiallyHydratedChildrenOverInlineResults() throws {
+        let parent = EmbedRecord(
+            id: "partially-hydrated-repository-search",
+            type: EmbedType.codeRepoSearch.rawValue,
+            status: .finished,
+            data: .raw([
+                "query": AnyCodable("swift repositories"),
+                "result_count": AnyCodable(2),
+                "results_toon": AnyCodable("""
+                    results[2]{embed_id,full_name,url,stars}:
+                      repo-2,openmates/repo-two,https://github.com/openmates/repo-two,64
+                      repo-1,openmates/repo-one-inline,https://github.com/openmates/repo-one,128
+                    count: 2
+                    """),
+            ]),
+            parentEmbedId: nil,
+            appId: "code",
+            skillId: "search_repos",
+            embedIds: "repo-2|repo-1",
+            createdAt: "2026-09-23T00:00:00Z"
+        )
+        let hydrated = EmbedRecord(
+            id: "repo-1",
+            type: EmbedType.codeRepo.rawValue,
+            status: .finished,
+            data: .raw([
+                "full_name": AnyCodable("openmates/repo-one-hydrated"),
+                "url": AnyCodable("https://github.com/openmates/repo-one"),
+            ]),
+            parentEmbedId: parent.id,
+            appId: "code",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: "2026-09-23T00:00:01Z"
+        )
+
+        let model = CodeRepoSearchModel(
+            embed: parent,
+            allEmbedRecords: [parent.id: parent, hydrated.id: hydrated]
+        )
+
+        XCTAssertEqual(model.repositoryEmbeds.map(\.id), ["repo-2", "repo-1"])
+        XCTAssertEqual(
+            model.repositoryEmbeds.map { $0.rawData?["full_name"]?.value as? String },
+            ["openmates/repo-two", "openmates/repo-one-hydrated"]
+        )
+        XCTAssertEqual(model.resultCount, 2)
     }
 
     // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity

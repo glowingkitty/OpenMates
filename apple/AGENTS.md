@@ -223,12 +223,27 @@ when the changed surface has no Apple counterpart.
 
 Every TestFlight milestone updates all supported Apple platforms together: the
 iOS archive must contain the companion Watch app, and macOS must be uploaded
-separately with the same marketing version and build number. Prefer
-`scripts/apple_remote.py deploy-latest-testflight --branch dev` when its remote
-configuration is available; a local Mac release must meet the same contract.
-Verify that App Store Connect has processed both the iOS and macOS builds before
-reporting the TestFlight update complete. A successful iOS upload alone is not a
-complete release.
+separately with the same marketing version and build number. On the release Mac,
+use `python3 scripts/apple_testflight_release.py`. It archives both products,
+checks the embedded Watch app and universal macOS architectures, reuses the
+existing ExportOptions plist, uploads both archives, and waits for both App Store
+Connect builds to become valid. Stages are resumable from source-bound receipts
+under `.runtime/testflight-build-N/`; use `--rebuild-stale-archives` when the
+script reports that preserved archives no longer match current source. Run
+`--dry-run --build-number N` for a bounded command preview.
+
+App Store Connect API credentials may come from `APP_STORE_CONNECT_API_*` or the
+existing `~/.config/openmates/apple-remote.json`. With credentials configured,
+one invocation selects the next unified build number and verifies processing.
+Without them, pass `--build-number N`; Xcode may use its signed-in account for
+upload, but the script must finish as `uploaded_processing_unverified` and print
+the exact `--verify-only` resume command. That status is not a completed
+TestFlight release. No Vercel credential is part of Apple release delivery.
+
+Use `scripts/apple_remote.py deploy-latest-testflight --branch dev` only when the
+release must execute on the configured remote Mac. It must meet the same
+all-platform and processing requirements. A successful iOS upload alone is not
+a complete release.
 
 Validated 2026-06-08 from the Linux dev server: a configured SSH alias reached
 a Tailscale Mac, `xcodebuild -version` responded, sanitized project lookup found

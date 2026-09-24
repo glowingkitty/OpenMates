@@ -51,6 +51,10 @@ models:
       constraints: {administrator_only: true}
 
 assertions:
+  - id: issue-reporting.entry.device-shake
+    type: behavior
+    must: On a supported iPhone, an intentional device shake opens the Report Issue form from the current app shell, suppresses duplicate rapid shake events, and leaves diagnostic-log attachment disabled until the user explicitly enables it.
+    depends_on: [models.DiagnosticCapture, examples.shake_entry]
   - id: issue-reporting.form.role-aware-controls
     type: behavior
     must: The Report Issue form remains usable for guests and authenticated users, while controls that directly trigger internal fix, tracker, or notification automation are shown only to an authorized administrator.
@@ -85,9 +89,9 @@ applies_to:
     parity: semantic
     implementations:
       web: {required: true}
-      apple: {required: false}
+      apple: {required: true}
     exceptions: []
 
 examples:
   file: examples.yml
-  required_groups: [role_aware_form, long_title, successful_submission, compact_logs]
+  required_groups: [shake_entry, role_aware_form, long_title, successful_submission, compact_logs]

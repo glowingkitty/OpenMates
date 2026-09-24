@@ -59,10 +59,12 @@ SPECIFICATION_GENERATED_PATHS = {
 }
 SPECIFICATION_EVIDENCE_TOOLING_PATHS = {
     "scripts/specification_approval_pdf.py",
+    "scripts/specification_approval_yaml.py",
     "scripts/specification_readable_pdf.py",
     "scripts/specifications.py",
     "scripts/plan_verify.py",
     "scripts/tests/test_specification_approval_pdf.py",
+    "scripts/tests/test_specification_approval_yaml.py",
     "scripts/tests/test_specification_readable_pdf.py",
     "scripts/tests/test_specification_evidence.py",
     "scripts/tests/test_specifications_workflow.py",
@@ -1219,21 +1221,154 @@ def _load_approvals(path: Path) -> dict[str, Any]:
     return value
 
 
+def _yaml_review_baseline_contract(
+    bundle: SpecificationBundle,
+    *,
+    baseline_ref: str,
+    baseline_commit: str,
+) -> dict[str, Any]:
+    resolved = subprocess.run(
+        ["git", "rev-parse", "--verify", f"{baseline_ref}^{{commit}}"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if resolved.returncode != 0 or not resolved.stdout.strip():
+        raise SpecificationError(f"Specification YAML review baseline ref does not resolve: {baseline_ref}")
+    resolved_commit = resolved.stdout.strip()
+    if resolved_commit != baseline_commit:
+        raise SpecificationError("Specification YAML review baseline commit does not match its ref")
+    try:
+        relative = (bundle.path / "specification.yml").resolve().relative_to(REPO_ROOT.resolve())
+    except ValueError as exc:
+        raise SpecificationError("Specification YAML review bundle must be inside the repository") from exc
+    baseline = subprocess.run(
+        ["git", "show", f"{resolved_commit}:{relative.as_posix()}"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if baseline.returncode != 0:
+        return {}
+    try:
+        value = yaml.safe_load(baseline.stdout)
+    except yaml.YAMLError as exc:
+        raise SpecificationError(f"invalid Specification YAML review baseline: {exc}") from exc
+    if not isinstance(value, dict):
+        raise SpecificationError("Specification YAML review baseline must contain a mapping")
+    return value
+
+
+def _yaml_review_requirement_examples(
+    assertion: dict[str, Any],
+    examples: dict[str, Any],
+) -> list[dict[str, Any]]:
+    groups = {
+        value.removeprefix("examples.")
+        for value in assertion.get("depends_on", [])
+        if isinstance(value, str) and value.startswith("examples.")
+    }
+    return [
+        case
+        for group, cases in examples.items()
+        if isinstance(cases, list)
+        for case in cases
+        if isinstance(case, dict)
+        and (group in groups or assertion["id"] in case.get("assertion_ids", []))
+    ]
+
+
+def validate_yaml_review_eligibility(
+    bundle: SpecificationBundle,
+    baseline_contract: dict[str, Any],
+) -> None:
+    baseline_assertions = {
+        str(item["id"]): item
+        for item in baseline_contract.get("assertions", [])
+        if isinstance(item, dict) and isinstance(item.get("id"), (str, int, float))
+    }
+    for assertion in bundle.specification.get("assertions", []):
+        if assertion == baseline_assertions.get(str(assertion["id"])):
+            continue
+        cases = _yaml_review_requirement_examples(assertion, bundle.examples)
+
+        def readable(value: Any) -> bool:
+            return (isinstance(value, str) and bool(value.strip())) or (
+                isinstance(value, dict)
+                and isinstance(value.get("code"), str)
+                and bool(value["code"].strip())
+            )
+
+        concrete = all(
+            case.get("id")
+            and readable(case.get("given") or case.get("input"))
+            and readable(case.get("then") or case.get("expect"))
+            for case in cases
+        )
+        if not 1 <= len(cases) <= 2 or not concrete:
+            raise SpecificationError(
+                f"Requirement {assertion['id']} needs 1–2 concrete mapped examples written as "
+                "natural-language input/given and expect/then, or explicit code examples; "
+                "use assertion_ids or depends_on: examples.<group>"
+            )
+
+
 def validate_review_artifact(path: Path, bundle: SpecificationBundle) -> dict[str, str]:
     try:
-        artifact = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        artifact_bytes = path.read_bytes()
+        artifact = yaml.safe_load(artifact_bytes.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
         raise SpecificationError(f"invalid Specification review artifact: {exc}") from exc
     if not isinstance(artifact, dict):
-        raise SpecificationError("Specification review artifact must contain a JSON object")
+        raise SpecificationError("Specification review artifact must contain a mapping")
     if artifact.get("specification") != bundle.versioned_id or artifact.get("fingerprint") != bundle.fingerprint:
         raise SpecificationError("Specification review artifact does not match the current bundle fingerprint")
-    pdf_value = artifact.get("pdf")
-    pdf_sha256 = artifact.get("pdf_sha256")
     baseline_ref = artifact.get("baseline_ref")
     baseline_commit = artifact.get("baseline_commit")
-    if not all(isinstance(value, str) and value for value in (pdf_value, pdf_sha256, baseline_ref, baseline_commit)):
-        raise SpecificationError("Specification review artifact requires pdf, pdf_sha256, baseline_ref, and baseline_commit")
+    if not all(isinstance(value, str) and value for value in (baseline_ref, baseline_commit)):
+        raise SpecificationError("Specification review artifact requires baseline_ref and baseline_commit")
+    if artifact.get("review_format") == "yaml_chat":
+        if artifact.get("approval_eligible") is not True:
+            raise SpecificationError("Specification YAML review artifact is not approval eligible")
+        documents = artifact.get("documents")
+        if not isinstance(documents, list) or len(documents) != 2:
+            raise SpecificationError("Specification YAML review artifact requires complete specification.yml and examples YAML documents")
+        expected_paths = [bundle.path / "specification.yml"]
+        examples_file = bundle.specification.get("examples", {}).get("file")
+        if not isinstance(examples_file, str) or not examples_file:
+            raise SpecificationError("Specification examples.file must identify the examples document")
+        expected_paths.append(bundle.path / examples_file)
+        for document, expected_path in zip(documents, expected_paths, strict=True):
+            if not isinstance(document, dict) or document.get("name") != expected_path.name:
+                raise SpecificationError(f"Specification YAML review artifact is missing {expected_path.name}")
+            content = document.get("content")
+            digest = document.get("sha256")
+            if not isinstance(content, str) or not isinstance(digest, str):
+                raise SpecificationError(f"Specification YAML review artifact has invalid {expected_path.name} content")
+            if hashlib.sha256(content.encode("utf-8")).hexdigest() != digest:
+                raise SpecificationError(f"Specification YAML review artifact {expected_path.name} hash does not match its content")
+            if content != expected_path.read_text(encoding="utf-8"):
+                raise SpecificationError(f"Specification YAML review artifact {expected_path.name} does not match the current bundle")
+        baseline_contract = _yaml_review_baseline_contract(
+            bundle,
+            baseline_ref=baseline_ref,
+            baseline_commit=baseline_commit,
+        )
+        validate_yaml_review_eligibility(bundle, baseline_contract)
+        return {
+            "path": str(path.resolve()),
+            "artifact_sha256": hashlib.sha256(artifact_bytes).hexdigest(),
+            "review_format": "yaml_chat",
+            "baseline_ref": baseline_ref,
+            "baseline_commit": baseline_commit,
+            "fingerprint": bundle.fingerprint,
+        }
+    pdf_value = artifact.get("pdf")
+    pdf_sha256 = artifact.get("pdf_sha256")
+    if not all(isinstance(value, str) and value for value in (pdf_value, pdf_sha256)):
+        raise SpecificationError("Specification PDF review artifact requires pdf and pdf_sha256")
     pdf = Path(pdf_value).expanduser().resolve()
     if not pdf.is_file() or hashlib.sha256(pdf.read_bytes()).hexdigest() != pdf_sha256:
         raise SpecificationError("Specification review artifact PDF is missing or its hash does not match")
@@ -1254,7 +1389,7 @@ def validate_review_artifact(path: Path, bundle: SpecificationBundle) -> dict[st
         raise SpecificationError("Specification review artifact publication hash does not match the PDF")
     return {
         "path": str(path.resolve()),
-        "artifact_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "artifact_sha256": hashlib.sha256(artifact_bytes).hexdigest(),
         "pdf_sha256": pdf_sha256,
         "baseline_ref": baseline_ref,
         "baseline_commit": baseline_commit,

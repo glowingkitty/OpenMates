@@ -2,6 +2,8 @@
 // The deterministic catalog is audited against matesMetadata.ts to prevent identity drift.
 // Artwork is bundled from the shared web mates directory and all copy resolves through i18n.
 // Chat actions hand a canonical mention to the native composer without browser navigation.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/SettingsMates.svelte
@@ -64,6 +66,11 @@ enum CanonicalSettingsMateCatalog {
         mate(id: "onboarding_support", nameKey: "mates.onboarding_support", icon: "compass"),
     ]
 
+    static func mate(id: String?) -> SettingsMateMetadata? {
+        guard let id else { return nil }
+        return all.first { $0.id == id }
+    }
+
     private static func mate(id: String, nameKey: String, icon: String) -> SettingsMateMetadata {
         SettingsMateMetadata(
             id: id,
@@ -101,6 +108,7 @@ extension Notification.Name {
 }
 
 struct SettingsMatesView: View {
+    var initialMateID: String? = nil
     @State private var selectedMate: SettingsMateMetadata?
 
     var body: some View {
@@ -135,6 +143,18 @@ struct SettingsMatesView: View {
                 }
             }
         }
+        .onAppear {
+            selectInitialMateIfAvailable()
+        }
+        .onChange(of: initialMateID) { _, _ in
+            selectInitialMateIfAvailable()
+        }
+    }
+
+    private func selectInitialMateIfAvailable() {
+        guard let mate = CanonicalSettingsMateCatalog.mate(id: initialMateID),
+              selectedMate?.id != mate.id else { return }
+        selectedMate = mate
     }
 }
 

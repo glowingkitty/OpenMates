@@ -9,6 +9,128 @@ import XCTest
 
 @MainActor
 final class ChatStreamingLifecycleParityTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testGeneratedMetadataImmediatelyPopulatesActiveChatPresentation() {
+        let chat = Chat(
+            id: "chat-1", title: nil, lastMessageAt: nil,
+            createdAt: "2026-09-24T10:00:00Z", updatedAt: nil,
+            isArchived: false, isPinned: false, appId: "ai",
+            encryptedTitle: nil, encryptedChatKey: nil,
+            messagesV: 1, titleV: 0
+        )
+        let metadata = StreamingClient.ChatMetadata(
+            title: "A generated title", iconNames: ["code"], category: "code",
+            modelName: "A model", providerName: nil, serverRegion: nil,
+            userMessageId: "user-1", encryptedChatKey: "wrapped-key"
+        )
+
+        let updated = ChatGeneratedMetadataPolicy.applying(metadata, to: chat)
+
+        XCTAssertEqual(updated.title, "A generated title")
+        XCTAssertEqual(updated.category, "code")
+        XCTAssertEqual(updated.icon, "code")
+        XCTAssertEqual(updated.encryptedChatKey, "wrapped-key")
+        XCTAssertEqual(updated.messagesV, 1)
+        XCTAssertEqual(updated.titleV, 0, "Presentation metadata must not invent a server version")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
+    func testGeneratedMetadataRemainsTransientUntilEncryptedStorageIsAccepted() {
+        let stored = Chat(
+            id: "chat-1", title: nil, lastMessageAt: nil,
+            createdAt: "2026-09-24T10:00:00Z", updatedAt: nil,
+            isArchived: false, isPinned: false, appId: "ai",
+            encryptedTitle: nil, encryptedChatKey: nil,
+            messagesV: 1, titleV: 0
+        )
+        let store = ChatStore()
+        store.upsertChat(stored)
+        let viewModel = ChatViewModel()
+        viewModel.configure(wsManager: nil, chatStore: store)
+        viewModel.chat = stored
+
+        viewModel.handleStreamEvent(.typingStarted(
+            chatId: "chat-1",
+            messageId: "assistant-1",
+            metadata: StreamingClient.ChatMetadata(
+                title: "Transient title", iconNames: ["code"], category: "code",
+                modelName: "A model", providerName: nil, serverRegion: nil,
+                userMessageId: "user-1", encryptedChatKey: "wrapped-key"
+            )
+        ))
+
+        XCTAssertEqual(viewModel.chat?.title, "Transient title")
+        XCTAssertNil(store.chat(for: "chat-1")?.title)
+        XCTAssertNil(store.chat(for: "chat-1")?.category)
+        XCTAssertNil(store.chat(for: "chat-1")?.icon)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
+    func testRejectedEncryptedMetadataAcknowledgementCannotAdvancePersistenceVersions() {
+        XCTAssertNil(ChatEncryptedMetadataAcknowledgementPolicy.acceptedVersions(from: [
+            "status": "rejected",
+            "versions": ["messages_v": 2, "title_v": 1, "metadata_v": 1]
+        ]))
+        XCTAssertNil(ChatEncryptedMetadataAcknowledgementPolicy.acceptedVersions(from: [
+            "code": "incomplete_chat_metadata",
+            "versions": ["messages_v": 2, "title_v": 1, "metadata_v": 1]
+        ]))
+
+        XCTAssertEqual(
+            ChatEncryptedMetadataAcknowledgementPolicy.acceptedVersions(from: [
+                "status": "queued_for_storage",
+                "versions": ["messages_v": 2, "title_v": 1, "metadata_v": 3]
+            ]),
+            ChatEncryptedMetadataAcceptedVersions(messages: 2, title: 1, metadata: 3)
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testGeneratedMetadataDoesNotReplaceInitializedHeaderIdentity() {
+        let chat = Chat(
+            id: "chat-1", title: "Existing title", lastMessageAt: nil,
+            createdAt: "2026-09-24T10:00:00Z", updatedAt: nil,
+            isArchived: false, isPinned: false, appId: "ai",
+            category: "web", icon: "search", encryptedTitle: "ciphertext",
+            encryptedChatKey: nil,
+            messagesV: 4, titleV: 1
+        )
+        let metadata = StreamingClient.ChatMetadata(
+            title: "Unexpected replacement", iconNames: ["code"], category: "code",
+            modelName: "A model", providerName: nil, serverRegion: nil,
+            userMessageId: "user-4", encryptedChatKey: nil
+        )
+
+        let updated = ChatGeneratedMetadataPolicy.applying(metadata, to: chat)
+
+        XCTAssertEqual(updated.title, "Existing title")
+        XCTAssertEqual(updated.category, "web")
+        XCTAssertEqual(updated.icon, "search")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testGeneratedHeaderLoadsOnlyForAnActiveUntitledFirstTurn() {
+        XCTAssertTrue(ChatGeneratedHeaderPolicy.shouldShowLoading(
+            title: nil, titleVersion: 0, hasMessages: true, isStreaming: true
+        ))
+        XCTAssertFalse(ChatGeneratedHeaderPolicy.shouldShowLoading(
+            title: nil, titleVersion: 0, hasMessages: true, isStreaming: false
+        ))
+        XCTAssertFalse(ChatGeneratedHeaderPolicy.shouldShowLoading(
+            title: "Generated", titleVersion: 0, hasMessages: true, isStreaming: true
+        ))
+        XCTAssertFalse(ChatGeneratedHeaderPolicy.shouldShowLoading(
+            title: nil, titleVersion: 1, hasMessages: true, isStreaming: true
+        ))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testGenericAssistantSenderFallsBackToMateCategoryIdentity() {
+        XCTAssertNil(ChatAssistantIdentityPolicy.explicitDisplayName("Assistant"))
+        XCTAssertNil(ChatAssistantIdentityPolicy.explicitDisplayName(" ai "))
+        XCTAssertEqual(ChatAssistantIdentityPolicy.explicitDisplayName("Code Mate"), "Code Mate")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testNewTaskClearsPreviousTurnLifecycleState() {
         var state = ChatStreamingLifecycleState()

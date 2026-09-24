@@ -5,7 +5,7 @@
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.layout.responsive-history
+// Assertions: chats.layout.responsive-history, chats.surface.semantic-parity
 
 // ─── Web source ─────────────────────────────────────────────────────
 // MessageBubble:
@@ -254,6 +254,27 @@ enum ChatFollowUpTapPolicy {
     }
 }
 
+enum ChatGeneratedHeaderPolicy {
+    static func shouldShowLoading(
+        title: String?,
+        titleVersion: Int?,
+        hasMessages: Bool,
+        isStreaming: Bool
+    ) -> Bool {
+        let normalizedTitle = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return normalizedTitle.isEmpty && (titleVersion ?? 0) == 0 && hasMessages && isStreaming
+    }
+}
+
+enum ChatAssistantIdentityPolicy {
+    static func explicitDisplayName(_ senderName: String?) -> String? {
+        guard let name = senderName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !name.isEmpty,
+              !["assistant", "ai"].contains(name.lowercased()) else { return nil }
+        return name
+    }
+}
+
 struct ChatView: View {
     #if DEBUG
     var isolatedHistory = false
@@ -293,6 +314,9 @@ struct ChatView: View {
     var onNewChat: (() -> Void)? = nil
     /// Opens the app-owned issue report settings pane with an optional prefill.
     var onReportIssue: ((ReportIssuePrefill) -> Void)? = nil
+    /// Opens the selected mate/model detail in the app-owned settings panel.
+    var onOpenMateSettings: ((String) -> Void)? = nil
+    var onOpenModelSettings: ((String) -> Void)? = nil
     /// Sends the last visible message ID to the app shell for cross-device sync.
     var onScrollPositionChanged: ((String) -> Void)? = nil
     /// Called after an external chat/embed deep link has opened the fullscreen embed route.
@@ -846,6 +870,15 @@ struct ChatView: View {
            isDraftOnlyChat(chat) {
             return .draftOnly(preview: draftOnlyPreview(for: chat))
         }
+        if let chat = viewModel.chat,
+           ChatGeneratedHeaderPolicy.shouldShowLoading(
+               title: chat.title,
+               titleVersion: chat.titleV,
+               hasMessages: !viewModel.messages.isEmpty,
+               isStreaming: viewModel.isStreaming
+           ) {
+            return .loading
+        }
         guard let chat = viewModel.chat,
               let title = chat.title,
               let category = chat.category,
@@ -1203,6 +1236,8 @@ struct ChatView: View {
                                         onInteractiveQuestionSubmit: { content in
                                             Task { await viewModel.sendMessage(content) }
                                         },
+                                        onOpenMateSettings: onOpenMateSettings,
+                                        onOpenModelSettings: onOpenModelSettings,
                                         onShowActions: {
                                             actionMessage = message
                                         },
@@ -4069,6 +4104,8 @@ struct MessageBubble: View {
     let onEmbedTap: (EmbedRecord) -> Void
     let onOpenPublicChat: ((String) -> Void)?
     let onInteractiveQuestionSubmit: ((String) -> Void)?
+    var onOpenMateSettings: ((String) -> Void)? = nil
+    var onOpenModelSettings: ((String) -> Void)? = nil
     let onShowActions: (() -> Void)?
     var accessibilityIdentifier: String? = nil
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -4360,8 +4397,7 @@ struct MessageBubble: View {
     }
 
     private var assistantDisplayName: String {
-        if let senderName = message.senderName?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !senderName.isEmpty {
+        if let senderName = ChatAssistantIdentityPolicy.explicitDisplayName(message.senderName) {
             return senderName
         }
         if isOpenMatesOfficial {
@@ -4376,6 +4412,17 @@ struct MessageBubble: View {
         let key = "mates.\(assistantCategory)"
         let localized = AppStrings.localized(key)
         return localized == key ? AppStrings.openMatesName : localized
+    }
+
+    private func assistantIdentity(_ placement: AssistantMessageIdentityView.Placement) -> AssistantMessageIdentityView {
+        AssistantMessageIdentityView(
+            placement: placement,
+            displayName: assistantDisplayName,
+            category: assistantCategory,
+            modelName: message.modelName,
+            onOpenMateSettings: onOpenMateSettings,
+            onOpenModelSettings: onOpenModelSettings
+        )
     }
 
     private var userBubble: some View {
@@ -4429,12 +4476,7 @@ struct MessageBubble: View {
             if !displayContent.isEmpty || thinkingContent?.isEmpty == false || !topLevelAppSkillEmbeds.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: .spacing3) {
-                        Text(assistantDisplayName)
-                            .font(.omP)
-                            .fontWeight(.medium)
-                            .foregroundStyle(LinearGradient.primary)
-                            .padding(.bottom, .spacing1)
-                            .accessibilityIdentifier("message-sender-name")
+                        assistantIdentity(.mateName)
 
                         if let thinkingContent, !thinkingContent.isEmpty {
                             ThinkingSectionView(
@@ -4486,9 +4528,7 @@ struct MessageBubble: View {
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("assistant-message-content")
 
-                    if let modelName = message.modelName, !modelName.isEmpty {
-                        generatedByContainer(modelName: modelName)
-                    }
+                    assistantIdentity(.modelAttribution)
                 }
             }
         }
@@ -4524,17 +4564,6 @@ struct MessageBubble: View {
         .clipShape(RoundedRectangle(cornerRadius: .radius4))
         .searchTargetOutline(isSearchTarget)
         .accessibilityIdentifier("chat-history-system-message")
-    }
-
-    private func generatedByContainer(modelName: String) -> some View {
-        Text(AppStrings.generatedBy(modelName))
-            .font(.omSmall)
-            .fontWeight(.medium)
-            .foregroundStyle(Color.grey60)
-            .padding(.top, .spacing3)
-            .padding(.leading, .spacing6)
-            .padding(.bottom, .spacing5)
-            .accessibilityIdentifier("message-model-attribution")
     }
 
     var body: some View {

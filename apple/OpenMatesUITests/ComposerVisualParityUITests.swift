@@ -227,16 +227,38 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
         let field = element(in: app, identifier: "message-field")
         let image = element(in: app, identifier: "native-composer-image-content")
+        let imageInfoBar = element(in: app, identifier: "native-composer-image-info-bar")
         let audio = element(in: app, identifier: "native-composer-audio-content")
         let imageCard = element(in: app, identifier: "native-composer-preview-image-finished")
         let audioCard = element(in: app, identifier: "native-composer-preview-recording-finished")
 
         XCTAssertTrue(image.waitForExistence(timeout: 5), "Expected image-specific composer preview content")
+        XCTAssertTrue(imageInfoBar.waitForExistence(timeout: 5), "Expected the web-parity image metadata bar")
         XCTAssertTrue(audio.waitForExistence(timeout: 5), "Expected audio-specific composer preview content")
         XCTAssertTrue(imageCard.waitForExistence(timeout: 5))
         XCTAssertTrue(audioCard.waitForExistence(timeout: 5))
         assertEmbed(imageCard, isLeftAlignedIn: field)
         assertEmbed(audioCard, isLeftAlignedIn: field)
+        XCTAssertEqual(imageCard.frame.width, 300, accuracy: 3)
+        XCTAssertEqual(imageCard.frame.height, 200, accuracy: 3)
+        // `scaledToFill` intentionally scales landscape/portrait source pixels
+        // beyond one card axis before the 300x200 rounded container clips them.
+        // XCUITest reports that pre-clip Image frame, so assert coverage rather
+        // than equality with the visible card bounds.
+        XCTAssertLessThanOrEqual(image.frame.minX, imageCard.frame.minX + 3)
+        XCTAssertLessThanOrEqual(image.frame.minY, imageCard.frame.minY + 3)
+        XCTAssertGreaterThanOrEqual(image.frame.maxX, imageCard.frame.maxX - 3)
+        XCTAssertGreaterThanOrEqual(image.frame.maxY, imageCard.frame.maxY - 3)
+        XCTAssertEqual(imageInfoBar.frame.height, 61, accuracy: 3)
+        XCTAssertEqual(imageInfoBar.frame.maxY, imageCard.frame.maxY, accuracy: 3)
+        XCTAssertFalse(
+            imageCard.buttons["native-composer-preview-action-close"].exists,
+            "Web image previews do not overlay a generic close button"
+        )
+        XCTAssertFalse(
+            imageCard.buttons["native-composer-preview-action-visible"].exists,
+            "The finished web image opens by tapping the card instead of an eye button"
+        )
 
         XCUIDevice.shared.orientation = .landscapeLeft
         XCTAssertTrue(image.waitForExistence(timeout: 5))

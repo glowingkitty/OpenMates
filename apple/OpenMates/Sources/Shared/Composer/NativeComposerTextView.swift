@@ -3,6 +3,8 @@
 // Localized labels and action names are injected by the product host.
 // Ordered embed descriptors follow the canonical ComposerDocument node order.
 // Platform view and controller identities remain stable during synchronization.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
@@ -53,6 +55,7 @@ final class NativeComposerTextView: NSObject {
     private weak var piiTapRecognizer: UITapGestureRecognizer?
     #endif
     private var lastSynchronizedRevision: Int?
+    private var lastProjectedEmbedNodes: [ComposerNodeV1] = []
     private var lastAccessibilityNodes: [ComposerNodeV1] = []
     private var piiDecorations: [NativeComposerPIIDecoration] = []
     private var onExcludePII: (String) -> Void = { _ in }
@@ -100,11 +103,28 @@ final class NativeComposerTextView: NSObject {
         guard !isAwaitingUIKitEdit else { return }
         isSynchronizing = true
         defer { isSynchronizing = false }
+        let embedNodes = controller.document.nodes.filter { $0.kind == "embed" }
+        let embedPresentationChanged = embedNodes != lastProjectedEmbedNodes
+        // TextKit can retain an old attachment view when only its semantic
+        // payload changes. Re-project that atom even though its replacement
+        // character leaves the plain string unchanged. Ordinary equal-text
+        // edits still keep UIKit's live text storage and input attributes.
         if lastSynchronizedRevision != controller.revision,
-           textView.attributedText.string != controller.attributedString.string {
+           (textView.attributedText.string != controller.attributedString.string
+            || embedPresentationChanged) {
             textView.attributedText = styledAttributedString(controller.attributedString)
+            if embedPresentationChanged {
+                #if !OPENMATES_SHARE_EXTENSION
+                NativeDiagnostics.event(
+                    "composer_embed_reprojected",
+                    category: "apple_composer",
+                    counts: ["embed_count": embedNodes.count]
+                )
+                #endif
+            }
         }
         lastSynchronizedRevision = controller.revision
+        lastProjectedEmbedNodes = embedNodes
         applyPIIDecorations(to: textView.textStorage)
         if textView.selectedRange != controller.selection {
             textView.selectedRange = controller.selection
@@ -346,6 +366,40 @@ extension NativeComposerTextView: UIGestureRecognizerDelegate {
 
 #if canImport(UIKit)
 extension NativeComposerTextView: UITextViewDelegate {
+    static func shouldUseTextViewInteraction(for attachment: NSTextAttachment) -> Bool {
+        !(attachment is ComposerTextAttachment)
+    }
+
+    func textView(
+        _ textView: UITextView,
+        primaryActionFor textItem: UITextItem,
+        defaultAction: UIAction
+    ) -> UIAction? {
+        if case .textAttachment(let attachment) = textItem.content,
+           !Self.shouldUseTextViewInteraction(for: attachment) {
+            return nil
+        }
+        return defaultAction
+    }
+
+    func textView(
+        _ textView: UITextView,
+        menuConfigurationFor textItem: UITextItem,
+        defaultMenu: UIMenu
+    ) -> UITextItem.MenuConfiguration? {
+        // Composer attachment views own their open, retry, remove, and playback
+        // controls. Letting UITextView also invoke its attachment interaction on
+        // a long press asks UIKit to build a system preview around the embedded
+        // SwiftUI hierarchy, which is not a valid TextKit attachment operation.
+        // Returning nil leaves the hosted controls active and keeps the atom
+        // editable through the controller without presenting UIKit's menu.
+        if case .textAttachment(let attachment) = textItem.content,
+           !Self.shouldUseTextViewInteraction(for: attachment) {
+            return nil
+        }
+        return UITextItem.MenuConfiguration(menu: defaultMenu)
+    }
+
     func textView(
         _ textView: UITextView,
         shouldChangeTextIn range: NSRange,

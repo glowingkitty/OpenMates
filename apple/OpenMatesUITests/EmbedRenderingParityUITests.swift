@@ -142,6 +142,33 @@ final class EmbedRenderingParityUITests: XCTestCase {
         }
     }
 
+    // contract-test: direct surface=gui.apple assertions=code-run.surface-parity
+    func testFinishedIndexHTMLRendersSourceInPreviewAndFullscreen() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "code"]
+        app.launchEnvironment["DEV_PREVIEW"] = "embeds"
+        app.launchEnvironment["DEV_PREVIEW_APP"] = "code"
+        app.launch()
+
+        let sourcePreview = app.descendants(matching: .any)["code-embed-source-preview"].firstMatch
+        XCTAssertTrue(sourcePreview.waitForExistence(timeout: 8), "Finished index.html remained in the processing preview")
+        XCTAssertFalse(app.descendants(matching: .any)["code-embed-processing"].exists)
+
+        let previewButton = app.buttons
+            .matching(identifier: "embed-preview")
+            .containing(.any, identifier: "code-embed-source-preview")
+            .firstMatch
+        XCTAssertTrue(previewButton.waitForExistence(timeout: 3), "Finished source was not inside a tappable embed preview")
+        previewButton.tap()
+        let sourcePanel = app.descendants(matching: .any)["code-source-panel"].firstMatch
+        XCTAssertTrue(
+            sourcePanel.waitForExistence(timeout: 5),
+            "Fullscreen did not receive the hydrated index.html source"
+        )
+        XCTAssertFalse(app.staticTexts["Processing"].exists)
+        attachScreenshot(name: "Finished index.html preview and fullscreen")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=code-run.artifacts.chat-bound-versioned
     func testVersionedCodeEmbedFullscreenTimelineRendersAndRestores() throws {
         let app = XCUIApplication()

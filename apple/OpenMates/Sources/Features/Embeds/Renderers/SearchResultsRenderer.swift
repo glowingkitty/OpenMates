@@ -1,7 +1,79 @@
-// Generic search results renderer — used by all composite embed types.
-// Shows query, result count, and provider info.
+// Generic and repository search result renderers.
+//
+// ─── Web source ─────────────────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ──────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
 
 import SwiftUI
+
+struct CodeRepoSearchEmbedRenderer: View {
+    let model: CodeRepoSearchModel
+    let mode: EmbedDisplayMode
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            preview
+        case .fullscreen:
+            fullscreen
+        }
+    }
+
+    private var preview: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(model.query)
+                .font(.omSmall)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(1)
+
+            if let provider = model.provider {
+                Text("\(AppStrings.via) \(provider)")
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(1)
+            }
+
+            if model.status == .finished {
+                if model.resultCount == 0 {
+                    Text(AppStrings.searchNoResults)
+                        .accessibilityIdentifier("code-repo-search-count")
+                } else {
+                    Text(model.resultCountLabel)
+                        .accessibilityIdentifier("code-repo-search-count")
+                }
+            } else if model.status == .error {
+                Text(AppStrings.searchFailed)
+                    .foregroundStyle(Color.error)
+            }
+        }
+        .font(.omXs)
+        .foregroundStyle(Color.fontSecondary)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    private var fullscreen: some View {
+        SearchResultsGrid(
+            status: model.status,
+            query: model.query,
+            results: model.repositoryEmbeds,
+            emptyText: AppStrings.searchNoResults,
+            webLayout: true
+        ) { repository in
+            EmbedPreviewCard(embed: repository, variant: .compact) {
+                onOpenEmbed(repository)
+            }
+            .accessibilityIdentifier("embed-preview-\(repository.id)")
+        }
+    }
+}
 
 struct SearchResultsRenderer: View {
     let data: [String: AnyCodable]?

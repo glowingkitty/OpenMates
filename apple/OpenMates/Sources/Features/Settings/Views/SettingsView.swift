@@ -2,6 +2,8 @@
 // Product UI must use OpenMates primitives instead of default platform List/Form chrome.
 // ALL navigation targets are native SwiftUI views — no web redirects.
 // ALL strings go through AppStrings (i18n) — no hardcoded English.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
@@ -226,6 +228,7 @@ struct SettingsView: View {
     var reportIssuePrefill: ReportIssuePrefill?
     var referralCodeRequest: Int
     var shareChatId: String?
+    var messageSettingsTarget: AssistantMessageSettingsTarget?
     private let isolatedNavigation: Bool
     @State private var showIncognitoInfo = false
     @StateObject private var incognitoSession: IncognitoSettingsSession
@@ -234,6 +237,7 @@ struct SettingsView: View {
     @State private var destination: SettingsDestination?
     @State private var activeReportIssuePrefill: ReportIssuePrefill?
     @State private var activeReferralCodeRequest: Int
+    @State private var activeMessageSettingsTarget: AssistantMessageSettingsTarget?
     @State private var navigationDirection: SettingsNavigationDirection = .forward
     @State private var homeScrollTop: CGFloat = 0
     @State private var destinationScrollTop: CGFloat = 0
@@ -243,6 +247,7 @@ struct SettingsView: View {
         reportIssuePrefill: ReportIssuePrefill? = nil,
         referralCodeRequest: Int = 0,
         shareChatId: String? = nil,
+        messageSettingsTarget: AssistantMessageSettingsTarget? = nil,
         onClose: (() -> Void)? = nil,
         onOpenExampleChat: ((String) -> Void)? = nil
     ) {
@@ -253,11 +258,24 @@ struct SettingsView: View {
         self.reportIssuePrefill = reportIssuePrefill
         self.referralCodeRequest = referralCodeRequest
         self.shareChatId = shareChatId
+        self.messageSettingsTarget = messageSettingsTarget
         self.onClose = onClose
         self.onOpenExampleChat = onOpenExampleChat
-        _destination = State(initialValue: reportIssuePrefill == nil ? (shareChatId == nil ? (referralCodeRequest > 0 ? .billing : nil) : .shared) : .reportIssue)
+        let messageDestination: SettingsDestination?
+        if let messageSettingsTarget {
+            switch messageSettingsTarget {
+            case .mate: messageDestination = .mates
+            case .model: messageDestination = .ai
+            }
+        } else {
+            messageDestination = nil
+        }
+        _destination = State(initialValue: reportIssuePrefill == nil
+            ? (shareChatId == nil ? (referralCodeRequest > 0 ? .billing : messageDestination) : .shared)
+            : .reportIssue)
         _activeReportIssuePrefill = State(initialValue: reportIssuePrefill)
         _activeReferralCodeRequest = State(initialValue: referralCodeRequest)
+        _activeMessageSettingsTarget = State(initialValue: messageSettingsTarget)
     }
 
     private var settingsUser: UserProfile? { isolatedNavigation ? nil : authManager.currentUser }
@@ -304,6 +322,14 @@ struct SettingsView: View {
         .onChange(of: shareChatId) { _, newChatId in
             guard newChatId != nil else { return }
             navigateTo(.shared)
+        }
+        .onChange(of: messageSettingsTarget) { _, newTarget in
+            guard let newTarget else { return }
+            activeMessageSettingsTarget = newTarget
+            switch newTarget {
+            case .mate: navigateTo(.mates)
+            case .model: navigateTo(.ai)
+            }
         }
         .onAppear {
             guard !isolatedNavigation else { return }
@@ -642,12 +668,26 @@ struct SettingsView: View {
             )
         case .shared:
             SettingsSharedView(initialChatId: shareChatId)
+        case .mates:
+            SettingsMatesView(initialMateID: activeMateSettingsID)
+        case .ai:
+            SettingsAIFullView(initialModelID: activeModelSettingsID)
         default:
             destination.view(
                 reportIssuePrefill: activeReportIssuePrefill,
                 referralCodeRequest: activeReferralCodeRequest
             )
         }
+    }
+
+    private var activeMateSettingsID: String? {
+        guard case .mate(let id) = activeMessageSettingsTarget else { return nil }
+        return id
+    }
+
+    private var activeModelSettingsID: String? {
+        guard case .model(let id) = activeMessageSettingsTarget else { return nil }
+        return id
     }
 
     private struct SettingsStandardBanner: View {

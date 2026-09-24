@@ -94,7 +94,8 @@ final class ChatFlowParityUITests: XCTestCase {
             .firstMatch
         XCTAssertTrue(headerContract.waitForExistence(timeout: 5))
         XCTAssertTrue(headerContract.label.contains("chat-header-title=Seeded Large Chat"))
-        XCTAssertTrue(headerContract.label.contains("chat-header-icon=true"))
+        XCTAssertTrue(headerContract.label.contains("chat-compact-header-icon=false"))
+        XCTAssertFalse(app.descendants(matching: .any)["chat-header-icon"].exists)
 
         let userMessage = app.staticTexts
             .containing(NSPredicate(format: "label CONTAINS %@", "Seeded user message"))

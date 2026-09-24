@@ -4,6 +4,14 @@
 // Manages WebSocket connection and phased sync lifecycle.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context, message-input.drafts.preview-persistence
+// Specification: specifications/features/issue-reporting/specification.yml
+// Assertions: issue-reporting.entry.device-shake
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
+// Specification: specifications/features/chat-navigation/specification.yml
+// Assertions: chat-navigation.order.sidebar-header-match, chat-navigation.draft-only.addressable, chat-navigation.empty-new-chat.excluded
+// Specification: specifications/architecture/drafts/specification.yml
+// Assertions: drafts.draft-only.presentation, drafts.established-chat.presentation-unchanged
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/apps/web_app/src/routes/+page.svelte  (top-level layout)
@@ -80,6 +88,24 @@ enum MainAppChatHeaderActionPolicy {
     }
 }
 
+enum MainAppQuickActionRoute: Equatable {
+    case focusedNewChat
+    case recordingNewChat
+    case photoNewChat
+    case search
+    case incognitoChat
+
+    static func route(for action: AppQuickAction) -> Self {
+        switch action {
+        case .ask: .focusedNewChat
+        case .recordRequest: .recordingNewChat
+        case .askAboutPhoto: .photoNewChat
+        case .search: .search
+        case .incognitoAsk: .incognitoChat
+        }
+    }
+}
+
 enum NativeClientLifecyclePolicy {
     static func isCompletionCapable(_ phase: ScenePhase) -> Bool {
         switch phase {
@@ -134,6 +160,7 @@ struct MainAppView: View {
     @State private var currentViewportWidth: CGFloat = 0
     @State private var showSettings = false
     @State private var reportIssuePrefill: ReportIssuePrefill?
+    @State private var messageSettingsTarget: AssistantMessageSettingsTarget?
     @State private var referralCodeRequest = 0
     @State private var showNewChat = false
     @State private var showExplore = false
@@ -177,6 +204,8 @@ struct MainAppView: View {
     @State private var pendingExternalEmbedOpen: PendingExternalEmbedOpen?
     @State private var newChatFocusRequest = 0
     @State private var newChatRecordRequest = 0
+    @State private var newChatCameraCaptureRequest = 0
+    @State private var freshNewChatRequest = 0
     @State private var chatInputFocusRequest = 0
     @State private var chatCameraCaptureRequest = 0
 
@@ -499,6 +528,9 @@ struct MainAppView: View {
 
     var body: some View {
         shellWithLifecycle
+        .onDeviceShakeToReportIssue {
+            openReportIssue(prefill: .deviceShake())
+        }
         .onReceive(NotificationCenter.default.publisher(for: .wsMessageReceived)) { notification in
             handleChatUpdate(notification)
         }
@@ -804,8 +836,10 @@ struct MainAppView: View {
             Task {
                 await bootstrapAuthenticatedSession()
                 #if DEBUG
-                if ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat") {
+                if ProcessInfo.processInfo.arguments.contains("--ui-test-fresh-new-chat") {
                     openNewChatScreen()
+                } else if ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat") {
+                    resumeNewChatScreen()
                 }
                 #endif
                 await flushQueuedNotificationReplies()
@@ -849,6 +883,7 @@ struct MainAppView: View {
         } else {
             reportIssuePrefill = nil
             settingsShareChatId = nil
+            messageSettingsTarget = nil
         }
     }
 
@@ -891,6 +926,11 @@ struct MainAppView: View {
     }
 
     private func openNewChatScreen() {
+        resumeNewChatScreen()
+        freshNewChatRequest += 1
+    }
+
+    private func resumeNewChatScreen() {
         selectedWorkspace = .chat
         selectedChatId = nil
         searchSelection = nil
@@ -922,20 +962,9 @@ struct MainAppView: View {
             showAuthSheet = true
             return
         }
-        let chatId = makeTransientChat(isIncognito: false)
-        selectedWorkspace = .chat
-        selectedChatId = chatId
-        searchSelection = nil
-        showNewChat = false
-        showAuthSheet = false
-        showSearch = false
-        showExplore = false
-        settingsShareChatId = nil
-        showHiddenChats = false
-        actionChat = nil
+        openNewChatScreen()
         incognitoManager.isEnabled = false
-        chatInputFocusRequest += 1
-        chatCameraCaptureRequest += 1
+        newChatCameraCaptureRequest += 1
     }
 
     private func openIncognitoAskChat() {
@@ -1031,16 +1060,16 @@ struct MainAppView: View {
     }
 
     private func handleQuickAction(_ action: AppQuickAction) {
-        switch action {
-        case .ask:
+        switch MainAppQuickActionRoute.route(for: action) {
+        case .focusedNewChat:
             openFocusedNewChatScreen()
-        case .recordRequest:
+        case .recordingNewChat:
             openNewChatRecordingScreen()
-        case .askAboutPhoto:
+        case .photoNewChat:
             openNewChatWithCameraCapture()
         case .search:
             openSearchOverlay()
-        case .incognitoAsk:
+        case .incognitoChat:
             openIncognitoAskChat()
         }
     }
@@ -1081,10 +1110,12 @@ struct MainAppView: View {
 
         #if DEBUG
         let shouldStartNewChatForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat")
+        let shouldStartFreshNewChatForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-fresh-new-chat")
         let shouldStartRecordingForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-start-recording")
         let shouldOpenLoginForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-open-login")
         #else
         let shouldStartNewChatForUITest = false
+        let shouldStartFreshNewChatForUITest = false
         let shouldStartRecordingForUITest = false
         let shouldOpenLoginForUITest = false
         #endif
@@ -1095,8 +1126,12 @@ struct MainAppView: View {
             showAuthSheet = true
         } else if shouldStartRecordingForUITest {
             openNewChatRecordingScreen()
-        } else if launchCommand?.action == .newChat || shouldStartNewChatForUITest {
+        } else if launchCommand?.action == .newChat {
             openNewChatScreen()
+        } else if shouldStartFreshNewChatForUITest {
+            openNewChatScreen()
+        } else if shouldStartNewChatForUITest {
+            resumeNewChatScreen()
         }
 
         #if DEBUG
@@ -1115,7 +1150,7 @@ struct MainAppView: View {
             loadDemoChats()
             seedWelcomeRecentOverflowUITestStateIfNeeded()
             seedShellPerformanceUITestStateIfNeeded()
-            openNewChatScreen()
+            resumeNewChatScreen()
             await anonymousFreeUsage.refreshStatus()
             await anonymousFreeUsage.loadAnonymousChats(into: chatStore) { !isAuthenticated }
             // Fetch default daily inspirations (public endpoint, no auth required)
@@ -1374,7 +1409,8 @@ struct MainAppView: View {
         SettingsView(
             reportIssuePrefill: reportIssuePrefill,
             referralCodeRequest: referralCodeRequest,
-            shareChatId: settingsShareChatId
+            shareChatId: settingsShareChatId,
+            messageSettingsTarget: messageSettingsTarget
         ) {
             withAnimation(.easeInOut(duration: 0.3)) {
                 showSettings = false
@@ -1399,6 +1435,7 @@ struct MainAppView: View {
     }
 
     private func openReportIssue(prefill: ReportIssuePrefill) {
+        messageSettingsTarget = nil
         reportIssuePrefill = prefill
         withAnimation(.easeInOut(duration: 0.3)) {
             showSettings = true
@@ -1406,6 +1443,7 @@ struct MainAppView: View {
     }
 
     private func openReferralCodeSettings() {
+        messageSettingsTarget = nil
         referralCodeRequest += 1
         withAnimation(.easeInOut(duration: 0.3)) {
             showSettings = true
@@ -1413,9 +1451,19 @@ struct MainAppView: View {
     }
 
     private func openShareSettings(for chatId: String) {
+        messageSettingsTarget = nil
         selectedChatId = chatId
         settingsShareChatId = chatId
         actionChat = nil
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showSettings = true
+        }
+    }
+
+    private func openAssistantMessageSettings(_ target: AssistantMessageSettingsTarget) {
+        reportIssuePrefill = nil
+        settingsShareChatId = nil
+        messageSettingsTarget = target
         withAnimation(.easeInOut(duration: 0.3)) {
             showSettings = true
         }
@@ -1599,8 +1647,10 @@ struct MainAppView: View {
                 totalChatCount: totalChatCount,
                 serverSuggestions: syncedNewChatSuggestions,
                 accountInterestTagIds: accountInterestTagIds,
+                freshSessionRequest: freshNewChatRequest,
                 focusRequest: newChatFocusRequest,
                 recordRequest: newChatRecordRequest,
+                cameraCaptureRequest: newChatCameraCaptureRequest,
                 isSettingsOpen: currentViewportWidth > 1100 && showSettings,
                 onCreateChatWithMessage: { message, piiMappings, composerEmbeds, speechScope in
                     let now = ChatSendPipeline.isoString(from: Date())
@@ -1733,6 +1783,7 @@ struct MainAppView: View {
                     }
                 },
                 onOpenChatSettings: headerActions.exposesOwnerSettings ? {
+                    messageSettingsTarget = nil
                     settingsShareChatId = nil
                     showSettings = true
                 } : nil,
@@ -1743,6 +1794,8 @@ struct MainAppView: View {
                 onOpenChat: { selectedChatId = $0; showNewChat = false },
                 onNewChat: openNewChatScreen,
                 onReportIssue: openReportIssue,
+                onOpenMateSettings: { id in openAssistantMessageSettings(.mate(id)) },
+                onOpenModelSettings: { id in openAssistantMessageSettings(.model(id)) },
                 onScrollPositionChanged: { messageId in
                     sendScrollPositionUpdate(chatId: chatId, messageId: messageId)
                 },
@@ -1775,6 +1828,8 @@ struct MainAppView: View {
                 onOpenPublicChat: openPublicChat,
                 onNewChat: openNewChatScreen,
                 onReportIssue: openReportIssue,
+                onOpenMateSettings: { id in openAssistantMessageSettings(.mate(id)) },
+                onOpenModelSettings: { id in openAssistantMessageSettings(.model(id)) },
                 onInitialEmbedOpened: { embedId in
                     if pendingExternalEmbedOpen == PendingExternalEmbedOpen(chatId: chatId, embedId: embedId) {
                         pendingExternalEmbedOpen = nil
@@ -4573,8 +4628,8 @@ private struct WorkspaceSwitcherTabs: View {
         Menu {
             ForEach(tabs) { tab in
                 Button {
-                    if tab == .chat {
-                        onSelectWorkspace(.chat)
+                    if tab == .chat, tab == selectedWorkspace {
+                        onNewChat()
                     } else {
                         onSelectWorkspace(tab)
                     }
@@ -4914,24 +4969,40 @@ enum WelcomeScreenState {
         chatId.hasPrefix("demo-") ||
         chatId.hasPrefix("legal-") ||
         chatId.hasPrefix("example-") ||
-        chatId.hasPrefix("announcements-")
+        chatId.hasPrefix("announcements-") ||
+        chatId.hasPrefix("tips-")
     }
 
     // Web: ActiveChat.loadRecentChats + chatSortUtils.sortChats, called without
-    // sidebar server ordering. Keep the existing hidden/archive privacy boundary.
+    // sidebar server ordering. Keep hidden chats behind their privacy boundary.
     // Reminder/saved-embed priority items are not yet implemented on Apple.
     static func isContinuationEligible(_ chat: Chat) -> Bool {
-        chat.isArchived != true && !chat.isHiddenFromNormalSurfaces &&
+        // Web `loadRecentChats()` uses the same persisted top-level set as the
+        // sidebar. Pinned archived chats stay addressable; unpinned archived
+        // chats and empty new-chat shells do not become continuation cards.
+        (chat.isPinned == true || chat.isArchived != true) &&
+        !chat.isHiddenFromNormalSurfaces && !isEmptyShell(chat) &&
         !isPublicChat(chat.id) && !IncognitoChatSession.isIncognitoChatId(chat.id) &&
         chat.parentId == nil && chat.isSubChat != true
     }
 
+    static func isEmptyShell(_ chat: Chat) -> Bool {
+        let hasDraft = chat.hasNonEmptyDraft == true || (chat.draftV ?? 0) > 0
+        let hasMessages = (chat.messagesV ?? 0) > 0
+        let hasMetadata = hasGeneratedMetadata(chat)
+        return !hasDraft && !hasMessages && !hasMetadata
+    }
+
+    private static func hasGeneratedMetadata(_ chat: Chat) -> Bool {
+        (chat.titleV ?? 0) > 0 ||
+        [chat.title, chat.encryptedTitle, chat.category, chat.encryptedCategory,
+         chat.icon, chat.encryptedIcon, chat.chatSummary, chat.encryptedChatSummary]
+            .contains { $0?.isEmpty == false }
+    }
+
     static func isDraftOnly(_ chat: Chat) -> Bool {
         let hasDraft = chat.hasNonEmptyDraft == true || (chat.draftV ?? 0) > 0
-        let hasMetadata = [chat.title, chat.encryptedTitle, chat.category, chat.encryptedCategory,
-                           chat.icon, chat.encryptedIcon, chat.chatSummary, chat.encryptedChatSummary]
-            .contains { $0?.isEmpty == false }
-        return hasDraft && (chat.messagesV ?? 0) == 0 && (chat.titleV ?? 0) == 0 && !hasMetadata
+        return hasDraft && (chat.messagesV ?? 0) == 0 && !hasGeneratedMetadata(chat)
     }
 
     static func resumeChat(from chats: [Chat], lastOpened: String?) -> Chat? {
@@ -5095,8 +5166,10 @@ struct NewChatWelcomeView: View {
     let totalChatCount: Int
     let serverSuggestions: [NewChatSuggestionsView.ChatSuggestion]
     let accountInterestTagIds: [InterestTagId]
+    let freshSessionRequest: Int
     let focusRequest: Int
     let recordRequest: Int
+    let cameraCaptureRequest: Int
     let isSettingsOpen: Bool
     let onCreateChatWithMessage: (String, [PIIMapping], [ComposerPendingEmbed], AssistantSpeechScope?) async throws -> String
     let onChatCreated: (String) -> Void
@@ -5122,12 +5195,15 @@ struct NewChatWelcomeView: View {
     @State private var isGuestInterestSelectionActive = true
     @State private var handledFocusRequest = 0
     @State private var handledRecordRequest = 0
+    @State private var handledCameraCaptureRequest = 0
+    @State private var handledFreshSessionRequest = 0
     @State private var detectedPIIMatches: [PIIMatch] = []
     @State private var piiExclusions = Set<String>()
     @State private var anonymousAttachmentPending = false
     @State private var pendingComposerEmbeds: [ComposerPendingEmbed] = []
     @State private var showAttachmentMenu = false
     @State private var showCameraCapture = false
+    @State private var shouldFocusAfterCameraCapture = true
     @State private var composerOverlay: WelcomeComposerOverlay?
     @State private var micPermissionState: MicPermissionState = .unknown
     @State private var recordHintVisible = false
@@ -5135,6 +5211,7 @@ struct NewChatWelcomeView: View {
     @State private var recordAttemptActive = false
     @State private var recordGestureCancelled = false
     @State private var recordStartedFromKeyboard = false
+    @State private var collapseComposerAfterRecordingCancel = false
     @State private var recordStartTask: Task<Void, Never>?
     @State private var recordHintTask: Task<Void, Never>?
     @State private var draftSaveTask: Task<Void, Never>?
@@ -5155,6 +5232,8 @@ struct NewChatWelcomeView: View {
     @StateObject private var composerRecorder = VoiceRecorder()
     @State private var isFocused = false
     @State private var measuredWelcomeComposerHeight: CGFloat = 0
+    @State private var measuredWelcomeSuggestionsHeight: CGFloat = 0
+    @State private var keyboardEndMinY: CGFloat?
 
     private var messageText: String {
         get { composerSession.canonicalMarkdown }
@@ -5366,7 +5445,21 @@ struct NewChatWelcomeView: View {
     }
 
     var body: some View {
+        welcomeInteractionObservers
+    }
+
+    private var welcomeLayout: some View {
         GeometryReader { proxy in
+            let containerMaxY = proxy.frame(in: .global).maxY
+            let keyboardOverlap = max(0, containerMaxY - (keyboardEndMinY ?? containerMaxY))
+            let suggestionsAreVisible = isComposerActive && !suggestions.isEmpty
+            let suggestionsReserve = suggestionsAreVisible
+                ? measuredWelcomeSuggestionsHeight + .spacing8
+                : 0
+            let keyboardSafeComposerHeight = max(
+                0,
+                proxy.size.height - keyboardOverlap - suggestionsReserve
+            )
             let composerReserve: CGFloat = isComposerActive
                 ? max(
                     activePIIMatches.isEmpty ? 156 : 236,
@@ -5376,7 +5469,10 @@ struct NewChatWelcomeView: View {
 
             ZStack(alignment: .bottom) {
                 Color.clear
-                    .ignoresSafeArea()
+                    // Keep the full-screen dismissal target under the device chrome,
+                    // while still letting SwiftUI's keyboard safe area move the
+                    // bottom-aligned composer and suggestions above the keyboard.
+                    .ignoresSafeArea(.container)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         guard isComposerActive else { return }
@@ -5421,10 +5517,15 @@ struct NewChatWelcomeView: View {
                     .transition(.opacity)
                 }
 
-                if isComposerActive && !suggestions.isEmpty {
+                if suggestionsAreVisible {
                     suggestionsCarousel
                         .frame(maxWidth: .infinity)
-                        .padding(.bottom, composerReserve)
+                        .onGeometryChange(for: CGFloat.self) { geometry in
+                            geometry.size.height
+                        } action: { height in
+                            measuredWelcomeSuggestionsHeight = height
+                        }
+                        .padding(.bottom, composerReserve + keyboardOverlap)
                         .transition(.opacity)
                 }
 
@@ -5433,7 +5534,7 @@ struct NewChatWelcomeView: View {
                     speechSupported: currentUser != nil && !isIncognito,
                     modelHost: modelHost,
                     session: composerSession,
-                    availableHeight: proxy.size.height,
+                    availableHeight: keyboardSafeComposerHeight,
                     isActivated: $isComposerActivated,
                     isExpanded: $isComposerExpanded,
                     isFocused: $isFocused,
@@ -5454,10 +5555,12 @@ struct NewChatWelcomeView: View {
                     onSend: { createChatWith(message: messageText) },
                     onOpenAuth: onOpenAuth,
                     onBlockedAttachment: blockAnonymousAttachment,
-                    onAttachmentDataSelected: handleAttachmentSelection,
+                    onAttachmentDataSelected: { data, filename, kind in
+                        handleAttachmentSelection(data: data, filename: filename, kind: kind)
+                    },
                     onLocation: openLocationOverlay,
                     onSketch: openSketchOverlay,
-                    onCamera: openCameraCapture,
+                    onCamera: { openCameraCapture() },
                     onRecordStart: startWelcomeRecordingIfNeeded,
                     onRecordChanged: handleRecordGestureChanged,
                     onDismiss: dismissWelcomeComposer,
@@ -5479,33 +5582,72 @@ struct NewChatWelcomeView: View {
                 } action: { height in
                     measuredWelcomeComposerHeight = height
                 }
+                .padding(.bottom, keyboardOverlap)
             }
             .animation(.easeInOut(duration: 0.2), value: isComposerActive)
         }
         .background(Color.clear)
+    }
+
+    private var welcomeCameraSurface: some View {
+        welcomeLayout
+        #if os(iOS)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
+            guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+            let window = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?
+                .windows.first(where: \.isKeyWindow)
+            keyboardEndMinY = window?.convert(frame, from: nil).minY ?? frame.minY
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardEndMinY = nil
+        }
+        #endif
         #if os(iOS)
         .fullScreenCover(isPresented: $showCameraCapture) {
             CameraCaptureView(
                 onCapture: { data, filename in
                     showCameraCapture = false
-                    handleAttachmentSelection(data: data, filename: filename, kind: .image)
+                    let shouldFocus = shouldFocusAfterCameraCapture
+                    shouldFocusAfterCameraCapture = true
+                    handleAttachmentSelection(
+                        data: data,
+                        filename: filename,
+                        kind: .image,
+                        shouldFocus: shouldFocus
+                    )
                 },
-                onCancel: { showCameraCapture = false }
+                onCancel: {
+                    shouldFocusAfterCameraCapture = true
+                    showCameraCapture = false
+                }
             )
             .ignoresSafeArea()
         }
         #endif
-        .task {
+    }
+
+    private var welcomeLifecycleSurface: some View {
+        welcomeCameraSurface
+        .task(id: freshSessionRequest) {
+            let isReadyForRequestedAction: Bool
+            if freshSessionRequest > handledFreshSessionRequest {
+                isReadyForRequestedAction = await beginFreshNewChatSession()
+            } else {
+                await restoreNewChatDraft()
+                isReadyForRequestedAction = true
+            }
+            if isReadyForRequestedAction {
+                applyFocusRequestIfNeeded()
+                applyRecordRequestIfNeeded()
+                applyCameraCaptureRequestIfNeeded()
+            }
             await loadSuggestions()
             await ApplePrivacySettingsService.shared.load()
-            await restoreNewChatDraft()
             updatePIIMatches(for: messageText)
         }
         .onAppear {
             isGuestInterestSelectionActive = !isAuthenticated && appliedGuestInterestTagIds.isEmpty
             applyWelcomeComposerUITestFlagsIfNeeded()
-            applyFocusRequestIfNeeded()
-            applyRecordRequestIfNeeded()
         }
         .onChange(of: focusRequest) { _, _ in
             applyFocusRequestIfNeeded()
@@ -5513,6 +5655,13 @@ struct NewChatWelcomeView: View {
         .onChange(of: recordRequest) { _, _ in
             applyRecordRequestIfNeeded()
         }
+        .onChange(of: cameraCaptureRequest) { _, _ in
+            applyCameraCaptureRequestIfNeeded()
+        }
+    }
+
+    private var welcomeInteractionObservers: some View {
+        welcomeLifecycleSurface
         .onChange(of: serverSuggestions.map(\.id)) { _, _ in
             if !serverSuggestions.isEmpty {
                 suggestions = serverSuggestions
@@ -5542,7 +5691,7 @@ struct NewChatWelcomeView: View {
         }
         .onDisappear {
             draftSaveTask?.cancel()
-            flushNewChatDraft()
+            Task { @MainActor in _ = await flushNewChatDraft() }
             if composerOverlay == .recording || recordAttemptActive {
                 cancelWelcomeRecording()
             } else {
@@ -5569,11 +5718,16 @@ struct NewChatWelcomeView: View {
         isFocused = true
     }
 
-    private func handleAttachmentSelection(data: Data?, filename: String, kind: WelcomeComposerPendingKind) {
+    private func handleAttachmentSelection(
+        data: Data?,
+        filename: String,
+        kind: WelcomeComposerPendingKind,
+        shouldFocus: Bool = true
+    ) {
         addPendingComposerEmbed(filename: filename, kind: kind, data: data)
         showAttachmentMenu = false
         isComposerActivated = true
-        isFocused = true
+        isFocused = shouldFocus
         ToastManager.shared.show(filename, type: .info)
     }
 
@@ -5756,12 +5910,13 @@ struct NewChatWelcomeView: View {
         #endif
     }
 
-    private func openCameraCapture() {
+    private func openCameraCapture(shouldFocusAfterCapture: Bool = true) {
         guard isAuthenticated else {
             blockAnonymousAttachment()
             return
         }
         #if os(iOS)
+        self.shouldFocusAfterCameraCapture = shouldFocusAfterCapture
         showCameraCapture = true
         #else
         ToastManager.shared.show(AppStrings.takePhoto, type: .info)
@@ -5849,6 +6004,11 @@ struct NewChatWelcomeView: View {
             showRecordHint(duration: 0)
             return
         }
+        NativeDiagnostics.event(
+            "recording_pending_embed_inserted",
+            category: "apple_composer",
+            counts: ["duration_ms": duration.isFinite ? Int(max(0, min(duration, 3_600)) * 1_000) : 0]
+        )
 
         let uploadID = UUID()
         recordingUploadID = uploadID
@@ -5882,6 +6042,7 @@ struct NewChatWelcomeView: View {
             recordingUploadTask = nil
             isRecordingUploadPending = false
             guard let embed else {
+                NativeDiagnostics.event("recording_upload_failed", category: "apple_composer", level: .warning)
                 try? composerSession.removeEmbed(nodeID: nodeID)
                 cleanupWelcomeRecordingTemporaryFile()
                 isComposerActivated = !composerSession.canonicalMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -5909,11 +6070,16 @@ struct NewChatWelcomeView: View {
                     onRetry: { _ in },
                     onRemove: { _ in pendingComposerEmbeds.removeAll { $0.id == embed.id } }
                 )
+                NativeDiagnostics.event(
+                    "recording_embed_resolved",
+                    category: "apple_composer",
+                    flags: ["has_record": embed.record != nil, "has_local_audio": embed.localData != nil]
+                )
                 // A completed recording is a durable composer atom. Persist its
                 // markdown and encrypted companion snapshot atomically; the
                 // normal typing debounce can be cancelled by an immediate close.
                 draftSaveTask?.cancel()
-                await saveNewChatDraft(
+                try await saveNewChatDraft(
                     markdown: composerSession.canonicalMarkdown,
                     revision: composerSession.revision
                 )
@@ -5975,6 +6141,7 @@ struct NewChatWelcomeView: View {
         recordStartTask?.cancel()
 
         if micPermissionState == .denied {
+            restoreCompactComposerAfterRecordRequestIfNeeded()
             showRecordHint(duration: 0)
             return
         }
@@ -5988,6 +6155,7 @@ struct NewChatWelcomeView: View {
                 } else {
                     recordAttemptActive = false
                     recordStartedFromKeyboard = false
+                    restoreCompactComposerAfterRecordRequestIfNeeded()
                     showRecordHint(duration: granted ? 2500 : 0)
                 }
             }
@@ -6001,6 +6169,7 @@ struct NewChatWelcomeView: View {
             micPermissionState = .denied
             recordAttemptActive = false
             recordStartedFromKeyboard = false
+            restoreCompactComposerAfterRecordRequestIfNeeded()
             showRecordHint(duration: 0)
             return
         }
@@ -6062,6 +6231,7 @@ struct NewChatWelcomeView: View {
             recordAttemptActive = false
             recordGestureCancelled = false
             recordStartedFromKeyboard = false
+            collapseComposerAfterRecordingCancel = false
             recordDragOffsetX = 0
             dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
             return
@@ -6087,7 +6257,16 @@ struct NewChatWelcomeView: View {
         recordGestureCancelled = markGestureCancelled
         recordStartedFromKeyboard = false
         recordDragOffsetX = 0
+        restoreCompactComposerAfterRecordRequestIfNeeded()
         dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
+    }
+
+    private func restoreCompactComposerAfterRecordRequestIfNeeded() {
+        guard collapseComposerAfterRecordingCancel else { return }
+        collapseComposerAfterRecordingCancel = false
+        isComposerActivated = false
+        isComposerExpanded = false
+        isFocused = false
     }
 
     private func showRecordHint(duration: Int = 2500) {
@@ -6164,6 +6343,21 @@ struct NewChatWelcomeView: View {
             isComposerActivated = true
             isFocused = true
         }
+        if arguments.contains("--ui-test-photo-quick-action-result"), pendingComposerEmbeds.isEmpty {
+            addPendingComposerEmbed(
+                filename: "quick-action-photo.png",
+                kind: .image,
+                data: Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+            )
+            isGuestInterestSelectionActive = false
+            isComposerActivated = true
+            isFocused = false
+        }
+        if arguments.contains("--ui-test-welcome-seed-finished-audio"), pendingComposerEmbeds.isEmpty {
+            addPendingComposerEmbed(filename: "welcome-recording.m4a", kind: .audio, duration: 5)
+            isComposerActivated = true
+            isFocused = true
+        }
         if isUITestWelcomeKeyboardRecordingOverlayForced {
             micPermissionState = .granted
             recordAttemptActive = true
@@ -6198,6 +6392,21 @@ struct NewChatWelcomeView: View {
     }
 
     private func dismissWelcomeComposer() {
+        let hasDraftContent = !composerSession.canonicalMarkdown
+            .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !pendingComposerEmbeds.isEmpty
+            || composerSession.controller.document.nodes.contains { $0.kind == "embed" }
+        if hasDraftContent {
+            Task { @MainActor in
+                guard await flushNewChatDraft() else { return }
+                completeWelcomeComposerDismissal(clearDraftContent: false)
+            }
+            return
+        }
+        completeWelcomeComposerDismissal(clearDraftContent: true)
+    }
+
+    private func completeWelcomeComposerDismissal(clearDraftContent: Bool) {
         recordStartTask?.cancel()
         recordStartTask = nil
         recordHintTask?.cancel()
@@ -6219,12 +6428,14 @@ struct NewChatWelcomeView: View {
         recordingUploadTask?.cancel()
         recordingUploadTask = nil
         cleanupWelcomeRecordingTemporaryFile()
-        for nodeID in guestRecordingNodeIDs {
-            try? composerSession.removeEmbed(nodeID: nodeID)
+        if clearDraftContent {
+            for nodeID in guestRecordingNodeIDs {
+                try? composerSession.removeEmbed(nodeID: nodeID)
+            }
+            guestRecordingNodeIDs.removeAll()
+            pendingComposerEmbeds = []
         }
-        guestRecordingNodeIDs.removeAll()
         isRecordingUploadPending = false
-        pendingComposerEmbeds = []
         showAttachmentMenu = false
         composerOverlay = nil
     }
@@ -6284,18 +6495,13 @@ struct NewChatWelcomeView: View {
                         self.composerOverlay = nil
                         self.recordAttemptActive = false
                         self.recordStartedFromKeyboard = false
+                        self.collapseComposerAfterRecordingCancel = false
                         self.recordDragOffsetX = 0
                         dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
                     },
                     onCancel: { cancelWelcomeRecording() },
                     onFailure: {
-                        composerRecorder.cancelRecording()
-                        cancelWelcomeRealtimeRecording()
-                        self.composerOverlay = nil
-                        self.recordAttemptActive = false
-                        self.recordStartedFromKeyboard = false
-                        self.recordDragOffsetX = 0
-                        dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
+                        cancelWelcomeRecording()
                         showRecordHint(duration: 0)
                     }
                 )
@@ -6584,6 +6790,7 @@ struct NewChatWelcomeView: View {
     }
 
     private func applyFocusRequestIfNeeded() {
+        guard handledFreshSessionRequest >= freshSessionRequest else { return }
         guard focusRequest > 0, handledFocusRequest != focusRequest else { return }
         handledFocusRequest = focusRequest
         if let mention = SettingsComposerHandoff.consume() {
@@ -6599,15 +6806,28 @@ struct NewChatWelcomeView: View {
     }
 
     private func applyRecordRequestIfNeeded() {
+        guard handledFreshSessionRequest >= freshSessionRequest else { return }
         guard recordRequest > 0, handledRecordRequest != recordRequest else { return }
         handledRecordRequest = recordRequest
         isGuestInterestSelectionActive = false
-        isComposerActivated = true
-        isComposerExpanded = true
+        collapseComposerAfterRecordingCancel = true
+        isComposerExpanded = false
         Task { @MainActor in
             await Task.yield()
-            beginRecordAttempt(startedFromKeyboard: true)
+            beginRecordAttempt()
         }
+    }
+
+    private func applyCameraCaptureRequestIfNeeded() {
+        guard handledFreshSessionRequest >= freshSessionRequest else { return }
+        guard cameraCaptureRequest > 0,
+              handledCameraCaptureRequest != cameraCaptureRequest else { return }
+        handledCameraCaptureRequest = cameraCaptureRequest
+        isGuestInterestSelectionActive = false
+        isComposerActivated = true
+        isComposerExpanded = true
+        isFocused = false
+        openCameraCapture(shouldFocusAfterCapture: false)
     }
 
     private func rankedSuggestions(_ source: [NewChatSuggestionsView.ChatSuggestion]) -> [NewChatSuggestionsView.ChatSuggestion] {
@@ -6681,12 +6901,12 @@ struct NewChatWelcomeView: View {
                 category: "apple_composer"
             )
             if let draft = try await loadNewChatDraftForRestore(),
-               !isCreatingChat, composerSession.canonicalMarkdown.isEmpty {
+               !Task.isCancelled, !isCreatingChat, composerSession.canonicalMarkdown.isEmpty {
                 if let activeDraftID = DraftService.shared.activeNewChatDraftId {
                     modelDraftID = activeDraftID
                 }
                 composerSession.replaceMarkdown(draft.canonicalMarkdown)
-                hydrateNewChatRecordingEmbeds(draft.recordings)
+                hydrateNewChatDraftEmbeds(draft.attachments)
             } else {
                 NativeDiagnostics.info("New-chat audio restore found no loadable draft", category: "apple_composer")
             }
@@ -6695,6 +6915,54 @@ struct NewChatWelcomeView: View {
         } catch {
             NativeDiagnostics.warning("New-chat draft restore failed: \(type(of: error))", category: "apple_composer")
         }
+    }
+
+    private func beginFreshNewChatSession() async -> Bool {
+        guard freshSessionRequest > handledFreshSessionRequest else { return true }
+        let requestedSession = freshSessionRequest
+        draftSaveTask?.cancel()
+
+        let markdown = composerSession.canonicalMarkdown
+        // DraftService treats empty markdown as deletion. Never project an
+        // unresolved attachment-only composer over the prior synced draft.
+        let hasDraftContent = !markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !pendingComposerEmbeds.isEmpty
+            || composerSession.controller.document.nodes.contains { $0.kind == "embed" }
+        if isAuthenticated, hasDraftContent, !isCreatingChat {
+            guard await flushNewChatDraft(), !Task.isCancelled,
+                  freshSessionRequest == requestedSession else { return false }
+        }
+        handledFreshSessionRequest = requestedSession
+
+        if composerOverlay == .recording || recordAttemptActive {
+            cancelWelcomeRecording()
+        } else {
+            cancelWelcomeRealtimeRecording()
+        }
+        recordingUploadTask?.cancel()
+        recordingUploadTask = nil
+        cleanupWelcomeRecordingTemporaryFile()
+        isRecordingUploadPending = false
+        recordingUploadID = nil
+        pendingComposerEmbeds = []
+        guestRecordingNodeIDs.removeAll()
+        composerOverlay = nil
+        showAttachmentMenu = false
+        anonymousAttachmentPending = false
+        isComposerActivated = false
+        isComposerExpanded = false
+        isFocused = false
+
+        modelDraftID = DraftService.shared.beginFreshNewChatDraft(
+            preferredId: UUID().uuidString.lowercased()
+        )
+        if !composerSession.canonicalMarkdown.isEmpty {
+            suppressNextDraftSave = true
+            composerSession.replaceMarkdown("")
+        }
+        detectedPIIMatches = []
+        piiExclusions = []
+        return true
     }
 
     private func loadNewChatDraftForRestore() async throws -> ComposerDraft? {
@@ -6711,26 +6979,27 @@ struct NewChatWelcomeView: View {
         return nil
     }
 
-    private func hydrateNewChatRecordingEmbeds(_ recordings: [EmbedRecord]) {
-        let cachedRecordings = Dictionary(
-            recordings
-                .map { ($0.id, $0) },
+    private func hydrateNewChatDraftEmbeds(_ attachments: [ComposerDraftAttachment]) {
+        let cachedAttachments = Dictionary(
+            attachments
+                .map { ($0.embedRecord.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        let recordingNodes = composerSession.controller.document.nodes.filter { $0.embedType == "recording" }
+        let embedNodes = composerSession.controller.document.nodes.filter { $0.kind == "embed" }
         NativeDiagnostics.info(
-            "New-chat audio hydrate nodes=\(recordingNodes.count) cachedRecordings=\(cachedRecordings.count) aliasActive=\(DraftService.shared.activeNewChatDraftId != nil)",
+            "New-chat embed hydrate nodes=\(embedNodes.count) cachedAttachments=\(cachedAttachments.count) aliasActive=\(DraftService.shared.activeNewChatDraftId != nil)",
             category: "apple_composer"
         )
-        for node in recordingNodes {
+        for node in embedNodes {
             guard let durableID = node.contentRef?.replacingOccurrences(of: "embed:", with: ""),
-                  let record = cachedRecordings[durableID],
-                  let embed = ComposerPendingEmbed.restoredRecording(from: record) else { continue }
+                  let attachment = cachedAttachments[durableID],
+                  let embed = restoredDraftEmbed(from: attachment) else { continue }
+            let record = attachment.embedRecord
             if !pendingComposerEmbeds.contains(where: { $0.id == embed.id }) {
                 pendingComposerEmbeds.append(embed)
             }
             try? composerSession.controller.configureEmbedPreview(
-                id: node.id, embedRecord: record, localPreviewData: nil
+                id: node.id, embedRecord: record, localPreviewData: attachment.localData
             )
             try? composerSession.configureEmbedActions(
                 nodeID: node.id,
@@ -6738,11 +7007,40 @@ struct NewChatWelcomeView: View {
                 onRetry: { _ in },
                 onRemove: { _ in pendingComposerEmbeds.removeAll { $0.id == durableID } }
             )
-            restoreCachedRecordingAudio(nodeID: node.id, durableID: durableID, record: record)
+            if record.type == "audio-recording" {
+                restoreCachedRecordingAudio(nodeID: node.id, durableID: durableID, record: record)
+            }
         }
         NativeDiagnostics.info(
-            "New-chat audio hydrate completed pending=\(pendingComposerEmbeds.count)",
+            "New-chat embed hydrate completed pending=\(pendingComposerEmbeds.count)",
             category: "apple_composer"
+        )
+    }
+
+    private func restoredDraftEmbed(from attachment: ComposerDraftAttachment) -> ComposerPendingEmbed? {
+        let record = attachment.embedRecord
+        if record.type == "audio-recording" {
+            return ComposerPendingEmbed.restoredRecording(from: record)
+        }
+        guard let raw = record.rawData else { return nil }
+        let object = raw.mapValues(\.value)
+        guard JSONSerialization.isValidJSONObject(object),
+              let encoded = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+              let content = String(data: encoded, encoding: .utf8) else { return nil }
+        let filename = raw["filename"]?.value as? String ?? raw["title"]?.value as? String ?? record.id
+        let referenceType = raw["type"]?.value as? String ?? (record.type == "images-image" ? "image" : "file")
+        return ComposerPendingEmbed(
+            id: record.id,
+            type: record.type,
+            referenceType: referenceType,
+            status: record.status.rawValue,
+            content: content,
+            textPreview: raw["title"]?.value as? String,
+            record: record,
+            localData: attachment.localData,
+            filename: filename,
+            size: attachment.localData?.count ?? 0,
+            piiMappings: []
         )
     }
 
@@ -6790,7 +7088,7 @@ struct NewChatWelcomeView: View {
                 suppressNextDraftSave = true
                 composerSession.replaceMarkdown(markdown)
             }
-            hydrateNewChatRecordingEmbeds(draft?.recordings ?? [])
+            hydrateNewChatDraftEmbeds(draft?.attachments ?? [])
         } catch ComposerDraftError.masterKeyUnavailable {
             return
         } catch {
@@ -6812,42 +7110,49 @@ struct NewChatWelcomeView: View {
         draftSaveTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
-            await saveNewChatDraft(markdown: markdown, revision: revision)
+            do {
+                try await saveNewChatDraft(markdown: markdown, revision: revision)
+            } catch {
+                NativeDiagnostics.warning("New-chat draft save failed: \(type(of: error))", category: "apple_composer")
+            }
         }
     }
 
-    private func flushNewChatDraft() {
-        guard isAuthenticated, !isCreatingChat else { return }
+    private func flushNewChatDraft() async -> Bool {
+        guard isAuthenticated else { return true }
+        guard !isCreatingChat else { return false }
         draftSaveTask?.cancel()
         let markdown = composerSession.canonicalMarkdown
-        if isRecordingUploadPending && markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return
+        let markdownIsEmpty = markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if markdownIsEmpty && (isRecordingUploadPending || !pendingComposerEmbeds.isEmpty) {
+            return false
         }
         let revision = composerSession.revision
-        Task { @MainActor in await saveNewChatDraft(markdown: markdown, revision: revision) }
+        do {
+            try await saveNewChatDraft(markdown: markdown, revision: revision)
+            return true
+        } catch {
+            NativeDiagnostics.warning("New-chat draft flush failed: \(type(of: error))", category: "apple_composer")
+            return false
+        }
     }
 
-    private func saveNewChatDraft(markdown: String, revision: Int) async {
-        guard !Task.isCancelled, !isCreatingChat else { return }
-        if isRecordingUploadPending && markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return
+    private func saveNewChatDraft(markdown: String, revision: Int) async throws {
+        guard !Task.isCancelled, !isCreatingChat else { throw CancellationError() }
+        if markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           isRecordingUploadPending || !pendingComposerEmbeds.isEmpty {
+            throw CancellationError()
         }
-        do {
-            try await DraftService.shared.saveDraft(
-                canonicalMarkdown: markdown,
-                preview: String(markdown.prefix(160)),
-                chatId: "composer:new-chat",
-                revision: revision,
-                draftVersion: 0,
-                recordings: pendingComposerEmbeds
-                    .map(\.record)
-                    .filter { $0.type == "audio-recording" }
-            )
-        } catch ComposerDraftError.masterKeyUnavailable {
-            return
-        } catch {
-            NativeDiagnostics.warning("New-chat draft save failed: \(type(of: error))", category: "apple_composer")
-        }
+        try await DraftService.shared.saveDraft(
+            canonicalMarkdown: markdown,
+            preview: String(markdown.prefix(160)),
+            chatId: "composer:new-chat",
+            revision: revision,
+            draftVersion: 0,
+            attachments: pendingComposerEmbeds.map {
+                ComposerDraftAttachment(embedRecord: $0.record, localData: $0.localData)
+            }
+        )
     }
 
     private var modelContext: ComposerModelPreferenceController.Context {
@@ -7868,6 +8173,10 @@ private struct WelcomeComposer: View {
         session.controller.document.nodes.contains { $0.kind == "embed" }
     }
 
+    private var hasDraftContent: Bool {
+        hasContent || hasPendingComposerEmbeds || hasComposerEmbedNodes
+    }
+
     private var isOpen: Bool {
         hasContent || isFocused || isActivated || isExpanded || isOverlayActive || anonymousAttachmentPending || hasPendingComposerEmbeds
     }
@@ -7900,6 +8209,19 @@ private struct WelcomeComposer: View {
         max(MessageComposerMetric.expandedMinHeight, availableHeight - .spacing20)
     }
 
+    private var responsiveFieldHeight: CGFloat {
+        guard hasComposerEmbedNodes else { return MessageComposerMetric.expandedMinHeight }
+        // Preserve the web-sized 200pt embed card, but let its scrollable field
+        // contract when the iPhone keyboard and suggestions share the viewport.
+        return min(
+            MessageComposerMetric.expandedMaxHeight,
+            max(
+                MessageComposerMetric.focusedEmptyHeight + .spacing1,
+                availableHeight - .spacing10
+            )
+        )
+    }
+
     var body: some View {
         VStack(spacing: .spacing2) {
             PIIWarningBanner(matches: piiMatches, onUndoAll: onUndoAllPII)
@@ -7914,7 +8236,7 @@ private struct WelcomeComposer: View {
                 compactHeight: 60,
                 compactCornerRadius: 24,
                 showActionButtonsWhenCompact: isOpen && !isDraftPreview,
-                expandedMinHeight: isExpanded ? expandedHeight : (isOverlayActive ? overlayHeight : MessageComposerMetric.expandedMinHeight),
+                expandedMinHeight: isExpanded ? expandedHeight : (isOverlayActive ? overlayHeight : responsiveFieldHeight),
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 piiDecorations: ComposerPIIDecorations.nativeDecorations(
@@ -7990,11 +8312,11 @@ private struct WelcomeComposer: View {
                     .zIndex(10)
                 }
             }
-            if isOpen && !isFocused && !isExpanded && !isOverlayActive {
+            if (isFocused || isActivated || isExpanded) && !isOverlayActive {
                 Button {
                     onDismiss()
                 } label: {
-                    Text(hasContent ? AppStrings.save : AppStrings.cancel)
+                    Text(hasDraftContent ? AppStrings.save : AppStrings.cancel)
                         .font(.omSmall)
                         .fontWeight(.medium)
                         .foregroundStyle(Color.fontSecondary)
@@ -8008,6 +8330,7 @@ private struct WelcomeComposer: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("new-chat-draft-dismiss-button")
                 .padding(.top, .spacing3)
                 .transition(.opacity)
             }

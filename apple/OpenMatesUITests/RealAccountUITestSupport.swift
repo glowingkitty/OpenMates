@@ -1,4 +1,5 @@
 // Shared real-account UI-test helpers.
+// contract-test-file: infrastructure
 // Keeps credential loading, password + OTP login, TOTP generation, and stable
 // chat selectors in one place for native live-dev chat tests. Credentials are
 // read only from the XCTest process environment or the local live-test file
@@ -336,12 +337,25 @@ enum RealAccountUITestSupport {
     }
 
     static func openNewChatIfNeeded(app: XCUIApplication) {
-        if waitForMessageEditor(in: app, timeout: 1) != nil {
+        // The launch argument can already land on the empty Chat workspace.
+        // Opening the workspace switcher in that state does not expose another
+        // Chats action, so keep the fresh composer instead of failing setup.
+        if accessibilityElement(in: app, identifier: "new-chat-suggestions").exists,
+           waitForMessageEditor(in: app, timeout: 2) != nil {
             return
         }
-        let newChatButton = accessibilityElement(in: app, identifier: "new-chat-button")
-        guard newChatButton.waitForExistence(timeout: 2) else { return }
-        newChatButton.tap()
+        let chatNavigation = accessibilityElement(in: app, identifier: "chats-nav-link")
+        if !chatNavigation.exists || !chatNavigation.isHittable {
+            let workspaceSwitcher = accessibilityElement(in: app, identifier: "workspace-switcher")
+            if workspaceSwitcher.waitForExistence(timeout: 2), workspaceSwitcher.isHittable {
+                workspaceSwitcher.tap()
+            }
+        }
+        guard chatNavigation.waitForExistence(timeout: 3), chatNavigation.isHittable else {
+            XCTFail("Expected the Chat workspace action to start a fresh chat")
+            return
+        }
+        chatNavigation.tap()
         XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 10))
     }
 

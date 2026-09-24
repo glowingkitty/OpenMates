@@ -435,6 +435,43 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(recent.map(\.id), ["visible-chat"])
     }
 
+    // contract-test: direct surface=gui.apple assertions=chat-navigation.order.sidebar-header-match,chat-navigation.empty-new-chat.excluded
+    func testContinuationMatchesWebEligibilityForPinnedArchivesEmptyShellsAndNewsletters() {
+        let pinnedArchived = makeChat(
+            id: "pinned-archived",
+            title: "Pinned archive",
+            isArchived: true,
+            isPinned: true
+        )
+        let archived = makeChat(id: "archived", title: "Archive", isArchived: true)
+        let empty = makeChat(id: "empty", title: nil, messagesV: 0, metadataV: 0)
+        let newsletter = makeChat(id: "tips-weekly", title: "Tips")
+        let ordinary = makeChat(id: "ordinary", title: "Ordinary")
+
+        XCTAssertEqual(
+            WelcomeScreenState.recentChats(
+                from: [ordinary, newsletter, empty, archived, pinnedArchived],
+                excluding: nil
+            ).map(\.id),
+            ["pinned-archived", "ordinary"]
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chat-navigation.draft-only.addressable,drafts.established-chat.presentation-unchanged
+    func testContinuationDoesNotRenderPartiallySyncedGeneratedMetadataAsDraftOnly() {
+        let generated = makeChat(
+            id: "generated",
+            title: nil,
+            messagesV: 0,
+            titleV: 2,
+            draftV: 3,
+            hasNonEmptyDraft: true
+        )
+
+        XCTAssertFalse(WelcomeScreenState.isDraftOnly(generated))
+        XCTAssertEqual(WelcomeScreenState.resumeChat(from: [generated], lastOpened: generated.id)?.id, generated.id)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
     func testContinuationMatchesPinnedDraftRecentOrderAndSkipsSubChats() {
         let recent = makeChat(id: "recent", title: "Recent", lastMessageAt: "2026-03-01T00:00:00Z")
@@ -595,6 +632,7 @@ final class ChatSyncParityTests: XCTestCase {
         isSubChat: Bool? = nil,
         encryptedActiveFocusId: String? = nil,
         messagesV: Int? = 1,
+        titleV: Int? = nil,
         metadataV: Int? = 1,
         lastMessageAt: String = "2026-01-01T00:00:00Z",
         isArchived: Bool = false,
@@ -619,7 +657,7 @@ final class ChatSyncParityTests: XCTestCase {
             encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions,
             encryptedChatKey: nil,
             messagesV: messagesV,
-            titleV: title == nil ? 0 : 1,
+            titleV: titleV ?? (title == nil ? 0 : 1),
             draftV: draftV,
             metadataV: metadataV,
             parentId: parentId,

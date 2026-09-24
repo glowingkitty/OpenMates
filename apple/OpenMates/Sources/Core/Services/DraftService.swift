@@ -5,6 +5,8 @@
 // Dependencies remain injectable for deterministic migration tests.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.drafts.preview-persistence, message-input.recording.lifecycle
+// Specification: specifications/architecture/drafts/specification.yml
+// Assertions: drafts.persistence.local-first-encrypted
 
 import Combine
 import CryptoKit
@@ -64,6 +66,28 @@ final class DraftService: ObservableObject {
     private var draftGenerationByChatId: [String: UUID] = [:]
     private var draftReadGenerationByChatId: [String: UUID] = [:]
 
+    private var newChatSelectionStorageKey: String? {
+        guard let scopeId = OfflineStore.shared.activeScopeId else { return nil }
+        let digest = SHA256.hash(data: Data(scopeId.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return "openmates.active-new-chat-draft.\(digest)"
+    }
+
+    private var storedNewChatDraftId: String? {
+        guard let key = newChatSelectionStorageKey else { return nil }
+        return UserDefaults.standard.string(forKey: key)
+    }
+
+    private func persistNewChatDraftId(_ id: String?) {
+        guard let key = newChatSelectionStorageKey else { return }
+        if let id {
+            UserDefaults.standard.set(id, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+
     init(
         repository: any ComposerDraftRepository,
         legacyStore: any LegacyComposerDraftStore,
@@ -114,8 +138,10 @@ final class DraftService: ObservableObject {
                 syncCoordinator?.restoreDeletionMarkers(deletionVersions)
                 syncCoordinator?.restoreNewChatDraftId(
                     from: records,
-                    cachedChats: records.compactMap { OfflineStore.shared.loadChat(id: $0.chatId) }
+                    cachedChats: records.compactMap { OfflineStore.shared.loadChat(id: $0.chatId) },
+                    preferredId: storedNewChatDraftId
                 )
+                persistNewChatDraftId(syncCoordinator?.activeNewChatDraftId)
                 for record in records {
                     if let deletedVersion = deletionVersions[record.chatId], deletedVersion >= record.draftVersion { continue }
                     guard !Task.isCancelled, lifecycle == draftLifecycleGeneration,
@@ -145,7 +171,15 @@ final class DraftService: ObservableObject {
     }
 
     func reserveNewChatDraftId(preferredId: String) -> String {
-        syncCoordinator?.reserveNewChatDraftId(preferredId: preferredId) ?? preferredId
+        let resolved = syncCoordinator?.reserveNewChatDraftId(preferredId: preferredId) ?? preferredId
+        persistNewChatDraftId(resolved)
+        return resolved
+    }
+
+    func beginFreshNewChatDraft(preferredId: String) -> String {
+        let resolved = syncCoordinator?.beginFreshNewChatDraft(preferredId: preferredId) ?? preferredId
+        persistNewChatDraftId(resolved)
+        return resolved
     }
 
     func saveDraft(
@@ -154,13 +188,17 @@ final class DraftService: ObservableObject {
         chatId: String,
         revision: Int,
         draftVersion: Int,
-        recordings: [EmbedRecord]? = nil
+        recordings: [EmbedRecord]? = nil,
+        attachments: [ComposerDraftAttachment]? = nil
     ) async throws {
         guard !canonicalMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             try await clearDraft(chatId: chatId)
             return
         }
         let resolvedChatId = syncCoordinator?.resolveChatId(chatId, hasNonEmptyDraft: true) ?? chatId
+        if chatId == DraftSyncCoordinator.syntheticNewChatId {
+            persistNewChatDraftId(resolvedChatId)
+        }
         let lifecycle = draftLifecycleGeneration
         let draftGeneration = draftGenerationByChatId[resolvedChatId]
         let scopeGeneration = OfflineStore.shared.scopeGeneration
@@ -198,6 +236,7 @@ final class DraftService: ObservableObject {
             revision: revision,
             draftVersion: effectiveDraftVersion,
             recordings: recordings,
+            attachments: attachments,
             existingEncryptedRecordingPayload: existingRecord?.encryptedRecordingPayload,
             masterKey: masterKey
         )
@@ -222,8 +261,10 @@ final class DraftService: ObservableObject {
             let records = try await repository.allRecords()
             syncCoordinator?.restoreNewChatDraftId(
                 from: records,
-                cachedChats: records.compactMap { OfflineStore.shared.loadChat(id: $0.chatId) }
+                cachedChats: records.compactMap { OfflineStore.shared.loadChat(id: $0.chatId) },
+                preferredId: storedNewChatDraftId
             )
+            persistNewChatDraftId(syncCoordinator?.activeNewChatDraftId)
         }
         let resolvedChatId = syncCoordinator?.resolveChatId(chatId, hasNonEmptyDraft: false) ?? chatId
         let draftGeneration = draftGenerationByChatId[resolvedChatId]
@@ -255,7 +296,7 @@ final class DraftService: ObservableObject {
                 key: masterKey
             )
             let preview: String
-            let recordings: [EmbedRecord]
+            let attachments: [ComposerDraftAttachment]
             var expectedEncryptedPreview = record.encryptedPreview
             if record.encryptedPreview.isEmpty {
                 loadPhase = "previewRepair"
@@ -282,12 +323,12 @@ final class DraftService: ObservableObject {
                     base64String: encryptedPayload,
                     key: masterKey
                 )
-                recordings = try Self.decodeRecordingPayload(
+                attachments = try Self.decodeAttachmentPayload(
                     plaintext,
                     referencedBy: markdown
                 )
             } else {
-                recordings = []
+                attachments = []
             }
             loadPhase = "recordRecheck"
             guard let latest = try await repository.record(chatId: record.chatId),
@@ -304,7 +345,7 @@ final class DraftService: ObservableObject {
             return ComposerDraft(
                 canonicalMarkdown: markdown,
                 preview: preview,
-                recordings: recordings,
+                attachments: attachments,
                 revision: record.revision,
                 draftVersion: record.draftVersion
             )
@@ -340,6 +381,7 @@ final class DraftService: ObservableObject {
                 revision: 13,
                 draftVersion: 1,
                 recordings: nil,
+                attachments: nil,
                 existingEncryptedRecordingPayload: nil,
                 masterKey: masterKey
             )
@@ -384,6 +426,7 @@ final class DraftService: ObservableObject {
         }
         if chatId == DraftSyncCoordinator.syntheticNewChatId {
             syncCoordinator?.resetNewChatDraftId()
+            persistNewChatDraftId(nil)
         }
         currentDraft = ""
         draftPreviews.removeValue(forKey: resolvedChatId)
@@ -397,6 +440,7 @@ final class DraftService: ObservableObject {
         await legacyStore.removeAllDrafts()
         try await repository.removeAll()
         syncCoordinator?.resetNewChatDraftId()
+        persistNewChatDraftId(nil)
         currentDraft = ""
         draftPreviews.removeAll()
     }
@@ -484,6 +528,7 @@ final class DraftService: ObservableObject {
         revision: Int,
         draftVersion: Int,
         recordings: [EmbedRecord]?,
+        attachments: [ComposerDraftAttachment]?,
         existingEncryptedRecordingPayload: String?,
         masterKey: SymmetricKey
     ) async throws -> ComposerDraftRecord {
@@ -496,15 +541,19 @@ final class DraftService: ObservableObject {
             masterKey: masterKey
         )
         let encryptedRecordingPayload: String?
-        if let recordings {
-            let referencedIDs = Self.recordingIDs(referencedBy: canonicalMarkdown)
+        if attachments != nil || recordings != nil {
+            let sourceAttachments = attachments
+                ?? recordings?.map { ComposerDraftAttachment(embedRecord: $0, localData: nil) }
+                ?? []
+            let referencedIDs = Self.embedIDs(referencedBy: canonicalMarkdown)
             let payload = ComposerDraftRecordingPayload(
-                version: 1,
-                recordings: recordings
-                    .filter { referencedIDs.contains($0.id) }
+                version: 2,
+                recordings: nil,
+                attachments: sourceAttachments
+                    .filter { referencedIDs.contains($0.embedRecord.id) }
                     .compactMap(ComposerDraftRecordingSnapshot.init)
             )
-            if payload.recordings.isEmpty {
+            if payload.attachments?.isEmpty != false {
                 encryptedRecordingPayload = nil
             } else {
                 let encoder = JSONEncoder()
@@ -531,32 +580,33 @@ final class DraftService: ObservableObject {
         )
     }
 
-    private static func decodeRecordingPayload(
+    private static func decodeAttachmentPayload(
         _ plaintext: String,
         referencedBy markdown: String
-    ) throws -> [EmbedRecord] {
+    ) throws -> [ComposerDraftAttachment] {
         guard let data = plaintext.data(using: .utf8) else {
             throw ComposerDraftError.verificationFailed
         }
         let payload = try JSONDecoder().decode(ComposerDraftRecordingPayload.self, from: data)
-        guard payload.version == 1 else { throw ComposerDraftError.verificationFailed }
-        let referencedIDs = recordingIDs(referencedBy: markdown)
-        return payload.recordings
+        guard payload.version == 1 || payload.version == 2 else { throw ComposerDraftError.verificationFailed }
+        let referencedIDs = embedIDs(referencedBy: markdown)
+        let snapshots = payload.attachments ?? payload.recordings ?? []
+        return snapshots
             .filter { referencedIDs.contains($0.id) }
-            .map(\.embedRecord)
+            .map(\.draftAttachment)
     }
 
-    private static func recordingIDs(referencedBy markdown: String) -> Set<String> {
+    private static func embedIDs(referencedBy markdown: String) -> Set<String> {
         let nodes = (try? ComposerMarkdownAdapter.parse(markdown).nodes) ?? []
         return Set(nodes
-            .filter { $0.embedType == "recording" }
             .compactMap { $0.contentRef?.replacingOccurrences(of: "embed:", with: "") })
     }
 }
 
 private struct ComposerDraftRecordingPayload: Codable, Sendable {
     let version: Int
-    let recordings: [ComposerDraftRecordingSnapshot]
+    let recordings: [ComposerDraftRecordingSnapshot]?
+    let attachments: [ComposerDraftRecordingSnapshot]?
 }
 
 private struct ComposerDraftRecordingSnapshot: Codable, Sendable {
@@ -578,9 +628,11 @@ private struct ComposerDraftRecordingSnapshot: Codable, Sendable {
     let versionHistory: [EmbedVersionMetadata]
     let versionHistoryReadonly: Bool
     let createdAt: String?
+    let localDataBase64: String?
 
-    init?(_ record: EmbedRecord) {
-        guard record.type == "audio-recording", let rawData = record.rawData else { return nil }
+    init?(_ attachment: ComposerDraftAttachment) {
+        let record = attachment.embedRecord
+        guard let rawData = record.rawData else { return nil }
         self.id = record.id
         self.type = record.type
         self.status = record.status
@@ -599,6 +651,7 @@ private struct ComposerDraftRecordingSnapshot: Codable, Sendable {
         self.versionHistory = record.versionHistory
         self.versionHistoryReadonly = record.versionHistoryReadonly
         self.createdAt = record.createdAt
+        self.localDataBase64 = attachment.localData?.base64EncodedString()
     }
 
     var embedRecord: EmbedRecord {
@@ -621,6 +674,13 @@ private struct ComposerDraftRecordingSnapshot: Codable, Sendable {
             versionHistory: versionHistory,
             versionHistoryReadonly: versionHistoryReadonly,
             createdAt: createdAt
+        )
+    }
+
+    var draftAttachment: ComposerDraftAttachment {
+        ComposerDraftAttachment(
+            embedRecord: embedRecord,
+            localData: localDataBase64.flatMap { Data(base64Encoded: $0) }
         )
     }
 }

@@ -3,6 +3,10 @@
 // The SwiftData model intentionally has no plaintext or editor-state fields.
 // DraftService owns encryption while repositories own ciphertext persistence.
 // This boundary remains injectable for production-container verification.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.drafts.preview-persistence
+// Specification: specifications/architecture/drafts/specification.yml
+// Assertions: drafts.persistence.local-first-encrypted
 
 import Foundation
 import SwiftData
@@ -11,7 +15,8 @@ struct ComposerDraftRecord: Sendable {
     let chatId: String
     var encryptedMarkdown: String
     var encryptedPreview: String
-    /// Master-key Format D ciphertext for local-only recording snapshots.
+    /// Master-key Format D ciphertext for local-only composer embed snapshots.
+    /// The persisted name is retained for migration compatibility.
     /// This field never participates in the draft sync wire contract.
     var encryptedRecordingPayload: String? = nil
     let revision: Int
@@ -23,9 +28,20 @@ struct ComposerDraftRecord: Sendable {
 struct ComposerDraft: Sendable {
     let canonicalMarkdown: String
     let preview: String
-    let recordings: [EmbedRecord]
+    let attachments: [ComposerDraftAttachment]
     let revision: Int
     let draftVersion: Int
+
+    var recordings: [EmbedRecord] {
+        attachments.map(\.embedRecord).filter { $0.type == "audio-recording" }
+    }
+}
+
+/// Embed metadata and optional local bytes stored inside the master-key encrypted
+/// draft companion payload. No attachment plaintext is written to SwiftData.
+struct ComposerDraftAttachment: Sendable {
+    let embedRecord: EmbedRecord
+    let localData: Data?
 }
 
 protocol ComposerDraftRepository: Sendable {
@@ -160,6 +176,8 @@ final class PersistedComposerDraft {
     var encryptedMarkdown: String
     var encryptedPreview: String
     // Optional so existing SwiftData stores migrate without a mandatory value.
+    // The persisted name is retained while the encrypted payload now also owns
+    // image/file draft snapshots.
     var encryptedRecordingPayload: String? = nil
     var revision: Int
     var draftVersion: Int

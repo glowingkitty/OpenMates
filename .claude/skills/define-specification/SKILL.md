@@ -46,20 +46,32 @@ argument-hint: "<feature or existing specification ID>"
    new reviews; do not alter existing approved semantics to satisfy this check.
    Before asking for approval, verify that the review artifact shows changed text using inline green `+`
    insertions and inline red `-` deletions while unchanged text stays neutral.
+   If the private PDF publisher is unavailable, generate the deterministic YAML fallback instead:
+
+   ```bash
+   python3 scripts/specification_approval_yaml.py <bundle> --baseline-ref HEAD
+   ```
+
+   Paste the command's complete `specification.yml` and examples YAML output into
+   the chat with the printed fingerprint. Do not summarize, truncate, attach only
+   a path, or claim that a PDF was published. The generated `.approval.yml` is the
+   review artifact for the later approval command. Use this fallback only after a
+   real publisher failure or when the publisher is known to be unavailable.
 5. Briefly explain affected assertions, surfaces, and evidence invalidation next
-   to the embedded PDF. Ask for explicit user confirmation of its fingerprint and
+   to the embedded PDF or complete YAML fallback. Ask for explicit user confirmation of its fingerprint and
    stop. Do not create/update a Plan or product code before the response.
 6. After explicit approval, run:
 
    ```bash
    python3 scripts/specifications.py approve <bundle> \
      --session <SESSION_ID> \
-     --review-artifact <PDF_APPROVAL_JSON> \
+     --review-artifact <PDF_APPROVAL_JSON_OR_YAML_FALLBACK> \
      --confirmation explicit_user_confirmation
    ```
 
 7. Any later Specification edit changes the fingerprint. Generate and embed a
-   new PDF, then repeat presentation and approval; never reuse a stale receipt.
+   new PDF or complete YAML fallback, then repeat presentation and approval;
+   never reuse a stale receipt.
 
 ## Rules
 

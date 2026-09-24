@@ -9,8 +9,10 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+//          frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
 // CSS:     UnifiedEmbedPreview.svelte — .unified-embed-preview, .desktop-layout
+//          ImageEmbedPreview.svelte — .image-content, .preview-image
 //          RecordingEmbedPreview.svelte — .recording-preview, .waveform-strip
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
@@ -79,6 +81,12 @@ struct AppleComposerEmbedPreview: View {
                     title: title,
                     lifecycleLabel: lifecycle == .finished ? nil : lifecycleLabel
                 )
+                .contentShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
+                .onTapGesture {
+                    if lifecycle == .finished {
+                        actions.onOpen(node.id)
+                    }
+                }
             } else if case .recording = descriptor.family {
                 ComposerAudioPreview(
                     title: title,
@@ -91,19 +99,6 @@ struct AppleComposerEmbedPreview: View {
                 .onTapGesture {
                     if lifecycle == .finished {
                         actions.onOpen(node.id)
-                    }
-                }
-                .contextMenu {
-                    if showsActions {
-                        if lifecycle == .finished {
-                            Button(openLabel) { actions.onOpen(node.id) }
-                        }
-                        if lifecycle == .error {
-                            Button(AppStrings.retry) { actions.onRetry(node.id) }
-                        }
-                        Button(AppStrings.remove, role: .destructive) {
-                            actions.onRemove(node.id)
-                        }
                     }
                 }
             } else if case .map = descriptor.family {
@@ -130,7 +125,7 @@ struct AppleComposerEmbedPreview: View {
             } else {
                 composerSummaryPreview
             }
-            if showsActions && !isRecordingPreview {
+            if showsActions && !isImagePreview {
                 actionBar
                     .padding(.spacing4)
             }
@@ -212,8 +207,8 @@ struct AppleComposerEmbedPreview: View {
         }
     }
 
-    private var isRecordingPreview: Bool {
-        if case .recording = descriptor.family { return true }
+    private var isImagePreview: Bool {
+        if case .image = descriptor.family { return true }
         return false
     }
 
@@ -337,19 +332,37 @@ private struct ComposerLocalImagePreview: View {
     let lifecycleLabel: String?
 
     var body: some View {
-        AppleComposerUnifiedCard(
-            appId: "images",
-            title: title,
-            subtitle: lifecycleLabel
-        ) {
+        ZStack(alignment: .bottom) {
             image
                 .resizable()
                 .scaledToFill()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(
+                    width: AppleComposerPreviewMetrics.width,
+                    height: AppleComposerPreviewMetrics.height
+                )
                 .clipped()
                 .accessibilityElement()
                 .accessibilityIdentifier("native-composer-image-content")
+
+            // Web's `.details-section.full-width-image` extends the image below
+            // this 61pt bar. Overlaying the bar keeps the fixed 300x200 card
+            // intact inside TextKit instead of letting the details view consume
+            // the metadata row and appear vertically clipped.
+            EmbedBasicInfoBar(
+                appId: "images",
+                skillIconName: AppIconView.iconName(forAppId: "images"),
+                title: title,
+                subtitle: lifecycleLabel,
+                faviconURL: nil,
+                showSkillIcon: false
+            )
+            .accessibilityIdentifier("native-composer-image-info-bar")
         }
+        .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
+        .background(Color.grey25)
+        .clipShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
+        .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
+        .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
     }
 }
 

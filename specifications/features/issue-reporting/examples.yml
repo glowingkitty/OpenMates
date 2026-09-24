@@ -1,6 +1,12 @@
 schema_version: 1
 specification: feature.issue-reporting@1
 
+shake_entry:
+  - id: iphone-shake-opens-private-report-form
+    given: A user is viewing the OpenMates app shell on a supported iPhone and has not opted to attach diagnostics.
+    when: The user intentionally shakes the device once.
+    then: Report Issue opens, rapid duplicate shake events are ignored, and diagnostic-log attachment remains disabled until the user explicitly enables it.
+
 role_aware_form:
   - id: guest-can-report-without-admin-actions
     given: A guest opens Report Issue from settings.

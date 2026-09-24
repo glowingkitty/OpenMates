@@ -153,6 +153,90 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "/private/")).firstMatch.exists)
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send,message-input.layout.responsive-parity
+    func testPhotoQuickActionResultUsesWelcomeDraftControlsWithoutChatHeader() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-photo-quick-action-result"
+        ]
+        app.launch()
+
+        let imagePreview = element(in: app, identifier: "native-composer-preview-image-finished")
+        XCTAssertTrue(imagePreview.waitForExistence(timeout: 10))
+        XCTAssertFalse(
+            element(in: app, identifier: "active-chat-header").exists,
+            "Ask About Photo must stay on the welcome composer instead of creating a header-bearing shell chat"
+        )
+
+        let saveDraft = app.buttons["new-chat-draft-dismiss-button"]
+        XCTAssertTrue(saveDraft.waitForExistence(timeout: 5))
+        XCTAssertTrue(saveDraft.isHittable)
+        XCTAssertEqual(saveDraft.label, "Save")
+        saveDraft.tap()
+
+        XCTAssertTrue(
+            imagePreview.waitForExistence(timeout: 5),
+            "Closing the photo composer as a draft must retain its image embed"
+        )
+        XCTAssertTrue(waitForAbsence(saveDraft))
+        attachScreenshot(name: "Ask About Photo welcome draft composer")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.layout.responsive-parity,message-input.recording.lifecycle
+    func testFinishedAudioPreviewKeepsWelcomeActionsAboveIPhoneKeyboard() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-welcome-seed-finished-audio",
+            "--ui-test-welcome-seed-suggestions"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 8) {
+            skipInterests.tap()
+        }
+
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
+
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+        XCTAssertLessThan(app.windows.firstMatch.frame.width, 500, "This regression covers the compact iPhone layout")
+
+        let audioPreview = element(in: app, identifier: "native-composer-preview-recording-finished")
+        XCTAssertTrue(audioPreview.waitForExistence(timeout: 8))
+        assertElement(audioPreview, isVisuallyInside: element(in: app, identifier: "message-field"))
+        attachScreenshot(name: "Finished audio composer with iPhone keyboard")
+
+        for identifier in ["composer-attachment-toggle", "record-audio-button", "send-button"] {
+            let button = app.buttons[identifier]
+            XCTAssertTrue(button.waitForExistence(timeout: 5), "Missing composer action: \(identifier)")
+            XCTAssertLessThanOrEqual(
+                button.frame.maxY,
+                keyboard.frame.minY - 2,
+                "Composer action must stay above the iPhone keyboard: \(identifier)"
+            )
+            XCTAssertTrue(button.isHittable, "Composer action is covered: \(identifier)")
+        }
+
+        let suggestions = element(in: app, identifier: "new-chat-suggestions")
+        XCTAssertTrue(suggestions.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(
+            suggestions.frame.maxY,
+            keyboard.frame.minY - 2,
+            "New-chat suggestions must move above the iPhone keyboard with the composer"
+        )
+        let firstSuggestion = app.buttons
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "new-chat-suggestion-card-"))
+            .firstMatch
+        XCTAssertTrue(firstSuggestion.waitForExistence(timeout: 5))
+        XCTAssertTrue(firstSuggestion.isHittable, "New-chat suggestions must remain tappable above the keyboard")
+    }
+
     // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send,message-input.layout.responsive-parity
     func testImagePreviewSurvivesBackgroundAndKeepsActionsAboveIPadKeyboard() throws {
         let app = XCUIApplication()

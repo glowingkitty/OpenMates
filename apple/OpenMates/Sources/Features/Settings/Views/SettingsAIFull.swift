@@ -1,5 +1,7 @@
 // Full AI settings — native reproduction of SettingsAI.svelte.
 // Uses OpenMates settings primitives and the authenticated profile/default-model endpoint contract.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/SettingsAI.svelte
@@ -11,7 +13,9 @@
 import SwiftUI
 
 struct SettingsAIFullView: View {
+    var initialModelID: String? = nil
     @EnvironmentObject private var authManager: AuthManager
+    @ObservedObject private var modelCatalog = NativeModelCatalogRuntime.shared
     @State private var autoSelectModel = true
     @State private var defaultSimpleModel = ""
     @State private var defaultComplexModel = ""
@@ -53,6 +57,14 @@ struct SettingsAIFullView: View {
         var priceScore: Int {
             inputTokensPerCredit + outputTokensPerCredit
         }
+    }
+
+    struct ModelDetail: Identifiable, Equatable {
+        let id: String
+        let name: String
+        let providerName: String
+        let description: String
+        let releaseDate: String
     }
 
     struct AIProvider: Identifiable, Decodable, Hashable {
@@ -228,7 +240,16 @@ struct SettingsAIFullView: View {
                     .accessibilityIdentifier("settings-ai-error")
             }
         }
-        .task { await loadModelPreferences() }
+        .task {
+            await loadModelPreferences()
+            selectInitialModelIfAvailable()
+        }
+        .onChange(of: initialModelID) { _, _ in
+            selectInitialModelIfAvailable()
+        }
+        .onChange(of: modelCatalog.catalog?.sourceDigest) { _, _ in
+            selectInitialModelIfAvailable()
+        }
         .overlay {
             if let selectedDetail {
                 aiDetailView(selectedDetail)
@@ -240,6 +261,48 @@ struct SettingsAIFullView: View {
 
     private var isAuthenticated: Bool {
         authManager.currentUser != nil
+    }
+
+    static func catalogModel(id: String?) -> AIModel? {
+        guard let id else { return nil }
+        return catalogModels.first { $0.id == id }
+    }
+
+    static func modelDetail(
+        id: String?,
+        canonicalModels: [NativeModelCatalog.Model]
+    ) -> ModelDetail? {
+        guard let id else { return nil }
+        if let model = canonicalModels.first(where: { $0.id == id }) {
+            return ModelDetail(
+                id: model.id,
+                name: model.name,
+                providerName: model.provider_name,
+                description: model.description ?? "",
+                releaseDate: model.release_date ?? ""
+            )
+        }
+        guard let model = catalogModel(id: id) else { return nil }
+        return detail(for: model)
+    }
+
+    private static func detail(for model: AIModel) -> ModelDetail {
+        ModelDetail(
+            id: model.id,
+            name: model.name,
+            providerName: model.providerName,
+            description: model.description,
+            releaseDate: model.releaseDate
+        )
+    }
+
+    private func selectInitialModelIfAvailable() {
+        guard let model = Self.modelDetail(
+            id: initialModelID,
+            canonicalModels: modelCatalog.catalog?.models ?? []
+        ) else { return }
+        if case .model(let selected)? = selectedDetail, selected.id == model.id { return }
+        selectedDetail = .model(model)
     }
 
     private var displayModels: [AIModel] {
@@ -361,7 +424,7 @@ struct SettingsAIFullView: View {
 
     private func modelRow(_ model: AIModel) -> some View {
         Button {
-            selectedDetail = .model(model)
+            selectedDetail = .model(Self.detail(for: model))
         } label: {
             HStack(spacing: .spacing6) {
                 ProviderLogo(name: model.logo)
@@ -483,7 +546,7 @@ struct SettingsAIFullView: View {
     }
 
     private enum AIDetail {
-        case model(AIModel)
+        case model(ModelDetail)
         case provider(AIProvider)
 
         var title: String {

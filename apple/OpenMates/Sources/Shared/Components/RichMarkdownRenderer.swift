@@ -11,9 +11,12 @@
 //          frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
 //          frontend/packages/ui/src/components/embeds/ChatEmbedPreview.svelte
 //          frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+// TypeScript: frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
+//             frontend/packages/ui/src/components/enter_message/extensions/MarkdownExtensions.ts
 // CSS:     ChatEmbedPreview.svelte <style>
 //          SourceQuoteBlock.svelte .source-quote-block, .source-quote-text,
 //            .source-quote-badge
+//          frontend/packages/ui/src/styles/markdown.css
 //          .chat-embed-card { width:300px; height:200px; border-radius:30px;
 //            box-shadow:0 8px 24px rgba(0,0,0,.16),0 2px 6px rgba(0,0,0,.1) }
 //          .card-icon { width:32px; height:32px }
@@ -22,6 +25,8 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.rendering.assistant-document-convergence, chats.surface.semantic-parity
 
 import Foundation
 import SwiftUI
@@ -1490,6 +1495,7 @@ struct InlineMarkdownText: View {
     private var inlineTokens: [InlineMarkdownToken] { preparation.value.tokens }
     private var inlineTokenHighlightRanges: [[NSRange]] { preparation.value.highlightRanges }
     private var needsCustomInlineLayout: Bool { preparation.value.customLayout }
+    private var displayFormula: String? { MarkdownMathParser.singleDisplayFormula(in: content) }
 
     init(
         content: String,
@@ -1513,6 +1519,7 @@ struct InlineMarkdownText: View {
         // The mounted preparation cache prevents reparsing on unrelated updates;
         // the existing flow keeps its bounded cache of measured width proposals.
         let customLayout = content.contains("(wiki:") || content.contains("(embed:") || content.contains("](")
+            || MarkdownMathParser.containsFormula(in: content)
         let attributed = customLayout ? AttributedString() :
             ((try? AttributedString(markdown: content, options: .init(
                 interpretedSyntax: .inlineOnlyPreservingWhitespace
@@ -1525,7 +1532,11 @@ struct InlineMarkdownText: View {
 
     var body: some View {
         Group {
-            if needsCustomInlineLayout {
+            if let displayFormula {
+                MarkdownFormulaText(latex: displayFormula, display: true, isUserMessage: isUserMessage)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .textSelection(.enabled)
+            } else if needsCustomInlineLayout {
                 InlineMarkdownFlowLayout(spacing: 0, lineSpacing: 2) {
                     ForEach(Array(inlineTokens.enumerated()), id: \.offset) { index, token in
                         tokenView(token, highlightRanges: highlightRanges(forTokenAt: index))
@@ -1582,6 +1593,9 @@ struct InlineMarkdownText: View {
                         .stroke(Color.grey30, lineWidth: 1)
                 }
                 .fixedSize()
+        case .math(let latex, let display):
+            MarkdownFormulaText(latex: latex, display: display, isUserMessage: isUserMessage)
+                .fixedSize(horizontal: false, vertical: true)
         case .wiki(let displayText, let wikiTitle, let isBold):
             WikiInlineChip(
                 displayText: displayText,
@@ -1674,9 +1688,192 @@ struct InlineMarkdownText: View {
     }
 }
 
+private struct MarkdownFormulaText: View {
+    let latex: String
+    let display: Bool
+    let isUserMessage: Bool
+
+    var body: some View {
+        Text(MarkdownMathParser.displayText(for: latex))
+            .font(display ? .omLg : .omP)
+            .fontWeight(.medium)
+            .foregroundStyle(isUserMessage ? Color.fontPrimary : Color.grey100)
+            .lineSpacing(2)
+            .accessibilityLabel(MarkdownMathParser.displayText(for: latex))
+            .accessibilityIdentifier(display ? "markdown-math-display" : "markdown-math-inline")
+    }
+}
+
+enum MarkdownMathParser {
+    struct Formula {
+        let latex: String
+        let display: Bool
+        let endIndex: String.Index
+    }
+
+    static func containsFormula(in source: String) -> Bool {
+        var index = source.startIndex
+        while index < source.endIndex {
+            if source[index] == "$", formula(in: source, from: index) != nil { return true }
+            index = source.index(after: index)
+        }
+        return false
+    }
+
+    static func singleDisplayFormula(in source: String) -> String? {
+        let trimmed = source.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("$$"),
+              let formula = formula(in: trimmed, from: trimmed.startIndex),
+              formula.display,
+              formula.endIndex == trimmed.endIndex else { return nil }
+        return formula.latex
+    }
+
+    static func formula(in source: String, from start: String.Index) -> Formula? {
+        guard source[start] == "$", !isEscaped(source, at: start) else { return nil }
+        let afterFirst = source.index(after: start)
+        let display = afterFirst < source.endIndex && source[afterFirst] == "$"
+        if !display, isCurrencyLikeDollar(source, at: start) { return nil }
+
+        let contentStart = display ? source.index(after: afterFirst) : afterFirst
+        var cursor = contentStart
+        while cursor < source.endIndex {
+            guard source[cursor] == "$", !isEscaped(source, at: cursor) else {
+                cursor = source.index(after: cursor)
+                continue
+            }
+            if display {
+                let next = source.index(after: cursor)
+                guard next < source.endIndex, source[next] == "$" else {
+                    cursor = next
+                    continue
+                }
+                let latex = String(source[contentStart..<cursor]).trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !latex.isEmpty else { return nil }
+                return Formula(latex: latex, display: true, endIndex: source.index(after: next))
+            }
+            let previous = cursor > source.startIndex ? source[source.index(before: cursor)] : Character("\0")
+            let next = source.index(after: cursor)
+            if previous != "$", (next == source.endIndex || source[next] != "$"),
+               !isCurrencyLikeDollar(source, at: cursor),
+               isInlineClosingBoundary(source, after: next) {
+                let latex = String(source[contentStart..<cursor]).trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !latex.isEmpty, !latex.contains("\n") else { return nil }
+                return Formula(latex: latex, display: false, endIndex: next)
+            }
+            // An inline formula cannot span another unescaped dollar. Treat an
+            // invalid first closing candidate as plain text so shell variables
+            // cannot absorb a later, valid formula.
+            return nil
+        }
+        return nil
+    }
+
+    static func displayText(for latex: String) -> String {
+        var value = latex.trimmingCharacters(in: .whitespacesAndNewlines)
+        value = replacing(pattern: #"\\frac\{([^{}]+)\}\{([^{}]+)\}"#, in: value, template: "($1)⁄($2)")
+        value = replacing(pattern: #"\\sqrt\{([^{}]+)\}"#, in: value, template: "√($1)")
+        value = replacing(pattern: #"\\(?:mathrm|mathbf|text|operatorname)\{([^{}]*)\}"#, in: value, template: "$1")
+        let symbols = [
+            "\\times": "×", "\\cdot": "·", "\\div": "÷", "\\pm": "±",
+            "\\leq": "≤", "\\geq": "≥", "\\neq": "≠", "\\approx": "≈",
+            "\\infty": "∞", "\\sum": "∑", "\\prod": "∏", "\\int": "∫",
+            "\\alpha": "α", "\\beta": "β", "\\gamma": "γ", "\\delta": "δ",
+            "\\epsilon": "ε", "\\theta": "θ", "\\lambda": "λ", "\\mu": "μ",
+            "\\pi": "π", "\\rho": "ρ", "\\sigma": "σ", "\\phi": "φ", "\\omega": "ω",
+            "\\Delta": "Δ", "\\Theta": "Θ", "\\Lambda": "Λ", "\\Pi": "Π", "\\Sigma": "Σ", "\\Omega": "Ω",
+            "\\left": "", "\\right": "", "\\,": " ", "\\;": " ", "\\!": ""
+        ]
+        for (command, symbol) in symbols { value = value.replacingOccurrences(of: command, with: symbol) }
+        value = replaceScripts(in: value, marker: "^", mapping: superscripts)
+        value = replaceScripts(in: value, marker: "_", mapping: subscripts)
+        value = value.replacingOccurrences(of: "{", with: "(").replacingOccurrences(of: "}", with: ")")
+        value = replacing(pattern: #"\\([A-Za-z]+)"#, in: value, template: "$1")
+        value = replacing(pattern: #"[ \t]+"#, in: value, template: " ")
+        return value
+    }
+
+    private static let superscripts: [Character: Character] = [
+        "0":"⁰", "1":"¹", "2":"²", "3":"³", "4":"⁴", "5":"⁵", "6":"⁶", "7":"⁷", "8":"⁸", "9":"⁹",
+        "+":"⁺", "-":"⁻", "=":"⁼", "(":"⁽", ")":"⁾", "n":"ⁿ", "i":"ⁱ"
+    ]
+    private static let subscripts: [Character: Character] = [
+        "0":"₀", "1":"₁", "2":"₂", "3":"₃", "4":"₄", "5":"₅", "6":"₆", "7":"₇", "8":"₈", "9":"₉",
+        "+":"₊", "-":"₋", "=":"₌", "(":"₍", ")":"₎", "a":"ₐ", "e":"ₑ", "i":"ᵢ", "o":"ₒ", "r":"ᵣ", "u":"ᵤ", "v":"ᵥ", "x":"ₓ"
+    ]
+
+    private static func replaceScripts(in source: String, marker: Character, mapping: [Character: Character]) -> String {
+        let characters = Array(source)
+        var result = ""
+        var index = 0
+        while index < characters.count {
+            guard characters[index] == marker, index + 1 < characters.count else {
+                result.append(characters[index]); index += 1; continue
+            }
+            var payload: [Character] = []
+            if characters[index + 1] == "{", let close = characters[(index + 2)...].firstIndex(of: "}") {
+                payload = Array(characters[(index + 2)..<close])
+                index = close + 1
+            } else {
+                payload = [characters[index + 1]]
+                index += 2
+            }
+            if payload.allSatisfy({ mapping[$0] != nil }) {
+                result.append(contentsOf: payload.compactMap { mapping[$0] })
+            } else {
+                result.append(marker)
+                result.append("(")
+                result.append(contentsOf: payload)
+                result.append(")")
+            }
+        }
+        return result
+    }
+
+    private static func replacing(pattern: String, in source: String, template: String) -> String {
+        guard let expression = try? NSRegularExpression(pattern: pattern) else { return source }
+        return expression.stringByReplacingMatches(in: source, range: NSRange(source.startIndex..., in: source), withTemplate: template)
+    }
+
+    private static func isEscaped(_ source: String, at index: String.Index) -> Bool {
+        guard index > source.startIndex else { return false }
+        var cursor = source.index(before: index)
+        var slashCount = 0
+        while source[cursor] == "\\" {
+            slashCount += 1
+            guard cursor > source.startIndex else { break }
+            cursor = source.index(before: cursor)
+        }
+        return slashCount % 2 == 1
+    }
+
+    private static func isInlineClosingBoundary(_ source: String, after closingDollar: String.Index) -> Bool {
+        guard closingDollar < source.endIndex else { return true }
+        let next = source[closingDollar]
+        return !next.isLetter && !next.isNumber && next != "_"
+    }
+
+    private static func isCurrencyLikeDollar(_ source: String, at dollar: String.Index) -> Bool {
+        var index = source.index(after: dollar)
+        while index < source.endIndex, source[index].isWhitespace { index = source.index(after: index) }
+        guard index < source.endIndex, source[index].isNumber else { return false }
+        while index < source.endIndex, source[index].isNumber || [",", ".", "_"].contains(source[index]) {
+            index = source.index(after: index)
+        }
+        if index < source.endIndex, source[index].isWhitespace {
+            var lookAhead = index
+            while lookAhead < source.endIndex, source[lookAhead].isWhitespace { lookAhead = source.index(after: lookAhead) }
+            if lookAhead < source.endIndex, ["\\", "^", "_", "{", "}"].contains(source[lookAhead]) { return false }
+        }
+        guard index < source.endIndex else { return true }
+        return source[index].isWhitespace || ")],.;:!?%*~".contains(source[index])
+    }
+}
+
 enum InlineMarkdownToken: Equatable {
     case text(String, isBold: Bool)
     case inlineCode(String)
+    case math(String, display: Bool)
     case wiki(displayText: String, wikiTitle: String, isBold: Bool)
     case embed(displayText: String, embedRef: String, isBold: Bool)
     case link(displayText: String, url: String, isInternal: Bool, isBold: Bool)
@@ -1685,6 +1882,8 @@ enum InlineMarkdownToken: Equatable {
         switch self {
         case .text(let text, _), .inlineCode(let text):
             return text
+        case .math(let latex, _):
+            return MarkdownMathParser.displayText(for: latex)
         case .wiki(let displayText, _, _),
              .embed(let displayText, _, _),
              .link(let displayText, _, _, _):
@@ -1710,6 +1909,13 @@ enum InlineMarkdownTokenizer {
                let code = parseInlineCode(in: source, from: index) {
                 tokens.append(.inlineCode(code.text))
                 index = code.endIndex
+                continue
+            }
+
+            if source[index] == "$",
+               let formula = MarkdownMathParser.formula(in: source, from: index) {
+                tokens.append(.math(formula.latex, display: formula.display))
+                index = formula.endIndex
                 continue
             }
 
@@ -1847,7 +2053,7 @@ enum InlineMarkdownTokenizer {
     private static func nextSpecialIndex(in source: String, from start: String.Index) -> String.Index? {
         var index = start
         while index < source.endIndex {
-            if source[index...].hasPrefix("**") || source[index] == "[" || source[index] == "`" {
+            if source[index...].hasPrefix("**") || source[index] == "[" || source[index] == "`" || source[index] == "$" {
                 return index
             }
             index = source.index(after: index)

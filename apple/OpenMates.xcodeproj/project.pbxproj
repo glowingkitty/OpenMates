@@ -85,6 +85,8 @@
 		01A6184F6B962FB34FA5B574 /* EmbedFullscreenContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F59D6321EE1553D0589225B /* EmbedFullscreenContainer.swift */; };
 		02C2F9D9D1747B51FD08AF8F /* OfflineSyncBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B6AD3DACC91432F04B1E17 /* OfflineSyncBridge.swift */; };
 		033A6721A553CE34ADB246BA /* OMDesignPrimitives.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F73912048C468D3CC42BC0 /* OMDesignPrimitives.swift */; };
+		D5A000000000000000000002 /* DeviceShakeReportTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A000000000000000000001 /* DeviceShakeReportTrigger.swift */; };
+		D5A000000000000000000003 /* DeviceShakeReportTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A000000000000000000001 /* DeviceShakeReportTrigger.swift */; };
 		C0FFEE000000000000046002 /* MessageComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046001 /* MessageComposerView.swift */; };
 		C0FFEE000000000000046003 /* MessageComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046001 /* MessageComposerView.swift */; };
 		C0FFEE000000000000050002 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050001 /* ComposerDocument.swift */; };
@@ -1071,6 +1073,7 @@
 		E1A0E57A8C5C4F0E92A10102 /* EventsSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventsSearchEmbedRenderer.swift; sourceTree = "<group>"; };
 		7F34D30BDD3CA6FB3E99D6F3 /* NewsletterSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsletterSettingsView.swift; sourceTree = "<group>"; };
 		7F5C1DCEC899C0A6F6DC2139 /* ReportIssueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportIssueView.swift; sourceTree = "<group>"; };
+		D5A000000000000000000001 /* DeviceShakeReportTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceShakeReportTrigger.swift; sourceTree = "<group>"; };
 		7F8A1C85BF2BCAB833E8CE8B /* ImageEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageEmbedRenderer.swift; sourceTree = "<group>"; };
 		8091075B043B717B7D8BC5A8 /* GradientTokens.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientTokens.generated.swift; sourceTree = "<group>"; };
 		81714243E70B081FD236EDEA /* TravelSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelSearchEmbedRenderer.swift; sourceTree = "<group>"; };
@@ -1523,6 +1526,7 @@
 				C0FFEE000000000000046001 /* MessageComposerView.swift */,
 				196E2615E6B7768CDD149B36 /* OMButtonStyles.swift */,
 				90F73912048C468D3CC42BC0 /* OMDesignPrimitives.swift */,
+				D5A000000000000000000001 /* DeviceShakeReportTrigger.swift */,
 				96B5D464AD5823963A861166 /* RichMarkdownRenderer.swift */,
 				40704843A9B6CF388F231FAB /* ProgressiveMarkdownRenderProjection.swift */,
 				5BFC6131B2CFDC1BDE64CE86 /* ToastNotification.swift */,
@@ -2818,6 +2822,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D5A000000000000000000003 /* DeviceShakeReportTrigger.swift in Sources */,
 				A0D100000000000000000003 /* AudioRealtimeTranscriptionClient.swift in Sources */,
 				C0FFEE00000000000003600A /* WorkflowAPI.swift in Sources */,
 				C0FFEE000000000000036009 /* WorkflowModels.swift in Sources */,
@@ -3105,6 +3110,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D5A000000000000000000002 /* DeviceShakeReportTrigger.swift in Sources */,
 				A0D100000000000000000002 /* AudioRealtimeTranscriptionClient.swift in Sources */,
 				87BC11EACC54693695953576 /* AITypingIndicator.swift in Sources */,
 				555AD52BB0EB143F00E3B872 /* APIClient.swift in Sources */,

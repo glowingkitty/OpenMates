@@ -205,36 +205,22 @@ enum DevEmbedPreviewFixtures {
                 "type": "code",
                 "app_id": "code",
                 "skill_id": "code",
-                "language": "svelte",
-                "filename": "MyComponent.svelte",
-                "line_count": 28,
-                "code": """
-                <script lang="ts">
-                  let count = $state(0);
-                  let doubled = $derived(count * 2);
-
-                  function increment() {
-                    count += 1;
-                  }
-                </script>
-
-                <section class="counter">
-                  <h1>Svelte 5 Counter</h1>
-                  <button onclick={increment}>
-                    Count: {count}
-                  </button>
-                  <p>Doubled: {doubled}</p>
-                </section>
-
-                <style>
-                  .counter {
-                    display: grid;
-                    gap: 1rem;
-                    place-items: center;
-                    padding: 2rem;
-                  }
-                </style>
-                """
+                // Mirrors the hydrated web payload shape that previously left
+                // Apple showing Processing despite finished index.html content.
+                "decodedContent": [
+                    "language": "html",
+                    "filename": "index.html",
+                    "line_count": 8,
+                    "code": """
+                    <!doctype html>
+                    <html lang="en">
+                    <head><title>OpenMates preview</title></head>
+                    <body>
+                      <main><h1>Rendered index.html</h1></main>
+                    </body>
+                    </html>
+                    """
+                ]
             ],
             versionNumber: 3,
             versionHistory: [

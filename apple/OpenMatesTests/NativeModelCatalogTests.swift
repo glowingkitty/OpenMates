@@ -24,4 +24,67 @@ final class NativeModelCatalogTests: XCTestCase {
     func testUnknownSchemaFails() {
         XCTAssertThrowsError(try NativeModelCatalog.load(data: Data(fixture.replacingOccurrences(of: "schemaVersion\":2", with: "schemaVersion\":3").utf8)))
     }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testAssistantIdentityResolvesOnlyCanonicalMateSettingsTargets() {
+        let mateIDs: Set<String> = ["software_development", "science"]
+
+        XCTAssertEqual(
+            AssistantMessageIdentityRoutingPolicy.mateID(
+                category: "software_development",
+                availableMateIDs: mateIDs
+            ),
+            "software_development"
+        )
+        XCTAssertNil(AssistantMessageIdentityRoutingPolicy.mateID(
+            category: "openmates_official",
+            availableMateIDs: mateIDs
+        ))
+        XCTAssertNil(AssistantMessageIdentityRoutingPolicy.mateID(
+            category: "imported_claude",
+            availableMateIDs: mateIDs
+        ))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testAssistantIdentityResolvesModelNameAndProviderAliasesToSettingsID() throws {
+        let modelFixture = fixture.replacingOccurrences(of: "family/model", with: "fixture-model")
+        let catalog = try NativeModelCatalog.load(data: Data(modelFixture.utf8))
+        let models = catalog.models
+
+        XCTAssertEqual(
+            AssistantMessageIdentityRoutingPolicy.modelTarget(
+                nameOrID: "owner/fixture-model",
+                models: models
+            ),
+            .init(id: "fixture-model", displayName: "Fixture")
+        )
+        XCTAssertEqual(
+            AssistantMessageIdentityRoutingPolicy.modelTarget(
+                nameOrID: "FIXTURE",
+                models: models
+            ),
+            .init(id: "fixture-model", displayName: "Fixture")
+        )
+        XCTAssertNil(AssistantMessageIdentityRoutingPolicy.modelTarget(
+            nameOrID: "Unknown Model",
+            models: models
+        ))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testMessageModelSettingsDetailUsesCanonicalCatalogBeyondSettingsSnapshot() throws {
+        let modelFixture = fixture
+            .replacingOccurrences(of: "family/model", with: "gpt-6-sol")
+            .replacingOccurrences(of: "Fixture", with: "GPT-6 Sol")
+        let catalog = try NativeModelCatalog.load(data: Data(modelFixture.utf8))
+
+        let detail = try XCTUnwrap(SettingsAIFullView.modelDetail(
+            id: "gpt-6-sol",
+            canonicalModels: catalog.models
+        ))
+        XCTAssertEqual(detail.id, "gpt-6-sol")
+        XCTAssertEqual(detail.name, "GPT-6 Sol")
+        XCTAssertEqual(detail.providerName, "Owner")
+    }
 }

@@ -16,7 +16,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
         let app = RealAccountUITestSupport.launchApp(
-            extraArguments: ["--ui-test-start-new-chat"]
+            extraArguments: ["--ui-test-fresh-new-chat"]
         )
         // Keep this dedicated simulator's test-account session when present.
         // The unauthenticated header can remain in the accessibility tree while
@@ -24,7 +24,6 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         if !app.buttons["referral-cta"].waitForExistence(timeout: 10) {
             RealAccountUITestSupport.logIn(app: app, credentials: credentials)
         }
-
         let microphone = element(in: app, identifier: "record-audio-button")
         XCTAssertTrue(microphone.waitForExistence(timeout: 15))
         XCTAssertTrue(microphone.isHittable)
@@ -88,6 +87,38 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "native-composer-preview-recording-finished")
             .waitForExistence(timeout: 8))
         XCTAssertTrue(element(in: app, identifier: "native-composer-audio-content").exists)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testFinishedRecordingLongPressStaysAliveAndInlineRemoveStillWorks() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            // This fixture goes through the production insertion path, including
+            // the action callbacks. The restored-markdown-only fixture above is
+            // limited to renderer restoration and has no host data with which to
+            // bind removal cleanup.
+            "--ui-test-welcome-seed-finished-audio"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 3) {
+            skipInterests.tap()
+        }
+
+        let card = element(in: app, identifier: "native-composer-preview-recording-finished")
+        XCTAssertTrue(card.waitForExistence(timeout: 8))
+        card.press(forDuration: 1)
+
+        XCTAssertEqual(app.state, .runningForeground)
+        XCTAssertTrue(card.exists, "Long-pressing the hosted recording card must not terminate the app")
+        let remove = element(in: app, identifier: "native-composer-preview-action-close")
+        XCTAssertTrue(remove.waitForExistence(timeout: 3))
+        XCTAssertTrue(remove.isHittable)
+        remove.tap()
+        XCTAssertTrue(waitForAbsence(card))
     }
 
     // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.recording.lifecycle
@@ -208,7 +239,11 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(textContaining("recording", in: app).waitForExistence(timeout: 5))
         XCTAssertFalse(textContaining("```json", in: app).exists)
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
-        element(in: app, identifier: "message-field").tap()
+        // The field's center is occupied by the 200pt audio card. Tap the
+        // editor's empty line below it, which is where typing should focus.
+        let editor = element(in: app, identifier: "message-editor")
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.94)).tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
     }
 
@@ -309,10 +344,23 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
             skipInterests.tap()
         }
 
-        XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 8))
+        let overlay = element(in: app, identifier: "record-overlay")
+        XCTAssertTrue(overlay.waitForExistence(timeout: 8))
         assertRecordingOverlayCopy(in: app)
         XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
+        XCTAssertFalse(app.keyboards.firstMatch.exists, "The voice quick action must behave like a microphone tap")
+        XCTAssertEqual(overlay.frame.height, 220, accuracy: 1, "The voice quick action must use the web-sized recording panel")
         assertWelcomeSuppressedAndComposerUsable(in: app)
+
+        element(in: app, identifier: "record-cancel-button").tap()
+
+        XCTAssertTrue(waitForAbsence(overlay))
+        XCTAssertTrue(
+            element(in: app, identifier: "message-input-idle-actions").waitForExistence(timeout: 5),
+            "Cancel must restore the compact idle composer"
+        )
+        XCTAssertFalse(element(in: app, identifier: "message-input-fullscreen-button").exists)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
     }
 
     // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle

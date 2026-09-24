@@ -244,3 +244,25 @@ When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available:
 - **Parity is surface-level, not file-level.** Do not force one Swift file per Svelte/TS file. Maintain traceable many-to-many mappings instead.
 - **Use stable identifiers.** Apple `.accessibilityIdentifier(...)` values should match web `data-testid` names when the product concept is the same, unless a native-only control needs a native-specific name.
 - **Document native-only differences.** Example: native offline storage of the last 100 chats is allowed if it preserves web sync semantics and is explicitly documented in the parity spec.
+
+### TestFlight release
+
+For a local release Mac, run `python3 scripts/apple_testflight_release.py` from
+the repository root. This is the deterministic entrypoint for the iOS archive
+with its embedded Watch companion and the separate universal macOS archive. It
+uses one marketing version and build number, validates source-bound resumable
+receipts, reuses an existing ExportOptions plist, uploads both platforms, and
+waits until App Store Connect reports both builds valid. Use `--dry-run
+--build-number N` to inspect the bounded commands without writing or uploading.
+
+Never accept an archive receipt whose source fingerprint differs from current
+source. Pass `--rebuild-stale-archives` to preserve stale archives under the
+release directory and rebuild them; the command does not delete archives,
+DerivedData, simulators, or installed apps. If App Store Connect API credentials
+are unavailable, pass an explicit build number. A signed-in Xcode account may
+upload, but `uploaded_processing_unverified` is not completion; run the exact
+`--verify-only` command printed by the script after configuring credentials.
+The Apple release path has no Vercel token dependency.
+
+Use `scripts/apple_remote.py deploy-latest-testflight --branch dev` only when the
+release must run through the configured remote Mac.

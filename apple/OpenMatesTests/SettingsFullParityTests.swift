@@ -13,6 +13,16 @@ import AppKit
 
 @MainActor
 final class SettingsFullParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testMessageModelSettingsTargetResolvesCanonicalDetail() {
+        XCTAssertEqual(
+            SettingsAIFullView.catalogModel(id: "gemini-3-flash-preview")?.name,
+            "Gemini 3 Flash"
+        )
+        XCTAssertNil(SettingsAIFullView.catalogModel(id: "unknown-model"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testApiKeyDeviceAccessTypeLabelsMatchWebContract() {
         XCTAssertEqual(apiKeyDeviceAccessTypeLabel("cli"), "CLI")
         XCTAssertEqual(apiKeyDeviceAccessTypeLabel("npm"), "SDK")
@@ -20,6 +30,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(apiKeyDeviceAccessTypeLabel("rest_api"), "REST API")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing,settings-ui.parity.web-apple-shell
     func testAccountImportDefersToEncryptedWebFlow() throws {
         XCTAssertFalse(ChatImportView.nativeImportEnabled)
         let url = try XCTUnwrap(ChatImportView.webImportURL(baseURL: URL(string: "https://app.example.invalid")!))
@@ -27,6 +38,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(url.fragment, "settings/account/import")
     }
 
+    // contract-test: direct surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testNativeSettingsRouteInventoryCoversWebBaseRoutes() {
         let missing = SettingsRouteInventory.webBaseRoutes.subtracting(SettingsRouteInventory.coveredWebBaseRoutes)
         XCTAssertTrue(missing.isEmpty, "Missing native settings route coverage: \(missing.sorted())")
@@ -40,6 +52,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(SettingsRouteInventory.webBaseRoutes, SettingsRouteInventory.nativeRoutes)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell
     func testEnhancedPIIModelSettingsLifecycle() async {
         let manifest = EnhancedPIIModelManifest(
             version: "2026-07-privacy-filter-q4",
@@ -74,6 +87,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(failing.statusCopy.contains("example.invalid"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=app-skills.surface.semantic-parity,settings-ui.parity.web-apple-shell
     func testAppMetadataDecoderPreservesWebFields() throws {
         let data = Data(Self.metadataFixture.utf8)
         let response = try Self.metadataDecoder.decode(SettingsAppsFullView.AppsMetadataResponse.self, from: data)
@@ -90,6 +104,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(weather.settingsAndMemories.first?.id, "home_location")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=app-skills.surface.semantic-parity,settings-ui.parity.web-apple-shell
     func testAppMetadataDecoderPreservesProductionDetailActions() throws {
         let data = Data(Self.metadataFixture.utf8)
         let response = try Self.metadataDecoder.decode(SettingsAppsFullView.AppsMetadataResponse.self, from: data)
@@ -112,6 +127,7 @@ final class SettingsFullParityTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=app-skills.surface.semantic-parity,settings-ui.parity.web-apple-shell
     func testAppStoreCategoryFilterSortAndAIExclusionContracts() throws {
         let data = Data(Self.metadataFixture.utf8)
         let response = try Self.metadataDecoder.decode(SettingsAppsFullView.AppsMetadataResponse.self, from: data)
@@ -139,6 +155,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertTrue(categorized["for_work"]?.contains("docs") == true)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=billing.surface.semantic-parity
     func testAppleCreditProductsMatchKnownCreditTiers() {
         XCTAssertEqual(
             StoreManager.productIDs,
@@ -155,6 +172,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(StoreManager.creditsByProductID["org.openmates.credits.54000"], 54_000)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.submission.confirmed-and-durable,issue-reporting.logs.authenticated-capture
     func testIssueReportPayloadUsesSettingsEndpointShapeAndRedactsSensitiveContext() {
         let payload = IssueReportPayloadBuilder.makePayload(
             title: " Broken <b>button</b> ",
@@ -184,7 +202,29 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertTrue(logs.contains("<email>"))
     }
 
+    // contract-test: direct surface=gui.apple assertions=issue-reporting.input.long-title-preserved
+    func testIssueReportPayloadPreservesLongUserWrittenTitle() {
+        let longTitle = String(repeating: "Detailed issue context ", count: 40)
+        let payload = IssueReportPayloadBuilder.makePayload(
+            title: longTitle,
+            issueType: .bugReport,
+            userFlow: "",
+            expectedBehaviour: "",
+            actualBehaviour: "",
+            screenshotData: nil,
+            consoleLogs: "",
+            runtimeDebugState: ["diagnostics_consent": "not_granted"],
+            language: "en"
+        )
+
+        XCTAssertGreaterThan(longTitle.count, 500)
+        let expectedTitle = longTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertEqual(payload["title"] as? String, expectedTitle)
+        XCTAssertFalse((payload["title"] as? String)?.hasSuffix(" ") == true)
+    }
+
     @MainActor
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
     func testIssueReportPayloadIncludesNativeDeviceDiagnostics() throws {
         let payload = IssueReportPayloadBuilder.makePayload(
             title: "Simulator diagnostics",
@@ -209,6 +249,7 @@ final class SettingsFullParityTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
     func testNativeClientLogCollectorBuildsIssueLogPayloadWithRedaction() {
         NativeClientLogCollector.shared.resetForTests()
         NativeClientLogCollector.shared.record(
@@ -231,7 +272,65 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(logs.contains("api_key=secret"))
     }
 
+    // contract-test: direct surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
+    func testIssueDiagnosticsRequireExplicitPerReportConsent() {
+        NativeClientLogCollector.shared.resetForTests()
+        NativeClientLogCollector.shared.record(
+            level: .warning,
+            category: "sync",
+            message: "event=sync_failed email=private@example.org token=secret"
+        )
+
+        let excluded = NativeIssueContextProvider.shared.context(includeDiagnostics: false)
+        XCTAssertEqual(excluded.consoleLogs, "")
+        XCTAssertEqual(excluded.runtimeDebugState["diagnostics_consent"] as? String, "not_granted")
+        XCTAssertNil(excluded.runtimeDebugState["native_diagnostics"])
+
+        let included = NativeIssueContextProvider.shared.context(includeDiagnostics: true)
+        XCTAssertEqual(included.runtimeDebugState["diagnostics_consent"] as? String, "granted_for_issue")
+        XCTAssertNotNil(included.runtimeDebugState["native_diagnostics"])
+        XCTAssertTrue(included.consoleLogs.contains("<email>"))
+        XCTAssertFalse(included.consoleLogs.contains("private@example.org"))
+        XCTAssertFalse(included.consoleLogs.contains("token=secret"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
+    func testStructuredNativeDiagnosticEventsAcceptSafeScalarsOnly() {
+        NativeClientLogCollector.shared.resetForTests()
+        NativeDiagnostics.event(
+            "retry_scheduled",
+            category: "sync",
+            level: .warning,
+            flags: ["offline": true],
+            counts: ["retry_count": 2]
+        )
+
+        let logs = NativeClientLogCollector.shared.logsAsText(limit: 10)
+        XCTAssertTrue(logs.contains("event=retry_scheduled"))
+        XCTAssertTrue(logs.contains("offline=true"))
+        XCTAssertTrue(logs.contains("retry_count=2"))
+
+        let unsafe = "https://private.example.org/path alice@internal-host 192.168.1.14"
+        let sanitized = NativeClientLogCollector.sanitize(unsafe)
+        XCTAssertEqual(sanitized, "<url> <user-at-host> <ip-address>")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.entry.device-shake
+    func testDeviceShakeReportTriggerDebouncesAndBuildsSafePrefill() {
+        var gate = DeviceShakeReportGate()
+        XCTAssertTrue(gate.shouldActivate(at: 10))
+        XCTAssertFalse(gate.shouldActivate(at: 10.5))
+        XCTAssertTrue(gate.shouldActivate(at: 10 + DeviceShakeReportGate.minimumInterval))
+
+        let prefill = ReportIssuePrefill.deviceShake()
+        XCTAssertEqual(DeviceShakeReportTesting.triggerLaunchArgument, "--ui-test-trigger-device-shake-report")
+        XCTAssertEqual(prefill.origin, .deviceShake)
+        XCTAssertEqual(prefill.category, "bug")
+        XCTAssertTrue(prefill.title.isEmpty)
+    }
+
     @MainActor
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
     func testIssueReportPayloadIncludesNativeDiagnosticsContextAndStrongRedaction() throws {
         NativeClientLogCollector.shared.resetForTests()
         NativeActionTracker.shared.resetForTests()
@@ -256,7 +355,7 @@ final class SettingsFullParityTests: XCTestCase {
             message: "share https://example.org/share/chat/abc#key=secret file:///Users/alice/private.txt blob=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         )
 
-        let context = NativeIssueContextProvider.shared.context()
+        let context = NativeIssueContextProvider.shared.context(includeDiagnostics: true)
         let payload = IssueReportPayloadBuilder.makePayload(
             title: "Diagnostics regression",
             issueType: .bugReport,
@@ -293,6 +392,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(serialized.contains("my private typed composer text"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
     func testNativeSyncPerfLogBridgesIntoDiagnosticsAndPreservesWarningsUnderChurn() {
         NativeClientLogCollector.shared.resetForTests()
         NativeSyncDiagnosticsStore.shared.resetForTests()
@@ -321,6 +421,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(String(describing: syncSummary).contains("person@example.org"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
     func testNativeActionTrackerRecordsStableActionsAndSuppressesTypedText() {
         NativeActionTracker.shared.resetForTests()
         NativeActionTracker.shared.recordRoute("settings/privacy")
@@ -333,6 +434,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(actions.contains("raw issue text should not be logged"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
     func testNativeLogForwarderBuildsDebugAndDefaultTelemetryPayloads() throws {
         NativeClientLogCollector.shared.resetForTests()
         NativeClientLogCollector.shared.record(level: .info, category: "chat", message: "informational message")
@@ -368,6 +470,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(String(describing: telemetryPayload).contains("user_id"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
     func testNativeLogForwarderStartsAndStopsDefaultTelemetryLoop() {
         NativeLogForwarder.shared.resetForTests()
         XCTAssertFalse(NativeLogForwarder.shared.isDefaultTelemetryRunningForTests())
@@ -379,6 +482,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(NativeLogForwarder.shared.isDefaultTelemetryRunningForTests())
     }
 
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
     func testNativeLogForwarderStatusSnapshotAndIssueFlushWithoutLogs() async throws {
         NativeClientLogCollector.shared.resetForTests()
         NativeLogForwarder.shared.resetForTests()
@@ -398,6 +502,7 @@ final class SettingsFullParityTests: XCTestCase {
     }
 
     @MainActor
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
     func testNativePerformanceAndMetricKitSummariesExposeAvailabilityAndFrameMetrics() throws {
         NativePerformanceMonitor.shared.resetForTests()
         NativeMetricKitReporter.shared.resetForTests()
@@ -420,6 +525,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(metricKit.first?["report_type"] as? String, "diagnostic")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=issue-reporting.logs.authenticated-capture
     func testNativeMetricKitAndDisplayLinkLifecycleHooksStart() {
         NativeMetricKitReporter.shared.resetForTests()
         NativeMetricKitReporter.shared.start()
@@ -433,10 +539,12 @@ final class SettingsFullParityTests: XCTestCase {
         NativePerformanceMonitor.shared.stopSampling()
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testReconnectBannerHasDebounceBeforeUserFacingWarning() {
         XCTAssertGreaterThanOrEqual(NetworkStatusBanner.reconnectDelayNanoseconds, 1_000_000_000)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testHeaderAndReferralAssetsAreBundled() {
         #if os(iOS)
         XCTAssertNotNil(UIImage(named: "openmates"))

@@ -187,4 +187,120 @@ final class ProgressiveMarkdownRenderTests: XCTestCase {
         XCTAssertEqual(preparation.parseCount, 2)
         XCTAssertEqual(preparation.parsedUTF8, content.utf8.count * 2 + " More text.".utf8.count)
     }
+
+    // contract-test: direct surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testTeXFormulasBecomeSemanticMathTokensWithoutTreatingCurrencyAsMath() {
+        let source = "Payment is $2,199 and energy is $E = mc^2$.\n\n$$\\frac{a}{b} \\times \\pi r^2$$"
+        let tokens = InlineMarkdownTokenizer.parse(source)
+
+        XCTAssertTrue(tokens.contains(.math("E = mc^2", display: false)))
+        XCTAssertTrue(tokens.contains(.math("\\frac{a}{b} \\times \\pi r^2", display: true)))
+        XCTAssertTrue(tokens.map(\.searchText).joined().contains("$2,199"))
+        let renderedFormula = MarkdownMathParser.displayText(for: #"\frac{a}{b} \times \pi r^2"#)
+        XCTAssertEqual(renderedFormula, "(a)⁄(b) × π r²")
+        XCTAssertFalse(renderedFormula.contains("$"))
+        XCTAssertFalse(renderedFormula.contains("\\frac"))
+        XCTAssertFalse(renderedFormula.contains("\\times"))
+        XCTAssertEqual(MarkdownMathParser.singleDisplayFormula(in: "  $$\\sqrt{x_2}$$  "), "\\sqrt{x_2}")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testStreamingFormulaProjectionConvergesWithoutChangingStablePrefixIdentity() {
+        var projection = ProgressiveMarkdownRenderProjection()
+        projection.update(request("Stable introduction.\n\nThe result is $E = mc"))
+        let stableID = projection.blocks.first?.id
+        projection.update(request("Stable introduction.\n\nThe result is $E = mc^2$."))
+
+        XCTAssertEqual(projection.blocks.first?.id, stableID)
+        XCTAssertTrue(InlineMarkdownTokenizer.parse(projection.blocks.last?.document.text ?? "").contains(.math("E = mc^2", display: false)))
+        projection.update(request(projection.source, streaming: false))
+        XCTAssertEqual(projection.blocks.compactMap(\.markdown), MarkdownParser.parse(projection.source))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
+    func testShellEnvironmentVariablesAreNotParsedAsInlineMath() {
+        let source = "Use $HOME and $PATH, then calculate $E = mc^2$."
+        let tokens = InlineMarkdownTokenizer.parse(source)
+
+        let formulas = tokens.compactMap { token -> String? in
+            if case .math(let latex, _) = token { return latex }
+            return nil
+        }
+        XCTAssertEqual(formulas, ["E = mc^2"])
+        XCTAssertTrue(tokens.map(\.searchText).joined().contains("$HOME and $PATH"))
+    }
+}
+
+final class CodeEmbedContentParityTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=code-run.surface-parity
+    func testFinishedIndexHTMLResolvesFromNestedDecodedPayload() {
+        let data: [String: AnyCodable] = [
+            "status": AnyCodable("finished"),
+            "decodedContent": AnyCodable([
+                "code": "<!doctype html><title>Ready</title>",
+                "language": "html",
+                "filename": "index.html",
+                "line_count": 1
+            ] as [String: Any])
+        ]
+
+        let content = AppleCodeEmbedContent(data: data)
+
+        XCTAssertEqual(content.code, "<!doctype html><title>Ready</title>")
+        XCTAssertEqual(content.language, "html")
+        XCTAssertEqual(content.filename, "index.html")
+        XCTAssertEqual(content.lineCount, 1)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=code-run.surface-parity
+    func testJSONStringContentAndLanguagePathHeaderMatchWebNormalization() {
+        let json = #"{"type":"code-code","code":"html:index.html\n<!doctype html>\n<h1>Ready</h1>"}"#
+        let content = AppleCodeEmbedContent(data: [
+            "content": AnyCodable(json),
+            "language": AnyCodable("text")
+        ])
+
+        XCTAssertEqual(content.code, "<!doctype html>\n<h1>Ready</h1>")
+        XCTAssertEqual(content.language, "html")
+        XCTAssertEqual(content.filename, "index.html")
+        XCTAssertEqual(content.lineCount, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testPlainContentFallbackDoesNotStayInProcessingState() {
+        let content = AppleCodeEmbedContent(data: [
+            "content": AnyCodable("<!doctype html><p>Rendered</p>"),
+            "filename": AnyCodable("index.html")
+        ])
+
+        XCTAssertFalse(content.code.isEmpty)
+        XCTAssertEqual(content.filename, "index.html")
+        XCTAssertEqual(content.lineCount, 1)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=code-run.surface-parity
+    func testBracePrefixedJSONAndJavaScriptRemainRawSource() {
+        let json = #"{"name":"example","enabled":true}"#
+        let javascript = "{\n  const ready = true;\n}"
+
+        XCTAssertEqual(AppleCodeEmbedContent(data: ["content": AnyCodable(json)]).code, json)
+        XCTAssertEqual(AppleCodeEmbedContent(data: ["content": AnyCodable(javascript)]).code, javascript)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=code-run.surface-parity
+    func testURLURIAndWindowsDriveFirstLinesAreNotLanguagePathHeaders() {
+        let sources = [
+            "https://example.com/source.js\nnext line",
+            "file:///tmp/source.js\nnext line",
+            "mailto:developer@example.com\nnext line",
+            "C:\\Users\\Kitty\\index.js\nnext line"
+        ]
+
+        for source in sources {
+            let content = AppleCodeEmbedContent(data: ["content": AnyCodable(source)])
+            XCTAssertEqual(content.code, source)
+            XCTAssertEqual(content.language, "")
+            XCTAssertNil(content.filename)
+        }
+    }
 }

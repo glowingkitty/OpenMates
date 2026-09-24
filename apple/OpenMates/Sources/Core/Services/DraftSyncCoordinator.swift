@@ -49,6 +49,14 @@ final class DraftSyncCoordinator {
         return preferredId
     }
 
+    /// Starts another new-chat composer without deleting the previous draft.
+    /// The old UUID remains a normal draft-only chat and can still be resumed
+    /// from the chat list; only the synthetic composer alias moves forward.
+    func beginFreshNewChatDraft(preferredId: String) -> String {
+        newChatDraftId = preferredId
+        return preferredId
+    }
+
     init(
         repository: any ComposerDraftRepository,
         chatStore: ChatStore,
@@ -82,10 +90,20 @@ final class DraftSyncCoordinator {
         newChatDraftId = nil
     }
 
-    func restoreNewChatDraftId(from records: [ComposerDraftRecord], cachedChats: [Chat] = []) {
+    func restoreNewChatDraftId(
+        from records: [ComposerDraftRecord],
+        cachedChats: [Chat] = [],
+        preferredId: String? = nil
+    ) {
         guard newChatDraftId == nil else { return }
         let recordIds = Set(records.map(\.chatId))
-        newChatDraftId = (chatStore.chats + cachedChats).first(where: { chat in
+        let knownChats = chatStore.chats + cachedChats
+        if let preferredId, recordIds.contains(preferredId),
+           knownChats.first(where: { $0.id == preferredId }).map({ isDraftOnlyChat($0) }) != false {
+            newChatDraftId = preferredId
+            return
+        }
+        newChatDraftId = knownChats.first(where: { chat in
             recordIds.contains(chat.id) && isDraftOnlyChat(chat)
         })?.id
     }

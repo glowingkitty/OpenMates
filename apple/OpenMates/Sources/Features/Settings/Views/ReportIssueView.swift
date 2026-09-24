@@ -11,6 +11,13 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/features/issue-reporting/specification.yml
+// Assertions: issue-reporting.entry.device-shake,
+//             issue-reporting.form.role-aware-controls,
+//             issue-reporting.input.long-title-preserved,
+//             issue-reporting.submission.confirmed-and-durable,
+//             issue-reporting.logs.authenticated-capture
+
 import Foundation
 import PhotosUI
 import SwiftUI
@@ -21,16 +28,53 @@ import AppKit
 #endif
 
 struct ReportIssuePrefill: Equatable {
+    enum Origin: String {
+        case settings
+        case assistantResponse
+        case featureRequest
+        case deviceShake
+    }
+
     let id = UUID()
     let title: String
     let category: String
+    let origin: Origin
+
+    init(title: String, category: String, origin: Origin = .settings) {
+        self.title = title
+        self.category = category
+        self.origin = origin
+    }
 
     @MainActor static func assistantResponseQuality() -> ReportIssuePrefill {
-        ReportIssuePrefill(title: AppStrings.assistantFeedbackReportTitle, category: "bug")
+        ReportIssuePrefill(
+            title: AppStrings.assistantFeedbackReportTitle,
+            category: "bug",
+            origin: .assistantResponse
+        )
     }
 
     @MainActor static func featureRequest() -> ReportIssuePrefill {
-        ReportIssuePrefill(title: AppStrings.requestFeaturePrefill, category: "feature")
+        ReportIssuePrefill(
+            title: AppStrings.requestFeaturePrefill,
+            category: "feature",
+            origin: .featureRequest
+        )
+    }
+
+    static func deviceShake() -> ReportIssuePrefill {
+        ReportIssuePrefill(title: "", category: "bug", origin: .deviceShake)
+    }
+}
+
+private extension ReportIssuePrefill.Origin {
+    var diagnosticEventName: String {
+        switch self {
+        case .settings: return "form_opened_settings"
+        case .assistantResponse: return "form_opened_assistant_response"
+        case .featureRequest: return "form_opened_feature_request"
+        case .deviceShake: return "form_opened_device_shake"
+        }
     }
 }
 
@@ -43,10 +87,12 @@ struct ReportIssueView: View {
     @State private var screenshotItem: PhotosPickerItem?
     @State private var screenshotData: Data?
     @State private var screenshotPreview: Image?
+    @State private var includeDiagnostics = false
     @State private var isSubmitting = false
     @State private var submittedIssueReference: String?
     @State private var error: String?
     @State private var uiTestIssueLogPayloadText: String?
+    private let entryOrigin: ReportIssuePrefill.Origin
 
     private var titleValidationError: String? {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -62,6 +108,12 @@ struct ReportIssueView: View {
     init(prefill: ReportIssuePrefill? = nil) {
         _title = State(initialValue: prefill?.title ?? "")
         _issueType = State(initialValue: prefill?.category == "feature" ? .featureRequest : .bugReport)
+        #if DEBUG
+        _includeDiagnostics = State(
+            initialValue: ProcessInfo.processInfo.arguments.contains("--ui-test-seed-report-logs")
+        )
+        #endif
+        entryOrigin = prefill?.origin ?? .settings
     }
 
     var body: some View {
@@ -87,12 +139,23 @@ struct ReportIssueView: View {
             #endif
         }
         .onAppear {
+            NativeDiagnostics.event(
+                entryOrigin.diagnosticEventName,
+                category: "report_issue"
+            )
             #if DEBUG
             seedUITestReportIssueLogsIfNeeded()
             #endif
         }
         .onChange(of: screenshotItem) { _, newItem in
             loadScreenshot(newItem)
+        }
+        .onChange(of: includeDiagnostics) { _, included in
+            NativeDiagnostics.event(
+                "diagnostic_consent_changed",
+                category: "report_issue",
+                flags: ["included": included]
+            )
         }
     }
 
@@ -145,6 +208,8 @@ struct ReportIssueView: View {
 
             screenshotSection
 
+            diagnosticsSection
+
             if let error {
                 Text(error)
                     .font(.omSmall)
@@ -169,6 +234,19 @@ struct ReportIssueView: View {
             .help(Text(isSubmitting ? AppStrings.reportIssueSubmitting : AppStrings.reportIssueSubmitButton))
             .accessibilityLabel(isSubmitting ? AppStrings.reportIssueSubmitting : AppStrings.reportIssueSubmitButton)
             .accessibilityIdentifier("report-issue-submit")
+        }
+    }
+
+    private var diagnosticsSection: some View {
+        OMSettingsSection(AppStrings.privacyShareDebugLogs, icon: "privacy") {
+            OMSettingsToggleRow(
+                title: AppStrings.privacyShareDebugLogs,
+                subtitle: AppStrings.privacyStabilityLogsDescription,
+                icon: "bug",
+                isOn: $includeDiagnostics
+            )
+            .accessibilityIdentifier("report-issue-include-diagnostics")
+            .accessibilityValue(includeDiagnostics ? "On" : "Off")
         }
     }
 
@@ -254,6 +332,11 @@ struct ReportIssueView: View {
         Task {
             if let data = try? await item.loadTransferable(type: Data.self) {
                 screenshotData = data
+                NativeDiagnostics.event(
+                    "screenshot_attached",
+                    category: "report_issue",
+                    counts: ["byte_count": data.count]
+                )
                 #if os(iOS)
                 if let uiImage = UIImage(data: data) {
                     screenshotPreview = Image(uiImage: uiImage)
@@ -272,10 +355,18 @@ struct ReportIssueView: View {
         isSubmitting = true
         error = nil
         NativeDiagnostics.info("Submitting native issue report", category: "report_issue")
+        NativeDiagnostics.event(
+            "submission_started",
+            category: "report_issue",
+            flags: [
+                "diagnostics_included": includeDiagnostics,
+                "screenshot_included": screenshotData != nil,
+            ]
+        )
 
         Task {
             do {
-                let context = NativeIssueContextProvider.shared.context()
+                let context = NativeIssueContextProvider.shared.context(includeDiagnostics: includeDiagnostics)
                 let payload = IssueReportPayloadBuilder.makePayload(
                     title: title,
                     issueType: issueType,
@@ -297,13 +388,22 @@ struct ReportIssueView: View {
 
                 let reference = response.shortIssueId ?? response.issueId ?? ""
                 submittedIssueReference = reference.isEmpty ? AppStrings.done : reference
-                NativeDiagnostics.info("Native issue report submitted", category: "report_issue")
-                if let issueId = response.issueId {
+                NativeDiagnostics.event(
+                    "submission_succeeded",
+                    category: "report_issue",
+                    flags: ["diagnostics_included": includeDiagnostics]
+                )
+                if includeDiagnostics, let issueId = response.issueId {
                     await NativeLogForwarder.shared.flushForIssueReport()
                     await sendIssueLogs(issueId: issueId)
                 }
             } catch {
-                NativeDiagnostics.error(error.localizedDescription, category: "report_issue")
+                NativeDiagnostics.failure(
+                    "submission_failed",
+                    category: "report_issue",
+                    level: .error,
+                    error: error
+                )
                 self.error = error.localizedDescription
                 AccessibilityAnnouncement.announce(error.localizedDescription)
             }
@@ -323,7 +423,12 @@ struct ReportIssueView: View {
         do {
             payloadData = try JSONSerialization.data(withJSONObject: payload)
         } catch {
-            NativeDiagnostics.error("Issue log serialization failed: \(error.localizedDescription)", category: "report_issue")
+            NativeDiagnostics.failure(
+                "log_serialization_failed",
+                category: "report_issue",
+                level: .error,
+                error: error
+            )
             return
         }
 
@@ -334,7 +439,12 @@ struct ReportIssueView: View {
                 body: JSONRawBody(data: payloadData)
             )
         } catch {
-            NativeDiagnostics.warning("Issue log upload failed: \(error.localizedDescription)", category: "report_issue")
+            NativeDiagnostics.failure(
+                "log_upload_failed",
+                category: "report_issue",
+                level: .warning,
+                error: error
+            )
         }
     }
 
@@ -439,7 +549,7 @@ enum IssueReportPayloadBuilder {
         language: String = Locale.current.language.languageCode?.identifier ?? "en"
     ) -> [String: Any] {
         var payload: [String: Any] = [
-            "title": sanitizedText(title),
+            "title": sanitizedTitle(title),
             "issue_type": issueType.rawValue,
             "language": language,
             "device_info": deviceInfo(),
@@ -522,6 +632,14 @@ enum IssueReportPayloadBuilder {
 
     static func sanitizedText(_ value: String) -> String {
         NativeClientLogCollector.sanitize(value)
+            .replacingOccurrences(of: "<[^>]*>", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// User-authored titles follow the web form and API contract: remove markup
+    /// and surrounding whitespace without applying the diagnostics log limit.
+    static func sanitizedTitle(_ value: String) -> String {
+        value
             .replacingOccurrences(of: "<[^>]*>", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }

@@ -37,7 +37,10 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/app-skills/videos-get-transcript/specification.yml
-// Assertions: videos.transcript.surface-parity
+//                specifications/features/app-skills/web-search/specification.yml
+//                specifications/features/chats/specification.yml
+// Assertions: videos.transcript.surface-parity, web-search.surface-parity,
+//             chats.surface.semantic-parity
 
 import Combine
 import SwiftUI
@@ -217,6 +220,12 @@ struct AppSkillUseRenderer: View {
         let model = SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords)
         if appId == "web", skillId == "search" {
             return AnyView(WebSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
+        } else if appId == "code", skillId == "search_repos" {
+            return AnyView(CodeRepoSearchEmbedRenderer(
+                model: CodeRepoSearchModel(embed: embed, allEmbedRecords: allEmbedRecords),
+                mode: .preview,
+                onOpenEmbed: onOpenEmbed
+            ))
         } else if appId == "audio", skillId == "generate" || skillId == "speak" {
             return AnyView(GeneratedAudioSkillEmbedRenderer(data: data, status: embed.status, skillId: skillId, mode: .preview))
         } else if appId == "web", skillId == "read" {
@@ -330,6 +339,12 @@ struct AppSkillUseRenderer: View {
         let model = SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords)
         if appId == "web", skillId == "search" {
             WebSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
+        } else if appId == "code", skillId == "search_repos" {
+            CodeRepoSearchEmbedRenderer(
+                model: CodeRepoSearchModel(embed: embed, allEmbedRecords: allEmbedRecords),
+                mode: .fullscreen,
+                onOpenEmbed: onOpenEmbed
+            )
         } else if appId == "audio", skillId == "generate" || skillId == "speak" {
             GeneratedAudioSkillEmbedRenderer(data: data, status: embed.status, skillId: skillId, mode: .fullscreen)
         } else if appId == "web", skillId == "read" {

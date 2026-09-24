@@ -18,6 +18,8 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/app-skills/code-run/specification.yml
+// Assertions: code-run.surface-parity
 
 import SwiftUI
 import WebKit
@@ -25,6 +27,136 @@ import AVFoundation
 #if os(iOS)
 import UIKit
 #endif
+
+struct AppleCodeEmbedContent: Equatable {
+    let code: String
+    let language: String
+    let filename: String?
+    let lineCount: Int
+
+    init(data: [String: AnyCodable]?) {
+        let root = data ?? [:]
+        let resolved = Self.contentDictionary(in: root)
+        let rawCode = Self.string(resolved, keys: ["code", "code_content"])
+            ?? Self.string(root, keys: ["code", "code_content"])
+            ?? Self.contentString(in: resolved)
+            ?? Self.contentString(in: root)
+            ?? ""
+        let languageHint = Self.string(resolved, keys: ["language"])
+            ?? Self.string(root, keys: ["language"])
+        let filenameHint = Self.string(resolved, keys: ["filename", "path", "name"])
+            ?? Self.string(root, keys: ["filename", "path", "name"])
+        let parsed = Self.parse(rawCode, language: languageHint, filename: filenameHint)
+        code = parsed.code
+        language = parsed.language
+        filename = parsed.filename
+        lineCount = Self.int(resolved, keys: ["line_count", "lineCount"])
+            ?? Self.int(root, keys: ["line_count", "lineCount"])
+            ?? Self.countLines(parsed.code)
+    }
+
+    static func parse(_ rawCode: String, language: String?, filename: String?) -> (code: String, language: String, filename: String?) {
+        let normalized = rawCode
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let firstNewline = normalized.firstIndex(of: "\n")
+        let firstLine = String(normalized[..<(firstNewline ?? normalized.endIndex)])
+            .replacingOccurrences(of: #"\s+$"#, with: "", options: .regularExpression)
+        let header = parseLanguagePathHeader(firstLine)
+        let code: String
+        if header != nil, let firstNewline {
+            code = String(normalized[normalized.index(after: firstNewline)...])
+        } else if header != nil {
+            code = ""
+        } else {
+            code = normalized
+        }
+        let usefulLanguage = language?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedLanguage: String
+        if let usefulLanguage,
+           !usefulLanguage.isEmpty,
+           !["text", "plaintext"].contains(usefulLanguage.lowercased()) {
+            resolvedLanguage = usefulLanguage
+        } else {
+            resolvedLanguage = header?.language ?? ""
+        }
+        let usefulFilename = filename?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (code, resolvedLanguage, usefulFilename?.isEmpty == false ? usefulFilename : header?.filename)
+    }
+
+    private static func contentDictionary(in root: [String: AnyCodable]) -> [String: AnyCodable] {
+        for key in ["decodedContent", "decoded_content", "data"] {
+            if let dictionary = root[key]?.value as? [String: Any] {
+                return dictionary.mapValues(AnyCodable.init)
+            }
+            if let dictionary = root[key]?.value as? [String: AnyCodable] { return dictionary }
+        }
+        if let content = root["content"]?.value as? String {
+            let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("{"), let data = trimmed.data(using: .utf8),
+               let dictionary = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               isRecognizedCodeWrapper(dictionary) {
+                return dictionary.mapValues(AnyCodable.init)
+            }
+        }
+        return root
+    }
+
+    private static func contentString(in root: [String: AnyCodable]) -> String? {
+        root["content"]?.value as? String
+    }
+
+    private static func isRecognizedCodeWrapper(_ dictionary: [String: Any]) -> Bool {
+        guard dictionary["code"] is String || dictionary["code_content"] is String else { return false }
+        if dictionary["code_content"] is String { return true }
+        if let type = dictionary["type"] as? String,
+           ["code", "code-code"].contains(type.lowercased()) {
+            return true
+        }
+        return ["language", "filename", "path", "line_count", "lineCount"].contains {
+            dictionary[$0] != nil
+        }
+    }
+
+    private static func string(_ root: [String: AnyCodable], keys: [String]) -> String? {
+        keys.lazy.compactMap { root[$0]?.value as? String }.first { !$0.isEmpty }
+    }
+
+    private static func int(_ root: [String: AnyCodable], keys: [String]) -> Int? {
+        for key in keys {
+            if let value = root[key]?.value as? Int { return value }
+            if let value = root[key]?.value as? String, let parsed = Int(value) { return parsed }
+        }
+        return nil
+    }
+
+    private static func parseLanguagePathHeader(_ line: String) -> (language: String, filename: String)? {
+        let pattern = #"^([a-zA-Z0-9_+.#-]{1,32}):(.{1,512})$"#
+        guard let expression = try? NSRegularExpression(pattern: pattern),
+              let match = expression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+              let languageRange = Range(match.range(at: 1), in: line),
+              let filenameRange = Range(match.range(at: 2), in: line) else { return nil }
+        let language = String(line[languageRange]).lowercased()
+        let filename = String(line[filenameRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let knownURISchemes: Set<String> = [
+            "data", "file", "ftp", "git", "http", "https", "mailto", "ssh", "urn", "vscode", "ws", "wss"
+        ]
+        let isHierarchicalURI = filename.hasPrefix("//")
+        let isWindowsDrivePath = language.count == 1 && (filename.hasPrefix("\\") || filename.hasPrefix("/"))
+        guard !language.allSatisfy(\.isNumber),
+              !knownURISchemes.contains(language),
+              !isHierarchicalURI,
+              !isWindowsDrivePath,
+              filename.contains(".") || filename.contains("/") || filename.contains("\\") else { return nil }
+        return (language, filename)
+    }
+
+    private static func countLines(_ code: String) -> Int {
+        guard !code.isEmpty else { return 0 }
+        let content = code.hasSuffix("\n") ? String(code.dropLast()) : code
+        return content.isEmpty ? 0 : content.components(separatedBy: "\n").count
+    }
+}
 
 struct CodeEmbedRenderer: View {
     let data: [String: AnyCodable]?
@@ -36,18 +168,11 @@ struct CodeEmbedRenderer: View {
     var isLargePreview = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    private var code: String {
-        (data?["code"]?.value as? String ?? "")
-            .replacingOccurrences(of: #"\""#, with: #"""#)
-            .replacingOccurrences(of: #"\/"#, with: "/")
-    }
-    private var language: String { data?["language"]?.value as? String ?? "" }
-    private var filename: String? { data?["filename"]?.value as? String }
-    private var lineCount: Int {
-        data?["lineCount"]?.value as? Int
-            ?? data?["line_count"]?.value as? Int
-            ?? code.components(separatedBy: "\n").count
-    }
+    private var content: AppleCodeEmbedContent { AppleCodeEmbedContent(data: data) }
+    private var code: String { content.code }
+    private var language: String { content.language }
+    private var filename: String? { content.filename }
+    private var lineCount: Int { content.lineCount }
 
     var body: some View {
         switch mode {
@@ -77,6 +202,7 @@ struct CodeEmbedRenderer: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .accessibilityIdentifier(code.isEmpty ? "code-embed-processing" : "code-embed-source-preview")
 
         case .fullscreen:
             VStack(spacing: 0) {
@@ -1224,11 +1350,19 @@ private struct CodePreviewPane: View {
 private struct CodeHTMLPreview: UIViewRepresentable {
     let html: String
 
+    final class Coordinator {
+        var loadedHTML: String?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeUIView(context: Context) -> WKWebView {
         WKWebView()
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.loadedHTML != html else { return }
+        context.coordinator.loadedHTML = html
         webView.loadHTMLString(html, baseURL: nil)
     }
 }
@@ -1236,11 +1370,19 @@ private struct CodeHTMLPreview: UIViewRepresentable {
 private struct CodeHTMLPreview: NSViewRepresentable {
     let html: String
 
+    final class Coordinator {
+        var loadedHTML: String?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> WKWebView {
         WKWebView()
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.loadedHTML != html else { return }
+        context.coordinator.loadedHTML = html
         webView.loadHTMLString(html, baseURL: nil)
     }
 }
