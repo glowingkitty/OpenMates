@@ -692,6 +692,12 @@ export type WorkflowRunContentRetention = "last_5" | "none";
 export type WorkflowRunContentStorage = "durable" | "ephemeral" | "deleted";
 export type WorkflowLifecycle = "persisted" | "temporary";
 
+export interface WorkflowAuthoringWarning {
+  code: string;
+  node_id: string;
+  message: string;
+}
+
 export interface WorkflowSummary {
   id: string;
   slug?: string | null;
@@ -720,6 +726,7 @@ export interface WorkflowSummary {
 
 export interface WorkflowDetail extends WorkflowSummary {
   graph: WorkflowGraph;
+  authoring_warnings?: WorkflowAuthoringWarning[];
 }
 
 export interface WorkflowNodeRun {
@@ -8747,7 +8754,7 @@ export class OpenMatesClient {
       encryptionKey: masterKey,
       lookupKey: masterKey,
     });
-    const response = await this.http.post<{ workflow?: WorkflowDetail }>(
+    const response = await this.http.post<{ workflow?: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>(
       "/v1/workflows",
       {
         title: params.title,
@@ -8767,7 +8774,10 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.workflow) {
       throw new Error(`Workflow create failed with HTTP ${response.status}`);
     }
-    return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
+    return this.decryptWorkflowSlug(
+      { ...response.data.workflow, authoring_warnings: response.data.warnings ?? [] },
+      { personal: true },
+    );
   }
 
   async askWorkflow(input: {
@@ -8827,31 +8837,35 @@ export class OpenMatesClient {
   async createWorkflowYaml(source: string): Promise<{
     workflow: WorkflowDetail;
     validation: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+    warnings: WorkflowAuthoringWarning[];
   }> {
     this.requireSession();
     const response = await this.http.post<{
       workflow?: WorkflowDetail;
       validation?: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+      warnings?: WorkflowAuthoringWarning[];
     }>("/v1/workflows/yaml", { source }, this.getCliRequestHeaders());
     if (!response.ok || !response.data.workflow || !response.data.validation) {
       throw new Error(`Workflow YAML create failed with HTTP ${response.status}`);
     }
-    return { workflow: await this.decryptWorkflowSlug(response.data.workflow, { personal: true }), validation: response.data.validation };
+    return { workflow: await this.decryptWorkflowSlug(response.data.workflow, { personal: true }), validation: response.data.validation, warnings: response.data.warnings ?? [] };
   }
 
   async updateWorkflowYaml(workflowId: string, source: string): Promise<{
     workflow: WorkflowDetail;
     validation: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+    warnings: WorkflowAuthoringWarning[];
   }> {
     this.requireSession();
     const createLike = await this.http.post<{
       workflow?: WorkflowDetail;
       validation?: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+      warnings?: WorkflowAuthoringWarning[];
     }>(`/v1/workflows/${encodeURIComponent(workflowId)}/yaml`, { source }, this.getCliRequestHeaders());
     if (!createLike.ok || !createLike.data.workflow || !createLike.data.validation) {
       throw new Error(`Workflow YAML update failed with HTTP ${createLike.status}`);
     }
-    return { workflow: await this.decryptWorkflowSlug(createLike.data.workflow, { personal: true }), validation: createLike.data.validation };
+    return { workflow: await this.decryptWorkflowSlug(createLike.data.workflow, { personal: true }), validation: createLike.data.validation, warnings: createLike.data.warnings ?? [] };
   }
 
   async getWorkflow(workflowId: string, options: TeamContextOptions = {}): Promise<WorkflowDetail> {
@@ -8889,7 +8903,7 @@ export class OpenMatesClient {
     }
     delete payload.runContentRetention;
     delete payload.slug;
-    const response = await this.http.patch<{ workflow?: WorkflowDetail }>(
+    const response = await this.http.patch<{ workflow?: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>(
       `/v1/workflows/${encodeURIComponent(workflowId)}`,
       payload,
       this.getCliRequestHeaders(),
@@ -8897,7 +8911,10 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.workflow) {
       throw new Error(`Workflow update failed with HTTP ${response.status}`);
     }
-    return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
+    return this.decryptWorkflowSlug(
+      { ...response.data.workflow, authoring_warnings: response.data.warnings ?? [] },
+      { personal: true },
+    );
   }
 
   async resolveWorkflowId(query: string, options: TeamContextOptions = {}): Promise<string | undefined> {

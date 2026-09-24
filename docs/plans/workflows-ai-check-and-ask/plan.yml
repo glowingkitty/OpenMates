@@ -1,0 +1,201 @@
+schema_version: 2
+id: workflows-ai-check-and-ask
+title: Workflow AI Check and Ask AI
+status: implementing
+goal: >
+  Let people add a plain-language boolean Check or a tool-isolated Ask AI text step
+  to Workflows, with an understandable web editor and identical saved behavior
+  through REST, CLI, npm SDK and Python SDK, without surprise authoring charges.
+approved_specifications:
+  - id: feature.workflows@5
+    fingerprint: 66a3e38bae6fbb331cd36ce821ca9c148b3e1e693a6b68a690a7a42282a902ab
+  - id: feature.workflows-ui@4
+    fingerprint: 0f2ce4f66b56d8b741df1e2f69b7a68cd042a9c266d2a9a471e59b3d313de366
+approved_design:
+  - Exact rule remains the default Check mode; AI judgment adds true, false and Unsure branches.
+  - Ask AI is a top-level action backed by ai.ask, not a Use app picker entry, and returns one text Answer.
+  - A prior app step's bounded output may be referenced, but Ask AI has no app-skill/tool authority.
+  - Web typing hints use a one-second Jev debounce; CLI and SDK do not call inference while typing.
+  - All create/update entry points share server-side Jev validation and Gemini 3.8 Flash fallback.
+  - Authoring checks are free, bounded, cached and rate limited per owner and IP; explicit Tests and runs use normal AI credits.
+  - Authoring hints send the instruction and short candidate labels/coarse types, never actual output values or full schemas.
+scope:
+  in:
+    - Graph validation, typed references, AI Check branching and run detail, Ask AI execution and output normalization.
+    - Shared create/update/YAML validation, owner-scoped limits, exact-input caching, no-cost hint endpoint and neutral warnings.
+    - Web Check/Ask AI editors, one-second suggestions and warnings, i18n, CLI/SDK error and warning parity.
+    - Focused unit and E2E coverage, isolated CI, and a disposable-account real-provider check on dev.
+  out:
+    - Apple-native Workflow UI, AI-authored Workflow construction, multi-choice AI Check and structured Ask AI outputs.
+    - Ask AI tool/app-skill invocation or exposure of whole-run context, ordinary chat history or memories.
+    - New user-visible credit charges for automatic authoring validation.
+assumptions:
+  - id: A-1
+    text: The existing check node can retain its type while adding an AI mode, nullable matched output and Unsure branch.
+    status: confirmed
+    required_before: implementation
+    evidence: [backend/core/api/app/services/workflow_models.py and workflow_runner.py currently own typed Check validation and branching.]
+  - id: A-2
+    text: The existing ai.ask Workflow capability can back a dedicated top-level Ask AI UI without adding a new generic node type.
+    status: confirmed
+    required_before: implementation
+    evidence: [backend/apps/ai/app.yml declares ai.ask workflow_ai with an answer output schema.]
+  - id: A-3
+    text: Current route limits do not by themselves bound account-level typing hints or provider fallback spend.
+    status: confirmed
+    required_before: implementation
+    evidence: [workflows.py limits individual routes; limiter.py keys limits by remote address.]
+scenarios:
+  - id: S-1
+    title: AI judgment chooses one of three branches
+    given: [A weather step has bounded selected outputs and a Check asks whether conditions warrant an outdoor warning.]
+    when: [Jev decides reliably, or Jev and the independent fallback cannot decide.]
+    then: [The matching true or false branch runs on a reliable answer; otherwise only Unsure runs and the reason is visible.]
+  - id: S-2
+    title: Ask AI processes earlier data without calling tools
+    given: [An Events search precedes Ask AI and Send message references Ask AI Answer.]
+    when: [The workflow runs or the author Tests Ask AI with supplied earlier values.]
+    then: [A bounded text Answer is produced and billed through normal AI usage without chat history, memories or app-skill calls.]
+  - id: S-3
+    title: Authoring validation is helpful and bounded on every surface
+    given: [The author writes an Ask AI instruction and has metadata for earlier outputs.]
+    when: [Web hints run after typing stops, or web, REST, CLI or SDK creates or updates the workflow.]
+    then: [Existing output use is allowed; a reliable new app-call request is rejected; unavailable checks give a neutral reminder without blocking Save.]
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: AI Check uses only projected earlier values, Jev then structured fallback, and exactly one true/false/Unsure branch with encrypted decision detail and retry reuse.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-WEB]
+  - id: AC-2
+    scenario: S-2
+    text: Ask AI produces one downstream-referenceable answer, cannot invoke tools even for adversarial instructions, and bills actual Test/run usage once.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-CLIENT, V-LIVE]
+  - id: AC-3
+    scenario: S-3
+    text: All create/update paths reject reliable new app-call requests, permit existing-output processing, and return a neutral warning when both evaluators cannot verify.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-BACKEND, T-CLIENT]
+  - id: AC-4
+    scenario: S-3
+    text: Web shows ranked chips above the multiline editor after one idle second, an app-skill warning below, and blocks only a reliable violation; stale responses never alter current text state.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB]
+  - id: AC-5
+    scenario: S-3
+    text: Authoring sends only bounded text and reference labels/types, is free, coalesced and cached, and obeys account/IP and fallback spend limits; limit exhaustion preserves neutral Save behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND]
+tests:
+  - id: T-BACKEND
+    type: pytest
+    file: backend/tests/test_workflow_ai_check_and_ask.py
+    command: python3 -m pytest backend/tests/test_workflow_ai_check_and_ask.py
+    covers: [AC-1, AC-2, AC-3, AC-5]
+    assertions: [Graph validation, branch routing, bounded projection, no-tool Ask, fallback, warning, cache, limits and billing idempotency.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Approved specifications establish missing feature behavior.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-WEB
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session 2666 --source SOURCE --mode e2e --spec workflows-ai-authoring.spec.ts
+    target: isolated_github_ci
+    execution_environment: isolated_github_ci
+    covers: [AC-1, AC-4]
+    assertions: [Exact and AI Check branches, Ask AI selector/editor, ranked chips, warnings and non-blocking uncertainty.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Approved specifications establish missing feature behavior.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-CLIENT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/workflows.test.ts
+    command: cd frontend/packages/openmates-cli && npm test -- workflows.test.ts
+    covers: [AC-2, AC-3]
+    assertions: [CLI and SDK expose shared create/update rejection and neutral warnings; existing output references remain valid.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Approved specifications establish missing feature behavior.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+verifications:
+  - id: V-LIVE
+    kind: manual_check
+    phase: final
+    status: pending
+    required_for_done: true
+    covers: [AC-1, AC-2]
+    evidence: {status: pending, note: Real Jev and Gemini inference on a disposable dev account after scoped deploy; never in CI.}
+implementation_state:
+  subject_commit: 1c5e24c757d7d553dc7e823c268b743b9b188183
+approvals:
+  specification: {status: approved, approved_at: '2026-09-24', source: Explicit user approval of both exact review PDF fingerprints in this Codex chat.}
+  plan: {status: approved, approved_at: '2026-09-24', source: User instructed implementation after approving the specifications and cost controls.}
+decisions:
+  - id: D-1
+    status: active
+    decision: Use Check mode ai inside the existing check node; represent Ask AI with the ai.ask app-skill capability but a distinct top-level UI.
+    reason: Preserve existing graph, typed-reference and skill-dispatch architecture without confusing authors.
+    decided_at: '2026-09-24'
+  - id: D-2
+    status: active
+    decision: Keep authoring validation free; rate limit and cache it, call Gemini only when save-time Jev cannot verify, and always disable runtime app tools.
+    reason: Protect provider spend and user trust without making a soft validation dependency a paid or blocking operation.
+    decided_at: '2026-09-24'
+tasks:
+  - id: TASK-1
+    title: d687fb28-d000-4695-9fd7-62f3fa7b82c4 — AI Check runtime and Unsure
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
+    expected_files: [backend/core/api/app/services/workflow_models.py, backend/core/api/app/services/workflow_runner.py, backend/tests/test_workflow_ai_check_and_ask.py]
+    verification_ids: [T-BACKEND, V-LIVE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership: {owner: codex, files: [backend/core/api/app/services/workflow_models.py, backend/core/api/app/services/workflow_runner.py], shared_files: []}
+  - id: TASK-2
+    title: 20dc1f4e-0804-43f2-a4fb-83a34d21013e — Ask AI runtime and shared validation
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-2, S-3], acceptance_criteria: [AC-2, AC-3, AC-5]}
+    expected_files: [backend/core/api/app/services/workflow_app_skill_adapter.py, backend/core/api/app/routes/workflows.py, backend/tests/test_workflow_ai_check_and_ask.py]
+    verification_ids: [T-BACKEND, T-CLIENT, V-LIVE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership: {owner: codex, files: [backend/core/api/app/services/workflow_app_skill_adapter.py, backend/core/api/app/routes/workflows.py], shared_files: [backend/core/api/app/services/workflow_models.py]}
+  - id: TASK-3
+    title: ac38f33f-af9d-4da8-887d-a941473efc1f — web and CLI SDK parity
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-2, AC-3, AC-4]}
+    expected_files: [frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte, frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts, frontend/packages/openmates-cli/tests/workflows.test.ts]
+    verification_ids: [T-WEB, T-CLIENT]
+    dependencies: [TASK-1, TASK-2]
+    blockers: []
+    follow_up_tasks: []
+    ownership: {owner: codex, files: [frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte, frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts], shared_files: []}
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: planned
+    approach: Implement bounded graph/runtime behavior against approved Workflow assertions before UI wiring.
+    recorded_at: '2026-09-24'
+handoff:
+  current_task_id: TASK-1
+  next_action: Implement the typed AI Check graph and execution contract with focused unit tests.
+  command: python3 -m pytest backend/tests/test_workflow_ai_check_and_ask.py
+  expected_outcome: Reliable boolean or Unsure routing with no unrelated context or duplicate billing.
+  last_verified_commit: 1c5e24c757d7d553dc7e823c268b743b9b188183

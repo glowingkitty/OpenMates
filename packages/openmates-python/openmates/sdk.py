@@ -4920,10 +4920,10 @@ class OpenMatesWorkflows:
             payload["source_chat_id"] = _resolve_chat_id(self._client, source_chat_id)
         if auto_delete_at is not None:
             payload["auto_delete_at"] = auto_delete_at
-        return self._decrypt_slug(self._client._post(
-            "/v1/workflows",
-            payload,
-        ).get("workflow", {}))
+        response = self._client._post("/v1/workflows", payload)
+        workflow = self._decrypt_slug(response.get("workflow", {}))
+        workflow["authoring_warnings"] = response.get("warnings", [])
+        return workflow
 
     def update(
         self,
@@ -4952,7 +4952,10 @@ class OpenMatesWorkflows:
             slug_metadata = _encrypted_object_slug_metadata(slug, encryption_key=master_key, lookup_key=master_key)
             payload["encrypted_slug"] = slug_metadata["encrypted_slug"]
             payload["slug_lookup_hash"] = slug_metadata["slug_lookup_hash"]
-        return self._decrypt_slug(_workflow_resource_request(self._client, "PATCH", workflow_id, "", payload).get("workflow", {}))
+        response = _workflow_resource_request(self._client, "PATCH", workflow_id, "", payload)
+        workflow = self._decrypt_slug(response.get("workflow", {}))
+        workflow["authoring_warnings"] = response.get("warnings", [])
+        return workflow
 
     def enable(self, workflow_id: str) -> dict[str, Any]:
         return self._decrypt_slug(_workflow_resource_request(self._client, "POST", workflow_id, "/enable", {}).get("workflow", {}))

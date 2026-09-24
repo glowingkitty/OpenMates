@@ -60,6 +60,10 @@ export const isMessage = (node: WorkflowNode): boolean =>
   ["send_chat_message", "create_chat_report", "start_new_chat"].includes(
     node.type,
   );
+export const isAskAi = (node: WorkflowNode): boolean =>
+  node.type === "app_skill_action" &&
+  node.config?.app_id === "ai" &&
+  node.config?.skill_id === "ask";
 export const capabilityFor = (
   node: WorkflowNode,
   capabilities: Capability[],

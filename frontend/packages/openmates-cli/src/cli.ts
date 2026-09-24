@@ -6938,6 +6938,7 @@ async function handleWorkflows(
       } else {
         printWorkflowDetail(result.workflow);
         kv("Ready to enable", result.validation.enable_ready ? "yes" : "no");
+        printWorkflowAuthoringWarnings(result.warnings);
         for (const diagnostic of result.validation.diagnostics) {
           console.log(`  - ${String(diagnostic.path ?? "$")}: ${String(diagnostic.message ?? diagnostic.code ?? "input required")}`);
         }
@@ -6976,6 +6977,7 @@ async function handleWorkflows(
     } else {
       printWorkflowDetail(result.workflow);
       kv("Ready to enable", result.validation.enable_ready ? "yes" : "no");
+      printWorkflowAuthoringWarnings(result.warnings);
       for (const diagnostic of result.validation.diagnostics) {
         console.log(`  - ${String(diagnostic.path ?? "$")}: ${String(diagnostic.message ?? diagnostic.code ?? "input required")}`);
       }
@@ -7291,7 +7293,12 @@ function printWorkflowDetail(workflow: WorkflowDetail): void {
   kv("Run content", workflow.run_content_retention ?? "last_5");
   if (workflow.trigger_summary) kv("Trigger", workflow.trigger_summary);
   kv("Nodes", String(workflow.graph.nodes.length));
+  for (const warning of workflow.authoring_warnings ?? []) kv("Warning", warning.message);
   console.log(`\n\x1b[2mRun: openmates workflows run ${workflow.slug || workflow.id}\x1b[0m`);
+}
+
+function printWorkflowAuthoringWarnings(warnings: Array<{ message?: string; code?: string }>): void {
+  for (const warning of warnings) kv("Warning", warning.message ?? warning.code ?? "Workflow AI validation was unavailable.");
 }
 
 function printWorkflowInputSession(session: WorkflowInputSessionResult): void {

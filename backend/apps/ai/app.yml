@@ -70,8 +70,6 @@ skills:
         properties:
           answer:
             type: string
-          conversation:
-            type: string
     # Providers are auto-discovered from backend/providers/*.yml files
     # based on models with for_app_skill: "ai.ask"
     skill_config:

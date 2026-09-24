@@ -11,17 +11,19 @@
   import WorkflowSchemaFields from './WorkflowSchemaFields.svelte';
   import WorkflowValueView from './WorkflowValueView.svelte';
   import WorkflowMessageEditor from './WorkflowMessageEditor.svelte';
+  import { outputTemplateSyntax } from './workflowMessageTokens';
   import { outputFields, valueType, valueEntries, exampleValue } from './workflowValuePresentation';
   import { workflowApiRequest, workflowWorkspaceStore, type WorkflowGraph, type WorkflowNode, type WorkflowNodeRun } from '../../stores/workflowWorkspaceStore';
   import type { Chat } from '../../types/chat';
   import type { AppMetadata } from '../../types/apps';
-  import { record, label, schemaDefault, normalizeSchema, isCheck, isTrigger, isMessage, messageDestinationConfig, capabilityFor, outputsBefore, insertNode, removeNode, WorkflowNodeDependencyError, type Capability, type Insertion, type Output } from './workflowBuilder';
+  import { record, label, schemaDefault, normalizeSchema, isAskAi, isCheck, isTrigger, isMessage, messageDestinationConfig, capabilityFor, outputsBefore, insertNode, removeNode, WorkflowNodeDependencyError, type Capability, type Insertion, type Output } from './workflowBuilder';
 
-  let { graph, readOnly = false, nodeRuns = [], testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, onSave }: {
+  let { graph, readOnly = false, nodeRuns = [], testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, onSave = null }: {
     graph: WorkflowGraph; readOnly?: boolean; nodeRuns?: WorkflowNodeRun[]; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null;
-    onChange: (graph: WorkflowGraph) => void; onSave: ((graph: WorkflowGraph) => Promise<void>) | null;
+    onChange: (graph: WorkflowGraph) => void; onSave?: ((graph: WorkflowGraph) => Promise<void>) | null;
   } = $props();
   let capabilities = $state<Capability[]>([]);
+  let capabilityLoad: Promise<void> | null = null;
   let loadError = $state('');
   let draft = $state<WorkflowNode | null>(null);
   let insertion = $state<Insertion>({ after: null });
@@ -41,21 +43,35 @@
   let chooseChat = $state(false);
   let showReferences = $state(false);
   let messageEditor = $state<{ insertReference: (output: Output) => void; removeMentionTrigger: () => void } | null>(null);
+  let askSuggestions = $state<string[]>([]);
+  let askVerdict = $state<'idle' | 'checking' | 'allowed' | 'asks_to_invoke_app_skill' | 'unverified'>('idle');
+  let askReminder = $state('');
+  let askHintRevision = 0;
+  let askHintTimer: ReturnType<typeof setTimeout> | null = null;
   const tr = (key: string) => $text(`workflows.builder.${key}`);
   const Down = getLucideIcon('chevron-down');
   const Coin = getLucideIcon('coins'); const Play = getLucideIcon('play'); const Stop = getLucideIcon('square');
-  const available = $derived(capabilities.filter(item => item.type === 'app_skill' && item.enabled && item.metadata.app_id !== 'ai'));
+  const available = $derived(capabilities.filter(item => item.type === 'app_skill' && item.enabled && item.id !== 'ai.ask'));
+  const askCapability = $derived(capabilities.find(item => item.id === 'ai.ask' && item.enabled));
   const appIds = $derived([...new Set(available.map(item => item.metadata.app_id).filter(Boolean))] as string[]);
   const draftCapability = $derived(draft ? capabilityFor(draft, capabilities) : undefined);
   const outputs = $derived(draft ? outputsBefore(graph, draft.id, capabilities, insertion) : []);
   const blocks = $derived(Array.isArray(draft?.config?.blocks) ? draft.config.blocks as Record<string, unknown>[] : []);
   const rootNodes = $derived(graph.nodes.filter(node => !graph.edges.some(edge => edge.to === node.id)).sort((a, b) => Number(isTrigger(b)) - Number(isTrigger(a))));
 
+  function setCapabilities(items: Capability[]): void { capabilities = items.map(item => ({ ...item, metadata: { ...item.metadata, input_schema: item.metadata.input_schema ? normalizeSchema(item.metadata.input_schema) : undefined, output_schema: item.metadata.output_schema ? normalizeSchema(item.metadata.output_schema) : undefined } })); }
+  function loadCapabilities(): Promise<void> {
+    if (capabilityFixtures) { setCapabilities(capabilityFixtures); return Promise.resolve(); }
+    if (readOnly) return Promise.resolve();
+    if (!capabilityLoad) capabilityLoad = workflowApiRequest<{ capabilities: Capability[] }>('/v1/workflows/capabilities')
+      .then(data => { setCapabilities(data.capabilities); loadError = ''; })
+      .catch(error => { console.error('[Workflow capabilities]', error); loadError = tr('schema_unavailable'); })
+      .finally(() => { capabilityLoad = null; });
+    return capabilityLoad;
+  }
   onMount(() => {
-    const setCapabilities = (items: Capability[]) => capabilities = items.map(item => ({ ...item, metadata: { ...item.metadata, input_schema: item.metadata.input_schema ? normalizeSchema(item.metadata.input_schema) : undefined, output_schema: item.metadata.output_schema ? normalizeSchema(item.metadata.output_schema) : undefined } }));
-    if (capabilityFixtures) setCapabilities(capabilityFixtures);
-    else if (!readOnly) void workflowApiRequest<{ capabilities: Capability[] }>('/v1/workflows/capabilities').then(data => setCapabilities(data.capabilities)).catch(error => { console.error('[Workflow capabilities]', error); loadError = tr('schema_unavailable'); });
-    return () => { testRevision += 1; };
+    void loadCapabilities();
+    return () => { testRevision += 1; askHintRevision += 1; if (askHintTimer) clearTimeout(askHintTimer); };
   });
   function appMetadata(appId: string, capability?: Capability): AppMetadata {
     const app = (appsMetadata as Record<string, AppMetadata>)[appId];
@@ -65,7 +81,8 @@
   }
   function sameSlot(slot: Insertion): boolean { return insertion.after === slot.after && (insertion.branch ?? '') === (slot.branch ?? ''); }
   function openPicker(kind: typeof picker, slot: Insertion): void { if (busy || testStatus === 'processing') return; draft = null; nodeError = ''; preview = null; insertion = slot; picker = kind; }
-  function closeEditor(): void { draft = null; picker = null; nodeError = ''; preview = null; chooseChat = false; showReferences = false; }
+  function resetAskHints(): void { askHintRevision += 1; if (askHintTimer) clearTimeout(askHintTimer); askHintTimer = null; askSuggestions = []; askVerdict = 'idle'; askReminder = ''; }
+  function closeEditor(): void { draft = null; picker = null; nodeError = ''; preview = null; chooseChat = false; showReferences = false; resetAskHints(); }
   function edit(node: WorkflowNode): void { if (busy || testStatus === 'processing') return; if (readOnly) { expandedReadOnly = expandedReadOnly === node.id ? null : node.id; return; } closeEditor(); draft = structuredClone($state.snapshot(node)); testStatus = testOutputs[node.id] ? 'completed' : 'idle'; }
   function configure(type: WorkflowNode['type'], capability?: Capability): void {
     if (busy || testStatus === 'processing') return;
@@ -77,8 +94,15 @@
       draft.title = appMetadata(capability.metadata.app_id!, capability).name_translation_key ? $text(appMetadata(capability.metadata.app_id!, capability).name_translation_key!) : capability.title;
       draft.config = { app_id: capability.metadata.app_id, skill_id: capability.metadata.skill_id, input: schemaDefault(capability.metadata.input_schema ?? { type: 'object' }) };
     }
-    if (type === 'check') draft.config = { predicate: { left: '', op: '', right: '' } };
+    if (type === 'check') draft.config = { mode: 'exact', predicate: { left: '', op: '', right: '' } };
     if (type === 'send_chat_message') { draft.config = { title: '', message: '', blocks: [] }; chooseChat = true; void loadChats(); }
+  }
+  async function configureAskAi(): Promise<void> {
+    if (!askCapability) await loadCapabilities();
+    const capability = askCapability;
+    if (!capability) { nodeError = tr('ask_ai_unavailable'); return; }
+    configure('app_skill_action', capability);
+    if (draft) { draft.title = tr('ask_ai'); draft.config = { app_id: 'ai', skill_id: 'ask', input: { prompt: '' } }; }
   }
   function patch(config: Record<string, unknown>): void { if (draft) { draft = { ...draft, config: { ...draft.config, ...config } }; preview = null; } }
   function schedulePatch(config: Record<string, unknown>): void { patch({ schedule: { ...record(draft?.config?.schedule), ...config } }); }
@@ -86,10 +110,11 @@
   function sourceSchema(reference: unknown) { return outputs.find(output => output.reference === reference)?.schema; }
   function operators(reference: unknown): string[] { const type = sourceSchema(reference)?.type; return ['number', 'integer'].includes(type ?? '') ? ['gt', 'gte', 'lt', 'lte', 'eq', 'ne'] : type === 'boolean' ? ['eq', 'ne'] : ['eq', 'ne', 'contains']; }
   function operatorSymbol(op: unknown): string { return ({ gt: '>', gte: '≥', lt: '<', lte: '≤', eq: '=', ne: '≠', contains: tr('contains') } as Record<string, string>)[String(op)] ?? ''; }
-  function kind(node: WorkflowNode): string { return tr(isTrigger(node) ? 'time_trigger' : isCheck(node) ? 'check' : isMessage(node) ? 'send_message' : node.type === 'app_skill_action' ? 'use_app_skill' : 'action'); }
+  function kind(node: WorkflowNode): string { return tr(isTrigger(node) ? 'time_trigger' : isCheck(node) ? 'check' : isAskAi(node) ? 'ask_ai' : isMessage(node) ? 'send_message' : node.type === 'app_skill_action' ? 'use_app_skill' : 'action'); }
   function summary(node: WorkflowNode): string {
     if (isTrigger(node)) { const schedule = record(node.config?.schedule); if (schedule.type === 'hourly') return `${tr('hourly')} · :${String(schedule.minute ?? 0).padStart(2, '0')}`; if (schedule.type === 'once') return String(schedule.at ?? tr('once')); return `${tr(String(schedule.type ?? 'daily'))}${schedule.type === 'weekly' ? ` · ${(Array.isArray(schedule.weekdays) ? schedule.weekdays : ['sunday']).map(day => tr(String(day))).join(', ')}` : ''}, ${schedule.time ?? '09:00'}`; }
-    if (isCheck(node)) { const predicate = record(node.config?.predicate); const output = outputsBefore(graph, node.id, capabilities).find(item => item.reference === predicate.left); return `${output?.label ?? label(String(predicate.left ?? '').split('.').at(-1) ?? '')} ${operatorSymbol(predicate.op)} ${String(predicate.right ?? '')}`; }
+    if (isCheck(node)) { if (node.config?.mode === 'ai') return String(node.config?.question ?? tr('ai_judgment')); const predicate = record(node.config?.predicate); const output = outputsBefore(graph, node.id, capabilities).find(item => item.reference === predicate.left); return `${output?.label ?? label(String(predicate.left ?? '').split('.').at(-1) ?? '')} ${operatorSymbol(predicate.op)} ${String(predicate.right ?? '')}`; }
+    if (isAskAi(node)) return tr('ask_ai');
     if (isMessage(node)) return String(node.config?.chat_id ? `${tr('to')} ${chats.find(chat => chat.chat_id === node.config?.chat_id)?.title ?? tr('existing_chat')}` : tr('new_chat_each_run'));
     if (node.type === 'app_skill_action') {
       const appId = String(node.config?.app_id ?? '');
@@ -114,7 +139,7 @@
   }
   function location(node: WorkflowNode): string { const input = record(node.config?.input); const request = Array.isArray(input.requests) ? record(input.requests[0]) : {}; return String(input.location ?? request.location ?? ''); }
   function workflowTimezone(node: WorkflowNode): string { const input = record(node.config?.input); const trigger = graph.nodes.find(isTrigger); return String(input.timezone || record(trigger?.config?.schedule).timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'); }
-  function inputValue(node: WorkflowNode, run?: WorkflowNodeRun): Record<string, unknown> { if (Object.keys(run?.input_summary ?? {}).length) return run!.input_summary!; if (isMessage(node)) return { title: node.config?.title, message: node.config?.message ?? node.config?.summary, destination: tr(node.config?.chat_id ? 'existing_chat' : 'new_chat_each_run') }; return record(node.config?.input ?? node.config?.inputs ?? node.config?.input_mapping ?? node.config?.schedule ?? node.config?.predicate); }
+  function inputValue(node: WorkflowNode, run?: WorkflowNodeRun): Record<string, unknown> { if (Object.keys(run?.input_summary ?? {}).length) return run!.input_summary!; if (isMessage(node)) return { title: node.config?.title, message: node.config?.message ?? node.config?.summary, destination: tr(node.config?.chat_id ? 'existing_chat' : 'new_chat_each_run') }; if (isCheck(node) && node.config?.mode === 'ai') return { question: node.config?.question, selected_inputs: node.config?.selected_inputs }; return record(node.config?.input ?? node.config?.inputs ?? node.config?.input_mapping ?? node.config?.schedule ?? node.config?.predicate); }
   function outputValue(node: WorkflowNode, run: WorkflowNodeRun): Record<string, unknown> {
     const data = record(run.output_summary);
     const fields = capabilityFor(node, capabilities)?.metadata.output_schema?.properties;
@@ -124,16 +149,59 @@
   }
   function failForUser(error: unknown, key: string): void { console.error('[Workflow builder]', error); nodeError = tr(key); }
   function sourceApp(reference: unknown): string { const id = String(reference ?? '').split('.')[1]; return String(graph.nodes.find(node => node.id === id)?.config?.app_id ?? ''); }
+  function checkMode(mode: 'exact' | 'ai'): void {
+    if (!draft) return;
+    draft = { ...draft, config: mode === 'ai' ? { mode: 'ai', question: '', selected_inputs: [] } : { mode: 'exact', predicate: { left: '', op: '', right: '' } } };
+  }
+  function toggleAiCheckInput(reference: string, selected: boolean): void {
+    const current = Array.isArray(draft?.config?.selected_inputs) ? draft!.config!.selected_inputs as string[] : [];
+    patch({ selected_inputs: selected ? [...current, reference] : current.filter(item => item !== reference) });
+  }
+  function askInstruction(): string { return String(record(draft?.config?.input).prompt ?? ''); }
+  function scheduleAskHints(instruction: string): void {
+    const revision = ++askHintRevision;
+    if (askHintTimer) clearTimeout(askHintTimer);
+    askHintTimer = null; askSuggestions = []; askVerdict = instruction.trim() ? 'checking' : 'idle'; askReminder = '';
+    if (!instruction.trim()) return;
+    askHintTimer = setTimeout(() => void loadAskHints(instruction, revision), 1000);
+  }
+  async function loadAskHints(instruction: string, revision: number): Promise<void> {
+    askHintTimer = null;
+    try {
+      const data = await workflowApiRequest<{ verdict: 'allowed' | 'asks_to_invoke_app_skill' | 'unverified'; suggested_references: string[]; reminder?: string | null }>('/v1/workflows/ai-authoring/hints', {
+        method: 'POST',
+        body: JSON.stringify({
+          instruction,
+          references: outputs.map(output => ({
+            reference: output.reference,
+            label: output.label,
+            value_type: output.schema.type ?? 'unknown',
+            inserted: instruction.includes(outputTemplateSyntax(output.reference)),
+          })),
+        }),
+      });
+      if (revision !== askHintRevision || instruction !== askInstruction()) return;
+      askVerdict = data.verdict; askSuggestions = data.suggested_references; askReminder = data.reminder ?? '';
+    } catch (error) {
+      if (revision !== askHintRevision || instruction !== askInstruction()) return;
+      console.warn('[Workflow Ask AI hints]', error); askVerdict = 'unverified'; askReminder = tr('ask_ai_validation_unavailable');
+    }
+  }
+  function updateAskInstruction(value: string): void { patch({ input: { prompt: value } }); scheduleAskHints(value); }
+  function addAskReference(output: Output): void { messageEditor?.insertReference(output); showReferences = false; }
   async function saveNode(): Promise<void> {
     if (!draft || !onSave || busy) return;
     if (isMessage(draft) && !String(draft.config?.title ?? '').trim()) { nodeError = tr('title_required'); return; }
-    if (isCheck(draft) && (!record(draft.config?.predicate).left || !record(draft.config?.predicate).op)) { nodeError = tr('check_required'); return; }
+    if (isCheck(draft) && draft.config?.mode === 'ai' && (!String(draft.config?.question ?? '').trim() || !Array.isArray(draft.config?.selected_inputs) || !draft.config.selected_inputs.length)) { nodeError = tr('ai_check_required'); return; }
+    if (isCheck(draft) && draft.config?.mode !== 'ai' && (!record(draft.config?.predicate).left || !record(draft.config?.predicate).op)) { nodeError = tr('check_required'); return; }
+    if (isAskAi(draft) && !askInstruction().trim()) { nodeError = tr('ask_ai_instruction_required'); return; }
+    if (isAskAi(draft) && askVerdict === 'asks_to_invoke_app_skill') { nodeError = tr('ask_ai_app_warning'); return; }
     busy = true; nodeError = '';
     const saved = structuredClone($state.snapshot(draft)); saved.title ||= summary(saved);
     try {
       await onSave({ ...insertNode(graph, saved, insertion), version: 2 }); closeEditor(); busy = false;
       if (isTrigger(saved) && !graph.nodes.some(node => !isTrigger(node) && node.type !== 'end')) openPicker('action', { after: saved.id });
-      else if (isCheck(saved)) openPicker('action', { after: saved.id, branch: 'yes' });
+      else if (isCheck(saved)) openPicker('action', { after: saved.id, branch: saved.config?.mode === 'ai' ? 'true' : 'yes' });
     } catch (error) { failForUser(error, 'save_failed'); }
     finally { busy = false; }
   }
@@ -170,7 +238,7 @@
     } catch { nodeError = tr('chats_unavailable'); }
   }
   function selectChat(chat: Chat | null): void {
-    if (draft) draft = { ...draft, config: messageDestinationConfig(draft.config, chat?.chat_id) };
+    if (draft) draft = { ...draft, config: messageDestinationConfig(draft.config ?? {}, chat?.chat_id) };
     preview = null; chooseChat = false;
   }
   function addReference(output: Output): void {
@@ -190,7 +258,7 @@
 </script>
 
 {#snippet choice(icon: string, title: string, action: () => void, testId?: string)}
-  {@const Icon = getLucideIcon(icon)}{@const asset = ({ blocks: 'app', 'messages-square': 'chat', 'calendar-clock': 'workflow', 'calendar-days': 'calendar', 'git-branch': 'workflow-check' } as Record<string, string>)[icon]}<button type="button" class="choice" data-testid={testId} onclick={action}>{#if asset}<span class="workflow-icon" style={assetIconStyle(asset, 16)} aria-hidden="true"></span>{:else}<Icon size={16}/>{/if}<span>{title}</span></button>
+  {@const Icon = getLucideIcon(icon)}{@const asset = ({ blocks: 'app', sparkles: 'ai', 'messages-square': 'chat', 'calendar-clock': 'workflow', 'calendar-days': 'calendar', 'git-branch': 'workflow-check' } as Record<string, string>)[icon]}<button type="button" class="choice" data-testid={testId} onclick={action}>{#if asset}<span class="workflow-icon" style={assetIconStyle(asset, 16)} aria-hidden="true"></span>{:else}<Icon size={16}/>{/if}<span>{title}</span></button>
 {/snippet}
 
 {#snippet slotControls(slot: Insertion)}
@@ -218,9 +286,10 @@
     />
     <h3>{tr(picker === 'trigger' ? 'trigger_question' : picker === 'app' ? 'app_question' : picker === 'skill' ? 'skill_question' : 'action_question')}</h3>
     {#if picker === 'trigger'}<div class="choices">{@render choice('calendar-days', tr('date_time'), () => configure('schedule_trigger'), 'workflow-trigger-date-time')}</div>
-    {:else if picker === 'action'}<div class="choices">{@render choice('blocks', tr('use_app'), () => picker = 'app', 'workflow-step-app-skill-action')}{@render choice('messages-square', tr('send_message'), () => configure('send_chat_message'), 'workflow-step-create-chat-report')}{#if insertion.after && !isTrigger(graph.nodes.find(node => node.id === insertion.after)!)}{@render choice('git-branch', tr('add_check'), () => configure('check'))}{/if}</div>
+    {:else if picker === 'action'}<div class="choices">{@render choice('blocks', tr('use_app'), () => picker = 'app', 'workflow-step-app-skill-action')}{@render choice('sparkles', tr('ask_ai'), configureAskAi, 'workflow-step-ask-ai')}{#if insertion.after && !isTrigger(graph.nodes.find(node => node.id === insertion.after)!)}{@render choice('git-branch', tr('add_check'), () => configure('check'))}{/if}{@render choice('messages-square', tr('send_message'), () => configure('send_chat_message'), 'workflow-step-create-chat-report')}</div>
     {:else if picker === 'app'}<div class="card-scroll">{#each appIds as appId}<AppStoreCard app={appMetadata(appId)} onSelect={() => { selectedApp = appId; picker = 'skill'; }}/>{/each}</div>{#if !appIds.length}<p>{loadError || tr('loading_apps')}</p>{/if}
     {:else if picker === 'skill'}<div class="card-scroll">{#each available.filter(item => item.metadata.app_id === selectedApp) as capability}<AppStoreCard app={appMetadata(selectedApp, capability)} cardIconType="skill" onSelect={() => configure('app_skill_action', capability)}/>{/each}</div>{/if}
+    {#if nodeError}<p class="error" role="alert">{nodeError}</p>{/if}
   </div>
 {/snippet}
 
@@ -231,7 +300,7 @@
     <div class="editor" class:skill-editor={draft.type === 'app_skill_action'} style={style(draft)} data-testid="workflow-node-expanded">
       <WorkflowEditorHeader
         title={draft.type === 'app_skill_action' ? summary(draft) : kind(draft)}
-        backLabel={draft.type === 'app_skill_action' ? tr('back_to_app_skill') : ''}
+        backLabel={draft.type === 'app_skill_action' && !isAskAi(draft) ? tr('back_to_app_skill') : ''}
         iconStyle={primaryNodeIconStyle(draft)}
         colored={draft.type === 'app_skill_action'}
         collapsible
@@ -250,6 +319,18 @@
           <label>{tr('timezone')}<input value={String(schedule.timezone ?? '')} oninput={event => schedulePatch({ timezone: event.currentTarget.value })}/></label>
         </div>
         {#if schedule.type === 'weekly'}<div class="weekdays">{#each ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as day}<label><input type="checkbox" checked={Array.isArray(schedule.weekdays) && schedule.weekdays.includes(day)} onchange={event => schedulePatch({ weekdays: event.currentTarget.checked ? [...(Array.isArray(schedule.weekdays) ? schedule.weekdays : []), day] : (Array.isArray(schedule.weekdays) ? schedule.weekdays : []).filter(item => item !== day) })}/>{tr(day)}</label>{/each}</div>{/if}
+      {:else if isAskAi(draft)}
+        <h3>{tr('ask_ai_question')}</h3>
+        {#if askSuggestions.length}<div class="suggestions" data-testid="workflow-ai-suggestions" aria-label={tr('suggested_values')}>{#each askSuggestions as reference}{@const output = outputs.find(item => item.reference === reference)}{#if output}<button type="button" class="chip" onclick={() => addAskReference(output)}>+ {output.label}</button>{/if}{/each}</div>{/if}
+        <WorkflowMessageEditor bind:this={messageEditor} value={askInstruction()} {outputs} placeholder={tr('ask_ai_placeholder')} disabled={busy || testStatus === 'processing'} onChange={updateAskInstruction} onMentionTrigger={visible => showReferences = visible}/>
+        {#if showReferences}<div class="references" aria-label={tr('select_output')}>{#each outputs as output}<button type="button" class="quiet" onclick={() => addAskReference(output)}>{output.label}</button>{/each}</div>{/if}
+        {#if askVerdict === 'asks_to_invoke_app_skill'}<p class="error ask-validation" role="alert" data-testid="workflow-ai-app-warning">{tr('ask_ai_app_warning')}</p>{:else if askVerdict === 'unverified'}<p class="reminder ask-validation" data-testid="workflow-ai-neutral-reminder">{askReminder || tr('ask_ai_validation_unavailable')}</p>{:else if askVerdict === 'checking'}<p class="reminder ask-validation" aria-live="polite">{tr('checking_instruction')}</p>{/if}
+        <div class="test-control">
+          {#if testStatus === 'processing'}<span aria-live="polite">{tr('processing')}</span>{#if testingRunId}<button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
+          {:else}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled={!workflowId || !draftCapability} onclick={() => void testNode()}><Play size={16}/>{tr(testOutputs[draft.id] ? 'test_again' : 'test_action')}<Coin size={16}/><span>{tr('variable_cost')}</span></button>{/if}
+        </div>
+        <div class="output-heading"><h4>↑ {tr('output')}</h4><span>{tr(testOutputs[draft.id] ? 'test_output' : 'example')}</span></div>
+        <div class="output-fields" data-testid="workflow-output-fields">{#each outputFields(draftCapability?.metadata.output_schema?.properties ?? { answer: { type: 'string', title: tr('answer') } }) as [key, spec]}{@const value = testOutputs[draft.id] ? testOutputs[draft.id][key] : exampleValue(spec)}<div><div class="output-label"><span class="type" data-value-type={valueType(spec, value)}>{tr(`output_type_${valueType(spec, value)}`)}</span><strong>{spec.title || label(key)}</strong></div><WorkflowValueView {value} schema={spec} appId="ai" path={`${draft.id}.${key}`}/></div>{/each}</div>
       {:else if draft.type === 'app_skill_action'}
         {#if location(draft)}<span class="expanded-location">{location(draft)}</span>{/if}
         <h4>↓ {tr('input')}</h4>
@@ -261,11 +342,19 @@
         <div class="output-heading"><h4>↑ {tr('output')}</h4><span>{tr(testOutputs[draft.id] ? 'test_output' : 'example')}</span></div>
         <div class="output-fields" data-testid="workflow-output-fields">{#each outputFields(draftCapability?.metadata.output_schema?.properties ?? {}) as [key, spec]}{@const value = testOutputs[draft.id] ? testOutputs[draft.id][key] : exampleValue(spec)}<div><div class="output-label"><span class="type" data-value-type={valueType(spec, value)}>{tr(`output_type_${valueType(spec, value)}`)}</span><strong>{spec.title || label(key)}</strong></div><WorkflowValueView {value} schema={spec} appId={String(draft.config?.app_id ?? '')} path={`${draft.id}.${key}`}/></div>{/each}</div>
       {:else if isCheck(draft)}
-        <h3>{tr('check_question')}</h3><h2>{tr('if')}</h2>
-        <div class="check-fields"><SettingsDropdown value={String(predicate.left ?? '')} options={outputs.filter(item => !['array','object'].includes(item.schema.type ?? '')).map(output => ({value:output.reference,label:output.label}))} placeholder={tr('select_output')} ariaLabel={tr('select_output')} onChange={left => predicatePatch({ left, op: '', right: '' })}/>
-          {#if predicate.left}<SettingsDropdown value={String(predicate.op ?? '')} options={operators(predicate.left).map(op => ({value:op,label:`${operatorSymbol(op)} ${tr(`operator_${op}`)}`}))} placeholder={tr('compare_type')} ariaLabel={tr('compare_type')} onChange={op => predicatePatch({ op, right: sourceSchema(predicate.left)?.type === 'boolean' ? true : '' })}/>{/if}
-          {#if predicate.op}<span class="type" data-value-type={valueType(sourceSchema(predicate.left))}>{tr(`output_type_${valueType(sourceSchema(predicate.left))}`)}</span>{#if sourceSchema(predicate.left)?.type === 'boolean'}<SettingsDropdown value={String(predicate.right)} options={[{value:'true',label:tr('true')},{value:'false',label:tr('false')}]} ariaLabel={tr('compare_value')} onChange={value => predicatePatch({ right: value === 'true' })}/>{:else}<input aria-label={tr('compare_value')} type={['number','integer'].includes(sourceSchema(predicate.left)?.type ?? '') ? 'number' : 'text'} value={String(predicate.right ?? '')} oninput={event => predicatePatch({ right: ['number','integer'].includes(sourceSchema(predicate.left)?.type ?? '') ? Number(event.currentTarget.value) : event.currentTarget.value })}/>{/if}{/if}
-        </div>
+        <h3>{tr('check_question')}</h3>
+        <div class="check-mode"><SettingsDropdown value={String(draft.config?.mode ?? 'exact')} options={[{value:'exact',label:tr('exact_rule')},{value:'ai',label:tr('ai_judgment')}]} ariaLabel={tr('check_mode')} onChange={value => checkMode(value as 'exact' | 'ai')}/></div>
+        {#if draft.config?.mode === 'ai'}
+          <label>{tr('ai_check_question')}<textarea data-testid="workflow-ai-check-question" value={String(draft.config?.question ?? '')} placeholder={tr('ai_check_placeholder')} oninput={event => patch({ question: event.currentTarget.value })}></textarea></label>
+          <fieldset class="ai-check-inputs" data-testid="workflow-ai-check-inputs"><legend>{tr('ai_check_values')}</legend>{#each outputs as output}{@const selected = Array.isArray(draft.config?.selected_inputs) && draft.config.selected_inputs.includes(output.reference)}<label class="ai-check-option"><input type="checkbox" checked={selected} onchange={event => toggleAiCheckInput(output.reference, event.currentTarget.checked)}/><span><strong>{output.label}</strong><small>{tr(`output_type_${valueType(output.schema)}`)}</small></span></label>{#if selected && testOutputs[output.nodeId]}{@const field = output.reference.split('.output.')[1]}<div class="selected-preview"><WorkflowValueView value={testOutputs[output.nodeId]?.[field]} schema={output.schema} appId={sourceApp(output.reference)} path={`ai-check.${output.nodeId}.${field}`}/></div>{/if}{/each}</fieldset>
+          <p class="reminder">{tr('ai_check_guidance')}</p>
+        {:else}
+          <h2>{tr('if')}</h2>
+          <div class="check-fields"><SettingsDropdown value={String(predicate.left ?? '')} options={outputs.filter(item => !['array','object'].includes(item.schema.type ?? '')).map(output => ({value:output.reference,label:output.label}))} placeholder={tr('select_output')} ariaLabel={tr('select_output')} onChange={left => predicatePatch({ left, op: '', right: '' })}/>
+            {#if predicate.left}<SettingsDropdown value={String(predicate.op ?? '')} options={operators(predicate.left).map(op => ({value:op,label:`${operatorSymbol(op)} ${tr(`operator_${op}`)}`}))} placeholder={tr('compare_type')} ariaLabel={tr('compare_type')} onChange={op => predicatePatch({ op, right: sourceSchema(predicate.left)?.type === 'boolean' ? true : '' })}/>{/if}
+            {#if predicate.op}<span class="type" data-value-type={valueType(sourceSchema(predicate.left))}>{tr(`output_type_${valueType(sourceSchema(predicate.left))}`)}</span>{#if sourceSchema(predicate.left)?.type === 'boolean'}<SettingsDropdown value={String(predicate.right)} options={[{value:'true',label:tr('true')},{value:'false',label:tr('false')}]} ariaLabel={tr('compare_value')} onChange={value => predicatePatch({ right: value === 'true' })}/>{:else}<input aria-label={tr('compare_value')} type={['number','integer'].includes(sourceSchema(predicate.left)?.type ?? '') ? 'number' : 'text'} value={String(predicate.right ?? '')} oninput={event => predicatePatch({ right: ['number','integer'].includes(sourceSchema(predicate.left)?.type ?? '') ? Number(event.currentTarget.value) : event.currentTarget.value })}/>{/if}{/if}
+          </div>
+        {/if}
       {:else if isMessage(draft)}
         {#if chooseChat}<h3>{tr('chat_question')}</h3><input aria-label={tr('search_chats')} placeholder={tr('search_chats')} bind:value={chatSearch}/><div class="card-scroll">{#each visibleChats as chat}<ChatPreviewCard {chat} onOpen={selectChat}/>{/each}</div><button class="primary" type="button" data-testid="workflow-new-chat-destination" onclick={() => selectChat(null)}>+ {tr('new_chat_each_run')}</button>
         {:else}
@@ -283,7 +372,7 @@
         {/if}
       {:else}<WorkflowValueView value={draft.config}/>{/if}
       {#if nodeError}<p class="error" role="alert">{nodeError}</p>{/if}
-      {#if !chooseChat}<div class="save-row"><button type="button" class="primary" data-testid="workflow-node-save" disabled={busy || testStatus === 'processing'} onclick={() => void saveNode()}>{tr(busy ? 'saving' : 'save')}</button>{#if graph.nodes.some(node => node.id === draft?.id)}<button type="button" class="quiet" data-testid="remove-workflow-node" disabled={busy || testStatus === 'processing'} onclick={() => void deleteNode()}>{tr('remove')}</button>{/if}</div>{/if}
+      {#if !chooseChat}<div class="save-row"><button type="button" class="primary" data-testid="workflow-node-save" disabled={busy || testStatus === 'processing' || (isAskAi(draft) && askVerdict === 'asks_to_invoke_app_skill')} onclick={() => void saveNode()}>{tr(busy ? 'saving' : 'save')}</button>{#if graph.nodes.some(node => node.id === draft?.id)}<button type="button" class="quiet" data-testid="remove-workflow-node" disabled={busy || testStatus === 'processing'} onclick={() => void deleteNode()}>{tr('remove')}</button>{/if}</div>{/if}
     </div>
   {/if}
 {/snippet}
@@ -303,7 +392,7 @@
     {#if isCheck(node)}
       {@const continuation = nextId(node.id)}
       <div class="branch-group">
-        {#each ['yes','no'] as branch}{@const target = nextId(node.id, branch) ?? nextId(node.id, branch === 'yes' ? 'true' : 'false')}<div class="branch"><div class="connector branch-label"><span class="workflow-icon" style={assetIconStyle('workflow-check', 18, 'var(--color-font-secondary)')} aria-hidden="true"></span>{tr(branch === 'yes' ? 'if_true' : 'else')}</div>{#if target}{@render chain(target, [...visited, node.id], continuation)}{:else}{#if !readOnly}{#if sameSlot({ after: node.id, branch }) && (picker || draft)}{@render slotControls({ after: node.id, branch })}{:else}<button type="button" class="nothing" onclick={() => openPicker('action', { after: node.id, branch })}>{tr('do_nothing_add_step')}</button>{/if}{:else}<p class="nothing">{tr('do_nothing')}</p>{/if}{/if}</div>{/each}
+        {#each node.config?.mode === 'ai' ? ['true','false','unsure'] : ['yes','no'] as branch}{@const target = nextId(node.id, branch) ?? nextId(node.id, branch === 'yes' ? 'true' : branch === 'no' ? 'false' : branch)}<div class="branch"><div class="connector branch-label"><span class="workflow-icon" style={assetIconStyle('workflow-check', 18, 'var(--color-font-secondary)')} aria-hidden="true"></span>{tr(branch === 'true' || branch === 'yes' ? 'if_true' : branch === 'unsure' ? 'if_unsure' : 'else')}</div>{#if target}{@render chain(target, [...visited, node.id], continuation)}{:else}{#if !readOnly}{#if sameSlot({ after: node.id, branch }) && (picker || draft)}{@render slotControls({ after: node.id, branch })}{:else}<button type="button" class="nothing" onclick={() => openPicker('action', { after: node.id, branch })}>{tr('do_nothing_add_step')}</button>{/if}{:else}<p class="nothing">{tr('do_nothing')}</p>{/if}{/if}</div>{/each}
       </div>
     {/if}
     {@const next = nextId(node.id)}
@@ -321,7 +410,7 @@
 
 <style>
   .workflow-icon{display:inline-block;flex:0 0 auto;width:var(--workflow-icon-size);height:var(--workflow-icon-size);background:currentColor;-webkit-mask:var(--workflow-icon) center/contain no-repeat;mask:var(--workflow-icon) center/contain no-repeat}
-  .graph-panel{font-size:16px;margin:0 auto;width:min(60rem,calc(100% - 4rem));padding:0 0 2rem}.graph-canvas{min-height:16rem;padding:2rem 1.25rem;background:var(--color-grey-0);border-radius:.9rem}.node-stack{display:grid;justify-items:center}.flow-node{display:grid;justify-items:center;width:100%;min-width:0}.node-summary{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:min(19rem,100%);padding:.7rem 1rem .4rem;min-height:8rem;border:0;border-radius:1rem;background:var(--color-grey-10);color:var(--color-font-primary);box-shadow:var(--shadow-sm);cursor:pointer;font:inherit}.node-summary strong{font-size:16px;line-height:1.4}.node-summary> :global(svg){color:var(--color-primary)}.node-summary .kind{font-size:14px;color:var(--color-font-secondary)}.node-summary.skill{background:var(--node-gradient);color:var(--color-font-button)}.node-summary.skill .kind,.node-summary.skill> :global(svg){color:var(--color-font-button);opacity:.9}.location{font-size:16px;opacity:.8}.connector{color:var(--color-font-secondary);font-size:16px;font-weight:650;text-align:center;padding:.8rem 0}.branch-group{width:min(42rem,100%);padding:0 .75rem .7rem;border:1px solid var(--color-grey-20);border-radius:1rem;margin-top:-.5rem;box-sizing:border-box}.branch{display:grid;justify-items:center}.branch .branch-label{padding-top:1rem}.nothing{white-space:pre-line;line-height:1.5;font-size:16px;font:inherit;cursor:pointer;background:transparent;margin:0;border:1px dashed var(--color-grey-30);border-radius:.6rem;width:min(18rem,90%);padding:.7rem;text-align:center;color:var(--color-font-secondary);font-size:16px}.add-controls,.choices{display:flex;flex-wrap:wrap;gap:.8rem;justify-content:center;padding:.75rem 0}.choice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;min-width:6.5rem;min-height:4.5rem;border:0;border-radius:.7rem;color:var(--color-font-secondary);background:var(--color-grey-10);box-shadow:var(--shadow-sm);padding:.65rem;cursor:pointer;font:inherit;font-size:16px;font-weight:600}.choice :global(svg){color:var(--color-primary)}.editor{position:relative;min-width:0;width:min(42rem,100%);box-sizing:border-box;display:grid;gap:1rem;padding:0 1.5rem 1rem;background:var(--color-grey-10);border-radius:1rem;box-shadow:var(--shadow-sm);color:var(--color-font-primary);text-align:center}.picker{min-height:11rem}h2,h3,h4,p{margin:0}h3{font-size:16px}h4{font-size:16px;text-align:start;color:var(--color-font-secondary)}.card-scroll{display:flex;flex-wrap:nowrap;min-width:0;max-width:100%;gap:1rem;overflow-x:auto;width:100%;padding:.5rem 0 1rem;scroll-snap-type:x proximity}.card-scroll :global(>*){flex-shrink:0;scroll-snap-align:center}.quiet{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2rem;padding:.3rem .5rem;border:0;box-shadow:none;background:transparent;color:var(--color-primary);font:inherit;font-size:16px;cursor:pointer}.primary{justify-self:center;min-width:9rem;min-height:2.4rem;border:0;border-radius:.8rem;padding:.55rem 1.2rem;font:inherit;font-size:16px;font-weight:650;background:var(--color-button-primary);color:var(--color-font-button);box-shadow:var(--shadow-sm);cursor:pointer}.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}label{display:grid;gap:.4rem;min-width:0;text-align:start;font-size:16px}input{box-sizing:border-box;width:100%;min-height:2.5rem;border:1px solid var(--color-grey-25);border-radius:.8rem;padding:.5rem .7rem;background:var(--color-grey-0);color:var(--color-font-primary);font:inherit;font-size:16px;box-shadow:var(--shadow-sm)}.weekdays{display:flex;gap:.7rem;flex-wrap:wrap}.weekdays label,.checkbox{display:flex;align-items:center;gap:.45rem}.weekdays input,input[type=checkbox]{width:1.05rem;height:1.05rem;min-height:0;box-shadow:none;accent-color:var(--color-primary)}.test-control{display:flex;justify-content:center;align-items:center;gap:.7rem;font-size:16px}.output-heading{display:flex;justify-content:space-between;font-size:16px;color:var(--color-font-secondary)}.output-fields{display:grid;gap:.5rem;text-align:start}.output-fields>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:.8rem}.output-label{display:flex;align-items:center;gap:.4rem;min-width:0}.output-fields strong{font-size:16px}.type{font-size:14px;border-radius:.2rem;background:var(--color-primary);color:var(--color-font-button);padding:.1rem .3rem;width:fit-content}.output-fields :global(.workflow-value){animation:output-appear .2s ease}.check-fields{display:grid;gap:.8rem;width:min(23rem,100%);margin:auto}.check-fields>.type{justify-self:center}.reference-chips{display:flex;flex-wrap:wrap;gap:.4rem}.chip{border:0;border-radius:1rem;padding:.3rem .55rem;background:var(--color-primary);color:var(--color-font-button);font:inherit;font-size:16px;cursor:pointer}.message-block{border:1px solid var(--color-grey-25);border-radius:.7rem;padding:.7rem;display:grid;gap:.6rem;text-align:start;font-size:16px}.message-block>div{display:flex;justify-content:space-between;align-items:center;gap:.5rem}.message-block strong{overflow-wrap:anywhere}.references{display:grid;text-align:start}.message-preview{white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;text-align:start;font-size:16px}.message-preview{display:grid;gap:.8rem;padding:1rem;background:var(--color-grey-0);border-radius:.8rem}.save-row{display:flex;justify-content:center;align-items:center;gap:1rem;margin-top:.3rem}.error{color:var(--color-error);font-size:16px;overflow-wrap:anywhere}.target{justify-self:start}button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible{outline:2px solid var(--color-button-primary);outline-offset:2px}
+  .graph-panel{font-size:16px;margin:0 auto;width:min(60rem,calc(100% - 4rem));padding:0 0 2rem}.graph-canvas{min-height:16rem;padding:2rem 1.25rem;background:var(--color-grey-0);border-radius:.9rem}.node-stack{display:grid;justify-items:center}.flow-node{display:grid;justify-items:center;width:100%;min-width:0}.node-summary{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:min(19rem,100%);padding:.7rem 1rem .4rem;min-height:8rem;border:0;border-radius:1rem;background:var(--color-grey-10);color:var(--color-font-primary);box-shadow:var(--shadow-sm);cursor:pointer;font:inherit}.node-summary strong{font-size:16px;line-height:1.4}.node-summary> :global(svg){color:var(--color-primary)}.node-summary .kind{font-size:14px;color:var(--color-font-secondary)}.node-summary.skill{background:var(--node-gradient);color:var(--color-font-button)}.node-summary.skill .kind,.node-summary.skill> :global(svg){color:var(--color-font-button);opacity:.9}.location{font-size:16px;opacity:.8}.connector{color:var(--color-font-secondary);font-size:16px;font-weight:650;text-align:center;padding:.8rem 0}.branch-group{width:min(42rem,100%);padding:0 .75rem .7rem;border:1px solid var(--color-grey-20);border-radius:1rem;margin-top:-.5rem;box-sizing:border-box}.branch{display:grid;justify-items:center}.branch .branch-label{padding-top:1rem}.nothing{white-space:pre-line;line-height:1.5;font-size:16px;font:inherit;cursor:pointer;background:transparent;margin:0;border:1px dashed var(--color-grey-30);border-radius:.6rem;width:min(18rem,90%);padding:.7rem;text-align:center;color:var(--color-font-secondary);font-size:16px}.add-controls,.choices{display:flex;flex-wrap:wrap;gap:.8rem;justify-content:center;padding:.75rem 0}.choice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;min-width:6.5rem;min-height:4.5rem;border:0;border-radius:.7rem;color:var(--color-font-secondary);background:var(--color-grey-10);box-shadow:var(--shadow-sm);padding:.65rem;cursor:pointer;font:inherit;font-size:16px;font-weight:600}.choice :global(svg){color:var(--color-primary)}.editor{position:relative;min-width:0;width:min(42rem,100%);box-sizing:border-box;display:grid;gap:1rem;padding:0 1.5rem 1rem;background:var(--color-grey-10);border-radius:1rem;box-shadow:var(--shadow-sm);color:var(--color-font-primary);text-align:center}.picker{min-height:11rem}h2,h3,h4,p{margin:0}h3{font-size:16px}h4{font-size:16px;text-align:start;color:var(--color-font-secondary)}.card-scroll{display:flex;flex-wrap:nowrap;min-width:0;max-width:100%;gap:1rem;overflow-x:auto;width:100%;padding:.5rem 0 1rem;scroll-snap-type:x proximity}.card-scroll :global(>*){flex-shrink:0;scroll-snap-align:center}.quiet{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2rem;padding:.3rem .5rem;border:0;box-shadow:none;background:transparent;color:var(--color-primary);font:inherit;font-size:16px;cursor:pointer}.primary{justify-self:center;min-width:9rem;min-height:2.4rem;border:0;border-radius:.8rem;padding:.55rem 1.2rem;font:inherit;font-size:16px;font-weight:650;background:var(--color-button-primary);color:var(--color-font-button);box-shadow:var(--shadow-sm);cursor:pointer}.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}label{display:grid;gap:.4rem;min-width:0;text-align:start;font-size:16px}input,textarea{box-sizing:border-box;width:100%;min-height:2.5rem;border:1px solid var(--color-grey-25);border-radius:.8rem;padding:.5rem .7rem;background:var(--color-grey-0);color:var(--color-font-primary);font:inherit;font-size:16px;box-shadow:var(--shadow-sm)}textarea{min-height:7rem;resize:vertical;line-height:1.5}.weekdays{display:flex;gap:.7rem;flex-wrap:wrap}.weekdays label,.checkbox{display:flex;align-items:center;gap:.45rem}.weekdays input,input[type=checkbox]{width:1.05rem;height:1.05rem;min-height:0;box-shadow:none;accent-color:var(--color-primary)}.test-control{display:flex;justify-content:center;align-items:center;gap:.7rem;font-size:16px}.output-heading{display:flex;justify-content:space-between;font-size:16px;color:var(--color-font-secondary)}.output-fields{display:grid;gap:.5rem;text-align:start}.output-fields>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:.8rem}.output-label{display:flex;align-items:center;gap:.4rem;min-width:0}.output-fields strong{font-size:16px}.type{font-size:14px;border-radius:.2rem;background:var(--color-primary);color:var(--color-font-button);padding:.1rem .3rem;width:fit-content}.output-fields :global(.workflow-value){animation:output-appear .2s ease}.check-fields{display:grid;gap:.8rem;width:min(23rem,100%);margin:auto}.check-fields>.type{justify-self:center}.check-mode{width:min(23rem,100%);margin:auto}.reference-chips,.suggestions{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:flex-start}.chip{border:0;border-radius:1rem;padding:.3rem .55rem;background:var(--color-primary);color:var(--color-font-button);font:inherit;font-size:16px;cursor:pointer}.message-block{border:1px solid var(--color-grey-25);border-radius:.7rem;padding:.7rem;display:grid;gap:.6rem;text-align:start;font-size:16px}.message-block>div{display:flex;justify-content:space-between;align-items:center;gap:.5rem}.message-block strong{overflow-wrap:anywhere}.references{display:grid;text-align:start}.message-preview{white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;text-align:start;font-size:16px}.message-preview{display:grid;gap:.8rem;padding:1rem;background:var(--color-grey-0);border-radius:.8rem}.save-row{display:flex;justify-content:center;align-items:center;gap:1rem;margin-top:.3rem}.error{color:var(--color-error);font-size:16px;overflow-wrap:anywhere}.reminder{color:var(--color-font-secondary);font-size:14px;text-align:start}.ask-validation{text-align:start}.ai-check-inputs{display:grid;gap:.7rem;border:1px solid var(--color-grey-25);border-radius:.8rem;padding:.8rem;text-align:start}.ai-check-inputs legend{padding:0 .35rem;color:var(--color-font-secondary)}.ai-check-option{display:flex;align-items:center;gap:.65rem}.ai-check-option input{width:1.05rem;height:1.05rem;min-height:0}.ai-check-option span{display:flex;align-items:center;justify-content:space-between;gap:.7rem;flex:1}.ai-check-option small{color:var(--color-font-secondary);font-size:14px}.selected-preview{margin:-.35rem 0 .25rem 1.7rem}.target{justify-self:start}button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--color-button-primary);outline-offset:2px}
   @keyframes output-appear{from{opacity:0}to{opacity:1}}@media(max-width:730px){.graph-panel{width:calc(100% - 1rem)}.graph-canvas{padding:1.5rem .5rem}.editor{padding:0 .8rem 1rem}.field-grid{grid-template-columns:1fr}.branch-group{padding-inline:.4rem}.choice{min-width:5.6rem}.card-scroll :global(.resume-chat-large-card){width:15rem;min-width:15rem;max-width:15rem}.output-fields>div{grid-template-columns:auto 1fr}.output-fields :global(.workflow-value){grid-column:auto}}@media(prefers-reduced-motion:reduce){.output-fields :global(.workflow-value){animation:none}}
   .node-app-icon{display:grid;place-items:center}.message-preview section{display:grid;gap:.55rem}.graph-panel{margin-block:1.75rem}.node-summary.skill .node-app-icon{color:white}@media(max-width:730px){.output-fields>div{grid-template-columns:1fr;gap:.35rem}}
   .node-summary{width:min(21rem,100%);min-height:9.25rem;padding:.9rem 1.25rem .65rem;gap:.55rem}.node-chevron{display:grid;place-items:center;min-height:20px;color:inherit;opacity:.9}

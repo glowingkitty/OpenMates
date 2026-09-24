@@ -76,6 +76,7 @@
         "unified-detail-pages.spec.ts",
         "web-lifecycle-notification-suppression.spec.ts",
         "workflows-definition-history.spec.ts",
+        "workflows-ai-authoring.spec.ts",
         "workflows-editor.spec.ts",
         "workflows-input.spec.ts",
         "workspace-sidebar.spec.ts"
@@ -209,6 +210,7 @@
         "component-message-input.spec.ts",
         "components/chat-processing-indicator.spec.ts",
         "components/specification-fullscreen.spec.ts",
+        "components/workflow-graph-ai-authoring.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
         "components/map-load-recovery.spec.ts",

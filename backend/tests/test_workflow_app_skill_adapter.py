@@ -219,9 +219,9 @@ async def test_ai_ask_workflow_prompt_is_adapted_to_openai_messages_with_owner_c
             "ai",
             "ask",
             {
-                "conversation": "e2e-local",
-                "temperature": 0,
                 "messages": [{"role": "user", "content": "Reply with exactly: Workflow AI OK"}],
+                "apps_enabled": False,
+                "allowed_apps": [],
                 "_user_id": "alice",
                 "_external_request": True,
             },
@@ -233,7 +233,7 @@ async def test_ai_ask_workflow_prompt_is_adapted_to_openai_messages_with_owner_c
 
 @pytest.mark.anyio
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
-async def test_ai_ask_preserves_openai_messages_shape() -> None:
+async def test_ai_ask_preserves_only_messages_and_forces_tools_off() -> None:
     registry = FakeRegistry()
     adapter = WorkflowAppSkillAdapter(registry=registry)
 
@@ -246,10 +246,37 @@ async def test_ai_ask_preserves_openai_messages_shape() -> None:
 
     assert registry.calls[0][2] == {
         "messages": [{"role": "system", "content": "Keep it short"}],
-        "model": "auto",
+        "apps_enabled": False,
+        "allowed_apps": [],
         "_user_id": "alice",
         "_external_request": True,
     }
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution,workflows.billing.skill-usage
+async def test_ai_ask_reports_already_settled_usage_without_double_charging() -> None:
+    registry = FakeRegistry(response={
+        "answer": "A concise workflow answer",
+        "usage": {"total_credits": 5},
+    })
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+
+    result = await adapter.execute(
+        "ai",
+        "ask",
+        {"prompt": "Summarize the supplied values"},
+        user_id="alice",
+        billing_context={
+            "workflow_id": "workflow-1",
+            "run_id": "run-1",
+            "node_id": "ask",
+            "source": "workflow_test",
+        },
+    )
+
+    assert result["answer"] == "A concise workflow answer"
+    assert result["_workflow_credit_cost"] == 5
 
 
 @pytest.mark.anyio

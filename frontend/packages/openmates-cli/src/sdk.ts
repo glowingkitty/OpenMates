@@ -118,6 +118,7 @@ import {
 import { hasRememberMessageReference, rewriteRememberMessageReferences } from "./rememberMessage.js";
 import type {
   WorkflowCapability,
+  WorkflowAuthoringWarning,
   WorkflowDetail,
   WorkflowGraph,
   WorkflowNode,
@@ -4629,19 +4630,19 @@ export class OpenMatesWorkflows {
     return response.validation;
   }
 
-  async createFromYaml(source: string): Promise<{ workflow: WorkflowDetail; validation: Record<string, unknown> }> {
-    const response = await this.client.request<{ workflow?: WorkflowDetail; validation?: Record<string, unknown> }>("/v1/workflows/yaml", { source });
+  async createFromYaml(source: string): Promise<{ workflow: WorkflowDetail; validation: Record<string, unknown>; warnings: WorkflowAuthoringWarning[] }> {
+    const response = await this.client.request<{ workflow?: WorkflowDetail; validation?: Record<string, unknown>; warnings?: WorkflowAuthoringWarning[] }>("/v1/workflows/yaml", { source });
     if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow YAML response missing workflow" });
     if (!response.validation) throw new OpenMatesApiError(500, { detail: "Workflow YAML response missing validation" });
-    return { workflow: await this.decryptWorkflowSlug(response.workflow), validation: response.validation };
+    return { workflow: await this.decryptWorkflowSlug(response.workflow), validation: response.validation, warnings: response.warnings ?? [] };
   }
 
-  async updateFromYaml(workflowId: string, source: string): Promise<{ workflow: WorkflowDetail; validation: Record<string, unknown> }> {
+  async updateFromYaml(workflowId: string, source: string): Promise<{ workflow: WorkflowDetail; validation: Record<string, unknown>; warnings: WorkflowAuthoringWarning[] }> {
     const resolvedWorkflowId = await this.resolveId(workflowId);
-    const response = await this.client.request<{ workflow?: WorkflowDetail; validation?: Record<string, unknown> }>(`/v1/workflows/${encodeURIComponent(resolvedWorkflowId)}/yaml`, { source });
+    const response = await this.client.request<{ workflow?: WorkflowDetail; validation?: Record<string, unknown>; warnings?: WorkflowAuthoringWarning[] }>(`/v1/workflows/${encodeURIComponent(resolvedWorkflowId)}/yaml`, { source });
     if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow YAML response missing workflow" });
     if (!response.validation) throw new OpenMatesApiError(500, { detail: "Workflow YAML response missing validation" });
-    return { workflow: await this.decryptWorkflowSlug(response.workflow), validation: response.validation };
+    return { workflow: await this.decryptWorkflowSlug(response.workflow), validation: response.validation, warnings: response.warnings ?? [] };
   }
 
   async history(workflowId: string, options: { limit?: number } = {}): Promise<Record<string, unknown>[]> {
@@ -4754,7 +4755,7 @@ export class OpenMatesWorkflows {
       encryptionKey: masterKey,
       lookupKey: masterKey,
     });
-    const response = await this.client.request<{ workflow?: WorkflowDetail }>("/v1/workflows", {
+    const response = await this.client.request<{ workflow?: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>("/v1/workflows", {
       title: params.title,
       encrypted_slug: slugMetadata.encrypted_slug,
       slug_lookup_hash: slugMetadata.slug_lookup_hash,
@@ -4769,7 +4770,7 @@ export class OpenMatesWorkflows {
       ...(params.autoDeleteAt !== undefined ? { auto_delete_at: params.autoDeleteAt } : {}),
     });
     if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow response missing workflow" });
-    return this.decryptWorkflowSlug(response.workflow, masterKey);
+    return this.decryptWorkflowSlug({ ...response.workflow, authoring_warnings: response.warnings ?? [] }, masterKey);
   }
 
   async update(
@@ -4793,9 +4794,9 @@ export class OpenMatesWorkflows {
     }
     if (params.enabled !== undefined) payload.enabled = params.enabled;
     if (params.runContentRetention !== undefined) payload.run_content_retention = params.runContentRetention;
-    const response = await this.client.patch<{ workflow?: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(resolvedWorkflowId)}`, payload);
+    const response = await this.client.patch<{ workflow?: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>(`/v1/workflows/${encodeURIComponent(resolvedWorkflowId)}`, payload);
     if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow response missing workflow" });
-    return this.decryptWorkflowSlug(response.workflow);
+    return this.decryptWorkflowSlug({ ...response.workflow, authoring_warnings: response.warnings ?? [] });
   }
 
   async enable(workflowId: string): Promise<WorkflowDetail> {

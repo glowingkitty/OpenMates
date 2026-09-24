@@ -828,6 +828,56 @@ builder.add_check:
   en: "Add check"
   verified_by_human: []
 
+builder.ask_ai:
+  context: Workflow progressive builder control
+  en: "Ask AI"
+  verified_by_human: []
+
+builder.ask_ai_question:
+  context: Workflow Ask AI instruction editor heading
+  en: "What should AI do with the information from earlier steps?"
+  verified_by_human: []
+
+builder.ask_ai_placeholder:
+  context: Workflow Ask AI instruction editor placeholder
+  en: "For example: Summarize the events and explain what makes each one useful. Type @ to add information from an earlier step."
+  verified_by_human: []
+
+builder.suggested_values:
+  context: Workflow Ask AI suggested earlier values
+  en: "Suggested information"
+  verified_by_human: []
+
+builder.ask_ai_app_warning:
+  context: Blocking Workflow Ask AI authoring validation
+  en: "You can't ask for using app skills here. Instead add an 'Use app' action to trigger an app skill."
+  verified_by_human: []
+
+builder.ask_ai_validation_unavailable:
+  context: Non-blocking Workflow Ask AI authoring reminder
+  en: "We couldn't verify this instruction right now. You can still save it; Ask AI cannot use app skills."
+  verified_by_human: []
+
+builder.checking_instruction:
+  context: Workflow Ask AI authoring validation progress
+  en: "Checking this instruction…"
+  verified_by_human: []
+
+builder.ask_ai_unavailable:
+  context: Workflow Ask AI capability unavailable error
+  en: "Ask AI is not available right now."
+  verified_by_human: []
+
+builder.ask_ai_instruction_required:
+  context: Workflow Ask AI empty instruction error
+  en: "Enter an instruction for Ask AI."
+  verified_by_human: []
+
+builder.answer:
+  context: Workflow Ask AI output label
+  en: "Answer"
+  verified_by_human: []
+
 builder.back:
   context: Workflow progressive builder control
   en: "Back"
@@ -835,7 +885,7 @@ builder.back:
 
 builder.use_app:
   context: Workflow progressive builder control
-  en: "Use App"
+  en: "Use app"
   verified_by_human: []
 
 builder.choose_skill:
@@ -951,6 +1001,51 @@ builder.example:
 builder.check_question:
   context: Workflow progressive builder control
   en: "What should we check?"
+  verified_by_human: []
+
+builder.check_mode:
+  context: Workflow Check mode selector
+  en: "How should this be checked?"
+  verified_by_human: []
+
+builder.exact_rule:
+  context: Deterministic Workflow Check mode
+  en: "Exact rule"
+  verified_by_human: []
+
+builder.ai_judgment:
+  context: AI-powered Workflow Check mode
+  en: "AI judgment"
+  verified_by_human: []
+
+builder.ai_check_question:
+  context: Workflow AI Check natural-language question label
+  en: "Question with a yes or no answer"
+  verified_by_human: []
+
+builder.ai_check_placeholder:
+  context: Workflow AI Check natural-language question placeholder
+  en: "For example: Is this weather suitable for an outdoor event?"
+  verified_by_human: []
+
+builder.ai_check_values:
+  context: Workflow AI Check selected input values legend
+  en: "Information AI may use"
+  verified_by_human: []
+
+builder.ai_check_guidance:
+  context: Workflow AI Check guidance
+  en: "Use an exact rule for fixed thresholds. Use AI judgment when context or several factors matter. If AI cannot decide reliably, the Unsure branch runs."
+  verified_by_human: []
+
+builder.ai_check_required:
+  context: Workflow AI Check missing question or values error
+  en: "Enter a question and select at least one earlier value."
+  verified_by_human: []
+
+builder.if_unsure:
+  context: Workflow AI Check unsure branch label
+  en: "If unsure"
   verified_by_human: []
 
 builder.if:

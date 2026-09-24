@@ -78,13 +78,52 @@ const defaultProps = {
         workflow: { test_allowed: true },
       },
     },
+    {
+      id: "ai.ask",
+      type: "app_skill",
+      enabled: true,
+      title: "Ask",
+      metadata: {
+        app_id: "ai",
+        skill_id: "ask",
+        input_schema: {
+          type: "object",
+          properties: { prompt: { type: "string" } },
+          required: ["prompt"],
+        },
+        output_schema: {
+          type: "object",
+          properties: { answer: { type: "string", title: "Answer", example: "A concise summary" } },
+        },
+        workflow: { test_allowed: true },
+      },
+    },
   ],
 };
+
+function aiCheckGraph(): WorkflowGraph {
+  const graph = structuredClone(dailyWeatherNewsGraph());
+  const check = graph.nodes.find((node) => node.id === "rain");
+  if (check) {
+    check.title = "Outdoor weather judgment";
+    check.config = {
+      mode: "ai",
+      question: "Is this weather unsuitable for an outdoor lunch?",
+      selected_inputs: [
+        "$nodes.weather.output.rain_probability",
+        "$nodes.weather.output.forecast_day",
+      ],
+    };
+  }
+  return graph;
+}
+
 export default defaultProps;
 export const variants = {
   empty: {
     ...defaultProps,
     graph: { version: 2, trigger_node_id: null, nodes: [], edges: [] },
   },
+  aiCheck: { ...defaultProps, graph: aiCheckGraph() },
   readonly: { ...defaultProps, readOnly: true, onSave: null },
 };

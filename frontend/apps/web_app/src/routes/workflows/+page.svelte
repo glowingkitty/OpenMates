@@ -78,6 +78,7 @@
 	let runs = $derived<WorkflowRun[]>($workflowWorkspaceStore.runs);
 	let saving = $state(false);
 	let routeError = $state<string | null>(null);
+	let authoringReminder = $state<string | null>(null);
 	let error = $derived(routeError ?? $workflowWorkspaceStore.error);
 	let runContentRetention = $state<'last_5' | 'none'>('last_5');
 	let selectedRunContentRetention = $state<'last_5' | 'none'>('last_5');
@@ -638,11 +639,13 @@
 		if (!selectedWorkflow) throw new Error('Workflow unavailable');
 		saving = true;
 		routeError = null;
+		authoringReminder = null;
 		try {
 			const workflow = await workflowWorkspaceStore.patchWorkflow(selectedWorkflow.id, {
 				graph,
 				icon: workflowIcon(editorTitle, selectedWorkflow.icon, graph)
 			});
+			authoringReminder = workflow.authoring_warnings?.map((warning) => warning.message).join(' ') || null;
 			resetEditor(workflow);
 			await maintainTemplateProjection(workflow);
 		} catch (error) {
@@ -807,6 +810,7 @@
                       <WorkflowVersionHistory workflow={selectedWorkflow} disabled={saving} onRequestNavigation={requestNavigation} onRestored={handleWorkflowVersionRestored}>
                         {#if editorGraph}
                           <div data-testid="workflow-editor">
+                            {#if authoringReminder}<p class="workflow-authoring-reminder" data-testid="workflow-authoring-reminder" role="status">{authoringReminder}</p>{/if}
                             <WorkflowGraphRenderer graph={editorGraph} workflowId={selectedWorkflow.id} onChange={updateEditorGraph} onSave={saveNodeGraph}/>
                           </div>
                         {/if}
@@ -1142,6 +1146,17 @@
 		border-radius: var(--radius-8, 20px);
 		color: var(--color-error, #b00020);
 		background: color-mix(in srgb, var(--color-error, #b00020) 10%, transparent);
+	}
+
+	.workflow-authoring-reminder {
+		width: min(42rem, calc(100% - 2rem));
+		box-sizing: border-box;
+		margin: 1rem auto 0;
+		padding: 0.75rem 1rem;
+		border-radius: var(--radius-8, 20px);
+		color: var(--color-font-secondary);
+		background: var(--color-grey-10);
+		font-size: var(--font-size-small, 0.875rem);
 	}
 
 	.empty-detail {

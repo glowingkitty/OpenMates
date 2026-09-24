@@ -166,6 +166,7 @@ describe("OpenMatesClient workflows", () => {
         }
         return {
           workflow: { id: "wf-1", title: "Morning", category: "productivity", icon: "sunrise", status: "active", enabled: true, run_content_retention: "none", current_version_id: "v1", created_at: 1, updated_at: 2, graph, ...encryptedSlugFields },
+          warnings: [{ code: "WORKFLOW_AI_VALIDATION_UNVERIFIED", message: "AI validation could not be completed." }],
         };
       },
       async (apiUrl, seen) => {
@@ -181,7 +182,9 @@ describe("OpenMatesClient workflows", () => {
         assert.equal(listedWorkflow?.icon, "sunrise");
         assert.equal(temporaryWorkflow?.id, "wf-1");
         assert.equal(createdWorkflow.enabled, true);
+        assert.equal(createdWorkflow.authoring_warnings?.[0]?.code, "WORKFLOW_AI_VALIDATION_UNVERIFIED");
         assert.equal(updatedWorkflow.id, "wf-1");
+        assert.equal(updatedWorkflow.authoring_warnings?.[0]?.message, "AI validation could not be completed.");
         assert.equal(keptWorkflow.id, "wf-1");
         for (const workflow of [listedWorkflow, temporaryWorkflow, createdWorkflow, updatedWorkflow, keptWorkflow]) {
           assertPublicWorkflowSlug(workflow as Record<string, unknown>, "morning");
@@ -247,11 +250,11 @@ describe("OpenMatesClient workflows", () => {
         }
         if (request.url === "/v1/workflows/yaml") {
           assert.deepEqual(body, { source: "title: Test\n" });
-          return { workflow: { id: "wf-1", title: "Test", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1, graph }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] } };
+          return { workflow: { id: "wf-1", title: "Test", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1, graph }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] }, warnings: [{ code: "WORKFLOW_AI_VALIDATION_UNVERIFIED", message: "AI validation could not be completed." }] };
         }
         if (request.url === "/v1/workflows/wf-1/yaml") {
           assert.deepEqual(body, { source: "title: Updated\n" });
-          return { workflow: { id: "wf-1", title: "Updated", status: "disabled", enabled: false, current_version_id: "v2", created_at: 1, updated_at: 2, graph }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] } };
+          return { workflow: { id: "wf-1", title: "Updated", status: "disabled", enabled: false, current_version_id: "v2", created_at: 1, updated_at: 2, graph }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] }, warnings: [{ code: "WORKFLOW_AI_VALIDATION_UNVERIFIED", message: "AI validation could not be completed." }] };
         }
         if (request.url === "/v1/workflows/wf-1/steps/weather/test") {
           assert.deepEqual(body, { input: { location: "Berlin" }, confirmed: true });
@@ -266,8 +269,12 @@ describe("OpenMatesClient workflows", () => {
       async (apiUrl, seen) => {
         const client = new OpenMatesClient({ apiUrl, session: testSession() });
         assert.equal((await client.validateWorkflowYaml("title: Test\n")).draft_valid, true);
-        assert.equal((await client.createWorkflowYaml("title: Test\n")).workflow.id, "wf-1");
-        assert.equal((await client.updateWorkflowYaml("wf-1", "title: Updated\n")).workflow.title, "Updated");
+        const created = await client.createWorkflowYaml("title: Test\n");
+        const updated = await client.updateWorkflowYaml("wf-1", "title: Updated\n");
+        assert.equal(created.workflow.id, "wf-1");
+        assert.equal(created.warnings[0]?.code, "WORKFLOW_AI_VALIDATION_UNVERIFIED");
+        assert.equal(updated.workflow.title, "Updated");
+        assert.equal(updated.warnings[0]?.message, "AI validation could not be completed.");
         assert.equal((await client.testWorkflowStep("wf-1", "weather", { input: { location: "Berlin" }, confirmed: true })).trigger_type, "step_test");
         assert.equal((await client.respondToWorkflowRun("wf-1", "run-1", "ask", { city: "Berlin" })).status, "completed");
 

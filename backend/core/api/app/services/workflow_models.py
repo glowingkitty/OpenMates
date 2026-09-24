@@ -382,8 +382,10 @@ def _validate_builder_graph(graph: WorkflowGraph, nodes_by_id: dict[str, Workflo
         edge_keys.add(key)
         if edge.branch and nodes_by_id[edge.from_node].type != WorkflowNodeType.CHECK:
             raise WorkflowValidationError("Only Check steps may have branches")
-        if edge.branch not in {None, "yes", "no", "true", "false", "default"}:
-            raise WorkflowValidationError("Check branches must be yes, no or default")
+        if edge.branch not in {None, "yes", "no", "true", "false", "unsure", "default"}:
+            raise WorkflowValidationError("Check branches must be true, false, unsure or default")
+        if edge.branch == "unsure" and nodes_by_id[edge.from_node].config.get("mode", "exact") != "ai":
+            raise WorkflowValidationError("Only an AI Check may have an Unsure branch")
         predecessors[edge.to_node].add(edge.from_node)
         successors[edge.from_node].add(edge.to_node)
     pending = [node_id for node_id, parents in predecessors.items() if not parents]
@@ -504,7 +506,8 @@ def _validate_builder_execution_inputs(graph: WorkflowGraph) -> None:
                 raise WorkflowValidationError(f"Step {node.id}: the app skill has no typed workflow contract")
             inputs[node.id], outputs[node.id] = input_schema, output_schema
         elif node.type == WorkflowNodeType.CHECK:
-            outputs[node.id] = {"type": "object", "properties": {"matched": {"type": "boolean"}, "branch": {"type": "string"}}}
+            matched_type: str | list[str] = ["boolean", "null"] if node.config.get("mode", "exact") == "ai" else "boolean"
+            outputs[node.id] = {"type": "object", "properties": {"matched": {"type": matched_type}, "branch": {"type": "string"}}}
         elif node.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER}:
             outputs[node.id] = {"type": "object", "properties": {"triggered": {"type": "boolean"}, "trigger": {"type": "string"}}}
         elif node.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
@@ -658,9 +661,26 @@ def _validate_builder_execution_inputs(graph: WorkflowGraph) -> None:
             authored = node.config.get("input", {})
             if not isinstance(authored, dict):
                 raise WorkflowValidationError(f"{label}: app input must be an object")
-            validate_value({**authored, **node.input_mapping}, inputs[node.id], f"{label}.input")
+            if node.config.get("app_id") == "ai" and node.config.get("skill_id") == "ask":
+                prompt = authored.get("prompt")
+                if not isinstance(prompt, str) or not prompt.strip():
+                    raise WorkflowValidationError(f"{label}: Ask AI requires an instruction")
+                matches = list(re.finditer(r"\{\{\s*([^{}]+?)\s*\}\}", prompt))
+                remainder = re.sub(r"\{\{[^{}]+\}\}", "", prompt)
+                if len(matches) > 24 or "{{" in remainder or "}}" in remainder:
+                    raise WorkflowValidationError(f"{label}: Ask AI instruction contains invalid or excessive references")
+                for index, match in enumerate(matches):
+                    value_schema(match.group(0), f"{label}.input.prompt[{index}]")
+                if node.input_mapping:
+                    raise WorkflowValidationError(f"{label}: Ask AI inputs must be inserted into its instruction")
+            else:
+                validate_value({**authored, **node.input_mapping}, inputs[node.id], f"{label}.input")
         elif node.type == WorkflowNodeType.CHECK:
-            validate_predicate(node.config["predicate"], label)
+            if node.config.get("mode", "exact") == "ai":
+                for index, reference in enumerate(node.config["selected_inputs"]):
+                    value_schema(reference, f"{label}.selected_inputs[{index}]")
+            else:
+                validate_predicate(node.config["predicate"], label)
         elif node.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
             if not node.config.get("chat_id") and not str(node.config.get("title") or "").strip():
                 raise WorkflowValidationError(f"{label}: enter a title for the new chat")
@@ -740,7 +760,13 @@ def _template_node_config(node: WorkflowNode) -> dict[str, Any]:
             safe_config["input"] = config["input"]
         return safe_config
     if node.type in {WorkflowNodeType.DECISION, WorkflowNodeType.CHECK}:
-        return {"predicate": config.get("predicate")}
+        if node.type == WorkflowNodeType.CHECK and config.get("mode", "exact") == "ai":
+            return {
+                "mode": "ai",
+                "question": config.get("question"),
+                "selected_inputs": list(config.get("selected_inputs") or []),
+            }
+        return {"mode": "exact", "predicate": config.get("predicate")}
     if node.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
         return {key: config[key] for key in ("title", "message", "blocks") if key in config}
     if node.type == WorkflowNodeType.REPEAT:
@@ -819,11 +845,34 @@ def _validate_node_config(node: WorkflowNode) -> None:
         skill_id = str(node.config.get("skill_id") or "").strip()
         if not app_id or not skill_id:
             raise WorkflowValidationError("App skill action nodes require app_id and skill_id")
+        if (app_id, skill_id) == ("ai", "ask"):
+            authored = node.config.get("input")
+            prompt = authored.get("prompt") if isinstance(authored, dict) else None
+            if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4_000:
+                raise WorkflowValidationError("Ask AI requires one bounded text instruction")
+            unsupported = set(authored) - {"prompt"}
+            if unsupported:
+                raise WorkflowValidationError("Ask AI accepts only its instruction; tools, conversation and provider controls are unavailable")
     elif node.type in {WorkflowNodeType.DECISION, WorkflowNodeType.CHECK}:
-        predicate = node.config.get("predicate")
-        if not isinstance(predicate, dict):
-            raise WorkflowValidationError("Decision nodes require a structured predicate")
-        _validate_predicate(predicate)
+        mode = node.config.get("mode", "exact") if node.type == WorkflowNodeType.CHECK else "exact"
+        if mode not in {"exact", "ai"}:
+            raise WorkflowValidationError("Check mode must be exact or ai")
+        if mode == "ai":
+            question = node.config.get("question")
+            selected_inputs = node.config.get("selected_inputs")
+            if not isinstance(question, str) or not question.strip() or len(question) > 4_000:
+                raise WorkflowValidationError("AI Check requires one bounded yes-or-no question")
+            if not isinstance(selected_inputs, list) or not 1 <= len(selected_inputs) <= 24:
+                raise WorkflowValidationError("AI Check requires between 1 and 24 selected earlier values")
+            if any(not isinstance(reference, str) or not reference.startswith("$nodes.") for reference in selected_inputs):
+                raise WorkflowValidationError("AI Check selected inputs must be earlier Workflow output references")
+            if len(selected_inputs) != len(set(selected_inputs)):
+                raise WorkflowValidationError("AI Check selected inputs must be unique")
+        else:
+            predicate = node.config.get("predicate")
+            if not isinstance(predicate, dict):
+                raise WorkflowValidationError("Decision nodes require a structured predicate")
+            _validate_predicate(predicate)
     elif node.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
         for field in ("title", "message", "chat_id"):
             if field in node.config and not isinstance(node.config[field], str):

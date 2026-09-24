@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import time
 import uuid
 from typing import Any
@@ -16,6 +17,7 @@ from starlette.concurrency import run_in_threadpool
 
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter, WorkflowActionExecutionError
 from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter, WorkflowSkillBillingError
+from backend.core.api.app.services.workflow_ai_service import WorkflowAiService, render_bounded_ask_ai_prompt
 from backend.core.api.app.services.workflow_models import (
     WorkflowDetail,
     WorkflowNode,
@@ -27,6 +29,7 @@ from backend.core.api.app.services.workflow_models import (
 )
 from backend.core.api.app.services.workflow_service import WorkflowService
 from backend.core.api.app.services.workflow_template_expressions import resolve_workflow_template
+from backend.shared.python_utils.billing_utils import BillingError, ensure_credit_headroom
 
 
 class WorkflowRunner:
@@ -35,10 +38,15 @@ class WorkflowRunner:
         workflow_service: WorkflowService,
         app_skill_adapter: WorkflowAppSkillAdapter | None = None,
         action_adapter: WorkflowActionAdapter | None = None,
+        ai_service: WorkflowAiService | None = None,
     ) -> None:
         self.workflow_service = workflow_service
         self.app_skill_adapter = app_skill_adapter or WorkflowAppSkillAdapter()
         self.action_adapter = action_adapter or WorkflowActionAdapter(workflow_service=workflow_service)
+        self.ai_service = ai_service or WorkflowAiService(
+            secrets_manager=getattr(self.app_skill_adapter, "secrets_manager", None),
+            cache_service=getattr(self.app_skill_adapter, "cache_service", None),
+        )
 
     async def run_workflow(
         self,
@@ -58,6 +66,36 @@ class WorkflowRunner:
         accepted_run = run_id is not None
         run_id = run_id or str(uuid.uuid4())
         version_id = version_id or workflow.current_version_id
+        reusable_ai_outputs: dict[str, tuple[dict[str, Any], int]] = {}
+        if accepted_run:
+            try:
+                previous = await run_in_threadpool(
+                    self.workflow_service.get_run,
+                    workflow.id,
+                    run_id,
+                    user_id,
+                    vault_key_id,
+                )
+                reusable_ai_outputs = {
+                    item.node_id: (dict(item.output_summary), item.credit_cost)
+                    for item in previous.node_runs
+                    if item.status == WorkflowNodeRunStatus.COMPLETED
+                    and (
+                        (
+                            item.node_type == WorkflowNodeType.CHECK
+                            and item.output_summary.get("decision_path")
+                        )
+                        or (
+                            item.node_type == WorkflowNodeType.APP_SKILL_ACTION
+                            and item.output_summary.get("app_id") == "ai"
+                            and item.output_summary.get("skill_id") == "ask"
+                            and isinstance(item.output_summary.get("answer"), str)
+                        )
+                    )
+                }
+            except Exception:
+                # A newly accepted run may not have a readable content checkpoint yet.
+                reusable_ai_outputs = {}
         started_at = int(time.time())
         trigger_node = next((n for n in workflow.graph.nodes if n.id == workflow.graph.trigger_node_id), None)
         context: dict[str, Any] = {"trigger": input_payload or {}, "nodes": {}, "workflow": {
@@ -99,7 +137,23 @@ class WorkflowRunner:
                     run_id=run_id, workflow_id=workflow.id, node_id=node.id, node_type=node.type,
                     status=WorkflowNodeRunStatus.RUNNING, started_at=int(time.time()))], output_summary=context)
             await run_in_threadpool(self.workflow_service.save_run, user_id, progress, vault_key_id)
-            node_run = await self._run_node(run_id, workflow.id, node, context, user_id)
+            reusable = reusable_ai_outputs.get(node.id)
+            if reusable is not None:
+                reusable_output, reusable_credit_cost = reusable
+                node_run = WorkflowNodeRun(
+                    id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow:{run_id}:{node.id}:node-run")),
+                    run_id=run_id,
+                    workflow_id=workflow.id,
+                    node_id=node.id,
+                    node_type=node.type,
+                    status=WorkflowNodeRunStatus.COMPLETED,
+                    started_at=int(time.time()),
+                    finished_at=int(time.time()),
+                    output_summary=reusable_output,
+                    credit_cost=reusable_credit_cost,
+                )
+            else:
+                node_run = await self._run_node(run_id, workflow.id, node, context, user_id)
             node_runs.append(node_run)
             context["nodes"][node.id] = {"output": node_run.output_summary, "status": node_run.status.value, "app_id": node.config.get("app_id"), "skill_id": node.config.get("skill_id")}
             if accepted_run and await run_in_threadpool(self.workflow_service.is_run_cancellation_requested, workflow.id, run_id, user_id):
@@ -325,6 +379,37 @@ class WorkflowRunner:
         if node.type == WorkflowNodeType.APP_SKILL_ACTION:
             return await self._execute_app_skill(node, context, user_id)
         if node.type.value in {"decision", "check"}:
+            if node.type == WorkflowNodeType.CHECK and node.config.get("mode", "exact") == "ai":
+                await _precheck_workflow_ai_check(user_id)
+                selected_inputs = [
+                    {
+                        "reference": reference,
+                        "label": reference.split(".output.", 1)[-1].replace("_", " "),
+                        "value": _resolve_template(reference, context),
+                    }
+                    for reference in node.config["selected_inputs"]
+                ]
+                result = await self.ai_service.evaluate_check(
+                    question=node.config["question"],
+                    selected_inputs=selected_inputs,
+                )
+                credit_cost = await _charge_workflow_ai_check(
+                    user_id=user_id,
+                    context=context,
+                    node_id=node.id,
+                    decision_path=result.decision_path,
+                )
+                matched = True if result.outcome == "true" else False if result.outcome == "false" else None
+                return {
+                    "matched": matched,
+                    "branch": result.outcome,
+                    "question": node.config["question"],
+                    "projected_inputs": selected_inputs,
+                    "confidence_band": result.confidence_band,
+                    "decision_path": result.decision_path,
+                    "unsure_reason": result.unsure_reason,
+                    "_workflow_credit_cost": credit_cost,
+                }
             matched = _evaluate_predicate(node.config["predicate"], context)
             return {"matched": matched, "branch": "yes" if matched else "no"}
         if node.type == WorkflowNodeType.REPEAT:
@@ -354,7 +439,14 @@ class WorkflowRunner:
             if not callable(revalidate_binding):
                 raise PermissionError("Workflow provider binding revalidation is unavailable")
             await revalidate_binding(binding_ref, user_id, app_id, skill_id)
-        request = _resolve_template(node.config.get("input") or {}, context)
+        authored_input = node.config.get("input") or {}
+        if app_id == "ai" and skill_id == "ask":
+            prompt = authored_input.get("prompt") if isinstance(authored_input, dict) else None
+            if not isinstance(prompt, str):
+                raise WorkflowActionExecutionError("WORKFLOW_AI_ASK_INVALID", "Ask AI requires an instruction")
+            request = {"prompt": render_bounded_ask_ai_prompt(prompt, context)}
+        else:
+            request = _resolve_template(authored_input, context)
         request.update(_resolve_template(node.input_mapping, context))
         from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
         execution = context.get("workflow") or {}
@@ -413,6 +505,89 @@ def _evaluate_predicate(predicate: dict[str, Any], context: dict[str, Any]) -> b
 def _workflow_cost_summary(node_runs: list[WorkflowNodeRun]) -> dict[str, int]:
     credits = sum(node.credit_cost for node in node_runs)
     return {"credits": credits} if credits > 0 else {}
+
+
+async def _precheck_workflow_ai_check(user_id: str) -> None:
+    try:
+        await ensure_credit_headroom(
+            user_id=user_id,
+            estimated_credits=1,
+            operation_name="workflow AI Check",
+            log_prefix="[WorkflowAiCheckBilling]",
+        )
+    except BillingError as exc:
+        raise WorkflowSkillBillingError(
+            "INSUFFICIENT_CREDITS",
+            "Insufficient credits for this workflow AI Check",
+        ) from exc
+
+
+async def _charge_workflow_ai_check(
+    *,
+    user_id: str,
+    context: dict[str, Any],
+    node_id: str,
+    decision_path: str,
+) -> int:
+    """Settle one normal AI credit once a provider returned a usable decision."""
+    if decision_path not in {"bounded_decision_primary", "structured_generative_fallback"}:
+        return 0
+    execution = context.get("workflow") or {}
+    workflow_id = execution.get("workflow_id")
+    run_id = execution.get("run_id")
+    source = "workflow_test" if execution.get("step_test") else "workflow"
+    if not all(isinstance(value, str) and value for value in (workflow_id, run_id, node_id)):
+        raise WorkflowSkillBillingError(
+            "WORKFLOW_BILLING_INVALID_CONTEXT",
+            "Workflow AI Check billing context is invalid",
+        )
+    operation_id = str(
+        uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            f"openmates:workflow-billing:{workflow_id}:{run_id}:{node_id}:ai:workflow-check:0",
+        )
+    )
+    model_used = (
+        "typesafe/jev-1.13"
+        if decision_path == "bounded_decision_primary"
+        else "google/gemini-3.8-flash"
+    )
+    try:
+        from backend.core.api.app.routes import apps_api
+
+        charge_result = await apps_api.charge_credits_via_internal_api(
+            user_id=user_id,
+            user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+            credits=1,
+            app_id="ai",
+            skill_id="workflow-check",
+            usage_details={
+                "source": source,
+                "units_processed": 1,
+                "model_used": model_used,
+                "server_provider": "OpenRouter" if decision_path == "bounded_decision_primary" else "Google",
+                "server_region": "global" if decision_path == "bounded_decision_primary" else "US",
+                "decision_path": decision_path,
+                "operation_id": operation_id,
+            },
+            idempotency_key=operation_id,
+            raise_on_error=True,
+        )
+        actual_credits = charge_result.get("charged_credits") if isinstance(charge_result, dict) else None
+        if not isinstance(actual_credits, int) or actual_credits < 0:
+            raise RuntimeError("Billing response did not include charged credits")
+        return actual_credits
+    except WorkflowSkillBillingError:
+        raise
+    except Exception as exc:
+        response = getattr(exc, "response", None)
+        code = "INSUFFICIENT_CREDITS" if getattr(response, "status_code", None) == 402 else "WORKFLOW_BILLING_UNAVAILABLE"
+        message = (
+            "Insufficient credits for this workflow AI Check"
+            if code == "INSUFFICIENT_CREDITS"
+            else "Workflow AI Check billing could not be completed"
+        )
+        raise WorkflowSkillBillingError(code, message) from exc
 
 
 def _execute_repeat_control(node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
