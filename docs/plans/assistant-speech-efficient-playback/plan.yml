@@ -83,6 +83,8 @@ decisions:
       zero-credit increment is still recorded as settled. Group segment charges
       into one message total in usage UI. This changes the existing one-row
       contract and needs a reviewed Specification update before implementation.
+      Treat existing committed aggregate usage as already settled during rollout
+      so replay and retry cannot charge historical segments again.
     reason: Waiting for every paragraph to finish cannot promptly settle a response whose later paragraphs may never be requested.
     decided_at: '2026-09-24'
 
@@ -128,11 +130,11 @@ scenarios:
 
 implementation:
   - Amend feature.assistant-response-speech examples and assertions for Close/Stop cancellation, demand-driven generation, pending cue, pace, and incremental billing; get the exact Specification approval required by the existing product workflow.
-  - Measure short/long paragraph provider and asset-ready latency, and paired audible pace for a few mate voices and languages without logging text. Pick a supported speed strategy and a lead time from that evidence.
+  - Verify the current model and REST endpoint are compatible, then measure short/long paragraph provider and asset-ready latency and paired audible pace for a few mate voices and languages without logging text. Pick a supported speed strategy and a lead time from that evidence.
   - Add an owner-scoped, idempotent dispatch action for one registered segment. For streamed auto-speak, retain only bounded transient plaintext until playback asks for it; a reload may reproject from the owner's decrypted message through the existing request path. Reject stale source hashes, voice versions, or superseded messages.
   - Drive dispatch from queue playback time and explicit chapter selection; use ready-asset reuse, one-ahead prefetch, backpressure, and cancellation of unclaimed work. Preserve the existing first-segment and autoplay behavior.
   - Add the pending cue with a single lifecycle owner, then tune it in component preview for mobile and desktop and in browser playback tests.
-  - Add a durable incremental billing ledger and idempotent internal charge identities. Reconcile provider-success/asset-ready, retries, stop, crash-after-charge, and delayed billing failures. Keep failed, cached, and prerecorded clips free; flag unsettled ready segments for repair.
+  - Add a durable incremental billing ledger and idempotent internal charge identities. Reconcile provider-success/asset-ready, retries, stop, crash-after-charge, historical committed aggregates, and delayed billing failures. Keep failed, cached, and prerecorded clips free; flag unsettled ready segments for repair.
   - Report segment dispatch count, cancelled-before-dispatch count, latency to ready, paragraph transition gap, and billed-vs-ready character totals without plaintext or default user identifiers. Compare provider calls and billed credits before and after on short-listening scenarios.
 
 acceptance_criteria:
@@ -192,7 +194,7 @@ tests:
     type: pytest
     file: backend/tests/test_assistant_speech_worker.py
     command: python3 -m pytest backend/tests/test_assistant_speech_worker.py -q
-    assertions: [per-segment idempotency, cumulative rounding, cancellation, retry, crash recovery]
+    assertions: [per-segment idempotency, cumulative rounding, cancellation, retry, crash recovery, historical aggregate migration]
     covers: [AC-3]
     red_phase: {required: false, expected: not_applicable, evidence: {}}
     green_phase: {required: true, expected: pass, evidence: {}}
