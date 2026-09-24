@@ -79,6 +79,33 @@ final class ChatHistoryMacParityUITests: XCTestCase {
         attachScreenshot(name: "macOS welcome composer collapsed after dismissal")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testTwoLineWelcomeDraftStaysAboveComposerActions() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat", "-AppleLanguages", "(en)"]
+        app.launch()
+
+        let field = element(in: app, identifier: "message-field")
+        let editor = element(in: app, identifier: "message-editor")
+        let actions = element(in: app, identifier: "action-buttons")
+        XCTAssertTrue(field.waitForExistence(timeout: 12), app.debugDescription)
+        XCTAssertTrue(editor.waitForExistence(timeout: 8))
+        editor.click()
+        XCTAssertTrue(actions.waitForExistence(timeout: 5))
+
+        editor.typeText("Please reply with one short sentence for a macOS background notification\ntest.")
+        let secondLine = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value CONTAINS %@", "test."),
+            object: editor
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [secondLine], timeout: 5), .completed)
+        XCTAssertGreaterThanOrEqual(editor.frame.height, 2 * 25.6 + 28 - 4)
+        XCTAssertLessThanOrEqual(editor.frame.maxY, actions.frame.minY + 2,
+                                 "Both text lines must stay above the composer action row")
+        XCTAssertGreaterThanOrEqual(field.frame.height, editor.frame.height + 60 - 4)
+        attachScreenshot(name: "macOS two-line draft above composer actions")
+    }
+
     private func launchFixture() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [

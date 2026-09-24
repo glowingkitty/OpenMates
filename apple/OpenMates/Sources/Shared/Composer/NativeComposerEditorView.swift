@@ -139,6 +139,10 @@ struct NativeComposerEditorView: NSViewRepresentable {
             width: .spacing6,
             height: MessageComposerMetric.editorVerticalInset
         )
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.heightTracksTextView = false
         let scrollView = NSScrollView()
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = false
@@ -159,6 +163,11 @@ struct NativeComposerEditorView: NSViewRepresentable {
         return scrollView
     }
 
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
+        guard let width = proposal.width else { return nil }
+        return CGSize(width: width, height: resolvedHeight(for: nsView, width: width))
+    }
+
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         context.coordinator.onFocusChange = { isFocused.wrappedValue = $0 }
@@ -169,6 +178,9 @@ struct NativeComposerEditorView: NSViewRepresentable {
         // host receives a click and sets its focus binding.
         textView.isSelectable = isFocused.wrappedValue
         textView.isEditable = isEditable && isFocused.wrappedValue
+        if scrollView.bounds.width > 0 {
+            publishMeasuredHeight(resolvedHeight(for: scrollView, width: scrollView.bounds.width))
+        }
         if let window = textView.window {
             if isFocused.wrappedValue {
                 if window.firstResponder !== textView {
@@ -177,6 +189,34 @@ struct NativeComposerEditorView: NSViewRepresentable {
             } else if window.firstResponder === textView {
                 window.makeFirstResponder(nil)
             }
+        }
+    }
+
+    private func resolvedHeight(for scrollView: NSScrollView, width: CGFloat) -> CGFloat {
+        guard let textView = scrollView.documentView as? NSTextView else { return 0 }
+        let editorWidth = max(1, width)
+        if abs(textView.frame.width - editorWidth) > 0.5 {
+            textView.setFrameSize(NSSize(width: editorWidth, height: max(1, textView.frame.height)))
+        }
+        if let layoutManager = textView.textLayoutManager,
+           let documentRange = textView.textContentStorage?.documentRange {
+            layoutManager.ensureLayout(for: documentRange)
+        }
+        let lineHeight = textView.textLayoutManager?.usageBoundsForTextContainer.height ?? 0
+        let contentHeight = max(MessageComposerMetric.editorLineHeight, lineHeight)
+            + (textView.textContainerInset.height * 2)
+        if abs(textView.frame.height - contentHeight) > 0.5 {
+            textView.setFrameSize(NSSize(width: editorWidth, height: contentHeight))
+        }
+        let containsEmbed = session.controller.document.nodes.contains { $0.kind == "embed" }
+        return MessageComposerMetric.editorHeight(for: contentHeight, containsEmbed: containsEmbed)
+    }
+
+    private func publishMeasuredHeight(_ height: CGFloat) {
+        guard abs(measuredHeight.wrappedValue - height) > 0.5 else { return }
+        DispatchQueue.main.async {
+            guard abs(measuredHeight.wrappedValue - height) > 0.5 else { return }
+            measuredHeight.wrappedValue = height
         }
     }
 

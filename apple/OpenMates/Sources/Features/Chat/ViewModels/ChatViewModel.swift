@@ -31,6 +31,8 @@ struct ChatStreamingLifecycleState: Equatable {
     var messageId: String?
     var userMessageId: String?
     var preprocessingStep: String?
+    var selectedMateCategory: String?
+    var selectedMateName: String?
     var thinkingContent = ""
     var isThinkingStreaming = false
     var queuedMessageText: String?
@@ -66,14 +68,20 @@ struct ChatStreamingLifecycleState: Equatable {
             phase = .sending
             errorMessage = nil
 
-        case .preprocessingStep(let chatId, let step, _):
+        case .preprocessingStep(let chatId, let step, let data):
             self.chatId = chatId
             preprocessingStep = step
+            if step == "mate_selected" {
+                selectedMateCategory = data?["mate_category"] as? String
+                selectedMateName = data?["mate_name"] as? String
+            }
             phase = .processing
 
         case .typingStarted(let chatId, let messageId, let metadata):
             self.chatId = chatId
             self.messageId = messageId
+            selectedMateCategory = metadata?.category
+            selectedMateName = nil
             if let userMessageId = metadata?.userMessageId, !userMessageId.isEmpty {
                 self.userMessageId = userMessageId
             }
@@ -97,7 +105,7 @@ struct ChatStreamingLifecycleState: Equatable {
                 phase = .typing
             }
 
-        case .chunk(let chatId, let messageId, let sequence, _, let isFinal, let userMessageId, _, _, _):
+        case .chunk(let chatId, let messageId, let sequence, _, let isFinal, let userMessageId, let category, _, _):
             guard !completedMessageIds.contains(messageId) else { return false }
             if !isFinal {
                 if let lastSequence = lastSequenceByMessageId[messageId], sequence <= lastSequence {
@@ -107,6 +115,7 @@ struct ChatStreamingLifecycleState: Equatable {
             }
             self.chatId = chatId
             self.messageId = messageId
+            if let category { selectedMateCategory = category }
             if let userMessageId, !userMessageId.isEmpty {
                 self.userMessageId = userMessageId
             }

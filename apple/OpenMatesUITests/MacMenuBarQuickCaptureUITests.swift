@@ -149,13 +149,66 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         XCTAssertEqual(app.windows.count, 1)
         app.windows.firstMatch.typeKey("n", modifierFlags: [.command, .shift])
         XCTAssertTrue(waitForWindowCount(2, in: app), "File > New Chat must create a new window")
-        XCTAssertTrue(element(in: app, identifier: "message-editor").waitForExistence(timeout: 10))
+        let newWindow = try XCTUnwrap((0..<2).map { app.windows.element(boundBy: $0) }
+            .first { $0.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5) })
+        let field = element(in: newWindow, identifier: "message-field")
+        let editor = element(in: newWindow, identifier: "message-editor")
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertLessThan(field.frame.height, newWindow.frame.height / 2,
+                          "New Chat must start with the normal composer height")
+        XCTAssertTrue(element(in: newWindow, identifier: "composer-attachment-toggle").isHittable)
+        XCTAssertTrue(element(in: newWindow, identifier: "composer-model-selector").isHittable)
+        let fullscreen = newWindow.buttons["message-input-fullscreen-button"]
+        XCTAssertTrue(fullscreen.isHittable)
         app.typeText("Window focus proof")
         XCTAssertTrue(
-            app.textViews.matching(NSPredicate(format: "value CONTAINS %@", "Window focus proof"))
+            newWindow.textViews.matching(NSPredicate(format: "value CONTAINS %@", "Window focus proof"))
                 .firstMatch.exists,
             "The new window's composer must receive keyboard input without another click"
         )
+
+        fullscreen.click()
+        XCTAssertGreaterThan(field.frame.height, newWindow.frame.height / 2)
+        app.typeText(" expanded")
+        fullscreen.click()
+        XCTAssertLessThan(field.frame.height, newWindow.frame.height / 2)
+        app.typeText(" shrunk")
+        XCTAssertTrue(newWindow.textViews.matching(
+            NSPredicate(format: "value CONTAINS %@", "Window focus proof expanded shrunk")
+        ).firstMatch.exists, "Expand and shrink must preserve the editor's insertion focus")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.focus.parent-state
+    func testClosingChatReturnsToIdleWorkspaceLanding() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "-AppleLanguages", "(en)"]
+        app.launchEnvironment["UI_TEST_AUTHENTICATED_CHAT_NAVIGATION"] = "1"
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["chat-header-title"].waitForExistence(timeout: 15))
+        app.typeKey("n", modifierFlags: [.command, .shift])
+        XCTAssertTrue(waitForWindowCount(2, in: app))
+        let newWindow = try XCTUnwrap((0..<2).map { app.windows.element(boundBy: $0) }
+            .first { $0.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5) })
+        newWindow.buttons["sidebar-toggle"].click()
+        XCTAssertTrue(newWindow.staticTexts["Current Chat"].waitForExistence(timeout: 5))
+        newWindow.staticTexts["Current Chat"].click()
+
+        let close = element(in: newWindow, identifier: "chat-close-button")
+        XCTAssertTrue(close.waitForExistence(timeout: 15))
+        close.click()
+
+        let field = element(in: newWindow, identifier: "message-field")
+        XCTAssertTrue(element(in: newWindow, identifier: "new-chat-suggestions").waitForExistence(timeout: 10))
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(field.frame.height, 64,
+                                 "Closing a chat must leave the workspace composer collapsed")
+        XCTAssertFalse(newWindow.buttons["message-input-fullscreen-button"].exists)
+        XCTAssertFalse(element(in: newWindow, identifier: "action-buttons").exists)
+        newWindow.typeKey("x", modifierFlags: [])
+        XCTAssertFalse(newWindow.textViews.matching(NSPredicate(format: "value CONTAINS %@", "x"))
+            .firstMatch.exists, "Closing a chat must not place insertion focus in the composer")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.draft-only.addressable
@@ -206,7 +259,7 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         return app
     }
 
-    private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {
+    private func element(in app: XCUIElement, identifier: String) -> XCUIElement {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
             .firstMatch

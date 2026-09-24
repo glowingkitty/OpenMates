@@ -8,6 +8,8 @@
 // Assertions: issue-reporting.entry.device-shake
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.idempotent-visible
 // Specification: specifications/features/chat-navigation/specification.yml
 // Assertions: chat-navigation.order.sidebar-header-match, chat-navigation.draft-only.addressable, chat-navigation.empty-new-chat.excluded, chat-navigation.open.local-first-coherent
 // Specification: specifications/architecture/drafts/specification.yml
@@ -121,6 +123,15 @@ enum NativeClientLifecyclePolicy {
             return false
         @unknown default:
             return false
+        }
+    }
+
+    static func isMacForeground(_ phase: ScenePhase, appIsActive: Bool) -> Bool {
+        guard appIsActive else { return false }
+        switch phase {
+        case .active, .inactive: return true
+        case .background: return false
+        @unknown default: return false
         }
     }
 }
@@ -591,6 +602,11 @@ struct MainAppView: View {
         .onChange(of: showSettings, showSettingsDidChange)
         .onChange(of: scenePhase, scenePhaseDidChange)
         .onChange(of: wsManager.connectionState, websocketConnectionStateDidChange)
+        #if os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+            sendNativeClientLifecycle(isForeground: false)
+        }
+        #endif
     }
 
     private var shellWithOverlays: some View {
@@ -918,7 +934,11 @@ struct MainAppView: View {
 
     private func scenePhaseDidChange(_ oldValue: ScenePhase, _ newValue: ScenePhase) {
         guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+        #if os(macOS)
+        let isCompletionCapable = NativeClientLifecyclePolicy.isMacForeground(newValue, appIsActive: NSApp.isActive)
+        #else
         let isCompletionCapable = NativeClientLifecyclePolicy.isCompletionCapable(newValue)
+        #endif
         if isCompletionCapable {
             sendNativeClientForegroundAndActiveChat()
         } else {
@@ -950,7 +970,12 @@ struct MainAppView: View {
                 await flushQueuedNotificationReplies()
             }
         }
-        if NativeClientLifecyclePolicy.isCompletionCapable(scenePhase) {
+        #if os(macOS)
+        let isCompletionCapable = NativeClientLifecyclePolicy.isMacForeground(scenePhase, appIsActive: NSApp.isActive)
+        #else
+        let isCompletionCapable = NativeClientLifecyclePolicy.isCompletionCapable(scenePhase)
+        #endif
+        if isCompletionCapable {
             sendNativeClientForegroundAndActiveChat()
         } else {
             sendNativeClientLifecycle(isForeground: false)
@@ -984,6 +1009,13 @@ struct MainAppView: View {
         openNewChatScreen()
         incognitoManager.isEnabled = incognito
         newChatFocusRequest += 1
+    }
+
+    private func closeChatToWorkspaceLanding() {
+        // A focus request from an earlier New Chat window must not replay when
+        // the welcome view is mounted again after closing an existing chat.
+        newChatFocusRequest = 0
+        openNewChatScreen()
     }
 
     private func openNewChatRecordingScreen() {
@@ -1836,7 +1868,7 @@ struct MainAppView: View {
                     settingsShareChatId = nil
                     showSettings = true
                 } : nil,
-                onCloseChat: openNewChatScreen,
+                onCloseChat: closeChatToWorkspaceLanding,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
@@ -1871,7 +1903,7 @@ struct MainAppView: View {
                 initialEmbedId: pendingExternalEmbedOpen?.chatId == chatId ? pendingExternalEmbedOpen?.embedId : nil,
                 isSettingsOpen: currentViewportWidth > 1100 && showSettings,
                 onShareChat: { sharePublicChat(chatId) },
-                onCloseChat: openNewChatScreen,
+                onCloseChat: closeChatToWorkspaceLanding,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
@@ -2887,12 +2919,10 @@ struct MainAppView: View {
                 payload: ["is_foreground": isForeground]
             ))
         } catch {
-            if isForeground {
-                NativeDiagnostics.warning(
-                    "Failed to announce native foreground state: \(type(of: error))",
-                    category: "app_lifecycle"
-                )
-            }
+            NativeDiagnostics.warning(
+                "Failed to announce native \(isForeground ? "foreground" : "background") state: \(type(of: error))",
+                category: "app_lifecycle"
+            )
         }
     }
 
@@ -7132,7 +7162,7 @@ struct NewChatWelcomeView: View {
         }
         isGuestInterestSelectionActive = false
         isComposerActivated = true
-        isComposerExpanded = true
+        isComposerExpanded = false
         Task { @MainActor in
             await Task.yield()
             isFocused = true
@@ -8682,7 +8712,12 @@ private struct WelcomeComposer: View {
                 if overlayContent == nil && isOpen {
                     Button {
                         isExpanded.toggle()
-                        isFocused = false
+                        // The field changes size, but the existing insertion point
+                        // remains active after AppKit handles the button click.
+                        Task { @MainActor in
+                            await Task.yield()
+                            isFocused = true
+                        }
                     } label: {
                         Icon(isExpanded ? "minimize" : "fullscreen", size: 20)
                             .foregroundStyle(LinearGradient.primary)
