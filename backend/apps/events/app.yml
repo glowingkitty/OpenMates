@@ -128,16 +128,19 @@ skills:
         id: resident_advisor
         scope: global
         no_api_key: true
+        routing_description: Electronic music, DJs, clubs, raves, and nightlife events in supported cities.
       - name: Siegessäule
         id: siegessaeule
         scope: city
         region: Berlin
         no_api_key: true
+        routing_description: Berlin LGBTQ+ and queer community events.
       - name: Berlin Philharmonic
         id: berlin_philharmonic
         scope: city
         region: Berlin
         no_api_key: true
+        routing_description: Classical, orchestral, chamber, and piano concerts in Berlin.
       - name: GPN24
         id: pretalx
         scope: conference

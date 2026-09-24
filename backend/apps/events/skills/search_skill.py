@@ -40,6 +40,7 @@ from datetime import datetime
 import logging
 import os
 import re
+import time
 import unicodedata
 import yaml
 from typing import Any, Dict, List, Optional, Tuple
@@ -58,7 +59,12 @@ from backend.apps.events.providers import pretalx as pretalx_provider
 from backend.apps.events.providers import resident_advisor as ra_provider
 from backend.apps.events.providers import siegessaeule as siegessaeule_provider
 from backend.apps.events.providers.registry import filter_providers
+from backend.apps.events.skills.provider_routing import (
+    deterministic_auto_providers,
+    select_ambiguous_specialists,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.providers.serpapi import get_serpapi_key_async
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS,
     normalize_relevance_criteria,
@@ -152,6 +158,11 @@ _DEFAULT_COUNT = 10
 # from each provider so we have enough after deduplication. Fetch 2x count per
 # provider, then merge + deduplicate + slice to count.
 _AUTO_PROVIDER_MULTIPLIER = 2
+
+# Leave room within the outer 20-second skill deadline for optional ranking,
+# finalist enrichment, and inherited output safety.
+_PROVIDER_WORK_DEADLINE_SECONDS = 6.0
+_FINALIST_ENRICHMENT_DEADLINE_SECONDS = 2.0
 
 # Location-free online discovery is supported only by providers whose public
 # search contracts do not require a city or coordinates.
@@ -894,6 +905,28 @@ class SearchSkill(BaseSkill):
             logger.warning("Meetup search failed for query=%r: %s", query, exc)
             return [], 0, str(exc)
 
+    async def _search_meetup_with_location(
+        self,
+        *,
+        location_str: str,
+        lat: Optional[float],
+        lon: Optional[float],
+        city: str,
+        country: str,
+        **kwargs: Any,
+    ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
+        """Resolve uncached Meetup coordinates off the event loop, for Meetup only."""
+        if lat is None or lon is None:
+            try:
+                lat, lon, city, country = await asyncio.to_thread(
+                    meetup_provider.resolve_location, location_str,
+                )
+            except ValueError as exc:
+                return [], 0, f"Location resolution failed: {exc}"
+        return await self._search_meetup(
+            lat=lat, lon=lon, city=city, country=country, **kwargs,
+        )
+
     async def _search_luma(
         self,
         query: str,
@@ -916,8 +949,9 @@ class SearchSkill(BaseSkill):
                 city=location_str,
                 query=query,
                 count=count,
-                fetch_descriptions=True,
+                fetch_descriptions=False,
                 proxy_url=proxy_url,
+                geocode_venues=False,
             )
             return events, total, None
         except ValueError:
@@ -991,6 +1025,7 @@ class SearchSkill(BaseSkill):
                 query=provider_query,
                 count=count,
                 proxy_url=proxy_url,
+                fetch_descriptions=False,
             )
             return events, total, None
         except Exception as exc:
@@ -1335,18 +1370,16 @@ class SearchSkill(BaseSkill):
                         0,
                         searched_provider_ids,
                     )
-                try:
+                lookup_key = location_str.lower().split(",")[0].strip()
+                if lookup_key in meetup_provider.CITY_COORDS:
                     lat, lon, city, country = meetup_provider.resolve_location(location_str)
-                except ValueError as exc:
-                    # Location cannot be resolved for Meetup geocoder.
-                    # If provider is location-text based only, we don't need Meetup coordinates.
-                    if provider_choice in {"luma", "eventbrite", "pretalx"}:
-                        lat, lon = 0.0, 0.0
-                    else:
-                        return (request_id, [], f"Location resolution failed: {exc}", 0, searched_provider_ids)
+                else:
+                    # Text-based providers may run while Meetup resolves this
+                    # unfamiliar city in a worker thread.
+                    city = location_str
 
         # Use provided location string as city for Luma if city wasn't set by geocoder.
-        luma_city = city or location_str
+        luma_city = city or location_str.split(",", 1)[0].strip()
 
         # --- Optional parameters ---
         start_date: Optional[str] = req.get("start_date")
@@ -1369,8 +1402,9 @@ class SearchSkill(BaseSkill):
         # --- Execute provider(s) ---
         if provider_choice == "meetup":
             # Meetup only
-            meetup_events, total, meetup_err = await self._search_meetup(
+            meetup_events, total, meetup_err = await self._search_meetup_with_location(
                 query=query,
+                location_str=location_str,
                 lat=lat,
                 lon=lon,
                 city=city,
@@ -1505,8 +1539,33 @@ class SearchSkill(BaseSkill):
                     for provider_id in applicable_ids
                     if provider_id in _LOCATION_FREE_ONLINE_PROVIDERS
                 ]
+            if not requested_providers:
+                # These specialists have no location-free online inventory.
+                if event_type == "ONLINE":
+                    applicable_ids = [
+                        pid for pid in applicable_ids
+                        if pid not in {"resident_advisor", "siegessaeule", "berlin_philharmonic"}
+                    ]
+                if luma_city:
+                    try:
+                        luma_provider.resolve_city(luma_city)
+                    except ValueError:
+                        applicable_ids = [pid for pid in applicable_ids if pid != "luma"]
+                    try:
+                        ra_provider._resolve_area_id(luma_city)
+                    except ValueError:
+                        applicable_ids = [pid for pid in applicable_ids if pid != "resident_advisor"]
+                else:
+                    applicable_ids = [
+                        pid for pid in applicable_ids if pid not in {"luma", "resident_advisor"}
+                    ]
+                immediate_ids, ambiguous_ids = deterministic_auto_providers(
+                    query=query, eligible_ids=applicable_ids,
+                )
+            else:
+                immediate_ids, ambiguous_ids = applicable_ids, []
             if relevance_criteria:
-                provider_count = max(1, len(applicable_ids))
+                provider_count = max(1, len(immediate_ids))
                 per_provider_count = max(
                     count,
                     (candidate_target + provider_count - 1) // provider_count,
@@ -1515,14 +1574,15 @@ class SearchSkill(BaseSkill):
                 per_provider_count = count * _AUTO_PROVIDER_MULTIPLIER
 
             logger.info(
-                "Auto mode for request %s: %d applicable providers for city=%r: %s",
-                request_id, len(applicable_ids), luma_city, applicable_ids,
+                "Event provider routing request=%s city=%r eligible=%s immediate=%s ambiguous=%s",
+                request_id, luma_city, applicable_ids, immediate_ids, ambiguous_ids,
             )
 
             # Build dispatch: provider ID → coroutine (each has different params)
             dispatch = {
-                "meetup": lambda: self._search_meetup(
-                    query=query, lat=lat, lon=lon, city=city, country=country,
+                "meetup": lambda: self._search_meetup_with_location(
+                    query=query, location_str=location_str,
+                    lat=lat, lon=lon, city=city, country=country,
                     start_date=start_date, end_date=end_date, event_type=event_type,
                     radius_miles=radius_miles, count=per_provider_count, proxy_url=proxy_url,
                 ),
@@ -1562,17 +1622,68 @@ class SearchSkill(BaseSkill):
             }
 
             if (
-                "pretalx" not in applicable_ids
+                "pretalx" not in immediate_ids
                 and pretalx_provider.is_conference_query(query, luma_city)
             ):
-                applicable_ids.append("pretalx")
+                immediate_ids.append("pretalx")
 
-            # Execute only applicable providers in parallel
+            # Start general and deterministic specialist searches immediately.
+            # Credential lookup and ambiguous Jev routing run alongside them.
+            key_task = None
+            if not requested_providers and "google_events" in immediate_ids:
+                immediate_ids.remove("google_events")
+                key_task = asyncio.create_task(get_serpapi_key_async(secrets_manager))
+            routing_task = (
+                asyncio.create_task(select_ambiguous_specialists(
+                    query=query,
+                    location=luma_city,
+                    event_type=event_type,
+                    candidates=ambiguous_ids,
+                    provider_metadata=self._providers_meta,
+                    secrets_manager=secrets_manager,
+                ))
+                if ambiguous_ids else None
+            )
+            provider_started = time.monotonic()
+
+            async def run_provider(pid: str) -> tuple[List[Dict[str, Any]], int, Optional[str]]:
+                started = time.monotonic()
+                try:
+                    return await dispatch[pid]()
+                finally:
+                    logger.info(
+                        "Event provider completed request=%s provider=%s latency_ms=%.1f",
+                        request_id, pid, (time.monotonic() - started) * 1000,
+                    )
+
             task_entries = [
-                (pid, dispatch[pid]())
-                for pid in applicable_ids
-                if pid in dispatch
+                (pid, asyncio.create_task(run_provider(pid)))
+                for pid in immediate_ids if pid in dispatch
             ]
+            decision_tasks = [task for task in (key_task, routing_task) if task]
+            if decision_tasks:
+                completed_decisions, pending_decisions = await asyncio.wait(
+                    decision_tasks, timeout=0.9,
+                )
+                for pending_decision in pending_decisions:
+                    pending_decision.cancel()
+                if pending_decisions:
+                    await asyncio.gather(*pending_decisions, return_exceptions=True)
+                if key_task:
+                    try:
+                        if key_task in completed_decisions and key_task.result():
+                            task_entries.append((
+                                "google_events", asyncio.create_task(run_provider("google_events")),
+                            ))
+                        else:
+                            logger.info("Google Events skipped: SerpAPI credential unavailable or check timed out")
+                    except Exception as exc:
+                        logger.warning("Google Events credential check failed: %s", exc)
+                if routing_task and routing_task in completed_decisions:
+                    for pid in routing_task.result():
+                        if pid in dispatch and pid not in immediate_ids:
+                            task_entries.append((pid, asyncio.create_task(run_provider(pid))))
+
             searched_provider_ids = [pid for pid, _ in task_entries]
 
             if not task_entries:
@@ -1583,12 +1694,28 @@ class SearchSkill(BaseSkill):
                 )
                 return (request_id, [], error, 0, [])
 
-            results_tuples = await asyncio.gather(*[t[1] for t in task_entries])
+            remaining = max(
+                0.0, _PROVIDER_WORK_DEADLINE_SECONDS - (time.monotonic() - provider_started),
+            )
+            done, pending = await asyncio.wait(
+                [task for _, task in task_entries], timeout=remaining,
+            )
+            for pending_task in pending:
+                pending_task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
 
             # Log errors, collect results
             all_event_lists = []
             total_available = 0
-            for (pid, _), (events, total, err) in zip(task_entries, results_tuples):
+            for pid, task in task_entries:
+                if task not in done:
+                    events, total, err = [], 0, "provider deadline exceeded"
+                else:
+                    try:
+                        events, total, err = task.result()
+                    except Exception as exc:
+                        events, total, err = [], 0, str(exc)
                 if err:
                     logger.warning(
                         "%s failed in auto mode for request %s: %s", pid, request_id, err
@@ -1694,6 +1821,7 @@ class SearchSkill(BaseSkill):
                         "relevance_floor"
                     )
         results = results[:count]
+        await self._enrich_finalists(results, proxy_url=proxy_url)
         if quality_metadata.get("filtered_out_count"):
             logger.info(
                 "Events quality filters removed %d result(s) for request %s: %s",
@@ -1711,6 +1839,40 @@ class SearchSkill(BaseSkill):
             query,
         )
         return (request_id, results, None, total_available, searched_provider_ids, provider_warnings)
+
+    @staticmethod
+    async def _enrich_finalists(
+        results: List[Dict[str, Any]],
+        *,
+        proxy_url: Optional[str],
+    ) -> None:
+        """Hydrate only selected events, with a deadline below the skill guard."""
+        luma_events = [event for event in results if event.get("provider") == "luma"]
+        eventbrite_events = [event for event in results if event.get("provider") == "eventbrite"]
+        if not luma_events and not eventbrite_events:
+            return
+        tasks = []
+        if luma_events:
+            tasks.append(luma_provider.enrich_events_async(
+                luma_events, proxy_url=proxy_url,
+            ))
+        if eventbrite_events:
+            tasks.append(eventbrite_provider.enrich_events_async(
+                eventbrite_events, proxy_url=proxy_url,
+            ))
+        try:
+            outcomes = await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True),
+                timeout=_FINALIST_ENRICHMENT_DEADLINE_SECONDS,
+            )
+            for outcome in outcomes:
+                if isinstance(outcome, Exception):
+                    logger.warning("Event finalist enrichment failed: %s", outcome)
+        except asyncio.TimeoutError:
+            logger.info("Event finalist enrichment reached its %.1fs deadline", _FINALIST_ENRICHMENT_DEADLINE_SECONDS)
+        finally:
+            for event in luma_events:
+                event.pop("_url_slug", None)
 
     # ------------------------------------------------------------------
     # Public execute() — called by BaseApp/route handler

@@ -188,7 +188,7 @@ specifications:
     version: 1
     status: approved
     path: features/app-skills/events-search
-    fingerprint: 0ecb59441bcd0ff6f059202b2e959ca669603fb8d90aedb4dbab7549035ef418
+    fingerprint: 70ee6809e34d2cf4894c9c410a3eea6db2fc5726c802c7332afb68263a378cb2
     required_applies_to:
     - rest_api
     - cli
@@ -2655,7 +2655,19 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: 59821063fe24045f6f9e6f23a93ee7afec28349e7a3a92f8370ec15a4f7302be
+    fingerprint: b943a2c5701a57f6e21c9871782319059f4a22ced465f3e1721ec48e8ffedb03
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.providers.auto-relevance:
+    specification: feature.app-skill.events-search@1
+    specification_id: feature.app-skill.events-search
+    type: behavior
+    fingerprint: bfbe8a0d08a4313ed01bbad517b65add10365d3b9415413319de25f3c89725c5
     required_applies_to:
     - rest_api
     - cli
@@ -2679,7 +2691,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: bb50fc9b112218080e3c5bc60c52c42c9c85af213e0f720d1a155624c6db9aee
+    fingerprint: 9758727eb9920122a67e0ff7407e5f3bc02676cbb6b1d6407cf288422bdceadc
     required_applies_to:
     - rest_api
     - cli
@@ -2723,6 +2735,18 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  events-search.enrichment.deferred:
+    specification: feature.app-skill.events-search@1
+    specification_id: feature.app-skill.events-search
+    type: behavior
+    fingerprint: d94f93f076f8af74bbf47d9864eee771194a0e77c67b9eb79ea0f7ca708b9430
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   events-search.conference.supported:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
@@ -2751,7 +2775,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: aa3a2416881c5b22b39625f214f9c59e09fad823efb5c68d3495ab97610d264d
+    fingerprint: 628020562f4a505c6ccc7ae50a90ede54a6770b19efebad9c458789fe1de111b
     required_applies_to:
     - rest_api
     - cli
@@ -2763,7 +2787,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: parity
-    fingerprint: 59abc574c03ab133ba40978fa6829619e808c6afb418a3940713fcaa65bc42b1
+    fingerprint: 6f9d611e88883d84e61ca874e9b43ec5548b6b866a60d4941ec91985c33dae17
     required_applies_to:
     - rest_api
     - cli

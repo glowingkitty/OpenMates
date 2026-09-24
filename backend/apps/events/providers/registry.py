@@ -21,12 +21,11 @@ from typing import Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 # All known provider IDs — used for backward-compat validation.
-# Siegessäule temporarily excluded from auto-select: its 25s proxy timeout
-# exceeds the 20s skill executor timeout, causing the entire search to fail
-# with ReadTimeout when the proxy is slow. Re-enable after OPE-XXX fixes
-# the timeout hierarchy and makes Siegessäule opt-in for LGBTQ+ queries only (OPE-301).
+# Siegessäule is selected only by auto specialist routing or explicit request.
+# The skill's provider-work deadline protects the batch from its slow proxy path.
 _VALID_PROVIDER_IDS = frozenset({
-    "meetup", "luma", "eventbrite", "google_events", "resident_advisor", "berlin_philharmonic", "pretalx",
+    "meetup", "luma", "eventbrite", "google_events", "resident_advisor",
+    "siegessaeule", "berlin_philharmonic", "pretalx",
 })
 
 # Map display names (from app.yml "name" field) to internal provider IDs.
@@ -87,6 +86,9 @@ def filter_providers(
             name = (meta.get("name") or "").lower()
             pid = _NAME_TO_ID.get(name)
         if not pid or pid not in _VALID_PROVIDER_IDS:
+            continue
+
+        if meta.get("available") is False:
             continue
 
         scope = meta.get("scope", "global")

@@ -16,14 +16,26 @@ requests:
 
 provider_routing:
   - id: explicit-eventbrite
-    input: {provider: Eventbrite, requests: [{query: technology, location: Berlin}]}
-    expect: {queried_providers: [eventbrite], auto_fallback: false}
+    given: Alice explicitly asks to search Eventbrite for technology events in Berlin.
+    when: The request is routed with Eventbrite selected.
+    then: Only Eventbrite is queried, semantic provider routing is not invoked, and a provider failure does not silently broaden the search to auto mode.
+    assertion_ids: [events-search.providers.explicit]
   - id: unknown-provider
     input: {provider: Unknown, requests: [{query: technology, location: Berlin}]}
     expect_error: {visible: true, auto_fallback: false}
   - id: queried-without-hits
     input: {providers: [Meetup, Luma], requests: [{query: uncommon topic, location: Berlin}]}
     expect: {providers_include: [meetup, luma]}
+  - id: deterministic-and-ambiguous-auto-routing
+    given: Alice submits two auto searches without naming platforms, one for AI meetups in Berlin and one for an underground dance gathering whose specialist relevance is unclear.
+    when: Both requests pass deterministic provider eligibility and topic checks.
+    then: The AI request uses general event sources without unrelated specialists, while the ambiguous request may use one bounded semantic decision that scores only eligible specialist sources and cannot add a provider outside the request's region or capabilities.
+    assertion_ids: [events-search.providers.auto-relevance]
+  - id: auto-routing-decision-unavailable
+    given: An auto search has eligible general event sources but the optional semantic provider decision times out or returns malformed output.
+    when: Provider routing falls back.
+    then: The deterministic general search continues successfully, no raw decision diagnostics are exposed, and explicit-provider behavior remains unchanged.
+    assertion_ids: [events-search.providers.auto-relevance]
 
 results:
   - id: booking-url-fallback
@@ -77,6 +89,18 @@ relevance_ranking:
     then: The successful search is preserved in existing event order, remains bounded by count, and exposes no raw Jev diagnostics.
     assertion_ids: [events-search.relevance.safe-fallback]
 
+enrichment:
+  - id: finalists-enriched-after-selection
+    given: Several providers return lightweight candidates for an auto search whose requested result count is ten.
+    when: Structured filters, deduplication, and any requested relevance ranking select the candidates that may enter the response.
+    then: Full event details and missing venue coordinates are fetched only for those selected candidates, while returned events preserve the same actionable result fields and enriched text remains safety-scanned.
+    assertion_ids: [events-search.enrichment.deferred]
+  - id: enrichment-failure-preserves-actionable-event
+    given: A selected event already has a title, source URL, provider, and start time but its optional detail page or venue geocoder is unavailable.
+    when: Final enrichment is attempted.
+    then: The actionable event remains in the bounded response with its available fields instead of being discarded or delaying independent provider results.
+    assertion_ids: [events-search.enrichment.deferred]
+
 conferences:
   - id: conference-only
     input: {provider: GPN24, requests: [{conference: GPN24}]}
@@ -90,6 +114,11 @@ performance:
     command: openmates apps events search --input <JSON> --json
     environment: controlled_dev
     expect: {typical_max_seconds: 5, hard_deadline_seconds: 10, output_safety: enabled}
+  - id: stalled-provider-preserves-partial-results
+    given: Several selected providers return valid events while one provider stalls beyond its internal deadline.
+    when: The auto search reaches its provider-work deadline.
+    then: Completed provider results are returned with a safe warning, pending provider work is stopped, and the successful batch is not repeated in full.
+    assertion_ids: [events-search.performance.bounded]
 
 surface_parity:
   - id: two-date-ranges

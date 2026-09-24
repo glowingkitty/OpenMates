@@ -85,8 +85,9 @@ async def search_events_async(
     query: Optional[str] = None,
     count: int = _MAX_RESULTS,
     proxy_url: Optional[str] = None,
+    fetch_descriptions: bool = True,
 ) -> Tuple[List[Dict[str, Any]], int]:
-    """Search Eventbrite events and enrich every returned event with description."""
+    """Search Eventbrite events, optionally fetching full event-page descriptions."""
     count = max(1, min(count, _MAX_RESULTS))
     location = location or ""
     place_id = _resolve_place_id(location)
@@ -114,10 +115,8 @@ async def search_events_async(
     total_available = int(pagination.get("object_count") or len(raw_events))
 
     events = [_normalize_event(raw) for raw in raw_events]
-    descriptions = await _fetch_descriptions_parallel(events, proxy_url=proxy_url)
-    for event, description in zip(events, descriptions):
-        if description:
-            event["description"] = description
+    if fetch_descriptions:
+        await enrich_events_async(events, proxy_url=proxy_url)
 
     logger.info(
         "Eventbrite search: location=%r place_id=%r query=%r -> %d events total=%d",
@@ -128,6 +127,18 @@ async def search_events_async(
         total_available,
     )
     return events, total_available
+
+
+async def enrich_events_async(
+    events: List[Dict[str, Any]],
+    *,
+    proxy_url: Optional[str] = None,
+) -> None:
+    """Add optional full descriptions to already selected Eventbrite events."""
+    descriptions = await _fetch_descriptions_parallel(events, proxy_url=proxy_url)
+    for event, description in zip(events, descriptions):
+        if description:
+            event["description"] = description
 
 
 def _resolve_place_id(location: str) -> Optional[str]:

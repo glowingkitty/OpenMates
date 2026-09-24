@@ -238,6 +238,7 @@ async def search_events_async(
     count: int = 10,
     fetch_descriptions: bool = True,
     proxy_url: Optional[str] = None,
+    geocode_venues: bool = True,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
     Search Luma.com for events in a specific city (async).
@@ -255,6 +256,8 @@ async def search_events_async(
         fetch_descriptions: If True (default), fetch full descriptions from event
                             pages in parallel. Adds 1 HTTP request per event.
                             Set to False for faster results without descriptions.
+        geocode_venues:    If True (default), resolve missing venue coordinates.
+                            Set to False until finalists have been selected.
         proxy_url:          Optional Webshare rotating residential proxy URL
                             (e.g. "http://user-rotate:pass@p.webshare.io:80/").
                             Used as fallback if the direct request is rejected.
@@ -322,19 +325,15 @@ async def search_events_async(
     raw_entries = raw_entries[:count]
 
     # Normalise all entries into canonical event dicts (async for geocoding).
-    events = list(await asyncio.gather(*[_normalise_event(e, city_name) for e in raw_entries]))
+    events = list(await asyncio.gather(*[
+        _normalise_event(e, city_name, geocode_venue=geocode_venues)
+        for e in raw_entries
+    ]))
 
     # Fetch descriptions in parallel via Luma event detail API.
     if fetch_descriptions and events:
-        slugs = [ev.get("_url_slug") for ev in events]
-        event_api_ids = [ev.get("id") for ev in events]
-        descriptions = await _fetch_descriptions_parallel(
-            slugs, proxy_url=proxy_url, event_api_ids=event_api_ids,
-        )
-        for ev, desc in zip(events, descriptions):
-            ev["description"] = desc
-            ev.pop("_url_slug", None)
-    else:
+        await enrich_events_async(events, proxy_url=proxy_url, geocode_venues=False)
+    if fetch_descriptions:
         for ev in events:
             ev.pop("_url_slug", None)
 
@@ -355,7 +354,12 @@ async def search_events_async(
 # ---------------------------------------------------------------------------
 
 
-async def _normalise_event(entry: Dict[str, Any], city_fallback: str = "") -> Dict[str, Any]:
+async def _normalise_event(
+    entry: Dict[str, Any],
+    city_fallback: str = "",
+    *,
+    geocode_venue: bool = True,
+) -> Dict[str, Any]:
     """
     Normalise a raw Luma API entry into the canonical event provider schema.
 
@@ -390,7 +394,7 @@ async def _normalise_event(entry: Dict[str, Any], city_fallback: str = "") -> Di
 
         # Geocode when Luma omits coordinates — use full address for precision,
         # falling back to city-level if the address lookup fails.
-        if lat is None or lon is None:
+        if geocode_venue and (lat is None or lon is None):
             coords = await geocode_address(
                 address=geo.get("full_address") or geo.get("short_address"),
                 city=geo.get("city") or city_fallback or None,
@@ -442,6 +446,53 @@ async def _normalise_event(entry: Dict[str, Any], city_fallback: str = "") -> Di
         "city": geo.get("city") or city_fallback,
         "country": geo.get("country"),
     }
+
+
+async def enrich_events_async(
+    events: List[Dict[str, Any]],
+    *,
+    proxy_url: Optional[str] = None,
+    geocode_venues: bool = True,
+) -> None:
+    """Add details and missing venue coordinates only to selected Luma events."""
+    if not events:
+        return
+    slugs = [event.get("_url_slug") for event in events]
+    event_api_ids = [event.get("id") for event in events]
+    description_task = asyncio.create_task(_fetch_descriptions_parallel(
+        slugs, proxy_url=proxy_url, event_api_ids=event_api_ids,
+    ))
+
+    async def geocode_selected(event: Dict[str, Any]) -> None:
+        venue = event.get("venue")
+        if not geocode_venues or not isinstance(venue, dict):
+            return
+        if venue.get("lat") is not None and venue.get("lon") is not None:
+            return
+        try:
+            coords = await geocode_address(
+                address=venue.get("full_address") or venue.get("short_address"),
+                city=venue.get("city") or event.get("city"),
+                country=venue.get("country") or event.get("country"),
+            )
+        except Exception as exc:
+            logger.warning("Luma finalist venue geocoding failed for event=%r: %s", event.get("id"), exc)
+            return
+        if coords:
+            venue["lat"], venue["lon"] = coords
+
+    try:
+        await asyncio.gather(*(geocode_selected(event) for event in events))
+        descriptions = await description_task
+        for event, description in zip(events, descriptions):
+            if description:
+                event["description"] = description
+    finally:
+        if not description_task.done():
+            description_task.cancel()
+            await asyncio.gather(description_task, return_exceptions=True)
+        for event in events:
+            event.pop("_url_slug", None)
 
 
 async def _get_with_proxy_fallback(
