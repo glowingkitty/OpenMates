@@ -59,6 +59,18 @@ struct WatchPairLoginApproval: Equatable {
     let pin: String
 }
 
+struct WatchPairLoginAcknowledgment: Equatable {
+    enum Kind: String, Equatable {
+        case offered
+        case approvalStarted
+        case denied
+        case approvalFailed
+    }
+
+    let token: String
+    let kind: Kind
+}
+
 struct WatchPairAttemptState: Equatable {
     private(set) var generation = 0
     private(set) var serverProfile = ServerProfile.production
@@ -341,6 +353,8 @@ enum WatchPairLoginConnectivityPayload {
     static let pinKey = "pin"
     static let watchLoginRequestKind = "openmates.watch.pair_login.request"
     static let watchLoginApprovalKind = "openmates.watch.pair_login.approval"
+    static let watchLoginAcknowledgmentKind = "openmates.watch.pair_login.acknowledgment"
+    static let acknowledgmentKey = "acknowledgment"
     static let forbiddenSecretKeys = [
         "master_key",
         "master_key_exported",
@@ -431,6 +445,23 @@ enum WatchPairLoginConnectivityPayload {
         return WatchPairLoginApproval(token: token.uppercased(), pin: pin)
     }
 
+    static func acknowledgmentMessage(_ acknowledgment: WatchPairLoginAcknowledgment) -> [String: Any] {
+        [
+            kindKey: watchLoginAcknowledgmentKind,
+            tokenKey: acknowledgment.token.uppercased(),
+            acknowledgmentKey: acknowledgment.kind.rawValue,
+        ]
+    }
+
+    static func parseAcknowledgment(_ message: [String: Any]) -> WatchPairLoginAcknowledgment? {
+        guard message[kindKey] as? String == watchLoginAcknowledgmentKind,
+              let token = message[tokenKey] as? String,
+              !token.isEmpty,
+              let rawKind = message[acknowledgmentKey] as? String,
+              let kind = WatchPairLoginAcknowledgment.Kind(rawValue: rawKind) else { return nil }
+        return WatchPairLoginAcknowledgment(token: token.uppercased(), kind: kind)
+    }
+
     static func containsForbiddenSecretKeys(_ message: [String: Any]) -> Bool {
         let keys = Set(message.keys.map { $0.lowercased() })
         return forbiddenSecretKeys.contains { keys.contains($0) }
@@ -440,13 +471,19 @@ enum WatchPairLoginConnectivityPayload {
 #if os(watchOS)
 @MainActor
 final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate {
+    static let shared = WatchPhoneLoginBridge()
     @Published private(set) var isPhoneReachable = false
 
     private let diagnosticsCategory = "watch_pair_login"
 
     private var approvalHandler: (@MainActor (WatchPairLoginApproval) -> Void)?
-    func start(onApproval: @escaping @MainActor (WatchPairLoginApproval) -> Void) {
+    private var acknowledgmentHandler: (@MainActor (WatchPairLoginAcknowledgment) -> Void)?
+    func start(
+        onApproval: @escaping @MainActor (WatchPairLoginApproval) -> Void,
+        onAcknowledgment: @escaping @MainActor (WatchPairLoginAcknowledgment) -> Void
+    ) {
         approvalHandler = onApproval
+        acknowledgmentHandler = onAcknowledgment
         guard WCSession.isSupported() else {
             NativeDiagnostics.warning("phase=bridge.start unsupported=watchConnectivity", category: diagnosticsCategory)
             return
@@ -510,6 +547,36 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         return true
     }
 
+    @discardableResult
+    func sendItemOpenRequest(_ request: WatchItemOpenRequest) -> Bool {
+        sendWebOpenPayload(.item(request, serverProfileId: WatchServerProfileStore().currentProfile().id))
+    }
+
+    @discardableResult
+    func sendCollectionOpenRequest(kind: WatchItemOpenRequest.Kind) -> Bool {
+        sendWebOpenPayload(.collection(kind, serverProfileId: WatchServerProfileStore().currentProfile().id))
+    }
+
+    @discardableResult
+    func sendSettingsOpenRequest() -> Bool {
+        sendWebOpenPayload(.settings(serverProfileId: WatchServerProfileStore().currentProfile().id))
+    }
+
+    private func sendWebOpenPayload(_ payload: WatchPhoneOpenPayload) -> Bool {
+        guard WCSession.isSupported() else { return false }
+        let session = WCSession.default
+        let message = payload.message
+        if session.isReachable {
+            session.sendMessage(message, replyHandler: nil, errorHandler: { _ in
+                session.transferUserInfo(message)
+            })
+        } else {
+            session.transferUserInfo(message)
+        }
+        NativeDiagnostics.info("phase=bridge.webOpen.sent reachable=\(session.isReachable)", category: diagnosticsCategory)
+        return true
+    }
+
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         let isReachable = session.isReachable
         dispatchToMain { bridge in
@@ -534,10 +601,16 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
     }
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        guard let approval = WatchPairLoginConnectivityPayload.parseApproval(message) else { return }
-        dispatchToMain { bridge in
-            NativeDiagnostics.info("phase=bridge.receivedApproval", category: bridge.diagnosticsCategory)
-            bridge.approvalHandler?(approval)
+        if let approval = WatchPairLoginConnectivityPayload.parseApproval(message) {
+            dispatchToMain { bridge in
+                NativeDiagnostics.info("phase=bridge.receivedApproval", category: bridge.diagnosticsCategory)
+                bridge.approvalHandler?(approval)
+            }
+        } else if let acknowledgment = WatchPairLoginConnectivityPayload.parseAcknowledgment(message) {
+            dispatchToMain { bridge in
+                NativeDiagnostics.info("phase=bridge.receivedAcknowledgment kind=\(acknowledgment.kind.rawValue)", category: bridge.diagnosticsCategory)
+                bridge.acknowledgmentHandler?(acknowledgment)
+            }
         }
     }
 
@@ -576,12 +649,26 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
     }
 
     func denyPendingRequest() {
+        if let pendingRequest { sendAcknowledgment(.denied, token: pendingRequest.token) }
         pendingRequest = nil
         lastError = nil
     }
 
     func approvePendingRequest(authManager: AuthManager) async throws {
         guard let request = pendingRequest else { return }
+        sendAcknowledgment(.approvalStarted, token: request.token)
+        do {
+            try await performApproval(request, authManager: authManager)
+        } catch {
+            if pendingRequest?.token == request.token {
+                lastError = error.localizedDescription
+                sendAcknowledgment(.approvalFailed, token: request.token)
+            }
+            throw error
+        }
+    }
+
+    private func performApproval(_ request: WatchPairLoginRequest, authManager: AuthManager) async throws {
         let currentProfile = ServerProfile.current()
         NativeDiagnostics.info(
             "phase=phoneBridge.approve.start requestServerKind=\(request.serverProfile.diagnosticsKind) currentServerKind=\(currentProfile.diagnosticsKind)",
@@ -612,6 +699,7 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
             authorizerDeviceName: UIDevice.current.name,
             serverProfile: request.serverProfile
         )
+        guard pendingRequest?.token == request.token else { return }
         let approval = WatchPairLoginApproval(token: request.token, pin: pin)
         if WCSession.isSupported(), WCSession.default.isReachable {
             WCSession.default.sendMessage(
@@ -642,7 +730,10 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
             return
         }
         if let pendingRequest {
-            guard pendingRequest.token != request.token else { return }
+            guard pendingRequest.token != request.token else {
+                sendAcknowledgment(.offered, token: request.token)
+                return
+            }
             guard pendingRequest.createdAt <= request.createdAt else {
                 NativeDiagnostics.info(
                     "phase=phoneBridge.request.ignored reason=olderThanPending",
@@ -652,6 +743,7 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
             }
         }
         pendingRequest = request
+        sendAcknowledgment(.offered, token: request.token)
         NativeDiagnostics.info(
             "phase=phoneBridge.request.received serverKind=\(request.serverProfile.diagnosticsKind)",
             category: diagnosticsCategory
@@ -659,9 +751,27 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         requestNotification(for: request)
     }
 
+    private func sendAcknowledgment(_ kind: WatchPairLoginAcknowledgment.Kind, token: String) {
+        guard WCSession.isSupported(), WCSession.default.isReachable else { return }
+        let acknowledgment = WatchPairLoginAcknowledgment(token: token, kind: kind)
+        WCSession.default.sendMessage(
+            WatchPairLoginConnectivityPayload.acknowledgmentMessage(acknowledgment),
+            replyHandler: nil,
+            errorHandler: nil
+        )
+    }
+
     private func receive(_ request: WatchEmbedOpenRequest) {
         NativeDiagnostics.info("phase=phoneBridge.embedOpen.received", category: diagnosticsCategory)
         Task { await PushNotificationManager.shared.showWatchEmbedNotification(chatId: request.chatId, embedId: request.embedId) }
+    }
+
+    private func receive(_ payload: WatchPhoneOpenPayload) {
+        guard payload.serverProfileId == ServerProfile.current().id else {
+            NativeDiagnostics.warning("phase=phoneBridge.webOpen.ignored reason=serverMismatch", category: diagnosticsCategory)
+            return
+        }
+        Task { await PushNotificationManager.shared.showWatchWebOpenNotification(payload) }
     }
 
     private func requestNotification(for request: WatchPairLoginRequest) {
@@ -710,6 +820,10 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         }
         if let request = WatchEmbedOpenConnectivityPayload.parseRequest(message) {
             Task { @MainActor in self.receive(request) }
+            return
+        }
+        if let payload = WatchPhoneOpenPayload.parse(message) {
+            Task { @MainActor in self.receive(payload) }
         }
     }
 
@@ -724,12 +838,22 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
             replyHandler(["status": "notification_scheduled"])
             return
         }
+        if let payload = WatchPhoneOpenPayload.parse(message) {
+            Task { @MainActor in self.receive(payload) }
+            replyHandler(["status": "notification_scheduled"])
+            return
+        }
         replyHandler(["status": "ignored"])
     }
 
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
-        guard let request = WatchEmbedOpenConnectivityPayload.parseRequest(userInfo) else { return }
-        Task { @MainActor in self.receive(request) }
+        if let request = WatchEmbedOpenConnectivityPayload.parseRequest(userInfo) {
+            Task { @MainActor in self.receive(request) }
+            return
+        }
+        if let payload = WatchPhoneOpenPayload.parse(userInfo) {
+            Task { @MainActor in self.receive(payload) }
+        }
     }
 }
 #endif

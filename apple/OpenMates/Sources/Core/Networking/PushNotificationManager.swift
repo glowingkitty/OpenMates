@@ -500,6 +500,33 @@ final class PushNotificationManager: NSObject, ObservableObject {
         }
     }
 
+    func showWatchWebOpenNotification(_ payload: WatchPhoneOpenPayload) async {
+        guard payload.destination(currentProfile: ServerProfile.current()) != nil else { return }
+        let center = UNUserNotificationCenter.current()
+        var settings = await center.notificationSettings()
+        if settings.authorizationStatus == .notDetermined {
+            _ = try? await center.requestAuthorization(options: [.alert, .sound])
+            settings = await center.notificationSettings()
+        }
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = AppStrings.openMatesName
+        content.body = AppStrings.tapToExplore
+        content.sound = .default
+        content.userInfo = payload.message
+        let request = UNNotificationRequest(
+            identifier: "openmates-watch-web-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+        do {
+            try await center.add(request)
+        } catch {
+            NativeDiagnostics.warning("Watch web notification scheduling failed: \(type(of: error))", category: "push_notifications")
+        }
+    }
+
     private func configureChatMessageCategory(center: UNUserNotificationCenter) {
         let replyAction = UNTextInputNotificationAction(
             identifier: NotificationAction.reply,
@@ -539,6 +566,21 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
+        let watchMessage = Dictionary(uniqueKeysWithValues: userInfo.compactMap { key, value -> (String, Any)? in
+            guard let key = key as? String else { return nil }
+            return (key, value)
+        })
+        if let payload = WatchPhoneOpenPayload.parse(watchMessage) {
+            let actionIdentifier = response.actionIdentifier
+            let completion = NotificationCompletionBox(completionHandler)
+            Task { @MainActor in
+                defer { completion.complete() }
+                guard actionIdentifier == UNNotificationDefaultActionIdentifier,
+                      let destination = payload.destination(currentProfile: ServerProfile.current()) else { return }
+                UIApplication.shared.open(destination)
+            }
+            return
+        }
         guard let chatId = (userInfo["chat_id"] as? String) ?? (userInfo["chatId"] as? String) else {
             completionHandler()
             return

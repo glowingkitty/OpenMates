@@ -79,6 +79,7 @@
 		A3B68128D54EE2757C2C0ADF /* ProgressiveMessagePreviewUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA061E0EECAAED2B2A7503B /* ProgressiveMessagePreviewUITests.swift */; };
 		AF1300000000000000040000 /* DevAuthFormUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF1200000000000000000004 /* DevAuthFormUITests.swift */; };
 		C0FFEE000000000000054002 /* WatchChatLayoutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */; };
+		C0FFEE000000000000054102 /* WatchFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000054101 /* WatchFlowUITests.swift */; };
 		0007B5C7FCB6FC85F1DD7107 /* SettingsLogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */; };
 		00E9903CB4B266B59E16AB50 /* CryptoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */; };
 		012057623219277299AA30A1 /* EmbedFullscreenContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F59D6321EE1553D0589225B /* EmbedFullscreenContainer.swift */; };
@@ -161,6 +162,7 @@
 		C0FFEE000000000000048022 /* i18n in Resources */ = {isa = PBXBuildFile; fileRef = 2B48B4BA9CC01C1F47E89D75 /* i18n */; };
 		C0FFEE000000000000048024 /* WatchPairLoginRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */; };
 		C0FFEE000000000000048025 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 82F8B920FCEFE49C520D05ED /* Fonts */; };
+		C0FFEE000000000000048026 /* FontRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50826BC7A9753643CB205C57 /* FontRegistration.swift */; };
 		AE1700000000000000010000 /* modelsMetadata.json in Resources */ = {isa = PBXBuildFile; fileRef = AE1600000000000000000001 /* modelsMetadata.json */; };
 		C0FFEE000000000000049002 /* WatchChatViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049001 /* WatchChatViews.swift */; };
 		C0FFEE000000000000049004 /* WatchChatRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049003 /* WatchChatRuntime.swift */; };
@@ -785,6 +787,16 @@
 		C2E0287AA4A56BC4EDEB5E8F /* NativeSignupStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A148178FFF0BD307ED297726 /* NativeSignupStateTests.swift */; };
 		91460556C18F0D0F02ABE2FA /* NativeSignupPasswordPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF8013FB1332B8A3DD9FE57A /* NativeSignupPasswordPolicyTests.swift */; };
 		98741A9C0A0FF3E558346983 /* DevSignupRuntimeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C7B8D58A082AE5D30624C17 /* DevSignupRuntimeUITests.swift */; };
+		1849878CFE42D13E127D27E0 /* WatchItemOpenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB290E611E10A27C28CC4F2 /* WatchItemOpenModel.swift */; };
+		468C32E57DC056BAEFD042D4 /* WatchItemOpenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB290E611E10A27C28CC4F2 /* WatchItemOpenModel.swift */; };
+		F3AD7C8BE79B4D1E3EC0B0D7 /* WatchItemOpenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB290E611E10A27C28CC4F2 /* WatchItemOpenModel.swift */; };
+		2287142A4DD127B4123E6938 /* WatchPhoneOpenPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */; };
+		83136C15A6FE80F35F0541CD /* WatchPhoneOpenPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */; };
+		752281190D005DB64DE97D2B /* WatchPhoneOpenPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */; };
+		1AF6B5DE991CA6579DDF1B1C /* WatchHubDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FF6823AA5B4183B0ADB2BBD /* WatchHubDataService.swift */; };
+		3B6494DB3177E720650E3849 /* WatchHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6764F2FB4283163E9DE77C /* WatchHubView.swift */; };
+		C69C86A067648BC7AFDD5AF3 /* WatchItemOpenModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7250F0C3BB5E74AA7BE9EA3 /* WatchItemOpenModelTests.swift */; };
+		055E07B8EB1520CBEC63C717 /* WatchPhoneOpenPayloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9441C5FD728416741C7EF3A7 /* WatchPhoneOpenPayloadTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1174,6 +1186,7 @@
 		C0FFEE000000000000001003 /* OpenMatesUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0FFEE000000000000043003 /* OpenMatesMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatLayoutUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000054101 /* WatchFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchFlowUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000054003 /* OpenMatesWatchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesWatchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A11E00000000000000000001 /* SettingsMacShellParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMacShellParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowParityUITests.swift; sourceTree = "<group>"; };
@@ -1335,6 +1348,12 @@
 		A148178FFF0BD307ED297726 /* NativeSignupStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesTests/NativeSignupStateTests.swift; sourceTree = SOURCE_ROOT; };
 		BF8013FB1332B8A3DD9FE57A /* NativeSignupPasswordPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesTests/NativeSignupPasswordPolicyTests.swift; sourceTree = SOURCE_ROOT; };
 		6C7B8D58A082AE5D30624C17 /* DevSignupRuntimeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesUITests/DevSignupRuntimeUITests.swift; sourceTree = SOURCE_ROOT; };
+		ACB290E611E10A27C28CC4F2 /* WatchItemOpenModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchItemOpenModel.swift; sourceTree = "<group>"; };
+		914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPhoneOpenPayload.swift; sourceTree = "<group>"; };
+		6FF6823AA5B4183B0ADB2BBD /* WatchHubDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHubDataService.swift; sourceTree = "<group>"; };
+		7C6764F2FB4283163E9DE77C /* WatchHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHubView.swift; sourceTree = "<group>"; };
+		A7250F0C3BB5E74AA7BE9EA3 /* WatchItemOpenModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchItemOpenModelTests.swift; sourceTree = "<group>"; };
+		9441C5FD728416741C7EF3A7 /* WatchPhoneOpenPayloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPhoneOpenPayloadTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1886,6 +1905,8 @@
 			isa = PBXGroup;
 			children = (
 				C0FFEE000000000000049003 /* WatchChatRuntime.swift */,
+				ACB290E611E10A27C28CC4F2 /* WatchItemOpenModel.swift */,
+				914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */,
 				C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */,
 			);
 			path = Watch;
@@ -2021,6 +2042,7 @@
 			isa = PBXGroup;
 			children = (
 				C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */,
+				C0FFEE000000000000054101 /* WatchFlowUITests.swift */,
 			);
 			path = OpenMatesWatchUITests;
 			sourceTree = "<group>";
@@ -2046,6 +2068,8 @@
 				C0FFEE000000000000048009 /* WatchLocalization.swift */,
 				C0FFEE000000000000048013 /* WatchPairLoginView.swift */,
 				C0FFEE000000000000047003 /* WatchRootView.swift */,
+				6FF6823AA5B4183B0ADB2BBD /* WatchHubDataService.swift */,
+				7C6764F2FB4283163E9DE77C /* WatchHubView.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -2061,6 +2085,8 @@
 				C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */,
 				C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */,
 				C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */,
+				A7250F0C3BB5E74AA7BE9EA3 /* WatchItemOpenModelTests.swift */,
+				9441C5FD728416741C7EF3A7 /* WatchPhoneOpenPayloadTests.swift */,
 				C0FFEE000000000000049030 /* WatchAuthStoreTests.swift */,
 				C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */,
 				C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */,
@@ -2777,6 +2803,8 @@
 				C0FFEE000000000000048016 /* APIClient.swift in Sources */,
 				C0FFEE000000000000048017 /* ServerConfiguration.swift in Sources */,
 				C0FFEE000000000000049004 /* WatchChatRuntime.swift in Sources */,
+				1849878CFE42D13E127D27E0 /* WatchItemOpenModel.swift in Sources */,
+				2287142A4DD127B4123E6938 /* WatchPhoneOpenPayload.swift in Sources */,
 				C0FFEE000000000000049010 /* WatchEmbedPreviewModel.swift in Sources */,
 				C0FFEE000000000000048008 /* PairLoginRuntime.swift in Sources */,
 				C0FFEE000000000000048010 /* WatchLocalization.swift in Sources */,
@@ -2785,8 +2813,11 @@
 				C0FFEE000000000000049014 /* WatchEmbedViews.swift in Sources */,
 				C0FFEE000000000000048014 /* WatchPairLoginView.swift in Sources */,
 				C0FFEE000000000000047004 /* WatchRootView.swift in Sources */,
+				1AF6B5DE991CA6579DDF1B1C /* WatchHubDataService.swift in Sources */,
+				3B6494DB3177E720650E3849 /* WatchHubView.swift in Sources */,
 				D1A6D1A6D1A6D1A6D1A60005 /* NativeDiagnostics.swift in Sources */,
 				C0FFEE000000000000047006 /* DataExtensions.swift in Sources */,
+				C0FFEE000000000000048026 /* FontRegistration.swift in Sources */,
 				C0FFEE000000000000048021 /* OpenMatesSharedEnvironment.swift in Sources */,
 				C0FFEE000000000000047008 /* ColorTokens.generated.swift in Sources */,
 				C0FFEE000000000000047024 /* GradientTokens.generated.swift in Sources */,
@@ -2852,6 +2883,8 @@
 				D28496BC291A569EA6AD7667 /* AuthModels.swift in Sources */,
 				C0FFEE000000000000048006 /* PairLoginRuntime.swift in Sources */,
 				C0FFEE000000000000049005 /* WatchChatRuntime.swift in Sources */,
+				468C32E57DC056BAEFD042D4 /* WatchItemOpenModel.swift in Sources */,
+				83136C15A6FE80F35F0541CD /* WatchPhoneOpenPayload.swift in Sources */,
 				C0FFEE000000000000049011 /* WatchEmbedPreviewModel.swift in Sources */,
 				31751A097DDB781066268A99 /* BackgroundChatSender.swift in Sources */,
 				EE49D3D4C3BA1DAED058F015 /* BackupCodeView.swift in Sources */,
@@ -3136,6 +3169,8 @@
 				F98B349F4D92BA38E6A386DE /* AuthModels.swift in Sources */,
 				C0FFEE000000000000048007 /* PairLoginRuntime.swift in Sources */,
 				C0FFEE000000000000049006 /* WatchChatRuntime.swift in Sources */,
+				F3AD7C8BE79B4D1E3EC0B0D7 /* WatchItemOpenModel.swift in Sources */,
+				752281190D005DB64DE97D2B /* WatchPhoneOpenPayload.swift in Sources */,
 				C0FFEE000000000000049012 /* WatchEmbedPreviewModel.swift in Sources */,
 				88923DFE92A96AF8D50B9372 /* BackgroundChatSender.swift in Sources */,
 				E628B3A1F3BF0C7F6F112E67 /* BackupCodeView.swift in Sources */,
@@ -3498,6 +3533,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000054002 /* WatchChatLayoutUITests.swift in Sources */,
+				C0FFEE000000000000054102 /* WatchFlowUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3512,6 +3548,8 @@
 				C0FFEE000000000000053002 /* ChatCompletionRecoveryTests.swift in Sources */,
 				C0FFEE000000000000048024 /* WatchPairLoginRuntimeTests.swift in Sources */,
 				C0FFEE000000000000049008 /* WatchChatRuntimeTests.swift in Sources */,
+				C69C86A067648BC7AFDD5AF3 /* WatchItemOpenModelTests.swift in Sources */,
+				055E07B8EB1520CBEC63C717 /* WatchPhoneOpenPayloadTests.swift in Sources */,
 				C0FFEE000000000000049031 /* WatchAuthStoreTests.swift in Sources */,
 				C0FFEE000000000000049018 /* WatchEmbedPreviewTests.swift in Sources */,
 				C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */,

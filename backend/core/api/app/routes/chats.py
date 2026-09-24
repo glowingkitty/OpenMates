@@ -142,6 +142,7 @@ def _latest_compression_boundary(checkpoints: list[dict[str, Any]]) -> int | Non
 async def list_chats(
     request: Request,
     limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     team_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
@@ -153,7 +154,7 @@ async def list_chats(
     chats = await request.app.state.directus_service.chat.get_user_chats_metadata(
         current_user.id,
         limit=limit,
-        offset=0,
+        offset=offset,
         sort=NATIVE_CHAT_SORT,
         admin_required=True,
         team_id=team_id,

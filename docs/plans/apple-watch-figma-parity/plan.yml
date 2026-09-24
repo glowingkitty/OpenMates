@@ -1,0 +1,271 @@
+schema_version: 2
+id: apple-watch-figma-parity
+title: Apple Watch Figma parity for login, lists, chats, and audio
+status: implementing
+specification_refs:
+- id: feature.apple-watch
+  role: primary
+  fingerprint: 6c3ba61cd6f4cd4865e50c36382f204f43cf4d95ee3bd79f763d7de6b0e2b08d
+goal: 'Make the Apple Watch app look and work like the Figma Watch concept: login through the iPhone-first pairing flow with
+  a short-URL fallback; browse Tasks and Workflows; browse, search, start, open, and reply in Chats; and send audio recordings
+  through the normal encrypted server processing so they appear as audio embeds on every client.
+
+  '
+scope:
+  in:
+  - Match the Figma Watch layout, color, navigation, and recording controls on a small Watch display.
+  - Offer iPhone pair approval first, then reveal the short URL automatically when approval has not started within a few seconds;
+    keep self-hosting and prominent manual pair-code entry without a QR button.
+  - Show read-only Task categories and Workflow lists; tapping an item sends an ID-only iPhone notification that opens its
+    exact web page.
+  - Show the Chats list, functional search and new chat, existing thread opening, text replies, and a single-action audio
+    Send flow.
+  - Use the same encrypted chat message, inference, audio upload/transcription, and audio embed contracts as iPhone/web; do
+    not transcribe audio on Watch.
+  - Add focused native and UI coverage, then test and debug from login through lists and chats after implementation is complete.
+  out:
+  - Creating or editing Tasks and Workflows on Watch.
+  - Native iPhone Task and Workflow detail UI changes.
+  - Adding text or other attachments to a Watch audio recording before Send.
+  - On-device audio transcription.
+context_discovery:
+  docs:
+  - docs/plans/apple-watch-login-v2/plan.yml
+  - docs/plans/apple-watch-support/plan.yml
+  - apple/AGENTS.md
+  code_patterns:
+  - WatchPairLoginView currently shows the short URL immediately; the approved Figma flow now delays it unless iPhone approval
+    does not start.
+  - WatchChatRuntime currently selects the first chat automatically and sends text through a limited REST path; audio uploads
+    remain pending without a send.
+  - Watch Tasks and Workflows have no list surface or typed iPhone web handoff.
+  tests:
+  - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+  - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+  - apple/OpenMatesWatchUITests/WatchChatLayoutUITests.swift
+  - apple/OpenMatesWatchUITests/WatchFlowUITests.swift
+decisions:
+- id: figma-login-fallback
+  status: active
+  decision: Start with iPhone approval and reveal the short URL after a few seconds unless approval has started; an explicit
+    fallback remains available.
+  reason: User accepted the Figma note and flow in this conversation.
+  decided_at: '2026-09-24T20:00:00Z'
+- id: watch-audio-send
+  status: active
+  decision: One Watch Send action sends the recording with the normal audio embed through server transcription and inference.
+  reason: User said a separate text/attachment review step is unrealistic on Watch.
+  decided_at: '2026-09-24T20:00:00Z'
+- id: watch-list-handoff
+  status: active
+  decision: Tasks and Workflows are read-only on Watch; item taps notify iPhone to open the exact web URL.
+  reason: User chose this temporary handoff while native detail UI remains out of scope.
+  decided_at: '2026-09-24T20:00:00Z'
+- id: watch-chat-scope
+  status: active
+  decision: New chat, search, existing chat opening, text replies, and audio messages all work on Watch.
+  reason: User explicitly required each capability.
+  decided_at: '2026-09-24T20:00:00Z'
+verification:
+- Validate this Plan and build the Watch target with repository-local DerivedData.
+- Run focused native tests for pairing, encrypted sends, list decryption, handoff URLs, and Watch UI interactions.
+- Inspect a Watch simulator screenshot against the exported Figma board.
+- Run relevant isolated product CI checks if the changed API contracts require them.
+scenarios:
+- id: S-1
+  title: Watch pair login follows the Figma flow
+  given:
+  - An unauthenticated Watch starts a pair attempt.
+  when:
+  - A matching iPhone receives the request or approval is not started in four seconds.
+  then:
+  - The Watch offers iPhone approval first and reveals the short URL fallback after the timeout, denial, or failure.
+  - Pairing still supports manual code entry, retry, and self-hosting without a QR button.
+- id: S-2
+  title: Task and Workflow lists open exact items on iPhone
+  given:
+  - The Watch is authenticated and has encrypted Tasks and Workflows.
+  when:
+  - The user browses a list and taps an item.
+  then:
+  - The Watch shows readable read-only entries in Figma styling.
+  - An ID-only notification opens the exact web Task or Workflow on iPhone.
+- id: S-3
+  title: Chats can be found, started, opened, and answered
+  given:
+  - The Watch is authenticated with existing chats.
+  when:
+  - The user searches or starts a chat and sends a text reply.
+  then:
+  - The chat list remains visible until a chat is selected.
+  - The encrypted reply uses the durable inference contract and appears on other clients.
+- id: S-4
+  title: Watch audio sends as a regular audio embed
+  given:
+  - The user has microphone permission and an open or new chat.
+  when:
+  - The user records and taps Send once.
+  then:
+  - The recording uploads and uses server transcription and inference.
+  - An encrypted audio recording embed appears across Watch, iPhone, and web.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: The first pairing screen shows iPhone approval; a token-scoped timeout or rejection reveals the short URL without
+    exposing secrets.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: apple
+  verification_ids:
+  - T-WATCH-LOGIN
+- id: AC-2
+  scenario: S-2
+  text: Tasks and Workflows load and render as read-only lists, and a tap opens the exact HTTPS item URL through an ID-only
+    iPhone notification.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: apple
+  verification_ids:
+  - T-WATCH-LISTS
+- id: AC-3
+  scenario: S-3
+  text: Users can search, start, open, and text-reply in chats through the encrypted preflight/inference path.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: apple
+  verification_ids:
+  - T-WATCH-CHAT
+- id: AC-4
+  scenario: S-4
+  text: One Send action uploads, transcribes on the server, and sends an audio embed that syncs across clients.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: apple
+  verification_ids:
+  - T-WATCH-AUDIO
+tests:
+- id: T-WATCH-LOGIN
+  type: unit
+  file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+  command: xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS_Unit_Tests -only-testing:OpenMatesTests/WatchPairLoginRuntimeTests
+  covers:
+  - AC-1
+  assertions:
+  - The focused behavior for its covered acceptance criterion passes.
+  red_phase:
+    required: false
+    expected: Existing Watch gap recorded before implementation.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-WATCH-LISTS
+  type: unit
+  file: apple/OpenMatesTests/WatchItemOpenModelTests.swift
+  command: xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS_Unit_Tests -only-testing:OpenMatesTests/WatchItemOpenModelTests
+  covers:
+  - AC-2
+  assertions:
+  - The focused behavior for its covered acceptance criterion passes.
+  red_phase:
+    required: false
+    expected: Existing Watch gap recorded before implementation.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-WATCH-CHAT
+  type: unit
+  file: apple/OpenMatesTests/WatchChatRuntimeTests.swift
+  command: xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS_Unit_Tests -only-testing:OpenMatesTests/WatchChatRuntimeTests
+  covers:
+  - AC-3
+  assertions:
+  - The focused behavior for its covered acceptance criterion passes.
+  red_phase:
+    required: false
+    expected: Existing Watch gap recorded before implementation.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-WATCH-AUDIO
+  type: unit
+  file: apple/OpenMatesTests/WatchChatRuntimeTests.swift
+  command: xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS_Unit_Tests -only-testing:OpenMatesTests/WatchChatRuntimeTests
+  covers:
+  - AC-4
+  assertions:
+  - The focused behavior for its covered acceptance criterion passes.
+  red_phase:
+    required: false
+    expected: Existing Watch gap recorded before implementation.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+implementation_state:
+  subject_commit: 275829e3
+approvals:
+  specification:
+    status: approved
+    fingerprint: 6c3ba61cd6f4cd4865e50c36382f204f43cf4d95ee3bd79f763d7de6b0e2b08d
+    approved_at: '2026-09-24T22:24:21Z'
+    reason: The user explicitly approved the revised exact fingerprint after removing the QR fallback.
+  plan:
+    status: approved
+    approved_at: '2026-09-24T20:00:00Z'
+    reason: The user approved the full Watch concept and implementation after five clarifying rounds.
+tasks:
+- id: TASK-1
+  title: Implement and verify Apple Watch Figma parity
+  status: in_progress
+  phase: working_tasks
+  covers:
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+  expected_files:
+  - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
+  - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+  - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+  verification_ids:
+  - T-WATCH-LOGIN
+  - T-WATCH-LISTS
+  - T-WATCH-CHAT
+  - T-WATCH-AUDIO
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - apple/OpenMatesWatch/Sources
+    - apple/OpenMates/Sources/Core/Watch
+    - apple/OpenMatesTests
+    shared_files: []
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  approach: Implement the approved Figma flow and verify each Watch journey after all feature changes are in place.
+  outcome: succeeded
+  evidence:
+    summary: Focused Watch unit suites passed, the nine-screen Watch simulator UI suite passed, and the final pairing tray correction passed three focused simulator tests with screenshot pixel checks. Exact Figma frame exports and final simulator captures were reviewed screen by screen.
+  recorded_at: '2026-09-24T20:00:00Z'
+handoff:
+  current_task_id: TASK-1
+  next_action: Record the revised exact Specification approval, publish the scoped dev commit, then upload the paired iOS/Watch and macOS TestFlight builds.
+  command: python3 scripts/plan_validate.py docs/plans/apple-watch-figma-parity/plan.yml
+  expected_outcome: Plan validates and scoped Watch changes are ready for dev deployment.
+  blocker:
+    reason: Isolated CI artifact upload requires Docker, which is unavailable on this Mac; the configured dev SSH port also refuses connections.
+  last_verified_commit: 275829e3

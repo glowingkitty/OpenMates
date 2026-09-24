@@ -275,6 +275,13 @@ specifications:
     required_applies_to:
     - rest_api
     - gui.apple
+  feature.apple-watch:
+    version: 1
+    status: draft
+    path: features/apple-watch
+    fingerprint: 6c3ba61cd6f4cd4865e50c36382f204f43cf4d95ee3bd79f763d7de6b0e2b08d
+    required_applies_to:
+    - gui.apple
   feature.assistant-response-speech:
     version: 6
     status: draft
@@ -3528,6 +3535,69 @@ assertions:
     fingerprint: b3c0994b188b14bfaee7b2c014274aa020b69eb04f6481b7c9a27954e2ff3a0d
     required_applies_to:
     - rest_api
+    - gui.apple
+  apple-watch.pairing.iphone-first-fallback:
+    specification: feature.apple-watch@1
+    specification_id: feature.apple-watch
+    type: behavior
+    fingerprint: 552e88b6a40a65cbfc0856b90a9b87c5c9aa73622167d96b866d957f344c464b
+    required_applies_to:
+    - gui.apple
+  apple-watch.pairing.private-session:
+    specification: feature.apple-watch@1
+    specification_id: feature.apple-watch
+    type: invariant
+    fingerprint: 146aa3fdceaa75ec43dea969e5917b5a27d9142baac5cb729691806ec4c9e594
+    required_applies_to:
+    - gui.apple
+  apple-watch.hub.compact-navigation:
+    specification: feature.apple-watch@1
+    specification_id: feature.apple-watch
+    type: behavior
+    fingerprint: 94d7aae42371381d2fb53085862cf0ba7f4bfdf4e4bbd02017711c37b9e4340b
+    required_applies_to:
+    - gui.apple
+  apple-watch.lists.read-only-private:
+    specification: feature.apple-watch@1
+    specification_id: feature.apple-watch
+    type: behavior
+    fingerprint: 4ab67ab07cfdab4aec83341934832af3b60e8f4112c03c976ba7bdcb45c8c49a
+    required_applies_to:
+    - gui.apple
+  apple-watch.handoff.exact-private:
+    specification: feature.apple-watch@1
+    specification_id: feature.apple-watch
+    type: behavior
+    fingerprint: e584704718c58bd6d10bfd308f5eb7464268c7fd8a50fd33eb079d15a2ad44f0
+    required_applies_to:
+    - gui.apple
+  apple-watch.chats.browse-search-open:
+    specification: feature.apple-watch@1
+    specification_id: feature.apple-watch
+    type: behavior
+    fingerprint: 04554ded0f65e764c33bff676aed3e1e166812f156f7c0e5967db1f21eed24b1
+    required_applies_to:
+    - gui.apple
+  apple-watch.chats.new-text-reply:
+    specification: feature.apple-watch@1
+    specification_id: feature.apple-watch
+    type: behavior
+    fingerprint: 09c6bc15d6058a1399c801c6924aac15cbab9c877fa4db38d2e85fd84afe2274
+    required_applies_to:
+    - gui.apple
+  apple-watch.chats.audio-reply:
+    specification: feature.apple-watch@1
+    specification_id: feature.apple-watch
+    type: behavior
+    fingerprint: 269df9558a4c62d55c43393c7bcd5bf8722eb5eca7f8bfa8a9a8ca49200c1562
+    required_applies_to:
+    - gui.apple
+  apple-watch.chats.compact-layout:
+    specification: feature.apple-watch@1
+    specification_id: feature.apple-watch
+    type: behavior
+    fingerprint: 7d7f835c77523f8c989ec5261e077f3501c5183950d8204e64beac40e3e8ce43
+    required_applies_to:
     - gui.apple
   assistant-speech.preference.chat-scoped-default-off:
     specification: feature.assistant-response-speech@6

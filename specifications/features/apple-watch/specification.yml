@@ -1,0 +1,123 @@
+schema_version: 1
+id: feature.apple-watch
+version: 1
+status: draft
+title: Apple Watch companion
+summary: >
+  The Apple Watch companion follows the approved compact Watch design for
+  iPhone-first pairing, read-only Task and Workflow browsing, and private Chats
+  with text and audio replies.
+
+scope:
+  includes:
+    - Watch pairing through the matching iPhone with a prominent short-URL and manual pair-code fallback.
+    - Watch Chat, Task, and Workflow navigation and read-only lists.
+    - Privacy-preserving Task and Workflow handoff to the paired iPhone.
+    - Saved-chat browsing, search, new chat, text replies, and audio replies.
+    - Compact Watch layout and accessible controls for these surfaces.
+  excludes:
+    - Native Watch Task or Workflow detail, creation, editing, or execution.
+    - On-device audio transcription or a post-recording attachment editor.
+    - Changes to the shared pair-login, encrypted chat, or server transcription contracts.
+
+relationships:
+  related_specifications: [feature.auth, feature.chats, feature.chat-navigation, feature.message-input, feature.tasks, feature.workflows, feature.apple-notifications]
+
+assertions:
+  - id: apple-watch.pairing.iphone-first-fallback
+    type: behavior
+    must: >
+      An unpaired Watch offers approval on a matching authenticated iPhone first.
+      If approval has not started after a few seconds, or is denied or fails, the
+      Watch reveals the short-URL fallback; the user can also reveal it directly.
+      The fallback highlights the pair code, offers manual code entry instead of
+      a QR control, and supports a validated self-hosted server. The login screen
+      uses the OpenMates favicon and Lexend Deca typography shown in the design.
+      Only acknowledgments for the current pair attempt can change its screen.
+    depends_on: [examples.pairing]
+  - id: apple-watch.pairing.private-session
+    type: invariant
+    must: >
+      Watch pairing exchanges only the opaque token, PIN, and required server
+      identity over WatchConnectivity, rejects malformed, stale, or wrong-server
+      approvals, and stores a usable client master key only after successful
+      encrypted pair-login completion.
+    depends_on: [examples.pairing_privacy]
+  - id: apple-watch.hub.compact-navigation
+    type: behavior
+    must: >
+      The compact Watch hub presents Chats, Tasks, and Workflows as reachable
+      sections with readable rows, search and new affordances where shown in the
+      approved design, and accessible controls without clipping essential content.
+    depends_on: [examples.hub]
+  - id: apple-watch.lists.read-only-private
+    type: behavior
+    must: >
+      An authenticated Watch lists readable client-decrypted Tasks and Workflows,
+      including workflow-run projections where available, without exposing
+      ciphertext or offering native Task or Workflow mutation and detail screens.
+      Loading and failure states remain visible.
+    depends_on: [examples.lists]
+  - id: apple-watch.handoff.exact-private
+    type: behavior
+    must: >
+      Tapping a Task or Workflow on Watch sends only an item kind, opaque id, and
+      server identity to the paired iPhone. The iPhone accepts only a matching
+      server profile and valid identifier, then routes the user to the exact HTTPS
+      web item; collection and settings handoffs use that profile's web origin.
+      Titles, private content, and arbitrary URLs are absent from the handoff.
+    depends_on: [examples.handoff]
+  - id: apple-watch.chats.browse-search-open
+    type: behavior
+    must: >
+      The Watch shows saved decryptable chats in recent order, searches across
+      available pages beyond the initial small window, keeps useful local chat
+      content through temporary network loss, and opens the selected conversation
+      without showing content from another or incognito chat.
+    depends_on: [examples.chats]
+  - id: apple-watch.chats.new-text-reply
+    type: behavior
+    must: >
+      The Watch can start a new chat and send text in a selected conversation
+      through the ordinary client-encrypted preflight and inference path.
+      Failed or uncertain submission preserves the exact unsent encrypted turn
+      for safe retry, and server content is decrypted only on the client.
+    depends_on: [examples.replies]
+  - id: apple-watch.chats.audio-reply
+    type: behavior
+    must: >
+      A Watch conversation offers a focused recording screen with cancel, timer,
+      and one Send action. Send uploads the recording for the same server
+      transcription and message processing used by iPhone and web, then persists
+      a normal encrypted audio-recording embed in the original selected chat so
+      it can appear on other clients; the Watch does not transcribe on device.
+    depends_on: [examples.audio]
+  - id: apple-watch.chats.compact-layout
+    type: behavior
+    must: >
+      The Watch Chat list, opened transcript, embed previews, text composer,
+      and audio action remain visible and usable within the Watch viewport.
+    depends_on: [examples.chat_layout]
+
+applies_to:
+  rest_api:
+    required: false
+    role: Shared authenticated endpoints supply data and audio processing under their owning contracts.
+  cli:
+    required: false
+    role: The CLI has no Watch user interface.
+  sdks:
+    required: false
+    role: SDKs do not own Watch controls or iPhone handoff.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    implementations:
+      web: {required: false}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [pairing, pairing_privacy, hub, lists, handoff, chats, replies, audio, chat_layout]

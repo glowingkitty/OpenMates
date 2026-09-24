@@ -26,7 +26,62 @@ struct WatchEmbedPreviewCard: View {
         .accessibilityIdentifier("watch-embed-preview-\(model.family.rawValue)")
     }
 
-    private var cardContent: some View {
+    @ViewBuilder private var cardContent: some View {
+        if model.family == .code && model.state == .ready {
+            codeCardContent
+        } else {
+            standardCardContent
+        }
+    }
+
+    // The code preview uses the same compact cover layout as the Watch design.
+    // Its title and line count still come from the mapped embed record.
+    private var codeCardContent: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                Rectangle()
+                    .fill(gradient(forAppId: model.appId))
+                Image(systemName: "chevron.left.forwardslash.chevron.right")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(LinearGradient.appCode)
+                    .frame(width: 28, height: 25)
+                    .background(Color.grey0, in: RoundedRectangle(cornerRadius: 2))
+                    .accessibilityHidden(true)
+            }
+            .frame(height: 44)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 31, weight: .semibold))
+                    .foregroundStyle(Color.grey30)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 10)
+                    .accessibilityHidden(true)
+
+                Spacer(minLength: 0)
+
+                Text(model.title)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(Color.grey0)
+                    .lineLimit(1)
+
+                if let detail = model.detail ?? model.subtitle {
+                    Text(detail + " ...")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.grey30)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, 22)
+            .padding(.bottom, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .background(Color.grey90)
+        }
+        .frame(width: CGFloat(WatchEmbedPreviewModel.cardWidth), height: 144)
+        .clipShape(RoundedRectangle(cornerRadius: .radius6, style: .continuous))
+    }
+
+    private var standardCardContent: some View {
         VStack(alignment: .leading, spacing: .spacing2) {
             HStack(spacing: .spacing2) {
                 Circle()

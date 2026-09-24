@@ -14,6 +14,7 @@ import SwiftUI
 
 struct WatchRootView: View {
     @StateObject private var authStore = WatchAuthStore()
+    @StateObject private var phoneBridge = WatchPhoneLoginBridge.shared
 
     var body: some View {
         ZStack {
@@ -26,13 +27,29 @@ struct WatchRootView: View {
             case .unauthenticated:
                 WatchPairLoginView(authStore: authStore)
             case .authenticated:
-                WatchChatShellView(
+                WatchHubView(
                     currentUserId: authStore.currentUser?.id,
-                    webSocketToken: authStore.webSocketToken
+                    currentUsername: authStore.currentUser?.username,
+                    webSocketToken: authStore.webSocketToken,
+                    onOpenItem: { request in
+                        _ = phoneBridge.sendItemOpenRequest(request)
+                    },
+                    onOpenSettings: {
+                        _ = phoneBridge.sendSettingsOpenRequest()
+                    },
+                    onCreate: { section in
+                        switch section {
+                        case .tasks: _ = phoneBridge.sendCollectionOpenRequest(kind: .task)
+                        case .workflows: _ = phoneBridge.sendCollectionOpenRequest(kind: .workflow)
+                        case .chat: break
+                        }
+                    }
                 )
+                .task { phoneBridge.start(onApproval: { _ in }, onAcknowledgment: { _ in }) }
             }
         }
         .task { await authStore.checkSession() }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("watch-root")
     }
 
