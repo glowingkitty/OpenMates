@@ -175,9 +175,10 @@ skills:
         provider:
           type: string
           description: >
-            The event provider to use. 'auto' (default) queries all providers in
-            parallel for best coverage. Use specific providers when the user asks
-            about a particular platform/type: 'Eventbrite' for Eventbrite-only results,
+            The event provider to use. 'auto' (default) searches general sources
+            in parallel and adds relevant specialist sources for the topic and region.
+            Use a specific provider when the user asks about a particular platform/type:
+            'Eventbrite' for Eventbrite-only results,
             'Resident Advisor' for electronic music/clubs,
             'Siegessäule' for Berlin LGBTQ+ events,
             'GPN24', '39C3', '38C3', or '37C3' for official schedules of those events.
