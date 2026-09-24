@@ -1327,6 +1327,11 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'sweep-assistant-speech-billing': {
+        'task': 'apps.audio.tasks.assistant_speech_billing_sweep',
+        'schedule': timedelta(minutes=10),
+        'options': {'queue': 'app_music', 'expires': 540},
+    },
     'sweep-due-storage-jobs': {
         'task': 'storage.sweep_due_jobs',
         'schedule': timedelta(minutes=5),

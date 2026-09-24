@@ -19,6 +19,10 @@ assistant_speech_manifests:
     sealed: {type: boolean, required: true, default: false}
     billing_status: {type: string, required: true, default: pending}
     billing_usage_id: {type: string, nullable: true}
+    billing_settled_segment_ids: {type: json, nullable: true}
+    billing_settled_characters: {type: integer, required: true, default: 0}
+    billing_claim_segment_id: {type: string, nullable: true}
+    billing_claim_expires_at: {type: timestamp, nullable: true}
 
 assistant_speech_segments:
   type: collection
@@ -36,6 +40,9 @@ assistant_speech_segments:
     voice_profile_key: {type: string}
     voice_profile_version: {type: integer}
     status: {type: string}
+    live_mock_mode: {type: string, nullable: true}
+    live_mock_group: {type: string, nullable: true}
+    live_mock_required: {type: string, nullable: true}
     execution_version: {type: integer}
     generated_asset_id: {type: string, nullable: true}
     duration_seconds: {type: decimal, nullable: true}

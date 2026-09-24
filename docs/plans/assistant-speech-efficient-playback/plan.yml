@@ -1,7 +1,7 @@
 schema_version: 2
 id: assistant-speech-efficient-playback
 title: Faster, demand-driven assistant response speech
-status: draft
+status: implementing
 goal: >
   Make assistant speech feel faster, generate only paragraphs a listener is likely
   to hear, keep playback continuous when generation is timely, give gentle audible
@@ -16,10 +16,11 @@ scope:
   out:
     - The separately invoked audio.speak app skill and its pricing.
     - Changing CLI batch-generation semantics without a separate CLI decision.
+    - Native Apple demand-driven dispatch until the native playback owner supports chapter requests; native turns retain eager dispatch.
     - Relaying partial provider audio or plaintext to the browser.
 
 current_state:
-  - Assistant response speech sends ElevenLabs voice_settings.speed 1.1 for the eleven_v3_conversational profile; browser playback has no playbackRate setting.
+  - Before implementation, assistant response speech sent ElevenLabs voice_settings.speed 1.1 for the eleven_v3_conversational profile; browser playback had no playbackRate setting. The user confirmed there was no practical speedup.
   - Automatic speech dispatches each immutable segment as the AI emits it. The manual web request sends all projected segments and dispatches every missing one immediately.
   - Close dismisses local playback but leaves already queued generation running; Stop cancels only unclaimed queued work.
   - The existing billing worker sums ready character counts once a sealed manifest has no queued, generating, or retryable-error segments. A manifest marked committed is not revisited for a later successful retry.
@@ -89,10 +90,10 @@ decisions:
     decided_at: '2026-09-24'
 
 implementation_state:
-  subject_commit: 5771efd68e562f1b7e10ccc067a40a402e9a7c1d
+  subject_commit: 1b7bb8fb8e4426a71b36ccb0de205c6b7220fddb
 approvals:
-  specification: {status: pending}
-  plan: {status: pending}
+  specification: {status: approved, fingerprint: 81a4a609193585daf25f70b835d68c7fcb3b3c6683f295c371618e85712f9cf5, approved_at: '2026-09-24', evidence: 'User explicitly approved the exact review PDF fingerprint.'}
+  plan: {status: approved, approved_at: '2026-09-24', evidence: 'User said to implement this plan on 2026-09-24.'}
 
 scenarios:
   - id: S-1
@@ -142,7 +143,7 @@ acceptance_criteria:
     scenario: S-1
     text: Voice-message, Auto speak, and manual web paths request the first needed paragraph; stopping prevents later provider calls and charges while preserving ready-file replay.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: playwright
     verification_ids: [T-WEB]
@@ -150,7 +151,7 @@ acceptance_criteria:
     scenario: S-2
     text: Continuous listening prefetches only one next chapter near its end; skipping requests the selected chapter once and plays a static cue only while waiting.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: related_frontend
     verification_ids: [T-QUEUE, T-WEB]
@@ -179,17 +180,23 @@ tests:
     assertions: [one-ahead timer, skip, pause, cancellation, pending cue lifecycle]
     covers: [AC-2]
     red_phase: {required: false, expected: not_applicable, evidence: {}}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: 'pnpm --dir frontend/packages/ui exec vitest run src/services/__tests__/assistantSpeechQueue.test.ts src/services/__tests__/assistantSpeechController.test.ts', run_id: local-vitest-assistant-speech-20260924, subject_commit: 1b7bb8fb8e4426a71b36ccb0de205c6b7220fddb, timestamp: '2026-09-24T16:31:22Z', result: '28 focused frontend tests passed.'}
   - id: T-WEB
     type: playwright
-    file: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-    command: python3 scripts/ci_coordinator.py submit --help
+    file: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session e994 --source SOURCE_SHA --spec audio-recording-and-speech.spec.ts --mode e2e
     target: isolated_github_ci
     execution_environment: isolated_github_ci
     assertions: [voice-message, auto, manual, stop, skip, pending playback]
     covers: [AC-1, AC-2]
     red_phase: {required: false, expected: not_applicable, evidence: {}}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: blocked, actor: ci_coordinator, timestamp: '2026-09-24T16:40:00Z', reason: 'The original assistant_response_speech_web provider replay cache is absent; CI rejected the full voice-message spec.', next_action: 'Use the original cache if supplied, or obtain explicit authorization and a hard budget for provider recording. Component preview passed separately in run 36028968294.'}
   - id: T-BILLING
     type: pytest
     file: backend/tests/test_assistant_speech_worker.py
@@ -197,19 +204,27 @@ tests:
     assertions: [per-segment idempotency, cumulative rounding, cancellation, retry, crash recovery, historical aggregate migration]
     covers: [AC-3]
     red_phase: {required: false, expected: not_applicable, evidence: {}}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: 'python3 scripts/ci_coordinator.py submit --session e994 --source 1b7bb8fb8e4426a71b36ccb0de205c6b7220fddb --spec backend/tests/test_assistant_speech_api.py --spec backend/tests/test_assistant_speech_worker.py --mode pytest --no-prepared-builds', run_id: '36029232601', subject_commit: 1b7bb8fb8e4426a71b36ccb0de205c6b7220fddb, timestamp: '2026-09-24T16:50:00Z', execution_environment: isolated_github_ci, result: 'Focused assistant speech API and worker pytest suites passed.'}
   - id: T-PACE
-    type: manual
-    assertions: [paired provider speed support, intelligibility, ready latency, real billing trace]
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
+    command: pnpm --dir frontend/packages/ui exec vitest run src/services/__tests__/assistantSpeechQueue.test.ts
+    assertions: [generated and cached paragraph playback at 1.25 times source speed, pitch preservation]
     covers: [AC-4]
     red_phase: {required: false, expected: not_applicable, evidence: {}}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: 'pnpm --dir frontend/packages/ui exec vitest run src/services/__tests__/assistantSpeechQueue.test.ts src/services/__tests__/assistantSpeechController.test.ts', run_id: local-vitest-assistant-speech-20260924, subject_commit: 1b7bb8fb8e4426a71b36ccb0de205c6b7220fddb, timestamp: '2026-09-24T16:31:22Z', result: 'Browser Audio playbackRate 1.25 and pitch-preserving flags verified for ready and cached audio.'}
 
 tasks:
   - id: TASK-8823
     title: Approve demand-driven assistant speech contract
-    status: pending
-    phase: awaiting_approval
+    status: done
+    phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]}
     expected_files: [specifications/features/assistant-response-speech/specification.yml, specifications/features/assistant-response-speech/examples.yml]
     verification_ids: [T-QUEUE, T-WEB, T-BILLING, T-PACE]
@@ -217,6 +232,39 @@ tasks:
     blockers: []
     follow_up_tasks: []
     ownership: {files: [specifications/features/assistant-response-speech/specification.yml], shared_files: []}
+  - id: TASK-8591
+    title: Generate assistant speech paragraphs near playback
+    status: blocked
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2]}
+    expected_files: [frontend/packages/ui/src/services/assistantSpeechQueue.ts, frontend/packages/ui/src/services/assistantSpeechController.ts, backend/core/api/app/routes/handlers/websocket_handlers/assistant_speech_handler.py]
+    verification_ids: [T-QUEUE, T-WEB]
+    dependencies: [TASK-8823]
+    blockers: []
+    follow_up_tasks: []
+    ownership: {files: [frontend/packages/ui/src/services/assistantSpeechQueue.ts, frontend/packages/ui/src/services/assistantSpeechController.ts], shared_files: []}
+  - id: TASK-563
+    title: Settle assistant speech credits after each ready paragraph
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-3], acceptance_criteria: [AC-3]}
+    expected_files: [backend/apps/audio/assistant_speech/billing_task.py, backend/apps/audio/assistant_speech/persistence.py]
+    verification_ids: [T-BILLING]
+    dependencies: [TASK-8823]
+    blockers: []
+    follow_up_tasks: []
+    ownership: {files: [backend/apps/audio/assistant_speech/billing_task.py, backend/apps/audio/assistant_speech/persistence.py], shared_files: []}
+  - id: TASK-9657
+    title: Increase assistant response speech pace
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-4], acceptance_criteria: [AC-4]}
+    expected_files: [backend/apps/audio/assistant_speech/voice_profiles.py, frontend/packages/ui/src/services/assistantSpeechQueue.ts]
+    verification_ids: [T-PACE]
+    dependencies: [TASK-8823]
+    blockers: []
+    follow_up_tasks: []
+    ownership: {files: [backend/apps/audio/assistant_speech/voice_profiles.py], shared_files: [frontend/packages/ui/src/services/assistantSpeechQueue.ts]}
 attempts:
   - id: ATTEMPT-1
     task_id: TASK-8823
@@ -224,11 +272,15 @@ attempts:
     outcome: planned
     recorded_at: '2026-09-24'
 handoff:
-  current_task_id: TASK-8823
-  next_action: Draft the exact Specification and examples for user review, then implement dependent Tasks after approval.
+  current_task_id: TASK-8591
+  next_action: Resolve the missing original provider replay cache or obtain an explicit bounded recording decision, finish full-flow browser evidence, and deploy the approved implementation.
   command: python3 scripts/specifications.py validate specifications/features/assistant-response-speech
   expected_outcome: Changed assertions and human-readable examples validate before review artifact generation.
-  blocker: null
+  blocker:
+    reason: Full voice-message browser CI is held because the original assistant_response_speech_web replay cache is absent; replacement recording needs explicit authorization and a hard budget.
+    requires_user_input: true
+    question: Supply the original cache, authorize a budgeted provider recording, or accept the full-flow evidence gap.
+    next_action: Preserve the passing backend and player-component CI evidence while awaiting the user's testing decision.
   last_verified_commit: 5771efd68e562f1b7e10ccc067a40a402e9a7c1d
 
 source_evidence:

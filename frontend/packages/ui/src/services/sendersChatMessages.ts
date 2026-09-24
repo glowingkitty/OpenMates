@@ -1008,7 +1008,8 @@ export async function sendNewMessageImpl(
 			current_chat_summary_v?: number;
 			current_chat_title_v?: number;
 			current_chat_metadata_v?: number;
-			auto_speak_response?: boolean;
+            auto_speak_response?: boolean;
+            assistant_speech_lazy_dispatch?: boolean;
 			assistant_response_source_revision?: number;
 		};
 		encrypted_chat_key?: string | null; // CRITICAL: Include key for device sync broadcast
@@ -1048,6 +1049,7 @@ export async function sendNewMessageImpl(
 			current_chat_metadata_v: chat?.metadata_v ?? chat?.title_v ?? 0,
 			...(autoSpeakResponseForRequest ? {
 				auto_speak_response: true,
+				assistant_speech_lazy_dispatch: true,
 				assistant_response_source_revision: 1,
 			} : {})
 			// NO category or encrypted fields - those go to Phase 2

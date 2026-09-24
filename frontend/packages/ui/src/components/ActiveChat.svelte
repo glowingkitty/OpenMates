@@ -6502,6 +6502,9 @@
 
         // Save to IndexedDB or incognito service
         if (messageToSave) {
+            if (autoSpeakResponse && messageToSave.role === 'assistant' && typeof messageToSave.content === 'string') {
+                assistantSpeechController.registerSource(chunk.chat_id, chunk.message_id, messageToSave.content);
+            }
             try {
                 const saveStartTime = performance.now();
                 

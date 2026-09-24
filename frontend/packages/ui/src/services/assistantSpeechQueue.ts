@@ -53,10 +53,16 @@ export interface AssistantSpeechWaveformRegion {
 }
 
 interface SpeechAudio {
-  addEventListener(event: "ended" | "error" | "waiting" | "playing", listener: () => void): void;
+  addEventListener(event: "ended" | "error" | "waiting" | "playing" | "timeupdate", listener: () => void): void;
   pause(): void;
   play(): Promise<void>;
   src?: string;
+  currentTime?: number;
+  duration?: number;
+  loop?: boolean;
+  playbackRate?: number;
+  preservesPitch?: boolean;
+  webkitPreservesPitch?: boolean;
   load?(): void;
 }
 
@@ -71,6 +77,7 @@ export interface AssistantSpeechQueueOptions {
   audioFactory?: (url: string) => SpeechAudio;
   mediaSession?: MediaSessionControls;
   onStateChange?: (state: AssistantSpeechQueueState) => void;
+  onNeedSegment?: (segment: AssistantSpeechSegment) => void;
 }
 
 interface CachedAudio {
@@ -83,6 +90,10 @@ const DEFAULT_STATE: AssistantSpeechQueueState = {
   status: "idle",
   activeSegmentId: null,
 };
+
+export const ASSISTANT_SPEECH_PLAYBACK_RATE = 1.25;
+export const ASSISTANT_SPEECH_PREFETCH_LEAD_SECONDS = 6;
+const PENDING_CUE_URL = "/audio/assistant-speech-pending.wav";
 
 const SILENT_AUDIO_DATA_URL = "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
 
@@ -100,13 +111,18 @@ export class AssistantSpeechQueue {
   private playGeneration = 0;
   private complete = false;
   private primedAudio: SpeechAudio | null = null;
+  private pendingCue: SpeechAudio | null = null;
+  private explicitSelectionPending = false;
+  private readonly requestedSegmentIds = new Set<string>();
   private readonly onStateChange?: (state: AssistantSpeechQueueState) => void;
+  private readonly onNeedSegment?: (segment: AssistantSpeechSegment) => void;
 
   state: AssistantSpeechQueueState = { ...DEFAULT_STATE };
 
   constructor(options: AssistantSpeechQueueOptions = {}) {
     this.audioFactory = options.audioFactory ?? ((url) => new Audio(url));
     this.onStateChange = options.onStateChange;
+    this.onNeedSegment = options.onNeedSegment;
     this.registerMediaSessionHandlers(
       options.mediaSession ?? this.browserMediaSession,
     );
@@ -156,6 +172,10 @@ export class AssistantSpeechQueue {
     return this.orderedSegments.some((segment) => segment.playbackClass === "replayable");
   }
 
+  segmentById(segmentId: string): AssistantSpeechSegment | undefined {
+    return this.segments.get(segmentId);
+  }
+
   start(responseId: string, segments: AssistantSpeechSegment[]): void {
     if (AssistantSpeechQueue.activeQueue && AssistantSpeechQueue.activeQueue !== this) {
       AssistantSpeechQueue.activeQueue.stop();
@@ -166,6 +186,8 @@ export class AssistantSpeechQueue {
     this.segments.clear();
     this.audioBySegmentId.clear();
     this.completedSegmentIds.clear();
+    this.requestedSegmentIds.clear();
+    this.explicitSelectionPending = false;
     this.pendingSegmentId = null;
     this.setState({ responseId, status: "waiting_for_segment", activeSegmentId: null });
     for (const segment of segments) {
@@ -186,6 +208,9 @@ export class AssistantSpeechQueue {
       segment = { ...segment, audioUrl: previous.audioUrl, waveform: previous.waveform };
     }
     this.segments.set(segment.id, segment);
+    if (this.currentAudio && this.state.status === "playing" && this.activeSegment) {
+      this.maybePrefetchNext(this.activeSegment, this.currentAudio);
+    }
     if (previous?.status === "failed" && segment.status === "ready" && segment.id === this.state.activeSegmentId) {
       this.setState({ ...this.state, status: this.autoplayPending ? "waiting_for_segment" : "paused" });
     }
@@ -207,6 +232,10 @@ export class AssistantSpeechQueue {
       const nextSegment = this.orderedSegments.find((candidate) => !this.completedSegmentIds.has(candidate.id));
       this.pendingSegmentId = nextSegment?.id ?? null;
       if (!nextSegment || nextSegment.id !== segment.id || segment.status !== "ready") {
+        if (nextSegment && this.autoplayPending && nextSegment.status !== "failed") {
+          this.needSegment(nextSegment);
+          this.startPendingCue();
+        }
         return;
       }
     }
@@ -251,6 +280,7 @@ export class AssistantSpeechQueue {
     this.autoplayPending = false;
     this.playGeneration += 1;
     this.currentAudio?.pause();
+    this.stopPendingCue();
     this.setState({ ...this.state, status: "paused" });
   }
 
@@ -282,12 +312,15 @@ export class AssistantSpeechQueue {
 
   fail(): void {
     this.stopCurrentAudio();
+    this.stopPendingCue();
     this.setState({ ...this.state, status: "failed" });
   }
 
   stop(): void {
     this.autoplayPending = false;
     this.stopCurrentAudio();
+    this.stopPendingCue();
+    this.explicitSelectionPending = false;
     this.setState({ ...this.state, status: "stopped" });
     if (AssistantSpeechQueue.activeQueue === this) {
       AssistantSpeechQueue.activeQueue = null;
@@ -309,12 +342,16 @@ export class AssistantSpeechQueue {
     }
     this.stopCurrentAudio();
     this.pendingSegmentId = null;
+    this.explicitSelectionPending = true;
     this.completedSegmentIds.delete(segment.id);
     this.setState({ ...this.state, activeSegmentId: segment.id,
       status: segment.status === "failed" ? "failed" : this.autoplayPending ? "waiting_for_segment" : "paused",
     });
     if (segment.status === "ready") {
       if (this.autoplayPending) await this.playActiveSegment();
+    } else if (segment.status !== "failed" && this.autoplayPending) {
+      this.needSegment(segment);
+      this.startPendingCue();
     }
   }
 
@@ -360,6 +397,9 @@ export class AssistantSpeechQueue {
       this.setState({ ...this.state, status: "failed" });
     } else if (firstSegment.status === "ready" && this.autoplayPending) {
       void this.playActiveSegment();
+    } else if (this.autoplayPending) {
+      this.needSegment(firstSegment);
+      this.startPendingCue();
     }
   }
 
@@ -382,8 +422,14 @@ export class AssistantSpeechQueue {
     }
     if (!segment || segment.status !== "ready" || !segment.audioUrl) {
       this.setState({ ...this.state, status: "waiting_for_segment" });
+      if (segment && this.autoplayPending) {
+        this.needSegment(segment);
+        this.startPendingCue();
+      }
       return;
     }
+    this.stopPendingCue();
+    this.explicitSelectionPending = false;
     const audio = this.getAudio(segment);
     this.currentAudio = audio;
 
@@ -394,6 +440,7 @@ export class AssistantSpeechQueue {
         return;
       }
       this.setState({ ...this.state, status: "playing" });
+      this.maybePrefetchNext(segment, audio);
     } catch (error) {
       if (generation !== this.playGeneration || !this.isCurrentAudio(segment.id, audio)) {
         return;
@@ -421,6 +468,9 @@ export class AssistantSpeechQueue {
       audio.src = segment.audioUrl!;
       audio.load?.();
     }
+    audio.playbackRate = ASSISTANT_SPEECH_PLAYBACK_RATE;
+    audio.preservesPitch = true;
+    audio.webkitPreservesPitch = true;
     audio.addEventListener("ended", () => this.handleSegmentEnded(segment.id, audio));
     audio.addEventListener("error", () => {
       if (!this.isCurrentAudio(segment.id, audio)) return;
@@ -436,8 +486,10 @@ export class AssistantSpeechQueue {
     audio.addEventListener("playing", () => {
       if (this.isCurrentAudio(segment.id, audio) && this.autoplayPending) {
         this.setState({ ...this.state, status: "playing" });
+        this.maybePrefetchNext(segment, audio);
       }
     });
+    audio.addEventListener("timeupdate", () => this.maybePrefetchNext(segment, audio));
     this.audioBySegmentId.set(segment.id, { audio, url: segment.audioUrl! });
     return audio;
   }
@@ -462,6 +514,10 @@ export class AssistantSpeechQueue {
     if (!nextSegment || nextSegment.status !== "ready") {
       this.pendingSegmentId = nextSegment?.id ?? null;
       this.setState({ ...this.state, status: "waiting_for_more" });
+      if (nextSegment && this.autoplayPending) {
+        this.needSegment(nextSegment);
+        this.startPendingCue();
+      }
       return;
     }
     this.setState({
@@ -474,10 +530,43 @@ export class AssistantSpeechQueue {
 
   private stopCurrentAudio(): void {
     this.playGeneration += 1;
+    this.stopPendingCue();
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio = null;
     }
+  }
+
+  private needSegment(segment: AssistantSpeechSegment): void {
+    if (segment.status === "ready" || segment.status === "failed" || this.requestedSegmentIds.has(segment.id)) return;
+    this.requestedSegmentIds.add(segment.id);
+    this.onNeedSegment?.(segment);
+  }
+
+  private maybePrefetchNext(segment: AssistantSpeechSegment, audio: SpeechAudio): void {
+    if (!this.isCurrentAudio(segment.id, audio) || this.state.status !== "playing") return;
+    const duration = Number.isFinite(audio.duration) && (audio.duration ?? 0) > 0
+      ? audio.duration! : segment.durationMs / 1000;
+    const elapsed = Number.isFinite(audio.currentTime) ? audio.currentTime ?? 0 : 0;
+    const remaining = Math.max(0, duration - elapsed) / ASSISTANT_SPEECH_PLAYBACK_RATE;
+    if (remaining > ASSISTANT_SPEECH_PREFETCH_LEAD_SECONDS) return;
+    const ordered = this.orderedSegments.filter((candidate) => candidate.playbackClass === "replayable");
+    const next = ordered[ordered.findIndex((candidate) => candidate.id === segment.id) + 1];
+    if (next) this.needSegment(next);
+  }
+
+  private startPendingCue(): void {
+    if (this.pendingCue || !this.autoplayPending || this.state.status === "stopped" || !this.explicitSelectionPending) return;
+    const cue = this.audioFactory(PENDING_CUE_URL);
+    cue.loop = true;
+    cue.playbackRate = 1;
+    this.pendingCue = cue;
+    void cue.play().catch(() => { if (this.pendingCue === cue) this.pendingCue = null; });
+  }
+
+  private stopPendingCue(): void {
+    this.pendingCue?.pause();
+    this.pendingCue = null;
   }
 
   private isAutoplayBlocked(error: unknown): boolean {

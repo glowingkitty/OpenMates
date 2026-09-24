@@ -2094,6 +2094,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         current_chat_title_v_from_client = _optional_int(message_payload_from_client.get("current_chat_title_v"))
         current_chat_metadata_v_from_client = _optional_int(message_payload_from_client.get("current_chat_metadata_v"))
         auto_speak_response_from_client = message_payload_from_client.get("auto_speak_response") is True
+        assistant_speech_lazy_dispatch = message_payload_from_client.get("assistant_speech_lazy_dispatch") is True
         assistant_response_source_revision = _optional_int(
             message_payload_from_client.get("assistant_response_source_revision"),
         ) or 1
@@ -2122,6 +2123,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             current_chat_title_v=current_chat_title_v_from_client,
             current_chat_metadata_v=current_chat_metadata_v_from_client,
             auto_speak_response=auto_speak_response_from_client,
+            assistant_speech_lazy_dispatch=auto_speak_response_from_client and assistant_speech_lazy_dispatch,
             assistant_response_source_revision=assistant_response_source_revision,
             is_incognito=is_incognito, # Pass the incognito flag
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat

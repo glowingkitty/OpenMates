@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.assistant-response-speech@5
+specification: feature.assistant-response-speech@6
 
 preferences:
   - id: manual-enable-affects-current-chat-only
@@ -32,20 +32,20 @@ voice_profiles:
     expect: {configured_multilingual_fallback_used: true, random_voice_used: false, silent_provider_substitution: false}
 
 segmentation:
+  - id: native-eager-until-chapter-request-support
+    given: An Apple app starts automatic speech for a response with three paragraphs and does not advertise chapter requests.
+    when: The server registers the response paragraphs.
+    then: The server dispatches all three paragraphs so native playback continues while native chapter requests are developed.
   - id: three-paragraph-response-three-files
-    given:
-      assistant_response: |-
-        I found three suitable trains.
-
-        The fastest leaves at 09:10 and takes four hours.
-
-        I also attached the timetable.
-    expect:
-      manifest_segment_count: 3
-      elevenlabs_request_count: 3
-      encrypted_s3_object_count: 3
-      combined_message_audio_object: absent
-      playback_order: [segment-0, segment-1, segment-2]
+    assertion_ids: [assistant-speech.execution.web-paragraph-demand]
+    given: A web listener starts a three-paragraph voice reply, Auto speak response, or manual Speak playback. None of its paragraphs has audio yet.
+    when: The response paragraphs are registered and the listener hears the first one, then continues through the whole message.
+    then: Registering the chapter list creates no ElevenLabs request for paragraphs two or three. The first paragraph causes one request; the second is requested only near the end of the first, and the third only near the end of the second. Three separate encrypted files exist after full playback, with no combined message file.
+  - id: stop-or-replay-before-next-request
+    assertion_ids: [assistant-speech.execution.web-paragraph-demand]
+    given: A listener has played the first paragraph of a three-paragraph response and its encrypted audio file is ready.
+    when: The listener stops before the next-paragraph threshold, then later replays the first paragraph.
+    then: Only the first paragraph has been requested from ElevenLabs and billed. Replay uses its ready file; neither later paragraph is requested or billed until playback reaches it or the listener selects it.
   - id: paragraph-and-map-summary-are-separate-files
     given: {prose_paragraphs: 1, map_embed_summary: I attached a map with three hotel options.}
     expect: {segments: [prose_paragraph, embed_summary], encrypted_s3_object_count: 2, each_object_independently_skippable: true}
@@ -95,6 +95,21 @@ processing:
     expect: {device_receives_text_first: true, speech_projection_runs_after_publish: true, text_stream_blocked: false}
 
 playback:
+  - id: faster-default-pace
+    assertion_ids: [assistant-speech.execution.first-segment-progressive]
+    given: A generated or cached assistant paragraph is ready to play in the web browser.
+    when: The user plays or replays it.
+    then: The browser plays the audio at 1.25 times its source speed while preserving pitch, and the provider request uses neutral speed.
+  - id: prefetch-one-successor
+    assertion_ids: [assistant-speech.on-demand.generate-missing-only]
+    given: A listener is playing a twenty-second first paragraph and later paragraphs are registered without provider work.
+    when: Playback reaches six seconds before the first paragraph ends.
+    then: The browser sends one ElevenLabs generation request for the second paragraph and none for the third; if the second paragraph already has a matching ready file, it plays that file without a new request.
+  - id: skip-to-pending-chapter-cue
+    assertion_ids: [assistant-speech.playback.two-second-idle-grace]
+    given: A listener selects a paragraph whose audio is not ready.
+    when: The paragraph is being generated.
+    then: A quiet local cue repeats while Loading is visible and stops as soon as speech is ready, paused, closed, or fails; the cue costs no credits.
   - id: passive-prelude-waveform
     given: {playing_clip: acknowledgement, next_clip_ready: false}
     expect: {bar_visible: true, presentation_mode: passive_clip, chapter_label: Confirmation, waveform_visible: true, previous_next_controls_visible: false, replay_action_visible: false, loading_visible_while_more_audio_may_arrive: true}
@@ -102,9 +117,9 @@ playback:
     given: {playing_clip: app_use_announcement, selected_apps: [Weather], next_response_chapter_ready: false}
     expect: {chapter_label: Using apps, replayable_chapter: false, previous_next_target: false, loading_visible: true}
   - id: start-after-first-paragraph
-    given: {segment_0: ready, segment_1: generating, segment_2: queued}
-    action: auto_play
-    expect: {segment_0_starts: true, waits_for_all_segments: false, text_stream_waits_for_audio: false, visible_wait_after_segment_0_if_needed: true, pinned_active_chat_bar_visible: true, segment_0_region_highlighted: true}
+    given: The first web paragraph is ready and the next two are registered without ElevenLabs work.
+    when: Automatic playback begins and the listener stays on the first paragraph.
+    then: The first paragraph plays in the pinned chat bar while text continues streaming; the next paragraph is requested only near the end of the first and a later paragraph remains unrequested.
   - id: full-response-waveform-bar
     given:
       surface: gui.web
@@ -145,10 +160,11 @@ playback:
     given: {selected_chapter: segment-1, segment_1_status: generating, playback_intent: playing}
     action: pause_before_segment_1_ready
     expect: {play_and_close_visible: true, autoplay_when_ready: false, selected_chapter_preserved: true, transcript_segments_equal_emphasis: true}
-  - id: close-while-generation-continues
-    given: {player_status: paused, segment_1_status: generating, speech_request_dispatched: true}
-    action: close_player
-    expect: {bar_visible: false, local_playback_stopped: true, generation_cancelled: false, ready_asset_persists: true, later_speak_reuses_asset: true}
+  - id: close-cancels-unclaimed-generation
+    assertion_ids: [assistant-speech.playback.single-queue-segment-control]
+    given: The first paragraph is ready and a later paragraph is queued but its provider call has not started.
+    when: The listener closes the player.
+    then: Playback stops, the queued provider work is cancelled, and the first audio file remains available for replay.
   - id: responsive-figma-layout
     given: {figma_node: '5903:75417', states: [playing, paused, loading], viewports: [mobile, desktop]}
     expect: {speech_accent_rounded_bar: true, desktop_mate_avatar_visible: true, mobile_prioritizes_waveform_and_current_chapter: true, chat_actions_accessible: true, transcript_obscured: false}
@@ -208,12 +224,15 @@ public_examples:
 
 billing:
   - id: two-successful-paragraphs
-    given: {chat_id: chat-1, assistant_message_id: message-2, successful_segment_character_counts: [120, 280], rendered_duration_seconds: 66.5}
-    expect: {usage_rows: 1, aggregate_billable_characters: 400, credits_charged: 29, minimum_credits: 1, pricing_formula: max_1_ceil_characters_divided_by_14, model: eleven_v3_conversational, duration_affects_price: false, row_has_chat_message_provider_model: true}
+    assertion_ids: [assistant-speech.billing.segment-success-once]
+    given: ElevenLabs successfully generates two paragraphs of 120 and 280 submitted characters for one assistant message.
+    when: Each encrypted paragraph becomes ready.
+    then: The first settlement charges 9 credits and the second charges 20, totaling 29 credits for the message; each charge identifies the chat, message, provider, and model.
   - id: successful-retry-updates-existing-message-entry
-    given: {assistant_message_id: message-2, first_successful_segment_characters: 120, second_segment_initial_status: provider_error, existing_usage_rows: 1}
-    action: retry_second_segment_with_280_characters
-    expect: {usage_rows: 1, aggregate_billable_characters: 400, credits_charged: 29, first_segment_contribution_count: 1, second_segment_contribution_count: 1}
+    assertion_ids: [assistant-speech.billing.segment-success-once]
+    given: The first paragraph was charged, the second initially failed, and the user later retries it.
+    when: The second paragraph succeeds and billing is retried after a worker interruption.
+    then: Only the additional cumulative credit amount is charged once; the first paragraph is not billed again.
   - id: prerecorded-and-replay-free
     given: {prerecorded_acknowledgement_plays: 1, ready_segment_replays: 3}
     expect: {provider_generation_calls: 0, additional_credits: 0}

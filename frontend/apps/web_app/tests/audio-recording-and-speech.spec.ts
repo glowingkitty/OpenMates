@@ -31,7 +31,7 @@ const PROOF_DEVICE = PROOF_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 
 function withRequiredLiveMock(message: string): string {
 	const marked = withLiveMockMarker(message, LIVE_MOCK_GROUP);
-	expect(marked).toMatch(/<<<TEST_LIVE_(?:MOCK|RECORD):assistant_response_speech_web>>>/);
+	expect(marked).toMatch(/<<<TEST_LIVE_(?:MOCK|RECORD):assistant_response_speech_web(?::[A-Za-z0-9_-]+)?>>>/);
 	return marked;
 }
 
@@ -99,6 +99,10 @@ test.describe.serial('Audio recording and assistant speech', () => {
         // Keep only safe sequence/status metadata from the real replay exchange.
         let requestedSpeechSequences: number[] = [];
         let acceptedSpeechSegments: Array<{ request_sequence: number; status: string }> = [];
+        let manualRequestDeferred = false;
+        const generationRequests: number[] = [];
+        const registeredSpeechSegments = new Set<string>();
+        let cancelledSpeechRequests = 0;
 		const sentChatProtocolEvents: Array<{ type: string; chatId?: string }> = [];
         page.on('websocket', (socket: any) => {
             socket.on('framesent', (event: { payload: string | Buffer }) => {
@@ -112,8 +116,13 @@ test.describe.serial('Audio recording and assistant speech', () => {
 					}
                     if (frame.type === 'assistant_speech' && frame.payload?.action === 'request') {
                         requestedSpeechSequences = frame.payload.segments.map((segment: { sequence: number }) => segment.sequence);
+                        manualRequestDeferred = frame.payload.defer_after_first === true;
                         acceptedSpeechSegments = [];
                     }
+                    if (frame.type === 'assistant_speech' && frame.payload?.action === 'generate') {
+                        generationRequests.push(frame.payload.segments?.[0]?.sequence);
+                    }
+                    if (frame.type === 'assistant_speech' && frame.payload?.action === 'cancel') cancelledSpeechRequests += 1;
                 } catch { /* Ignore non-JSON transport frames. */ }
             });
             socket.on('framereceived', (event: { payload: string | Buffer }) => {
@@ -123,6 +132,9 @@ test.describe.serial('Audio recording and assistant speech', () => {
                         acceptedSpeechSegments = frame.payload.segments.map((segment: { request_sequence: number; status: string }) => ({
                             request_sequence: segment.request_sequence, status: segment.status,
                         }));
+                    }
+                    if (frame.type === 'assistant_speech_status' && frame.payload?.status === 'registered' && typeof frame.payload.segment_id === 'string') {
+                        registeredSpeechSegments.add(frame.payload.segment_id);
                     }
                 } catch { /* Ignore non-JSON transport frames. */ }
             });
@@ -342,6 +354,7 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		const waveform = player.getByTestId('assistant-speech-waveform');
 		const regions = player.getByTestId('assistant-speech-waveform-region');
 		await expect.poll(async () => regions.count(), { timeout: SPEECH_TIMEOUT_MS }).toBeGreaterThanOrEqual(2);
+        await expect.poll(() => registeredSpeechSegments.size, { timeout: SPEECH_TIMEOUT_MS }).toBeGreaterThanOrEqual(1);
 		await expect(async () => {
 			const placeholder = await waveform.getAttribute('data-placeholder');
 			const status = await player.getAttribute('data-status');
@@ -388,11 +401,14 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await expect(player.getByTestId('assistant-speech-close')).toBeVisible();
 		await player.getByTestId('assistant-speech-close').click();
 		await expect(player).not.toBeVisible();
+        expect(cancelledSpeechRequests).toBeGreaterThanOrEqual(1);
+        expect(new Set(generationRequests).size).toBe(generationRequests.length);
 		const reopenSpeakAction = streamingAssistant.getByTestId('assistant-message-speak');
 		await reopenSpeakAction.focus();
 		await expect(reopenSpeakAction).toBeFocused();
 		await reopenSpeakAction.press('Enter');
         await expect.poll(() => requestedSpeechSequences.length).toBeGreaterThanOrEqual(2);
+        expect(manualRequestDeferred).toBe(true);
         await expect.poll(() => acceptedSpeechSegments.map((segment) => segment.request_sequence).sort((a, b) => a - b), {
             timeout: 30_000,
         }).toEqual(requestedSpeechSequences);

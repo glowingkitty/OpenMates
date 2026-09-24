@@ -142,6 +142,7 @@ async def _dispatch_automatic_assistant_speech_segment(
     user_vault_key_id: Optional[str],
     voice_profile: dict[str, object],
     auto_speak: bool,
+    lazy_dispatch: bool,
     cache_service: Optional[CacheService],
     redis_channel_name: str,
     log_prefix: str,
@@ -153,17 +154,6 @@ async def _dispatch_automatic_assistant_speech_segment(
         return
     from backend.apps.audio.assistant_speech.persistence import create_manifest_and_segments
 
-    manifest = await create_manifest_and_segments(
-        directus_service,
-        user_id=user_id,
-        chat_id=str(segment["chat_id"]),
-        assistant_message_id=str(segment["assistant_message_id"]),
-        source_version=int(segment["source_version"]),
-        voice_profile=voice_profile,
-        segments=[segment],
-    )
-    if not auto_speak or str(segment["segment_id"]) not in set(manifest["dispatch_segment_ids"]):
-        return
     live_mock_context: dict[str, str] = {}
     if live_mock_mode in {"mock", "record"} and live_mock_group:
         live_mock_context = {
@@ -171,20 +161,33 @@ async def _dispatch_automatic_assistant_speech_segment(
             "live_mock_group": live_mock_group,
             "live_mock_required": "true",
         }
-    celery_config.app.send_task(
-        "apps.audio.tasks.assistant_speech_segment",
-        kwargs={
-            "arguments": {
-                **segment,
-                "user_id": user_id,
-                "user_vault_key_id": user_vault_key_id,
-                "voice_profile_key": voice_profile["key"],
-                "voice_profile_version": voice_profile["version"],
-                **live_mock_context,
-            },
-        },
-        queue="app_music",
+    manifest = await create_manifest_and_segments(
+        directus_service,
+        user_id=user_id,
+        chat_id=str(segment["chat_id"]),
+        assistant_message_id=str(segment["assistant_message_id"]),
+        source_version=int(segment["source_version"]),
+        voice_profile=voice_profile,
+        segments=[{**segment, **live_mock_context, "dispatch_status": "registered" if lazy_dispatch and int(segment["sequence"]) > 0 else "queued"}],
     )
+    if not auto_speak:
+        return
+    should_dispatch = (not lazy_dispatch or int(segment["sequence"]) == 0) and str(segment["segment_id"]) in set(manifest["dispatch_segment_ids"])
+    if should_dispatch:
+        celery_config.app.send_task(
+            "apps.audio.tasks.assistant_speech_segment",
+            kwargs={
+                "arguments": {
+                    **segment,
+                    "user_id": user_id,
+                    "user_vault_key_id": user_vault_key_id,
+                    "voice_profile_key": voice_profile["key"],
+                    "voice_profile_version": voice_profile["version"],
+                    **live_mock_context,
+                },
+            },
+            queue="app_music",
+        )
     await _publish_to_redis(
         cache_service,
         redis_channel_name,
@@ -195,7 +198,7 @@ async def _dispatch_automatic_assistant_speech_segment(
             "message_id": str(segment["assistant_message_id"]),
             "payload": {
                 "segment_id": str(segment["segment_id"]),
-                "status": "queued",
+                "status": "queued" if should_dispatch else "registered",
                 "sequence": int(segment["sequence"]),
                 "kind": str(segment["kind"]),
             },
@@ -5268,6 +5271,7 @@ async def _consume_main_processing_stream(
                     user_vault_key_id=user_vault_key_id,
                     voice_profile=voice_profile,
                     auto_speak=request_data.auto_speak_response,
+                    lazy_dispatch=request_data.assistant_speech_lazy_dispatch,
                     cache_service=cache_service,
                     redis_channel_name=redis_channel_name,
                     log_prefix=log_prefix,

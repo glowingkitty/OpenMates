@@ -1,14 +1,14 @@
 schema_version: 1
 id: feature.assistant-response-speech
-version: 5
+version: 6
 status: draft
 title: Assistant Response Speech
 summary: >
   Let authenticated users hear a nonblocking prerecorded acknowledgement,
   app-use announcement, and ordered independently generated response paragraphs
   while thinking and text streaming remain authoritative, uninterrupted,
-  private, replayable where applicable, and represented by one character-priced
-  billing entry per assistant message, while authenticated CLI owners can generate existing-message speech
+  private, replayable where applicable, and charged with cumulative character
+  pricing per assistant message, while authenticated CLI owners can generate existing-message speech
   and reviewed public examples can replay separately published immutable audio.
 
 scope:
@@ -19,14 +19,15 @@ scope:
     - Immediate acknowledgement playback alongside optional thinking, followed by a generated app-use announcement while selected app previews remain visibly processing.
     - Immutable speakable prose paragraphs, app-use announcements, and structured summaries generated independently from the visual response stream.
     - One ElevenLabs generation request and one encrypted private S3 audio object per immutable paragraph or structured summary segment.
-    - Ordered automatic playback that starts when each complete encrypted audio segment is ready and continues as later paragraph files become ready without delaying thinking, app previews, embeds, or text.
+    - Web voice-message, Auto speak response, and manual Speak playback that registers paragraph order without generating every paragraph, then requests ElevenLabs audio only for the first needed paragraph and each later paragraph as playback approaches it or the listener selects it.
+    - Faster pitch-preserving browser playback and a local repeating confirmation sound while a selected chapter is pending.
     - A responsive full-width playback bar pinned over the top of the active-chat history, below the chat action buttons, that follows the approved Figma chapter, waveform, mate-avatar, loading, and control hierarchy on desktop and mobile.
     - A persistent localized Loading state while another response clip may still arrive, including immediate pending-chapter selection with a flat placeholder waveform that transitions to the ready audio waveform.
     - A compact Speak action on every assistant response that reveals its localized label on hover or keyboard focus, generates only missing paragraph audio, and reuses durable existing files.
     - An authenticated `openmates chats speak` command that generates or reuses private encrypted speech for existing assistant messages through the same owner-scoped first-party pipeline.
     - A reviewed example-publication step that copies approved generated segments into immutable public S3 fixtures for unauthenticated playback without enabling anonymous generation.
     - In-app paragraph controls for play, pause, close, previous paragraph, and next paragraph, plus best-effort operating-system media controls.
-    - One successful-generation-only billing entry per assistant message, priced at one credit per 14 exact characters submitted to ElevenLabs with a one-credit minimum.
+    - A successful-generation-only charge after each ready provider segment, with cumulative message-level rounding at one credit per 14 exact characters.
     - Eleven v3 Conversational for assistant-message speech while the explicit audio.speak skill keeps Eleven v3 as its default high-quality model.
     - Fixed product-curated mate voice profiles with language-compatible fallbacks and versioned provider configuration.
     - Web and Apple semantic parity after the approved first-party server contract is complete.
@@ -39,6 +40,7 @@ scope:
     - Relaying partial provider audio bytes to clients before a complete encrypted segment asset is ready.
     - Anonymous or developer-API generation, public npm or pip SDK generation, and direct public access to private encrypted chat speech assets.
     - Changing the explicit user-invoked audio.speak app-skill contract.
+    - Native Apple demand-driven dispatch until its playback owner supports chapter requests; native turns retain eager dispatch.
 
 models:
   ChatSpeechPreference:
@@ -136,10 +138,15 @@ models:
       required: true
       items: stable_id
       constraints: {unique: true, preserves_speech_order: true, combined_audio_file: forbidden}
-    billing_usage_id:
-      type: stable_id
-      nullable: true
-      constraints: {one_per_assistant_message: true, chat_and_message_attributed: true}
+    billing_settled_segment_ids:
+      type: array
+      required: true
+      items: stable_id
+      constraints: {idempotent: true, preserves_message_attribution: true}
+    billing_settled_characters:
+      type: integer
+      required: true
+      constraints: {monotone: true, minimum: 0}
 
   SpeechSegment:
     segment_id:
@@ -174,7 +181,7 @@ models:
     status:
       type: enum
       required: true
-      values: [queued, generating, ready, error, cancelled]
+      values: [registered, queued, generating, ready, error, cancelled]
     encrypted_audio:
       type: encrypted_generated_asset
       nullable: true
@@ -200,22 +207,22 @@ models:
       nullable: true
       constraints: {safe_user_visible: true, secrets: forbidden, raw_provider_diagnostics: forbidden}
 
-  SpeechBillingAggregate:
+  SpeechBillingSettlement:
     billing_usage_id:
       type: stable_id
       required: true
-      constraints: {one_per_assistant_message: true, idempotent: true}
+      constraints: {one_per_positive_segment_increment: true, idempotent: true}
     assistant_message_id:
       type: message_id
       required: true
     billable_character_count:
       type: integer
       required: true
-      constraints: {sum_of_successful_unbilled_segments: true, segment_contribution_exactly_once: true}
+      constraints: {cumulative_successful_segments: true, segment_contribution_exactly_once: true}
     credits_charged:
       type: integer
       required: true
-      constraints: {minimum: 1, round_once_per_message: true, formula: max_1_ceil_billable_characters_divided_by_14}
+      constraints: {minimum: 0, cumulative_rounding: true, formula: ceil_new_total_divided_by_14_minus_ceil_previous_total_divided_by_14}
     user_price_usd_per_1000_characters:
       type: number
       required: true
@@ -316,7 +323,7 @@ models:
     visibility:
       type: playback_surface_state
       required: true
-      constraints: {visible_while_waiting_playing_paused_blocked_or_error: true, loading_while_more_audio_may_arrive: true, dismissible_when_paused_or_completed: true, close_does_not_cancel_generation: true}
+      constraints: {visible_while_waiting_playing_paused_blocked_or_error: true, loading_while_more_audio_may_arrive: true, dismissible_when_paused_or_completed: true, close_cancels_unclaimed_generation: true}
     responsive_layout:
       type: layout_invariant
       required: true
@@ -393,12 +400,16 @@ assertions:
     depends_on: [models.SpeechSegment.kind, models.SpeechSegment.playback_class, examples.processing]
   - id: assistant-speech.execution.first-segment-progressive
     type: behavior
-    must: Playback starts only after the current segment is fully generated, encrypted, stored, and ready, but does not wait for the complete response or later paragraph files; it waits visibly for the next ordered segment, automatically continues when it becomes ready, and never relays partial provider audio bytes to the client.
-    depends_on: [models.SpeechManifest.ordered_segment_ids, models.PlaybackQueue, examples.playback]
+    must: Playback starts only after the current segment is fully generated, encrypted, stored, and ready, but does not wait for the complete response or later paragraph files; web playback uses 1.25 times source speed with pitch preservation, waits visibly for the next ordered segment, automatically continues when it becomes ready, and never relays partial provider audio bytes to the client.
+    depends_on: [models.SpeechManifest.ordered_segment_ids, models.PlaybackQueue]
+  - id: assistant-speech.execution.web-paragraph-demand
+    type: invariant
+    must: For web voice-message replies, Auto speak response, and manual Speak, registering all immutable paragraph identities and chapter labels makes no ElevenLabs request for later paragraphs. The first needed paragraph is requested alone. During playback, only the immediate next missing paragraph is requested once when the current paragraph has at most six seconds of audible playback left; the following paragraph waits until playback progresses through its predecessor. Selecting an unready chapter requests that chapter immediately. A paragraph with a matching ready encrypted audio file is replayed without a new ElevenLabs request or charge, and stopping before the threshold leaves later paragraphs unrequested and uncharged.
+    depends_on: [models.SpeechManifest.ordered_segment_ids, models.SpeechSegment.status, models.PlaybackQueue]
   - id: assistant-speech.playback.single-queue-segment-control
     type: behavior
-    must: Only one assistant-response speech queue plays at a time; replayable playback supports pause plus previous and next chapter navigation, pausing reveals separate Play and Close controls, Close stops local playback and hides the bar without cancelling requested generation, and starting another response queue stops the previous local playback without deleting generated files or cancelling its requested generation.
-    depends_on: [models.PlaybackQueue, examples.playback]
+    must: Only one assistant-response speech queue plays at a time; replayable playback supports pause plus previous and next chapter navigation, pausing reveals separate Play and Close controls, and Close or starting another response stops playback and cancels unclaimed queued generation while preserving ready files.
+    depends_on: [models.PlaybackQueue]
   - id: assistant-speech.playback.deterministic-chapter-labels
     type: behavior
     must: >
@@ -426,8 +437,8 @@ assertions:
     depends_on: [models.ResponseSpeechBar, models.SpeechSegment.waveform, models.PlaybackQueue, examples.playback]
   - id: assistant-speech.playback.two-second-idle-grace
     type: behavior
-    must: While the system is deciding what comes next or a known next chapter is generating, the bar remains visible with localized Loading text. Selecting a generating chapter immediately makes it current and displays a flat placeholder waveform; ready waveform samples transition smoothly into place and playback starts automatically when ready unless the user paused or closed the player meanwhile.
-    depends_on: [models.PlaybackQueue.pending_selection, models.ResponseSpeechBar.waveform, models.ResponseSpeechBar.visibility, examples.playback]
+    must: While the system is deciding what comes next or a known next chapter is generating, the bar remains visible with localized Loading text. Selecting an unready chapter dispatches it immediately, makes it current, displays a flat placeholder waveform, and repeats a quiet local confirmation cue until ready, paused, closed, failed, or superseded; ready waveform samples transition smoothly into place and playback starts automatically when ready unless the user paused or closed the player meanwhile.
+    depends_on: [models.PlaybackQueue.pending_selection, models.ResponseSpeechBar.waveform, models.ResponseSpeechBar.visibility]
   - id: assistant-speech.playback.os-controls-best-effort
     type: parity
     must: Web clients register supported Media Session play, pause, previous-track, and next-track actions to the active segment queue and retain complete in-app controls when the browser or operating system lacks them; Apple clients expose equivalent native background and lock-screen controls where the platform permits.
@@ -438,8 +449,8 @@ assertions:
     depends_on: [models.PlaybackQueue.state, examples.failures]
   - id: assistant-speech.on-demand.generate-missing-only
     type: behavior
-    must: Every assistant response exposes a compact audio-icon Speak action beside the mate name in the assistant identity row, never in the generated-by footer; its localized Speak response label expands smoothly on pointer hover and keyboard focus and remains available as an accessible name on touch; selecting it starts with reusable current segment files, requests only missing or invalidated segments, begins playback after the first segment is ready, and never regenerates or recharges a matching ready source hash and voice-profile version.
-    depends_on: [models.ResponseSpeakAction, models.SpeechManifest, models.SpeechSegment.source_hash, examples.on_demand]
+    must: Every assistant response exposes a compact audio-icon Speak action beside the mate name in the assistant identity row, never in the generated-by footer; its localized Speak response label expands smoothly on pointer hover and keyboard focus and remains available as an accessible name on touch; selecting it reuses ready current paragraph audio or requests only that paragraph when missing, follows the same one-next-paragraph playback threshold as automatic web speech, dispatches a selected unready chapter immediately, begins playback after the first segment is ready, and never regenerates or recharges a matching ready source hash and voice-profile version.
+    depends_on: [models.ResponseSpeakAction, models.SpeechManifest, models.SpeechSegment.source_hash]
   - id: assistant-speech.cli.owner-generated-existing-messages
     type: behavior
     must: The authenticated OpenMates CLI can select one assistant message or all eligible assistant messages in an owner-accessible existing chat, locally decrypt and deterministically project their content, request only missing or invalidated private encrypted segments through the first-party surface, wait for terminal status, and report generated, reused, failed, and charged segments without exposing plaintext, keys, provider voice IDs, or private object paths.
@@ -462,8 +473,8 @@ assertions:
     depends_on: [models.SpeechSegment, models.MateVoiceProfile.provider_voice_id, examples.privacy]
   - id: assistant-speech.billing.segment-success-once
     type: invariant
-    must: Each runtime-generated segment performs a character-based credit preflight before provider dispatch, and every successful segment contributes its exact submitted character count at most once to one idempotent billing entry for the assistant message. The entry is tied to chat ID, assistant message ID, provider, and model; charges at least one credit using max(1, ceil(total billable characters / 14)) with one message-level rounding step; and records rendered duration only as non-price metadata. Failed, cancelled-before-dispatch, prerecorded, cached, and replayed audio costs zero additional credits, while a later successful retry updates the same message entry instead of creating another row.
-    depends_on: [models.SpeechManifest.billing_usage_id, models.SpeechSegment.billable_character_count, models.SpeechBillingAggregate, models.AcknowledgementClip.audio_asset, examples.billing]
+    must: Each runtime-generated segment performs a character-based credit preflight before provider dispatch, and every ready provider segment contributes its exact submitted character count once to a durable message ledger. Each positive charge has a stable segment identity and chat/message/provider/model attribution; charge only the increase in ceil(cumulative characters / 14), with zero-credit increments recorded as settled. Failed, cancelled-before-dispatch, prerecorded, cached, and replayed audio costs zero additional credits. A later successful retry adds only its cumulative increment.
+    depends_on: [models.SpeechManifest.billing_settled_segment_ids, models.SpeechSegment.billable_character_count, models.SpeechBillingSettlement, models.AcknowledgementClip.audio_asset]
   - id: assistant-speech.failure.nonblocking-visible-resumable
     type: failure
     must: Insufficient credits, safety rejection, provider failure, storage failure, or generation failure stops playback at the affected segment, preserves earlier ready files, disables Auto speak response for that chat, and shows one safe visible status with retry and chat-usage actions; retry resumes from the first failed or missing segment without duplicating successful work or charges.

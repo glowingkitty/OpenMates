@@ -299,6 +299,30 @@ Usage Settings - View usage statistics and export usage data
         return groups;
     }
 
+    function groupAssistantSpeechEntries(entries: UsageEntry[]): UsageEntry[] {
+        const grouped = new Map<string, UsageEntry>();
+        const result: UsageEntry[] = [];
+        for (const entry of entries) {
+            if (entry.app_id !== 'assistant_response_speech' || !entry.chat_id || !entry.message_id) {
+                result.push(entry);
+                continue;
+            }
+            const key = `${entry.chat_id}:${entry.message_id}:${getMonthYear(entry.created_at)}`;
+            const previous = grouped.get(key);
+            if (previous) {
+                previous.credits = (previous.credits ?? 0) + (entry.credits ?? 0);
+                previous.updated_at = Math.max(previous.updated_at, entry.updated_at);
+            } else {
+                const combined = { ...entry };
+                grouped.set(key, combined);
+                result.push(combined);
+            }
+        }
+        return result;
+    }
+
+    let displayUsageEntries = $derived(groupAssistantSpeechEntries(usageEntries));
+
     // Sort usage entries
     function sortEntries(entries: UsageEntry[]): UsageEntry[] {
         const sorted = [...entries];
@@ -1639,7 +1663,7 @@ Usage Settings - View usage statistics and export usage data
 
     // Process and group usage data for display
     const processedUsage = $derived.by(() => {
-        const filtered = filterByTab(usageEntries);
+        const filtered = filterByTab(displayUsageEntries);
         const sorted = sortEntries(filtered);
         const grouped = groupByTime(sorted);
         
@@ -2218,7 +2242,7 @@ Usage Settings - View usage statistics and export usage data
             </div>
         {:else}
         <div class="detail-entries">
-            {#each usageEntries as entry}
+            {#each displayUsageEntries as entry}
                 {@const appName = entry.app_id ? (() => {
                     try {
                         return $text(`apps.${entry.app_id}`);
@@ -2302,7 +2326,7 @@ Usage Settings - View usage statistics and export usage data
                 </div>
             {:else}
             <div class="detail-entries">
-                {#each usageEntries as entry}
+                {#each displayUsageEntries as entry}
                     {@const appName = entry.app_id ? (() => {
                         try {
                             return $text(`apps.${entry.app_id}`);
@@ -2372,7 +2396,7 @@ Usage Settings - View usage statistics and export usage data
                 </div>
             {:else}
             <div class="detail-entries">
-                {#each usageEntries as entry}
+                {#each displayUsageEntries as entry}
                     {@const skillName = entry.skill_id && entry.app_id ? (() => {
                         const key = getSkillTranslationKey(entry.app_id!, entry.skill_id!);
                         if (key) { try { return $text(key); } catch { return entry.skill_id; } }
