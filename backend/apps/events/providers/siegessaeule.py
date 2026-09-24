@@ -47,6 +47,7 @@ _TERMINE_URL = f"{_BASE_URL}/termine/"
 _HTTP_TIMEOUT = 25.0
 _GRAPHQL_TIMEOUT = 8.0
 _HTML_FALLBACK_TIMEOUT = 10.0
+_PROXY_ATTEMPTS = 2
 
 # Maximum description length (characters).
 _MAX_DESCRIPTION_CHARS = 2000
@@ -392,40 +393,57 @@ async def search_events_async(
 
     data: Optional[Dict[str, Any]] = None
     html_events: Optional[List[Dict[str, Any]]] = None
-    try:
-        async with httpx.AsyncClient(
-            proxy=proxy_url,
-            timeout=_HTTP_TIMEOUT,
-            follow_redirects=True,
-        ) as client:
-            try:
-                response = await client.post(
-                    _GRAPHQL_URL,
-                    json={"query": graphql_query},
-                    headers=_HEADERS,
-                    timeout=_GRAPHQL_TIMEOUT,
-                )
-                response.raise_for_status()
-                data = response.json()
-            except (httpx.HTTPError, ValueError) as exc:
+    last_error: Optional[Exception] = None
+    for attempt in range(1, _PROXY_ATTEMPTS + 1):
+        try:
+            # A fresh proxy client is intentional for every attempt. Webshare's
+            # rotating endpoint can occasionally assign an exit IP that the
+            # publisher blocks; reconnecting gives the bounded retry a new IP.
+            async with httpx.AsyncClient(
+                proxy=proxy_url,
+                timeout=_HTTP_TIMEOUT,
+                follow_redirects=True,
+            ) as client:
+                try:
+                    response = await client.post(
+                        _GRAPHQL_URL,
+                        json={"query": graphql_query},
+                        headers=_HEADERS,
+                        timeout=_GRAPHQL_TIMEOUT,
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                except (httpx.HTTPError, ValueError) as exc:
+                    logger.warning(
+                        "[siegessaeule] GraphQL unavailable (%s); trying public calendar HTML",
+                        type(exc).__name__,
+                    )
+                    html_response = await client.get(
+                        _TERMINE_URL,
+                        params={"date": date_str},
+                        headers=_HTML_HEADERS,
+                        timeout=_HTML_FALLBACK_TIMEOUT,
+                    )
+                    html_response.raise_for_status()
+                    html_events = _parse_html_events(html_response.text)
+            break
+        except (httpx.HTTPError, ValueError) as exc:
+            last_error = exc
+            if attempt < _PROXY_ATTEMPTS:
                 logger.warning(
-                    "[siegessaeule] GraphQL unavailable (%s); trying public calendar HTML",
+                    "[siegessaeule] Public endpoints unavailable error_type=%s; "
+                    "retrying with a fresh proxy connection",
                     type(exc).__name__,
                 )
-                html_response = await client.get(
-                    _TERMINE_URL,
-                    params={"date": date_str},
-                    headers=_HTML_HEADERS,
-                    timeout=_HTML_FALLBACK_TIMEOUT,
-                )
-                html_response.raise_for_status()
-                html_events = _parse_html_events(html_response.text)
-    except (httpx.HTTPError, ValueError) as exc:
-        logger.warning(
-            "[siegessaeule] Public endpoints unavailable error_type=%s",
-            type(exc).__name__,
-        )
-        raise RuntimeError("Siegessäule is temporarily unavailable") from exc
+                continue
+            logger.warning(
+                "[siegessaeule] Public endpoints unavailable error_type=%s attempts=%d",
+                type(exc).__name__,
+                attempt,
+            )
+
+    if data is None and html_events is None:
+        raise RuntimeError("Siegessäule is temporarily unavailable") from last_error
 
     # Extract events from the nested response structure
     events: List[Dict[str, Any]] = []
