@@ -18,11 +18,11 @@ import importlib
 import json
 import logging
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-from backend.core.api.app.services.skill_registry import build_skill_registry
-from backend.core.api.app.utils.secrets_manager import SecretsManager
+if TYPE_CHECKING:
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 
 FINAL_COUNT = 10
@@ -186,6 +186,39 @@ CASES: tuple[dict[str, Any], ...] = (
         },
     },
     {
+        "app": "code-repositories",
+        "registry_app": "code",
+        "skill": "search_repos",
+        "module": "backend.apps.code.skills.search_repos_skill",
+        "request": {
+            "id": "code-repositories",
+            "query": "python local-first synchronization library",
+            "count": FINAL_COUNT,
+            "relevance_criteria": (
+                "A Python library explicitly designed for local-first synchronization, with a "
+                "permissive license and recent repository activity; do not infer security, "
+                "maintenance health, documentation quality, or API compatibility"
+            ),
+        },
+    },
+    {
+        "app": "models3d",
+        "skill": "search",
+        "module": "backend.apps.models3d.skills.search_skill",
+        "request": {
+            "id": "models3d",
+            "query": "adjustable laptop stand",
+            "providers": ["Printables"],
+            "count": FINAL_COUNT,
+            "sort": "best_match",
+            "relevance_criteria": (
+                "An adjustable laptop stand with explicit functional or file-format evidence, "
+                "a stated license, and no purchase price; do not infer geometry quality, "
+                "printability, or printer compatibility"
+            ),
+        },
+    },
+    {
         "app": "fitness-locations",
         "registry_app": "fitness",
         "skill": "search_locations",
@@ -211,9 +244,17 @@ CASES: tuple[dict[str, Any], ...] = (
 
 
 def _candidate_summary(candidate: Any) -> dict[str, str]:
+    if hasattr(candidate, "model_dump"):
+        candidate = candidate.model_dump()
     if not isinstance(candidate, dict):
         return {"title": "", "host": ""}
-    raw_url = candidate.get("url") or candidate.get("booking_url") or ""
+    raw_url = (
+        candidate.get("url")
+        or candidate.get("html_url")
+        or candidate.get("source_page_url")
+        or candidate.get("booking_url")
+        or ""
+    )
     try:
         host = urlsplit(str(raw_url)).hostname or ""
     except ValueError:
@@ -246,10 +287,16 @@ async def _run_case(
     async def capturing_rank(**kwargs: Any) -> Any:
         candidates = list(kwargs["candidates"])
         result = await original_rank(**kwargs)
+        provider_top = [_candidate_summary(item) for item in candidates[:FINAL_COUNT]]
+        ranked_top = [_candidate_summary(item) for item in result.candidates[:FINAL_COUNT]]
         capture.update({
+            "profile": str(kwargs.get("profile", "")),
             "candidate_count": len(candidates),
-            "provider_order_top": [_candidate_summary(item) for item in candidates[:FINAL_COUNT]],
-            "ranked_order_top": [_candidate_summary(item) for item in result.candidates[:FINAL_COUNT]],
+            "provider_order_top": provider_top,
+            "ranked_order_top": ranked_top,
+            "top_order_changed_positions": sum(
+                before != after for before, after in zip(provider_top, ranked_top)
+            ),
             "applied": result.applied,
             "fallback_reason": result.fallback_reason,
             "input_tokens": result.input_tokens,
@@ -296,6 +343,9 @@ async def _run_case(
 
 
 async def main() -> int:
+    from backend.core.api.app.services.skill_registry import build_skill_registry
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--case",

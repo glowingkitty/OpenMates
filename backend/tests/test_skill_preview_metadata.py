@@ -18,6 +18,7 @@ sys.modules.setdefault("celery", celery_stub)
 toon_format_stub = types.ModuleType("toon_format")
 toon_format_stub.encode = lambda value: str(value)
 toon_format_stub.decode = lambda value: value
+toon_format_stub.DecodeOptions = lambda **_kwargs: object()
 sys.modules.setdefault("toon_format", toon_format_stub)
 
 cache_stub = types.ModuleType("backend.core.api.app.services.cache")
@@ -34,6 +35,8 @@ sys.modules.setdefault("backend.core.api.app.utils.encryption", encryption_stub)
 
 youtube_metadata_stub = types.ModuleType("backend.shared.providers.youtube.youtube_metadata")
 youtube_metadata_stub.extract_youtube_id_from_url = lambda _url: None
+youtube_metadata_stub.get_video_metadata_batched = lambda *_args, **_kwargs: None
+youtube_metadata_stub.get_channel_thumbnails_batched = lambda *_args, **_kwargs: None
 sys.modules.setdefault("backend.shared.providers.youtube.youtube_metadata", youtube_metadata_stub)
 
 github_stub = types.ModuleType("backend.shared.providers.github")
@@ -53,6 +56,7 @@ airports_stub.airport_data = []
 sys.modules.setdefault("airports", airports_stub)
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_shopping_preview_metadata_routes_fabric_to_stoffe() -> None:
     from backend.apps.shopping.skills.search_products import SearchProductsSkill
 
@@ -67,6 +71,7 @@ def test_shopping_preview_metadata_routes_fabric_to_stoffe() -> None:
     }
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_shopping_preview_metadata_routes_country_to_amazon() -> None:
     from backend.apps.shopping.skills.search_products import SearchProductsSkill
 
@@ -81,6 +86,7 @@ def test_shopping_preview_metadata_routes_country_to_amazon() -> None:
     }
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_events_preview_metadata_expands_auto_to_provider_slugs() -> None:
     from backend.apps.events.skills.search_skill import SearchSkill as EventsSearchSkill
 
@@ -91,6 +97,7 @@ def test_events_preview_metadata_expands_auto_to_provider_slugs() -> None:
     assert "luma" in metadata["providers"]
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_home_preview_metadata_defaults_to_all_providers() -> None:
     from backend.apps.home.skills.search_skill import SearchSkill as HomeSearchSkill
 
@@ -102,6 +109,7 @@ def test_home_preview_metadata_defaults_to_all_providers() -> None:
     }
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_travel_preview_metadata_resolves_train_provider_icons() -> None:
     from backend.apps.travel.skills.search_connections import SearchConnectionsSkill
 
@@ -115,6 +123,7 @@ def test_travel_preview_metadata_resolves_train_provider_icons() -> None:
     assert metadata["query"] == "Berlin → Dresden, 2026-04-01"
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_embed_metadata_merge_preserves_preview_providers_and_final_filters() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -143,6 +152,7 @@ def test_embed_metadata_merge_preserves_preview_providers_and_final_filters() ->
     assert "request_id" not in metadata
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_embed_metadata_merge_strips_raw_finance_request_payloads() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -192,6 +202,46 @@ def test_embed_metadata_merge_strips_raw_finance_request_payloads() -> None:
     assert "secret-token" not in serialized
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
+def test_models3d_parent_preview_metadata_is_lightweight() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    metadata = EmbedService._build_parent_preview_metadata(
+        "models3d",
+        "search",
+        [
+            {
+                "title": "Desk organizer",
+                "provider": "Printables",
+                "source_page_url": "https://www.printables.com/model/123",
+                "preview_image_url": "https://cdn.example/model.webp",
+                "thumbnail_url": "https://cdn.example/model-thumb.webp",
+                "creator_name": "Model Maker",
+                "license": "CC BY",
+                "tags": ["desk", "organizer"],
+                "normalized_provider_metadata": {"private": "payload"},
+                "files": [{"name": "model.3mf", "content": "sensitive"}],
+            }
+        ],
+    )
+
+    assert metadata == {
+        "preview_results": [
+            {
+                "title": "Desk organizer",
+                "source_page_url": "https://www.printables.com/model/123",
+                "provider": "Printables",
+                "thumbnail_url": "https://cdn.example/model-thumb.webp",
+                "preview_image_url": "https://cdn.example/model.webp",
+            }
+        ]
+    }
+    assert "creator_name" not in metadata["preview_results"][0]
+    assert "normalized_provider_metadata" not in metadata["preview_results"][0]
+    assert "files" not in metadata["preview_results"][0]
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_embed_metadata_sanitizer_strips_nested_raw_finance_request_payloads() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -222,6 +272,7 @@ def test_embed_metadata_sanitizer_strips_nested_raw_finance_request_payloads() -
     assert "user-secret" not in serialized
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_finance_final_embed_content_sanitizer_strips_raw_request_and_internal_fields() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -260,6 +311,7 @@ def test_finance_final_embed_content_sanitizer_strips_raw_request_and_internal_f
     assert "connected_account_requests" not in serialized
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_finance_outbound_toon_sanitizer_strips_raw_request_and_internal_fields() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -291,6 +343,7 @@ def test_finance_outbound_toon_sanitizer_strips_raw_request_and_internal_fields(
     assert "Coffee Shop" not in sanitized
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_images_search_parent_preview_metadata_contains_lightweight_results() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -327,6 +380,7 @@ def test_images_search_parent_preview_metadata_contains_lightweight_results() ->
     }
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_images_search_parent_preview_metadata_filters_empty_and_caps_results() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -354,6 +408,7 @@ def test_images_search_parent_preview_metadata_filters_empty_and_caps_results() 
     }
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_images_search_parent_preview_metadata_flattens_grouped_results() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -381,6 +436,7 @@ def test_images_search_parent_preview_metadata_flattens_grouped_results() -> Non
     ]
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_web_search_parent_preview_metadata_contains_lightweight_results() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -412,6 +468,7 @@ def test_web_search_parent_preview_metadata_contains_lightweight_results() -> No
     }
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_web_search_parent_preview_metadata_filters_empty_and_caps_results() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -442,6 +499,7 @@ def test_web_search_parent_preview_metadata_filters_empty_and_caps_results() -> 
     }
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_web_search_parent_preview_metadata_flattens_grouped_results() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -469,6 +527,7 @@ def test_web_search_parent_preview_metadata_flattens_grouped_results() -> None:
     ]
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_news_search_parent_preview_metadata_contains_favicon_capable_results() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -499,6 +558,7 @@ def test_news_search_parent_preview_metadata_contains_favicon_capable_results() 
     }
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_generic_result_list_parent_preview_metadata_contains_shallow_fields() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -531,6 +591,7 @@ def test_generic_result_list_parent_preview_metadata_contains_shallow_fields() -
     }
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_generic_result_list_parent_preview_metadata_caps_results() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -550,6 +611,7 @@ def test_generic_result_list_parent_preview_metadata_caps_results() -> None:
     assert metadata["preview_results"][-1]["title"] == "Recipe 5"
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_weather_forecast_parent_preview_metadata_contains_day_summaries() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -592,6 +654,7 @@ def test_weather_forecast_parent_preview_metadata_contains_day_summaries() -> No
     }
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_non_search_parent_preview_metadata_is_empty() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -604,6 +667,7 @@ def test_non_search_parent_preview_metadata_is_empty() -> None:
     assert metadata == {}
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_images_search_preview_component_stays_parent_metadata_only() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     component_path = repo_root / "frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte"
@@ -620,6 +684,7 @@ def test_images_search_preview_component_stays_parent_metadata_only() -> None:
         assert token not in component_source
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_web_search_preview_component_stays_parent_metadata_only() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     component_path = repo_root / "frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte"
@@ -636,6 +701,7 @@ def test_web_search_preview_component_stays_parent_metadata_only() -> None:
         assert token not in component_source
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_weather_forecast_preview_component_consumes_parent_preview_results() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     component_path = repo_root / "frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte"
@@ -644,6 +710,7 @@ def test_weather_forecast_preview_component_consumes_parent_preview_results() ->
     assert "preview_results" in component_source
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_weather_forecast_inline_renderers_pass_parent_preview_results() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     app_skill_renderer = (

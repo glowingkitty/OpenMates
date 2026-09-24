@@ -21,7 +21,9 @@ const ELIGIBLE_SKILLS = [
 	['travel', 'search_stays'],
 	['videos', 'search'],
 	['fitness', 'search_locations'],
-	['fitness', 'search_classes']
+	['fitness', 'search_classes'],
+	['code', 'search_repos'],
+	['models3d', 'search']
 ] as const;
 
 function resolveSchema(openapi: any, schema: any): any {

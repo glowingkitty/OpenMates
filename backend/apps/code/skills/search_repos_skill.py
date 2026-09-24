@@ -18,11 +18,45 @@ from pydantic import BaseModel, Field
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.github import search_github_repositories
+from backend.shared.python_utils.search_relevance import (
+    normalize_relevance_criteria,
+    normalize_url_for_deduplication,
+    rank_search_candidates,
+    relevance_candidate_target,
+    stable_deduplicate_candidates,
+)
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_RESULT_COUNT = 6
+DEFAULT_RESULT_COUNT = 10
 MAX_RESULT_COUNT = 10
+
+
+def _ranking_projection(repo: Dict[str, Any]) -> Dict[str, Any]:
+    """Return only explicit public repository facts useful for selection."""
+
+    projection = {
+        "full_name": repo.get("full_name"),
+        "name": repo.get("name"),
+        "description": repo.get("description"),
+        "topics": repo.get("topics"),
+        "primary_language": repo.get("primary_language"),
+        "license_name": repo.get("license_name"),
+        "license_spdx_id": repo.get("license_spdx_id"),
+        "stars": repo.get("stars"),
+        "forks": repo.get("forks"),
+        "watchers": repo.get("watchers"),
+        "open_issues": repo.get("open_issues"),
+        "archived": repo.get("archived"),
+        "created_at": repo.get("created_at"),
+        "updated_at": repo.get("updated_at"),
+        "pushed_at": repo.get("pushed_at"),
+    }
+    return {
+        key: value
+        for key, value in projection.items()
+        if value is not None and value != []
+    }
 
 
 async def _sanitize_external_content(**kwargs: Any) -> str | None:
@@ -40,6 +74,11 @@ class RepoSearchRequestItem(BaseModel):
     )
     query: str = Field(description="Repository search query, e.g. 'svelte markdown editor'.")
     count: int = Field(default=DEFAULT_RESULT_COUNT, description="Number of repositories to return, max 10.")
+    relevance_criteria: Optional[str] = Field(
+        default=None,
+        max_length=1_000,
+        description="Optional natural-language repository-selection goal used only to rank matching repositories.",
+    )
 
 
 class SearchReposRequest(BaseModel):
@@ -145,11 +184,35 @@ class SearchReposSkill(BaseSkill):
             count_int = max(1, min(int(count), MAX_RESULT_COUNT))
         except (TypeError, ValueError):
             count_int = DEFAULT_RESULT_COUNT
+        relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
+        provider_count = (
+            relevance_candidate_target(count_int, profile="code_repositories")
+            if relevance_criteria
+            else count_int
+        )
 
         task_id = f"github_repo_search_{request_id}"
         try:
-            repos = await search_github_repositories(query=query, count=count_int)
+            repos = await search_github_repositories(query=query, count=provider_count)
             sanitized = await self._sanitize_repo_results(repos, task_id, secrets_manager)
+            if relevance_criteria:
+                sanitized = stable_deduplicate_candidates(
+                    sanitized,
+                    key=lambda repo: (
+                        normalize_url_for_deduplication(repo.get("url") or repo.get("html_url"))
+                        or str(repo.get("full_name") or "").casefold()
+                    ),
+                )
+                ranking = await rank_search_candidates(
+                    candidates=sanitized,
+                    candidate_projections=[_ranking_projection(repo) for repo in sanitized],
+                    relevance_criteria=relevance_criteria,
+                    search_parameters={"query": query},
+                    profile="code_repositories",
+                    secrets_manager=secrets_manager,
+                )
+                sanitized = ranking.candidates
+            sanitized = sanitized[:count_int]
             return request_id, sanitized, None
         except Exception as exc:
             logger.error("GitHub repository search failed for %r: %s", query, exc, exc_info=True)

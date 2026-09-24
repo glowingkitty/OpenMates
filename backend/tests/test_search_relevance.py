@@ -11,6 +11,8 @@ import yaml
 from backend.shared.providers.typesafe.client import DecisionProviderUnavailable
 from backend.shared.providers.typesafe.models import DecisionResponse
 from backend.shared.python_utils import search_relevance
+from backend.shared.providers.models3d_catalogs import Model3DProviderResult
+from backend.scripts.test_search_relevance_ranking import _candidate_summary
 
 
 def _score(score: float) -> dict:
@@ -180,6 +182,54 @@ def test_criteria_validation_and_stable_deduplication() -> None:
     ) == [candidates[0], candidates[2]]
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization
+def test_repository_and_models3d_profiles_use_evidence_only_rubrics_and_default_pool() -> None:
+    repository_profile = search_relevance.SEARCH_RELEVANCE_PROFILES["code_repositories"]
+    repository_instructions = repository_profile.instructions.lower()
+    assert all(
+        term in repository_instructions
+        for term in ("use case", "technology", "license", "date")
+    )
+    assert "popularity" in repository_instructions
+    assert all(
+        term in repository_instructions
+        for term in ("security", "health", "documentation", "api compatibility")
+    )
+
+    models_profile = search_relevance.SEARCH_RELEVANCE_PROFILES["models3d"]
+    models_instructions = models_profile.instructions.lower()
+    assert all(
+        term in models_instructions
+        for term in ("function", "feature", "license", "file", "price")
+    )
+    assert "engagement" in models_instructions
+    assert all(
+        term in models_instructions
+        for term in ("geometry", "printability", "device compatibility")
+    )
+
+    assert search_relevance.relevance_candidate_target(
+        10, profile="code_repositories"
+    ) == 40
+    assert search_relevance.relevance_candidate_target(10, profile="models3d") == 40
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.search-relevance.safe-finalization
+def test_real_ranking_summary_supports_models3d_pydantic_candidates() -> None:
+    candidate = Model3DProviderResult(
+        title="Foldable travel phone stand",
+        provider="Printables",
+        provider_kind="reverse_engineered_browser_api",
+        provider_item_id="123",
+        source_page_url="https://www.printables.com/model/123-phone-stand",
+    )
+
+    assert _candidate_summary(candidate) == {
+        "title": "Foldable travel phone stand",
+        "host": "www.printables.com",
+    }
+
+
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.optional-and-inferred,health-search-appointments.availability.window-order
 def test_search_tool_schemas_expose_optional_criteria_and_keep_health_excluded() -> None:
     backend_root = Path(__file__).resolve().parents[1]
@@ -194,6 +244,8 @@ def test_search_tool_schemas_expose_optional_criteria_and_keep_health_excluded()
         ("videos", "search"): ("count", 6, 20),
         ("fitness", "search_locations"): ("limit", 10, 50),
         ("fitness", "search_classes"): ("limit", 10, 50),
+        ("code", "search_repos"): ("count", 10, 10),
+        ("models3d", "search"): ("count", 10, 20),
     }
     for (app_id, skill_id), (limit_field, default, maximum) in expected_limits.items():
         app = yaml.safe_load((backend_root / "apps" / app_id / "app.yml").read_text())

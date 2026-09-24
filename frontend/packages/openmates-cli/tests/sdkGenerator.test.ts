@@ -132,6 +132,8 @@ describe("generated npm SDK app skills", () => {
       ["videos", "search"],
       ["fitness", "search_locations"],
       ["fitness", "search_classes"],
+      ["code", "search_repos"],
+      ["models3d", "search"],
     ]) {
       const skill = APP_SKILL_METADATA.find(
         (candidate) => candidate.app_id === appId && candidate.skill_id === skillId,

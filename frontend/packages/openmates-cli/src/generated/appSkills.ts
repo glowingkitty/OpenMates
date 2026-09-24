@@ -362,7 +362,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "code",
     "skill_method_py": "search_repos",
     "description_key": "code.search_repos.description",
-    "description": "Search GitHub repositories. Use this instead of web.search whenever the user asks to find GitHub repos, repositories, open-source libraries, starred repos, or repo examples by topic, language, framework, or project need. Returns licensed repository embeds. Costs 10 credits per search.",
+    "description": "Search GitHub repositories instead of web.search for repositories, open-source libraries, or repo examples. Keep query focused on topic. If the user states a material use, audience, maintenance need, or technical preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Omit relevance_criteria only for a neutral search fully expressed by query; never invent preferences. Returns licensed repository embeds.",
     "schema": {
       "type": "object",
       "properties": {
@@ -380,8 +380,13 @@ export const APP_SKILL_METADATA = [
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 10,
-                "default": 6,
+                "default": 10,
                 "description": "Number of repositories to return."
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language repository-ranking goal, separate from the repository query. Set it whenever the user states a material intended use, audience, maintenance need, technical constraint, desired quality, or preference that should change ordering. Omit only for a neutral repository search fully expressed by query; never invent preferences.\n"
               }
             },
             "required": [
@@ -2312,7 +2317,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "models3d",
     "skill_method_py": "search",
     "description_key": "app_skills.models3d.search.description",
-    "description": "Search public 3D model catalogs for existing models. Use this when the user wants to find, browse, compare, or link to existing 3D-printable or downloadable 3D models. Do not use it to generate new models.",
+    "description": "Search public catalogs for existing printable or downloadable 3D models; do not generate models. Keep query focused on the object. If the user states a material purpose, compatibility need, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Keep free-only and sort constraints structured. Omit relevance_criteria only for a neutral search fully expressed by query; never invent preferences.",
     "schema": {
       "type": "object",
       "properties": {
@@ -2358,6 +2363,11 @@ export const APP_SKILL_METADATA = [
                 "type": "boolean",
                 "default": false,
                 "description": "Return only results that the provider marks as free."
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language model-selection goal, separate from the object query. Populate it faithfully when the user states a material purpose or preference that should change result ordering; omit it only for a neutral search fully expressed by query and never invent preferences.\n"
               }
             },
             "required": [
@@ -5431,7 +5441,7 @@ export class CodeAppSkills {
     return this.runSkill<T>("code", "run", input, options);
   }
   /**
-   * Search GitHub repositories. Use this instead of web.search whenever the user asks to find GitHub repos, repositories, open-source libraries, starred repos, or repo examples by topic, language, framework, or project need. Returns licensed repository embeds. Costs 10 credits per search.
+   * Search GitHub repositories instead of web.search for repositories, open-source libraries, or repo examples. Keep query focused on topic. If the user states a material use, audience, maintenance need, or technical preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Omit relevance_criteria only for a neutral search fully expressed by query; never invent preferences. Returns licensed repository embeds.
    * Description key: code.search_repos.description
    * Skill: code/search_repos
    */
@@ -5620,7 +5630,7 @@ export class Models3dAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search public 3D model catalogs for existing models. Use this when the user wants to find, browse, compare, or link to existing 3D-printable or downloadable 3D models. Do not use it to generate new models.
+   * Search public catalogs for existing printable or downloadable 3D models; do not generate models. Keep query focused on the object. If the user states a material purpose, compatibility need, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Keep free-only and sort constraints structured. Omit relevance_criteria only for a neutral search fully expressed by query; never invent preferences.
    * Description key: app_skills.models3d.search.description
    * Skill: models3d/search
    */

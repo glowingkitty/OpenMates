@@ -457,10 +457,13 @@ skills:
     description_translation_key: code.search_repos.description
     icon_image: search.svg
     preprocessor_hint: >
-      Search GitHub repositories. Use this instead of web.search whenever the
-      user asks to find GitHub repos, repositories, open-source libraries,
-      starred repos, or repo examples by topic, language, framework, or project
-      need. Returns licensed repository embeds. Costs 10 credits per search.
+      Search GitHub repositories instead of web.search for repositories,
+      open-source libraries, or repo examples. Keep query focused on topic. If
+      the user states a material use, audience, maintenance need, or technical
+      preference that should change ordering, put it in
+      relevance_criteria even if related words could also be added to query.
+      Omit relevance_criteria only for a neutral search fully expressed by query;
+      never invent preferences. Returns licensed repository embeds.
     class_path: backend.apps.code.skills.search_repos_skill.SearchReposSkill
     pricing:
       per_unit:
@@ -494,8 +497,18 @@ skills:
                 type: integer
                 minimum: 1
                 maximum: 10
-                default: 6
+                default: 10
                 description: Number of repositories to return.
+              relevance_criteria:
+                type: string
+                maxLength: 1000
+                description: >
+                  Optional concise natural-language repository-ranking goal,
+                  separate from the repository query. Set it whenever the user
+                  states a material intended use, audience, maintenance need,
+                  technical constraint, desired quality, or preference that
+                  should change ordering. Omit only for a neutral repository
+                  search fully expressed by query; never invent preferences.
             required:
               - query
       required:

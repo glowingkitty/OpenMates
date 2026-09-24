@@ -179,6 +179,40 @@ SEARCH_RELEVANCE_PROFILES: Dict[str, SearchRelevanceProfile] = {
             "Exceptional direct fit for the exact viewing or learning goal",
         ),
     ),
+    "code_repositories": SearchRelevanceProfile(
+        instructions=(
+            "Score how well this public code repository satisfies the stated software-selection "
+            "goal using only explicit name, description, topic, language, declared-license, "
+            "popularity, issue-count, and repository-date evidence. Prioritize direct use case, "
+            "technology, license, and date fit over popularity; stars and forks are secondary "
+            "confidence signals only. Never infer security, repository health, documentation "
+            "quality, maintenance quality, or API compatibility from missing or indirect facts."
+        ),
+        criteria=(
+            "Explicit evidence conflicts with or does not support the repository goal",
+            "Weak repository fit with major unsupported requirements",
+            "Plausible fit from partial use-case or technology evidence",
+            "Strong fit supported by explicit use-case, technology, license, or date evidence",
+            "Exceptional direct repository match with unusually complete explicit evidence",
+        ),
+    ),
+    "models3d": SearchRelevanceProfile(
+        instructions=(
+            "Score how well this public 3D-model listing satisfies the stated model-selection goal "
+            "using only explicit title, description, tag, category, creator, declared-license, "
+            "file-count, date, price, and engagement evidence. Prioritize direct functional and "
+            "feature fit over popularity; likes, downloads, and ratings are secondary confidence "
+            "signals only. Never infer geometry quality, printability, device compatibility, file "
+            "contents, safety, or license validity from previews, popularity, or missing facts."
+        ),
+        criteria=(
+            "Explicit evidence conflicts with or does not support the 3D-model goal",
+            "Weak model fit with major unsupported requirements",
+            "Plausible fit from partial function, feature, license, file, or price evidence",
+            "Strong fit supported by several explicit goal-specific model facts",
+            "Exceptional direct 3D-model match with unusually complete explicit evidence",
+        ),
+    ),
     "fitness_locations": SearchRelevanceProfile(
         instructions=(
             "Score how well this fitness venue supports the stated activity goal after authoritative "

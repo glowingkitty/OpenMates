@@ -1,0 +1,287 @@
+schema_version: 2
+id: jev-repository-models3d-relevance
+title: Add Optional Jev Ranking To Repository And 3D Model Search
+status: implementing
+
+goal: >
+  Extend the approved optional relevance_criteria behavior to public GitHub
+  repository and Printables 3D-model search. When criteria are present, retrieve
+  up to forty candidates in one provider request, rank the valid pool with a
+  domain-specific Jev rubric, and return only the requested count, defaulting to
+  ten. Preserve the existing provider path when criteria are absent and preserve
+  provider order, clipped to the requested count, on every ranking failure.
+
+scope:
+  in:
+    - Optional relevance_criteria fields for code.search_repos and models3d.search.
+    - One-request candidate pools of up to forty GitHub or Printables results.
+    - Repository default count increase from six to ten while retaining its maximum of ten.
+    - Existing 3D-model default of ten and maximum of twenty.
+    - Minimized repository- and model-specific Jev projections and evidence rubrics.
+    - REST, typed CLI, JSON CLI, npm SDK, and pip SDK schema parity.
+    - Focused unit, isolated E2E, and real provider/Jev verification.
+  out:
+    - Additional provider pages or retries solely for relevance ranking.
+    - Private repository data, downloaded 3D-model files, or visual geometry analysis.
+    - Jev ranking when relevance_criteria is absent or blank.
+    - Health appointment or clinical relevance ranking.
+
+approvals:
+  specification:
+    status: approved
+    fingerprint: d58df4944a3eb925eeb4d4ce344697624a58866b9271e51bc46d86ec262d4f19
+    approved_at: "2026-09-23T22:31:00Z"
+    reason: The user explicitly approved the revised existing app-skill execution Specification.
+  plan:
+    status: approved
+    approved_at: "2026-09-23T22:31:00Z"
+    reason: The user instructed implementation and deployment after reviewing the exact Specification.
+
+specifications:
+  - id: architecture.app-skill-execution
+    fingerprint: d58df4944a3eb925eeb4d4ce344697624a58866b9271e51bc46d86ec262d4f19
+    assertions:
+      - app-skills.search-relevance.optional-and-inferred
+      - app-skills.search-relevance.bounded-and-conditional
+      - app-skills.search-relevance.safe-finalization
+      - app-skills.surface.semantic-parity
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Both skills request up to forty raw candidates in their existing single provider request only when relevance_criteria is nonblank.
+    reason: Live probes showed forty consumes one GitHub search quota unit or one Printables GraphQL request and improves relevant-candidate recall.
+    decided_at: "2026-09-23T22:31:00Z"
+  - id: D-2
+    status: active
+    decision: GitHub license and normalization filtering may produce fewer than forty rankable candidates; the skill ranks the valid shortfall without overfetching.
+    reason: An exact forty-result GitHub probe yielded thirty-nine valid licensed repositories and still produced a strong ranked top ten.
+    decided_at: "2026-09-23T22:31:00Z"
+  - id: D-3
+    status: active
+    decision: Any criteria, schema, provider-decision, or timeout failure preserves provider order and returns no more than the requested public count.
+    reason: Internal candidate pools must never leak into embeds or later AI context.
+    decided_at: "2026-09-23T22:31:00Z"
+
+scenarios:
+  - id: S-1
+    title: Purpose-aware repository or 3D-model search
+    given: [A supported search includes nonblank relevance criteria.]
+    when: [The provider returns valid public candidates.]
+    then:
+      - The skill retrieves up to forty raw candidates in one provider request.
+      - One domain-specific Jev decision ranks the valid pool.
+      - Only the requested count is returned, defaulting to ten.
+  - id: S-2
+    title: Plain search and failure remain bounded
+    given: [Criteria are absent or the relevance-ranking decision fails.]
+    when: [The skill finalizes provider results.]
+    then:
+      - Plain search preserves the prior retrieval path and makes no Jev call.
+      - Failure preserves provider order and returns only the requested count.
+  - id: S-3
+    title: Public surface parity and faithful assistant inference
+    given: [A caller uses assistant, REST, typed CLI, JSON CLI, npm SDK, or pip SDK.]
+    when: [The caller supplies or clearly states a material ranking purpose.]
+    then:
+      - Every surface accepts the same optional relevance_criteria value.
+      - Assistant inference is concise and faithful while plain searches gain no invented preferences.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Repository and 3D-model searches use one provider request for up to forty candidates and return no more than the requested count.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-REAL]
+  - id: AC-2
+    scenario: S-2
+    text: Missing criteria skip Jev, and every ranking failure returns provider order clipped to the requested count.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND]
+  - id: AC-3
+    scenario: S-3
+    text: REST/OpenAPI, typed and JSON CLI, npm, and pip surfaces expose the same optional bounded field, and a real assistant request populates it faithfully.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-SDK, T-E2E, T-REAL]
+  - id: AC-4
+    scenario: S-1
+    text: Real-provider evidence demonstrates useful rank changes and records candidate count, latency, tokens, and estimated cost without private data.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-REAL]
+
+tests:
+  - id: T-BACKEND
+    type: pytest
+    file: backend/tests/test_search_relevance.py
+    command: >-
+      PYTHONPATH=. python3 -m pytest -q backend/tests/test_github_repo_metadata.py
+      backend/tests/test_code_search_repos_skill.py backend/tests/test_models3d_search_skill.py
+      backend/tests/test_models3d_search_providers.py
+      backend/tests/test_search_relevance.py::test_search_tool_schemas_expose_optional_criteria_and_keep_health_excluded
+      backend/tests/test_search_relevance.py::test_repository_and_models3d_profiles_use_evidence_only_rubrics_and_default_pool
+      backend/tests/test_search_relevance.py::test_real_ranking_summary_supports_models3d_pydantic_candidates
+    covers: [AC-1, AC-2]
+    assertions:
+      - Candidate sizing, optional invocation, minimized projections, stable fallback, and final clipping match the approved contract.
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: passed
+        command: Focused pre-implementation repository, models3d, and shared-profile contract runs.
+        run_id: local-red-repository-models3d
+        subject_commit: working-tree@b3ca0b6df
+        timestamp: "2026-09-23T23:12:00Z"
+        notes: Repository contracts failed 5 of 13, models3d contracts failed 6 of 16, and the shared-profile contract failed with the expected missing-profile error.
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: Focused command recorded on this test entry, plus the isolated parent-preview assertion.
+        run_id: local-green-34-plus-preview
+        subject_commit: working-tree@b3ca0b6df
+        timestamp: "2026-09-23T23:38:00Z"
+        notes: 34 repository, provider, models3d, schema, rubric, and evaluation-summary tests passed; the models3d parent-preview contract passed separately to avoid an existing collection-time GitHub module stub.
+  - id: T-SDK
+    type: lint
+    file: scripts/generate_sdk_app_skills.py
+    command: python3 scripts/generate_sdk_app_skills.py && python3 scripts/audit_sdk_cli_parity.py
+    covers: [AC-3]
+    assertions: [Generated REST, CLI, and npm/pip app-skill metadata match app.yml request schemas.]
+    red_phase: {required: false, expected: fail, evidence: {status: not_required, reason: Generated metadata is verified after both app schemas are updated.}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: npm and pip generator tests plus SDK CLI, cleartext parity, cleartext boundary, and app-skill output-safety audits.
+        run_id: local-sdk-green
+        subject_commit: working-tree@b3ca0b6df
+        timestamp: "2026-09-23T23:39:00Z"
+        notes: Both npm generator tests and both pip generator tests passed; all four audits passed.
+  - id: T-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-search-relevance-parity.spec.ts
+    target: skill-search-relevance-parity.spec.ts
+    execution_environment: isolated_github_ci
+    command: python3 scripts/ci_coordinator.py submit --session c22a --source SOURCE --mode e2e --spec skill-search-relevance-parity.spec.ts
+    covers: [AC-3]
+    assertions:
+      - REST/OpenAPI and typed CLI surfaces expose relevance_criteria for repository and 3D-model search.
+    red_phase: {required: false, expected: fail, evidence: {status: not_required, reason: The isolated run is the final integrated surface-parity check.}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/specifications.py generate && python3 scripts/specifications.py check-generated && python3 scripts/specifications.py check-approval specifications/architecture/app-skill-execution --session c22a && python3 scripts/plan_validate.py docs/plans/jev-repository-models3d-relevance/plan.yml
+        run_id: local-spec-green
+        subject_commit: working-tree@b3ca0b6df
+        timestamp: "2026-09-23T23:40:00Z"
+        notes: Generated artifacts are current, the exact approved Specification fingerprint is retained, and the plan validates.
+  - id: T-REAL
+    type: manual
+    file: backend/scripts/test_search_relevance_ranking.py
+    command: docker exec api python /app/backend/scripts/test_search_relevance_ranking.py --case code-repositories --case models3d
+    covers: [AC-1, AC-3, AC-4]
+    assertions:
+      - Real provider and Jev runs record bounded results, useful ordering changes, token use, latency, and estimated cost.
+      - A natural assistant request populates relevance_criteria while a plain control omits it.
+    red_phase: {required: false, expected: fail, evidence: {status: not_required, reason: Real inference runs only after the candidate is deployed to dev.}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: not_run}}
+  - id: T-SPECS
+    type: lint
+    file: docs/plans/jev-repository-models3d-relevance/plan.yml
+    command: python3 scripts/specifications.py check-generated && python3 scripts/plan_validate.py docs/plans/jev-repository-models3d-relevance/plan.yml
+    covers: [AC-1, AC-2, AC-3]
+    assertions: [The approved Specification registry and this implementation plan validate.]
+    red_phase: {required: false, expected: fail, evidence: {status: not_required, reason: The approved Specification and generated registry already exist.}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/ci_coordinator.py submit --session c22a --source 683cfa81b5b2878feda259e5e6f949a8ff29f81b --mode e2e --spec skill-search-relevance-parity.spec.ts
+        run_id: "35936958746"
+        subject_commit: 683cfa81b5b2878feda259e5e6f949a8ff29f81b
+        timestamp: "2026-09-24T00:11:34Z"
+        notes: The exact resolved candidate tree 95e52da00c6f783680baf42941a10ea127930b4c passed both isolated assertions in 5.0 seconds. The coordinator receipt reader rejected its own successful artifact because the reusable preparation bundle retained harness commit b3ca0b6df while the workflow ran at c7613b4bd; the GitHub job, source hash, candidate tree, requested spec inventory, and two passing results were independently confirmed. A prior exact candidate also passed 2/2 before the resolved-base rerun.
+
+implementation_state:
+  subject_commit: b3ca0b6df1d99024e4b41083d8f4506a75c3b197
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Run read-only forty-candidate GitHub, Printables, and real Jev probes before implementation.
+    outcome: succeeded
+    recorded_at: "2026-09-23T22:31:00Z"
+    reason: The probes confirmed one provider request per search, useful ranking changes, and sub-millicent Jev cost per ranking.
+
+tasks:
+  - id: TASK-1
+    title: Implement and verify repository and 3D-model relevance ranking
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]
+    expected_files:
+      - backend/apps/code/
+      - backend/apps/models3d/
+      - backend/shared/providers/github/repo_metadata.py
+      - backend/shared/providers/models3d_catalogs.py
+      - backend/shared/python_utils/search_relevance.py
+      - backend/tests/
+      - frontend/packages/openmates-cli/
+      - packages/openmates-python/
+      - frontend/apps/web_app/tests/skill-search-relevance-parity.spec.ts
+      - docs/apis/typesafe-jev.md
+    verification_ids: [T-BACKEND, T-SDK, T-E2E, T-REAL, T-SPECS]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/apps/code/
+        - backend/apps/models3d/
+        - backend/shared/providers/github/repo_metadata.py
+        - backend/shared/providers/models3d_catalogs.py
+        - backend/shared/python_utils/search_relevance.py
+      shared_files:
+        - specifications/architecture/app-skill-execution/specification.yml
+        - docs/apis/typesafe-jev.md
+
+documentation_impact:
+  app_skill_specs:
+    status: updated
+    files:
+      - specifications/architecture/app-skill-execution/specification.yml
+      - specifications/architecture/app-skill-execution/examples.yml
+  provider_api:
+    status: updated
+    file: docs/apis/typesafe-jev.md
+  privacy:
+    status: reviewed
+    reason: Ranking sends only bounded public repository or public 3D-model metadata projections to Jev; no private repositories, downloaded model files, or user secrets are included.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Implement the two skill integrations and surface parity, then run focused checks, isolated CI, real inference verification, and deploy.
+  command: python3 scripts/plan_validate.py docs/plans/jev-repository-models3d-relevance/plan.yml
+  expected_outcome: The approved implementation plan validates and all required evidence is completed before deployment.
+  last_verified_commit: b3ca0b6df1d99024e4b41083d8f4506a75c3b197
+  blocker: null

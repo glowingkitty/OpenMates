@@ -143,6 +143,8 @@ def test_generated_metadata_includes_audio_web_search_images_generate_business_a
         ("videos", "search"),
         ("fitness", "search_locations"),
         ("fitness", "search_classes"),
+        ("code", "search_repos"),
+        ("models3d", "search"),
     ]:
         skill = next(
             candidate

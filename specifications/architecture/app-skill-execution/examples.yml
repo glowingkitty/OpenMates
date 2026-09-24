@@ -104,10 +104,15 @@ search_relevance:
     given: Alice asks, "Show me yoga classes in Berlin tomorrow."
     when: The assistant prepares the fitness class search request.
     then: It may omit relevance criteria and does not invent beginner level, intensity, distance, accessibility, price, or schedule preferences.
+  - id: repository-purpose-is-populated
+    given: Alice says, "Find an actively maintained TypeScript authentication library with a permissive license that is suitable for a small SaaS team."
+    when: The assistant prepares the public GitHub repository search request.
+    then: It keeps the retrieval query focused on TypeScript authentication libraries and supplies concise relevance criteria covering explicit maintenance, license, and small-team suitability evidence without treating star count alone as proof.
+    assertion_ids: [app-skills.search-relevance.optional-and-inferred]
   - id: skill-specific-candidate-profiles
     given: Each supported search uses its default final limit of ten and includes relevance criteria.
     when: Candidate retrieval starts.
-    then: Maps, shopping products, and travel stays inspect at most twenty candidates from one provider request or page; videos inspect up to forty from one Brave request; fitness inspects up to forty from provider pages already required by the search; no extra billable provider page is fetched only for ranking; and at most ten ranked results are returned.
+    then: GitHub repositories and Printables models request up to forty candidates in one provider call before filtering, videos inspect up to forty from one Brave request, and fitness inspects up to forty from provider pages already required by the search; maps, shopping products, and travel stays inspect at most twenty because a larger pool would require another billable or rate-limited page; no extra provider request or billable provider page is fetched only for ranking; and at most ten ranked results are returned.
     assertion_ids: [app-skills.search-relevance.bounded-and-conditional]
   - id: criteria-omitted
     given: A supported search omits or supplies blank relevance criteria.
@@ -115,9 +120,9 @@ search_relevance:
     then: Existing provider retrieval and deterministic ordering are preserved and no Jev relevance-ranking call occurs.
     assertion_ids: [app-skills.search-relevance.bounded-and-conditional]
   - id: domain-evidence-rubrics
-    given: Shopping and hotel candidates omit some requested qualities, a popular beginner video weakly matches an advanced goal while a specialist video explicitly covers it, and fitness candidates differ in discipline, schedule, distance, rating, spots, and plan.
+    given: Shopping and hotel candidates omit some requested qualities, a popular beginner video weakly matches an advanced goal while a specialist video explicitly covers it, a highly starred repository is stale while another explicitly matches the requested license and maintenance needs, and a popular 3D model lacks the requested print characteristics while another describes them.
     when: Jev ranks each bounded candidate pool.
-    then: It uses only explicit domain evidence, treats omitted product and stay qualities as unknown, may rank the specialist video above the popular one because goal fit dominates raw popularity, and preserves every structured fitness filter without inventing intensity or beginner suitability.
+    then: It uses only explicit domain evidence, treats omitted qualities as unknown, may rank the specialist video, maintained repository, and explicitly suitable 3D model above more popular but weaker matches, and never infers visual geometry, printability, compatibility, security, or maintenance that the provider metadata does not state.
     assertion_ids: [app-skills.search-relevance.safe-finalization]
   - id: ranking-failure
     given: Providers return valid candidates but Jev times out or returns incomplete scores.
@@ -132,7 +137,6 @@ search_relevance:
     given: A direct caller runs maps search once with --relevance-criteria and once with the same relevance_criteria inside --input JSON.
     when: The CLI sends each request to POST /v1/apps/maps/skills/search.
     then: Both requests preserve the same optional field and receive the same REST validation and ranking semantics exposed by the npm and pip SDK metadata.
-    assertion_ids: [app-skills.search-relevance.optional-and-inferred]
 
 async_polling:
 - id: owned-file-generation-across-skills

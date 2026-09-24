@@ -3403,6 +3403,31 @@ describe("apps metadata commands", () => {
     });
   });
 
+  // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
+  it("forwards repository relevance criteria through generated typed input", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "code", "search_repos",
+        "--query", "typescript authentication library",
+        "--count", "4",
+        "--relevance-criteria", "permissive license and explicit recent repository activity",
+        "--json",
+      ]);
+
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/code/skills/search_repos",
+        body: {
+          requests: [{
+            query: "typescript authentication library",
+            count: 4,
+            relevance_criteria: "permissive license and explicit recent repository activity",
+          }],
+        },
+      });
+    });
+  });
+
   it("keeps explicit app-skill metadata inspection available", async () => {
     await withFlatWeatherSkillMockApi(async ({ apiUrl }) => {
       const output = await runCliAsync([
@@ -3485,6 +3510,7 @@ describe("apps metadata commands", () => {
         "--providers", "Printables",
         "--sort", "newest",
         "--free-only",
+        "--relevance-criteria", "compact models with explicit print and license evidence",
         "--disable-prompt-injection-protection",
         "--json",
       ]);
@@ -3500,6 +3526,7 @@ describe("apps metadata commands", () => {
             providers: ["Printables"],
             sort: "newest",
             free_only: true,
+            relevance_criteria: "compact models with explicit print and license evidence",
           }],
           security: { prompt_injection_protection: "disabled" },
         },
@@ -3507,6 +3534,30 @@ describe("apps metadata commands", () => {
       assert.equal(parsed.data?.results?.[0]?.result_count, 1);
       assert.doesNotMatch(output, /open_cta_label/);
       assert.match(output, /Creative Tools/);
+    });
+  });
+
+  // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
+  it("forwards models3d relevance criteria through generated JSON input", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const input = {
+        requests: [{
+          query: "phone stand",
+          count: 3,
+          relevance_criteria: "foldable adjustable travel stand with explicit feature evidence",
+        }],
+      };
+      await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "models3d", "search",
+        "--input", JSON.stringify(input),
+        "--json",
+      ]);
+
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/models3d/skills/search",
+        body: input,
+      });
     });
   });
 

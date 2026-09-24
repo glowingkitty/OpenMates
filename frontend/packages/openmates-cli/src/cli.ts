@@ -8105,11 +8105,6 @@ async function handleApps(
     return;
   }
 
-  if (subcommand === "models3d" && rest[0] === "search") {
-    await handleModels3dSearch(client, flags, apiKey);
-    return;
-  }
-
   if (subcommand === "design" && rest[0] === "export-icon") {
     await handleDesignIconExport(client, rest.slice(1), flags, apiKey);
     return;
@@ -8242,60 +8237,6 @@ Authentication:
 Examples:
   openmates apps images detect-ai --file ./image.png
   openmates apps images detect-ai ./image.webp --json`);
-}
-
-const MODELS3D_SEARCH_SORTS = new Set(["best_match", "popular", "downloads", "newest"]);
-
-async function handleModels3dSearch(
-  client: OpenMatesClient,
-  flags: Record<string, string | boolean>,
-  apiKey?: string,
-): Promise<void> {
-  const query = typeof flags.query === "string" ? flags.query.trim() : "";
-  if (!query) {
-    console.error(
-      "Missing --query flag.\n\n" +
-        "Usage:\n" +
-        "  openmates apps models3d search --query benchy [--count 10] [--providers Printables] [--sort best_match|popular|downloads|newest] [--free-only] [--json]\n",
-    );
-    process.exit(1);
-  }
-
-  const count = parsePositiveIntegerFlag(flags.count, "--count");
-  const sort = typeof flags.sort === "string" ? flags.sort.trim().toLowerCase() : undefined;
-  if (sort && !MODELS3D_SEARCH_SORTS.has(sort)) {
-    console.error(`--sort must be one of: ${Array.from(MODELS3D_SEARCH_SORTS).join(", ")}`);
-    process.exit(1);
-  }
-
-  const providers = [
-    ...splitCsvFlag(flags.provider),
-    ...splitCsvFlag(flags.providers),
-  ];
-  const request: Record<string, unknown> = { query };
-  if (count !== undefined) request.count = count;
-  if (providers.length > 0) request.providers = providers;
-  if (sort) request.sort = sort;
-  if (flags["free-only"] === true) request.free_only = true;
-
-  try {
-    const result = await client.runSkill({
-      app: "models3d",
-      skill: "search",
-      inputData: { requests: [request] },
-      apiKey,
-      promptInjectionProtection: flags["disable-prompt-injection-protection"] === true ? false : undefined,
-    });
-    if (flags.json === true) {
-      printJson(result);
-    } else {
-      printSkillResult("models3d", "search", result);
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`\x1b[31m✗ 3D model search failed:\x1b[0m ${msg}`);
-    process.exit(1);
-  }
 }
 
 async function handleDesignIconExport(
