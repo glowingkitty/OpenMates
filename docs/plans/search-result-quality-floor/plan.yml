@@ -1,0 +1,124 @@
+schema_version: 2
+id: search-result-quality-floor
+title: Improve search result relevance and reliability
+status: approved
+goal: >-
+  Raise the ten reproduced Events Search requests to at least 7/10 output quality,
+  then use five real Web Search and five real News Search requests to determine
+  whether those skills should adopt the same evidence-based result-quality floor.
+scope:
+  in:
+    - Event-specific Jev topic-and-goal scoring with a weak relevance floor, semantic deduplication, strict dates, location-free online discovery, and Siegessäule recovery.
+    - Focused automated coverage and the same ten-query live before/after benchmark.
+    - Five real Web Search and five real News Search quality evaluations, with conditional implementation only when evidence shows the same problem.
+  out:
+    - Fabricated provider results, weakened safety or structured filters, and unbounded retries.
+scenarios:
+  - id: S-1
+    title: Relevant event results without padding
+    given: [Providers return relevant, weakly related, duplicate, and unrelated candidates.]
+    when: [Events Search applies structured filters, semantic deduplication, and Jev scoring.]
+    then: [Only unique candidates with at least weak defensible relevance remain, even when fewer than count qualify.]
+  - id: S-2
+    title: Provider and request reliability
+    given: [An online request omits location, provider dates use different formats, or Siegessäule rejects the primary route.]
+    when: [Events Search validates, routes, and normalizes the request.]
+    then: [Compatible providers run without invented location, dates remain in range, and provider recovery is bounded.]
+  - id: S-3
+    title: Evidence-driven Web and News follow-up
+    given: [Five real searches are run for each skill with explicit relevance criteria.]
+    when: [Results are scored for topical fit, stated-goal fit, duplication, and constraints.]
+    then: [Each skill is changed only if the evidence shows a material quality gap and its owning Specification approves the new behavior.]
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Each reproduced Events Search case earns at least 7/10, including useful reduced-size groups when fewer candidates meet the relevance floor, with no duplicate real-world event.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-EVENTS-UNIT, T-EVENTS-LIVE]
+  - id: AC-2
+    scenario: S-2
+    text: Online searches without location succeed through compatible providers, returned dates obey the requested window, and Siegessäule succeeds or degrades through a verified bounded path.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-EVENTS-UNIT, T-EVENTS-CI, T-EVENTS-LIVE]
+  - id: AC-3
+    scenario: S-3
+    text: Web and News findings contain five real cases each, with before/after evidence when changed and no unapproved semantic implementation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WEB-NEWS-LIVE]
+tests:
+  - id: T-EVENTS-UNIT
+    type: pytest
+    file: backend/tests/test_search_relevance.py
+    command: python3 -m pytest backend/tests/test_search_relevance.py backend/tests/test_app_skill_processing_quality.py
+    covers: [AC-1, AC-2]
+    assertions: [Relevance floor, semantic deduplication, date normalization, online routing, and bounded provider recovery.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: The recorded live benchmark already establishes each defect.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-EVENTS-CI
+    type: manual
+    file: existing relevant app-skill CLI/API specification
+    command: submit through scripts/ci_coordinator.py after publishing immutable session source
+    covers: [AC-2]
+    assertions: [Direct client surfaces preserve the approved Events Search behavior.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Existing live evidence is sufficient.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-EVENTS-LIVE
+    type: manual
+    file: openmates apps events search
+    command: rerun the recorded ten-query benchmark sequentially after scoped dev deployment
+    covers: [AC-1, AC-2]
+    assertions: [Every case reaches at least 7/10 and durations plus provider failures are reported.]
+    red_phase: {required: false, expected: fail, evidence: {status: passed, result: Baseline captured in this chat.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-WEB-NEWS-LIVE
+    type: manual
+    file: openmates apps web search and openmates apps news search
+    command: run five real sequential searches per skill after Events Search verification
+    covers: [AC-3]
+    assertions: [Report relevance, duplication, constraints, and whether a smaller quality-filtered result set would help.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Evaluation determines whether a defect exists.}}
+    green_phase: {required: false, expected: pass, evidence: {status: pending}}
+implementation_state:
+  subject_commit: c3982339bba86273f6131fbc0df8d474ddb9a4fb
+approvals:
+  specification: {status: approved, approved_at: '2026-09-24', fingerprint: 0ecb59441bcd0ff6f059202b2e959ca669603fb8d90aedb4dbab7549035ef418}
+  plan: {status: approved, approved_at: '2026-09-24', source: User explicitly requested implementation and conditional Web/News follow-up.}
+decisions:
+  - id: D-1
+    status: active
+    decision: Preserve weakly related candidates but omit candidates with no defensible topic or goal relationship.
+    reason: The user prefers fewer useful results over padding while retaining broader adjacent topics such as embodied AI for robotics.
+    decided_at: '2026-09-24'
+tasks:
+  - id: TASK-1
+    title: OpenMates Task 96a72474-9897-45a3-8e1d-13915ec8fe4c owns execution status.
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-1, AC-2, AC-3]}
+    expected_files: [backend/apps/events/skills/search_skill.py, backend/apps/events/providers, backend/shared/python_utils/search_relevance.py, backend/tests]
+    verification_ids: [T-EVENTS-UNIT, T-EVENTS-CI, T-EVENTS-LIVE, T-WEB-NEWS-LIVE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership: {owner: be5e, files: [backend/apps/events, backend/shared/python_utils/search_relevance.py, backend/tests], shared_files: [specifications/features/app-skills/events-search]}
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: planned
+    approach: Preserve the ten-query baseline, implement approved behavior with focused regressions, then compare live dev results.
+    recorded_at: '2026-09-24'
+handoff:
+  current_task_id: TASK-1
+  next_action: Implement focused Events Search regressions and repairs.
+  command: python3 -m pytest backend/tests/test_search_relevance.py backend/tests/test_app_skill_processing_quality.py
+  expected_outcome: Focused coverage passes before isolated CI and live dev benchmarking.
+  last_verified_commit: c3982339bba86273f6131fbc0df8d474ddb9a4fb

@@ -188,7 +188,7 @@ specifications:
     version: 1
     status: approved
     path: features/app-skills/events-search
-    fingerprint: 08f3218d9c3b60f0197e4f001010a6d19c288489216fa485a9541bf679da071f
+    fingerprint: 0ecb59441bcd0ff6f059202b2e959ca669603fb8d90aedb4dbab7549035ef418
     required_applies_to:
     - rest_api
     - cli
@@ -2630,7 +2630,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: validation
-    fingerprint: 365b2e3dbd0ef0eb7a5aa225a7d8e486d93ecb019fef754a40f7f07d9c31a5e8
+    fingerprint: 8e38df004695e30b06796f0854da12c6b6596671a6a8a7f1430a899b6f9cde81
     required_applies_to:
     - rest_api
     - cli
@@ -2690,7 +2690,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: 9f9d55f09b2131907e2b9aef6aba452cb944551a2cc00c3651d0ab432a0a01ac
+    fingerprint: ad291d7f2189654f1f944f62b564c1ad5422eaa22664f759794565e183252851
     required_applies_to:
     - rest_api
     - cli
@@ -2750,7 +2750,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: parity
-    fingerprint: f8eeadecea627933e2798c2d38a9170ac6125bd4aab645e0e8097aa928345c25
+    fingerprint: 59abc574c03ab133ba40978fa6829619e808c6afb418a3940713fcaa65bc42b1
     required_applies_to:
     - rest_api
     - cli

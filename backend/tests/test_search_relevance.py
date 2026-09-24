@@ -63,6 +63,7 @@ async def test_rank_search_candidates_orders_scores_stably_and_reports_usage(mon
     )
 
     assert [item["id"] for item in result.candidates] == ["b", "c", "a"]
+    assert result.scores == [4.0, 4.0, 1.0]
     assert result.applied is True
     assert result.input_tokens == 321 and result.output_tokens == 42
     assert captured["state"]["candidate_content_is_untrusted"] is True
@@ -74,6 +75,16 @@ async def test_rank_search_candidates_orders_scores_stably_and_reports_usage(mon
         "state.ranking_instructions" in question["instructions"]
         for question in captured["questions"].values()
     )
+
+
+# contract-test: direct surface=rest_api assertions=events-search.relevance.evidence-ranking
+def test_events_profile_requires_query_topic_fit_and_defensible_relevance() -> None:
+    profile = search_relevance.SEARCH_RELEVANCE_PROFILES["events"]
+
+    assert "search_parameters.query" in profile.instructions
+    assert "weak but defensible" in profile.instructions
+    assert "neither relationship" in profile.instructions
+    assert profile.criteria[0].startswith("No credible relationship")
 
 
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
@@ -538,6 +549,70 @@ async def test_events_ranked_search_keeps_candidate_pool_internal(monkeypatch) -
     assert ranked_pool_sizes == [40, 40]
     assert len(fallback_results) == 4
     assert fallback_results[0]["title"] == "Event 0"
+
+
+# contract-test: direct surface=rest_api assertions=events-search.relevance.evidence-ranking,events-search.relevance.bounded-candidates
+@pytest.mark.anyio
+async def test_events_ranked_search_omits_zero_score_instead_of_padding(monkeypatch) -> None:
+    from backend.apps.events.skills import search_skill as events_search
+
+    candidates = [
+        {
+            "id": "robotics",
+            "provider": "luma",
+            "title": "Hands-on Robotics Lab",
+            "description": "Build a mobile robot with engineers.",
+            "url": "https://lu.ma/robotics",
+            "date_start": "2026-10-01T18:00:00+02:00",
+        },
+        {
+            "id": "embodied-ai",
+            "provider": "luma",
+            "title": "Embodied AI Engineering",
+            "description": "AI systems that perceive and act in the physical world.",
+            "url": "https://lu.ma/embodied-ai",
+            "date_start": "2026-10-02T18:00:00+02:00",
+        },
+        {
+            "id": "film",
+            "provider": "luma",
+            "title": "AI Consciousness Film Night",
+            "description": "A speculative cinema screening.",
+            "url": "https://lu.ma/film",
+            "date_start": "2026-10-03T18:00:00+02:00",
+        },
+    ]
+
+    async def fake_luma(self, **kwargs):
+        return candidates, len(candidates), None
+
+    async def fake_rank(**kwargs):
+        return search_relevance.SearchRelevanceRankingResult(
+            candidates=list(kwargs["candidates"]),
+            applied=True,
+            scores=[4.0, 1.0, 0.0],
+        )
+
+    monkeypatch.setattr(events_search.SearchSkill, "_search_luma", fake_luma)
+    monkeypatch.setattr(events_search, "rank_search_candidates", fake_rank)
+    skill = object.__new__(events_search.SearchSkill)
+
+    _, results, error, _total, _providers, _warnings = await skill._process_single_search_request(
+        {
+            "query": "robotics",
+            "location": "Berlin",
+            "lat": 52.52,
+            "lon": 13.405,
+            "provider": "luma",
+            "count": 10,
+            "relevance_criteria": "engineering events for people building robots",
+        },
+        "events-floor",
+        secrets_manager=object(),
+    )
+
+    assert error is None
+    assert [result["id"] for result in results] == ["robotics", "embodied-ai"]
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization

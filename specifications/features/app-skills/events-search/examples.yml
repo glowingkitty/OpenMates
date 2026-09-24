@@ -8,6 +8,11 @@ requests:
   - id: mixed-validity-batch
     input: {requests: [{id: valid, query: AI, location: Berlin}, malformed]}
     expect: {valid_group_preserved: true, malformed_item_error_visible: true}
+  - id: online-without-location
+    given: Alice asks for online Rust workshops and supplies a date range but no city.
+    when: The events search validates and routes the request.
+    then: The request is accepted without invented coordinates, location-scoped providers are skipped, and location-free providers may return online events within the requested dates.
+    assertion_ids: [events-search.request.validated]
 
 provider_routing:
   - id: explicit-eventbrite
@@ -57,9 +62,9 @@ relevance_ranking:
     then: The out-of-window event remains excluded regardless of score and the missing organizer fact is treated as unknown rather than favorable.
     assertion_ids: [events-search.relevance.evidence-ranking]
   - id: title-keywords-are-insufficient
-    given: An event repeats the query terms in its title but its description concerns an unrelated audience, while another event gives concrete evidence for the stated networking goal.
-    when: Jev ranks the filtered candidates.
-    then: The evidence-backed match ranks higher; title keyword overlap alone does not establish goal fit.
+    given: A robotics search finds a hands-on robotics workshop, a broader embodied-AI engineering meetup, and unrelated AI-consciousness film, generic business-AI, and health-tech events.
+    when: Jev scores the candidates against the robotics topic and engineering audience goal.
+    then: The robotics workshop ranks first, the defensibly related embodied-AI meetup may remain, unrelated events are omitted, and the response returns fewer than the requested count instead of padding the list.
     assertion_ids: [events-search.relevance.evidence-ranking]
   - id: omitted-criteria-preserves-existing-order
     given: An otherwise valid events request omits relevance criteria.

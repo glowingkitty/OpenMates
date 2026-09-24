@@ -988,7 +988,7 @@ export const APP_SKILL_METADATA = [
         },
         "requests": {
           "type": "array",
-          "description": "REQUIRED: Array of event search request objects for parallel processing.\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin, Germany\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin\"}, {\"query\": \"Python\", \"location\": \"Munich\"}]}\nEach object must contain 'query' and either 'location' (or lat/lon) for city searches,\nor 'conference' for GPN/Congress schedule searches. All other parameters are optional.\nNote: The 'id' field is auto-generated if not provided.\n",
+          "description": "REQUIRED: Array of event search request objects for parallel processing.\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin, Germany\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin\"}, {\"query\": \"Python\", \"location\": \"Munich\"}]}\nEach object must contain 'query' and either 'location' (or lat/lon) for city searches,\nevent_type 'ONLINE' for location-free online searches, or 'conference' for GPN/Congress\nschedule searches. All other parameters are optional.\nNote: The 'id' field is auto-generated if not provided.\n",
           "items": {
             "type": "object",
             "properties": {
@@ -998,7 +998,7 @@ export const APP_SKILL_METADATA = [
               },
               "location": {
                 "type": "string",
-                "description": "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided. Not required when using a GPN/Congress event schedule provider with a conference value."
+                "description": "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided. Optional for ONLINE searches and GPN/Congress schedules; never invent a location for an online-only request."
               },
               "lat": {
                 "type": "number",
@@ -1039,7 +1039,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional concise natural-language event-ranking goal, separate from the event query. Set it whenever the user states a purpose, intended audience, networking goal, desired activity, or preference such as promoting a product or finding a future speaking opportunity. Omit only for a neutral event search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates (or the larger requested count) are ranked and only count are returned.\n"
+                "description": "Optional concise natural-language event-ranking goal, separate from the event query. Set it whenever the user states a purpose, intended audience, networking goal, desired activity, or preference such as promoting a product or finding a future speaking opportunity. Omit only for a neutral event search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates (or the larger requested count) are scored against both the event topic and this goal. Results with no credible relationship are omitted, so fewer than count can be returned rather than padding the response with irrelevant events.\n"
               },
               "provider": {
                 "type": "string",

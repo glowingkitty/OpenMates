@@ -25,6 +25,7 @@
 # Sections (categories): mix, kultur, bars, clubs, sex, festival, fetisch,
 # open-air, livestreams
 
+import html as html_module
 import logging
 import re
 from datetime import datetime, timezone
@@ -40,9 +41,12 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://www.siegessaeule.de"
 _GRAPHQL_URL = f"{_BASE_URL}/graphql/"  # Trailing slash required
+_TERMINE_URL = f"{_BASE_URL}/termine/"
 
 # HTTP timeout (seconds).
 _HTTP_TIMEOUT = 25.0
+_GRAPHQL_TIMEOUT = 8.0
+_HTML_FALLBACK_TIMEOUT = 10.0
 
 # Maximum description length (characters).
 _MAX_DESCRIPTION_CHARS = 2000
@@ -57,6 +61,18 @@ _HEADERS = {
         "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     ),
 }
+
+_HTML_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+    "Referer": _TERMINE_URL,
+    "User-Agent": _HEADERS["User-Agent"],
+}
+
+_EVENT_LINK_PATTERN = re.compile(
+    r'<a[^>]*href="(/termine/(clubs|bars|kultur|mix|sex|festival|fetisch|open-air|livestreams)/([^/]+)/(\d{4}-\d{2}-\d{2})/(\d{2}:\d{2})/)"[^>]*>(.*?)</a>',
+    re.DOTALL,
+)
 
 # GraphQL query for event listings.
 _EVENTS_QUERY = """
@@ -143,6 +159,72 @@ def _strip_html(text: str) -> str:
     """Strip HTML tags from a string."""
     clean = re.sub(r"<[^>]+>", " ", text)
     return re.sub(r"\s+", " ", clean).strip()
+
+
+def _strip_tags(value: str) -> str:
+    """Strip tags and decode entities from the public calendar HTML."""
+    without_tags = re.sub(r"<[^>]+>", " ", value)
+    return re.sub(r"\s+", " ", html_module.unescape(without_tags)).strip()
+
+
+def _parse_html_events(page_html: str) -> List[Dict[str, Any]]:
+    """Parse the public calendar HTML when the GraphQL endpoint is blocked."""
+    events: List[Dict[str, Any]] = []
+    seen_urls: set[str] = set()
+    for match in _EVENT_LINK_PATTERN.finditer(page_html):
+        href, category, slug, date_str, time_str, inner_html = match.groups()
+        full_url = f"{_BASE_URL}{href}"
+        if full_url in seen_urls:
+            continue
+        seen_urls.add(full_url)
+
+        title_match = re.search(r"<h4[^>]*>(.*?)</h4>", inner_html, re.DOTALL)
+        title = _strip_tags(title_match.group(1)) if title_match else ""
+        if len(title) < 2:
+            continue
+
+        text_segments = [
+            _strip_tags(segment)
+            for segment in re.split(r"<[^>]+>", inner_html)
+            if _strip_tags(segment) and _strip_tags(segment) != title
+        ]
+        non_date_segments = [
+            segment
+            for segment in text_segments
+            if not re.match(r"\d{1,2}\.\s+\w+\s+\d{4}", segment)
+        ]
+        venue_name = non_date_segments[-1] if non_date_segments else ""
+        description = " ".join(non_date_segments[:-1]) if len(non_date_segments) > 1 else ""
+        image_match = re.search(
+            r'src="(https://cdn\.siegessaeule\.de/[^"]+)"', inner_html
+        )
+        events.append({
+            "id": slug,
+            "provider": "siegessaeule",
+            "title": title,
+            "description": description[:_MAX_DESCRIPTION_CHARS],
+            "url": full_url,
+            "date_start": f"{date_str}T{time_str}:00",
+            "date_end": None,
+            "timezone": "Europe/Berlin",
+            "event_type": "PHYSICAL",
+            "venue": {
+                "name": venue_name,
+                "address": "",
+                "city": "Berlin",
+                "state": None,
+                "country": "DE",
+                "lat": None,
+                "lon": None,
+            },
+            "organizer": None,
+            "rsvp_count": None,
+            "is_paid": None,
+            "fee": None,
+            "image_url": image_match.group(1) if image_match else None,
+            "category": category,
+        })
+    return events
 
 
 def _normalize_event(raw: Dict[str, Any]) -> Dict[str, Any]:
@@ -236,6 +318,7 @@ async def search_events_async(
     query: str = "",
     count: int = 10,
     start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     proxy_url: Optional[str] = None,
     secrets_manager: Optional[Any] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
@@ -251,6 +334,7 @@ async def search_events_async(
                          applied client-side.
         count:           Maximum number of events to return (default 10).
         start_date:      ISO 8601 date string. Defaults to today.
+        end_date:        Optional exclusive end of the requested date range.
         proxy_url:       Webshare rotating proxy URL (required for datacenter servers).
         secrets_manager: Not used directly, accepted for interface compatibility.
 
@@ -274,10 +358,11 @@ async def search_events_async(
 
     # Parse start date or default to today
     now = datetime.now(timezone.utc)
+    start_dt = now
     if start_date:
         try:
-            dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-            date_str = dt.strftime("%Y-%m-%d")
+            start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+            date_str = start_dt.strftime("%Y-%m-%d")
         except (ValueError, TypeError):
             date_str = now.strftime("%Y-%m-%d")
     else:
@@ -291,8 +376,13 @@ async def search_events_async(
                 section = sec
                 break
 
-    # Request 7 days of events (Siegessäule shows daily listings)
     days = 7
+    if end_date:
+        try:
+            end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+            days = max(1, min(31, (end_dt.date() - start_dt.date()).days))
+        except (ValueError, TypeError):
+            pass
     graphql_query = _build_query(date_str, days, section)
 
     logger.debug(
@@ -300,51 +390,71 @@ async def search_events_async(
         date_str, days, section, query,
     )
 
-    async with httpx.AsyncClient(
-        proxy=proxy_url,
-        timeout=_HTTP_TIMEOUT,
-    ) as client:
-        response = await client.post(
-            _GRAPHQL_URL,
-            json={"query": graphql_query},
-            headers=_HEADERS,
+    data: Optional[Dict[str, Any]] = None
+    html_events: Optional[List[Dict[str, Any]]] = None
+    try:
+        async with httpx.AsyncClient(
+            proxy=proxy_url,
+            timeout=_HTTP_TIMEOUT,
+            follow_redirects=True,
+        ) as client:
+            try:
+                response = await client.post(
+                    _GRAPHQL_URL,
+                    json={"query": graphql_query},
+                    headers=_HEADERS,
+                    timeout=_GRAPHQL_TIMEOUT,
+                )
+                response.raise_for_status()
+                data = response.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                logger.warning(
+                    "[siegessaeule] GraphQL unavailable (%s); trying public calendar HTML",
+                    type(exc).__name__,
+                )
+                html_response = await client.get(
+                    _TERMINE_URL,
+                    params={"date": date_str},
+                    headers=_HTML_HEADERS,
+                    timeout=_HTML_FALLBACK_TIMEOUT,
+                )
+                html_response.raise_for_status()
+                html_events = _parse_html_events(html_response.text)
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning(
+            "[siegessaeule] Public endpoints unavailable error_type=%s",
+            type(exc).__name__,
         )
-        response.raise_for_status()
-        data = response.json()
+        raise RuntimeError("Siegessäule is temporarily unavailable") from exc
 
     # Extract events from the nested response structure
-    errors = data.get("errors")
-    if errors:
-        error_msg = errors[0].get("message", "Unknown GraphQL error")
-        raise ValueError(f"Siegessäule GraphQL error: {error_msg}")
-
-    result = (
-        data.get("data", {})
-        .get("homePage", {})
-        .get("eventIndexPage", {})
-        .get("eventsAndAdsForDate")
-    )
-
     events: List[Dict[str, Any]] = []
+    if html_events is not None:
+        events = html_events
+    elif data is not None:
+        errors = data.get("errors")
+        if errors:
+            raise RuntimeError("Siegessäule is temporarily unavailable")
 
-    # eventsAndAdsForDate returns a single {date, items} dict or a list of them
-    if isinstance(result, dict):
-        date_groups = [result]
-    elif isinstance(result, list):
-        date_groups = result
-    else:
-        date_groups = []
+        result = (
+            data.get("data", {})
+            .get("homePage", {})
+            .get("eventIndexPage", {})
+            .get("eventsAndAdsForDate")
+        )
+        if isinstance(result, dict):
+            date_groups = [result]
+        elif isinstance(result, list):
+            date_groups = result
+        else:
+            date_groups = []
 
-    for group in date_groups:
-        if isinstance(group, str):
-            # Skip string items (e.g., date strings in unexpected format)
-            continue
-        items = group.get("items") or []
-        for item in items:
-            # Filter out ads (union type — only EventPage has 'title')
-            if not isinstance(item, dict) or not item.get("title"):
+        for group in date_groups:
+            if isinstance(group, str):
                 continue
-            events.append(_normalize_event(item))
+            for item in group.get("items") or []:
+                if isinstance(item, dict) and item.get("title"):
+                    events.append(_normalize_event(item))
 
     total_available = len(events)
 

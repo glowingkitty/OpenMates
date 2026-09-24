@@ -40,6 +40,7 @@ from datetime import datetime
 import logging
 import os
 import re
+import unicodedata
 import yaml
 from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -152,6 +153,21 @@ _DEFAULT_COUNT = 10
 # provider, then merge + deduplicate + slice to count.
 _AUTO_PROVIDER_MULTIPLIER = 2
 
+# Location-free online discovery is supported only by providers whose public
+# search contracts do not require a city or coordinates.
+_LOCATION_FREE_ONLINE_PROVIDERS = {"eventbrite", "google_events"}
+
+# Jev's events rubric assigns 1 to a weak but defensible relationship. Results
+# below that floor are omitted instead of padding the response with unrelated
+# events. Ranking failures still use the deterministic unfiltered fallback.
+_MIN_EVENT_RELEVANCE_SCORE = 1.0
+
+_EVENT_TITLE_DEDUP_STOPWORDS = frozenset({
+    "a", "an", "and", "at", "berlin", "event", "events", "in", "meetup",
+    "new", "of", "on", "online", "paris", "san", "francisco", "sept",
+    "september", "the", "tokyo", "workshop",
+})
+
 
 # ---------------------------------------------------------------------------
 # Pydantic models (auto-discovered by apps_api.py for OpenAPI documentation)
@@ -176,7 +192,7 @@ class SearchRequestItem(BaseModel):
     location: Optional[str] = Field(
         default=None,
         description="City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York'). "
-        "Used if lat/lon are not provided.",
+        "Used if lat/lon are not provided. Optional for location-free ONLINE searches.",
     )
     lat: Optional[float] = Field(
         default=None,
@@ -263,8 +279,9 @@ class SearchRequest(BaseModel):
         ...,
         description=(
             "Array of event search request objects. Each object must contain 'query' "
-            "and 'location' (or 'lat'/'lon') for city searches, or 'conference' for "
-            "Conference Schedule searches. Optional: start_date, end_date, event_type, "
+            "and 'location' (or 'lat'/'lon') for physical city searches, 'event_type=ONLINE' "
+            "for location-free online discovery, or 'conference' for Conference Schedule "
+            "searches. Optional: start_date, end_date, event_type, "
             "radius_miles, count, past_events."
         ),
     )
@@ -485,6 +502,101 @@ class SearchSkill(BaseSkill):
         return value
 
     @staticmethod
+    def _event_start(event: Dict[str, Any]) -> Optional[datetime]:
+        """Parse an event start and attach its declared timezone when needed."""
+        parsed = SearchSkill._parse_event_datetime(event.get("date_start"))
+        if parsed is None or parsed.tzinfo is not None:
+            return parsed
+        timezone_name = event.get("timezone")
+        if isinstance(timezone_name, str) and timezone_name:
+            try:
+                return parsed.replace(tzinfo=ZoneInfo(timezone_name))
+            except ZoneInfoNotFoundError:
+                logger.warning("[events:search] Invalid provider timezone")
+        return parsed
+
+    @staticmethod
+    def _dedup_text(value: Any) -> str:
+        normalized = unicodedata.normalize("NFKD", str(value or ""))
+        normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+        return re.sub(r"[^a-z0-9]+", " ", normalized.lower()).strip()
+
+    @staticmethod
+    def _title_tokens(event: Dict[str, Any]) -> set[str]:
+        return {
+            token
+            for token in SearchSkill._dedup_text(event.get("title")).split()
+            if token not in _EVENT_TITLE_DEDUP_STOPWORDS and not token.isdigit()
+        }
+
+    @staticmethod
+    def _venue_identity(event: Dict[str, Any]) -> str:
+        venue = event.get("venue")
+        if isinstance(venue, dict):
+            return SearchSkill._dedup_text(
+                " ".join(str(venue.get(field) or "") for field in ("name", "address", "city"))
+            )
+        return SearchSkill._dedup_text(venue or event.get("location"))
+
+    @staticmethod
+    def _description_identity(event: Dict[str, Any]) -> str:
+        return SearchSkill._dedup_text(event.get("description"))[:800]
+
+    @staticmethod
+    def _description_urls(event: Dict[str, Any]) -> set[str]:
+        urls = re.findall(r"https?://[^\s\])>]+", str(event.get("description") or ""))
+        return {
+            normalized
+            for url in urls
+            if (normalized := normalize_url_for_deduplication(url.rstrip(".,;")))
+        }
+
+    @classmethod
+    def _events_are_duplicates(cls, first: Dict[str, Any], second: Dict[str, Any]) -> bool:
+        first_url = normalize_url_for_deduplication(_event_result_url(first))
+        second_url = normalize_url_for_deduplication(_event_result_url(second))
+        if first_url and first_url == second_url:
+            return True
+
+        first_start = cls._event_start(first)
+        second_start = cls._event_start(second)
+        if first_start is None or second_start is None:
+            return False
+        second_start = cls._align_event_datetime(second_start, first_start)
+        if abs((first_start - second_start).total_seconds()) > 90 * 60:
+            return False
+
+        if cls._description_urls(first) & cls._description_urls(second):
+            return True
+
+        first_tokens = cls._title_tokens(first)
+        second_tokens = cls._title_tokens(second)
+        if first_tokens and second_tokens:
+            overlap = len(first_tokens & second_tokens) / min(len(first_tokens), len(second_tokens))
+            if overlap >= 0.75:
+                return True
+
+        first_description = cls._description_identity(first)
+        second_description = cls._description_identity(second)
+        if (
+            len(first_description) >= 80
+            and first_description == second_description
+            and cls._venue_identity(first) == cls._venue_identity(second)
+        ):
+            return True
+        return False
+
+    @classmethod
+    def _deduplicate_events(cls, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Keep one stable representative for each real-world event."""
+        unique: List[Dict[str, Any]] = []
+        for event in events:
+            if any(cls._events_are_duplicates(existing, event) for existing in unique):
+                continue
+            unique.append(event)
+        return unique
+
+    @staticmethod
     def _parse_money(value: Any) -> Optional[float]:
         if value in (None, ""):
             return None
@@ -577,7 +689,10 @@ class SearchSkill(BaseSkill):
                 filtered_out_count += 1
                 continue
 
-            event_start = SearchSkill._parse_event_datetime(result.get("date_start"))
+            event_start = SearchSkill._event_start(result)
+            if (start_dt or end_dt) and event_start is None:
+                filtered_out_count += 1
+                continue
             if start_dt and event_start and SearchSkill._align_event_datetime(event_start, start_dt) < start_dt:
                 filtered_out_count += 1
                 continue
@@ -856,6 +971,7 @@ class SearchSkill(BaseSkill):
         self,
         query: str,
         location_str: str,
+        event_type: Optional[str],
         count: int,
         proxy_url: Optional[str] = None,
     ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
@@ -867,9 +983,12 @@ class SearchSkill(BaseSkill):
         enriched with a direct event-page fetch for full descriptions.
         """
         try:
+            provider_query = query
+            if event_type == "ONLINE" and "online" not in query.lower():
+                provider_query = f"{query} online"
             events, total = await eventbrite_provider.search_events_async(
                 location=location_str,
-                query=query,
+                query=provider_query,
                 count=count,
                 proxy_url=proxy_url,
             )
@@ -920,6 +1039,7 @@ class SearchSkill(BaseSkill):
         query: str,
         location_str: str,
         start_date: Optional[str],
+        end_date: Optional[str],
         count: int,
         proxy_url: Optional[str] = None,
     ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
@@ -940,6 +1060,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 count=count,
                 start_date=start_date,
+                end_date=end_date,
                 proxy_url=proxy_url,
             )
             return events, total, None
@@ -952,6 +1073,8 @@ class SearchSkill(BaseSkill):
         query: str,
         location_str: str,
         concert_tags: Optional[List[str]],
+        start_date: Optional[str],
+        end_date: Optional[str],
         count: int,
     ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
         """
@@ -970,6 +1093,8 @@ class SearchSkill(BaseSkill):
                 query=query,
                 tags=concert_tags or [],
                 count=count,
+                start_date=start_date,
+                end_date=end_date,
             )
             return events, total, None
         except Exception as exc:
@@ -1140,6 +1265,18 @@ class SearchSkill(BaseSkill):
 
         searched_provider_ids: List[str] = [] if provider_choice == "auto" else [provider_choice]
 
+        # Parse the type before resolving location: ONLINE searches can be
+        # location-free when routed only to providers that support that mode.
+        event_type_raw = req.get("event_type")
+        event_type: Optional[str] = self._normalize_event_type(event_type_raw)
+        if event_type not in (None, "PHYSICAL", "ONLINE"):
+            logger.warning(
+                "Invalid event_type %r for request %s — ignoring",
+                event_type_raw,
+                request_id,
+            )
+            event_type = None
+
         # --- Resolve location ---
         lat: Optional[float] = req.get("lat")
         lon: Optional[float] = req.get("lon")
@@ -1147,6 +1284,26 @@ class SearchSkill(BaseSkill):
         country: str = ""
         # Use "or" to handle None from Pydantic model_dump() — prevents AttributeError on .strip()
         location_str: str = (req.get("location") or "").strip()
+        location_free_online = (
+            event_type == "ONLINE"
+            and not location_str
+            and lat is None
+            and lon is None
+        )
+
+        if (
+            location_free_online
+            and provider_choice != "auto"
+            and provider_choice not in _LOCATION_FREE_ONLINE_PROVIDERS
+        ):
+            return (
+                request_id,
+                [],
+                f"Provider {provider_choice} requires a location; use eventbrite, "
+                "google_events, or auto for location-free ONLINE searches.",
+                0,
+                searched_provider_ids,
+            )
 
         if lat is not None and lon is not None:
             try:
@@ -1155,7 +1312,9 @@ class SearchSkill(BaseSkill):
             except (TypeError, ValueError) as exc:
                 return (request_id, [], f"Invalid lat/lon values: {exc}", 0, searched_provider_ids)
         else:
-            if not location_str:
+            if location_free_online:
+                city, country = "", ""
+            elif not location_str:
                 if provider_choice == "pretalx" or pretalx_provider.is_conference_query(query):
                     lat, lon = 0.0, 0.0
                     city, country = "", ""
@@ -1167,7 +1326,7 @@ class SearchSkill(BaseSkill):
                         0,
                         searched_provider_ids,
                     )
-            if lat is None or lon is None:
+            if not location_free_online and (lat is None or lon is None):
                 if not location_str:
                     return (
                         request_id,
@@ -1192,20 +1351,11 @@ class SearchSkill(BaseSkill):
         # --- Optional parameters ---
         start_date: Optional[str] = req.get("start_date")
         end_date: Optional[str] = req.get("end_date")
-        event_type: Optional[str] = req.get("event_type")
         radius_miles: float = float(req.get("radius_miles", 25.0))
         count: int = int(req.get("count", _DEFAULT_COUNT))
         candidate_target = relevance_candidate_target(count) if relevance_criteria else count
         concert_tags: Optional[List[str]] = req.get("concert_tags") or None
         past_events: bool = bool(req.get("past_events", False))
-
-        if event_type and event_type not in ("PHYSICAL", "ONLINE"):
-            logger.warning(
-                "Invalid event_type %r for request %s — ignoring",
-                event_type,
-                request_id,
-            )
-            event_type = None
 
         logger.debug(
             "Events search (id=%s): provider=%r query=%r location=%r count=%d",
@@ -1271,6 +1421,7 @@ class SearchSkill(BaseSkill):
             eb_events, total, eb_err = await self._search_eventbrite(
                 query=query,
                 location_str=luma_city,
+                event_type=event_type,
                 count=candidate_target,
                 proxy_url=proxy_url,
             )
@@ -1299,6 +1450,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 location_str=luma_city,
                 start_date=start_date,
+                end_date=end_date,
                 count=candidate_target,
                 proxy_url=proxy_url,
             )
@@ -1313,6 +1465,8 @@ class SearchSkill(BaseSkill):
                 query=query,
                 location_str=luma_city,
                 concert_tags=concert_tags,
+                start_date=start_date,
+                end_date=end_date,
                 count=candidate_target,
             )
             if bp_err and not bp_events:
@@ -1345,6 +1499,12 @@ class SearchSkill(BaseSkill):
                 city=luma_city,
                 providers_meta=self._providers_meta,
             )
+            if location_free_online:
+                applicable_ids = [
+                    provider_id
+                    for provider_id in applicable_ids
+                    if provider_id in _LOCATION_FREE_ONLINE_PROVIDERS
+                ]
             if relevance_criteria:
                 provider_count = max(1, len(applicable_ids))
                 per_provider_count = max(
@@ -1372,6 +1532,7 @@ class SearchSkill(BaseSkill):
                 ),
                 "eventbrite": lambda: self._search_eventbrite(
                     query=query, location_str=luma_city,
+                    event_type=event_type,
                     count=per_provider_count, proxy_url=proxy_url,
                 ),
                 "google_events": lambda: self._search_google_events(
@@ -1385,11 +1546,13 @@ class SearchSkill(BaseSkill):
                 ),
                 "siegessaeule": lambda: self._search_siegessaeule(
                     query=query, location_str=luma_city,
-                    start_date=start_date, count=per_provider_count, proxy_url=proxy_url,
+                    start_date=start_date, end_date=end_date,
+                    count=per_provider_count, proxy_url=proxy_url,
                 ),
                 "berlin_philharmonic": lambda: self._search_berlin_philharmonic(
                     query=query, location_str=luma_city,
-                    concert_tags=concert_tags, count=per_provider_count,
+                    concert_tags=concert_tags, start_date=start_date,
+                    end_date=end_date, count=per_provider_count,
                 ),
                 "pretalx": lambda: self._search_pretalx(
                     query=query, location_str=luma_city, conference=conference,
@@ -1413,7 +1576,12 @@ class SearchSkill(BaseSkill):
             searched_provider_ids = [pid for pid, _ in task_entries]
 
             if not task_entries:
-                return (request_id, [], "No applicable providers for this location", 0, [])
+                error = (
+                    "No selected provider supports location-free ONLINE searches"
+                    if location_free_online
+                    else "No applicable providers for this location"
+                )
+                return (request_id, [], error, 0, [])
 
             results_tuples = await asyncio.gather(*[t[1] for t in task_entries])
 
@@ -1464,6 +1632,14 @@ class SearchSkill(BaseSkill):
             end_date=end_date,
             query=query,
         )
+        before_dedup_count = len(results)
+        results = self._deduplicate_events(results)
+        duplicate_count = before_dedup_count - len(results)
+        if duplicate_count:
+            quality_metadata["filtered_out_count"] = (
+                quality_metadata.get("filtered_out_count", 0) + duplicate_count
+            )
+            quality_metadata.setdefault("applied_filters", []).append("semantic_deduplication")
         if relevance_criteria:
             results = stable_deduplicate_candidates(
                 results,
@@ -1502,6 +1678,21 @@ class SearchSkill(BaseSkill):
                 secrets_manager=secrets_manager,
             )
             results = ranking.candidates
+            if ranking.applied and len(ranking.scores) == len(results):
+                scored_results = list(zip(results, ranking.scores))
+                results = [
+                    result
+                    for result, score in scored_results
+                    if score >= _MIN_EVENT_RELEVANCE_SCORE
+                ]
+                omitted_count = len(scored_results) - len(results)
+                if omitted_count:
+                    quality_metadata["filtered_out_count"] = (
+                        quality_metadata.get("filtered_out_count", 0) + omitted_count
+                    )
+                    quality_metadata.setdefault("applied_filters", []).append(
+                        "relevance_floor"
+                    )
         results = results[:count]
         if quality_metadata.get("filtered_out_count"):
             logger.info(

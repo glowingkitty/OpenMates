@@ -88,7 +88,9 @@ skills:
       upcoming sessions; set past_events=true only when the user explicitly asks for
       past events or older completed sessions.
       When the user mentions a city or location, default to PHYSICAL (in-person) events.
-      When the user explicitly asks for online or virtual events, use ONLINE filter.
+      When the user explicitly asks for online or virtual events, use ONLINE filter. A location is
+      optional for ONLINE searches; omit it unless the user supplied one. Location-free ONLINE
+      discovery uses only compatible providers and must never invent a city or coordinates.
       Keep query focused on the event topic. Whenever the user states a purpose, intended audience,
       networking goal, desired activity, or other preference that should change event ordering, put
       it in relevance_criteria even if related words could also be added to query. Example: "Show me
@@ -197,7 +199,8 @@ skills:
             Example for single search: {"requests": [{"query": "AI", "location": "Berlin, Germany"}]}
             Example for multiple searches: {"requests": [{"query": "AI", "location": "Berlin"}, {"query": "Python", "location": "Munich"}]}
             Each object must contain 'query' and either 'location' (or lat/lon) for city searches,
-            or 'conference' for GPN/Congress schedule searches. All other parameters are optional.
+            event_type 'ONLINE' for location-free online searches, or 'conference' for GPN/Congress
+            schedule searches. All other parameters are optional.
             Note: The 'id' field is auto-generated if not provided.
           items:
             type: object
@@ -211,7 +214,7 @@ skills:
                   and reduce result quality.
               location:
                 type: string
-                description: "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided. Not required when using a GPN/Congress event schedule provider with a conference value."
+                description: "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided. Optional for ONLINE searches and GPN/Congress schedules; never invent a location for an online-only request."
               lat:
                 type: number
                 description: "Latitude of search center (decimal degrees). Overrides location string if provided."
@@ -249,7 +252,9 @@ skills:
                   goal, desired activity, or preference such as promoting a product or finding a
                   future speaking opportunity. Omit only for a neutral event search fully expressed
                   by query and structured fields; never invent preferences. When present, up to 40
-                  candidates (or the larger requested count) are ranked and only count are returned.
+                  candidates (or the larger requested count) are scored against both the event topic
+                  and this goal. Results with no credible relationship are omitted, so fewer than
+                  count can be returned rather than padding the response with irrelevant events.
               provider:
                 type: string
                 description: "Provider for this request. Overrides the top-level provider when set."

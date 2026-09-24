@@ -97,6 +97,62 @@ async def test_unknown_explicit_provider_is_visible_error(monkeypatch: pytest.Mo
     assert response.results[0]["error"] == "Unknown events provider: luna"
 
 
+# contract-test: direct surface=rest_api assertions=events-search.request.validated,events-search.providers.explicit,events-search.surface-parity
+async def test_location_free_online_auto_uses_only_compatible_providers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    skill = _make_skill()
+    skill._providers_meta = [
+        {"id": "meetup", "scope": "global"},
+        {"id": "eventbrite", "scope": "global"},
+    ]
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    async def forbidden_meetup(*args: Any, **kwargs: Any):
+        raise AssertionError("Meetup must not receive a location-free request")
+
+    async def online_eventbrite(**kwargs: Any):
+        assert kwargs["location_str"] == ""
+        assert kwargs["event_type"] == "ONLINE"
+        return ([{
+            "id": "rust-online",
+            "provider": "eventbrite",
+            "title": "Rust Systems Workshop",
+            "description": "A live online Rust programming workshop.",
+            "url": "https://eventbrite.com/e/rust-online",
+            "date_start": "2026-10-10T18:00:00Z",
+            "event_type": "ONLINE",
+        }], 1, None)
+
+    monkeypatch.setattr(skill, "_search_meetup", forbidden_meetup)
+    monkeypatch.setattr(skill, "_search_eventbrite", online_eventbrite)
+
+    response = await skill.execute(SearchRequest(requests=[{
+        "query": "Rust programming workshops",
+        "event_type": "ONLINE",
+        "count": 10,
+    }]))
+
+    assert response.error is None
+    assert response.providers == ["eventbrite"]
+    assert response.results[0]["results"][0]["id"] == "rust-online"
+
+
+# contract-test: direct surface=rest_api assertions=events-search.request.validated,events-search.providers.explicit
+async def test_location_free_online_explicit_incompatible_provider_is_visible_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    response = await skill.execute(SearchRequest(
+        provider="Meetup",
+        requests=[{"query": "Rust programming", "event_type": "ONLINE"}],
+    ))
+
+    assert "requires a location" in response.results[0]["error"]
+
+
 # contract-test: direct surface=rest_api assertions=events-search.conference.supported,events-search.request.validated
 async def test_event_schedule_provider_allows_conference_without_location(monkeypatch: pytest.MonkeyPatch) -> None:
     """Conference searches should not require a city location when conference is set."""

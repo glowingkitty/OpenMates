@@ -68,7 +68,7 @@ models:
     decision:
       type: typesafe_jev_scores
       required: true
-      constraints: {event_goal_evidence: required, title_keyword_overlap_alone: insufficient, missing_organizer_or_format_facts: unknown, candidate_text: untrusted_data}
+      constraints: {event_goal_evidence: required, query_topic_fit: required, title_keyword_overlap_alone: insufficient, missing_organizer_or_format_facts: unknown, minimum_retained_score: weak_related_fit, below_minimum_omitted: true, candidate_text: untrusted_data}
     fallback:
       type: deterministic
       required: true
@@ -77,8 +77,8 @@ models:
 assertions:
   - id: events-search.request.validated
     type: validation
-    must: Each request requires a usable city/coordinate query or a supported conference schedule, validates date/type/count fields, and rejects malformed request items without blocking independent valid items in the same batch.
-    depends_on: [models.EventsSearchRequest, models.EventsSearchRequestItem, examples.requests]
+    must: Each request requires a topic or supported conference schedule, validates date/type/count fields, and rejects malformed request items without blocking independent valid items in the same batch. Physical searches require a usable city or coordinates unless the selected provider has an explicit location-free contract. Online searches may omit location and query only providers that support location-free online discovery without fabricating a city or coordinates.
+    depends_on: [models.EventsSearchRequest, models.EventsSearchRequestItem]
   - id: events-search.providers.explicit
     type: behavior
     must: An explicit provider is never silently broadened to auto mode, unknown providers return a visible error, auto mode queries applicable providers, and the response lists providers that were queried even when they returned no results.
@@ -97,7 +97,7 @@ assertions:
     depends_on: [models.EventsSearchRelevanceRanking.candidate_retrieval, models.EventsSearchRelevanceRanking.fallback]
   - id: events-search.relevance.evidence-ranking
     type: behavior
-    must: One event-specific Jev decision ranks only remaining candidates using stated evidence for the event goal. Similar title keywords alone are insufficient, missing organizer or format facts remain unknown, and no score can reintroduce an event rejected by a structured filter.
+    must: One event-specific Jev decision ranks only remaining candidates using evidence for both the search topic and stated event goal. Similar title keywords alone are insufficient, missing organizer or format facts remain unknown, and no score can reintroduce an event rejected by a structured filter. Candidates with no credible topical or goal relationship are omitted, candidates with at least a weak defensible relationship may remain, and the result group returns fewer than count rather than padding with clearly irrelevant events.
     depends_on: [models.EventsSearchRelevanceRanking.decision]
   - id: events-search.relevance.safe-fallback
     type: failure

@@ -7,7 +7,7 @@ list and always preserves its original order when the optional decision fails.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import logging
 import math
@@ -85,17 +85,20 @@ SEARCH_RELEVANCE_PROFILES: Dict[str, SearchRelevanceProfile] = {
     ),
     "events": SearchRelevanceProfile(
         instructions=(
-            "Score how well this single event supports the stated real-world goal after all "
-            "structured filters. Prefer explicit evidence about audience, format, organizer, "
-            "speaking, showcasing, networking, or other goal-specific opportunities. Similar "
-            "title words alone are insufficient and missing facts remain unknown."
+            "Score how well this single event matches both the search topic in "
+            "state.search_parameters.query and the stated real-world relevance goal after all "
+            "structured filters. A score of 1 requires a weak but defensible relationship to "
+            "the requested topic or goal; score 0 when neither relationship is supported. "
+            "Prefer explicit evidence about audience, format, organizer, speaking, showcasing, "
+            "networking, or other goal-specific opportunities. Similar title words alone are "
+            "insufficient and missing facts remain unknown."
         ),
         criteria=(
-            "No evidence the event supports the goal",
-            "Weak inferred fit with little stated evidence",
-            "Plausible fit supported by some event details",
-            "Strong goal fit supported by explicit event evidence",
-            "Exceptional direct opportunity for the stated goal",
+            "No credible relationship to the requested topic or goal",
+            "Weak but defensible topic or goal relationship with little stated evidence",
+            "Plausible topic and goal fit supported by some event details",
+            "Strong topic and goal fit supported by explicit event evidence",
+            "Exceptional direct topic match and opportunity for the stated goal",
         ),
     ),
     "home": SearchRelevanceProfile(
@@ -260,6 +263,7 @@ class SearchRelevanceRankingResult(Generic[T]):
 
     candidates: List[T]
     applied: bool
+    scores: List[float] = field(default_factory=list)
     fallback_reason: Optional[str] = None
     input_tokens: int = 0
     output_tokens: int = 0
@@ -497,13 +501,12 @@ async def rank_search_candidates(
                 return _fallback(original, reason="invalid_response", latency_ms=elapsed_ms)
             scores.append(answer.score)
 
-        ranked = [
-            candidate
-            for _score, _index, candidate in sorted(
-                zip(scores, range(len(original)), original),
-                key=lambda item: (-item[0], item[1]),
-            )
-        ]
+        ranked_items = sorted(
+            zip(scores, range(len(original)), original),
+            key=lambda item: (-item[0], item[1]),
+        )
+        ranked = [candidate for _score, _index, candidate in ranked_items]
+        ranked_scores = [score for score, _index, _candidate in ranked_items]
         logger.info(
             "Search relevance ranking completed profile=%s candidates=%d input_tokens=%d "
             "output_tokens=%d latency_ms=%.1f",
@@ -516,6 +519,7 @@ async def rank_search_candidates(
         return SearchRelevanceRankingResult(
             candidates=ranked,
             applied=True,
+            scores=ranked_scores,
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
             latency_ms=elapsed_ms,

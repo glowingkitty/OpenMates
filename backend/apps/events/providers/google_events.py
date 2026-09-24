@@ -136,7 +136,10 @@ def _date_range_to_htichips(
 # Event normalization
 # ---------------------------------------------------------------------------
 
-def _normalize_event(raw: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_event(
+    raw: Dict[str, Any],
+    requested_event_type: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Normalize a SerpAPI Google Events result into our standard EventResult format.
 
@@ -213,7 +216,11 @@ def _normalize_event(raw: Dict[str, Any]) -> Dict[str, Any]:
 
     # --- Event type from Google's type field (e.g., "Live music performance") ---
     event_category = raw.get("type")
-    event_type = "PHYSICAL"  # Default — Google Events are mostly in-person
+    event_type = (
+        "ONLINE"
+        if requested_event_type and requested_event_type.upper() == "ONLINE"
+        else "PHYSICAL"
+    )
 
     # --- Image ---
     image_url = raw.get("image") or raw.get("thumbnail")
@@ -353,7 +360,9 @@ async def search_events_async(
                 break
 
             for raw in raw_events:
-                all_events.append(_normalize_event(raw))
+                # SerpAPI's Virtual-Event chip is authoritative for an online
+                # request even though individual results omit a type flag.
+                all_events.append(_normalize_event(raw, event_type))
 
             # Update total — Google doesn't give an exact total, so estimate
             # from whether a full page was returned.

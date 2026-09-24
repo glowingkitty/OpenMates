@@ -217,6 +217,40 @@ test.describe('App: Events / Skill: search', () => {
 		console.log(`[P2] events/search found ${events.length} event(s). First: "${ev.name || ev.title}"`);
 	});
 
+	// contract-test: direct surface=cli assertions=events-search.request.validated,events-search.providers.explicit,events-search.surface-parity
+	test('Phase 2b: CLI accepts an online-only search without location', async () => {
+		test.skip(
+			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
+			'OPENMATES_TEST_ACCOUNT_API_KEY required.'
+		);
+
+		const result = await runCli(
+			apiUrl,
+			[
+				'apps', 'events', 'search',
+				'--input', JSON.stringify({
+					provider: 'Eventbrite',
+					requests: [{ query: 'Rust programming workshop', event_type: 'ONLINE', count: 3 }]
+				}),
+				'--json'
+			],
+			EVENT_SEARCH_MAX_DURATION_MS,
+			{ record: false }
+		);
+
+		expectCliSuccess(result);
+		const parsed = parseCliJson(result);
+		expect(parsed.success).toBe(true);
+		const group = parsed.data?.results?.[0];
+		expect(group).toBeTruthy();
+		expect(group.error).toBeFalsy();
+		expect(Array.isArray(group.results)).toBe(true);
+		expect(group.results.length).toBeLessThanOrEqual(3);
+		for (const event of group.results) {
+			expect(event.event_type).toBe('ONLINE');
+		}
+	});
+
 	// ── Phase 3: CLI chat send triggers skill ──────────────────────────────
 	// contract-test: supporting surface=cli assertions=events-search.surface-parity
 	test('Phase 3: CLI chats new triggers events search', async () => {
