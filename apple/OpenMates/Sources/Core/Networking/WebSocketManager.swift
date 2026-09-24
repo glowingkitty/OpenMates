@@ -520,10 +520,11 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             )
 
         case "preprocessing_step":
+            guard msg.fields["skipped"] as? Bool != true else { break }
             let chatId = msg.stringField("chat_id") ?? ""
             let step = msg.stringField("step") ?? ""
             streamEventDispatcher.enqueue(
-                .preprocessingStep(chatId: chatId, step: step, data: nil),
+                .preprocessingStep(chatId: chatId, step: step, data: msg.fields["data"] as? [String: Any]),
                 for: chatId
             )
 

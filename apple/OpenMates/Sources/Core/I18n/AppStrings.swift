@@ -88,6 +88,12 @@ enum AppStrings {
     static var typeFollowup: String { L("enter_message.placeholder.followup_touch") }
     static var startTyping: String { L("chat.start_typing") }
     static var aiResponding: String { L("enter_message.processing") }
+    static func mateIsTyping(_ mate: String) -> String {
+        LocalizationManager.shared.text("enter_message.is_typing", replacements: ["mate": mate])
+    }
+    static func mateIsThinking(_ mate: String) -> String {
+        LocalizationManager.shared.text("enter_message.is_thinking", replacements: ["mate": mate])
+    }
     static var sendingMessage: String { L("enter_message.sending") }
     static var selectingMateAndModel: String { L("enter_message.status.selecting_mate_and_model") }
     static var selectingMate: String { L("enter_message.status.selecting_mate") }

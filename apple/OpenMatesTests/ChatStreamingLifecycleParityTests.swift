@@ -9,6 +9,42 @@ import XCTest
 
 @MainActor
 final class ChatStreamingLifecycleParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.surface.semantic-parity
+    func testTypingStatusUsesTheCurrentTurnMateAndClearsItForTheNextTurn() throws {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.taskInitiated(chatId: "chat", taskId: "task-1", userMessageId: "user-1"))
+        XCTAssertEqual(ChatTypingPresentation.stageText(for: state), AppStrings.sendingMessage)
+
+        state.apply(.preprocessingStep(chatId: "chat", step: "mate_selected",
+                                       data: ["mate_name": "Developer", "mate_category": "software_development"]))
+        XCTAssertEqual(ChatTypingPresentation.stageText(for: state), AppStrings.selectingModel)
+        state.apply(.preprocessingStep(chatId: "chat", step: "model_selected", data: nil))
+        XCTAssertEqual(ChatTypingPresentation.stageText(for: state), AppStrings.mateIsTyping("Developer"))
+
+        state.apply(.typingStarted(
+            chatId: "chat", messageId: "assistant-1",
+            metadata: .init(title: nil, iconNames: [], category: "software_development",
+                            modelName: nil, providerName: nil, serverRegion: nil,
+                            userMessageId: "user-1", encryptedChatKey: nil)
+        ))
+        let developerMate = try XCTUnwrap(CanonicalSettingsMateCatalog.mate(id: "software_development"))
+        XCTAssertEqual(ChatTypingPresentation.stageText(for: state), AppStrings.mateIsTyping(developerMate.name))
+
+        state.apply(.thinkingChunk(chatId: "chat", messageId: "assistant-1", content: "reasoning"))
+        XCTAssertEqual(ChatTypingPresentation.stageText(for: state), AppStrings.mateIsThinking(developerMate.name))
+
+        state.apply(.taskInitiated(chatId: "chat", taskId: "task-2", userMessageId: "user-2"))
+        state.apply(.typingStarted(chatId: "chat", messageId: "assistant-2", metadata: nil))
+        XCTAssertNil(state.selectedMateCategory)
+        XCTAssertEqual(ChatTypingPresentation.stageText(for: state), AppStrings.selectingMateAndModel)
+
+        state.apply(.chunk(chatId: "chat", messageId: "assistant-2", sequence: 1,
+                           content: "Hello", isFinal: false, userMessageId: "user-2",
+                           category: "general_knowledge", modelName: nil, rejectionReason: nil))
+        let generalMate = try XCTUnwrap(CanonicalSettingsMateCatalog.mate(id: "general_knowledge"))
+        XCTAssertEqual(ChatTypingPresentation.stageText(for: state), AppStrings.mateIsTyping(generalMate.name))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testFirstMessageTitleBridgesHeaderUntilGeneratedMetadataArrives() {
         let provisional = ChatHeaderPresentation.provisionalTitle(
@@ -709,6 +745,15 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         #else
         XCTAssertFalse(NativeClientLifecyclePolicy.isCompletionCapable(.inactive))
         #endif
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible,chats.completion.pending-delivery
+    func testMacAppDeactivationStopsReportingForegroundChatVisibility() {
+        XCTAssertTrue(NativeClientLifecyclePolicy.isMacForeground(.active, appIsActive: true))
+        XCTAssertTrue(NativeClientLifecyclePolicy.isMacForeground(.inactive, appIsActive: true))
+        XCTAssertFalse(NativeClientLifecyclePolicy.isMacForeground(.active, appIsActive: false))
+        XCTAssertFalse(NativeClientLifecyclePolicy.isMacForeground(.inactive, appIsActive: false))
+        XCTAssertFalse(NativeClientLifecyclePolicy.isMacForeground(.background, appIsActive: true))
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.followups.non-destructive-reconciliation

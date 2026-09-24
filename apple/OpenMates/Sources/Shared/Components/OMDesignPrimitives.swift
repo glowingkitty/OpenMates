@@ -117,7 +117,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
     }
 
     private var textEditorMinHeight: CGFloat {
-        inlineFieldContent == nil ? fieldHeight : 40
+        guard inlineFieldContent == nil else { return 40 }
+        return compact ? fieldHeight : max(0, fieldHeight - expandedBottomPadding)
     }
 
     var body: some View {

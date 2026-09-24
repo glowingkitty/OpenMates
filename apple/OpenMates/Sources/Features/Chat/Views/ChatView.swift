@@ -326,6 +326,44 @@ private struct ProcessingTextShimmer: ViewModifier {
     }
 }
 
+/// Composer status follows the web's current-turn mate selection. A chat's
+/// stored category can describe an earlier turn, so it is never used here.
+@MainActor
+enum ChatTypingPresentation {
+    static func stageText(for lifecycle: ChatStreamingLifecycleState) -> String {
+        switch lifecycle.phase {
+        case .sending:
+            return AppStrings.sendingMessage
+        case .processing:
+            if lifecycle.preprocessingStep == "model_selected" {
+                if let mateName = lifecycle.selectedMateName, !mateName.isEmpty {
+                    return AppStrings.mateIsTyping(mateName)
+                }
+                if let mate = CanonicalSettingsMateCatalog.mate(id: lifecycle.selectedMateCategory) {
+                    return AppStrings.mateIsTyping(mate.name)
+                }
+            }
+            return lifecycle.preprocessingStep
+                .map(ProcessingDetailsView.ProcessingStep.stageLabel(for:))
+                ?? AppStrings.selectingMateAndModel
+        case .thinking:
+            guard let mate = CanonicalSettingsMateCatalog.mate(id: lifecycle.selectedMateCategory) else {
+                return AppStrings.thinkingHeaderStreaming
+            }
+            return AppStrings.mateIsThinking(mate.name)
+        case .typing, .streaming:
+            guard let mate = CanonicalSettingsMateCatalog.mate(id: lifecycle.selectedMateCategory) else {
+                return AppStrings.selectingMateAndModel
+            }
+            return AppStrings.mateIsTyping(mate.name)
+        case .queued:
+            return lifecycle.queuedMessageText ?? AppStrings.messageQueued
+        case .cancelling, .idle, .completed, .error:
+            return AppStrings.aiResponding
+        }
+    }
+}
+
 struct ChatView: View {
     #if DEBUG
     var isolatedHistory = false
@@ -490,20 +528,7 @@ struct ChatView: View {
     }
 
     private var streamingStageText: String {
-        switch viewModel.streamingLifecycle.phase {
-        case .sending:
-            return AppStrings.sendingMessage
-        case .processing:
-            return viewModel.streamingLifecycle.preprocessingStep
-                .map(ProcessingDetailsView.ProcessingStep.stageLabel(for:))
-                ?? AppStrings.selectingMateAndModel
-        case .thinking:
-            return AppStrings.thinkingHeaderStreaming
-        case .queued:
-            return viewModel.streamingLifecycle.queuedMessageText ?? AppStrings.messageQueued
-        case .typing, .streaming, .cancelling, .idle, .completed, .error:
-            return AppStrings.aiResponding
-        }
+        ChatTypingPresentation.stageText(for: viewModel.streamingLifecycle)
     }
 
     var body: some View {
@@ -2266,6 +2291,7 @@ struct ChatView: View {
         Text(streamingStageText)
             .font(.omP)
             .fontWeight(.medium)
+            .italic()
             .modifier(ProcessingTextShimmer())
             .frame(maxWidth: .infinity)
             .padding(.horizontal, .spacing8)
