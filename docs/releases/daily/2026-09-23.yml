@@ -1,0 +1,4425 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-23'
+generated_at: '2026-09-24T00:20:18+00:00'
+range:
+  since: '2026-09-23T00:00:00+00:00'
+  until: '2026-09-24T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 27
+  section_counts:
+    features: 7
+    bug_fixes: 14
+    improvements: 0
+    docs: 4
+    tests: 1
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 21
+  dev_only_items: 27
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: strengthen search relevance inference'
+    section: features
+    commits:
+    - 72bdd153a
+    authored_at: '2026-09-23T20:23:06+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/web/app.yml
+    - backend/tests/test_search_relevance.py
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, app:fitness, app:home, app:maps, app:news, app:shopping, app:travel,
+      app:videos, app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: expand Jev search relevance ranking'
+    section: features
+    commits:
+    - e28e7f4bf
+    authored_at: '2026-09-23T19:59:05+00:00'
+    changed_paths:
+    - backend/apps/fitness/app.yml
+    - backend/apps/fitness/skills/search_classes.py
+    - backend/apps/fitness/skills/search_locations.py
+    - backend/apps/maps/app.yml
+    - backend/apps/maps/skills/search_skill.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/skills/search_stays.py
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/skills/search_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/scripts/test_search_relevance_ranking.py
+    - backend/shared/python_utils/search_relevance.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_search_relevance.py
+    - docs/apis/typesafe-jev.md
+    - docs/plans/jev-search-relevance-expansion/plan.yml
+    - frontend/apps/web_app/tests/skill-search-relevance-parity.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/ci_coverage.py
+    - scripts/generate_sdk_app_skills.py
+    - scripts/tests/test_ci_coverage.py
+    - shared/docs/privacy_policy.yml
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: embed:travel:search_stays
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:fitness:search_classes
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:fitness:search_locations
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:travel:search_stays
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:videos:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:fitness, app:maps, app:shopping, app:travel, app:videos, embed:fitness:search_classes,
+      embed:fitness:search_locations, embed:maps:search, embed:shopping:search_products, embed:travel:search_stays, embed:videos:search,
+      skill:fitness:search_classes, skill:fitness:search_locations, skill:maps:search, skill:shopping:search_products, skill:travel:search_stays,
+      skill:videos:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add optional Jev search relevance ranking'
+    section: features
+    commits:
+    - 8f38587d2
+    authored_at: '2026-09-23T17:11:30+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/home/app.yml
+    - backend/apps/home/skills/search_skill.py
+    - backend/apps/news/app.yml
+    - backend/apps/news/skills/search_skill.py
+    - backend/apps/web/app.yml
+    - backend/apps/web/skills/search_skill.py
+    - backend/scripts/test_search_relevance_ranking.py
+    - backend/shared/python_utils/search_relevance.py
+    - backend/tests/test_search_relevance.py
+    - docs/apis/typesafe-jev.md
+    - docs/plans/jev-search-relevance-ranking/plan.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-home-search.spec.ts
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - shared/docs/privacy_policy.yml
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/features/app-skills/events-search/examples.yml
+    - specifications/features/app-skills/events-search/specification.yml
+    - specifications/features/app-skills/health-search-appointments/examples.yml
+    - specifications/features/app-skills/health-search-appointments/specification.yml
+    - specifications/features/app-skills/web-search/examples.yml
+    - specifications/features/app-skills/web-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:news:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, app:home, app:news, app:web, embed:events:search, embed:home:search,
+      embed:news:search, embed:web:search, skill:events:search, skill:home:search, skill:news:search, skill:web:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: enable web Project coding with private file protection'
+    section: features
+    commits:
+    - 66a757619
+    authored_at: '2026-09-23T15:48:49+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/project_file_operation_service.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/project_file_operation_tasks.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/tests/test_chat_directus_encryption_guards.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - backend/tests/test_project_file_operation_tasks.py
+    - backend/tests/test_project_file_operations.py
+    - backend/tests/test_project_file_tools.py
+    - backend/tests/test_remote_command_apparmor_live.py
+    - backend/tests/test_unified_detail_metadata.py
+    - backend/tests/test_unified_key_wrappers.py
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - docs/user-guide/cli/remote-access.md
+    - frontend/apps/web_app/tests/components/project-file-approval.spec.ts
+    - frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
+    - frontend/apps/web_app/tests/components/remote-command-review.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/scripts/package-remote-command-apparmor.mjs
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/src/projectFileRisk.ts
+    - frontend/packages/openmates-cli/src/projectPathPolicy.ts
+    - frontend/packages/openmates-cli/src/projectRequester.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/remoteCommandAppArmor.ts
+    - frontend/packages/openmates-cli/src/remoteCommandPermissions.ts
+    - frontend/packages/openmates-cli/src/remoteCommandRuntime.ts
+    - frontend/packages/openmates-cli/src/remoteCommandSetup.ts
+    - frontend/packages/openmates-cli/src/remoteCommandSource.ts
+    - frontend/packages/openmates-cli/src/remoteFileWrites.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/openmates-cli/tests/projectIgnoredReadApproval.test.ts
+    - frontend/packages/openmates-cli/tests/projectIgnoredReadGrant.test.ts
+    - frontend/packages/openmates-cli/tests/projectPathPolicy.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccessReadBudget.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandAppArmor.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandPermissions.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandRuntime.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandSetup.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandSource.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/app.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/GenericMentionNode.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/projectMentionSyntax.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/components/enter_message/services/projectMentionSyntax.ts
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectFileApprovalCard.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectFileApprovalCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/projects/RemoteCommandReviewCard.preview.ts
+    - frontend/packages/ui/src/components/projects/RemoteCommandReviewCard.svelte
+    - frontend/packages/ui/src/config/__tests__/apiProjectFileCapability.test.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/projects.yml
+    - frontend/packages/ui/src/services/__tests__/browserProjectFileExecutor.test.ts
+    - frontend/packages/ui/src/services/__tests__/browserRemoteCommandClient.test.ts
+    - frontend/packages/ui/src/services/__tests__/hostedProjectPathPolicy.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectBrowserTree.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
+    - frontend/packages/ui/src/services/browserProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/browserRemoteCommandClient.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/projectBrowserEvents.ts
+    - frontend/packages/ui/src/services/projectBrowserTree.ts
+    - frontend/packages/ui/src/services/projectFileJobExecutor.ts
+    - frontend/packages/ui/src/services/projectFocusSendPreflight.ts
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/stores/__tests__/projectFileApprovalStore.test.ts
+    - frontend/packages/ui/src/stores/projectFileApprovalStore.ts
+    - frontend/packages/ui/src/stores/remoteCommandApprovalStore.ts
+    - frontend/packages/ui/src/utils/projectIgnoredReadGrant.ts
+    - frontend/packages/ui/src/utils/projectPathPolicy.ts
+    - pnpm-lock.yaml
+    - scripts/ci_coverage_manifest.json
+    - scripts/openmates_command_apparmor.py
+    - scripts/openmates_git_config_mask.c
+    - scripts/project_remote_access_live.mjs
+    - scripts/setup_remote_command_apparmor.py
+    - scripts/specifications.py
+    - scripts/tests/test_openmates_command_apparmor.py
+    - scripts/tests/test_openmates_git_config_mask.py
+    - scripts/tests/test_setup_remote_command_apparmor.py
+    - scripts/tests/test_specifications_workflow.py
+    - specifications/features/app-skills/code-run/examples.yml
+    - specifications/features/app-skills/code-run/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add GPT-6 Sol, Luna, and Claude Opus 5.5'
+    section: features
+    commits:
+    - 9f3b6921f
+    authored_at: '2026-09-23T14:11:29+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/modelsMetadata.json
+    - backend/apps/ai/llm_providers/openai_client.py
+    - backend/apps/ai/tests/test_anthropic_direct_api.py
+    - backend/providers/anthropic.yml
+    - backend/providers/openai.yml
+    - backend/tests/test_ai_ask_model_metadata.py
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: enable Project file writes and remote commands'
+    section: features
+    commits:
+    - 5fe487f43
+    authored_at: '2026-09-23T03:27:04+00:00'
+    changed_paths:
+    - .claude/rules/testing.md
+    - AGENTS.md
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProjectsView.swift
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/cancel_ai_task_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/code_run_output_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/commit_embed_revision_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_file_operation_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/remote_command_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/remote_command_origin_completion_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/schemas/project_file_operation_schemas.py
+    - backend/core/api/app/schemas/remote_command_schemas.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/api/app/services/project_file_operation_service.py
+    - backend/core/api/app/services/project_remote_access_service.py
+    - backend/core/api/app/services/project_write_authorization_service.py
+    - backend/core/api/app/services/remote_command_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/project_file_operation_tasks.py
+    - backend/core/api/app/tasks/remote_command_tasks.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/extensions/embed-version-transaction/package.json
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/core/directus/schemas/embed_diffs.yml
+    - backend/core/directus/schemas/project_settings.yml
+    - backend/shared/python_utils/terminal_output_safety.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_commit_embed_revision_handler.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_project_file_operations.py
+    - backend/tests/test_project_remote_sources.py
+    - backend/tests/test_project_write_authorization.py
+    - backend/tests/test_projects.py
+    - backend/tests/test_remote_command_origin_completion.py
+    - backend/tests/test_remote_command_service.py
+    - backend/tests/test_store_embed_authorization.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - backend/tests/test_terminal_output_safety.py
+    - backend/tests/test_websocket_metadata_dispatch.py
+    - docs/plans/native-agentic-coding-readiness/overview.md
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - frontend/apps/web_app/tests/cli-project-file-chat.spec.ts
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/src/projectFileRisk.ts
+    - frontend/packages/openmates-cli/src/projectRequester.ts
+    - frontend/packages/openmates-cli/src/projectSourceRootPolicy.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/remoteCommandClient.ts
+    - frontend/packages/openmates-cli/src/remoteCommandNetwork.ts
+    - frontend/packages/openmates-cli/src/remoteCommandPermissions.ts
+    - frontend/packages/openmates-cli/src/remoteCommandResourceGrants.ts
+    - frontend/packages/openmates-cli/src/remoteCommandRuntime.ts
+    - frontend/packages/openmates-cli/src/remoteCommandSource.ts
+    - frontend/packages/openmates-cli/src/remoteCommandSourceLock.ts
+    - frontend/packages/openmates-cli/src/remoteFileWrites.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/openmates-cli/tests/projectSearchProtocol.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandClient.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandNetwork.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandPermissions.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandResourceGrants.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandRuntime.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandSource.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandSourceLock.test.ts
+    - frontend/packages/openmates-cli/tests/remoteFileWrites.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/projectFileJobExecutor.ts
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/utils/projectFileMutationProtocol.ts
+    - frontend/packages/ui/src/utils/projectFilePatch.ts
+    - frontend/packages/ui/src/utils/projectSearchProtocol.ts
+    - scripts/openmates_cli_test_account.mjs
+    - scripts/project_remote_access_live.mjs
+    - specifications/features/app-skills/code-run/examples.yml
+    - specifications/features/app-skills/code-run/specification.yml
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/focus-modes/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:code, embed:code:run, platform:ios, platform:macos, platform:projects,
+      skill:ai:ask, skill:code:run'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: bring Apple audio recording to web parity'
+    section: features
+    commits:
+    - 3463965d6
+    authored_at: '2026-09-23T04:17:20+02:00'
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    - .gitignore
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/AudioRealtimeTranscriptionClient.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerEmbedLifecycle.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerSession.swift
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/NativeComposerSessionTests.swift
+    - apple/OpenMatesTests/VoiceRecorderTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - docs/plans/apple-realtime-audio-parity/plan.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix(apple): restore chat composer and embed parity'
+    section: bug_fixes
+    commits:
+    - c7613b4bd
+    authored_at: '2026-09-24T00:52:54+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatEmbedWorkspace.swift
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDraftRepository.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    - apple/OpenMatesTests/MainAppLayoutParityTests.swift
+    - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesTests/VideoTranscriptPayloadParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hydrate complete chat embed graph'
+    section: bug_fixes
+    commits:
+    - 32366340b
+    authored_at: '2026-09-23T23:49:28+02:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/tests/test_chat_content_batch_handler.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show every billed usage entry'
+    section: bug_fixes
+    commits:
+    - 4355eb51a
+    authored_at: '2026-09-23T20:42:12+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/usage_overview_service.py
+    - backend/tests/test_audio_realtime_transcription.py
+    - backend/tests/test_usage_overview_rollups.py
+    - frontend/apps/web_app/tests/components/settings-usage-overview.spec.ts
+    - frontend/apps/web_app/tests/workflow-billing-usage.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsUsage.preview.ts
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound ranked stay result counts'
+    section: bug_fixes
+    commits:
+    - d85bbe6f5
+    authored_at: '2026-09-23T20:35:59+00:00'
+    changed_paths:
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/skills/search_stays.py
+    - backend/tests/test_search_relevance.py
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_stays
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_stays
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:travel, embed:travel:search_stays, skill:travel:search_stays'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ask Project write policy during setup'
+    section: bug_fixes
+    commits:
+    - cb91352c6
+    authored_at: '2026-09-23T20:14:51+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    - backend/tests/test_project_remote_sources.py
+    - backend/tests/test_project_write_authorization.py
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Apple recording composer preview'
+    section: bug_fixes
+    commits:
+    - 23d638b51
+    authored_at: '2026-09-23T20:23:46+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentViewProvider.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerTextAttachment.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    - apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    - apple/OpenMatesTests/NativeComposerSessionTests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Apple chat and audio parity'
+    section: bug_fixes
+    commits:
+    - d9087ada7
+    authored_at: '2026-09-23T19:04:48+02:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/AudioRealtimeTranscriptionClient.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FollowUpSuggestions.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatEmbedWorkspace.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/ComposerAudioPreviewContentTests.swift
+    - apple/OpenMatesTests/DevPreviewLaunchConfigurationTests.swift
+    - apple/OpenMatesTests/RemindersPublicContentParityTests.swift
+    - apple/OpenMatesTests/VideoTranscriptPayloadParityTests.swift
+    - apple/OpenMatesTests/VoiceRecorderTests.swift
+    - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift
+    - apple/OpenMatesUITests/NativeComposerInlineEmbedUITests.swift
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    - scripts/apple_ui_contracts.py
+    - scripts/pair_apple_embed_evidence.py
+    - scripts/tests/test_apple_ui_contracts.py
+    - scripts/tests/test_pair_apple_embed_evidence.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: verify prebuilt CLI guard assets during publication'
+    section: bug_fixes
+    commits:
+    - 86b475a68
+    authored_at: '2026-09-23T15:59:35+00:00'
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - frontend/packages/openmates-cli/package.json
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: include generated audio renderer in macOS app'
+    section: bug_fixes
+    commits:
+    - b756418e7
+    authored_at: '2026-09-23T16:29:01+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render real video transcript metadata and fullscreen content on Apple'
+    section: bug_fixes
+    commits:
+    - 7e2e3cb8f
+    authored_at: '2026-09-23T15:58:49+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize Apple audio recording and align chat controls'
+    section: bug_fixes
+    commits:
+    - dcfe3d022
+    authored_at: '2026-09-23T15:38:17+02:00'
+    changed_paths:
+    - apple/AGENTS.md
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMatesTests/VoiceRecorderTests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: redact APNs private key in server env output'
+    section: bug_fixes
+    commits:
+    - 1088670fb
+    authored_at: '2026-09-23T14:43:00+02:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep first draft autosave responsive'
+    section: bug_fixes
+    commits:
+    - 7edceaf88
+    authored_at: '2026-09-23T12:42:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Apple attachment controls and scope Vercel deploy guard'
+    section: bug_fixes
+    commits:
+    - 7a3b1d8f5
+    authored_at: '2026-09-23T02:07:42+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentActionRow.swift
+    - apple/OpenMatesTests/NativeComposerPasteTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - scripts/apple_ui_contracts.py
+    - scripts/sessions.py
+    - scripts/tests/test_apple_ui_contracts.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: verify Jev relevance expansion'
+    section: docs
+    commits:
+    - b3ca0b6df
+    authored_at: '2026-09-23T20:57:59+00:00'
+    changed_paths:
+    - docs/plans/jev-search-relevance-expansion/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: correct privacy provider disclosures'
+    section: docs
+    commits:
+    - 73ac3fa38
+    authored_at: '2026-09-23T19:26:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_policy.yml
+    - shared/docs/privacy_promises.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record agentic coding deployment and verification blockers'
+    section: docs
+    commits:
+    - ee6504650
+    authored_at: '2026-09-23T03:47:03+00:00'
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: plan daily CI reliability recovery'
+    section: docs
+    commits:
+    - fd46897f8
+    authored_at: '2026-09-23T00:43:02+00:00'
+    changed_paths:
+    - docs/plans/isolated-github-tests/daily-reliability-recovery-2026-09-23.md
+    - docs/plans/isolated-github-tests/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: cover interrupted realtime audio billing'
+    section: tests
+    commits:
+    - 8b7273b3d
+    authored_at: '2026-09-23T18:25:02+00:00'
+    changed_paths:
+    - backend/tests/test_audio_realtime_transcription.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: sync generated privacy promises'
+    section: infrastructure
+    commits:
+    - a7aedfa73
+    authored_at: '2026-09-23T19:27:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/legal/privacyPromises.generated.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix(apple): restore chat composer and embed parity'
+    commits:
+    - c7613b4bd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: hydrate complete chat embed graph'
+    commits:
+    - 32366340b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: verify Jev relevance expansion'
+    commits:
+    - b3ca0b6df
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: show every billed usage entry'
+    commits:
+    - 4355eb51a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: bound ranked stay result counts'
+    commits:
+    - d85bbe6f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_stays
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_stays
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'feat: strengthen search relevance inference'
+    commits:
+    - 72bdd153a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: ask Project write policy during setup'
+    commits:
+    - cb91352c6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: expand Jev search relevance ranking'
+    commits:
+    - e28e7f4bf
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: embed:travel:search_stays
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:fitness:search_classes
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:fitness:search_locations
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:travel:search_stays
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:videos:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - title: 'chore: sync generated privacy promises'
+    commits:
+    - a7aedfa73
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: correct privacy provider disclosures'
+    commits:
+    - 73ac3fa38
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover interrupted realtime audio billing'
+    commits:
+    - 8b7273b3d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore Apple recording composer preview'
+    commits:
+    - 23d638b51
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add optional Jev search relevance ranking'
+    commits:
+    - 8f38587d2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:news:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: restore Apple chat and audio parity'
+    commits:
+    - d9087ada7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: verify prebuilt CLI guard assets during publication'
+    commits:
+    - 86b475a68
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: enable web Project coding with private file protection'
+    commits:
+    - 66a757619
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: include generated audio renderer in macOS app'
+    commits:
+    - b756418e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add GPT-6 Sol, Luna, and Claude Opus 5.5'
+    commits:
+    - 9f3b6921f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: render real video transcript metadata and fullscreen content on Apple'
+    commits:
+    - 7e2e3cb8f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: stabilize Apple audio recording and align chat controls'
+    commits:
+    - dcfe3d022
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: redact APNs private key in server env output'
+    commits:
+    - 1088670fb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep first draft autosave responsive'
+    commits:
+    - 7edceaf88
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record agentic coding deployment and verification blockers'
+    commits:
+    - ee6504650
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: enable Project file writes and remote commands'
+    commits:
+    - 5fe487f43
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'feat: bring Apple audio recording to web parity'
+    commits:
+    - 3463965d6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'docs: plan daily CI reliability recovery'
+    commits:
+    - fd46897f8
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore Apple attachment controls and scope Vercel deploy guard'
+    commits:
+    - 7a3b1d8f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: bound ranked stay result counts'
+    commits:
+    - d85bbe6f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_stays
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_stays
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'feat: strengthen search relevance inference'
+    commits:
+    - 72bdd153a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'feat: expand Jev search relevance ranking'
+    commits:
+    - e28e7f4bf
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: embed:travel:search_stays
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:fitness:search_classes
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:fitness:search_locations
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:travel:search_stays
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:videos:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - title: 'feat: add optional Jev search relevance ranking'
+    commits:
+    - 8f38587d2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:news:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: restore Apple chat and audio parity'
+    commits:
+    - d9087ada7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: enable web Project coding with private file protection'
+    commits:
+    - 66a757619
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: add GPT-6 Sol, Luna, and Claude Opus 5.5'
+    commits:
+    - 9f3b6921f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: enable Project file writes and remote commands'
+    commits:
+    - 5fe487f43
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix(apple): restore chat composer and embed parity'
+    commits:
+    - c7613b4bd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: hydrate complete chat embed graph'
+    commits:
+    - 32366340b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: show every billed usage entry'
+    commits:
+    - 4355eb51a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: bound ranked stay result counts'
+    commits:
+    - d85bbe6f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_stays
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_stays
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'feat: strengthen search relevance inference'
+    commits:
+    - 72bdd153a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: ask Project write policy during setup'
+    commits:
+    - cb91352c6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: expand Jev search relevance ranking'
+    commits:
+    - e28e7f4bf
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: embed:travel:search_stays
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:fitness:search_classes
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:fitness:search_locations
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:travel:search_stays
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:videos:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore Apple recording composer preview'
+    commits:
+    - 23d638b51
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add optional Jev search relevance ranking'
+    commits:
+    - 8f38587d2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:news:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore Apple chat and audio parity'
+    commits:
+    - d9087ada7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: verify prebuilt CLI guard assets during publication'
+    commits:
+    - 86b475a68
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: enable web Project coding with private file protection'
+    commits:
+    - 66a757619
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: include generated audio renderer in macOS app'
+    commits:
+    - b756418e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add GPT-6 Sol, Luna, and Claude Opus 5.5'
+    commits:
+    - 9f3b6921f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: render real video transcript metadata and fullscreen content on Apple'
+    commits:
+    - 7e2e3cb8f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: stabilize Apple audio recording and align chat controls'
+    commits:
+    - dcfe3d022
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: redact APNs private key in server env output'
+    commits:
+    - 1088670fb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep first draft autosave responsive'
+    commits:
+    - 7edceaf88
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: enable Project file writes and remote commands'
+    commits:
+    - 5fe487f43
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'feat: bring Apple audio recording to web parity'
+    commits:
+    - 3463965d6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore Apple attachment controls and scope Vercel deploy guard'
+    commits:
+    - 7a3b1d8f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: c7613b4bd24807237790a1c0a57fcd7747d0ccfc
+    short_sha: c7613b4bd
+    authored_at: '2026-09-24T00:52:54+02:00'
+    subject: 'fix(apple): restore chat composer and embed parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatEmbedWorkspace.swift
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDraftRepository.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    - apple/OpenMatesTests/MainAppLayoutParityTests.swift
+    - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesTests/VideoTranscriptPayloadParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 32366340b265c78a4edaa2f57171bfebbfbcad98
+    short_sha: 32366340b
+    authored_at: '2026-09-23T23:49:28+02:00'
+    subject: 'fix: hydrate complete chat embed graph'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/tests/test_chat_content_batch_handler.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: b3ca0b6df1d99024e4b41083d8f4506a75c3b197
+    short_sha: b3ca0b6df
+    authored_at: '2026-09-23T20:57:59+00:00'
+    subject: 'docs: verify Jev relevance expansion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/jev-search-relevance-expansion/plan.yml
+    related_feature_ids: []
+  - sha: 4355eb51aafb90065be1032e7347bb1db9659ff9
+    short_sha: 4355eb51a
+    authored_at: '2026-09-23T20:42:12+00:00'
+    subject: 'fix: show every billed usage entry'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/usage_overview_service.py
+    - backend/tests/test_audio_realtime_transcription.py
+    - backend/tests/test_usage_overview_rollups.py
+    - frontend/apps/web_app/tests/components/settings-usage-overview.spec.ts
+    - frontend/apps/web_app/tests/workflow-billing-usage.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsUsage.preview.ts
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: d85bbe6f52ed5631ea2cc971949210f10386ff36
+    short_sha: d85bbe6f5
+    authored_at: '2026-09-23T20:35:59+00:00'
+    subject: 'fix: bound ranked stay result counts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/skills/search_stays.py
+    - backend/tests/test_search_relevance.py
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    related_feature_ids:
+    - app:travel
+    - embed:travel:search_stays
+    - skill:travel:search_stays
+  - sha: 72bdd153ae1ca5f5ed7ccd7f6a6b174cc97aa85a
+    short_sha: 72bdd153a
+    authored_at: '2026-09-23T20:23:06+00:00'
+    subject: 'feat: strengthen search relevance inference'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/web/app.yml
+    - backend/tests/test_search_relevance.py
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:events
+    - app:fitness
+    - app:home
+    - app:maps
+    - app:news
+    - app:shopping
+    - app:travel
+    - app:videos
+    - app:web
+  - sha: cb91352c630a8f8f145c78a326b5052ef8bcd478
+    short_sha: cb91352c6
+    authored_at: '2026-09-23T20:14:51+00:00'
+    subject: 'fix: ask Project write policy during setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    - backend/tests/test_project_remote_sources.py
+    - backend/tests/test_project_write_authorization.py
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: e28e7f4bf79b97b1be50f189001e84e5903cb6f9
+    short_sha: e28e7f4bf
+    authored_at: '2026-09-23T19:59:05+00:00'
+    subject: 'feat: expand Jev search relevance ranking'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/fitness/app.yml
+    - backend/apps/fitness/skills/search_classes.py
+    - backend/apps/fitness/skills/search_locations.py
+    - backend/apps/maps/app.yml
+    - backend/apps/maps/skills/search_skill.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/skills/search_stays.py
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/skills/search_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/scripts/test_search_relevance_ranking.py
+    - backend/shared/python_utils/search_relevance.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_search_relevance.py
+    - docs/apis/typesafe-jev.md
+    - docs/plans/jev-search-relevance-expansion/plan.yml
+    - frontend/apps/web_app/tests/skill-search-relevance-parity.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/ci_coverage.py
+    - scripts/generate_sdk_app_skills.py
+    - scripts/tests/test_ci_coverage.py
+    - shared/docs/privacy_policy.yml
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:fitness
+    - app:maps
+    - app:shopping
+    - app:travel
+    - app:videos
+    - embed:fitness:search_classes
+    - embed:fitness:search_locations
+    - embed:maps:search
+    - embed:shopping:search_products
+    - embed:travel:search_stays
+    - embed:videos:search
+    - skill:fitness:search_classes
+    - skill:fitness:search_locations
+    - skill:maps:search
+    - skill:shopping:search_products
+    - skill:travel:search_stays
+    - skill:videos:search
+  - sha: a7aedfa7301deab3a5527768b184f21730c107fa
+    short_sha: a7aedfa73
+    authored_at: '2026-09-23T19:27:36+00:00'
+    subject: 'chore: sync generated privacy promises'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/legal/privacyPromises.generated.ts
+    related_feature_ids: []
+  - sha: 73ac3fa38bece8ab7443433e805f1181fcc04e53
+    short_sha: 73ac3fa38
+    authored_at: '2026-09-23T19:26:11+00:00'
+    subject: 'docs: correct privacy provider disclosures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_policy.yml
+    - shared/docs/privacy_promises.yml
+    related_feature_ids: []
+  - sha: 8b7273b3d75339ccb94d9d638363670173512f12
+    short_sha: 8b7273b3d
+    authored_at: '2026-09-23T18:25:02+00:00'
+    subject: 'test: cover interrupted realtime audio billing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_audio_realtime_transcription.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 23d638b51703f7efec210ebcfa4528b9e4fa6bdd
+    short_sha: 23d638b51
+    authored_at: '2026-09-23T20:23:46+02:00'
+    subject: 'fix: restore Apple recording composer preview'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentViewProvider.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerTextAttachment.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    - apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    - apple/OpenMatesTests/NativeComposerSessionTests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 8f38587d2a626fe711dbfa94a8577e448b28aaaa
+    short_sha: 8f38587d2
+    authored_at: '2026-09-23T17:11:30+00:00'
+    subject: 'feat: add optional Jev search relevance ranking'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/home/app.yml
+    - backend/apps/home/skills/search_skill.py
+    - backend/apps/news/app.yml
+    - backend/apps/news/skills/search_skill.py
+    - backend/apps/web/app.yml
+    - backend/apps/web/skills/search_skill.py
+    - backend/scripts/test_search_relevance_ranking.py
+    - backend/shared/python_utils/search_relevance.py
+    - backend/tests/test_search_relevance.py
+    - docs/apis/typesafe-jev.md
+    - docs/plans/jev-search-relevance-ranking/plan.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-home-search.spec.ts
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - shared/docs/privacy_policy.yml
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/features/app-skills/events-search/examples.yml
+    - specifications/features/app-skills/events-search/specification.yml
+    - specifications/features/app-skills/health-search-appointments/examples.yml
+    - specifications/features/app-skills/health-search-appointments/specification.yml
+    - specifications/features/app-skills/web-search/examples.yml
+    - specifications/features/app-skills/web-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:events
+    - app:home
+    - app:news
+    - app:web
+    - embed:events:search
+    - embed:home:search
+    - embed:news:search
+    - embed:web:search
+    - skill:events:search
+    - skill:home:search
+    - skill:news:search
+    - skill:web:search
+  - sha: d9087ada70d991db2fe8d72b542b2e4a2a0ea3a2
+    short_sha: d9087ada7
+    authored_at: '2026-09-23T19:04:48+02:00'
+    subject: 'fix: restore Apple chat and audio parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/AudioRealtimeTranscriptionClient.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FollowUpSuggestions.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatEmbedWorkspace.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/ComposerAudioPreviewContentTests.swift
+    - apple/OpenMatesTests/DevPreviewLaunchConfigurationTests.swift
+    - apple/OpenMatesTests/RemindersPublicContentParityTests.swift
+    - apple/OpenMatesTests/VideoTranscriptPayloadParityTests.swift
+    - apple/OpenMatesTests/VoiceRecorderTests.swift
+    - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift
+    - apple/OpenMatesUITests/NativeComposerInlineEmbedUITests.swift
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    - scripts/apple_ui_contracts.py
+    - scripts/pair_apple_embed_evidence.py
+    - scripts/tests/test_apple_ui_contracts.py
+    - scripts/tests/test_pair_apple_embed_evidence.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 86b475a6864faa84f6cb30889839fb857ad6b9ad
+    short_sha: 86b475a68
+    authored_at: '2026-09-23T15:59:35+00:00'
+    subject: 'fix: verify prebuilt CLI guard assets during publication'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - frontend/packages/openmates-cli/package.json
+    related_feature_ids: []
+  - sha: 66a757619ce2a428f26d9b7f07a1ed1bfc7501f8
+    short_sha: 66a757619
+    authored_at: '2026-09-23T15:48:49+00:00'
+    subject: 'feat: enable web Project coding with private file protection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/project_file_operation_service.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/project_file_operation_tasks.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/tests/test_chat_directus_encryption_guards.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - backend/tests/test_project_file_operation_tasks.py
+    - backend/tests/test_project_file_operations.py
+    - backend/tests/test_project_file_tools.py
+    - backend/tests/test_remote_command_apparmor_live.py
+    - backend/tests/test_unified_detail_metadata.py
+    - backend/tests/test_unified_key_wrappers.py
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - docs/user-guide/cli/remote-access.md
+    - frontend/apps/web_app/tests/components/project-file-approval.spec.ts
+    - frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
+    - frontend/apps/web_app/tests/components/remote-command-review.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/scripts/package-remote-command-apparmor.mjs
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/src/projectFileRisk.ts
+    - frontend/packages/openmates-cli/src/projectPathPolicy.ts
+    - frontend/packages/openmates-cli/src/projectRequester.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/remoteCommandAppArmor.ts
+    - frontend/packages/openmates-cli/src/remoteCommandPermissions.ts
+    - frontend/packages/openmates-cli/src/remoteCommandRuntime.ts
+    - frontend/packages/openmates-cli/src/remoteCommandSetup.ts
+    - frontend/packages/openmates-cli/src/remoteCommandSource.ts
+    - frontend/packages/openmates-cli/src/remoteFileWrites.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/openmates-cli/tests/projectIgnoredReadApproval.test.ts
+    - frontend/packages/openmates-cli/tests/projectIgnoredReadGrant.test.ts
+    - frontend/packages/openmates-cli/tests/projectPathPolicy.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccessReadBudget.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandAppArmor.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandPermissions.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandRuntime.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandSetup.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandSource.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/app.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/GenericMentionNode.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/projectMentionSyntax.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/components/enter_message/services/projectMentionSyntax.ts
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectFileApprovalCard.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectFileApprovalCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/projects/RemoteCommandReviewCard.preview.ts
+    - frontend/packages/ui/src/components/projects/RemoteCommandReviewCard.svelte
+    - frontend/packages/ui/src/config/__tests__/apiProjectFileCapability.test.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/projects.yml
+    - frontend/packages/ui/src/services/__tests__/browserProjectFileExecutor.test.ts
+    - frontend/packages/ui/src/services/__tests__/browserRemoteCommandClient.test.ts
+    - frontend/packages/ui/src/services/__tests__/hostedProjectPathPolicy.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectBrowserTree.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
+    - frontend/packages/ui/src/services/browserProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/browserRemoteCommandClient.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/projectBrowserEvents.ts
+    - frontend/packages/ui/src/services/projectBrowserTree.ts
+    - frontend/packages/ui/src/services/projectFileJobExecutor.ts
+    - frontend/packages/ui/src/services/projectFocusSendPreflight.ts
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/stores/__tests__/projectFileApprovalStore.test.ts
+    - frontend/packages/ui/src/stores/projectFileApprovalStore.ts
+    - frontend/packages/ui/src/stores/remoteCommandApprovalStore.ts
+    - frontend/packages/ui/src/utils/projectIgnoredReadGrant.ts
+    - frontend/packages/ui/src/utils/projectPathPolicy.ts
+    - pnpm-lock.yaml
+    - scripts/ci_coverage_manifest.json
+    - scripts/openmates_command_apparmor.py
+    - scripts/openmates_git_config_mask.c
+    - scripts/project_remote_access_live.mjs
+    - scripts/setup_remote_command_apparmor.py
+    - scripts/specifications.py
+    - scripts/tests/test_openmates_command_apparmor.py
+    - scripts/tests/test_openmates_git_config_mask.py
+    - scripts/tests/test_setup_remote_command_apparmor.py
+    - scripts/tests/test_specifications_workflow.py
+    - specifications/features/app-skills/code-run/examples.yml
+    - specifications/features/app-skills/code-run/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - platform:projects
+  - sha: b756418e7507dace8bcf4379728dd2ea2571a803
+    short_sha: b756418e7
+    authored_at: '2026-09-23T16:29:01+02:00'
+    subject: 'fix: include generated audio renderer in macOS app'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9f3b6921fb7661d80afc4c36376fa729226b0881
+    short_sha: 9f3b6921f
+    authored_at: '2026-09-23T14:11:29+00:00'
+    subject: 'feat: add GPT-6 Sol, Luna, and Claude Opus 5.5'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/modelsMetadata.json
+    - backend/apps/ai/llm_providers/openai_client.py
+    - backend/apps/ai/tests/test_anthropic_direct_api.py
+    - backend/providers/anthropic.yml
+    - backend/providers/openai.yml
+    - backend/tests/test_ai_ask_model_metadata.py
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - platform:ios
+    - platform:macos
+  - sha: 7e2e3cb8fc9d54e9b5f308da5ea00af4c03bed45
+    short_sha: 7e2e3cb8f
+    authored_at: '2026-09-23T15:58:49+02:00'
+    subject: 'fix: render real video transcript metadata and fullscreen content on Apple'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: dcfe3d022994a75d3f80b32a8205fa716a427394
+    short_sha: dcfe3d022
+    authored_at: '2026-09-23T15:38:17+02:00'
+    subject: 'fix: stabilize Apple audio recording and align chat controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/AGENTS.md
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMatesTests/VoiceRecorderTests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1088670fb846b8ec80d1839276bba0587f3053e3
+    short_sha: 1088670fb
+    authored_at: '2026-09-23T14:43:00+02:00'
+    subject: 'fix: redact APNs private key in server env output'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 7edceaf8865201a10c3fc66dc1bfb4826fc3f80a
+    short_sha: 7edceaf88
+    authored_at: '2026-09-23T12:42:04+00:00'
+    subject: 'fix: keep first draft autosave responsive'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: ee65046505b7b285c7cb01e67bb4af6b7aa90c6f
+    short_sha: ee6504650
+    authored_at: '2026-09-23T03:47:03+00:00'
+    subject: 'docs: record agentic coding deployment and verification blockers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    related_feature_ids: []
+  - sha: 5fe487f43d262864326ccc15d078943690b96c57
+    short_sha: 5fe487f43
+    authored_at: '2026-09-23T03:27:04+00:00'
+    subject: 'feat: enable Project file writes and remote commands'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/testing.md
+    - AGENTS.md
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProjectsView.swift
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/cancel_ai_task_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/code_run_output_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/commit_embed_revision_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_file_operation_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/remote_command_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/remote_command_origin_completion_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/schemas/project_file_operation_schemas.py
+    - backend/core/api/app/schemas/remote_command_schemas.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/api/app/services/project_file_operation_service.py
+    - backend/core/api/app/services/project_remote_access_service.py
+    - backend/core/api/app/services/project_write_authorization_service.py
+    - backend/core/api/app/services/remote_command_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/project_file_operation_tasks.py
+    - backend/core/api/app/tasks/remote_command_tasks.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/extensions/embed-version-transaction/package.json
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/core/directus/schemas/embed_diffs.yml
+    - backend/core/directus/schemas/project_settings.yml
+    - backend/shared/python_utils/terminal_output_safety.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_commit_embed_revision_handler.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_project_file_operations.py
+    - backend/tests/test_project_remote_sources.py
+    - backend/tests/test_project_write_authorization.py
+    - backend/tests/test_projects.py
+    - backend/tests/test_remote_command_origin_completion.py
+    - backend/tests/test_remote_command_service.py
+    - backend/tests/test_store_embed_authorization.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - backend/tests/test_terminal_output_safety.py
+    - backend/tests/test_websocket_metadata_dispatch.py
+    - docs/plans/native-agentic-coding-readiness/overview.md
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - frontend/apps/web_app/tests/cli-project-file-chat.spec.ts
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/src/projectFileRisk.ts
+    - frontend/packages/openmates-cli/src/projectRequester.ts
+    - frontend/packages/openmates-cli/src/projectSourceRootPolicy.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/remoteCommandClient.ts
+    - frontend/packages/openmates-cli/src/remoteCommandNetwork.ts
+    - frontend/packages/openmates-cli/src/remoteCommandPermissions.ts
+    - frontend/packages/openmates-cli/src/remoteCommandResourceGrants.ts
+    - frontend/packages/openmates-cli/src/remoteCommandRuntime.ts
+    - frontend/packages/openmates-cli/src/remoteCommandSource.ts
+    - frontend/packages/openmates-cli/src/remoteCommandSourceLock.ts
+    - frontend/packages/openmates-cli/src/remoteFileWrites.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/openmates-cli/tests/projectSearchProtocol.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandClient.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandNetwork.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandPermissions.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandResourceGrants.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandRuntime.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandSource.test.ts
+    - frontend/packages/openmates-cli/tests/remoteCommandSourceLock.test.ts
+    - frontend/packages/openmates-cli/tests/remoteFileWrites.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/projectFileJobExecutor.ts
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/utils/projectFileMutationProtocol.ts
+    - frontend/packages/ui/src/utils/projectFilePatch.ts
+    - frontend/packages/ui/src/utils/projectSearchProtocol.ts
+    - scripts/openmates_cli_test_account.mjs
+    - scripts/project_remote_access_live.mjs
+    - specifications/features/app-skills/code-run/examples.yml
+    - specifications/features/app-skills/code-run/specification.yml
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/focus-modes/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:code
+    - embed:code:run
+    - platform:ios
+    - platform:macos
+    - platform:projects
+    - skill:ai:ask
+    - skill:code:run
+  - sha: 3463965d60d71d359fbd9011e14d771aee0b8acb
+    short_sha: 3463965d6
+    authored_at: '2026-09-23T04:17:20+02:00'
+    subject: 'feat: bring Apple audio recording to web parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    - .gitignore
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/AudioRealtimeTranscriptionClient.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerEmbedLifecycle.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerSession.swift
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/NativeComposerSessionTests.swift
+    - apple/OpenMatesTests/VoiceRecorderTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - docs/plans/apple-realtime-audio-parity/plan.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: fd46897f80fcd3ac7d77ef37edf863169a42ebcb
+    short_sha: fd46897f8
+    authored_at: '2026-09-23T00:43:02+00:00'
+    subject: 'docs: plan daily CI reliability recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/isolated-github-tests/daily-reliability-recovery-2026-09-23.md
+    - docs/plans/isolated-github-tests/plan.yml
+    related_feature_ids: []
+  - sha: 7a3b1d8f54737f3069f7cfde71ebeabb3366f859
+    short_sha: 7a3b1d8f5
+    authored_at: '2026-09-23T02:07:42+02:00'
+    subject: 'fix: restore Apple attachment controls and scope Vercel deploy guard'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentActionRow.swift
+    - apple/OpenMatesTests/NativeComposerPasteTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - scripts/apple_ui_contracts.py
+    - scripts/sessions.py
+    - scripts/tests/test_apple_ui_contracts.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+llm_summary:
+  overview: 'OpenMates focused on three primary areas: enhancing search relevance through the Jev ranking system, expanding
+    agentic coding capabilities within the unreleased Projects feature, and achieving feature parity for Apple platform applications.'
+  released_changes: []
+  bug_fixes:
+  - text: Usage overview now displays every billed entry to ensure billing transparency.
+    evidence:
+      commits:
+      - 4355eb51a
+    release_status: dev_only
+  - text: Draft autosave responsiveness was improved to prevent UI lag during the initial message creation.
+    evidence:
+      commits:
+      - 7edceaf88
+    release_status: dev_only
+  - text: Chat embed graph hydration was corrected to ensure complete data loading for complex message structures.
+    evidence:
+      commits:
+      - 32366340b
+    release_status: dev_only
+  - text: APNs private keys are now redacted in server environment outputs to prevent accidental credential exposure.
+    evidence:
+      commits:
+      - 1088670fb
+    release_status: dev_only
+  unreleased_progress:
+  - text: Search relevance ranking (Jev) was expanded across Events, Fitness, Home, Maps, News, Shopping, Travel, Videos,
+      and Web apps.
+    evidence:
+      commits:
+      - 72bdd153a
+      - e28e7f4bf
+      - 8f38587d2
+      - d85bbe6f5
+    release_status: dev_only
+  - text: The unreleased Projects feature gained support for file writes, remote commands, and private file protection for
+      agentic coding.
+    evidence:
+      commits:
+      - 66a757619
+      - 5fe487f43
+      - cb91352c6
+      - 86b475a68
+    release_status: dev_only
+  - text: The iOS and macOS applications received extensive updates to align audio recording, chat composer controls, and
+      embed rendering with the web platform.
+    evidence:
+      commits:
+      - 3463965d6
+      - c7613b4bd
+      - 23d638b51
+      - d9087ada7
+      - b756418e7
+      - 7e2e3cb8f
+      - dcfe3d022
+      - 7a3b1d8f5
+    release_status: dev_only
+  - text: Support for GPT-6 Sol, Luna, and Claude Opus 5.5 was added to the AI model provider configurations.
+    evidence:
+      commits:
+      - 9f3b6921f
+    release_status: dev_only
+  internal_progress:
+  - text: Documentation was updated to track agentic coding deployment blockers and CI reliability recovery plans.
+    evidence:
+      commits:
+      - ee6504650
+      - fd46897f8
+      - b3ca0b6df
+    release_status: dev_only
+  - text: Privacy provider disclosures and generated privacy promises were synchronized across the codebase.
+    evidence:
+      commits:
+      - 73ac3fa38
+      - a7aedfa73
+    release_status: dev_only
+  - text: Test coverage was added for interrupted realtime audio billing scenarios.
+    evidence:
+      commits:
+      - 8b7273b3d
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Jev Search Relevance Expansion
+      evidence:
+        commits:
+        - 72bdd153a
+        - e28e7f4bf
+        - 8f38587d2
+      reason: These search relevance improvements are currently in development branches and not yet merged to main.
+    - text: Agentic Coding and Project File Protection
+      evidence:
+        commits:
+        - 66a757619
+        - 5fe487f43
+      reason: The Projects feature is currently disabled and these updates are in dev-only status.
+    - text: Apple Platform Feature Parity
+      evidence:
+        commits:
+        - 3463965d6
+        - c7613b4bd
+      reason: iOS and macOS platforms are currently disabled and these parity updates are dev-only.
+    rationale: All changes from this period are currently in development branches (dev_only) and have not yet reached the
+      main branch for public release. Additionally, several major updates involve features that are currently disabled in
+      the production environment.
+  social_video_recommendations:
+  - idea: Demonstrate the new 'Private File Protection' for agentic coding, showing how OpenMates can edit project files while
+      respecting security boundaries.
+    priority: High
+    reason: This provides a concrete product story about balancing AI productivity with user privacy and security.
+    evidence:
+      commits:
+      - 66a757619
+  quality_notes:
+  - Extensive parity testing was added for Apple platform UI components to ensure consistency with the web implementation.
+  - Search relevance ranking was validated across multiple product domains including Fitness, Travel, and Shopping.
+  validation_warnings: []
