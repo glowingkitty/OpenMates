@@ -1,4 +1,5 @@
 import logging
+import os
 import hashlib
 import json
 import asyncio # Added asyncio
@@ -125,6 +126,12 @@ from .handlers.websocket_handlers.chat_compression_checkpoint_handler import (
 from .handlers.websocket_handlers.chat_model_preference_handler import handle_chat_model_preference
 
 logger = logging.getLogger(__name__)
+# Temporary, opt-in routing evidence for native notification investigations.
+# Never include user IDs, chat IDs, device IDs, tokens, or message content.
+NOTIFICATION_ROUTE_DIAGNOSTICS = (
+    os.getenv("SERVER_ENVIRONMENT") == "development"
+    or os.getenv("OPENMATES_NOTIFICATION_ROUTE_DIAGNOSTICS") == "1"
+)
 
 router = APIRouter(
     prefix="/v1/ws",
@@ -142,7 +149,7 @@ SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
     "sequence",
     "kind",
 )
-SAFE_ASSISTANT_SPEECH_STATUSES = {"registered", "queued", "ready", "error"}
+SAFE_ASSISTANT_SPEECH_STATUSES = {"queued", "ready", "error"}
 SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS = ("clip_id", "audio_url")
 MAX_PENDING_EMBED_REPLAY_PER_CONNECTION = 20
 
@@ -886,6 +893,8 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     # These requests use the Redis stream for their own response, but we don't
                     # want them broadcasted to the web app's WebSockets.
                     if redis_payload.get("external_request"):
+                        if NOTIFICATION_ROUTE_DIAGNOSTICS and redis_payload.get("is_final_chunk"):
+                            logger.info("[NOTIFICATION_ROUTE] final_marker external=true notification_eligible=false")
                         logger.debug(f"AI Stream Listener: External request detected for chat {chat_id_from_payload}. Skipping WebSocket broadcast.")
                         continue
 
@@ -1062,6 +1071,22 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     # =====================================================================
                     is_final_marker = redis_payload.get("is_final_chunk", False)
                     was_interrupted = redis_payload.get("interrupted_by_revocation", False)
+
+                    if NOTIFICATION_ROUTE_DIAGNOSTICS and is_final_marker:
+                        connections = manager.get_connections_for_user(user_id_uuid)
+                        foreground_count = sum(
+                            manager.is_connection_completion_capable(user_id_uuid, device_hash)
+                            for device_hash in connections
+                        )
+                        logger.info(
+                            "[NOTIFICATION_ROUTE] final_marker external=%s interrupted=%s "
+                            "connections=%s foreground=%s viewing_chat=%s",
+                            bool(redis_payload.get("external_request")),
+                            bool(was_interrupted),
+                            len(connections),
+                            foreground_count,
+                            manager.has_foreground_connection_for_chat(user_id_uuid, chat_id_from_payload),
+                        )
                     
                     if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
                         # Notify unless a foreground client is visibly viewing this chat.
@@ -2426,6 +2451,11 @@ async def websocket_endpoint(
         supports_project_file_jobs=supports_project_file_jobs,
         supports_remote_command_jobs=supports_remote_command_jobs,
     )
+    if NOTIFICATION_ROUTE_DIAGNOSTICS:
+        logger.info(
+            "[NOTIFICATION_ROUTE] websocket_connected foreground_default=true active_chat_assigned=%s",
+            bool(manager.active_chat_per_connection.get((user_id, device_fingerprint_hash))),
+        )
 
     phased_sync_tasks: set[asyncio.Task] = set()
     phased_sync_tail_task: asyncio.Task | None = None
@@ -2989,6 +3019,12 @@ async def websocket_endpoint(
             elif message_type == "native_client_lifecycle":
                 is_foreground = bool(payload.get("is_foreground", True))
                 manager.set_connection_foreground(user_id, device_fingerprint_hash, is_foreground)
+                if NOTIFICATION_ROUTE_DIAGNOSTICS:
+                    logger.info(
+                        "[NOTIFICATION_ROUTE] lifecycle foreground=%s active_chat_assigned=%s",
+                        is_foreground,
+                        bool(manager.active_chat_per_connection.get((user_id, device_fingerprint_hash))),
+                    )
                 await manager.send_personal_message(
                     {
                         "type": "native_client_lifecycle_ack",
