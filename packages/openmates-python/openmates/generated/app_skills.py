@@ -4020,10 +4020,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'are '
                                                                                                         'ranked '
                                                                                                         'and '
-                                                                                                        'only '
+                                                                                                        'up '
+                                                                                                        'to '
                                                                                                         'count '
                                                                                                         'are '
-                                                                                                        'returned.\n',
+                                                                                                        'returned; '
+                                                                                                        'candidates '
+                                                                                                        'below '
+                                                                                                        'the '
+                                                                                                        'relevant-coverage '
+                                                                                                        'threshold '
+                                                                                                        'are '
+                                                                                                        'omitted '
+                                                                                                        'rather '
+                                                                                                        'than '
+                                                                                                        'used '
+                                                                                                        'as '
+                                                                                                        'padding.\n',
                                                                                          'maxLength': 1000,
                                                                                          'type': 'string'},
                                                                   'safesearch': {'default': 'moderate',

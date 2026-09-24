@@ -1,0 +1,47 @@
+schema_version: 1
+specification: feature.app-skill.news-search@1
+
+requests:
+  - id: mixed-batch-correlation
+    given: Alice submits one valid climate-news search with ID climate, one valid robotics search without an ID, and one malformed item without a query.
+    when: News Search validates and executes the batch.
+    then: The climate group keeps its ID, the other valid group receives a unique sequential ID, and the malformed item produces a visible error without discarding either valid group.
+    assertion_ids: [news-search.request.validated, news-search.request.ids-correlated]
+
+results:
+  - id: bounded-sanitized-articles
+    given: A request asks for five results and the provider supplies more than five articles, including external markup and an unsafe instruction embedded in a snippet.
+    when: News Search prepares the response.
+    then: At most five attributable articles remain, markup is stripped, and the inherited output-safety policy neutralizes only the unsafe external text before client or model use.
+    assertion_ids: [news-search.results.safe-and-bounded]
+
+relevance_ranking:
+  - id: licensing-coverage-without-padding
+    given: Alice asks for recent news about open-source AI model licensing that changes commercial-use or redistribution rights. The candidate pool contains three articles analyzing licenses and seven generic lists of popular open-weight models.
+    when: News Search performs one complete Jev ranking.
+    then: The license analyses remain, the generic model lists are omitted as peripheral or unsupported, and three useful results are returned instead of padding the group to ten.
+    assertion_ids: [news-search.relevance.activation, news-search.relevance.bounded-ranking, news-search.relevance.quality-floor]
+  - id: neutral-headline-search
+    given: Alice simply asks for today's robotics headlines without stating a purpose or coverage preference.
+    when: The assistant prepares the News Search request.
+    then: It does not invent relevance criteria, and News Search keeps its existing provider retrieval and ordering without a Jev call.
+    assertion_ids: [news-search.relevance.activation]
+
+failures:
+  - id: incomplete-scores-preserve-news
+    given: The news provider returns valid articles but Jev times out or omits one candidate score.
+    when: News Search finalizes the group.
+    then: It returns the provider-ordered articles up to count without applying the quality floor, failing the search, or exposing Jev diagnostics.
+    assertion_ids: [news-search.relevance.safe-fallback]
+  - id: empty-versus-provider-failure
+    given: One valid query has no matching coverage and another cannot reach the news provider.
+    when: Both requests finish.
+    then: The first has an empty successful group and the second has a safe visible provider error, so clients can distinguish no news from unavailable news.
+    assertion_ids: [news-search.empty-and-provider-error.explicit]
+
+surface_parity:
+  - id: direct-client-and-gui
+    given: The same grouped licensing-news request with a freshness window, count, and relevance criteria is submitted through CLI and a GUI client.
+    when: News Search returns fewer candidates because only relevant coverage meets the quality floor.
+    then: Both clients preserve the group IDs, filters, article schema, reduced result count, and fallback meaning; presentation may differ but semantics do not.
+    assertion_ids: [news-search.surface-parity]

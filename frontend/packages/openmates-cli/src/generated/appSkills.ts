@@ -2492,7 +2492,7 @@ export const APP_SKILL_METADATA = [
               "relevance_criteria": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional concise natural-language coverage-ranking goal, separate from the news query. Set it whenever the user states a purpose, audience, decision need, impact of interest, or coverage preference that should change ordering. Example: \"Changes most likely to affect small EU software startups.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates are ranked and only count are returned.\n"
+                "description": "Optional concise natural-language coverage-ranking goal, separate from the news query. Set it whenever the user states a purpose, audience, decision need, impact of interest, or coverage preference that should change ordering. Example: \"Changes most likely to affect small EU software startups.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates are ranked and up to count are returned; candidates below the relevant-coverage threshold are omitted rather than used as padding.\n"
               },
               "country": {
                 "type": "string",

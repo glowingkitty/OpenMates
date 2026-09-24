@@ -46,13 +46,13 @@ test.describe('App: News / Skill: search', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
-	// contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+	// contract-test: supporting surface=gui.web assertions=news-search.surface-parity
 	test('Phase 1: embed preview renders at /dev/preview/embeds/news', async ({ page }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'news', log);
 	});
 
-	// contract-test: supporting surface=cli assertions=web-search.surface-parity,app-skills.search-relevance.safe-finalization
+	// contract-test: supporting surface=cli assertions=news-search.surface-parity,news-search.results.safe-and-bounded
 	test('Phase 2: CLI apps news search returns results', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -78,7 +78,7 @@ test.describe('App: News / Skill: search', () => {
 		console.log(`[P2] news/search found ${results.length} article(s)`);
 	});
 
-	// contract-test: supporting surface=cli assertions=web-search.surface-parity
+	// contract-test: supporting surface=cli assertions=news-search.surface-parity
 	test('Phase 3: CLI chats new triggers news search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -95,7 +95,7 @@ test.describe('App: News / Skill: search', () => {
 		}
 	});
 
-	// contract-test: direct surface=gui.web assertions=web-search.surface-parity
+	// contract-test: direct surface=gui.web assertions=news-search.surface-parity
 	test('Phase 4: Web chat and short follow-up each execute news search with embeds', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);

@@ -388,7 +388,7 @@ async def test_web_ranked_search_uses_two_pages_but_returns_only_count(monkeypat
     assert ranked_pool_sizes == [40, 40]
 
 
-# contract-test: supporting surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization
+# contract-test: supporting surface=rest_api assertions=news-search.relevance.bounded-ranking,news-search.relevance.safe-fallback,news-search.results.safe-and-bounded
 @pytest.mark.anyio
 async def test_news_ranked_search_uses_one_forty_candidate_call_and_returns_only_count(monkeypatch) -> None:
     from backend.apps.news.skills import search_skill as news_search
@@ -420,7 +420,14 @@ async def test_news_ranked_search_uses_one_forty_candidate_call_and_returns_only
                 applied=False,
                 fallback_reason="invalid_response",
             )
-        return _reversed_ranking(kwargs["candidates"])
+        candidates = list(reversed(kwargs["candidates"]))
+        return search_relevance.SearchRelevanceRankingResult(
+            candidates=candidates,
+            applied=True,
+            scores=[3.0] * len(candidates),
+            input_tokens=100,
+            output_tokens=10,
+        )
 
     async def allow_rate_limit(**_kwargs):
         return True, None
@@ -470,6 +477,63 @@ async def test_news_ranked_search_uses_one_forty_candidate_call_and_returns_only
     assert ranked_pool_sizes == [40, 40]
     assert len(fallback_results) == 4
     assert fallback_results[0]["title"] == "news-0"
+
+
+# contract-test: direct surface=rest_api assertions=news-search.relevance.quality-floor,news-search.relevance.safe-fallback
+@pytest.mark.anyio
+async def test_news_ranked_search_omits_peripheral_results_without_padding(monkeypatch) -> None:
+    from backend.apps.news.skills import search_skill as news_search
+
+    async def fake_provider(**kwargs):
+        return {
+            "sanitize_output": False,
+            "results": [
+                {
+                    "title": f"news-{index}",
+                    "url": f"https://news.example/{index}",
+                    "description": "Article evidence",
+                    "profile": {"name": "Example News"},
+                }
+                for index in range(kwargs["count"])
+            ],
+        }
+
+    async def fake_rank(**kwargs):
+        candidates = list(kwargs["candidates"])
+        return search_relevance.SearchRelevanceRankingResult(
+            candidates=candidates,
+            applied=True,
+            scores=[3.2, 2.0, *([1.8] * (len(candidates) - 2))],
+        )
+
+    async def allow_rate_limit(**_kwargs):
+        return True, None
+
+    monkeypatch.setattr(news_search, "search_news", fake_provider)
+    monkeypatch.setattr(news_search, "rank_search_candidates", fake_rank)
+    monkeypatch.setattr(news_search, "check_rate_limit", allow_rate_limit)
+    monkeypatch.setattr(news_search, "load_tabloid_blocklist", lambda: set())
+    skill = news_search.SearchSkill(
+        app=None,
+        app_id="news",
+        skill_id="search",
+        skill_name="Search",
+        skill_description="Search",
+    )
+
+    _, results, error = await skill._process_single_search_request(
+        {
+            "query": "open source AI licensing",
+            "count": 10,
+            "relevance_criteria": "license changes affecting commercial use",
+        },
+        "news-quality-floor",
+        secrets_manager=object(),
+        cache_service=object(),
+    )
+
+    assert error is None
+    assert [result["title"] for result in results] == ["news-0", "news-1"]
 
 
 # contract-test: direct surface=rest_api assertions=events-search.relevance.bounded-candidates,events-search.relevance.safe-fallback,events-search.results.actionable

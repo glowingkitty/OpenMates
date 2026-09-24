@@ -219,6 +219,18 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.news-search:
+    version: 1
+    status: draft
+    path: features/app-skills/news-search
+    fingerprint: 5d6247c8e5abfcb955ca2dc81daebb5370a6088f658d2da79b2f48ecabdf09f1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-skill.travel-search:
     version: 1
     status: draft
@@ -2976,6 +2988,114 @@ assertions:
     type: parity
     fingerprint: da5838f614da07fd1f9f07d2a710bdb2e0fafc6583877c62e9a6ee5f9484094d
     required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  news-search.request.validated:
+    specification: feature.app-skill.news-search@1
+    specification_id: feature.app-skill.news-search
+    type: validation
+    fingerprint: e0272acc744e5db6cf15d868d69174536f771d1c99682437d5df5db9010270f6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  news-search.request.ids-correlated:
+    specification: feature.app-skill.news-search@1
+    specification_id: feature.app-skill.news-search
+    type: invariant
+    fingerprint: 2083f7654708d0752618e1449eda68f74f439cac6d79ef509fcc4f6ceda45314
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  news-search.results.safe-and-bounded:
+    specification: feature.app-skill.news-search@1
+    specification_id: feature.app-skill.news-search
+    type: security
+    fingerprint: 719602db57d768dfdd2fa281fa32ea15594f0143484df81b04920c262b985c6c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  news-search.relevance.activation:
+    specification: feature.app-skill.news-search@1
+    specification_id: feature.app-skill.news-search
+    type: behavior
+    fingerprint: 155145323b480b95e220408938e0cd2d4327170313d2d0e60b177e78407fabeb
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  news-search.relevance.bounded-ranking:
+    specification: feature.app-skill.news-search@1
+    specification_id: feature.app-skill.news-search
+    type: behavior
+    fingerprint: a728d9f1e598849d8bf9d8217381b7c003efa15f2315b27769ded9af2a4d8099
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  news-search.relevance.quality-floor:
+    specification: feature.app-skill.news-search@1
+    specification_id: feature.app-skill.news-search
+    type: behavior
+    fingerprint: 881bf868e13a7bce8fb96cf65cf753d0500bc54af31e302fde404e6739d438ea
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  news-search.relevance.safe-fallback:
+    specification: feature.app-skill.news-search@1
+    specification_id: feature.app-skill.news-search
+    type: failure
+    fingerprint: 8192c043eea2d38b66aacedb0a97c0075b5e460065a0239b4dd0e52d6476efff
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  news-search.empty-and-provider-error.explicit:
+    specification: feature.app-skill.news-search@1
+    specification_id: feature.app-skill.news-search
+    type: failure
+    fingerprint: a613e9e82edef0a86c9088f9ee1944edaedd87fd0c3c5ceb9544dd390f264cf9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  news-search.surface-parity:
+    specification: feature.app-skill.news-search@1
+    specification_id: feature.app-skill.news-search
+    type: parity
+    fingerprint: c5543b474859fdf701fa1b0537ce8835ff9c3529d06e0fb61683d470b58a0876
+    required_applies_to:
+    - rest_api
     - cli
     - sdks.npm
     - sdks.pip

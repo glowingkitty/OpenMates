@@ -40,6 +40,9 @@ logger = logging.getLogger(__name__)
 TABLOID_FILTER_OVER_REQUEST_COUNT = 15
 # Default number of results to return to the user after filtering
 DEFAULT_RESULT_COUNT = 10
+# Score 2 is the first News rubric level that represents substantively relevant
+# coverage rather than a peripheral mention or keyword-level relationship.
+MIN_NEWS_RELEVANCE_SCORE = 2.0
 
 
 class NewsSearchRequestItem(BaseModel):
@@ -484,6 +487,7 @@ class SearchSkill(BaseSkill):
                     results,
                     key=lambda item: normalize_url_for_deduplication(item.get("url")),
                 )[:40]
+                provider_ordered_results = list(results)
                 projections = []
                 for result in results:
                     extra_snippets = result.get("extra_snippets", [])
@@ -513,6 +517,17 @@ class SearchSkill(BaseSkill):
                     secrets_manager=secrets_manager,
                 )
                 results = ranking.candidates
+                if ranking.applied and len(ranking.scores) == len(results):
+                    results = [
+                        result
+                        for result, score in zip(results, ranking.scores)
+                        if score >= MIN_NEWS_RELEVANCE_SCORE
+                    ]
+                else:
+                    # The relevance decision is optional. Preserve the provider
+                    # order when Jev is unavailable or does not return one valid
+                    # aligned score for every candidate.
+                    results = provider_ordered_results
 
             # Trim after optional ranking and before semantic output sanitization.
             if len(results) > req_count:

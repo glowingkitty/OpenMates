@@ -3,7 +3,7 @@ description_translation_key: news.description
 icon_image: |
   news.svg
 category: personal
-last_updated: "2025-11-26"
+last_updated: "2026-09-24"
 settings_and_memories: []
 instructions: []
 # Embed type definitions — single source of truth for frontend embed routing.
@@ -36,6 +36,7 @@ skills:
       terms could also be added to query. Example: query "EU AI regulation" with relevance_criteria
       "Changes most likely to affect small EU software startups." Omit relevance_criteria only for a
       neutral news search fully expressed by query and structured fields; never invent preferences.
+      A successful relevance decision may return fewer than count rather than padding with peripheral coverage.
     class_path: |
       backend.apps.news.skills.search_skill.SearchSkill
     providers:
@@ -86,7 +87,8 @@ skills:
                   of interest, or coverage preference that should change ordering. Example: "Changes
                   most likely to affect small EU software startups." Omit only for a neutral search
                   fully expressed by query and structured fields; never invent preferences. When
-                  present, up to 40 candidates are ranked and only count are returned.
+                  present, up to 40 candidates are ranked and up to count are returned; candidates
+                  below the relevant-coverage threshold are omitted rather than used as padding.
               country:
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."
