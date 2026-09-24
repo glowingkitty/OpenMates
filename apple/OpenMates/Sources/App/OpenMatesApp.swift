@@ -1212,6 +1212,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         PushNotificationManager.shared.configureForLaunch()
     }
 
+    func applicationDidResignActive(_ notification: Notification) {
+        // Application activation belongs to AppKit, not an individual SwiftUI
+        // window. Report it through the shared socket even if no chat view is
+        // receiving scene-phase changes while the app is behind another app.
+        Task { @MainActor in
+            await AppSessionCoordinator.shared.webSocketManager.announceMacBackgroundStateIfConnected()
+        }
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }

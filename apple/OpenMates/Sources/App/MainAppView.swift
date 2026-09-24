@@ -602,11 +602,6 @@ struct MainAppView: View {
         .onChange(of: showSettings, showSettingsDidChange)
         .onChange(of: scenePhase, scenePhaseDidChange)
         .onChange(of: wsManager.connectionState, websocketConnectionStateDidChange)
-        #if os(macOS)
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
-            sendNativeClientLifecycle(isForeground: false)
-        }
-        #endif
     }
 
     private var shellWithOverlays: some View {

@@ -6,6 +6,9 @@
 
 import CryptoKit
 import Foundation
+#if os(macOS)
+import AppKit
+#endif
 
 @MainActor
 final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDelegate {
@@ -137,6 +140,13 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             reconnectDelay = 1.0
             startPingTimer()
             receiveMessages(from: connectingTask)
+            #if os(macOS)
+            // A socket can reconnect while every chat window is inactive. The
+            // server defaults each new connection to foreground until told otherwise.
+            if !NSApp.isActive {
+                await announceMacBackgroundStateIfConnected()
+            }
+            #endif
             traceNativeStartupSync("phase=socketRecoveryStart")
             await recoveryCoordinator?.handleTransportConnected()
             traceNativeStartupSync("phase=socketRecoveryReturned")
@@ -185,6 +195,24 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         }
         try await webSocketTask.send(.string(json))
     }
+
+    #if os(macOS)
+    func announceMacBackgroundStateIfConnected() async {
+        guard connectionState == .connected else { return }
+        do {
+            try await send(WSOutboundMessage(
+                type: "native_client_lifecycle",
+                payload: ["is_foreground": false]
+            ))
+            NativeDiagnostics.info("Announced native background state", category: "app_lifecycle")
+        } catch {
+            NativeDiagnostics.warning(
+                "Failed to announce native background state: \(type(of: error))",
+                category: "app_lifecycle"
+            )
+        }
+    }
+    #endif
 
     func configureRecoveryCoordinator(_ coordinator: ChatCompletionRecoveryCoordinator) {
         recoveryCoordinator = coordinator
