@@ -116,6 +116,29 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
                       "The new window must expose chats already loaded in the shared store")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation
+    func testTwoWindowsKeepSharedSocketRoutedToKeyChat() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation"]
+        app.launchEnvironment["UI_TEST_AUTHENTICATED_CHAT_NAVIGATION"] = "1"
+        app.launch()
+
+        let activeChat = element(in: app, identifier: "shared-socket-active-chat")
+        XCTAssertTrue(activeChat.waitForExistence(timeout: 15))
+        XCTAssertTrue(waitForLabel("ui-test-current-chat", on: activeChat))
+
+        app.windows.firstMatch.typeKey("n", modifierFlags: .command)
+        XCTAssertTrue(waitForWindowCount(2, in: app))
+        XCTAssertTrue(waitForLabel("none", on: activeChat),
+                      "The key New Window must route the shared socket to its welcome screen")
+
+        let existingChatWindow = try XCTUnwrap((0..<2).map { app.windows.element(boundBy: $0) }
+            .first { $0.staticTexts["chat-header-title"].exists })
+        existingChatWindow.staticTexts["chat-header-title"].click()
+        XCTAssertTrue(waitForLabel("ui-test-current-chat", on: activeChat),
+                      "Returning to the existing chat must restore its stream route")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.focus.parent-state
     func testFileNewChatOpensWindowWithFocusedComposer() throws {
         let app = XCUIApplication()
@@ -198,5 +221,12 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         let predicate = NSPredicate { _, _ in app.windows.count == count }
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: nil)
         return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func waitForLabel(_ label: String, on element: XCUIElement) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", label), object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: 8) == .completed
     }
 }

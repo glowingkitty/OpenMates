@@ -5397,10 +5397,19 @@ final class ChatSendPipeline {
     }
 
     private func ensureChatKey(chatId: String, encryptedChatKey: String?) async throws -> (key: SymmetricKey, encryptedChatKey: String) {
+        let accountScope = OfflineStore.shared.scopeGeneration
+        let cacheGeneration = ChatKeyManager.shared.cacheGeneration
+        func requireCurrentScope() throws {
+            guard accountScope == OfflineStore.shared.scopeGeneration,
+                  cacheGeneration == ChatKeyManager.shared.cacheGeneration else {
+                throw ChatSendError.webSocketUnavailable
+            }
+        }
         guard let userId = await AuthManager.currentUserId(),
               let masterKey = try await crypto.loadMasterKey(for: userId) else {
             throw ChatSendError.missingMasterKey
         }
+        try requireCurrentScope()
 
         if let key = ChatKeyManager.shared.key(for: chatId) {
             if requiresCachedChatKeyValidation(cachedKeyExists: true, encryptedChatKey: encryptedChatKey),
@@ -5409,21 +5418,43 @@ final class ChatSendPipeline {
                 guard Self.symmetricKeysEqual(key, wrappedKey) else {
                     throw ChatSendError.chatKeyMismatch
                 }
-                return (key, encryptedChatKey)
+                try requireCurrentScope()
+                guard let stableEncrypted = ChatKeyManager.shared.installValidatedKey(
+                    key, encryptedKey: encryptedChatKey, for: chatId, expectedGeneration: cacheGeneration
+                ) else { throw ChatSendError.webSocketUnavailable }
+                return (key, stableEncrypted)
+            }
+            if let cachedEncryptedKey = ChatKeyManager.shared.encryptedKey(for: chatId) {
+                return (key, cachedEncryptedKey)
             }
             let encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
-            return (key, encrypted)
+            try requireCurrentScope()
+            guard let stableEncrypted = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(
+                encrypted, for: chatId, matching: key, expectedGeneration: cacheGeneration
+            ) else { throw ChatSendError.webSocketUnavailable }
+            return (key, stableEncrypted)
         }
 
         if let encryptedChatKey {
             let key = try await crypto.unwrapChatKey(encryptedChatKeyBase64: encryptedChatKey, masterKey: masterKey)
-            ChatKeyManager.shared.setKey(key, for: chatId)
-            return (key, encryptedChatKey)
+            try requireCurrentScope()
+            guard let stableEncrypted = ChatKeyManager.shared.installValidatedKey(
+                key, encryptedKey: encryptedChatKey, for: chatId, expectedGeneration: cacheGeneration
+            ) else { throw ChatSendError.webSocketUnavailable }
+            return (key, stableEncrypted)
         }
 
         let key = await ChatKeyManager.shared.createKeyForNewChat(chatId)
+        try requireCurrentScope()
+        if let cachedEncryptedKey = ChatKeyManager.shared.encryptedKey(for: chatId) {
+            return (key, cachedEncryptedKey)
+        }
         let encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
-        return (key, encrypted)
+        try requireCurrentScope()
+        guard let stableEncrypted = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(
+            encrypted, for: chatId, matching: key, expectedGeneration: cacheGeneration
+        ) else { throw ChatSendError.webSocketUnavailable }
+        return (key, stableEncrypted)
     }
 
     func requiresCachedChatKeyValidation(cachedKeyExists: Bool, encryptedChatKey: String?) -> Bool {

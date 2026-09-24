@@ -189,6 +189,9 @@ struct MainAppView: View {
     @State private var actionChat: Chat?
     @State private var didBootstrapAuthenticatedSession = false
     @State private var windowRuntimeID = UUID()
+    #if os(macOS)
+    @State private var isKeyChatWindow = false
+    #endif
     @State private var didApplyLaunchCommand = false
     @State private var shellSwipeTarget: ShellSwipeTarget?
     @State private var shellDragOffset: CGFloat = 0
@@ -433,6 +436,16 @@ struct MainAppView: View {
                 .accessibilityLabel("Chat sync complete")
                 .accessibilityValue(appSession.isInitialSyncComplete ? "true" : "false")
         }
+        #if DEBUG && os(macOS)
+        .overlay(alignment: .topLeading) {
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-authenticated-chat-navigation") {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityIdentifier("shared-socket-active-chat")
+                    .accessibilityLabel(appSession.debugLastAnnouncedActiveChat)
+            }
+        }
+        #endif
         .onOpenURL { url in
             deepLinkHandler.handle(url: url)
         }
@@ -584,7 +597,13 @@ struct MainAppView: View {
         rootShell
         #if os(macOS)
         .background {
-            MacWindowTitleUpdater(title: currentWindowTitle)
+            MacWindowTitleUpdater(title: currentWindowTitle) { isKey in
+                guard isKeyChatWindow != isKey else { return }
+                isKeyChatWindow = isKey
+                if isKey, isAuthenticated, didBootstrapAuthenticatedSession {
+                    sendNativeClientForegroundAndActiveChat()
+                }
+            }
                 .frame(width: 0, height: 0)
         }
         #endif
@@ -903,6 +922,11 @@ struct MainAppView: View {
         if isCompletionCapable {
             sendNativeClientForegroundAndActiveChat()
         } else {
+            #if os(macOS)
+            // A non-key window can become inactive while another chat window
+            // remains foregrounded on the same shared WebSocket.
+            if NSApp.isActive { return }
+            #endif
             sendNativeClientLifecycle(isForeground: false)
         }
 
@@ -918,11 +942,13 @@ struct MainAppView: View {
 
     private func websocketConnectionStateDidChange(_ oldValue: WebSocketManager.ConnectionState, _ newValue: WebSocketManager.ConnectionState) {
         guard newValue == .connected else { return }
-        pendingPushChatDidChange(nil, pushManager.pendingChatId)
-        Task {
-            await syncBridge?.replayPendingActions()
-            await DraftService.shared.reconcileAfterReconnect()
-            await flushQueuedNotificationReplies()
+        if appSession.claimSharedReconnectWork(windowRuntimeID) {
+            pendingPushChatDidChange(nil, pushManager.pendingChatId)
+            Task {
+                await syncBridge?.replayPendingActions()
+                await DraftService.shared.reconcileAfterReconnect()
+                await flushQueuedNotificationReplies()
+            }
         }
         if NativeClientLifecyclePolicy.isCompletionCapable(scenePhase) {
             sendNativeClientForegroundAndActiveChat()
@@ -2827,13 +2853,22 @@ struct MainAppView: View {
 
     private func sendNativeClientForegroundAndActiveChat() {
         guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+        #if os(macOS)
+        guard isKeyChatWindow else { return }
+        #endif
         Task { @MainActor in
+            #if os(macOS)
+            guard isKeyChatWindow else { return }
+            #endif
             await sendNativeClientLifecycleMessage(isForeground: true)
             await announceActiveChat(showNewChat ? nil : selectedChatId)
         }
     }
 
     private func sendNativeClientLifecycleMessage(isForeground: Bool) async {
+        #if os(macOS)
+        if !isForeground && NSApp.isActive { return }
+        #endif
         #if os(iOS)
         var backgroundTask: UIBackgroundTaskIdentifier = .invalid
         if !isForeground {
@@ -3317,6 +3352,12 @@ struct MainAppView: View {
 
     private func announceActiveChat(_ chatId: String?) async {
         guard isAuthenticated else { return }
+        #if os(macOS)
+        guard isKeyChatWindow else { return }
+        #endif
+        #if DEBUG
+        appSession.debugLastAnnouncedActiveChat = chatId ?? "none"
+        #endif
         do {
             try await ChatSendPipeline().sendSetActiveChat(chatId, wsManager: wsManager)
         } catch {
@@ -4878,9 +4919,16 @@ private actor ProfileImageRequestCache {
 #if os(macOS)
 private struct MacWindowTitleUpdater: NSViewRepresentable {
     let title: String
+    let onKeyChange: (Bool) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onKeyChange: onKeyChange) }
 
     func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
+        let view = WindowTrackingView(frame: .zero)
+        view.onWindowChange = { [weak coordinator = context.coordinator] window in
+            coordinator?.attach(to: window)
+            if let window, window.title != title { window.title = title }
+        }
         DispatchQueue.main.async {
             updateWindowTitle(for: view)
         }
@@ -4888,6 +4936,7 @@ private struct MacWindowTitleUpdater: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onKeyChange = onKeyChange
         DispatchQueue.main.async {
             updateWindowTitle(for: nsView)
         }
@@ -4896,6 +4945,54 @@ private struct MacWindowTitleUpdater: NSViewRepresentable {
     private func updateWindowTitle(for view: NSView) {
         guard let window = view.window, window.title != title else { return }
         window.title = title
+    }
+
+    final class WindowTrackingView: NSView {
+        var onWindowChange: ((NSWindow?) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            onWindowChange?(window)
+        }
+    }
+
+    // SwiftUI and NotificationCenter's .main delivery keep this coordinator on
+    // the main thread; the observer closure needs a Sendable capture.
+    final class Coordinator: @unchecked Sendable {
+        var onKeyChange: (Bool) -> Void
+        private weak var window: NSWindow?
+        private var keyObserver: NSObjectProtocol?
+        private var resignObserver: NSObjectProtocol?
+
+        init(onKeyChange: @escaping (Bool) -> Void) {
+            self.onKeyChange = onKeyChange
+        }
+
+        deinit {
+            if let keyObserver { NotificationCenter.default.removeObserver(keyObserver) }
+            if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
+        }
+
+        func attach(to nextWindow: NSWindow?) {
+            guard window !== nextWindow else { return }
+            if let keyObserver { NotificationCenter.default.removeObserver(keyObserver) }
+            if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
+            window = nextWindow
+            keyObserver = nil
+            resignObserver = nil
+            guard let nextWindow else { return }
+            keyObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didBecomeKeyNotification, object: nextWindow, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.onKeyChange(true) }
+            }
+            resignObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didResignKeyNotification, object: nextWindow, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.onKeyChange(false) }
+            }
+            onKeyChange(nextWindow.isKeyWindow)
+        }
     }
 }
 #endif

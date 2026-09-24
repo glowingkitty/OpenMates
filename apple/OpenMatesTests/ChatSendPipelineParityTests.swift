@@ -11,6 +11,91 @@ import CryptoKit
 
 @MainActor
 final class ChatSendPipelineParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation
+    func testSharedSocketReconnectWorkHasOneWindowOwnerAndMigratesOnClose() {
+        var ownership = SharedSocketWindowOwnership()
+        let firstWindow = UUID()
+        let secondWindow = UUID()
+        ownership.register(firstWindow)
+        ownership.register(secondWindow)
+
+        XCTAssertFalse(ownership.claimReconnectWork(secondWindow))
+        XCTAssertTrue(ownership.claimReconnectWork(firstWindow))
+        XCTAssertEqual(ownership.reconnectWorkCount, 1)
+
+        ownership.unregister(firstWindow)
+        XCTAssertTrue(ownership.claimReconnectWork(secondWindow))
+        XCTAssertEqual(ownership.reconnectWorkCount, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testNewChatEncryptedKeyWrapperStaysStableAcrossConcurrentWraps() async throws {
+        let chatId = UUID().uuidString.lowercased()
+        let key = await ChatKeyManager.shared.createKeyForNewChat(chatId)
+        defer { ChatKeyManager.shared.removeKey(for: chatId) }
+        let masterKey = SymmetricKey(size: .bits256)
+        let firstWrap = try await CryptoManager.shared.wrapChatKey(key, masterKey: masterKey)
+        let secondWrap = try await CryptoManager.shared.wrapChatKey(key, masterKey: masterKey)
+        XCTAssertNotEqual(firstWrap, secondWrap, "Wrapping the same key uses a fresh nonce")
+
+        let first = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(firstWrap, for: chatId, matching: key)
+        let second = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(secondWrap, for: chatId, matching: key)
+        XCTAssertEqual(first, firstWrap)
+        XCTAssertEqual(second, firstWrap, "Every send must use the wrapper first assigned to this chat")
+        XCTAssertEqual(ChatKeyManager.shared.encryptedKey(for: chatId), firstWrap)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+    func testOverlappingFirstSendsUseOneChatKeyAndWrapper() async throws {
+        let chatId = UUID().uuidString.lowercased()
+        let gate = OverlappingChatKeyGate()
+        defer { ChatKeyManager.shared.removeKey(for: chatId) }
+
+        let first = Task { await ChatKeyManager.shared.createKeyForNewChat(
+            chatId, generateKey: { await gate.generate() }
+        ) }
+        await gate.waitForFirstGeneration()
+        let second = Task { await ChatKeyManager.shared.createKeyForNewChat(
+            chatId, generateKey: { await gate.generate() }
+        ) }
+        let secondKey = await second.value
+        await gate.releaseFirstGeneration()
+        let firstKey = await first.value
+        XCTAssertEqual(Self.keyData(firstKey), Self.keyData(secondKey))
+
+        let masterKey = SymmetricKey(size: .bits256)
+        let firstWrap = try await CryptoManager.shared.wrapChatKey(firstKey, masterKey: masterKey)
+        let secondWrap = try await CryptoManager.shared.wrapChatKey(secondKey, masterKey: masterKey)
+        let stableFirst = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(
+            firstWrap, for: chatId, matching: firstKey
+        )
+        let stableSecond = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(
+            secondWrap, for: chatId, matching: secondKey
+        )
+        XCTAssertEqual(stableFirst, stableSecond)
+    }
+
+    private static func keyData(_ key: SymmetricKey) -> Data {
+        key.withUnsafeBytes { Data($0) }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testStaleWrapCannotReplaceNewChatKeyAfterKeyReplacement() async throws {
+        let chatId = UUID().uuidString.lowercased()
+        let oldKey = await ChatKeyManager.shared.createKeyForNewChat(chatId)
+        let newKey = SymmetricKey(size: .bits256)
+        let generation = ChatKeyManager.shared.cacheGeneration
+        defer { ChatKeyManager.shared.removeKey(for: chatId) }
+        ChatKeyManager.shared.setKey(newKey, for: chatId)
+        XCTAssertNil(ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(
+            "stale-wrap", for: chatId, matching: oldKey
+        ))
+        XCTAssertNil(ChatKeyManager.shared.installValidatedKey(
+            oldKey, encryptedKey: "old-server-wrap", for: chatId, expectedGeneration: generation
+        ))
+        XCTAssertNil(ChatKeyManager.shared.encryptedKey(for: chatId))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
     func testNotificationReplyDoesNotCommitAfterItsSessionChangesDuringPreflight() async throws {
         let payloads = Self.notificationTurnPayloads()
@@ -1253,5 +1338,34 @@ private struct SlowPrivacyFilterModelRunner: PrivacyFilterModelRunning {
     func detectedSpans(in text: String) async throws -> [PrivacyFilterModelSpan] {
         try await Task.sleep(nanoseconds: delayNanoseconds)
         return spans
+    }
+}
+
+private actor OverlappingChatKeyGate {
+    private var calls = 0
+    private var firstStarted = false
+    private var startedWaiter: CheckedContinuation<Void, Never>?
+    private var firstRelease: CheckedContinuation<Void, Never>?
+
+    func generate() async -> SymmetricKey {
+        calls += 1
+        if calls == 1 {
+            firstStarted = true
+            startedWaiter?.resume()
+            startedWaiter = nil
+            await withCheckedContinuation { firstRelease = $0 }
+            return SymmetricKey(data: Data(repeating: 0x11, count: 32))
+        }
+        return SymmetricKey(data: Data(repeating: 0x22, count: 32))
+    }
+
+    func waitForFirstGeneration() async {
+        if firstStarted { return }
+        await withCheckedContinuation { startedWaiter = $0 }
+    }
+
+    func releaseFirstGeneration() {
+        firstRelease?.resume()
+        firstRelease = nil
     }
 }

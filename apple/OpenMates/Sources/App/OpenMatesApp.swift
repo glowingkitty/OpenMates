@@ -153,6 +153,27 @@ final class AppQuickActionCenter {
     }
 }
 
+struct SharedSocketWindowOwnership {
+    private(set) var windowIDs: [UUID] = []
+    private(set) var reconnectWorkCount = 0
+
+    mutating func register(_ id: UUID) {
+        if !windowIDs.contains(id) { windowIDs.append(id) }
+    }
+
+    mutating func unregister(_ id: UUID) {
+        windowIDs.removeAll { $0 == id }
+    }
+
+    func ownsSharedSync(_ id: UUID) -> Bool { windowIDs.first == id }
+
+    mutating func claimReconnectWork(_ id: UUID) -> Bool {
+        guard ownsSharedSync(id) else { return false }
+        reconnectWorkCount += 1
+        return true
+    }
+}
+
 @MainActor
 final class AppSessionCoordinator: ObservableObject {
     static let shared = AppSessionCoordinator()
@@ -168,21 +189,28 @@ final class AppSessionCoordinator: ObservableObject {
     private var didLoadFromDisk = false
     private var didStartNetworkMonitoring = false
     private var didConfigureDraftSync = false
-    private var openWindowIDs: [UUID] = []
+    private var windowOwnership = SharedSocketWindowOwnership()
     @Published var isInitialSyncComplete = false
+    #if DEBUG
+    @Published var debugLastAnnouncedActiveChat = "unannounced"
+    #endif
 
     var hasLoadedAuthenticatedRuntime: Bool { didLoadFromDisk }
 
     func registerWindow(_ id: UUID) {
-        if !openWindowIDs.contains(id) { openWindowIDs.append(id) }
+        windowOwnership.register(id)
     }
 
     func unregisterWindow(_ id: UUID) {
-        openWindowIDs.removeAll { $0 == id }
+        windowOwnership.unregister(id)
     }
 
     func ownsSharedSync(_ id: UUID) -> Bool {
-        openWindowIDs.first == id
+        windowOwnership.ownsSharedSync(id)
+    }
+
+    func claimSharedReconnectWork(_ id: UUID) -> Bool {
+        windowOwnership.claimReconnectWork(id)
     }
 
     private init() {
@@ -235,7 +263,7 @@ final class AppSessionCoordinator: ObservableObject {
         didLoadFromDisk = false
         didConfigureDraftSync = false
         isInitialSyncComplete = false
-        openWindowIDs.removeAll()
+        windowOwnership = SharedSocketWindowOwnership()
     }
 
     func markRecoveryInitialSyncReady() async {
