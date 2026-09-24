@@ -610,6 +610,8 @@ enum AppStrings {
     static var reportIssueScreenshotHint: String { L("settings.report_issue.screenshot_hint") }
     static var reportIssueScreenshotUploadButton: String { L("settings.report_issue.screenshot_upload_button") }
     static var reportIssueScreenshotRemove: String { L("settings.report_issue.screenshot_remove") }
+    static var reportIssueScreenshotSizeTooLarge: String { L("settings.report_issue.screenshot_size_too_large") }
+    static var reportIssueScreenshotUploadFailed: String { L("settings.report_issue.screenshot_upload_failed") }
     static var reportIssueSubmitButton: String { L("settings.report_issue.submit_button") }
     static var reportIssueSubmitting: String { L("settings.report_issue.submitting") }
     static var reportIssueSuccess: String { L("settings.report_issue_success") }

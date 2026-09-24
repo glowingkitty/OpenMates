@@ -7,6 +7,27 @@ import XCTest
 
 @MainActor
 final class ChatAudioPipelineTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.inline-entity-interaction,message-input.recording.lifecycle
+    func testSentRecordingTypeSurvivesInlineGrouping() {
+        let recording = EmbedRecord(
+            id: "sent-recording", type: "audio-recording", status: .finished,
+            data: .raw(["filename": AnyCodable("recording.m4a")]),
+            parentEmbedId: nil, appId: "audio", skillId: nil,
+            embedIds: nil, createdAt: nil
+        )
+        let groups = EmbedGrouper.groupForInlineDisplay([recording])
+        XCTAssertEqual(groups.count, 1)
+        XCTAssertEqual(groups.first?.type, .recording)
+        XCTAssertEqual(groups.first?.embeds.first?.id, recording.id)
+        let image = EmbedRecord(
+            id: "sent-image", type: "images-image", status: .finished,
+            data: .raw(["filename": AnyCodable("photo.jpg")]),
+            parentEmbedId: nil, appId: "images", skillId: nil,
+            embedIds: nil, createdAt: nil
+        )
+        XCTAssertEqual(EmbedGrouper.groupForInlineDisplay([image]).first?.type, .image)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
     func testLiveTranscriptViewportPreservesStreamTextAndAdvancesToNewestRenderedLine() {
         let streamUpdates = [
@@ -251,6 +272,26 @@ final class ChatAudioPipelineTests: XCTestCase {
         XCTAssertEqual(result.upload.embedId, "server-recording-fallback")
         XCTAssertEqual(result.transcription.title, "Recovered recording")
         XCTAssertEqual(result.transcription.waveform, batchWaveform)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testStalledTranscriptionKeepsUploadedAudioPlayable() async throws {
+        let waveform = try XCTUnwrap(AudioRecordingWaveform(samples: [10, 30], duration: 3))
+        let result = await AudioRecordingUploadPipeline.run(
+            waveform: waveform,
+            realtimeResult: { nil },
+            upload: { Self.uploadFixture(embedId: "server-recording-without-transcript") },
+            batchTranscription: { _ in
+                try? await Task.sleep(for: .seconds(5))
+                return nil
+            },
+            batchTimeout: .milliseconds(20)
+        )
+
+        let retained = try XCTUnwrap(result)
+        XCTAssertEqual(retained.upload.embedId, "server-recording-without-transcript")
+        XCTAssertNil(retained.transcription.transcript)
+        XCTAssertEqual(retained.transcription.waveform, waveform)
     }
 
     private static func uploadFixture(embedId: String) -> UploadFileResponse {

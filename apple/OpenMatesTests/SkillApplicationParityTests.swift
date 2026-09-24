@@ -193,6 +193,48 @@ final class SkillApplicationParityTests: XCTestCase {
         ).isEmpty)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity,chats.rendering.inline-entity-interaction
+    func testPersistedWebSearchDecodesListToonAndPairsRowsWithDeclaredChildIds() throws {
+        let parent = EmbedRecord(
+            id: "list-results-web-search",
+            type: EmbedType.webSearch.rawValue,
+            status: .finished,
+            data: .raw([
+                "type": AnyCodable("app_skill_use"),
+                "app_id": AnyCodable("web"),
+                "skill_id": AnyCodable("search"),
+                "query": AnyCodable("OpenAI Anthropic headlines"),
+                "provider": AnyCodable("Brave Search"),
+                "result_count": AnyCodable(2),
+                "results_toon": AnyCodable("""
+                    results[2]:
+                      - type: search_result
+                        title: "First headline"
+                        url: "https://example.com/first"
+                        description: "First summary"
+                      - type: search_result
+                        title: "Second headline"
+                        url: "https://example.com/second"
+                        meta_url_favicon: "https://example.com/favicon.ico"
+                    count: 2
+                    """),
+            ]),
+            parentEmbedId: nil,
+            appId: "web",
+            skillId: "search",
+            embedIds: "result-first|result-second",
+            createdAt: "2026-09-24T00:00:00Z"
+        )
+
+        let model = SearchSkillPreviewModel(embed: parent, allEmbedRecords: [parent.id: parent])
+
+        XCTAssertEqual(model.websiteResults.map(\.id), ["result-first", "result-second"])
+        XCTAssertEqual(model.websiteResults.map(\.title), ["First headline", "Second headline"])
+        XCTAssertEqual(model.websiteResults.map(\.url), ["https://example.com/first", "https://example.com/second"])
+        XCTAssertTrue(model.websiteResults.last?.faviconURL?.contains("example.com/favicon.ico") == true)
+        XCTAssertEqual(model.previewResultCount, 2)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity
     func testPersistedWebSearchUsesInlineResultsArrayWhenChildRecordsAreMissing() throws {
         let parent = EmbedRecord(
@@ -594,6 +636,65 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertTrue(generatedVideo.isAppSkillUse)
         XCTAssertEqual(generatedVideo.type, EmbedType.videosGenerate.rawValue)
         XCTAssertEqual(generatedVideo.rawData?["title"]?.value as? String, "Product launch promo")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
+    func testImageViewSkillResolvesOriginalUploadMediaForPreviewAndFullscreen() throws {
+        let upload = EmbedRecord(
+            id: "uploaded-image-1",
+            type: EmbedType.image.rawValue,
+            status: .finished,
+            data: .raw([
+                "filename": AnyCodable("receipt.png"),
+                "s3_base_url": AnyCodable("https://media.example.invalid"),
+                "s3_url": AnyCodable("https://direct.example.invalid/original.enc"),
+                "files": AnyCodable([
+                    "preview": ["s3_key": "preview.enc"],
+                    "original": ["s3_key": "original.enc"],
+                ]),
+                "aes_key": AnyCodable("synthetic-key"),
+                "aes_nonce": AnyCodable("synthetic-nonce"),
+            ]),
+            parentEmbedId: nil,
+            appId: "images",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: "2026-09-24T00:00:00Z"
+        )
+        let view = EmbedRecord(
+            id: "image-view-1",
+            type: "app:images:view",
+            status: .finished,
+            data: .raw([
+                "type": AnyCodable("app_skill_use"),
+                "app_id": AnyCodable("images"),
+                "skill_id": AnyCodable("view"),
+                "embed_id": AnyCodable(upload.id),
+            ]),
+            parentEmbedId: nil,
+            appId: "images",
+            skillId: "view",
+            embedIds: nil,
+            createdAt: "2026-09-24T00:00:01Z"
+        )
+
+        let model = ImageViewSkillModel(
+            embed: view,
+            allEmbedRecords: [view.id: view, upload.id: upload]
+        )
+
+        XCTAssertEqual(model.originalEmbedId, upload.id)
+        XCTAssertEqual(model.resolvedData?["filename"]?.value as? String, "receipt.png")
+        XCTAssertEqual(EmbedMediaPayload.previewS3Key(from: model.resolvedData), "preview.enc")
+        XCTAssertEqual(EmbedMediaPayload.s3Key(from: model.resolvedData), "original.enc")
+        XCTAssertEqual(
+            EmbedMediaPayload.previewS3URL(from: model.resolvedData),
+            "https://media.example.invalid/preview.enc"
+        )
+        XCTAssertEqual(
+            EmbedMediaPayload.s3URL(from: model.resolvedData),
+            "https://direct.example.invalid/original.enc"
+        )
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity

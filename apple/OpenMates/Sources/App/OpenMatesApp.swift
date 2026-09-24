@@ -1,6 +1,8 @@
 // OpenMates native Apple app entry point.
 // Universal app targeting iOS, iPadOS, and macOS via SwiftUI multiplatform.
 // Wires up auth, push notifications, font registration, and WebSocket lifecycle.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.persistence.client-encrypted, chats.streaming.progressive-presentation
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
@@ -164,6 +166,10 @@ final class AppSessionCoordinator: ObservableObject {
 
     private init() {
         webSocketManager.configureRecoveryCoordinator(ChatCompletionRecoveryCoordinator(
+            transport: webSocketManager,
+            chatStore: chatStore
+        ))
+        webSocketManager.configureEmbedStreamCoordinator(ChatEmbedStreamCoordinator(
             transport: webSocketManager,
             chatStore: chatStore
         ))

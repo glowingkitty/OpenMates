@@ -80,7 +80,11 @@ struct OMMessageInputField<ActionButtons: View>: View {
     }
 
     private var fieldMaxHeight: CGFloat {
-        compact ? compactHeight : max(expandedMinHeight, MessageComposerMetric.expandedMaxHeight)
+        guard !compact else { return compactHeight }
+        let contentMaximum = containsEmbed
+            ? MessageComposerMetric.embedTextFieldMaxHeight
+            : MessageComposerMetric.expandedMaxHeight
+        return max(expandedMinHeight, contentMaximum)
     }
 
     private var containsEmbed: Bool {

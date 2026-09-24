@@ -315,6 +315,8 @@
 		C0FFEE000000000000055004 /* ChatNavigationParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000055001 /* ChatNavigationParityUITests.swift */; };
 		C0FFEE000000000000056004 /* LandingOnboardingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000056001 /* LandingOnboardingParityUITests.swift */; };
 		C0FFEE000000000000004004 /* ChatFlowRealAccountUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */; };
+		C0FFEE000000000000075004 /* CrossClientChatSyncUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000075001 /* CrossClientChatSyncUITests.swift */; };
+		C0FFEE000000000000076004 /* PendingUploadStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000076001 /* PendingUploadStoreTests.swift */; };
 		C0FFEE000000000000005004 /* RealAccountUITestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000005001 /* RealAccountUITestSupport.swift */; };
 		C0FFEE000000000000006004 /* BackgroundChatNotificationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */; };
 		C0FFEE000000000000007004 /* MessageInputAttachmentUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */; };
@@ -1178,6 +1180,8 @@
 		C0FFEE000000000000055001 /* ChatNavigationParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatNavigationParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000056001 /* LandingOnboardingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandingOnboardingParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowRealAccountUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000075001 /* CrossClientChatSyncUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossClientChatSyncUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000076001 /* PendingUploadStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingUploadStoreTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000005001 /* RealAccountUITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealAccountUITestSupport.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChatNotificationUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputAttachmentUITests.swift; sourceTree = "<group>"; };
@@ -1988,6 +1992,7 @@
 				C0FFEE000000000000030001 /* SettingsInterfaceLanguageParityUITests.swift */,
 				C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */,
 				C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */,
+				C0FFEE000000000000075001 /* CrossClientChatSyncUITests.swift */,
 				A99209120000000000000006 /* DevComponentPreviewUITests.swift */,
 				35A95C4E8E98CC70470D64F5 /* HistoryWelcomeComponentUITests.swift */,
 				AE1600000000000000000000 /* ModelFixtureUITests.swift */,
@@ -2079,6 +2084,7 @@
 				C0FFEE00000000000005005C /* VoiceRecorderTests.swift */,
 				C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */,
 				C0FFEE000000000000012001 /* ChatSyncParityTests.swift */,
+				C0FFEE000000000000076001 /* PendingUploadStoreTests.swift */,
 				A99209120000000000000004 /* DevPreviewLaunchConfigurationTests.swift */,
 				AF1200000000000000000003 /* AuthFormTests.swift */,
 				CA06B179BE4D99FC530BF7A5 /* AuthSessionReauthenticationTests.swift */,
@@ -3461,6 +3467,7 @@
 				C0FFEE000000000000030004 /* SettingsInterfaceLanguageParityUITests.swift in Sources */,
 				C0FFEE000000000000036014 /* WorkflowsParityUITests.swift in Sources */,
 				C0FFEE000000000000004004 /* ChatFlowRealAccountUITests.swift in Sources */,
+				C0FFEE000000000000075004 /* CrossClientChatSyncUITests.swift in Sources */,
 				A99209120000000000000007 /* DevComponentPreviewUITests.swift in Sources */,
 				2322F1CFE771DB3571B53312 /* HistoryWelcomeComponentUITests.swift in Sources */,
 				AE1700000000000000000000 /* ModelFixtureUITests.swift in Sources */,
@@ -3528,6 +3535,7 @@
 				C0FFEE00000000000005005D /* VoiceRecorderTests.swift in Sources */,
 				C0FFEE000000000000040002 /* AnonymousChatStreamingParityTests.swift in Sources */,
 				C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */,
+				C0FFEE000000000000076004 /* PendingUploadStoreTests.swift in Sources */,
 				A99209120000000000000005 /* DevPreviewLaunchConfigurationTests.swift in Sources */,
 				AF1300000000000000030000 /* AuthFormTests.swift in Sources */,
 				B992E8C98042AB67CE10D589 /* AuthSessionReauthenticationTests.swift in Sources */,

@@ -1,6 +1,8 @@
 // Embed data models for all 33 embed types.
 // Each type has a content struct matching the backend schema.
 // Status machine: processing → finished | error | cancelled.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.persistence.client-encrypted, chats.rendering.assistant-document-convergence, chats.rendering.inline-entity-interaction
 
 import Foundation
 
@@ -56,6 +58,7 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     let skillId: String?
     let embedIds: String?
     let hashedChatId: String?
+    let hashedMessageId: String?
     let hashedUserId: String?
     let versionNumber: Int?
     let contentHash: String?
@@ -212,6 +215,7 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         skillId: String?,
         embedIds: String?,
         hashedChatId: String? = nil,
+        hashedMessageId: String? = nil,
         hashedUserId: String? = nil,
         versionNumber: Int? = nil,
         contentHash: String? = nil,
@@ -231,6 +235,7 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         self.skillId = skillId
         self.embedIds = embedIds
         self.hashedChatId = hashedChatId
+        self.hashedMessageId = hashedMessageId
         self.hashedUserId = hashedUserId
         self.versionNumber = versionNumber
         self.contentHash = contentHash
@@ -262,6 +267,8 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .encryptedTextPreview))
         hashedChatId = try container.decodeIfPresent(String.self, forKey: .hashedChatId)
             ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .hashedChatId))
+        hashedMessageId = try container.decodeIfPresent(String.self, forKey: .hashedMessageId)
+            ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .hashedMessageId))
         hashedUserId = try container.decodeIfPresent(String.self, forKey: .hashedUserId)
             ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .hashedUserId))
         versionNumber = try container.decodeIfPresent(Int.self, forKey: .versionNumber)
@@ -368,6 +375,7 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             skillId: skillId ?? resolvedRaw["skill_id"] as? String,
             embedIds: resolvedEmbedIds,
             hashedChatId: hashedChatId,
+            hashedMessageId: hashedMessageId,
             hashedUserId: hashedUserId,
             versionNumber: versionNumber,
             contentHash: contentHash,
@@ -393,6 +401,7 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         case skillId = "skill_id"
         case embedIds = "embed_ids"
         case hashedChatId = "hashed_chat_id"
+        case hashedMessageId = "hashed_message_id"
         case hashedUserId = "hashed_user_id"
         case versionNumber = "version_number"
         case contentHash = "content_hash"
@@ -411,6 +420,7 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         case skillId
         case embedIds
         case hashedChatId
+        case hashedMessageId
         case hashedUserId
         case versionNumber
         case contentHash
@@ -789,6 +799,18 @@ struct EmbedKeyRecord: Decodable, Sendable {
     let keyType: String
     let hashedChatId: String?
     let encryptedEmbedKey: String
+
+    init(
+        hashedEmbedId: String,
+        keyType: String,
+        hashedChatId: String?,
+        encryptedEmbedKey: String
+    ) {
+        self.hashedEmbedId = hashedEmbedId
+        self.keyType = keyType
+        self.hashedChatId = hashedChatId
+        self.encryptedEmbedKey = encryptedEmbedKey
+    }
 
     private enum CodingKeys: String, CodingKey {
         case hashedEmbedId

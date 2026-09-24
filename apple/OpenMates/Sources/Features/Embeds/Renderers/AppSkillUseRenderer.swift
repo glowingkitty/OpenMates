@@ -109,14 +109,18 @@ struct AppSkillUseRenderer: View {
 
     private var childEmbeds: [EmbedRecord] {
         let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
-        if !explicit.isEmpty { return uniqueEmbeds(explicit) }
         let parented = allEmbedRecords.values
             .filter { $0.parentEmbedId == embed.id }
             .sorted { $0.id < $1.id }
-        if !parented.isEmpty { return uniqueEmbeds(parented) }
-
         let preview = previewChildEmbeds
-        if !preview.isEmpty { return preview }
+        let hydrated = uniqueEmbeds(explicit + parented)
+        if !preview.isEmpty || !hydrated.isEmpty {
+            return SearchSkillPreviewModel.mergedRecords(
+                parentOrder: embed.childEmbedIds,
+                inlineRecords: preview,
+                hydratedRecords: hydrated
+            )
+        }
 
         return uniqueEmbeds(allEmbedRecords.values
             .filter { child in
@@ -179,7 +183,9 @@ struct AppSkillUseRenderer: View {
             var recordData = result.mapValues { AnyCodable($0) }
             recordData["app_id"] = recordData["app_id"] ?? AnyCodable(appId)
             return EmbedRecord(
-                id: "\(embed.id)-preview-\(index)",
+                id: EmbedFieldReader.string(recordData, keys: ["embed_id", "id"])
+                    ?? (embed.childEmbedIds.indices.contains(index) ? embed.childEmbedIds[index] : nil)
+                    ?? "\(embed.id)-preview-\(index)",
                 type: previewChildType,
                 status: .finished,
                 data: .raw(recordData),
@@ -235,7 +241,12 @@ struct AppSkillUseRenderer: View {
         } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
             return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview))
         } else if appId == "images", skillId == "view" {
-            return AnyView(ImageEmbedRenderer(data: data, mode: .preview))
+            let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
+            return AnyView(ImageEmbedRenderer(
+                data: model.resolvedData,
+                mode: .preview,
+                accessibilityPrefix: "image-view-skill"
+            ))
         } else if appId == "videos", skillId == "get_transcript" || skillId == "get-transcript" {
             return AnyView(TranscriptRenderer(data: videoTranscriptData, mode: .preview))
         } else if appId == "videos", skillId == "create" {
@@ -354,7 +365,12 @@ struct AppSkillUseRenderer: View {
         } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
             ImageGenerateEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "images", skillId == "view" {
-            ImageEmbedRenderer(data: data, mode: .fullscreen)
+            let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
+            ImageEmbedRenderer(
+                data: model.resolvedData,
+                mode: .fullscreen,
+                accessibilityPrefix: "image-view-skill"
+            )
         } else if appId == "videos", skillId == "get_transcript" || skillId == "get-transcript" {
             TranscriptRenderer(data: videoTranscriptData, mode: .fullscreen)
         } else if appId == "videos", skillId == "create" {

@@ -114,7 +114,7 @@ struct EmbedPreviewCard: View {
                 .accessibilityIdentifier("embed-preview")
                 .accessibleEmbed(
                     type: embedType?.displayName ?? embed.type,
-                    title: embedType?.displayName
+                    title: statusTitle
                 )
                 .accessibilityValue(statusAccessibilityValue)
             }
@@ -354,6 +354,8 @@ struct EmbedPreviewCard: View {
             return "search"
         case "read":
             return "visible"
+        case "view" where appId == "images":
+            return "visible"
         case "get_docs":
             return "docs"
         case "get_transcript":
@@ -498,6 +500,8 @@ struct EmbedPreviewCard: View {
             return LocalizationManager.shared.text("common.search")
         case ("videos", "get_transcript"), ("videos", "get-transcript"):
             return AppStrings.videoGetTranscript
+        case ("images", "view"):
+            return LocalizationManager.shared.text("common.view")
         case ("travel", "search_connections"):
             return "Search connections"
         case ("code", "get_docs"):

@@ -359,3 +359,5 @@ backend/core/directus/uploads/
 
 # Findings are local investigation notes and may contain private context.
 docs/findings/**
+apple/.openmates-cross-client-control.json
+apple/.openmates-cross-client-control.lock

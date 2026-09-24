@@ -6,6 +6,7 @@
 // orchestration and remote Mac runners.
 
 import XCTest
+import CryptoKit
 @testable import OpenMates
 
 @MainActor
@@ -463,6 +464,116 @@ final class ChatSendPipelineParityTests: XCTestCase {
         )
 
         XCTAssertEqual(merged, [textMapping, attachmentMapping])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testAudioOnlySendAddsDurableReferenceExactlyOnce() {
+        let embed = ComposerPendingEmbed.from(
+            upload: UploadFileResponse(
+                embedId: "audio-embed-1",
+                filename: "recording.m4a",
+                contentType: "audio/mp4",
+                contentHash: nil,
+                files: ["original": UploadedFileVariant(
+                    s3Key: "audio.bin", sizeBytes: 12, width: nil, height: nil, format: "m4a"
+                )],
+                s3BaseUrl: "https://example.invalid/audio",
+                aesKey: "key", aesNonce: "nonce", vaultWrappedAesKey: "wrapped",
+                pageCount: nil, deduplicated: false
+            ),
+            localData: Data([0x01]),
+            transcription: TranscriptionMetadata(transcript: "Recorded request"),
+            duration: 1
+        )
+
+        let audioOnly = ChatSendPipeline.contentByAppendingComposerEmbedReferences(
+            "",
+            composerEmbeds: [embed]
+        )
+        let repeated = ChatSendPipeline.contentByAppendingComposerEmbedReferences(
+            audioOnly,
+            composerEmbeds: [embed]
+        )
+
+        XCTAssertEqual(audioOnly, embed.markdownReference)
+        XCTAssertEqual(repeated, audioOnly)
+        XCTAssertEqual(
+            ChatSendPipeline.provisionalTitleSource(content: audioOnly, composerEmbeds: [embed]),
+            "Recorded request"
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testTextAndEmbedProvisionalTitleExcludesEmbedMarkup() {
+        let embed = ComposerPendingEmbed.uiTestFixture
+        let content = "Summarize this\n\n\(embed.markdownReference)"
+        let canonical = ChatSendPipeline.contentByAppendingComposerEmbedReferences(
+            "Summarize this",
+            composerEmbeds: [embed]
+        )
+
+        XCTAssertEqual(
+            ChatSendPipeline.provisionalTitleSource(content: content, composerEmbeds: [embed]),
+            "Summarize this"
+        )
+        XCTAssertTrue(canonical.contains("Summarize this"))
+        XCTAssertTrue(canonical.contains("\"embed_id\": \"ui-test-pending-image\""))
+        let payload = embed.serverPayload
+        let payloadContent = payload?["content"] as? String
+        XCTAssertNotNil(payloadContent)
+        let contentObject = payloadContent?.data(using: String.Encoding.utf8).flatMap {
+            try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
+        }
+        XCTAssertEqual(contentObject?["embed_ref"] as? String, "ui-test-image.png")
+        XCTAssertEqual(embed.record.rawData?["embed_ref"]?.value as? String, "ui-test-image.png")
+        XCTAssertEqual(embed.record.type, "images-image")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle
+    func testLegacyAudioOnlyMessageRecoversItsPersistedEmbedLink() throws {
+        let messageID = "legacy-audio-message"
+        let messageHash = SHA256.hash(data: Data(messageID.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        XCTAssertEqual(
+            messageHash,
+            "b01c731376d38838b752117a8df680216c9fedf304994c2968eef09e4d6dc7f9"
+        )
+        let embedJSON = """
+        {
+          "embed_id":"legacy-audio",
+          "status":"finished",
+          "encrypted_type":"encrypted-type-fixture",
+          "encrypted_content":"encrypted-content-fixture",
+          "encrypted_text_preview":"encrypted-preview-fixture",
+          "hashed_chat_id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "hashed_message_id":"\(messageHash)",
+          "hashed_user_id":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "created_at":1727172000
+        }
+        """
+        let embed = try JSONDecoder().decode(EmbedRecord.self, from: Data(embedJSON.utf8))
+        let message = Message(
+            id: messageID, chatId: "chat-1", role: .user, content: "",
+            encryptedContent: "ciphertext", createdAt: "2026-09-24T10:00:00Z",
+            updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil
+        )
+
+        let recovered = try XCTUnwrap(
+            ChatLegacyEmbedLinkPolicy.applying(to: [message], embeds: [embed]).first
+        )
+
+        XCTAssertEqual(embed.hashedMessageId, messageHash)
+        XCTAssertEqual(recovered.embedRefs?.map(\.id), ["legacy-audio"])
+        XCTAssertTrue(recovered.content?.contains("\"embed_id\": \"legacy-audio\"") == true)
+
+        let rawRecovery = try XCTUnwrap(ChatLegacyEmbedLinkPolicy.applying(
+            to: [message],
+            embeds: [embed],
+            synthesizeMissingContent: false
+        ).first)
+        XCTAssertEqual(rawRecovery.content, "", "Raw encrypted content must still decrypt before fallback synthesis")
+        XCTAssertEqual(rawRecovery.embedRefs?.map(\.id), ["legacy-audio"])
     }
 
     // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity

@@ -71,7 +71,7 @@ final class PendingUploadStore: ObservableObject {
     func updateStatus(id: String, status: EmbedUploadProgress.UploadStatus) {
         activeUploads[id]?.status = status
 
-        if status.isComplete || status.isError {
+        if status.isComplete {
             checkAndDispatchPendingSends(uploadId: id)
         }
     }
@@ -92,7 +92,16 @@ final class PendingUploadStore: ObservableObject {
 
     func markError(id: String, message: String) {
         activeUploads[id]?.status = .error(message)
-        checkAndDispatchPendingSends(uploadId: id)
+    }
+
+    func cancelUpload(id: String) {
+        activeUploads.removeValue(forKey: id)
+        for chatId in Array(pendingSends.keys) {
+            pendingSends[chatId]?.removeAll { $0.blockingUploadIds.contains(id) }
+            if pendingSends[chatId]?.isEmpty == true {
+                pendingSends.removeValue(forKey: chatId)
+            }
+        }
     }
 
     // MARK: - Queue a deferred send
@@ -122,7 +131,11 @@ final class PendingUploadStore: ObservableObject {
                 if context.blockingUploadIds.contains(uploadId) {
                     let remainingBlocking = context.blockingUploadIds.filter { id in
                         guard let upload = activeUploads[id] else { return false }
-                        return !upload.status.isComplete && !upload.status.isError
+                        // An error remains a blocker until the user retries the
+                        // same upload or removes the visible failed embed. Sending
+                        // here would persist an empty user message and start AI
+                        // without the attachment the user submitted.
+                        return !upload.status.isComplete
                     }
 
                     if remainingBlocking.isEmpty {
@@ -153,7 +166,7 @@ final class PendingUploadStore: ObservableObject {
     // MARK: - Query
 
     func hasActiveUploads(chatId: String) -> Bool {
-        activeUploads.values.contains { $0.chatId == chatId && !$0.status.isComplete && !$0.status.isError }
+        activeUploads.values.contains { $0.chatId == chatId && !$0.status.isComplete }
     }
 
     func hasPendingSends(chatId: String) -> Bool {

@@ -1,5 +1,6 @@
 // Local real-AsyncSequence fanout and replay tests. No backend or elapsed-time
 // assertions: suspension gates control cancellation/reset races deterministically.
+import CryptoKit
 import XCTest
 @testable import OpenMates
 
@@ -144,6 +145,21 @@ final class StreamingClientFanoutTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testFinishingIntentSubscriptionPreservesOtherChatReaders() async {
+        let client = StreamingClient()
+        let intentReader = await client.streamForChat("chat")
+        let viewReader = await client.streamForChat("chat")
+        let intentEvents = Task { await collect(intentReader) }
+        await intentReader.finish()
+        await client.dispatch(chunk(1, content: "Still visible to the app."), for: "chat")
+        await client.removeStream("chat")
+        let receivedByIntent = await intentEvents.value
+        let receivedByView = await collect(viewReader)
+        XCTAssertTrue(receivedByIntent.isEmpty)
+        XCTAssertEqual(sequences(receivedByView), [1])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testStopResubscriptionSkipsReplayButStillReceivesTheServerFinal() async {
         let client = StreamingClient()
         await client.dispatch(task(), for: "chat")
@@ -185,7 +201,8 @@ final class StreamingClientFanoutTests: XCTestCase {
             chunk(1, content: "Partial"), .cancelRequested(chatId: "chat", taskId: "task"),
             chunk(2, content: "Partial stopped", final: true),
             .postProcessingCompleted(chatId: "chat", taskId: "task", followUpSuggestions: ["Synthetic next step"],
-                newChatSuggestions: [], chatSummary: "Synthetic summary", chatTags: ["synthetic"], updatedTitle: "Synthetic title")
+                newChatSuggestions: [], chatSummary: "Synthetic summary", chatTags: ["synthetic"], updatedTitle: "Synthetic title",
+                sourceTitleVersion: 0, sourceMetadataVersion: 0)
         ]
         var expected = ChatStreamingLifecycleState()
         for event in events { expected.apply(event); await client.dispatch(event, for: "chat") }
@@ -199,13 +216,15 @@ final class StreamingClientFanoutTests: XCTestCase {
         XCTAssertEqual(actual.queuedMessageText, expected.queuedMessageText)
         XCTAssertEqual(actual.taskId, expected.taskId)
         guard let last = replay.last,
-              case .postProcessingCompleted(_, _, let suggestions, _, let summary, let tags, let title) = last else {
+              case .postProcessingCompleted(_, _, let suggestions, _, let summary, let tags, let title, let sourceTitleVersion, let sourceMetadataVersion) = last else {
             return XCTFail("Post-processing metadata must remain the final replay event")
         }
         XCTAssertEqual(suggestions, ["Synthetic next step"])
         XCTAssertEqual(summary, "Synthetic summary")
         XCTAssertEqual(tags, ["synthetic"])
         XCTAssertEqual(title, "Synthetic title")
+        XCTAssertEqual(sourceTitleVersion, 0)
+        XCTAssertEqual(sourceMetadataVersion, 0)
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
@@ -359,6 +378,304 @@ final class StreamingClientFanoutTests: XCTestCase {
         XCTAssertEqual(rows[0].encryptedContent, "synthetic-cipher")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.rendering.inline-entity-interaction
+    func testLiveEmbedReferenceDiscoveryWaitsForClosedBlocksAndDeduplicatesCumulativeFrames() async throws {
+        let incomplete = """
+        Intro
+        ```json
+        {"type":"app_skill_use","embed_id":"embed-search","embed_ids":["child-a"]}
+        """
+        let complete = incomplete + """
+        ```
+        [Source](embed:child-a) and [[embedref:child-b]]
+        """
+        XCTAssertEqual(ChatEmbedStreamCoordinator.embedReferences(in: incomplete), [])
+        XCTAssertEqual(
+            ChatEmbedStreamCoordinator.embedReferences(in: complete),
+            ["embed-search", "child-a", "child-b"]
+        )
+
+        let transport = ChatEmbedRecordingTransport()
+        let coordinator = ChatEmbedStreamCoordinator(
+            transport: transport,
+            chatStore: ChatStore(),
+            authenticatedOwnerId: { "owner" },
+            masterKey: { _ in SymmetricKey(size: .bits256) },
+            chatKey: { _ in SymmetricKey(size: .bits256) },
+            persistEmbedKeys: { _ in }
+        )
+        coordinator.beginTurn(chatId: "chat")
+        await coordinator.processStreamContent(incomplete, chatId: "chat")
+        await coordinator.processStreamContent(complete, chatId: "chat")
+        await coordinator.processStreamContent(complete, chatId: "chat")
+
+        XCTAssertEqual(transport.sentTypes, ["request_embed", "request_embed", "request_embed"])
+        XCTAssertEqual(transport.sentPayloads.compactMap { $0["embed_id"] as? String }, [
+            "embed-search", "child-a", "child-b",
+        ])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence
+    func testLiveEmbedProcessingIsVolatileAndFinalizedPayloadIsEncryptedBeforePersistence() async throws {
+        let chatId = "chat-live-embed"
+        let messageId = "assistant-message"
+        let ownerId = "owner-live-embed"
+        let chatKey = SymmetricKey(size: .bits256)
+        let masterKey = SymmetricKey(size: .bits256)
+        let chatStore = ChatStore()
+        chatStore.upsertChat(Chat(
+            id: chatId,
+            title: "Synthetic chat",
+            lastMessageAt: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            isArchived: false,
+            isPinned: false,
+            appId: "ai",
+            encryptedTitle: nil,
+            encryptedChatKey: nil
+        ))
+        let transport = ChatEmbedRecordingTransport()
+        var persistedKeys: [EmbedKeyRecord] = []
+        let coordinator = ChatEmbedStreamCoordinator(
+            transport: transport,
+            chatStore: chatStore,
+            authenticatedOwnerId: { ownerId },
+            masterKey: { _ in masterKey },
+            chatKey: { requestedChatId in requestedChatId == chatId ? chatKey : nil },
+            persistEmbedKeys: { persistedKeys.append(contentsOf: $0) }
+        )
+        let plaintext = """
+        type: app_skill_use
+        app_id: web
+        skill_id: search
+        query: synthetic private query
+        embed_ids[1]: child-result
+        """
+        var fields: [String: Any] = [
+            "embed_id": "embed-search",
+            "type": "app_skill_use",
+            "status": "processing",
+            "chat_id": chatId,
+            "message_id": messageId,
+            "user_id": ownerId,
+            "content": plaintext,
+            "app_id": "web",
+            "skill_id": "search",
+            "embed_ids": ["child-result"],
+            "createdAt": 1_800_000_000,
+            "updatedAt": 1_800_000_001,
+        ]
+
+        await coordinator.handleEmbedData(fields)
+        let processing = try XCTUnwrap(chatStore.embeds(for: chatId).first)
+        XCTAssertEqual(processing.status, .processing)
+        XCTAssertNotNil(processing.rawData, "Processing cards need plaintext only in the live in-memory store")
+        XCTAssertNil(processing.encryptedContent)
+        XCTAssertTrue(persistedKeys.isEmpty)
+        XCTAssertEqual(transport.sentTypes, ["request_embed"])
+
+        fields["status"] = "finished"
+        await coordinator.handleEmbedData(fields)
+        let finalized = try XCTUnwrap(chatStore.embeds(for: chatId).first)
+        let encryptedContent = try XCTUnwrap(finalized.encryptedContent)
+        let encryptedType = try XCTUnwrap(finalized.encryptedType)
+        XCTAssertNil(finalized.data, "The durable record must never retain the plaintext processing payload")
+        XCTAssertNotEqual(encryptedContent, plaintext)
+        let derivedKey = ComposerEmbedCrypto.deriveKey(chatKey: chatKey, embedId: "embed-search")
+        XCTAssertEqual(try ComposerEmbedCrypto.decryptContent(encryptedContent, using: derivedKey), plaintext)
+        XCTAssertEqual(try ComposerEmbedCrypto.decryptContent(encryptedType, using: derivedKey), "app_skill_use")
+        XCTAssertEqual(persistedKeys.count, 2)
+        XCTAssertEqual(transport.sentTypes, ["request_embed", "store_embed_keys", "store_embed"])
+
+        let storePayload = try XCTUnwrap(transport.payload(for: "store_embed"))
+        XCTAssertNil(storePayload["content"])
+        XCTAssertNil(storePayload["type"])
+        XCTAssertNotNil(storePayload["encrypted_content"])
+        XCTAssertNotNil(storePayload["encrypted_type"])
+        let keyPayload = try XCTUnwrap(transport.payload(for: "store_embed_keys"))
+        let keys = try XCTUnwrap(keyPayload["keys"] as? [[String: Any]])
+        XCTAssertEqual(keys.count, 2)
+        XCTAssertTrue(keys.contains { ($0["key_type"] as? String) == "master" && $0["hashed_chat_id"] is NSNull })
+
+        await coordinator.handleEmbedData(fields)
+        XCTAssertEqual(transport.sentTypes, ["request_embed", "store_embed_keys", "store_embed"],
+                       "Duplicate finalized delivery must not create new wrappers or rows")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence
+    func testRequestedAlreadyEncryptedEmbedStoresCiphertextAndServerKeyWrappersWithoutRoundTrip() async throws {
+        let chatId = "chat-requested-embed"
+        let chatStore = ChatStore()
+        chatStore.upsertChat(Chat(
+            id: chatId,
+            title: "Synthetic chat",
+            lastMessageAt: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            isArchived: false,
+            isPinned: false,
+            appId: "ai",
+            encryptedTitle: nil,
+            encryptedChatKey: nil
+        ))
+        let transport = ChatEmbedRecordingTransport()
+        var persistedKeys: [EmbedKeyRecord] = []
+        let coordinator = ChatEmbedStreamCoordinator(
+            transport: transport,
+            chatStore: chatStore,
+            authenticatedOwnerId: { nil },
+            masterKey: { _ in nil },
+            chatKey: { _ in nil },
+            persistEmbedKeys: { persistedKeys.append(contentsOf: $0) }
+        )
+        let fields: [String: Any] = [
+            "embed_id": "requested-parent",
+            "type": "server-encrypted-type",
+            "content": "server-encrypted-content",
+            "status": "finished",
+            "chat_id": chatId,
+            "message_id": "hashed-or-raw-message",
+            "already_encrypted": true,
+            "embed_ids": ["requested-child"],
+            "embed_keys": [
+                [
+                    "hashed_embed_id": "hashed-parent",
+                    "key_type": "master",
+                    "hashed_chat_id": NSNull(),
+                    "encrypted_embed_key": "wrapped-master",
+                ],
+                [
+                    "hashed_embed_id": "hashed-parent",
+                    "key_type": "chat",
+                    "hashed_chat_id": "hashed-chat",
+                    "encrypted_embed_key": "wrapped-chat",
+                ],
+            ],
+        ]
+
+        await coordinator.handleEmbedData(fields)
+
+        let stored = try XCTUnwrap(chatStore.embeds(for: chatId).first)
+        XCTAssertNil(stored.data)
+        XCTAssertEqual(stored.encryptedContent, "server-encrypted-content")
+        XCTAssertEqual(stored.encryptedType, "server-encrypted-type")
+        XCTAssertEqual(stored.childEmbedIds, ["requested-child"])
+        XCTAssertEqual(persistedKeys.map(\.keyType).sorted(), ["chat", "master"])
+        XCTAssertEqual(transport.sentTypes, ["request_embed"],
+                       "Already encrypted fallback data is local hydration and must not be written back to the server")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence
+    func testLiveEmbedFailedPersistenceAcknowledgementReRequestsPayload() async throws {
+        let chatId = "chat-live-embed-retry"
+        let chatStore = ChatStore()
+        chatStore.upsertChat(Chat(
+            id: chatId,
+            title: "Synthetic retry chat",
+            lastMessageAt: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            isArchived: false,
+            isPinned: false,
+            appId: "ai",
+            encryptedTitle: nil,
+            encryptedChatKey: nil
+        ))
+        let transport = ChatEmbedRecordingTransport()
+        transport.failNextResponse(ofType: "store_embed_keys_confirmed")
+        let coordinator = ChatEmbedStreamCoordinator(
+            transport: transport,
+            chatStore: chatStore,
+            authenticatedOwnerId: { "retry-owner" },
+            masterKey: { _ in SymmetricKey(size: .bits256) },
+            chatKey: { requestedChatId in
+                requestedChatId == chatId ? SymmetricKey(size: .bits256) : nil
+            },
+            persistEmbedKeys: { _ in },
+            retryDelay: { _ in .seconds(3_600) }
+        )
+
+        await coordinator.handleEmbedData([
+            "embed_id": "retry-embed",
+            "type": "app_skill_use",
+            "status": "finished",
+            "chat_id": chatId,
+            "message_id": "retry-message",
+            "content": "type: app_skill_use\napp_id: web\nskill_id: search",
+            "app_id": "web",
+            "skill_id": "search",
+        ])
+
+        XCTAssertEqual(transport.sentTypes, ["store_embed_keys"])
+        await coordinator.retryPendingPersistence()
+        XCTAssertEqual(
+            transport.sentTypes,
+            ["store_embed_keys", "request_embed"],
+            "A failed durable ACK must request the server payload again instead of permanently deduplicating it"
+        )
+        XCTAssertEqual(transport.sentPayloads.last?["embed_id"] as? String, "retry-embed")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testLiveEmbedLogoutDuringEncryptionDropsAllLatePersistence() async throws {
+        let chatId = "chat-live-embed-logout"
+        let chatStore = ChatStore()
+        chatStore.upsertChat(Chat(
+            id: chatId,
+            title: "Synthetic logout chat",
+            lastMessageAt: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            isArchived: false,
+            isPinned: false,
+            appId: "ai",
+            encryptedTitle: nil,
+            encryptedChatKey: nil
+        ))
+        let transport = ChatEmbedRecordingTransport()
+        let gate = EmbedMasterKeySuspensionGate()
+        var persistedKeys: [EmbedKeyRecord] = []
+        var scope = UUID()
+        let coordinator = ChatEmbedStreamCoordinator(
+            transport: transport,
+            chatStore: chatStore,
+            authenticatedOwnerId: { "logout-owner" },
+            masterKey: { _ in
+                await gate.waitForRelease()
+                return SymmetricKey(size: .bits256)
+            },
+            chatKey: { requestedChatId in
+                requestedChatId == chatId ? SymmetricKey(size: .bits256) : nil
+            },
+            persistEmbedKeys: { persistedKeys.append(contentsOf: $0) },
+            accountScopeGeneration: { scope },
+            retryDelay: { _ in .seconds(3_600) }
+        )
+        let handling = Task { @MainActor in
+            await coordinator.handleEmbedData([
+                "embed_id": "logout-embed",
+                "type": "app_skill_use",
+                "status": "finished",
+                "chat_id": chatId,
+                "message_id": "logout-message",
+                "content": "type: app_skill_use\napp_id: web\nskill_id: search",
+                "app_id": "web",
+                "skill_id": "search",
+            ])
+        }
+
+        await gate.waitUntilEntered()
+        scope = UUID()
+        coordinator.reset()
+        await gate.release()
+        await handling.value
+
+        XCTAssertTrue(persistedKeys.isEmpty, "A pre-logout task must not persist key wrappers into the next account scope")
+        XCTAssertTrue(chatStore.embeds(for: chatId).isEmpty, "A pre-logout task must not mutate the next account's ChatStore")
+        XCTAssertTrue(transport.sentTypes.isEmpty, "A pre-logout task must not write any ciphertext after its scope expires")
+    }
+
     private func task() -> StreamingClient.StreamEvent {
         .taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user")
     }
@@ -379,6 +696,92 @@ final class StreamingClientFanoutTests: XCTestCase {
     }
     private func taskIDs(_ events: [StreamingClient.StreamEvent]) -> [String] {
         events.compactMap { if case .taskInitiated(_, let task, _) = $0 { return task }; return nil }
+    }
+}
+
+@MainActor
+private final class ChatEmbedRecordingTransport: ChatWebSocketTransport {
+    private(set) var sentTypes: [String] = []
+    private(set) var sentPayloads: [[String: Any]] = []
+    private var failingResponseTypes = Set<String>()
+
+    func failNextResponse(ofType type: String) {
+        failingResponseTypes.insert(type)
+    }
+
+    func send(_ message: WSOutboundMessage) async throws {
+        let decoded = try Self.decode(message)
+        sentTypes.append(decoded.type)
+        sentPayloads.append(decoded.payload)
+    }
+
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseType: String,
+        timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool
+    ) async throws -> WebSocketResponse {
+        try await send(message)
+        if failingResponseTypes.remove(responseType) != nil {
+            throw RecordingTransportError.syntheticFailure
+        }
+        var responseFields: [String: Any] = [:]
+        if let requestId = sentPayloads.last?["request_id"] as? String {
+            responseFields["request_id"] = requestId
+        }
+        guard predicate(responseFields) else { throw RecordingTransportError.predicateRejected }
+        return WebSocketResponse(fields: responseFields, type: responseType)
+    }
+
+    func waitForMessage(
+        _ type: String,
+        timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool
+    ) async throws -> WebSocketResponse {
+        throw RecordingTransportError.unexpectedWait
+    }
+
+    func payload(for type: String) -> [String: Any]? {
+        zip(sentTypes, sentPayloads).first { $0.0 == type }?.1
+    }
+
+    private static func decode(_ message: WSOutboundMessage) throws -> (type: String, payload: [String: Any]) {
+        let encoded = try JSONEncoder().encode(message)
+        guard let object = try JSONSerialization.jsonObject(with: encoded) as? [String: Any],
+              let type = object["type"] as? String else {
+            throw RecordingTransportError.invalidMessage
+        }
+        return (type, object["payload"] as? [String: Any] ?? [:])
+    }
+
+    private enum RecordingTransportError: Error {
+        case invalidMessage
+        case predicateRejected
+        case syntheticFailure
+        case unexpectedWait
+    }
+}
+
+private actor EmbedMasterKeySuspensionGate {
+    private var entered = false
+    private var entryWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func waitForRelease() async {
+        entered = true
+        for waiter in entryWaiters { waiter.resume() }
+        entryWaiters.removeAll()
+        await withCheckedContinuation { releaseWaiters.append($0) }
+    }
+
+    func waitUntilEntered() async {
+        if entered { return }
+        await withCheckedContinuation { entryWaiters.append($0) }
+    }
+
+    func release() {
+        for waiter in releaseWaiters { waiter.resume() }
+        releaseWaiters.removeAll()
     }
 }
 

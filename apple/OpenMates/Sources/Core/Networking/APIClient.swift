@@ -77,11 +77,26 @@ actor APIClient {
 
         let request = Self.makeUploadRequest(
             uploadURL: uploadBaseURL.appendingPathComponent("v1/upload/file"),
+            authenticationURL: baseURL,
             webAppURL: webAppURL,
             boundary: boundary,
             body: body
         )
-        return try await execute(request, using: uploadSession)
+        do {
+            return try await execute(request, using: uploadSession)
+        } catch where Self.shouldRetryUpload(after: error) {
+            // Refresh tokens rotate during ordinary authenticated API traffic.
+            // If another request wins that rotation while this upload is in
+            // flight, rebuild once so URLSession resolves the current cookie.
+            let retryRequest = Self.makeUploadRequest(
+                uploadURL: uploadBaseURL.appendingPathComponent("v1/upload/file"),
+                authenticationURL: baseURL,
+                webAppURL: webAppURL,
+                boundary: boundary,
+                body: body
+            )
+            return try await execute(retryRequest, using: uploadSession)
+        }
     }
 
     // MARK: - Encodable body
@@ -195,6 +210,7 @@ actor APIClient {
 
     static func makeUploadRequest(
         uploadURL: URL,
+        authenticationURL: URL? = nil,
         webAppURL: URL,
         boundary: String,
         body: Data
@@ -206,15 +222,43 @@ actor APIClient {
         nativeClientHeaders.forEach { key, value in
             request.setValue(value, forHTTPHeaderField: key)
         }
-        // The upload service is on upload.openmates.org, while sign-in uses
-        // api.dev.openmates.org or api.openmates.org. URLSession does not always
-        // attach the shared app-group cookie across those hosts. Use only the
-        // cookies scoped by HTTPCookieStorage to this upload URL.
-        if let cookieHeader = OpenMatesSharedEnvironment.cookieHeader(for: uploadURL) {
+        // The upload service is on upload.openmates.org, while native sign-in
+        // terminates at the selected API host. Some URLSession login responses
+        // retain a host-only refresh cookie, so it is not considered eligible
+        // for the upload host even though this is the trusted upload transport.
+        // Forward only the authentication cookie; never copy unrelated API-host
+        // cookies across hosts.
+        let uploadCookies = OpenMatesSharedEnvironment.cookieStorage.cookies(for: uploadURL) ?? []
+        let authenticationCookies = authenticationURL.flatMap {
+            OpenMatesSharedEnvironment.cookieStorage.cookies(for: $0)
+        } ?? []
+        let authenticationRefreshCookie = authenticationCookies.first {
+            $0.name == "auth_refresh_token"
+        }
+        let authenticationCookieReachesUpload = authenticationRefreshCookie.map { authenticationCookie in
+            uploadCookies.contains {
+                $0.name == authenticationCookie.name
+                    && $0.value == authenticationCookie.value
+                    && $0.domain == authenticationCookie.domain
+                    && $0.path == authenticationCookie.path
+            }
+        } ?? false
+        // Keep upload-eligible cookies in the shared jar so URLSession resolves
+        // the latest rotated token when the request is sent. A manually frozen
+        // Cookie header can become invalid while another API request rotates the
+        // session. Only bridge a host-only API cookie that cannot reach upload.
+        if let refreshCookie = authenticationRefreshCookie,
+           !authenticationCookieReachesUpload {
+            let cookieHeader = HTTPCookie.requestHeaderFields(with: [refreshCookie])["Cookie"]
             request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
         }
         request.httpBody = body
         return request
+    }
+
+    static func shouldRetryUpload(after error: Error) -> Bool {
+        guard case APIError.httpError(status: 401, message: _) = error else { return false }
+        return true
     }
 
     private static func makeSessionConfiguration(

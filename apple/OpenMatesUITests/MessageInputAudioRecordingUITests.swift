@@ -69,6 +69,84 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         add(restoredScreenshot)
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send,chats.persistence.client-encrypted
+    func testRealAccountRecordingSendsAndPersistsInChatHistory() throws {
+        let prompt = "Audio attachment check: reply with one short sentence."
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(
+            extraArguments: ["--ui-test-fresh-new-chat", "--ui-test-expose-chat-ids"]
+        )
+        if !app.buttons["referral-cta"].waitForExistence(timeout: 10) {
+            RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        }
+
+        let microphone = element(in: app, identifier: "record-audio-button")
+        XCTAssertTrue(microphone.waitForExistence(timeout: 15))
+        microphone.tap()
+        let finish = element(in: app, identifier: "record-finish-button")
+        XCTAssertTrue(finish.waitForExistence(timeout: 10))
+        Thread.sleep(forTimeInterval: 3)
+        finish.tap()
+        let recording = element(in: app, identifier: "native-composer-preview-recording-finished")
+        XCTAssertTrue(recording.waitForExistence(timeout: 90), "Recording upload and transcription must finish")
+
+        let editor = element(in: app, identifier: "message-editor")
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)).tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        app.typeText(prompt)
+        XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
+        app.buttons["send-button"].tap()
+
+        let userMessage = RealAccountUITestSupport.accessibilityElement(
+            in: app,
+            identifier: "message-user",
+            labelContaining: prompt
+        )
+        XCTAssertTrue(userMessage.waitForExistence(timeout: 60), "Typed text and recording must form one user message")
+        XCTAssertFalse(textContaining("Upload failed", in: app).exists)
+        let playback = element(in: app, identifier: "recording-playback-toggle")
+        let playbackVisible = playback.waitForExistence(timeout: 30)
+        let probe = element(in: app, identifier: "chat-recovery-state")
+        XCTAssertTrue(
+            playbackVisible,
+            "The sent user message must render its durable audio embed. " +
+                "State: \(probe.value as? String ?? "unavailable")"
+        )
+        RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: 120)
+
+        let activeChat = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat-view-"))
+            .firstMatch
+        XCTAssertTrue(activeChat.exists)
+        let chatID = String(activeChat.identifier.dropFirst("chat-view-".count))
+        XCTAssertFalse(chatID.isEmpty)
+
+        app.terminate()
+        app.launchArguments = ["--ui-test-prefer-password-login", "--ui-test-expose-chat-ids"]
+        app.launch()
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 35))
+        openChatsPanel(in: app)
+        let row = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND value == %@", "chat-item-wrapper", "user-chat:\(chatID)"
+        )).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 20), "The audio chat must remain in synced history")
+        row.tap()
+        let restoredUserMessage = RealAccountUITestSupport.accessibilityElement(
+            in: app,
+            identifier: "message-user",
+            labelContaining: prompt
+        )
+        XCTAssertTrue(restoredUserMessage.waitForExistence(timeout: 30))
+        XCTAssertTrue(
+            element(in: app, identifier: "recording-playback-toggle").waitForExistence(timeout: 30),
+            "The audio embed must hydrate after cold relaunch"
+        )
+        XCTAssertTrue(app.otherElements.matching(identifier: "message-assistant").firstMatch.exists)
+        XCTAssertFalse(textContaining("Upload failed", in: app).exists)
+    }
+
     // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
     func testRestoredRecordingDraftShowsAudioCardInsteadOfGenericAttachment() throws {
         let app = XCUIApplication()
@@ -563,6 +641,27 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         let predicate = NSPredicate(format: "exists == false")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func waitForInitialSyncComplete(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@ AND value == %@", "chat-sync-complete", "true"))
+            .firstMatch
+            .waitForExistence(timeout: timeout)
+    }
+
+    private func openChatsPanel(in app: XCUIApplication) {
+        let toggle = app.buttons["sidebar-toggle"]
+        let rows = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND (value == %@ OR value BEGINSWITH %@)",
+            "chat-item-wrapper", "user-chat", "user-chat:"
+        ))
+        for _ in 0..<3 where !rows.firstMatch.exists {
+            guard toggle.waitForExistence(timeout: 3) else { break }
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            _ = rows.firstMatch.waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 15))
     }
 
     private func launchFocusedWelcomeComposer(extraArguments: [String] = []) -> XCUIApplication {

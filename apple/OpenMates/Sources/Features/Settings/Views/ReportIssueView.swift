@@ -19,8 +19,11 @@
 //             issue-reporting.logs.authenticated-capture
 
 import Foundation
+import CoreGraphics
+import ImageIO
 import PhotosUI
 import SwiftUI
+import UniformTypeIdentifiers
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
@@ -84,9 +87,9 @@ struct ReportIssueView: View {
     @State private var expectedBehaviour = ""
     @State private var actualBehaviour = ""
     @State private var issueType: IssueReportPayloadBuilder.IssueType = .bugReport
-    @State private var screenshotItem: PhotosPickerItem?
-    @State private var screenshotData: Data?
-    @State private var screenshotPreview: Image?
+    @State private var screenshotItems: [PhotosPickerItem] = []
+    @State private var screenshotAttachments: [ReportIssueScreenshotAttachment] = []
+    @State private var screenshotError: String?
     @State private var includeDiagnostics = false
     @State private var isSubmitting = false
     @State private var submittedIssueReference: String?
@@ -147,8 +150,8 @@ struct ReportIssueView: View {
             seedUITestReportIssueLogsIfNeeded()
             #endif
         }
-        .onChange(of: screenshotItem) { _, newItem in
-            loadScreenshot(newItem)
+        .onChange(of: screenshotItems) { _, newItems in
+            loadScreenshots(newItems)
         }
         .onChange(of: includeDiagnostics) { _, included in
             NativeDiagnostics.event(
@@ -257,29 +260,50 @@ struct ReportIssueView: View {
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
 
-                if let screenshotPreview {
-                    screenshotPreview
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 200)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius5))
-                        .accessibilityIdentifier("report-issue-screenshot-preview")
+                Text("\(screenshotAttachments.count)/\(IssueReportScreenshotBundle.maximumAttachments)")
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontTertiary)
+                    .accessibilityIdentifier("report-issue-screenshot-count")
 
-                    Button {
-                        screenshotData = nil
-                        self.screenshotPreview = nil
-                        screenshotItem = nil
-                    } label: {
-                        Label {
-                            Text(AppStrings.reportIssueScreenshotRemove)
-                        } icon: {
-                            Icon("close", size: 16)
+                ForEach(Array(screenshotAttachments.enumerated()), id: \.element.id) { index, attachment in
+                    if let preview = screenshotPreview(for: attachment.data) {
+                        VStack(alignment: .leading, spacing: .spacing3) {
+                            preview
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxHeight: 200)
+                                .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                                .accessibilityIdentifier(
+                                    index == 0
+                                        ? "report-issue-screenshot-preview"
+                                        : "report-issue-screenshot-preview-\(index)"
+                                )
+
+                            Button {
+                                removeScreenshot(id: attachment.id)
+                            } label: {
+                                Label {
+                                    Text(AppStrings.reportIssueScreenshotRemove)
+                                } icon: {
+                                    Icon("close", size: 16)
+                                }
+                            }
+                            .buttonStyle(OMSecondaryButtonStyle())
+                            .accessibilityIdentifier(
+                                index == 0
+                                    ? "report-issue-remove-screenshot"
+                                    : "report-issue-remove-screenshot-\(index)"
+                            )
                         }
                     }
-                    .buttonStyle(OMSecondaryButtonStyle())
-                    .accessibilityIdentifier("report-issue-remove-screenshot")
-                } else {
-                    PhotosPicker(selection: $screenshotItem, matching: .images) {
+                }
+
+                if screenshotAttachments.count < IssueReportScreenshotBundle.maximumAttachments {
+                    PhotosPicker(
+                        selection: $screenshotItems,
+                        maxSelectionCount: IssueReportScreenshotBundle.maximumAttachments - screenshotAttachments.count,
+                        matching: .images
+                    ) {
                         HStack(spacing: .spacing3) {
                             Icon("image", size: 18)
                             Text(AppStrings.reportIssueScreenshotUploadButton)
@@ -287,6 +311,13 @@ struct ReportIssueView: View {
                     }
                     .buttonStyle(OMSecondaryButtonStyle())
                     .accessibilityIdentifier("report-issue-attach-screenshot")
+                }
+
+                if let screenshotError {
+                    Text(screenshotError)
+                        .font(.omXs)
+                        .foregroundStyle(Color.error)
+                        .accessibilityIdentifier("report-issue-screenshot-error")
                 }
             }
             .padding(.horizontal, .spacing5)
@@ -327,27 +358,59 @@ struct ReportIssueView: View {
         }
     }
 
-    private func loadScreenshot(_ item: PhotosPickerItem?) {
-        guard let item else { return }
+    private func loadScreenshots(_ items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
         Task {
-            if let data = try? await item.loadTransferable(type: Data.self) {
-                screenshotData = data
-                NativeDiagnostics.event(
-                    "screenshot_attached",
-                    category: "report_issue",
-                    counts: ["byte_count": data.count]
-                )
-                #if os(iOS)
-                if let uiImage = UIImage(data: data) {
-                    screenshotPreview = Image(uiImage: uiImage)
+            var loaded: [ReportIssueScreenshotAttachment] = []
+            var rejectedForSize = false
+            var failedToLoad = false
+            for item in items.prefix(IssueReportScreenshotBundle.maximumAttachments - screenshotAttachments.count) {
+                guard let data = try? await item.loadTransferable(type: Data.self),
+                      IssueReportScreenshotBundle.isDecodableImage(data) else {
+                    failedToLoad = true
+                    continue
                 }
-                #elseif os(macOS)
-                if let nsImage = NSImage(data: data) {
-                    screenshotPreview = Image(nsImage: nsImage)
+                guard data.count <= IssueReportScreenshotBundle.maximumSourceBytes else {
+                    rejectedForSize = true
+                    continue
                 }
-                #endif
+                loaded.append(ReportIssueScreenshotAttachment(data: data))
             }
+            screenshotAttachments.append(contentsOf: loaded)
+            screenshotItems = []
+            if rejectedForSize {
+                screenshotError = AppStrings.reportIssueScreenshotSizeTooLarge
+            } else if failedToLoad {
+                screenshotError = AppStrings.reportIssueScreenshotUploadFailed
+            } else {
+                screenshotError = nil
+            }
+            NativeDiagnostics.event(
+                "screenshots_attached",
+                category: "report_issue",
+                counts: [
+                    "attachment_count": loaded.count,
+                    "byte_count": loaded.reduce(0) { $0 + $1.data.count },
+                ]
+            )
         }
+    }
+
+    private func removeScreenshot(id: UUID) {
+        screenshotAttachments.removeAll { $0.id == id }
+        screenshotError = nil
+    }
+
+    private func screenshotPreview(for data: Data) -> Image? {
+        #if os(iOS)
+        guard let image = UIImage(data: data) else { return nil }
+        return Image(uiImage: image)
+        #elseif os(macOS)
+        guard let image = NSImage(data: data) else { return nil }
+        return Image(nsImage: image)
+        #else
+        return nil
+        #endif
     }
 
     private func submitReport() {
@@ -360,12 +423,15 @@ struct ReportIssueView: View {
             category: "report_issue",
             flags: [
                 "diagnostics_included": includeDiagnostics,
-                "screenshot_included": screenshotData != nil,
+                "screenshot_included": !screenshotAttachments.isEmpty,
             ]
         )
 
         Task {
             do {
+                let screenshotData = try IssueReportScreenshotBundle.makePNG(
+                    from: screenshotAttachments.map(\.data)
+                )
                 let context = NativeIssueContextProvider.shared.context(includeDiagnostics: includeDiagnostics)
                 let payload = IssueReportPayloadBuilder.makePayload(
                     title: title,
@@ -398,14 +464,19 @@ struct ReportIssueView: View {
                     await sendIssueLogs(issueId: issueId)
                 }
             } catch {
-                NativeDiagnostics.failure(
-                    "submission_failed",
-                    category: "report_issue",
-                    level: .error,
-                    error: error
-                )
-                self.error = error.localizedDescription
-                AccessibilityAnnouncement.announce(error.localizedDescription)
+                if error is IssueReportScreenshotBundleError {
+                    screenshotError = AppStrings.reportIssueScreenshotSizeTooLarge
+                    AccessibilityAnnouncement.announce(AppStrings.reportIssueScreenshotSizeTooLarge)
+                } else {
+                    NativeDiagnostics.failure(
+                        "submission_failed",
+                        category: "report_issue",
+                        level: .error,
+                        error: error
+                    )
+                    self.error = error.localizedDescription
+                    AccessibilityAnnouncement.announce(error.localizedDescription)
+                }
             }
             isSubmitting = false
         }
@@ -470,6 +541,92 @@ struct ReportIssueView: View {
         ].joined(separator: "\n")
     }
     #endif
+}
+
+private struct ReportIssueScreenshotAttachment: Identifiable {
+    let id = UUID()
+    let data: Data
+}
+
+enum IssueReportScreenshotBundleError: Error {
+    case outputTooLarge
+}
+
+enum IssueReportScreenshotBundle {
+    static let maximumAttachments = 5
+    static let maximumSourceBytes = 5 * 1024 * 1024
+    static let maximumOutputBytes = 2 * 1024 * 1024
+    static let maximumOutputWidth = 1_200
+
+    static func isDecodableImage(_ data: Data) -> Bool {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil) != nil
+    }
+
+    /// Combines screenshots vertically into the API's existing single-PNG field.
+    /// The 1,200-pixel width keeps phone text legible without silently applying
+    /// progressively smaller fallbacks when the backend's 2 MB limit is exceeded.
+    static func makePNG(from sourceData: [Data]) throws -> Data? {
+        guard !sourceData.isEmpty else { return nil }
+        guard sourceData.count <= maximumAttachments,
+              sourceData.allSatisfy({ $0.count <= maximumSourceBytes }) else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+
+        let images = sourceData.compactMap { data -> CGImage? in
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+            return CGImageSourceCreateImageAtIndex(source, 0, nil)
+        }
+        guard images.count == sourceData.count,
+              let widest = images.map(\.width).max(),
+              widest > 0 else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+
+        let outputWidth = min(widest, maximumOutputWidth)
+        let scaledHeights = images.map { image in
+            max(1, Int((Double(image.height) * Double(outputWidth) / Double(image.width)).rounded()))
+        }
+        let outputHeight = scaledHeights.reduce(0, +)
+        guard outputHeight > 0,
+              let context = CGContext(
+                data: nil,
+                width: outputWidth,
+                height: outputHeight,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+
+        var topOffset = 0
+        for (image, height) in zip(images, scaledHeights) {
+            let y = outputHeight - topOffset - height
+            context.interpolationQuality = .high
+            context.draw(image, in: CGRect(x: 0, y: y, width: outputWidth, height: height))
+            topOffset += height
+        }
+
+        guard let composite = context.makeImage() else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            output,
+            UTType.png.identifier as CFString,
+            1,
+            nil
+        ) else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+        CGImageDestinationAddImage(destination, composite, nil)
+        guard CGImageDestinationFinalize(destination), output.length <= maximumOutputBytes else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+        return output as Data
+    }
 }
 
 private struct ReportIssueTextArea: View {

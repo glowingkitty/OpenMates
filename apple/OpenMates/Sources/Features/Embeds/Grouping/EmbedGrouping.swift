@@ -115,7 +115,7 @@ enum EmbedGrouper {
 
         func appendCurrentBatch() {
             guard !currentBatch.isEmpty,
-                  let type = EmbedType(rawValue: currentBatch[0].type) else { return }
+                  let type = EmbedType.normalized(rawValue: currentBatch[0].type) else { return }
             groups.append(EmbedGroup(
                 id: currentBatch[0].id,
                 type: type,

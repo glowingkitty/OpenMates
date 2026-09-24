@@ -2988,7 +2988,10 @@ struct MainAppView: View {
             encryptedAutoSpeakResponse: existing?.encryptedAutoSpeakResponse,
             encryptedChatKey: payload.encryptedChatKey ?? existing?.encryptedChatKey,
             messagesV: payload.messagesV ?? existing?.messagesV,
-            titleV: payload.encryptedTitle != nil ? 1 : existing?.titleV,
+            // An encrypted title in the first-message payload can be the
+            // empty preflight placeholder. Only a confirmed metadata version
+            // marks the generated title as established.
+            titleV: existing?.titleV ?? 0,
             draftV: existing?.draftV,
             lastVisibleMessageId: existing?.lastVisibleMessageId,
             parentId: payload.parentId ?? existing?.parentId,
@@ -5201,6 +5204,7 @@ struct NewChatWelcomeView: View {
     @State private var piiExclusions = Set<String>()
     @State private var anonymousAttachmentPending = false
     @State private var pendingComposerEmbeds: [ComposerPendingEmbed] = []
+    @State private var attachmentUploadTasks: [String: Task<Void, Never>] = [:]
     @State private var showAttachmentMenu = false
     @State private var showCameraCapture = false
     @State private var shouldFocusAfterCameraCapture = true
@@ -5496,7 +5500,7 @@ struct NewChatWelcomeView: View {
 
                 if !isComposerActive {
                     VStack(spacing: .spacing4) {
-                        welcomeHeader
+                        welcomeHeader(containerSize: proxy.size)
 
                         if shouldShowGuestInterestTags {
                             GuestInterestTagsView(
@@ -5644,6 +5648,7 @@ struct NewChatWelcomeView: View {
             await loadSuggestions()
             await ApplePrivacySettingsService.shared.load()
             updatePIIMatches(for: messageText)
+            if isReadyForRequestedAction { startLivePhotoUploadFixtureIfNeeded() }
         }
         .onAppear {
             isGuestInterestSelectionActive = !isAuthenticated && appliedGuestInterestTagIds.isEmpty
@@ -5691,6 +5696,8 @@ struct NewChatWelcomeView: View {
         }
         .onDisappear {
             draftSaveTask?.cancel()
+            attachmentUploadTasks.values.forEach { $0.cancel() }
+            attachmentUploadTasks.removeAll()
             Task { @MainActor in _ = await flushNewChatDraft() }
             if composerOverlay == .recording || recordAttemptActive {
                 cancelWelcomeRecording()
@@ -5724,12 +5731,157 @@ struct NewChatWelcomeView: View {
         kind: WelcomeComposerPendingKind,
         shouldFocus: Bool = true
     ) {
+        if case .image = kind, let data, isAuthenticated {
+            enqueueWelcomeImageUpload(data: data, filename: filename)
+            showAttachmentMenu = false
+            isComposerActivated = true
+            isFocused = shouldFocus
+            return
+        }
         addPendingComposerEmbed(filename: filename, kind: kind, data: data)
         showAttachmentMenu = false
         isComposerActivated = true
         isFocused = shouldFocus
         ToastManager.shared.show(filename, type: .info)
     }
+
+    private func enqueueWelcomeImageUpload(data: Data, filename: String) {
+        modelDraftID = DraftService.shared.reserveNewChatDraftId(preferredId: modelDraftID)
+        let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
+        do {
+            try composerSession.insertPendingEmbed(
+                nodeID: nodeID,
+                embedType: "image",
+                title: filename,
+                localPreviewData: data
+            )
+        } catch {
+            NativeDiagnostics.error(
+                "Welcome image insertion failed: \(type(of: error))",
+                category: "apple_composer"
+            )
+            return
+        }
+        performWelcomeImageUpload(nodeID: nodeID, data: data, filename: filename)
+    }
+
+    private func performWelcomeImageUpload(nodeID: String, data: Data, filename: String) {
+        attachmentUploadTasks[nodeID]?.cancel()
+        let draftID = modelDraftID
+        let scopeGeneration = OfflineStore.shared.scopeGeneration
+        PendingUploadStore.shared.startUpload(id: nodeID, chatId: draftID, filename: filename)
+        try? composerSession.updateEmbed(
+            nodeID: nodeID,
+            status: AppleComposerEmbedLifecycleState.uploading.rawValue
+        )
+        attachmentUploadTasks[nodeID] = Task { @MainActor in
+            defer { attachmentUploadTasks.removeValue(forKey: nodeID) }
+            do {
+                let response = try await APIClient.shared.uploadFile(
+                    data: data,
+                    filename: filename,
+                    contentType: welcomeImageContentType(filename: filename),
+                    chatId: draftID
+                )
+                try Task.checkCancellation()
+                guard modelDraftID == draftID,
+                      OfflineStore.shared.scopeGeneration == scopeGeneration,
+                      composerSession.controller.document.nodes.contains(where: { $0.id == nodeID }) else {
+                    return
+                }
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                let upload = try decoder.decode(UploadFileResponse.self, from: response)
+                let embed = ComposerPendingEmbed.from(
+                    upload: upload,
+                    localData: data,
+                    transcription: nil,
+                    duration: nil
+                )
+                pendingComposerEmbeds.removeAll { $0.id == embed.id }
+                pendingComposerEmbeds.append(embed)
+                try composerSession.resolveEmbed(
+                    nodeID: nodeID,
+                    durableEmbedID: embed.id,
+                    referenceType: embed.referenceType,
+                    status: embed.status,
+                    embedRecord: embed.record,
+                    localPreviewData: data
+                )
+                try composerSession.configureEmbedActions(
+                    nodeID: nodeID,
+                    onOpen: { _ in },
+                    onRetry: { _ in
+                        performWelcomeImageUpload(nodeID: nodeID, data: data, filename: filename)
+                    },
+                    onRemove: { _ in
+                        attachmentUploadTasks.removeValue(forKey: nodeID)?.cancel()
+                        PendingUploadStore.shared.cancelUpload(id: nodeID)
+                        pendingComposerEmbeds.removeAll { $0.id == embed.id }
+                    }
+                )
+                PendingUploadStore.shared.markFinished(id: nodeID)
+                ToastManager.shared.show(filename, type: .info)
+            } catch is CancellationError {
+                PendingUploadStore.shared.cancelUpload(id: nodeID)
+            } catch {
+                PendingUploadStore.shared.markError(id: nodeID, message: AppStrings.uploadProgressError)
+                try? composerSession.updateEmbed(
+                    nodeID: nodeID,
+                    status: AppleComposerEmbedLifecycleState.error.rawValue
+                )
+                try? composerSession.configureEmbedActions(
+                    nodeID: nodeID,
+                    onOpen: { _ in },
+                    onRetry: { _ in
+                        performWelcomeImageUpload(nodeID: nodeID, data: data, filename: filename)
+                    },
+                    onRemove: { _ in
+                        attachmentUploadTasks.removeValue(forKey: nodeID)?.cancel()
+                        PendingUploadStore.shared.cancelUpload(id: nodeID)
+                    }
+                )
+                NativeDiagnostics.error(
+                    "Welcome image upload failed: \(type(of: error))",
+                    category: "apple_composer"
+                )
+            }
+        }
+    }
+
+    private func welcomeImageContentType(filename: String) -> String {
+        switch URL(fileURLWithPath: filename).pathExtension.lowercased() {
+        case "jpg", "jpeg": return "image/jpeg"
+        case "gif": return "image/gif"
+        case "webp": return "image/webp"
+        case "heic": return "image/heic"
+        case "heif": return "image/heif"
+        default: return "image/png"
+        }
+    }
+
+    private func startLivePhotoUploadFixtureIfNeeded() {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("--ui-test-photo-live-upload"),
+              isAuthenticated,
+              pendingComposerEmbeds.isEmpty,
+              attachmentUploadTasks.isEmpty,
+              !composerSession.controller.document.nodes.contains(where: { $0.kind == "embed" }),
+              let data = Data(base64Encoded: Self.livePhotoUploadFixtureBase64) else { return }
+        handleAttachmentSelection(
+            data: data,
+            filename: "quick-action-photo.png",
+            kind: .image,
+            shouldFocus: false
+        )
+        #endif
+    }
+
+    #if DEBUG
+    static let livePhotoUploadFixtureBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    #endif
 
     private func addPendingComposerEmbed(filename: String, kind: WelcomeComposerPendingKind, data: Data? = nil, duration: TimeInterval? = nil) {
         let embed = makePendingComposerEmbed(filename: filename, kind: kind, data: data, duration: duration)
@@ -6073,7 +6225,7 @@ struct NewChatWelcomeView: View {
                 NativeDiagnostics.event(
                     "recording_embed_resolved",
                     category: "apple_composer",
-                    flags: ["has_record": embed.record != nil, "has_local_audio": embed.localData != nil]
+                    flags: ["has_local_audio": embed.localData != nil]
                 )
                 // A completed recording is a durable composer atom. Persist its
                 // markdown and encrypted companion snapshot atomically; the
@@ -6353,6 +6505,16 @@ struct NewChatWelcomeView: View {
             isComposerActivated = true
             isFocused = false
         }
+        if arguments.contains("--ui-test-welcome-long-image-filename"), pendingComposerEmbeds.isEmpty {
+            addPendingComposerEmbed(
+                filename: "Screenshot 2026-09-24 at 11.16.43 in OpenMates.jpg",
+                kind: .image,
+                data: Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+            )
+            isGuestInterestSelectionActive = false
+            isComposerActivated = true
+            isFocused = true
+        }
         if arguments.contains("--ui-test-welcome-seed-finished-audio"), pendingComposerEmbeds.isEmpty {
             addPendingComposerEmbed(filename: "welcome-recording.m4a", kind: .audio, duration: 5)
             isComposerActivated = true
@@ -6509,8 +6671,10 @@ struct NewChatWelcomeView: View {
         }
     }
 
-    private var welcomeHeader: some View {
-        VStack(spacing: .spacing3) {
+    private func welcomeHeader(containerSize: CGSize) -> some View {
+        let backgroundIconSize = max(76, min(128, containerSize.width * 0.11))
+
+        return VStack(spacing: .spacing3) {
             Text(isAuthenticated ? AppStrings.welcomeHeyUser(displayName) : AppStrings.welcomeHeyGuest)
                 .font(.custom("Lexend Deca", size: 30).weight(.semibold))
                 .foregroundStyle(Color.fontPrimary)
@@ -6535,6 +6699,12 @@ struct NewChatWelcomeView: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("guest-interest-select-interests")
             }
+        }
+        .background {
+            Icon("chat", size: backgroundIconSize)
+                .foregroundStyle(Color.grey30)
+                .offset(y: -2)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, .spacing6)
     }
@@ -7182,13 +7352,19 @@ struct NewChatWelcomeView: View {
             return
         }
 
-        let outboundText = message
-
-        let redaction = PIIDetector.redactionResult(
-            in: outboundText,
+        let redaction = ComposerPIIDecorations.redactedDocument(
+            document: composerSession.controller.document,
             excludedIds: piiExclusions,
             options: piiPrivacySettingsStore.detectionOptions()
         )
+        let outboundText: String
+        do {
+            outboundText = try ComposerMarkdownAdapter.serialize(redaction.document)
+        } catch {
+            recordWelcomeSendStage("failed-serialization")
+            NativeDiagnostics.warning("Welcome composer serialization failed", category: "chat_send")
+            return
+        }
         isCreatingChat = true
         draftSaveTask?.cancel()
         draftSaveTask = nil
@@ -7211,7 +7387,7 @@ struct NewChatWelcomeView: View {
                 await modelHost.activate(context)
                 let routingGeneration = modelHost.sendGeneration
                 recordWelcomeSendStage("model-route")
-                let routedText = try await modelHost.textForSend(redaction.redactedText, expectedGeneration: routingGeneration)
+                let routedText = try await modelHost.textForSend(outboundText, expectedGeneration: routingGeneration)
                 recordWelcomeSendStage("model-routed")
                 guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
                     accountGeneration: OfflineStore.shared.scopeGeneration, chatID: modelDraftID),
@@ -7270,8 +7446,12 @@ struct NewChatWelcomeView: View {
         }
     }
 
-    private func updatePIIMatches(for text: String) {
-        detectedPIIMatches = PIIDetector.detect(in: text, options: piiPrivacySettingsStore.detectionOptions())
+    private func updatePIIMatches(for _: String) {
+        let visibleText = ComposerPIIDecorations.visibleText(document: composerSession.controller.document)
+        detectedPIIMatches = PIIDetector.detect(
+            in: visibleText,
+            options: piiPrivacySettingsStore.detectionOptions()
+        )
         let currentIds = Set(detectedPIIMatches.map(\.id))
         piiExclusions = piiExclusions.intersection(currentIds)
     }
@@ -7694,6 +7874,9 @@ private struct InterestTagChip: View {
 // Production continuation carousel shared with isolated component tests.
 // Web: ActiveChat.svelte resume cards; selection/filtering stays in WelcomeScreenState.
 struct WelcomeContinuationCarousel: View {
+    /// The web threshold is 800px for the full viewport. Native receives the
+    /// content area after app chrome and safe areas, which is about 100pt less.
+    static let largeCardContentHeightThreshold: CGFloat = 700
     let cards: [WelcomeChatCardData]
     var overflowCount = 0
     let containerSize: CGSize
@@ -7701,7 +7884,7 @@ struct WelcomeContinuationCarousel: View {
     let onShowChatActions: (String) -> Void
     private var usesLargeCards: Bool { Self.usesLargeCards(for: containerSize) }
     static func usesLargeCards(for size: CGSize) -> Bool {
-        size.height >= 800 && size.width >= 550
+        size.height >= largeCardContentHeightThreshold
     }
     var body: some View {
         GeometryReader { proxy in
@@ -8214,7 +8397,7 @@ private struct WelcomeComposer: View {
         // Preserve the web-sized 200pt embed card, but let its scrollable field
         // contract when the iPhone keyboard and suggestions share the viewport.
         return min(
-            MessageComposerMetric.expandedMaxHeight,
+            MessageComposerMetric.embedTextFieldMaxHeight,
             max(
                 MessageComposerMetric.focusedEmptyHeight + .spacing1,
                 availableHeight - .spacing10

@@ -4,6 +4,7 @@
 // recovery credentials, provider APIs, or network state.
 
 import XCTest
+import ImageIO
 @testable import OpenMates
 #if os(iOS)
 import UIKit
@@ -200,6 +201,25 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(description.contains("file:///Users"))
         XCTAssertFalse(logs.contains("password=secret"))
         XCTAssertTrue(logs.contains("<email>"))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=issue-reporting.submission.confirmed-and-durable
+    func testIssueReportScreenshotBundleIncludesEverySelectedImage() throws {
+        let onePixelPNG = try XCTUnwrap(Data(base64Encoded:
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        ))
+        let composite = try XCTUnwrap(IssueReportScreenshotBundle.makePNG(
+            from: [onePixelPNG, onePixelPNG, onePixelPNG]
+        ))
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(composite as CFData, nil))
+        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+
+        XCTAssertEqual(image.width, 1)
+        XCTAssertEqual(image.height, 3, "Each selected screenshot must occupy its own row in the submitted composite.")
+        XCTAssertLessThanOrEqual(composite.count, IssueReportScreenshotBundle.maximumOutputBytes)
+        XCTAssertThrowsError(try IssueReportScreenshotBundle.makePNG(
+            from: Array(repeating: onePixelPNG, count: IssueReportScreenshotBundle.maximumAttachments + 1)
+        ))
     }
 
     // contract-test: direct surface=gui.apple assertions=issue-reporting.input.long-title-preserved

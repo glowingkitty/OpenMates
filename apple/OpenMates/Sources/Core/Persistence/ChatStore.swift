@@ -219,7 +219,11 @@ final class ChatStore: ObservableObject {
     }
 
     func setMessages(for chatId: String, messages: [Message]) {
-        let sorted = messages.sorted { a, b in a.createdAt < b.createdAt }
+        let localById = (messagesByChat[chatId] ?? []).reduce(into: [String: Message]()) {
+            $0[$1.id] = $1
+        }
+        let sorted = messages.map { preserveLocalEmbedRefs($0, local: localById[$0.id]) }
+            .sorted { a, b in a.createdAt < b.createdAt }
         messagesByChat[chatId] = sorted
         persistIfAllowed { $0.onMessagesReceived(sorted, chatId: chatId) }
     }
@@ -270,7 +274,7 @@ final class ChatStore: ObservableObject {
         guard !embeds.isEmpty else { return }
         var current = embedsByChat[chatId] ?? [:]
         for embed in embeds {
-            current[embed.id] = embed
+            current[embed.id] = preserveFinishedUploadPreview(embed, local: current[embed.id])
         }
         embedsByChat[chatId] = current
         persistIfAllowed { $0.onEmbedsReceived(embeds, chatId: chatId) }
@@ -285,6 +289,9 @@ final class ChatStore: ObservableObject {
         var nextMessages = messagesByChat
         for (chatId, messages) in incomingMessages {
             let incomingIds = Set(messages.map(\.id))
+            let localById = (messagesByChat[chatId] ?? []).reduce(into: [String: Message]()) {
+                $0[$1.id] = $1
+            }
             let pendingIds = pendingAssistantRecoveryLookup(chatId)
             let pendingReplies = (messagesByChat[chatId] ?? []).filter {
                 $0.chatId == chatId && $0.role == .assistant &&
@@ -293,7 +300,8 @@ final class ChatStore: ObservableObject {
             // Server rows win once available. Only explicitly pending assistant
             // replies survive an absent row; this never resurrects deleted history
             // or changes the authoritative messages_v advertised to the server.
-            nextMessages[chatId] = (messages + pendingReplies).sorted { $0.createdAt < $1.createdAt }
+            let resolved = messages.map { preserveLocalEmbedRefs($0, local: localById[$0.id]) }
+            nextMessages[chatId] = (resolved + pendingReplies).sorted { $0.createdAt < $1.createdAt }
         }
         if !incomingMessages.isEmpty {
             messagesByChat = nextMessages
@@ -303,7 +311,7 @@ final class ChatStore: ObservableObject {
         for (chatId, embeds) in incomingEmbeds where !embeds.isEmpty {
             var current = nextEmbeds[chatId] ?? [:]
             for embed in embeds {
-                current[embed.id] = embed
+                current[embed.id] = preserveFinishedUploadPreview(embed, local: current[embed.id])
             }
             nextEmbeds[chatId] = current
         }
@@ -322,6 +330,58 @@ final class ChatStore: ObservableObject {
         let embedCount = incomingEmbeds.values.reduce(0) { $0 + $1.count }
         NativeSyncPerfLog.info(
             "phase=chatStoreApplySyncedContent chats=\(incomingMessages.count) messages=\(messageCount) embedChats=\(incomingEmbeds.count) embeds=\(embedCount) publishMs=\(NativeSyncPerfLog.ms(since: start))"
+        )
+    }
+
+    private func preserveLocalEmbedRefs(_ incoming: Message, local: Message?) -> Message {
+        guard incoming.embedRefs == nil, let local,
+              local.role == incoming.role,
+              let refs = local.embedRefs, !refs.isEmpty else { return incoming }
+        // Saved encrypted rows omit embed_refs. Preserve the references from
+        // the same durable local message while accepting the server ciphertext.
+        return Message(
+            id: incoming.id, chatId: incoming.chatId, role: incoming.role,
+            content: incoming.content, encryptedContent: incoming.encryptedContent,
+            createdAt: incoming.createdAt, updatedAt: incoming.updatedAt,
+            appId: incoming.appId, isStreaming: incoming.isStreaming,
+            embedRefs: refs, modelName: incoming.modelName,
+            senderName: incoming.senderName, category: incoming.category,
+            encryptedSenderName: incoming.encryptedSenderName,
+            encryptedCategory: incoming.encryptedCategory,
+            encryptedModelName: incoming.encryptedModelName,
+            piiMappings: incoming.piiMappings,
+            encryptedPIIMappings: incoming.encryptedPIIMappings,
+            thinkingContent: incoming.thinkingContent,
+            encryptedThinkingContent: incoming.encryptedThinkingContent,
+            encryptedThinkingSignature: incoming.encryptedThinkingSignature,
+            thinkingTokenCount: incoming.thinkingTokenCount,
+            renderDocument: incoming.renderDocument
+        )
+    }
+
+    private func preserveFinishedUploadPreview(_ incoming: EmbedRecord, local: EmbedRecord?) -> EmbedRecord {
+        guard let local, local.status == .finished, local.rawData != nil,
+              incoming.status == .finished, incoming.rawData == nil,
+              let ciphertext = incoming.encryptedContent,
+              local.hashedMessageId == nil || local.encryptedContent == ciphertext else { return incoming }
+        // A just-uploaded local preview remains available until the encrypted
+        // row and its key finish hydrating. Keep the server's ciphertext and
+        // linkage so a cold open still uses the durable record.
+        return EmbedRecord(
+            id: incoming.id, type: local.type, status: incoming.status,
+            data: local.data, encryptedContent: incoming.encryptedContent,
+            encryptedType: incoming.encryptedType,
+            encryptedTextPreview: incoming.encryptedTextPreview,
+            parentEmbedId: incoming.parentEmbedId, appId: local.appId,
+            skillId: local.skillId, embedIds: incoming.embedIds,
+            hashedChatId: incoming.hashedChatId,
+            hashedMessageId: incoming.hashedMessageId,
+            hashedUserId: incoming.hashedUserId,
+            versionNumber: incoming.versionNumber,
+            contentHash: incoming.contentHash,
+            versionHistory: incoming.versionHistory,
+            versionHistoryReadonly: incoming.versionHistoryReadonly,
+            createdAt: incoming.createdAt
         )
     }
 
@@ -563,9 +623,14 @@ private extension Chat {
             ? max(clearedDraftV ?? 0, max(draftV ?? 0, incomingVersion))
             : max(clearedDraftV ?? 0, incoming.clearedDraftV ?? 0)
         let acceptsIncomingMetadata = (incoming.metadataV ?? 0) >= (metadataV ?? 0)
+        let acceptsIncomingSummary = (incoming.metadataV ?? 0) > (metadataV ?? 0)
+            || ((incoming.metadataV ?? 0) == (metadataV ?? 0)
+                && chatSummary == nil && encryptedChatSummary == nil)
+        let acceptsIncomingTitle = (incoming.titleV ?? 0) > (titleV ?? 0)
+            || ((incoming.titleV ?? 0) == (titleV ?? 0) && title == nil && encryptedTitle == nil)
         return Chat(
             id: id,
-            title: incoming.title ?? title,
+            title: acceptsIncomingTitle ? (incoming.title ?? title) : title,
             lastMessageAt: incoming.lastMessageAt ?? lastMessageAt,
             createdAt: createdAt,
             updatedAt: incoming.updatedAt ?? updatedAt,
@@ -574,11 +639,12 @@ private extension Chat {
             appId: incoming.appId ?? appId,
             category: incoming.category ?? category,
             icon: incoming.icon ?? icon,
-            chatSummary: incoming.chatSummary ?? chatSummary,
-            encryptedTitle: incoming.encryptedTitle ?? encryptedTitle,
+            chatSummary: acceptsIncomingSummary ? (incoming.chatSummary ?? chatSummary) : chatSummary,
+            encryptedTitle: acceptsIncomingTitle ? (incoming.encryptedTitle ?? encryptedTitle) : encryptedTitle,
             encryptedCategory: incoming.encryptedCategory ?? encryptedCategory,
             encryptedIcon: incoming.encryptedIcon ?? encryptedIcon,
-            encryptedChatSummary: incoming.encryptedChatSummary ?? encryptedChatSummary,
+            encryptedChatSummary: acceptsIncomingSummary
+                ? (incoming.encryptedChatSummary ?? encryptedChatSummary) : encryptedChatSummary,
             encryptedFollowUpRequestSuggestions: acceptsIncomingMetadata
                 ? (incoming.encryptedFollowUpRequestSuggestions ?? encryptedFollowUpRequestSuggestions)
                 : encryptedFollowUpRequestSuggestions,

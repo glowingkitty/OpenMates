@@ -36,6 +36,13 @@ enum MessageComposerMetric {
         (editorVerticalInset * 2) + (editorLineHeight * collapsedVisibleLineCount)
     static let collapsedTextFieldMaxHeight: CGFloat =
         collapsedTextEditorMaxHeight + expandedBottomReservedHeight
+    /// Web image previews are 300x200. Keep that full card plus three message
+    /// lines visible before the editor itself begins scrolling.
+    static let embedPreviewHeight: CGFloat = 200
+    static let embedTextEditorMaxHeight: CGFloat =
+        embedPreviewHeight + (editorVerticalInset * 2) + (editorLineHeight * collapsedVisibleLineCount)
+    static let embedTextFieldMaxHeight: CGFloat =
+        embedTextEditorMaxHeight + expandedBottomReservedHeight
     /// Web `MessageInput.styles.css`: `.message-field { max-height: 350px; }`.
     static let expandedMaxHeight: CGFloat = 350
     static let expandedCornerRadius: CGFloat = 24
@@ -43,7 +50,7 @@ enum MessageComposerMetric {
     static let inlineCompactHeight: CGFloat = 48
 
     static func editorHeight(for contentHeight: CGFloat, containsEmbed: Bool) -> CGFloat {
-        min(contentHeight, containsEmbed ? 250 : collapsedTextEditorMaxHeight)
+        min(contentHeight, containsEmbed ? embedTextEditorMaxHeight : collapsedTextEditorMaxHeight)
     }
 }
 

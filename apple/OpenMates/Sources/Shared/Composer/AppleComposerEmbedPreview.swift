@@ -351,10 +351,14 @@ private struct ComposerLocalImagePreview: View {
             EmbedBasicInfoBar(
                 appId: "images",
                 skillIconName: AppIconView.iconName(forAppId: "images"),
-                title: title,
+                // Match ImageEmbedPreview.svelte: keep the extension visible and
+                // bound the title before it reaches the single-line metadata row.
+                title: ComposerAttachmentFilename.displayName(for: title),
                 subtitle: lifecycleLabel,
                 faviconURL: nil,
-                showSkillIcon: false
+                showSkillIcon: false,
+                titleLineLimit: 1,
+                titleTruncationMode: .middle
             )
             .accessibilityIdentifier("native-composer-image-info-bar")
         }
@@ -363,6 +367,29 @@ private struct ComposerLocalImagePreview: View {
         .clipShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
         .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
         .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
+    }
+}
+
+/// Web `ImageEmbedPreview.svelte` bounds image titles to 30 characters while
+/// retaining the extension. The ellipsis therefore sits between the shortened
+/// stem and suffix instead of hiding the file type.
+enum ComposerAttachmentFilename {
+    static let maximumDisplayLength = 30
+
+    static func displayName(for filename: String) -> String {
+        guard filename.count > maximumDisplayLength else { return filename }
+
+        guard let dot = filename.lastIndex(of: "."), dot != filename.startIndex else {
+            return String(filename.prefix(maximumDisplayLength - 1)) + "…"
+        }
+
+        let fileExtension = String(filename[dot...])
+        let stem = filename[..<dot]
+        let allowedStemLength = maximumDisplayLength - fileExtension.count - 1
+        guard allowedStemLength > 0 else {
+            return String(filename.prefix(maximumDisplayLength - 1)) + "…"
+        }
+        return String(stem.prefix(allowedStemLength)) + "…" + fileExtension
     }
 }
 

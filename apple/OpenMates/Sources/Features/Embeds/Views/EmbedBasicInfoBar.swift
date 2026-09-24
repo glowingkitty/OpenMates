@@ -28,6 +28,8 @@ struct EmbedBasicInfoBar: View {
     let subtitle: String?
     let faviconURL: String?
     let showSkillIcon: Bool
+    let titleLineLimit: Int?
+    let titleTruncationMode: Text.TruncationMode
     let trailingAction: AnyView?
 
     init(
@@ -37,6 +39,8 @@ struct EmbedBasicInfoBar: View {
         subtitle: String?,
         faviconURL: String?,
         showSkillIcon: Bool,
+        titleLineLimit: Int? = nil,
+        titleTruncationMode: Text.TruncationMode = .tail,
         trailingAction: AnyView? = nil
     ) {
         self.appId = appId
@@ -45,6 +49,8 @@ struct EmbedBasicInfoBar: View {
         self.subtitle = subtitle
         self.faviconURL = faviconURL
         self.showSkillIcon = showSkillIcon
+        self.titleLineLimit = titleLineLimit
+        self.titleTruncationMode = titleTruncationMode
         self.trailingAction = trailingAction
     }
 
@@ -74,7 +80,8 @@ struct EmbedBasicInfoBar: View {
                         .font(.omP)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.grey100)
-                        .lineLimit(subtitle == nil ? 2 : 1)
+                        .lineLimit(titleLineLimit ?? (subtitle == nil ? 2 : 1))
+                        .truncationMode(titleTruncationMode)
                         // Bundled Lexend ascender/descender total 1.25em;
                         // add the remaining 0.15em for web's 1.4 line box.
                         .lineSpacing(subtitle == nil ? 2.4 : 0)

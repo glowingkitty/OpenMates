@@ -17,9 +17,31 @@ import SwiftUI
 struct ChatHeaderView: View {
     let chat: Chat?
     let titleOverride: String?
+    /// Immediate client-side title derived from the first user message. This
+    /// keeps the header useful while encrypted generated metadata is still in
+    /// flight, then yields to the server title as soon as it arrives.
+    let provisionalTitle: String?
     let isLoading: Bool
 
-    private var title: String { titleOverride ?? chat?.displayTitle ?? "" }
+    init(
+        chat: Chat?,
+        titleOverride: String?,
+        provisionalTitle: String? = nil,
+        isLoading: Bool
+    ) {
+        self.chat = chat
+        self.titleOverride = titleOverride
+        self.provisionalTitle = provisionalTitle
+        self.isLoading = isLoading
+    }
+
+    private var title: String {
+        ChatHeaderPresentation.title(
+            override: titleOverride,
+            generated: chat?.title,
+            provisional: provisionalTitle
+        )
+    }
 
     var body: some View {
         HStack(spacing: .spacing3) {
@@ -43,6 +65,33 @@ struct ChatHeaderView: View {
         .accessibilityElement(children: .contain)
     }
 
+}
+
+/// Presentation-only title policy shared by the rendered header and focused
+/// tests. The generated encrypted title remains authoritative once available.
+@MainActor
+enum ChatHeaderPresentation {
+    static let provisionalTitleLimit = 60
+
+    static func title(override: String?, generated: String?, provisional: String?) -> String {
+        firstNonEmpty([override, generated, provisional]) ?? AppStrings.newChat
+    }
+
+    static func provisionalTitle(from message: String) -> String? {
+        let collapsed = message
+            .split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+        guard !collapsed.isEmpty else { return nil }
+        guard collapsed.count > provisionalTitleLimit else { return collapsed }
+        return String(collapsed.prefix(provisionalTitleLimit)).trimmingCharacters(in: .whitespacesAndNewlines) + "…"
+    }
+
+    private static func firstNonEmpty(_ values: [String?]) -> String? {
+        values.lazy.compactMap { value in
+            let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return trimmed.isEmpty ? nil : trimmed
+        }.first
+    }
 }
 
 // MARK: - Assistant message identity

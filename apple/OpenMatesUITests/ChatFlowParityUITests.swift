@@ -285,7 +285,7 @@ final class ChatFlowParityUITests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=landing-onboarding.uses-real-chat-shell
-    func testWelcomeRecentOverflowUsesCompactHeightOnPhone() throws {
+    func testWelcomeRecentOverflowUsesLargeHeightOnTallPhone() throws {
         let app = XCUIApplication()
         app.launchArguments = [
             "--ui-test-disable-auth-cache",
@@ -297,32 +297,28 @@ final class ChatFlowParityUITests: XCTestCase {
         let carousel = app.scrollViews["welcome-chat-cards-carousel"]
         XCTAssertTrue(carousel.waitForExistence(timeout: 15))
 
-        let compactCard = app.buttons["welcome-chat-compact-card-ui-test-welcome-recent-0"]
-        XCTAssertTrue(compactCard.waitForExistence(timeout: 5))
+        let largeCard = app.buttons["welcome-chat-card-ui-test-welcome-recent-0"]
+        XCTAssertTrue(largeCard.waitForExistence(timeout: 5))
 
-        let overflow = app.descendants(matching: .any)["welcome-chat-overflow-compact"]
+        let overflow = app.descendants(matching: .any)["welcome-chat-overflow-large"]
         for _ in 0..<12 where !overflow.isHittable {
             carousel.swipeLeft()
         }
 
         XCTAssertTrue(overflow.waitForExistence(timeout: 5))
-        XCTAssertTrue(overflow.isHittable, "Expected compact overflow counter to be reachable in the recent-chat carousel")
-        XCTAssertLessThanOrEqual(
+        XCTAssertTrue(overflow.isHittable, "Expected large overflow counter to be reachable in the recent-chat carousel")
+        XCTAssertEqual(
             overflow.frame.height,
-            50,
-            "Compact overflow counter should match the web compact 44px treatment instead of using large-card height"
-        )
-        XCTAssertLessThanOrEqual(
-            overflow.frame.height,
-            compactCard.frame.height + 1,
-            "Compact overflow counter must not be taller than compact recent cards"
+            largeCard.frame.height,
+            accuracy: 1,
+            "Tall phones should use the full continuation-card height throughout the carousel"
         )
 
-        attachScreenshot(name: "Welcome compact recent overflow height")
+        attachScreenshot(name: "Welcome tall-phone large continuation cards")
     }
 
     // contract-test: supporting surface=gui.apple assertions=landing-onboarding.uses-real-chat-shell
-    func testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress() throws {
+    func testWelcomeLargeRecentCardOnTallPhoneOpensActionsOnLongPress() throws {
         let app = XCUIApplication()
         app.launchArguments = [
             "--ui-test-disable-auth-cache",
@@ -331,14 +327,11 @@ final class ChatFlowParityUITests: XCTestCase {
         ]
         app.launch()
 
-        let compactCard = app.buttons["welcome-chat-compact-card-ui-test-welcome-recent-0"]
-        XCTAssertTrue(compactCard.waitForExistence(timeout: 15))
-        XCTAssertFalse(
-            app.staticTexts["Seeded compact recent card"].exists,
-            "Short-height web cards render the title only"
-        )
+        let largeCard = app.buttons["welcome-chat-card-ui-test-welcome-recent-0"]
+        XCTAssertTrue(largeCard.waitForExistence(timeout: 15))
+        XCTAssertGreaterThanOrEqual(largeCard.frame.height, 190)
 
-        compactCard.press(forDuration: 0.8)
+        largeCard.press(forDuration: 0.8)
 
         XCTAssertTrue(
             app.descendants(matching: .any)["chat-actions-menu"].waitForExistence(timeout: 5),

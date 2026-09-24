@@ -5,7 +5,7 @@
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.layout.responsive-history, chats.surface.semantic-parity
+// Assertions: chats.layout.responsive-history, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.surface.semantic-parity
 
 // ─── Web source ─────────────────────────────────────────────────────
 // MessageBubble:
@@ -47,6 +47,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import CryptoKit
+import Foundation
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -479,7 +480,11 @@ struct ChatView: View {
             #if DEBUG
             .overlay(alignment: .topLeading) {
                 if ProcessInfo.processInfo.arguments.contains("--ui-test-expose-chat-ids"), let chatStore {
-                    ChatRecoveryStateProbe(store: chatStore, chatId: chatId)
+                    ChatRecoveryStateProbe(
+                        store: chatStore, chatId: chatId,
+                        renderedMessages: viewModel.messages,
+                        renderedEmbeds: viewModel.embedRecords
+                    )
                 }
             }
             #endif
@@ -700,11 +705,7 @@ struct ChatView: View {
     }
 
     private var initialEmbedSyncSignature: String {
-        [
-            initialChat?.id ?? "",
-            String(initialEmbeds.count),
-            initialEmbeds.map(\.id).max() ?? ""
-        ].joined(separator: "|")
+        ChatEmbedSyncSignature.make(chatId: initialChat?.id, embeds: initialEmbeds)
     }
 
     private var embedRecordIdsSignature: String {
@@ -870,21 +871,29 @@ struct ChatView: View {
            isDraftOnlyChat(chat) {
             return .draftOnly(preview: draftOnlyPreview(for: chat))
         }
-        if let chat = viewModel.chat,
-           ChatGeneratedHeaderPolicy.shouldShowLoading(
-               title: chat.title,
-               titleVersion: chat.titleV,
-               hasMessages: !viewModel.messages.isEmpty,
-               isStreaming: viewModel.isStreaming
-           ) {
-            return .loading
+        guard let chat = viewModel.chat else { return nil }
+        return ChatBannerPresentation.generatedOrProvisionalState(
+            title: chat.title,
+            provisionalTitle: chat.title?.isEmpty == false ? nil : firstUserMessageProvisionalTitle,
+            category: chat.category,
+            summary: chat.chatSummary,
+            shouldShowLoading: ChatGeneratedHeaderPolicy.shouldShowLoading(
+                title: chat.title,
+                titleVersion: chat.titleV,
+                hasMessages: !viewModel.messages.isEmpty,
+                isStreaming: viewModel.isStreaming
+            )
+        )
+    }
+
+    private var firstUserMessageProvisionalTitle: String? {
+        guard let content = viewModel.messages.first(where: { $0.role == .user })?.content,
+              let text = ChatSendPipeline.provisionalTitleSource(content: content, composerEmbeds: []) else {
+            return nil
         }
-        guard let chat = viewModel.chat,
-              let title = chat.title,
-              let category = chat.category,
-              !title.isEmpty,
-              !category.isEmpty else { return nil }
-        return .loaded(title: title, appId: category, summary: chat.chatSummary)
+        // Audio-only and file-only messages await generated metadata; an embed
+        // reference or filename is not a meaningful chat title.
+        return ChatHeaderPresentation.provisionalTitle(from: text)
     }
 
     private var effectiveBannerCreatedAt: Date? {
@@ -924,6 +933,7 @@ struct ChatView: View {
             ChatHeaderView(
                 chat: viewModel.chat,
                 titleOverride: viewModel.chat.flatMap { isDraftOnlyChat($0) ? draftOnlyPreview(for: $0) : nil },
+                provisionalTitle: viewModel.chat?.title?.isEmpty == false ? nil : firstUserMessageProvisionalTitle,
                 isLoading: viewModel.isLoading
             )
 
@@ -2748,7 +2758,11 @@ struct ChatView: View {
 
         guard let generation = composerEmbedLifecycle.record(nodeId: nodeID)?.generation else { return }
         Task { @MainActor in
-            guard let embed = await viewModel.uploadAttachment(data: data, filename: filename) else {
+            guard let embed = await viewModel.uploadAttachment(
+                data: data,
+                filename: filename,
+                trackingId: nodeID
+            ) else {
                 _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
                 return
             }
@@ -2791,7 +2805,11 @@ struct ChatView: View {
     private func retryAttachmentUpload(nodeID: String, data: Data, filename: String) {
         guard let generation = retryComposerEmbed(nodeID: nodeID, to: .uploading) else { return }
         Task { @MainActor in
-            guard let embed = await viewModel.uploadAttachment(data: data, filename: filename) else {
+            guard let embed = await viewModel.uploadAttachment(
+                data: data,
+                filename: filename,
+                trackingId: nodeID
+            ) else {
                 _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
                 return
             }
@@ -2859,7 +2877,8 @@ struct ChatView: View {
                 url: url,
                 duration: duration,
                 waveform: waveform,
-                realtimeResult: realtimeResult
+                realtimeResult: realtimeResult,
+                trackingId: nodeID
             )
             recordingUploadTasks[nodeID] = nil
             guard !Task.isCancelled else {
@@ -2882,7 +2901,11 @@ struct ChatView: View {
 
     private func retryRecordingUpload(nodeID: String, url: URL, duration: TimeInterval) async {
         guard let generation = retryComposerEmbed(nodeID: nodeID, to: .transcribing) else { return }
-        guard let embed = await viewModel.uploadRecording(url: url, duration: duration) else {
+        guard let embed = await viewModel.uploadRecording(
+            url: url,
+            duration: duration,
+            trackingId: nodeID
+        ) else {
             _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
             return
         }
@@ -2981,6 +3004,7 @@ struct ChatView: View {
     private func handleComposerEmbedRemoval(nodeID: String, durableID: String) {
         recordingUploadTasks.removeValue(forKey: nodeID)?.cancel()
         removeRecordingTemporaryFile(nodeID: nodeID)
+        PendingUploadStore.shared.cancelUpload(id: nodeID)
         if let current = composerEmbedLifecycle.record(nodeId: nodeID),
            case .applied(let record) = composerEmbedLifecycle.remove(
                nodeId: nodeID,
@@ -3865,6 +3889,43 @@ struct ChatView: View {
     }
 }
 
+/// Same-ID embed transitions are ordinary during app-skill streaming. Hash the
+/// complete render/persistence revision so SwiftUI observes processing→finished
+/// and version refreshes without retaining plaintext in view state.
+enum ChatEmbedSyncSignature {
+    static func make(chatId: String?, embeds: [EmbedRecord]) -> String {
+        var hasher = SHA256()
+        update(&hasher, chatId ?? "")
+        for embed in embeds.sorted(by: { $0.id < $1.id }) {
+            for value in [
+                embed.id, embed.type, embed.status.rawValue,
+                embed.parentEmbedId ?? "", embed.appId ?? "", embed.skillId ?? "",
+                embed.embedIds ?? "", embed.hashedChatId ?? "", embed.hashedMessageId ?? "",
+                embed.hashedUserId ?? "", embed.versionNumber.map(String.init) ?? "",
+                embed.contentHash ?? "", embed.createdAt ?? "",
+                embed.encryptedContent ?? "", embed.encryptedType ?? "",
+                embed.encryptedTextPreview ?? "",
+            ] {
+                update(&hasher, value)
+            }
+            if let rawData = embed.rawData,
+               JSONSerialization.isValidJSONObject(rawData.mapValues(\.value)),
+               let data = try? JSONSerialization.data(
+                   withJSONObject: rawData.mapValues(\.value),
+                   options: [.sortedKeys]
+               ) {
+                hasher.update(data: data)
+            }
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func update(_ hasher: inout SHA256, _ value: String) {
+        hasher.update(data: Data(value.utf8))
+        hasher.update(data: Data([0]))
+    }
+}
+
 private struct ChatProcessingRing: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -4703,6 +4764,8 @@ private struct SpeechTailView: View {
 private struct ChatRecoveryStateProbe: View {
     @ObservedObject var store: ChatStore
     let chatId: String
+    let renderedMessages: [Message]
+    let renderedEmbeds: [String: EmbedRecord]
 
     var body: some View {
         let pending = store.pendingAssistantRecoveryMessageIds(in: chatId).count
@@ -4710,11 +4773,23 @@ private struct ChatRecoveryStateProbe: View {
         let encrypted = store.messages(for: chatId).filter {
             $0.role == .assistant && !($0.encryptedContent?.isEmpty ?? true)
         }.count
+        let storeRefs = store.messages(for: chatId).flatMap { $0.embedRefs ?? [] }.count
+        let renderedRefs = renderedMessages.flatMap { $0.embedRefs ?? [] }
+        let viewRefs = renderedRefs.count
+        let matchingRefs = renderedRefs.filter { renderedEmbeds[$0.id] != nil }.count
+        let audioEmbeds = renderedEmbeds.values.filter { $0.type.contains("audio") }.count
+        let hydratedEmbeds = renderedEmbeds.values.filter { $0.rawData != nil }.count
+        let storeEmbeds = store.embeds(for: chatId).count
         Color.clear
             .frame(width: 1, height: 1)
             .accessibilityElement()
             .accessibilityLabel("Chat recovery state")
-            .accessibilityValue("pending=\(pending);version=\(version);encrypted=\(encrypted)")
+            .accessibilityValue(
+                "pending=\(pending);version=\(version);encrypted=\(encrypted);" +
+                "storeRefs=\(storeRefs);viewRefs=\(viewRefs);matchedRefs=\(matchingRefs);" +
+                "storeEmbeds=\(storeEmbeds);viewEmbeds=\(renderedEmbeds.count);" +
+                "audioEmbeds=\(audioEmbeds);hydratedEmbeds=\(hydratedEmbeds)"
+            )
             .accessibilityIdentifier("chat-recovery-state")
             .allowsHitTesting(false)
     }

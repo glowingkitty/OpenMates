@@ -238,6 +238,58 @@ final class MessageInputAttachmentUITests: XCTestCase {
     }
 
     // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send,message-input.layout.responsive-parity
+    func testLongImageFilenameAndThreeLineDraftStayAboveIPhoneKeyboard() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-welcome-long-image-filename"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 8) {
+            skipInterests.tap()
+        }
+
+        XCTAssertLessThan(app.windows.firstMatch.frame.width, 500, "This regression covers the compact iPhone layout")
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
+        editor.typeText(
+            "First visible draft line is kept below the image. Second visible draft line remains readable. Third visible draft line scrolls only after this point."
+        )
+
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+        let image = element(in: app, identifier: "native-composer-image-content")
+        XCTAssertTrue(image.waitForExistence(timeout: 8))
+        XCTAssertEqual(image.frame.width, 300, accuracy: 2)
+        XCTAssertEqual(image.frame.height, 200, accuracy: 2)
+
+        let filename = app.staticTexts["Screenshot 2026-09-24 at ….jpg"]
+        XCTAssertTrue(filename.waitForExistence(timeout: 5))
+        XCTAssertLessThan(filename.frame.height, 32, "The image filename must stay on one metadata line")
+
+        let attachmentButton = app.buttons["composer-attachment-toggle"]
+        let sendButton = app.buttons["send-button"]
+        for button in [attachmentButton, sendButton] {
+            XCTAssertTrue(button.waitForExistence(timeout: 5))
+            XCTAssertTrue(button.isHittable)
+            XCTAssertLessThanOrEqual(
+                button.frame.maxY,
+                keyboard.frame.minY - 2,
+                "Composer controls must remain above the iPhone keyboard"
+            )
+        }
+        XCTAssertGreaterThanOrEqual(
+            sendButton.frame.minY - image.frame.maxY,
+            70,
+            "The image must leave room for three draft lines before the control row"
+        )
+        attachScreenshot(name: "Long image filename with three-line iPhone draft")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send,message-input.layout.responsive-parity
     func testImagePreviewSurvivesBackgroundAndKeepsActionsAboveIPadKeyboard() throws {
         let app = XCUIApplication()
         app.launchArguments = [

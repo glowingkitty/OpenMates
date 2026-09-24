@@ -332,7 +332,10 @@ struct Chat: Identifiable, Decodable, Sendable {
     }
 
     var displayTitle: String {
-        title ?? "New Chat"
+        guard let title = title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty else {
+            return "New Chat"
+        }
+        return title
     }
 
     var isHiddenFromNormalSurfaces: Bool {

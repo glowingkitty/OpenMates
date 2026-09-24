@@ -1018,6 +1018,7 @@ struct EmbedFullscreenHeader: View {
         switch embed.skillId {
         case "search": return "search"
         case "read": return "visible"
+        case "view" where appId == "images": return "visible"
         default:
             return AppIconView.iconName(forAppId: appId)
         }

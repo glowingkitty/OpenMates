@@ -14,13 +14,16 @@ enum OpenMatesSharedEnvironment {
         UserDefaults(suiteName: appGroupIdentifier) ?? .standard
     }
 
-    static var cookieStorage: HTTPCookieStorage {
+    static let cookieStorage: HTTPCookieStorage = {
         #if os(watchOS)
-        HTTPCookieStorage.shared
+        return HTTPCookieStorage.shared
         #else
-        HTTPCookieStorage.sharedCookieStorage(forGroupContainerIdentifier: appGroupIdentifier)
+        // This API can return distinct wrapper instances for repeated calls.
+        // Retain one process-wide object so login responses, WebSockets, and
+        // cross-host upload request construction observe the same live jar.
+        return HTTPCookieStorage.sharedCookieStorage(forGroupContainerIdentifier: appGroupIdentifier)
         #endif
-    }
+    }()
 
     static func cookieHeader(for url: URL) -> String? {
         let cookieURL = httpCookieURL(for: url)

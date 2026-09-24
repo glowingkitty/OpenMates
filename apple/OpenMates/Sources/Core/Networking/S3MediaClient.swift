@@ -165,6 +165,12 @@ enum EmbedMediaPayload {
         return originalS3Key(from: raw)
     }
 
+    static func previewS3Key(from raw: [String: AnyCodable]?) -> String? {
+        guard let raw else { return nil }
+        return variant(from: raw, named: "preview")?["s3_key"] as? String
+            ?? originalS3Key(from: raw)
+    }
+
     static func s3URL(from raw: [String: AnyCodable]?) -> String? {
         guard let raw else { return nil }
         if let direct = string(raw, keys: ["s3_url"]), !direct.isEmpty {
@@ -175,6 +181,19 @@ enum EmbedMediaPayload {
             return nil
         }
         return base.hasSuffix("/") ? "\(base)\(key)" : "\(base)/\(key)"
+    }
+
+    static func previewS3URL(from raw: [String: AnyCodable]?) -> String? {
+        guard let raw else { return nil }
+        if let direct = string(raw, keys: ["preview_s3_url"]), !direct.isEmpty {
+            return direct
+        }
+        if let base = string(raw, keys: ["s3_base_url"]), !base.isEmpty,
+           let key = variant(from: raw, named: "preview")?["s3_key"] as? String,
+           !key.isEmpty {
+            return base.hasSuffix("/") ? "\(base)\(key)" : "\(base)/\(key)"
+        }
+        return s3URL(from: raw)
     }
 
     static func encryption(from raw: [String: AnyCodable]?) -> String? {
@@ -210,6 +229,12 @@ enum EmbedMediaPayload {
             if let variant = value as? [String: Any] { return variant }
         }
         return nil
+    }
+
+    private static func variant(from raw: [String: AnyCodable]?, named name: String) -> [String: Any]? {
+        guard let raw,
+              let files = raw["files"]?.value as? [String: Any] else { return nil }
+        return files[name] as? [String: Any]
     }
 }
 

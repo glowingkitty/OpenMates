@@ -82,6 +82,7 @@ struct SearchSkillPreviewModel {
             recordData["app_id"] = recordData["app_id"] ?? AnyCodable(embed.appId ?? "web")
             return EmbedRecord(
                 id: EmbedFieldReader.string(recordData, keys: ["embed_id", "id"])
+                    ?? (embed.childEmbedIds.indices.contains(index) ? embed.childEmbedIds[index] : nil)
                     ?? "\(embed.id)-preview-\(index)",
                 type: Self.previewChildType(for: embed),
                 status: .finished,
@@ -102,7 +103,59 @@ struct SearchSkillPreviewModel {
         if let results = decoded["results"] as? [Any] {
             return flattenedResults(results.compactMap { $0 as? [String: Any] })
         }
+        // The backend TOON encoder selects a YAML-like list for web search
+        // payloads whose rows do not share an identical field set:
+        //
+        // results[2]:
+        //   - type: search_result
+        //     title: First result
+        //     url: https://example.com
+        //
+        // EmbedRecord.parseContent handles compact tabular TOON, but older and
+        // current persisted chats can contain this list form. Parse each flat
+        // result mapping here so the encrypted parent remains a complete
+        // rendering fallback while child records hydrate asynchronously.
+        let listResults = listResultsFromEncodedPayload(payload)
+        if !listResults.isEmpty { return flattenedResults(listResults) }
         return decoded["url"] == nil ? [] : [decoded]
+    }
+
+    private static func listResultsFromEncodedPayload(_ payload: String) -> [[String: Any]] {
+        let lines = payload.components(separatedBy: .newlines)
+        guard let headerIndex = lines.firstIndex(where: { line in
+            let value = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            return value.hasPrefix("results[") && value.hasSuffix("]:")
+        }) else { return [] }
+
+        let headerIndent = indentation(of: lines[headerIndex])
+        var rows: [[String: Any]] = []
+        var rowLines: [String] = []
+
+        func appendRow() {
+            guard !rowLines.isEmpty else { return }
+            let decoded = EmbedRecord.parseContent(rowLines.joined(separator: "\n"))
+            if !decoded.isEmpty { rows.append(decoded) }
+            rowLines.removeAll(keepingCapacity: true)
+        }
+
+        for rawLine in lines.dropFirst(headerIndex + 1) {
+            let trimmed = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { continue }
+            let indent = indentation(of: rawLine)
+            if indent <= headerIndent { break }
+            if trimmed.hasPrefix("- ") {
+                appendRow()
+                rowLines.append(String(trimmed.dropFirst(2)))
+            } else if !rowLines.isEmpty {
+                rowLines.append(trimmed)
+            }
+        }
+        appendRow()
+        return rows
+    }
+
+    private static func indentation(of line: String) -> Int {
+        line.prefix { $0 == " " || $0 == "\t" }.count
     }
 
     fileprivate static func flattenedResults(_ rows: [[String: Any]]) -> [[String: Any]] {
@@ -164,7 +217,7 @@ struct SearchSkillPreviewModel {
     /// Preserve the parent's declared result order and full inline fallback,
     /// replacing synthetic rows only when the corresponding decrypted child is
     /// available. A partially hydrated graph must never collapse the grid.
-    fileprivate static func mergedRecords(
+    static func mergedRecords(
         parentOrder: [String],
         inlineRecords: [EmbedRecord],
         hydratedRecords: [EmbedRecord]

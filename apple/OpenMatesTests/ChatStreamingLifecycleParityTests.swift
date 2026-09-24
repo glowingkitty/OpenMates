@@ -9,6 +9,60 @@ import XCTest
 
 @MainActor
 final class ChatStreamingLifecycleParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testFirstMessageTitleBridgesHeaderUntilGeneratedMetadataArrives() {
+        let provisional = ChatHeaderPresentation.provisionalTitle(
+            from: "  Compare   OpenAI and Anthropic model releases this week  "
+        )
+        XCTAssertEqual(provisional, "Compare OpenAI and Anthropic model releases this week")
+        XCTAssertEqual(
+            ChatHeaderPresentation.title(override: nil, generated: nil, provisional: provisional),
+            provisional
+        )
+        XCTAssertEqual(
+            ChatHeaderPresentation.title(
+                override: nil,
+                generated: "Recent model release comparison",
+                provisional: provisional
+            ),
+            "Recent model release comparison"
+        )
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testBannerKeepsTitleVisibleWhileCategoryMetadataIsPending() {
+        XCTAssertEqual(
+            ChatBannerPresentation.generatedOrProvisionalState(
+                title: "Generated title",
+                provisionalTitle: "First user message",
+                category: nil,
+                summary: nil,
+                shouldShowLoading: false
+            ),
+            .loaded(title: "Generated title", appId: "general_knowledge", summary: nil)
+        )
+        XCTAssertEqual(
+            ChatBannerPresentation.generatedOrProvisionalState(
+                title: nil,
+                provisionalTitle: "First user message",
+                category: nil,
+                summary: nil,
+                shouldShowLoading: true
+            ),
+            .loaded(title: "First user message", appId: "general_knowledge", summary: nil)
+        )
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testTallPhoneUsesLargeContinuationCardsWhenVerticalSpaceAllows() {
+        XCTAssertTrue(
+            WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 390, height: 744)),
+            "A tall iPhone should use the same full continuation card as a tall iPad"
+        )
+        XCTAssertTrue(WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 1024, height: 1000)))
+        XCTAssertFalse(WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 390, height: 699)))
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testGeneratedMetadataImmediatelyPopulatesActiveChatPresentation() {
         let chat = Chat(
@@ -106,6 +160,64 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertEqual(updated.title, "Existing title")
         XCTAssertEqual(updated.category, "web")
         XCTAssertEqual(updated.icon, "search")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testGeneratedMetadataReplacesUnversionedProvisionalTitle() {
+        let chat = Chat(
+            id: "chat-1", title: "First user message", lastMessageAt: nil,
+            createdAt: "2026-09-24T10:00:00Z", updatedAt: nil,
+            isArchived: false, isPinned: false, appId: "ai",
+            encryptedTitle: nil, encryptedChatKey: nil,
+            messagesV: 1, titleV: 0
+        )
+        let metadata = StreamingClient.ChatMetadata(
+            title: "Generated topic", iconNames: ["code"], category: "code",
+            modelName: nil, providerName: nil, serverRegion: nil,
+            userMessageId: "user-1", encryptedChatKey: nil
+        )
+
+        let updated = ChatGeneratedMetadataPolicy.applying(metadata, to: chat)
+
+        XCTAssertEqual(updated.title, "Generated topic")
+        XCTAssertEqual(updated.category, "code")
+        XCTAssertEqual(updated.icon, "code")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity,chats.persistence.client-encrypted
+    func testGeneratedMetadataReplacesEncryptedEmptyTitlePlaceholder() {
+        let chat = Chat(
+            id: "chat-1", title: "", lastMessageAt: nil,
+            createdAt: "2026-09-24T10:00:00Z", updatedAt: nil,
+            isArchived: false, isPinned: false, appId: "ai",
+            encryptedTitle: "encrypted-empty-placeholder", encryptedChatKey: nil,
+            messagesV: 1, titleV: 1
+        )
+        let metadata = StreamingClient.ChatMetadata(
+            title: "Generated topic", iconNames: ["search"], category: "web",
+            modelName: nil, providerName: nil, serverRegion: nil,
+            userMessageId: "user-1", encryptedChatKey: nil
+        )
+
+        XCTAssertTrue(ChatGeneratedMetadataPolicy.needsGeneratedTitle(chat))
+        XCTAssertEqual(ChatGeneratedMetadataPolicy.applying(metadata, to: chat).title, "Generated topic")
+        XCTAssertEqual(chat.displayTitle, "New Chat")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testProvisionalTitleOnlyFillsAnUntitledUnversionedChat() {
+        let chat = Chat(
+            id: "chat-1", title: nil, lastMessageAt: nil,
+            createdAt: "2026-09-24T10:00:00Z", updatedAt: nil,
+            isArchived: false, isPinned: false, appId: "ai",
+            encryptedTitle: nil, encryptedChatKey: nil,
+            messagesV: 1, titleV: 0
+        )
+
+        let updated = ChatGeneratedMetadataPolicy.applyingProvisionalTitle("First request", to: chat)
+
+        XCTAssertEqual(updated.title, "First request")
+        XCTAssertEqual(updated.titleV, 0)
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
@@ -359,7 +471,9 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
             newChatSuggestions: [],
             chatSummary: nil,
             chatTags: [],
-            updatedTitle: nil
+            updatedTitle: nil,
+            sourceTitleVersion: nil,
+            sourceMetadataVersion: nil
         )))
         XCTAssertEqual(state.phase, .typing)
         XCTAssertEqual(state.messageId, "assistant-new")
@@ -546,6 +660,44 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
             thinkingContent: "Provider-supplied thinking",
             embedCount: 0
         ))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation
+    func testNonfinalSkillReferenceMaterializesAndPersistsThroughFinalChunk() throws {
+        let viewModel = ChatViewModel()
+        viewModel.chat = Chat(
+            id: "chat-1", title: "Streaming", lastMessageAt: nil,
+            createdAt: "2026-09-24T10:00:00Z", updatedAt: nil,
+            isArchived: false, isPinned: false, appId: "web",
+            encryptedTitle: nil, encryptedChatKey: nil
+        )
+        let content = """
+        ```json
+        {"type":"app_skill_use","embed_id":"embed-search","app_id":"web","skill_id":"search"}
+        ```
+        """
+
+        viewModel.handleStreamEvent(.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 1,
+            content: content, isFinal: false, userMessageId: "user-1",
+            category: "web", modelName: "test-model", rejectionReason: nil
+        ))
+
+        let partial = try XCTUnwrap(viewModel.messages.first)
+        XCTAssertEqual(partial.isStreaming, true)
+        XCTAssertEqual(partial.embedRefs?.map(\.id), ["embed-search"])
+        XCTAssertNotNil(viewModel.embedRecords["embed-search"])
+
+        viewModel.handleStreamEvent(.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 2,
+            content: content, isFinal: true, userMessageId: "user-1",
+            category: "web", modelName: "test-model", rejectionReason: nil
+        ))
+
+        let completed = try XCTUnwrap(viewModel.messages.first)
+        XCTAssertEqual(completed.isStreaming, false)
+        XCTAssertEqual(completed.embedRefs?.map(\.id), ["embed-search"])
+        XCTAssertNotNil(viewModel.embedRecords["embed-search"])
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.completion.pending-delivery,chats.surface.semantic-parity

@@ -26,7 +26,10 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.rendering.assistant-document-convergence, chats.surface.semantic-parity
+//                specifications/features/app-skills/web-search/specification.yml
+// Assertions: chats.rendering.assistant-document-convergence,
+//             chats.rendering.inline-entity-interaction, chats.surface.semantic-parity,
+//             web-search.surface-parity
 
 import Foundation
 import SwiftUI
@@ -35,6 +38,36 @@ import UIKit
 #elseif os(macOS)
 import AppKit
 #endif
+
+/// Resolves inline `embed:` links against both hydrated records and the
+/// encrypted search parent's inline result fallback. Search child embeds can
+/// arrive after the assistant text, so a citation must stay actionable while
+/// the child graph is still hydrating.
+enum MarkdownEmbedResolver {
+    static func resolve(_ reference: String, in records: [String: EmbedRecord]) -> EmbedRecord? {
+        if let exact = records[reference] { return exact }
+        if let aliased = records.values.first(where: { record in
+            let rawReference = record.rawData?["embed_ref"]?.value as? String
+            return rawReference == reference || record.id == reference || record.id.hasSuffix(reference)
+        }) {
+            return aliased
+        }
+
+        for parent in records.values where parent.childEmbedIds.contains(reference) {
+            let raw = parent.rawData ?? [:]
+            let appId = parent.appId ?? EmbedFieldReader.string(raw, keys: ["app_id"])
+            let skillId = parent.skillId ?? EmbedFieldReader.string(raw, keys: ["skill_id"])
+            guard let appId, skillId == "search", ["web", "news", "images", "photos"].contains(appId) else {
+                continue
+            }
+            let model = SearchSkillPreviewModel(embed: parent, allEmbedRecords: records)
+            if let fallback = model.childEmbeds.first(where: { $0.id == reference }) {
+                return fallback
+            }
+        }
+        return nil
+    }
+}
 
 private extension Color {
     /// Mirrors `--color-bold-text` from `frontend/packages/ui/src/tokens/sources/colors.yml`.
@@ -909,19 +942,14 @@ struct RichMarkdownView: View {
 
     private func resolveEmbed(_ reference: MarkdownEmbedReference) -> EmbedRecord? {
         if reference.isRef {
-            return allEmbedRecords.values.first { record in
-                record.rawData?["embed_ref"]?.value as? String == reference.value
-            }
+            return MarkdownEmbedResolver.resolve(reference.value, in: allEmbedRecords)
         }
         return embedLookup[reference.value] ?? allEmbedRecords[reference.value]
     }
 
     private func resolveEmbed(_ reference: ChatHistoryEmbedReference) -> EmbedRecord? {
         if reference.isReference {
-            return allEmbedRecords.values.first { record in
-                let rawReference = record.rawData?["embed_ref"]?.value as? String
-                return rawReference == reference.id || record.id == reference.id || record.id.hasSuffix(reference.id)
-            }
+            return MarkdownEmbedResolver.resolve(reference.id, in: allEmbedRecords)
         }
         return embedLookup[reference.id] ?? allEmbedRecords[reference.id]
     }
@@ -1682,9 +1710,7 @@ struct InlineMarkdownText: View {
     }
 
     private func resolveEmbed(ref: String) -> EmbedRecord? {
-        allEmbedRecords.values.first { record in
-            record.rawData?["embed_ref"]?.value as? String == ref
-        }
+        MarkdownEmbedResolver.resolve(ref, in: allEmbedRecords)
     }
 }
 

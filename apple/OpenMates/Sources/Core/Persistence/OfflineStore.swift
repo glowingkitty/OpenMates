@@ -51,7 +51,9 @@ final class PersistedChat {
 
     init(from chat: Chat) {
         self.id = chat.id
-        self.title = chat.title
+        // A prompt-derived title is presentation state until the server accepts
+        // a versioned encrypted title. Do not make it survive a cold launch.
+        self.title = (chat.titleV ?? 0) > 0 ? chat.title : nil
         self.encryptedTitle = chat.encryptedTitle
         self.encryptedCategory = chat.encryptedCategory
         self.encryptedIcon = chat.encryptedIcon
@@ -432,11 +434,27 @@ final class OfflineStore: ObservableObject {
             )
             if let existing = try? context.fetch(descriptor).first {
                 let acceptsIncomingMetadata = (chat.metadataV ?? 0) >= (existing.metadataV ?? 0)
-                existing.title = chat.title
-                existing.encryptedTitle = chat.encryptedTitle
+                let acceptsIncomingSummary = (chat.metadataV ?? 0) > (existing.metadataV ?? 0)
+                    || ((chat.metadataV ?? 0) == (existing.metadataV ?? 0)
+                        && existing.chatSummary == nil && existing.encryptedChatSummary == nil)
+                let incomingTitleVersion = chat.titleV ?? 0
+                let storedTitleVersion = existing.titleV ?? 0
+                if incomingTitleVersion > storedTitleVersion {
+                    existing.title = chat.title
+                    existing.encryptedTitle = chat.encryptedTitle
+                } else if incomingTitleVersion == storedTitleVersion && storedTitleVersion > 0 {
+                    if existing.title == nil { existing.title = chat.title }
+                    if existing.encryptedTitle == nil { existing.encryptedTitle = chat.encryptedTitle }
+                } else if storedTitleVersion == 0 {
+                    existing.title = nil
+                    existing.encryptedTitle = chat.encryptedTitle ?? existing.encryptedTitle
+                }
                 existing.encryptedCategory = chat.encryptedCategory
                 existing.encryptedIcon = chat.encryptedIcon
-                existing.encryptedChatSummary = chat.encryptedChatSummary
+                if acceptsIncomingSummary {
+                    existing.encryptedChatSummary = chat.encryptedChatSummary ?? existing.encryptedChatSummary
+                    existing.chatSummary = chat.chatSummary ?? existing.chatSummary
+                }
                 if acceptsIncomingMetadata {
                     existing.encryptedFollowUpRequestSuggestions = chat.encryptedFollowUpRequestSuggestions
                         ?? existing.encryptedFollowUpRequestSuggestions
@@ -445,7 +463,6 @@ final class OfflineStore: ObservableObject {
                 existing.encryptedChatKey = chat.encryptedChatKey
                 existing.icon = chat.icon
                 existing.category = chat.category
-                existing.chatSummary = chat.chatSummary
                 existing.appId = chat.appId
                 existing.isPinned = chat.isPinned ?? false
                 existing.isArchived = chat.isArchived ?? false
@@ -453,7 +470,7 @@ final class OfflineStore: ObservableObject {
                 existing.updatedAt = chat.updatedAt
                 existing.lastVisibleMessageId = chat.lastVisibleMessageId
                 existing.messagesV = chat.messagesV
-                existing.titleV = chat.titleV
+                existing.titleV = max(storedTitleVersion, incomingTitleVersion)
                 existing.draftV = chat.draftV
                 existing.clearedDraftV = chat.clearedDraftV
                 existing.metadataV = max(existing.metadataV ?? 0, chat.metadataV ?? 0)

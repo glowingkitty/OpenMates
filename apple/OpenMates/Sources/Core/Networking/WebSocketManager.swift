@@ -1,7 +1,10 @@
 // WebSocket connection manager for real-time sync with the backend.
 // Routes AI streaming events to StreamingClient, sync events to SyncManager,
 // and chat updates to ChatStore. Uses native URLSessionWebSocketTask.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.persistence.client-encrypted, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.rendering.inline-entity-interaction
 
+import CryptoKit
 import Foundation
 
 @MainActor
@@ -18,6 +21,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var messageWaiters: [UUID: MessageWaiter] = [:]
     private let streamEventDispatcher = OrderedStreamEventDispatcher()
     private(set) var recoveryCoordinator: ChatCompletionRecoveryCoordinator?
+    private var embedStreamCoordinator: ChatEmbedStreamCoordinator?
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.httpCookieAcceptPolicy = .always
@@ -69,6 +73,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         rejectAllWaiters()
         connectionGeneration += 1
         streamEventDispatcher.reset()
+        embedStreamCoordinator?.reset()
         let generation = connectionGeneration
         connectTask?.cancel()
         pingTimer?.invalidate()
@@ -151,6 +156,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         rejectAllWaiters()
         connectionGeneration += 1
         streamEventDispatcher.reset()
+        embedStreamCoordinator?.reset()
         // A waiter belongs to the socket/session that sent its request. Resume
         // it before a different account can establish a replacement connection.
         let disconnectedWaiters = Array(messageWaiters.values)
@@ -182,6 +188,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     func configureRecoveryCoordinator(_ coordinator: ChatCompletionRecoveryCoordinator) {
         recoveryCoordinator = coordinator
+    }
+
+    func configureEmbedStreamCoordinator(_ coordinator: ChatEmbedStreamCoordinator) {
+        embedStreamCoordinator = coordinator
     }
 
     func waitForMessage(
@@ -409,6 +419,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 .taskInitiated(chatId: chatId, taskId: taskId, userMessageId: userMsgId),
                 for: chatId
             )
+            embedStreamCoordinator?.beginTurn(chatId: chatId)
 
         case "ai_typing_started":
             let chatId = msg.stringField("chat_id") ?? ""
@@ -457,6 +468,11 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 ),
                 for: chatId
             )
+            if !content.isEmpty {
+                Task { [weak self] in
+                    await self?.embedStreamCoordinator?.processStreamContent(content, chatId: chatId)
+                }
+            }
 
         case "thinking_chunk":
             let chatId = msg.stringField("chat_id") ?? ""
@@ -549,7 +565,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                     newChatSuggestions: msg.stringArrayField("new_chat_request_suggestions") ?? [],
                     chatSummary: msg.stringField("chat_summary"),
                     chatTags: msg.stringArrayField("chat_tags") ?? [],
-                    updatedTitle: msg.stringField("updated_chat_title")
+                    updatedTitle: msg.stringField("updated_chat_title"),
+                    sourceTitleVersion: msg.intField("source_title_v"),
+                    sourceMetadataVersion: msg.intField("source_metadata_v")
                 ),
                 for: chatId
             )
@@ -598,7 +616,30 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             )
 
         // Embed updates
-        case "embed_update", "embed_updated", "embed_status_changed", "send_embed_data":
+        case "send_embed_data":
+            guard let embedStreamCoordinator else {
+                NotificationCenter.default.post(
+                    name: .wsEmbedUpdate, object: nil,
+                    userInfo: ["type": msg.type, "raw": raw]
+                )
+                break
+            }
+            let embedConnectionGeneration = connectionGeneration
+            let embedAccountScope = OfflineStore.shared.scopeGeneration
+            Task { [weak self] in
+                guard let self,
+                      self.connectionGeneration == embedConnectionGeneration,
+                      OfflineStore.shared.scopeGeneration == embedAccountScope else { return }
+                await embedStreamCoordinator.handleEmbedData(msg.fields)
+                guard self.connectionGeneration == embedConnectionGeneration,
+                      OfflineStore.shared.scopeGeneration == embedAccountScope else { return }
+                NotificationCenter.default.post(
+                    name: .wsEmbedUpdate, object: nil,
+                    userInfo: ["type": msg.type, "raw": raw]
+                )
+            }
+
+        case "embed_update", "embed_updated", "embed_status_changed":
             NotificationCenter.default.post(
                 name: .wsEmbedUpdate, object: nil,
                 userInfo: ["type": msg.type, "raw": raw]
@@ -699,6 +740,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         rejectAllWaiters()
         connectionGeneration += 1
         streamEventDispatcher.reset()
+        embedStreamCoordinator?.reset()
         let reconnectGeneration = connectionGeneration
         pingTimer?.invalidate()
         pingTimer = nil
@@ -779,6 +821,584 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             ) else { return }
             self.handleDisconnect()
         }
+    }
+}
+
+/// Mirrors the web client's live embed work below the UI. It discovers embed
+/// references in cumulative assistant chunks and client-encrypts finalized
+/// `send_embed_data` payloads before any durable local write.
+@MainActor
+final class ChatEmbedStreamCoordinator {
+    private let transport: ChatWebSocketTransport
+    private let chatStore: ChatStore
+    private let authenticatedOwnerId: () async -> String?
+    private let masterKey: (String) async -> SymmetricKey?
+    private let chatKey: (String) -> SymmetricKey?
+    private let persistEmbedKeys: ([EmbedKeyRecord]) -> Void
+    private let accountScopeGeneration: () -> UUID
+    private let retryDelay: (Int) -> Duration
+    private var generation = UUID()
+    private var requestedEmbedIdsByChat: [String: Set<String>] = [:]
+    private var processedPayloadKeys = Set<String>()
+    private var inFlightPayloadKeys = Set<String>()
+    private var pendingRetries: [String: PendingRetry] = [:]
+    private var retryTasks: [String: Task<Void, Never>] = [:]
+
+    init(
+        transport: ChatWebSocketTransport,
+        chatStore: ChatStore,
+        authenticatedOwnerId: @escaping () async -> String?,
+        masterKey: @escaping (String) async -> SymmetricKey?,
+        chatKey: @escaping (String) -> SymmetricKey?,
+        persistEmbedKeys: @escaping ([EmbedKeyRecord]) -> Void,
+        accountScopeGeneration: @escaping () -> UUID = { OfflineStore.shared.scopeGeneration },
+        retryDelay: @escaping (Int) -> Duration = { attempt in
+            switch attempt {
+            case 1: return .milliseconds(350)
+            case 2: return .seconds(1)
+            default: return .seconds(3)
+            }
+        }
+    ) {
+        self.transport = transport
+        self.chatStore = chatStore
+        self.authenticatedOwnerId = authenticatedOwnerId
+        self.masterKey = masterKey
+        self.chatKey = chatKey
+        self.persistEmbedKeys = persistEmbedKeys
+        self.accountScopeGeneration = accountScopeGeneration
+        self.retryDelay = retryDelay
+    }
+
+    convenience init(transport: ChatWebSocketTransport, chatStore: ChatStore) {
+        self.init(
+            transport: transport,
+            chatStore: chatStore,
+            authenticatedOwnerId: { await AuthManager.currentUserId() },
+            masterKey: { ownerId in try? await CryptoManager.shared.loadMasterKey(for: ownerId) },
+            chatKey: { ChatKeyManager.shared.key(for: $0) },
+            persistEmbedKeys: { entries in
+                EmbedKeyManager.shared.store(entries, source: "liveEmbedStream")
+                OfflineStore.shared.persistEmbedKeys(entries)
+            }
+        )
+    }
+
+    func reset() {
+        generation = UUID()
+        retryTasks.values.forEach { $0.cancel() }
+        retryTasks.removeAll()
+        pendingRetries.removeAll()
+        requestedEmbedIdsByChat.removeAll()
+        processedPayloadKeys.removeAll()
+        inFlightPayloadKeys.removeAll()
+    }
+
+    func beginTurn(chatId: String) {
+        requestedEmbedIdsByChat[chatId] = []
+    }
+
+    func processStreamContent(_ content: String, chatId: String) async {
+        let expectedGeneration = generation
+        let expectedScope = accountScopeGeneration()
+        await requestEmbeds(
+            Self.embedReferences(in: content),
+            chatId: chatId,
+            expectedGeneration: expectedGeneration,
+            expectedScope: expectedScope
+        )
+    }
+
+    func handleEmbedData(_ fields: [String: Any]) async {
+        let expectedGeneration = generation
+        let expectedScope = accountScopeGeneration()
+        guard let embedId = fields["embed_id"] as? String, !embedId.isEmpty else { return }
+        let version = fields["version_number"] as? Int
+        let payloadKey = version.map { "\(embedId):v\($0)" } ?? embedId
+        let status = EmbedStatus(rawValue: fields["status"] as? String ?? "") ?? .finished
+        let inFlightKey = "\(payloadKey):\(status.rawValue)"
+        guard !processedPayloadKeys.contains(payloadKey), inFlightPayloadKeys.insert(inFlightKey).inserted else { return }
+        defer { inFlightPayloadKeys.remove(inFlightKey) }
+
+        let childIds = Self.stringArray(fields["embed_ids"] ?? fields["child_embed_ids"])
+        if let chatId = resolveChatId(fields["chat_id"] as? String) {
+            await requestEmbeds(
+                childIds,
+                chatId: chatId,
+                expectedGeneration: expectedGeneration,
+                expectedScope: expectedScope
+            )
+        }
+        guard isCurrent(expectedGeneration, expectedScope) else { return }
+
+        do {
+            if status == .processing {
+                guard !processedPayloadKeys.contains(payloadKey),
+                      !inFlightPayloadKeys.contains("\(payloadKey):\(EmbedStatus.finished.rawValue)") else { return }
+                try storeProcessingEmbed(
+                    fields,
+                    embedId: embedId,
+                    expectedGeneration: expectedGeneration,
+                    expectedScope: expectedScope
+                )
+                return
+            }
+            if status == .error || status == .cancelled {
+                return
+            }
+            if fields["already_encrypted"] as? Bool == true {
+                try storeAlreadyEncrypted(
+                    fields,
+                    embedId: embedId,
+                    expectedGeneration: expectedGeneration,
+                    expectedScope: expectedScope
+                )
+            } else {
+                try await encryptAndPersist(
+                    fields,
+                    embedId: embedId,
+                    expectedGeneration: expectedGeneration,
+                    expectedScope: expectedScope
+                )
+            }
+            guard isCurrent(expectedGeneration, expectedScope) else { return }
+            cancelRetry(payloadKey)
+            processedPayloadKeys.insert(payloadKey)
+            NativeDiagnostics.event("live_embed_persisted", category: "chat_stream", counts: ["children": childIds.count])
+        } catch {
+            if let chatId = resolveChatId(fields["chat_id"] as? String),
+               isCurrent(expectedGeneration, expectedScope) {
+                scheduleRetry(
+                    payloadKey: payloadKey,
+                    embedId: embedId,
+                    chatId: chatId,
+                    expectedGeneration: expectedGeneration,
+                    expectedScope: expectedScope
+                )
+            }
+            NativeDiagnostics.failure("live_embed_persistence_failed", category: "chat_stream", level: .warning, error: error)
+        }
+    }
+
+    /// Processing payloads are intentionally volatile plaintext. They let the
+    /// current chat render the card while the skill runs, but never cross the
+    /// persistence boundary before the finalized payload has been encrypted.
+    private func storeProcessingEmbed(
+        _ fields: [String: Any],
+        embedId: String,
+        expectedGeneration: UUID,
+        expectedScope: UUID
+    ) throws {
+        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        guard let rawChatId = resolveChatId(fields["chat_id"] as? String),
+              let content = fields["content"] as? String,
+              let type = fields["type"] as? String else {
+            throw LiveEmbedError.missingEncryptionContext
+        }
+        let parsed = EmbedRecord.parseContent(content)
+        let appId = fields["app_id"] as? String ?? parsed["app_id"] as? String
+        let skillId = fields["skill_id"] as? String ?? parsed["skill_id"] as? String
+        let childIds = Self.stringArray(fields["embed_ids"] ?? fields["child_embed_ids"])
+        let base = EmbedRecord(
+            id: embedId,
+            type: Self.displayType(type: type, appId: appId, skillId: skillId),
+            status: .processing,
+            data: nil,
+            parentEmbedId: fields["parent_embed_id"] as? String,
+            appId: appId,
+            skillId: skillId,
+            embedIds: childIds.isEmpty ? nil : childIds.joined(separator: "|"),
+            versionNumber: fields["version_number"] as? Int,
+            contentHash: fields["content_hash"] as? String,
+            createdAt: String(Self.timestamp(fields["createdAt"] ?? fields["created_at"]))
+        )
+        let record = base.decryptedCopy(content: content, type: type)
+        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        chatStore.performWithoutPersistence {
+            chatStore.upsertEmbeds([record], for: rawChatId)
+        }
+    }
+
+    static func embedReferences(in content: String) -> [String] {
+        var ordered: [String] = []
+        var seen = Set<String>()
+        func append(_ value: String) {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty, seen.insert(trimmed).inserted { ordered.append(trimmed) }
+        }
+
+        let range = NSRange(content.startIndex..., in: content)
+        // Stream chunk boundaries can join the closing fence directly to the
+        // final JSON byte even when the completed markdown later gains a line
+        // break. Require a real closing fence, then let JSON decoding reject
+        // incomplete or non-embed blocks.
+        if let expression = try? NSRegularExpression(
+            pattern: #"```(?:json|json_embed)[ \t]*\r?\n([\s\S]*?)(?:\r?\n)?[ \t]*```"#
+        ) {
+            for match in expression.matches(in: content, range: range) {
+                guard let bodyRange = Range(match.range(at: 1), in: content),
+                      let data = String(content[bodyRange]).data(using: .utf8),
+                      let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      object["type"] != nil,
+                      let embedId = object["embed_id"] as? String else { continue }
+                append(embedId)
+                Self.stringArray(object["embed_ids"] ?? object["child_embed_ids"]).forEach(append)
+            }
+        }
+        if let expression = try? NSRegularExpression(pattern: #"\[[^\]]*\]\(embed:([^\)]+)\)|\[\[embed(?:ref)?:([^\]]+)\]\]"#) {
+            for match in expression.matches(in: content, range: range) {
+                for capture in 1..<match.numberOfRanges where match.range(at: capture).location != NSNotFound {
+                    if let idRange = Range(match.range(at: capture), in: content) { append(String(content[idRange])) }
+                }
+            }
+        }
+        return ordered
+    }
+
+    private func requestEmbeds(
+        _ embedIds: [String],
+        chatId: String,
+        expectedGeneration: UUID,
+        expectedScope: UUID
+    ) async {
+        for embedId in embedIds where !embedId.isEmpty {
+            guard isCurrent(expectedGeneration, expectedScope) else { return }
+            guard requestedEmbedIdsByChat[chatId, default: []].insert(embedId).inserted else { continue }
+            do {
+                try await transport.send(WSOutboundMessage(type: "request_embed", payload: ["embed_id": embedId]))
+                guard isCurrent(expectedGeneration, expectedScope) else { return }
+            } catch {
+                guard isCurrent(expectedGeneration, expectedScope) else { return }
+                requestedEmbedIdsByChat[chatId]?.remove(embedId)
+                NativeDiagnostics.failure("live_embed_request_failed", category: "chat_stream", level: .warning, error: error)
+            }
+        }
+    }
+
+    private func encryptAndPersist(
+        _ fields: [String: Any],
+        embedId: String,
+        expectedGeneration: UUID,
+        expectedScope: UUID
+    ) async throws {
+        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        guard let rawChatId = resolveChatId(fields["chat_id"] as? String),
+              let rawMessageId = fields["message_id"] as? String,
+              let content = fields["content"] as? String,
+              let type = fields["type"] as? String,
+              let ownerId = await authenticatedOwnerId(),
+              let chatKey = chatKey(rawChatId) else {
+            throw LiveEmbedError.missingEncryptionContext
+        }
+        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+
+        let parentEmbedId = fields["parent_embed_id"] as? String
+        let keyOwnerId = parentEmbedId?.isEmpty == false ? parentEmbedId! : embedId
+        let embedKey = ComposerEmbedCrypto.deriveKey(chatKey: chatKey, embedId: keyOwnerId)
+        let encryptedContent = try ComposerEmbedCrypto.encryptContent(content, using: embedKey)
+        let encryptedType = try ComposerEmbedCrypto.encryptContent(type, using: embedKey)
+        let encryptedTextPreview = try (fields["text_preview"] as? String).map {
+            try ComposerEmbedCrypto.encryptContent($0, using: embedKey)
+        }
+        let hashedChatId = Self.sha256Hex(rawChatId)
+        let hashedMessageId = Self.sha256Hex(rawMessageId)
+        let hashedOwnerId = Self.sha256Hex(ownerId)
+        let childIds = Self.stringArray(fields["embed_ids"] ?? fields["child_embed_ids"])
+        let createdAt = Self.timestamp(fields["createdAt"] ?? fields["created_at"])
+        let updatedAt = Self.timestamp(fields["updatedAt"] ?? fields["updated_at"])
+        let status = EmbedStatus(rawValue: fields["status"] as? String ?? "") ?? .finished
+        let parsed = EmbedRecord.parseContent(content)
+        let appId = fields["app_id"] as? String ?? parsed["app_id"] as? String
+        let skillId = fields["skill_id"] as? String ?? parsed["skill_id"] as? String
+
+        var keyRecords: [EmbedKeyRecord] = []
+        if parentEmbedId?.isEmpty != false {
+            guard let masterKey = await masterKey(ownerId) else {
+                throw LiveEmbedError.missingEncryptionContext
+            }
+            guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+            let hashedEmbedId = Self.sha256Hex(embedId)
+            keyRecords = [
+                EmbedKeyRecord(
+                    hashedEmbedId: hashedEmbedId,
+                    keyType: "master",
+                    hashedChatId: nil,
+                    encryptedEmbedKey: try ComposerEmbedCrypto.wrapKey(embedKey, using: masterKey)
+                ),
+                EmbedKeyRecord(
+                    hashedEmbedId: hashedEmbedId,
+                    keyType: "chat",
+                    hashedChatId: hashedChatId,
+                    encryptedEmbedKey: try ComposerEmbedCrypto.wrapKey(embedKey, using: chatKey)
+                ),
+            ]
+            guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+            persistEmbedKeys(keyRecords)
+        }
+
+        let record = EmbedRecord(
+            id: embedId,
+            type: Self.displayType(type: type, appId: appId, skillId: skillId),
+            status: status,
+            data: nil,
+            encryptedContent: encryptedContent,
+            encryptedType: encryptedType,
+            encryptedTextPreview: encryptedTextPreview,
+            parentEmbedId: parentEmbedId,
+            appId: appId,
+            skillId: skillId,
+            embedIds: childIds.isEmpty ? nil : childIds.joined(separator: "|"),
+            hashedChatId: hashedChatId,
+            hashedMessageId: hashedMessageId,
+            hashedUserId: hashedOwnerId,
+            versionNumber: fields["version_number"] as? Int,
+            contentHash: fields["content_hash"] as? String,
+            createdAt: String(createdAt)
+        )
+        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        chatStore.upsertEmbeds([record], for: rawChatId)
+
+        if !keyRecords.isEmpty {
+            let requestId = UUID().uuidString
+            let keyPayloads: [[String: Any]] = keyRecords.map { key in
+                [
+                    "hashed_embed_id": key.hashedEmbedId,
+                    "key_type": key.keyType,
+                    "hashed_chat_id": key.hashedChatId.map { $0 as Any } ?? NSNull(),
+                    "encrypted_embed_key": key.encryptedEmbedKey,
+                    "hashed_user_id": hashedOwnerId,
+                    "created_at": createdAt,
+                ]
+            }
+            _ = try await transport.sendAndWait(
+                WSOutboundMessage(type: "store_embed_keys", payload: [
+                    "request_id": requestId,
+                    "keys": keyPayloads,
+                ]),
+                responseType: "store_embed_keys_confirmed"
+            ) { $0["request_id"] as? String == requestId }
+            guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        }
+
+        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        let requestId = UUID().uuidString
+        var storePayload: [String: Any] = [
+            "request_id": requestId,
+            "embed_id": embedId,
+            "encrypted_type": encryptedType,
+            "encrypted_content": encryptedContent,
+            "status": status.rawValue,
+            "hashed_chat_id": hashedChatId,
+            "hashed_message_id": hashedMessageId,
+            "hashed_user_id": hashedOwnerId,
+            "embed_ids": childIds,
+            "is_private": fields["is_private"] as? Bool ?? false,
+            "is_shared": fields["is_shared"] as? Bool ?? false,
+            "created_at": createdAt,
+            "updated_at": updatedAt,
+        ]
+        if let encryptedTextPreview { storePayload["encrypted_text_preview"] = encryptedTextPreview }
+        if let parentEmbedId { storePayload["parent_embed_id"] = parentEmbedId }
+        if let taskId = fields["task_id"] as? String { storePayload["hashed_task_id"] = Self.sha256Hex(taskId) }
+        for key in ["version_number", "file_path", "content_hash", "text_length_chars"] {
+            if let value = fields[key] { storePayload[key] = value }
+        }
+        _ = try await transport.sendAndWait(
+            WSOutboundMessage(type: "store_embed", payload: storePayload),
+            responseType: "store_embed_confirmed"
+        ) { $0["request_id"] as? String == requestId }
+        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+    }
+
+    private func storeAlreadyEncrypted(
+        _ fields: [String: Any],
+        embedId: String,
+        expectedGeneration: UUID,
+        expectedScope: UUID
+    ) throws {
+        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        guard let rawChatId = resolveChatId(fields["chat_id"] as? String),
+              let encryptedContent = fields["content"] as? String,
+              let encryptedType = fields["type"] as? String else {
+            throw LiveEmbedError.missingEncryptionContext
+        }
+        let keyRecords = Self.embedKeyRecords(fields["embed_keys"])
+        if !keyRecords.isEmpty {
+            guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+            persistEmbedKeys(keyRecords)
+        }
+        let childIds = Self.stringArray(fields["embed_ids"] ?? fields["child_embed_ids"])
+        let record = EmbedRecord(
+            id: embedId,
+            type: "app-skill-use",
+            status: EmbedStatus(rawValue: fields["status"] as? String ?? "") ?? .finished,
+            data: nil,
+            encryptedContent: encryptedContent,
+            encryptedType: encryptedType,
+            encryptedTextPreview: fields["text_preview"] as? String,
+            parentEmbedId: fields["parent_embed_id"] as? String,
+            appId: fields["app_id"] as? String,
+            skillId: fields["skill_id"] as? String,
+            embedIds: childIds.isEmpty ? nil : childIds.joined(separator: "|"),
+            hashedChatId: Self.sha256Hex(rawChatId),
+            hashedMessageId: (fields["message_id"] as? String).map(Self.hashIfNeeded),
+            hashedUserId: fields["hashed_user_id"] as? String,
+            versionNumber: fields["version_number"] as? Int,
+            contentHash: fields["content_hash"] as? String,
+            createdAt: String(Self.timestamp(fields["createdAt"] ?? fields["created_at"]))
+        )
+        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        chatStore.upsertEmbeds([record], for: rawChatId)
+    }
+
+    /// Immediately retries queued persistence failures. Production retries call
+    /// this after a bounded delay; focused tests use it without wall-clock waits.
+    func retryPendingPersistence() async {
+        for payloadKey in pendingRetries.keys.sorted() {
+            retryTasks[payloadKey]?.cancel()
+            retryTasks[payloadKey] = nil
+            await performRetry(payloadKey)
+        }
+    }
+
+    private func scheduleRetry(
+        payloadKey: String,
+        embedId: String,
+        chatId: String,
+        expectedGeneration: UUID,
+        expectedScope: UUID
+    ) {
+        guard isCurrent(expectedGeneration, expectedScope) else { return }
+        let attempt = (pendingRetries[payloadKey]?.attempt ?? 0) + 1
+        guard attempt <= 3 else {
+            pendingRetries.removeValue(forKey: payloadKey)
+            retryTasks[payloadKey]?.cancel()
+            retryTasks[payloadKey] = nil
+            return
+        }
+        pendingRetries[payloadKey] = PendingRetry(
+            embedId: embedId,
+            chatId: chatId,
+            attempt: attempt,
+            generation: expectedGeneration,
+            scope: expectedScope
+        )
+        retryTasks[payloadKey]?.cancel()
+        let delay = retryDelay(attempt)
+        retryTasks[payloadKey] = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let self else { return }
+            self.retryTasks[payloadKey] = nil
+            await self.performRetry(payloadKey)
+        }
+    }
+
+    private func performRetry(_ payloadKey: String) async {
+        guard let retry = pendingRetries[payloadKey] else { return }
+        guard isCurrent(retry.generation, retry.scope) else {
+            pendingRetries.removeValue(forKey: payloadKey)
+            return
+        }
+        requestedEmbedIdsByChat[retry.chatId]?.remove(retry.embedId)
+        do {
+            try await transport.send(WSOutboundMessage(
+                type: "request_embed",
+                payload: ["embed_id": retry.embedId]
+            ))
+            guard isCurrent(retry.generation, retry.scope) else {
+                pendingRetries.removeValue(forKey: payloadKey)
+                return
+            }
+            requestedEmbedIdsByChat[retry.chatId, default: []].insert(retry.embedId)
+            pendingRetries.removeValue(forKey: payloadKey)
+        } catch {
+            guard isCurrent(retry.generation, retry.scope) else { return }
+            scheduleRetry(
+                payloadKey: payloadKey,
+                embedId: retry.embedId,
+                chatId: retry.chatId,
+                expectedGeneration: retry.generation,
+                expectedScope: retry.scope
+            )
+        }
+    }
+
+    private func cancelRetry(_ payloadKey: String) {
+        pendingRetries.removeValue(forKey: payloadKey)
+        retryTasks[payloadKey]?.cancel()
+        retryTasks[payloadKey] = nil
+    }
+
+    private func isCurrent(_ expectedGeneration: UUID, _ expectedScope: UUID) -> Bool {
+        generation == expectedGeneration && accountScopeGeneration() == expectedScope && !Task.isCancelled
+    }
+
+    private func resolveChatId(_ candidate: String?) -> String? {
+        guard let candidate, !candidate.isEmpty else { return nil }
+        if chatStore.chat(for: candidate) != nil { return candidate }
+        guard candidate.count == 64 else { return candidate }
+        return chatStore.chats.first { Self.sha256Hex($0.id) == candidate.lowercased() }?.id
+    }
+
+    private static func displayType(type: String, appId: String?, skillId: String?) -> String {
+        if type == "app_skill_use", let appId, let skillId { return "app:\(appId):\(skillId)" }
+        return EmbedType.normalized(rawValue: type)?.rawValue ?? type.replacingOccurrences(of: "_", with: "-")
+    }
+
+    private static func stringArray(_ value: Any?) -> [String] {
+        if let values = value as? [String] { return values.filter { !$0.isEmpty } }
+        if let values = value as? [Any] { return values.compactMap { $0 as? String }.filter { !$0.isEmpty } }
+        if let value = value as? String {
+            return value.split { $0 == "|" || $0 == "," }
+                .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        }
+        return []
+    }
+
+    private static func embedKeyRecords(_ value: Any?) -> [EmbedKeyRecord] {
+        guard let rows = value as? [[String: Any]] else { return [] }
+        return rows.compactMap { row in
+            guard let hashedEmbedId = row["hashed_embed_id"] as? String,
+                  let keyType = row["key_type"] as? String,
+                  let encryptedEmbedKey = row["encrypted_embed_key"] as? String else { return nil }
+            return EmbedKeyRecord(
+                hashedEmbedId: hashedEmbedId,
+                keyType: keyType,
+                hashedChatId: row["hashed_chat_id"] as? String,
+                encryptedEmbedKey: encryptedEmbedKey
+            )
+        }
+    }
+
+    private static func timestamp(_ value: Any?) -> Int {
+        if let value = value as? Int { return value > 10_000_000_000 ? value / 1000 : value }
+        if let value = value as? Double { return Int(value > 10_000_000_000 ? value / 1000 : value) }
+        if let value = value as? String, let number = Double(value) {
+            return Int(number > 10_000_000_000 ? number / 1000 : number)
+        }
+        return Int(Date().timeIntervalSince1970)
+    }
+
+    private static func sha256Hex(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func hashIfNeeded(_ value: String) -> String {
+        value.count == 64 && value.allSatisfy(\.isHexDigit) ? value.lowercased() : sha256Hex(value)
+    }
+
+    private enum LiveEmbedError: Error {
+        case missingEncryptionContext
+        case staleContext
+    }
+
+    private struct PendingRetry {
+        let embedId: String
+        let chatId: String
+        let attempt: Int
+        let generation: UUID
+        let scope: UUID
     }
 }
 

@@ -70,10 +70,37 @@ final class MessageComposerConfigurationTests: XCTestCase {
                 + MessageComposerMetric.expandedBottomReservedHeight,
             accuracy: 0.01
         )
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testImageEmbedRetainsPreviewAndThreeTextLinesBeforeScrolling() {
+        let fourLineEmbedContentHeight =
+            MessageComposerMetric.embedPreviewHeight
+                + (MessageComposerMetric.editorVerticalInset * 2)
+                + (MessageComposerMetric.editorLineHeight * 4)
+
         XCTAssertEqual(
-            MessageComposerMetric.editorHeight(for: 220, containsEmbed: true),
-            220,
-            "Embed previews retain their existing larger editor viewport"
+            MessageComposerMetric.editorHeight(for: fourLineEmbedContentHeight, containsEmbed: true),
+            MessageComposerMetric.embedTextEditorMaxHeight,
+            accuracy: 0.01
         )
+        XCTAssertEqual(
+            MessageComposerMetric.embedTextFieldMaxHeight,
+            MessageComposerMetric.embedTextEditorMaxHeight
+                + MessageComposerMetric.expandedBottomReservedHeight,
+            accuracy: 0.01,
+            "The action row must remain outside the image and three visible text lines"
+        )
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,message-input.layout.responsive-parity
+    func testLongImageFilenameUsesMiddleEllipsisAndKeepsExtension() {
+        let original = "Screenshot 2026-09-24 at 11.16.43 in OpenMates.jpg"
+        let displayed = ComposerAttachmentFilename.displayName(for: original)
+
+        XCTAssertEqual(displayed.count, ComposerAttachmentFilename.maximumDisplayLength)
+        XCTAssertTrue(displayed.contains("…"))
+        XCTAssertTrue(displayed.hasSuffix(".jpg"))
+        XCTAssertEqual(ComposerAttachmentFilename.displayName(for: "photo.jpg"), "photo.jpg")
     }
 }
