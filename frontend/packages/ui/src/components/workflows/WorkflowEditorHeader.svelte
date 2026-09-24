@@ -3,6 +3,8 @@
 
   let {
     title,
+    eyebrow = '',
+    subtitle = '',
     backLabel = '',
     iconStyle = '',
     colored = false,
@@ -14,6 +16,8 @@
     onClose
   }: {
     title: string;
+    eyebrow?: string;
+    subtitle?: string;
     backLabel?: string;
     iconStyle?: string;
     colored?: boolean;
@@ -34,10 +38,12 @@
     <button type="button" class="breadcrumb" disabled={disabled} onclick={onBack}><Back size={16}/><span>{backLabel}</span></button>
   {:else}<span></span>{/if}
   <div class="title">
+    {#if eyebrow}<span class="eyebrow">{eyebrow}</span>{/if}
     {#if iconStyle}<span class="asset-icon" data-testid="workflow-editor-primary-icon" style={iconStyle} aria-hidden="true"></span>{/if}
     <strong>{title}</strong>
+    {#if subtitle}<span class="subtitle">{subtitle}</span>{/if}
   </div>
-  <div class="new-chat-button-wrapper">
+  <div class="close-control">
     <button type="button" class="header-action" disabled={disabled} aria-label={closeLabel} onclick={onClose}>
       <span class="clickable-icon icon_close top-button" aria-hidden="true"></span>
     </button>
@@ -48,19 +54,25 @@
 </header>
 
 <style>
-  .editor-header { position:relative; display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; min-height:3.25rem; margin-inline:-1.5rem; padding:.35rem .65rem; border-radius:1rem 1rem 0 0; color:var(--color-font-secondary); }
-  .editor-header.colored { min-height:6.25rem; padding-bottom:1.4rem; background:var(--node-gradient); color:var(--color-font-button); }
+  .editor-header { position:relative; box-sizing:border-box; display:flex; align-items:center; justify-content:center; min-height:3.25rem; margin-inline:-1.5rem; padding:.35rem 3.5rem; border-radius:1rem 1rem 0 0; color:var(--color-font-secondary); }
+  .editor-header.colored { min-height:9rem; padding-bottom:1.4rem; background:var(--node-gradient); color:var(--color-font-button); }
   button { border:0; box-shadow:none; background:transparent; color:inherit; font:inherit; cursor:pointer; }
-  .breadcrumb { justify-self:start; display:flex; align-items:center; gap:var(--spacing-2); min-width:0; padding:.35rem; font-size:max(14px, .875rem); }
+  .breadcrumb { position:absolute; left:.65rem; top:.75rem; display:flex; align-items:center; gap:var(--spacing-2); min-width:0; max-width:35%; padding:.35rem; font-size:max(14px, .875rem); }
   .breadcrumb span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .title { display:flex; align-items:center; justify-content:center; gap:var(--spacing-4); min-width:0; }
-  .title strong { max-width:24rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:max(16px, 1rem); }
+  .title { display:flex; align-items:center; justify-content:center; gap:var(--spacing-4); min-width:0; text-align:center; }
+  .title strong { max-width:34rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:max(14px, .875rem); }
+  .colored .title { flex-direction:column; gap:.3rem; }
+  .colored .title strong { color:var(--color-font-button); font-size:var(--font-size-p); line-height:1.35; white-space:normal; overflow-wrap:anywhere; }
+  .eyebrow { font-size:max(14px, .875rem); font-weight:700; line-height:1.25; }
+  .subtitle { font-size:var(--font-size-p); font-weight:700; line-height:1.25; }
   .asset-icon { display:inline-block; flex:0 0 auto; width:var(--workflow-icon-size, 16px); height:var(--workflow-icon-size, 16px); background:currentColor; -webkit-mask:var(--workflow-icon) center/contain no-repeat; mask:var(--workflow-icon) center/contain no-repeat; }
-  .new-chat-button-wrapper { justify-self:end; display:flex; align-items:center; justify-content:center; padding:var(--spacing-4); border-radius:40px; background-color:var(--color-grey-10); box-shadow:var(--shadow-md); }
-  .header-action { display:flex; align-items:center; justify-content:center; margin:0; padding:0; }
-  .header-action :global(.clickable-icon.top-button) { width:25px; height:25px; color:var(--color-font-primary); }
+  .close-control { position:absolute; top:.4rem; right:.65rem; display:grid; place-items:center; width:2.5rem; height:2.5rem; border-radius:var(--radius-full); background:var(--color-grey-0); box-shadow:var(--shadow-md); }
+  .colored .close-control { background:color-mix(in srgb, var(--color-grey-0) 22%, transparent); }
+  .header-action { position:relative; box-sizing:border-box; display:grid; place-items:center; width:100%; min-width:0; max-width:100%; height:100%; margin:0; padding:0; overflow:hidden; }
+  .header-action :global(.clickable-icon.top-button) { position:static !important; inset:auto !important; display:block; width:22px; height:22px; margin:0 !important; transform:none !important; background:var(--color-primary-start); }
+  .colored .header-action :global(.clickable-icon.top-button) { background:var(--color-font-button); }
   .collapse { position:absolute; bottom:.25rem; left:50%; display:grid; place-items:center; width:2rem; height:1.6rem; padding:0; transform:translateX(-50%); }
   button:disabled { opacity:.5; cursor:default; }
   button:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }
-  @media(max-width:730px) { .editor-header { margin-inline:-.8rem; } .title strong { max-width:11rem; } }
+  @media(max-width:730px) { .editor-header { margin-inline:-.8rem; padding-inline:3rem; } .title strong { max-width:11rem; } .colored .title strong { max-width:15rem; } }
 </style>

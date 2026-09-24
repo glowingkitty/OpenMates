@@ -1,11 +1,52 @@
 import { dailyWeatherNewsGraph } from "./workflowExamples";
 import type { WorkflowGraph } from "../../stores/workflowWorkspaceStore";
+import type { Chat } from "../../types/chat";
+
+function previewChat(
+  chatId: string,
+  title: string,
+  category: string,
+  icon: string,
+  summary: string,
+): Chat {
+  return {
+    chat_id: chatId,
+    encrypted_title: null,
+    messages_v: 1,
+    title_v: 1,
+    last_edited_overall_timestamp: Date.UTC(2026, 8, 24, 9),
+    unread_count: 0,
+    created_at: Date.UTC(2026, 8, 23, 9),
+    updated_at: Date.UTC(2026, 8, 24, 9),
+    title,
+    category,
+    icon,
+    chat_summary: summary,
+  };
+}
+
 const defaultProps = {
   graph: dailyWeatherNewsGraph(),
   readOnly: false,
   workflowId: null,
   onChange: (_graph: WorkflowGraph) => {},
   onSave: async (_graph: WorkflowGraph) => {},
+  chatFixtures: [
+    previewChat(
+      "preview-weather-reports",
+      "Daily weather reports",
+      "science_technology",
+      "cloud-sun",
+      "Daily forecasts, rain windows, and practical plans for the week.",
+    ),
+    previewChat(
+      "preview-language-events",
+      "Language learning events",
+      "education",
+      "languages",
+      "Privacy & user interests focused AI agents to make useful AI accessible to everyday users.",
+    ),
+  ],
   capabilityFixtures: [
     {
       id: "weather.forecast",
@@ -17,9 +58,29 @@ const defaultProps = {
         skill_id: "forecast",
         input_schema: {
           type: "object",
+          "x-ui": {
+            control: "date-range",
+            start_field: "start_date",
+            end_field: "end_date",
+            min: "today",
+            max_offset_days: 13,
+            default: "today",
+          },
           properties: {
             location: { type: "string" },
-            days: { type: "integer", default: 1, minimum: 1, maximum: 14 },
+            latitude: { type: "number" },
+            longitude: { type: "number" },
+            start_date: { type: "string", format: "date" },
+            end_date: { type: "string", format: "date" },
+            days: {
+              type: "integer",
+              default: 7,
+              minimum: 1,
+              maximum: 14,
+              "x-ui": { hidden: true },
+            },
+            timezone: { type: "string" },
+            units: { type: "string", enum: ["metric"], default: "metric" },
           },
           required: ["location"],
         },
@@ -93,7 +154,13 @@ const defaultProps = {
         },
         output_schema: {
           type: "object",
-          properties: { answer: { type: "string", title: "Answer", example: "A concise summary" } },
+          properties: {
+            answer: {
+              type: "string",
+              title: "Answer",
+              example: "A concise summary",
+            },
+          },
         },
         workflow: { test_allowed: true },
       },

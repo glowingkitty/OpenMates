@@ -18,8 +18,8 @@
   import type { AppMetadata } from '../../types/apps';
   import { record, label, schemaDefault, normalizeSchema, isAskAi, isCheck, isTrigger, isMessage, messageDestinationConfig, capabilityFor, outputsBefore, insertNode, removeNode, WorkflowNodeDependencyError, type Capability, type Insertion, type Output } from './workflowBuilder';
 
-  let { graph, readOnly = false, nodeRuns = [], testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, onSave = null }: {
-    graph: WorkflowGraph; readOnly?: boolean; nodeRuns?: WorkflowNodeRun[]; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null;
+  let { graph, readOnly = false, nodeRuns = [], testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, onSave = null }: {
+    graph: WorkflowGraph; readOnly?: boolean; nodeRuns?: WorkflowNodeRun[]; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null; chatFixtures?: Chat[] | null;
     onChange: (graph: WorkflowGraph) => void; onSave?: ((graph: WorkflowGraph) => Promise<void>) | null;
   } = $props();
   let capabilities = $state<Capability[]>([]);
@@ -50,7 +50,7 @@
   let askHintTimer: ReturnType<typeof setTimeout> | null = null;
   const tr = (key: string) => $text(`workflows.builder.${key}`);
   const Down = getLucideIcon('chevron-down');
-  const Coin = getLucideIcon('coins'); const Play = getLucideIcon('play'); const Stop = getLucideIcon('square');
+  const Coin = getLucideIcon('coins'); const Play = getLucideIcon('play'); const Stop = getLucideIcon('square'); const Search = getLucideIcon('search');
   const available = $derived(capabilities.filter(item => item.type === 'app_skill' && item.enabled && item.id !== 'ai.ask'));
   const askCapability = $derived(capabilities.find(item => item.id === 'ai.ask' && item.enabled));
   const appIds = $derived([...new Set(available.map(item => item.metadata.app_id).filter(Boolean))] as string[]);
@@ -71,6 +71,7 @@
   }
   onMount(() => {
     void loadCapabilities();
+    if (chatFixtures) chats = chatFixtures;
     return () => { testRevision += 1; askHintRevision += 1; if (askHintTimer) clearTimeout(askHintTimer); };
   });
   function appMetadata(appId: string, capability?: Capability): AppMetadata {
@@ -83,6 +84,15 @@
   function openPicker(kind: typeof picker, slot: Insertion): void { if (busy || testStatus === 'processing') return; draft = null; nodeError = ''; preview = null; insertion = slot; picker = kind; }
   function resetAskHints(): void { askHintRevision += 1; if (askHintTimer) clearTimeout(askHintTimer); askHintTimer = null; askSuggestions = []; askVerdict = 'idle'; askReminder = ''; }
   function closeEditor(): void { draft = null; picker = null; nodeError = ''; preview = null; chooseChat = false; showReferences = false; resetAskHints(); }
+  function backFromEditor(): void {
+    if (draft && isMessage(draft) && chooseChat) {
+      chooseChat = false;
+      if (graph.nodes.some(node => node.id === draft?.id)) return;
+      draft = null; picker = 'action';
+      return;
+    }
+    closeEditor();
+  }
   function edit(node: WorkflowNode): void { if (busy || testStatus === 'processing') return; if (readOnly) { expandedReadOnly = expandedReadOnly === node.id ? null : node.id; return; } closeEditor(); draft = structuredClone($state.snapshot(node)); testStatus = testOutputs[node.id] ? 'completed' : 'idle'; }
   function configure(type: WorkflowNode['type'], capability?: Capability): void {
     if (busy || testStatus === 'processing') return;
@@ -131,7 +141,7 @@
   function nextId(nodeId: string, branch?: string): string | undefined { return graph.edges.find(edge => edge.from === nodeId && (edge.branch ?? '') === (branch ?? ''))?.to; }
   function checkSource(node: WorkflowNode): WorkflowNode | undefined { const reference = String(record(node.config?.predicate).left ?? ''); const id = reference.startsWith('$nodes.') ? reference.split('.')[1] : reference.match(/steps\.([^.]+)/)?.[1]; return graph.nodes.find(item => item.id === id && item.type === 'app_skill_action'); }
   function appIcon(node: WorkflowNode): string { return (appMetadata(String(node.config?.app_id ?? '')).icon_image ?? `${node.config?.app_id}.svg`).trim().replace(/\.svg$/, ''); }
-  function assetIconStyle(name: string, size: number, color = 'var(--color-primary, #536de6)'): string { return `--workflow-icon:var(--icon-url-${name}, var(--icon-url-app));--workflow-icon-size:${size}px;color:${color}`; }
+  function assetIconStyle(name: string, size: number, color = 'var(--color-primary-start, #4867cd)'): string { return `--workflow-icon:var(--icon-url-${name}, var(--icon-url-app));--workflow-icon-size:${size}px;color:${color}`; }
   function primaryNodeIconStyle(node: WorkflowNode): string {
     if (node.type === 'app_skill_action') return assetIconStyle(appIcon(node), 33, 'var(--color-font-button)');
     if (isCheck(node)) return assetIconStyle(checkSource(node) ? appIcon(checkSource(node)!) : 'workflow-check', 33);
@@ -227,6 +237,7 @@
   }
   async function stopTest(): Promise<void> { if (!workflowId || !testingRunId) return; try { await workflowWorkspaceStore.cancelWorkflowRun(workflowId, testingRunId); } catch (error) { failForUser(error, 'save_failed'); } }
   async function loadChats(): Promise<void> {
+    if (chatFixtures) { chats = chatFixtures; return; }
     try {
       const [{ chatDB }, { chatMetadataCache }] = await Promise.all([import('../../services/db'), import('../../services/chatMetadataCache')]);
       const localChats = await chatDB.getAllChats();
@@ -258,7 +269,7 @@
 </script>
 
 {#snippet choice(icon: string, title: string, action: () => void, testId?: string)}
-  {@const Icon = getLucideIcon(icon)}{@const asset = ({ blocks: 'app', sparkles: 'ai', 'messages-square': 'chat', 'calendar-clock': 'workflow', 'calendar-days': 'calendar', 'git-branch': 'workflow-check' } as Record<string, string>)[icon]}<button type="button" class="choice" data-testid={testId} onclick={action}>{#if asset}<span class="workflow-icon" style={assetIconStyle(asset, 16)} aria-hidden="true"></span>{:else}<Icon size={16}/>{/if}<span>{title}</span></button>
+  {@const Icon = getLucideIcon(icon)}{@const asset = ({ blocks: 'app', sparkles: 'ai', 'messages-square': 'chat', 'calendar-clock': 'workflow', 'calendar-days': 'calendar', 'git-branch': 'workflow-check' } as Record<string, string>)[icon]}<button type="button" class="choice" data-testid={testId} onclick={action}>{#if asset}<span class="workflow-icon" style={assetIconStyle(asset, 27)} aria-hidden="true"></span>{:else}<Icon size={27}/>{/if}<span>{title}</span></button>
 {/snippet}
 
 {#snippet slotControls(slot: Insertion)}
@@ -266,7 +277,7 @@
     {#if sameSlot(slot) && (picker || (draft && !graph.nodes.some(node => node.id === draft?.id)))}
       {#if draft}{@render editor()}{:else}{@render pickerPanel()}{/if}
     {:else}
-      <div class="add-controls" data-testid="workflow-action-palette">
+      <div class="add-controls" class:blank={!slot.after && !graph.nodes.length} data-testid="workflow-action-palette">
         {#if !graph.nodes.some(isTrigger) && !slot.branch}{@render choice('calendar-clock', tr('add_trigger'), () => openPicker('trigger', slot), 'workflow-add-time-trigger')}{/if}
         {#if !slot.after && !graph.nodes.length}{@render choice('blocks', tr('add_action'), () => openPicker('action', slot), 'workflow-add-step')}{:else}<button type="button" class="nothing" data-testid="workflow-add-step" onclick={() => openPicker('action', slot)}>{tr('do_nothing_add_step')}</button>{/if}
       </div>
@@ -278,6 +289,7 @@
   <div class="editor picker" data-testid="workflow-step-menu">
     <WorkflowEditorHeader
       title={tr(picker === 'trigger' ? 'add_trigger' : picker === 'app' ? 'use_app' : picker === 'skill' ? 'choose_skill' : 'add_action')}
+      iconStyle={assetIconStyle(picker === 'trigger' ? 'workflow' : picker === 'skill' ? selectedApp : 'app', 16, 'var(--color-font-secondary)')}
       backLabel={picker === 'app' || picker === 'skill' ? tr('back') : ''}
       closeLabel={tr('close')}
       collapseLabel={tr('collapse')}
@@ -297,17 +309,19 @@
   {#if draft}
     {@const predicate = record(draft.config?.predicate)}
     {@const schedule = record(draft.config?.schedule)}
-    <div class="editor" class:skill-editor={draft.type === 'app_skill_action'} style={style(draft)} data-testid="workflow-node-expanded">
+    <div class="editor" class:skill-editor={draft.type === 'app_skill_action'} class:weather-editor={draft.type === 'app_skill_action' && String(draft.config?.app_id ?? '') === 'weather'} class:chat-destination={isMessage(draft) && chooseChat} style={style(draft)} data-testid="workflow-node-expanded">
       <WorkflowEditorHeader
-        title={draft.type === 'app_skill_action' ? summary(draft) : kind(draft)}
-        backLabel={draft.type === 'app_skill_action' && !isAskAi(draft) ? tr('back_to_app_skill') : ''}
+        title={draft.type === 'app_skill_action' ? (isAskAi(draft) ? tr('ask_ai') : summary(draft)) : kind(draft)}
+        eyebrow={draft.type === 'app_skill_action' ? kind(draft) : ''}
+        subtitle={draft.type === 'app_skill_action' ? location(draft) : ''}
+        backLabel={isMessage(draft) && chooseChat ? tr('add_action') : draft.type === 'app_skill_action' && !isAskAi(draft) ? tr('back_to_app_skill') : ''}
         iconStyle={primaryNodeIconStyle(draft)}
         colored={draft.type === 'app_skill_action'}
         collapsible
         disabled={busy || testStatus === 'processing'}
         closeLabel={tr('close')}
         collapseLabel={tr('collapse')}
-        onBack={closeEditor}
+        onBack={backFromEditor}
         onClose={closeEditor}
       />
       {#if isTrigger(draft)}
@@ -332,7 +346,6 @@
         <div class="output-heading"><h4>↑ {tr('output')}</h4><span>{tr(testOutputs[draft.id] ? 'test_output' : 'example')}</span></div>
         <div class="output-fields" data-testid="workflow-output-fields">{#each outputFields(draftCapability?.metadata.output_schema?.properties ?? { answer: { type: 'string', title: tr('answer') } }) as [key, spec]}{@const value = testOutputs[draft.id] ? testOutputs[draft.id][key] : exampleValue(spec)}<div><div class="output-label"><span class="type" data-value-type={valueType(spec, value)}>{tr(`output_type_${valueType(spec, value)}`)}</span><strong>{spec.title || label(key)}</strong></div><WorkflowValueView {value} schema={spec} appId="ai" path={`${draft.id}.${key}`}/></div>{/each}</div>
       {:else if draft.type === 'app_skill_action'}
-        {#if location(draft)}<span class="expanded-location">{location(draft)}</span>{/if}
         <h4>↓ {tr('input')}</h4>
         {#if draftCapability?.metadata.input_schema}<WorkflowSchemaFields schema={draftCapability.metadata.input_schema} value={draft.config?.input} {outputs} path={draft.id} appId={String(draft.config?.app_id ?? '')} timezone={workflowTimezone(draft)} onChange={value => patch({ input: value })}/>{:else}<p>{loadError || tr('schema_unavailable')}</p>{/if}
         <div class="test-control">
@@ -356,7 +369,7 @@
           </div>
         {/if}
       {:else if isMessage(draft)}
-        {#if chooseChat}<h3>{tr('chat_question')}</h3><input aria-label={tr('search_chats')} placeholder={tr('search_chats')} bind:value={chatSearch}/><div class="card-scroll">{#each visibleChats as chat}<ChatPreviewCard {chat} onOpen={selectChat}/>{/each}</div><button class="primary" type="button" data-testid="workflow-new-chat-destination" onclick={() => selectChat(null)}>+ {tr('new_chat_each_run')}</button>
+        {#if chooseChat}<h3>{tr('chat_question')}</h3><div class="card-scroll">{#each visibleChats as chat}<ChatPreviewCard {chat} onOpen={selectChat}/>{/each}</div><div class="chat-search"><Search size={18} aria-hidden="true"/><input aria-label={tr('search_chats')} placeholder={tr('search_chats')} bind:value={chatSearch}/></div><button class="primary" type="button" data-testid="workflow-new-chat-destination" onclick={() => selectChat(null)}>+ {tr('new_chat_each_run')}</button>
         {:else}
           <h3>{tr('message_question')}</h3><button class="quiet target" type="button" onclick={() => { chooseChat = true; void loadChats(); }}>{tr('to')}: {summary(draft)}</button>
           <label>{tr('chat_title')}<input data-testid="workflow-message-title" value={String(draft.config?.title ?? '')} oninput={event => patch({ title: event.currentTarget.value })}/></label>
@@ -402,7 +415,7 @@
 {/snippet}
 
 <section class="graph-panel" data-testid={testId} data-read-only={readOnly ? 'true' : 'false'}>
-  <div class="graph-canvas"><div class="node-stack" data-testid="workflow-node-stack">
+  <div class="graph-canvas" class:blank={!graph.nodes.some(node => node.type !== 'end')}><div class="node-stack" data-testid="workflow-node-stack">
     {#each rootNodes as root}{@render chain(root.id)}{/each}
     {#if !graph.nodes.some(node => node.type !== 'end')}{@render slotControls({ after: null })}{/if}
   </div></div>
@@ -417,7 +430,6 @@
   .node-summary.expanded{width:min(42rem,100%);border-radius:1rem 1rem 0 0}.node-summary.expanded+.editor{border-radius:0 0 1rem 1rem}.check-source{font-size:14px;color:var(--color-font-secondary)}
   .branch-label{display:flex;align-items:center;justify-content:center;gap:.4rem}
   .type{background:#315aef;color:white}.type[data-value-type="number"]{background:#b3213c}.type[data-value-type="date"]{background:#eb9d00}.type[data-value-type="boolean"]{background:#7651b5}
-  .expanded-location{font-size:16px;color:var(--color-font-secondary)}
   .editor :global(.settings-dropdown-wrapper){padding:0}
   .editor :global(.settings-dropdown){min-height:3.375rem}
 
@@ -443,4 +455,40 @@
   .run-status { position:absolute; top:.4rem; left:.4rem; display:flex; align-items:center; justify-content:center; min-height:1.5rem; padding:0 .5rem; border-radius:var(--radius-full); background:var(--color-grey-20); color:var(--color-font-primary); font-size:var(--font-size-small); }
   .run-status.success { width:1.5rem; padding:0; background:var(--color-chat-rainbow-green); }
   .run-status.failed { background:var(--color-error); color:var(--color-font-button); }
+
+  /* Match the reference builder's narrow graph and wide in-place editors. */
+  .graph-panel { width:min(52.2rem, calc(100% - 2rem)); }
+  .graph-canvas { padding:1.5rem 1.25rem; }
+  .graph-canvas.blank { min-height:0; padding-block:.75rem; }
+  .editor { width:min(48.3rem, 100%); background:var(--color-grey-0); border:1px solid var(--color-grey-20); }
+  .editor.weather-editor { background:var(--color-grey-10); }
+  .editor :global(.editor-header.colored) { margin-top:-1px; }
+  .weather-editor :global(.schema-fields > [data-testid="workflow-location-field"]),
+  .weather-editor :global(.schema-fields > [data-testid="workflow-date-range-field"]) { grid-column:auto; }
+  .choice { box-sizing:border-box; width:9.25rem; min-width:9.25rem; min-height:6rem; margin:0; background:var(--color-grey-0); }
+  .choice :global(svg) { color:var(--color-primary-start); }
+  .add-controls.blank { position:relative; align-items:center; min-height:8.5rem; gap:2.25rem; padding:0; }
+  .add-controls.blank::before { content:''; position:absolute; left:50%; top:0; bottom:0; width:1px; background:var(--color-grey-25); }
+  .add-controls.blank .choice { position:relative; z-index:1; }
+  .branch-group { width:min(23.5rem, 100%); }
+  .branch-group:has(.editor) { width:min(48.3rem, 100%); padding-inline:0; }
+  .nothing { width:min(20.5rem, 100%); }
+  .primary { min-width:11rem; border-radius:var(--radius-8); }
+  .chat-search { display:flex; align-items:center; justify-self:center; width:min(22rem, 100%); gap:.35rem; color:var(--color-font-secondary); }
+  .chat-search input { min-height:2rem; border:0; background:transparent; box-shadow:none; padding:.2rem; }
+  .editor.chat-destination { gap:.75rem; }
+  .chat-destination .card-scroll { box-sizing:border-box; padding-inline:calc(50% - 8.96875rem); }
+  .card-scroll :global(.resume-chat-large-card) { width:17.9375rem; min-width:17.9375rem; max-width:17.9375rem; height:9.9375rem; min-height:9.9375rem; max-height:9.9375rem; }
+  @media(max-width:730px) {
+    .graph-panel { width:calc(100% - 1rem); }
+    .graph-canvas { padding:1.25rem .5rem; }
+    .graph-canvas.blank { padding-block:.5rem; }
+    .editor { width:100%; }
+    .weather-editor :global(.schema-fields > [data-testid="workflow-location-field"]),
+    .weather-editor :global(.schema-fields > [data-testid="workflow-date-range-field"]) { grid-column:1/-1; }
+    .choice { width:8.625rem; min-width:8.625rem; min-height:5.5rem; }
+    .choice .workflow-icon, .choice :global(svg) { width:24px; height:24px; }
+    .add-controls.blank { gap:.75rem; }
+    .chat-destination .card-scroll { padding-inline:calc(50% - 7.5rem); }
+  }
 </style>
