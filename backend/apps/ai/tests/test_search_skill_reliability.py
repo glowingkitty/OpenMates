@@ -11,6 +11,7 @@ from __future__ import annotations
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
     normalize_string_query_request_items,
+    omit_unstated_generic_repository_criteria,
 )
 
 
@@ -39,3 +40,53 @@ def test_search_request_string_items_normalize_to_query_objects() -> None:
         ],
         "_placeholder_embed_ids": ["embed-1"],
     }
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.search-relevance.optional-and-inferred
+def test_neutral_repository_search_drops_invented_generic_ranking_defaults() -> None:
+    normalized, removed = omit_unstated_generic_repository_criteria(
+        {
+            "requests": [
+                {
+                    "query": "typescript markdown editor",
+                    "count": 10,
+                    "relevance_criteria": "Popular and well-maintained TypeScript Markdown editor libraries",
+                }
+            ]
+        },
+        "Find TypeScript Markdown editor libraries on GitHub.",
+    )
+
+    assert removed == 1
+    assert normalized == {
+        "requests": [{"query": "typescript markdown editor", "count": 10}]
+    }
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.search-relevance.optional-and-inferred
+def test_repository_search_keeps_explicit_or_goal_specific_ranking() -> None:
+    explicit_generic = {
+        "requests": [
+            {
+                "query": "typescript markdown editor",
+                "relevance_criteria": "Popular and well-maintained TypeScript Markdown editor libraries",
+            }
+        ]
+    }
+    purpose_specific = {
+        "requests": [
+            {
+                "query": "typescript markdown editor",
+                "relevance_criteria": "Permissive license and collaborative editing for a small SaaS team",
+            }
+        ]
+    }
+
+    assert omit_unstated_generic_repository_criteria(
+        explicit_generic,
+        "Find popular, well-maintained TypeScript Markdown editor libraries.",
+    ) == (explicit_generic, 0)
+    assert omit_unstated_generic_repository_criteria(
+        purpose_specific,
+        "Find a permissively licensed editor for collaborative SaaS editing.",
+    ) == (purpose_specific, 0)

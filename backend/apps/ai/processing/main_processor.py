@@ -32,6 +32,7 @@ from backend.apps.ai.processing.preprocessor import (
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
     normalize_string_query_request_items,
+    omit_unstated_generic_repository_criteria,
 )
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure
@@ -219,6 +220,39 @@ def _iter_user_request_texts(request_data: AskSkillRequest) -> List[str]:
         if content:
             texts.append(content)
     return texts
+
+
+def _apply_repository_relevance_criteria_guard(
+    arguments: Dict[str, Any],
+    app_id: str,
+    skill_id: str,
+    message_history: Optional[List[Dict[str, Any]]],
+    log_prefix: str,
+) -> Dict[str, Any]:
+    if (app_id, skill_id) != ("code", "search_repos"):
+        return arguments
+
+    latest_user_text: Optional[str] = None
+    for message in reversed(message_history or []):
+        if message.get("role") != "user":
+            continue
+        content = message.get("content")
+        if isinstance(content, str) and content.strip():
+            latest_user_text = content.strip()
+            break
+
+    guarded, removed = omit_unstated_generic_repository_criteria(
+        arguments,
+        latest_user_text,
+    )
+    if removed:
+        logger.warning(
+            "%s Removed %d unstated generic relevance_criteria value(s) from "
+            "neutral code.search_repos request",
+            log_prefix,
+            removed,
+        )
+    return guarded
 
 
 def _llm_history_message(message: Any) -> Dict[str, Any]:
@@ -4581,6 +4615,13 @@ async def handle_main_processing(
                         task_id=task_id,
                         message_history=current_message_history,
                     )
+                    parsed_args = _apply_repository_relevance_criteria_guard(
+                        parsed_args,
+                        app_id,
+                        skill_id,
+                        current_message_history,
+                        log_prefix,
+                    )
 
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
@@ -5375,6 +5416,13 @@ async def handle_main_processing(
                             discovered_apps_metadata=discovered_apps_metadata,
                             task_id=task_id,
                             message_history=current_message_history,
+                        )
+                        parallel_arguments = _apply_repository_relevance_criteria_guard(
+                            parallel_arguments,
+                            candidate["app_id"],
+                            candidate["skill_id"],
+                            current_message_history,
+                            log_prefix,
                         )
                         parallel_placeholder_ids = []
                         if parallel_placeholder.get("multiple"):
@@ -6741,6 +6789,13 @@ async def handle_main_processing(
                         discovered_apps_metadata=discovered_apps_metadata,
                         task_id=task_id,
                         message_history=current_message_history,
+                    )
+                    skill_arguments = _apply_repository_relevance_criteria_guard(
+                        skill_arguments,
+                        app_id,
+                        skill_id,
+                        current_message_history,
+                        log_prefix,
                     )
 
                     # For async skills (e.g., images.generate), thread placeholder embed_ids
