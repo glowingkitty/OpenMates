@@ -8,11 +8,11 @@ import XCTest
 
 @MainActor
 final class SettingsMemoriesMatesParityTests: XCTestCase {
-    // contract-test: supporting surface=gui.apple assertions=chat-processing-feedback.selected-mate-identity,settings-ui.parity.web-apple-shell
+    // contract-test: supporting surface=gui.apple assertions=chat-processing-feedback.selected-mate-identity,settings-ui.parity.web-apple-shell,focus-modes.retired-welcome-and-suki
     func testCanonicalMateCatalogAndMentionSyntax() {
-        XCTAssertEqual(CanonicalSettingsMateCatalog.all.count, 17)
+        XCTAssertEqual(CanonicalSettingsMateCatalog.all.count, 16)
         XCTAssertEqual(CanonicalSettingsMateCatalog.all.first?.id, "software_development")
-        XCTAssertEqual(CanonicalSettingsMateCatalog.all.last?.id, "onboarding_support")
+        XCTAssertEqual(CanonicalSettingsMateCatalog.all.last?.id, "general_knowledge")
         XCTAssertEqual(CanonicalSettingsMateCatalog.all.first?.mentionSyntax, "@mate:software_development")
         XCTAssertTrue(CanonicalSettingsMateCatalog.all.allSatisfy { !$0.artworkName.isEmpty })
         XCTAssertTrue(CanonicalSettingsMateCatalog.all.allSatisfy(\.isAvailable))

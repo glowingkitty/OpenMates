@@ -120,3 +120,12 @@ specializations:
   action: Adjust research prompting tactics without changing the promised evidence-backed behavior.
   expect: Tactics remain implementation details; shared full-instruction, off, historical-countdown, and interaction
     guarantees still apply, while any changed observable guarantee requires specification review.
+retirement:
+- id: retired-options-absent
+  given: A member opens the available mates and the OpenMates focus modes after signup.
+  action: Browse the choices on web and Apple, then reopen an older Suki chat.
+  expect: Suki and Welcome are unavailable for new chats, signup has not created a Welcome chat, and the older chat remains readable.
+- id: platform-question-falls-back
+  given: A member asks what OpenMates can do, without choosing a specialized mate.
+  action: Send the question in a new chat.
+  expect: General Knowledge handles the request; Suki and the Welcome focus are never selected.

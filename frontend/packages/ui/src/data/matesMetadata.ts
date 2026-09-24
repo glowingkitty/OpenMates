@@ -343,29 +343,6 @@ export const matesMetadata: MateMetadata[] = [
     system_prompt_translation_key: "mates.general_knowledge.systemprompt",
     process_translation_key: "mates.general_knowledge.process",
   },
-  {
-    // Suki — OpenMates onboarding and support assistant.
-    // Category matches mates.yml and onboardingChatService.ts ONBOARDING_CATEGORY.
-    // @mate:suki or @mate:onboarding_support both resolve to this mate.
-    id: "onboarding_support",
-    name_translation_key: "mates.onboarding_support",
-    description_translation_key: "mate_descriptions.onboarding_support",
-    profile_class: "onboarding_support",
-    expertise_icon: "compass",
-    search_names: [
-      "suki",
-      "onboarding",
-      "support",
-      "help",
-      "welcome",
-      "getting started",
-      "openmates",
-    ],
-    color_start: "#6364FF",
-    color_end: "#9B6DFF",
-    system_prompt_translation_key: "mates.onboarding_support.systemprompt",
-    process_translation_key: "mates.onboarding_support.process",
-  },
 ];
 
 /**
@@ -379,12 +356,4 @@ export function getMatesById(): Record<string, MateMetadata> {
     },
     {} as Record<string, MateMetadata>,
   );
-}
-
-/**
- * Get the list of valid mate IDs for mention detection.
- * This replaces the hardcoded VALID_MATES array in mateHelpers.ts
- */
-function getValidMateIds(): string[] {
-  return matesMetadata.map((mate) => mate.id);
 }

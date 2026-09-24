@@ -63,7 +63,6 @@ enum CanonicalSettingsMateCatalog {
         mate(id: "movies_tv", nameKey: "mates.movies_tv", icon: "entertainment"),
         mate(id: "activism", nameKey: "mates.activism", icon: "activism"),
         mate(id: "general_knowledge", nameKey: "mates.general_knowledge", icon: "general"),
-        mate(id: "onboarding_support", nameKey: "mates.onboarding_support", icon: "compass"),
     ]
 
     static func mate(id: String?) -> SettingsMateMetadata? {

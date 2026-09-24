@@ -135,6 +135,7 @@ async function navigateToApp(
 // Test 1: Focus mode appears in Apps with name and description
 // ---------------------------------------------------------------------------
 
+// contract-test: supporting surface=gui.web assertions=focus-modes.specializations
 test('Career insights focus mode appears in Jobs app settings with name and description', async ({
 	page
 }: {
@@ -232,6 +233,7 @@ test('Career insights focus mode appears in Jobs app settings with name and desc
 	logCheckpoint('Focus mode settings test completed successfully.');
 });
 
+// contract-test: supporting surface=gui.web assertions=focus-modes.specializations
 test('Deep research focus mode shows its approved example chat', async ({
 	page
 }: {
@@ -272,4 +274,37 @@ test('Deep research focus mode shows its approved example chat', async ({
 	);
 	await assertNoMissingTranslations(page);
 	logCheckpoint('Deep research shows the approved example chat without missing translations.');
+});
+
+// contract-test: direct surface=gui.web assertions=focus-modes.retired-welcome-and-suki
+test('OpenMates app does not offer the retired Welcome focus mode', async ({ page }: { page: any }) => {
+	test.setTimeout(120000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	const logCheckpoint = createSignupLogger('OPENMATES_FOCUS_SETTINGS');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'openmates-focus-settings' });
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await openSettingsPanel(page, logCheckpoint);
+	await navigateToAppStore(page, logCheckpoint);
+	await openAllAppsList(page, logCheckpoint);
+	await navigateToApp(page, 'openmates', logCheckpoint);
+	const appCards = page.getByTestId('app-store-card');
+	await expect(appCards.filter({ hasText: /Plan/i }).first()).toBeVisible();
+	await expect(appCards.filter({ hasText: /^Welcome$/i })).toHaveCount(0);
+});
+
+// contract-test: direct surface=gui.web assertions=focus-modes.retired-welcome-and-suki
+test('Mates settings excludes the retired Suki mate', async ({ page }: { page: any }) => {
+	test.setTimeout(120000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	const logCheckpoint = createSignupLogger('MATES_SETTINGS');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'mates-settings' });
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await openSettingsPanel(page, logCheckpoint);
+	const matesLink = page.getByTestId('settings-menu').getByText('Mates', { exact: true });
+	await expect(matesLink).toBeVisible();
+	await matesLink.click();
+	const mateProfiles = page.getByTestId('mate-profile-settings');
+	await expect(mateProfiles.first()).toBeVisible();
+	await expect(mateProfiles).toHaveCount(16);
+	await expect(page.locator('[data-mate-id="onboarding_support"]')).toHaveCount(0);
 });

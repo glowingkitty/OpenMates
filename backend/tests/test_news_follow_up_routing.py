@@ -21,7 +21,7 @@ def _load_routing_functions():
     names = {
         "_news_follow_up_repeats_prior_topic", "_normalize_topic_area",
         "_normalize_task_area", "_resolve_category_from_topic_area",
-        "USER_ROLE", "TOPIC_CONTINUITY_STOP_WORDS", "ONBOARDING_SUPPORT_CATEGORY",
+        "USER_ROLE", "TOPIC_CONTINUITY_STOP_WORDS",
         "SOFTWARE_DEVELOPMENT_CATEGORY", "SAME_TOPIC_SHIFT_VALUES",
         "FOLLOW_UP_CONTINUITY_TOPIC_AREAS", "TOPIC_AREA_DESCRIPTIONS",
         "TOPIC_AREA_TO_MATE_CATEGORY",
@@ -101,3 +101,14 @@ def test_valid_new_topic_can_select_different_mate(previous, shift):
         previous_category=previous,
         available_category_ids={"software_development", "cooking_food"},
     ) == "cooking_food"
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.retired-welcome-and-suki
+def test_openmates_platform_routes_to_general_knowledge_after_suki_removal() -> None:
+    available_categories = {"general_knowledge", "software_development"}
+    assert _resolve_category_from_topic_area(
+        raw_topic_area="openmates_platform",
+        raw_topic_shift="noticeable_shift",
+        previous_category=None,
+        available_category_ids=available_categories,
+    ) == "general_knowledge"

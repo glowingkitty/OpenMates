@@ -10,12 +10,13 @@ scope:
   - Shared focus activation, cancellation, deactivation, per-request system prompts and historical events.
   - Current-state restoration and historical rendering across supported first-party surfaces.
   - Web focus activation display, details/off interactions and Career insights banner placement.
+  - Retirement of the Welcome focus mode and its dedicated Suki mate from new selection and routing.
   - Composition with individual focus-mode specifications.
   - Project-owned focus activation as a necessary deterministic condition for chat file writes, and preservation of read access to files already shown in the chat after deactivation.
   excludes:
   - Exact focus prompt wording, conversational tactics, and instruction authoring; these belong to app instruction
     implementation.
-  - Changes to individual focus instruction content, career guidance/disclaimer policy, or model and mate selection.
+  - Changes to individual focus instruction content, career guidance/disclaimer policy, or selection of remaining models and mates.
   - New endpoints, altered authentication, rate or credit limits, and changes to encryption protocol.
 assertions:
 - id: focus-modes.project-write-gate
@@ -103,6 +104,11 @@ assertions:
     disclaimer wording, or model/mate selection policies.
   depends_on:
   - examples.specializations
+- id: focus-modes.retired-welcome-and-suki
+  type: behavior
+  must: The Welcome focus mode and its dedicated Suki mate are absent from selectable web and Apple catalogs, and signup does not create a Welcome chat. New requests cannot route to Suki or activate Welcome; an OpenMates platform question uses General Knowledge when no specialized mate applies. Existing chats that used Suki remain readable.
+  depends_on:
+  - examples.retirement
 applies_to:
   rest_api:
     required: true
@@ -146,3 +152,4 @@ examples:
   - restoration
   - banner_placement
   - specializations
+  - retirement

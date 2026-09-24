@@ -382,27 +382,3 @@ general_knowledge:
   sv: Georg
   he: "ג'ורג'"
   verified_by_human: []
-onboarding_support:
-  context: Name for the OpenMates onboarding and support assistant mate. Suki is the persona name used consistently across the platform (onboarding chat, welcome focus mode, and direct @mate:suki selection).
-  en: Suki
-  de: Suki
-  zh: Suki
-  es: Suki
-  fr: Suki
-  pt: Suki
-  ru: Suki
-  ja: Suki
-  ko: Suki
-  it: Suki
-  tr: Suki
-  vi: Suki
-  id: Suki
-  pl: Suki
-  nl: Suki
-  ar: Suki
-  hi: Suki
-  th: Suki
-  cs: Suki
-  sv: Suki
-  he: סוקי
-  verified_by_human: []

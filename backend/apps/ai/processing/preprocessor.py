@@ -65,22 +65,18 @@ from backend.apps.ai.utils.utility_model_fallbacks import utility_model_fallback
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
+from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.shared.python_utils.url_normalizer import (
     extract_urls_from_text,
     sanitize_text_urls_with_safeguard,
 )
-
-# Import AIHistoryMessage for type-safe onboarding trigger detection
-from backend.core.api.app.schemas.chat import AIHistoryMessage
 
 # Import ConfigManager for model provider resolution
 from backend.core.api.app.utils.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
 
-ONBOARDING_SUPPORT_CATEGORY = "onboarding_support"
 SOFTWARE_DEVELOPMENT_CATEGORY = "software_development"
-ONBOARDING_FOCUS_ID = "openmates-welcome"  # active_focus_id when Welcome Onboarding is running
 USER_ROLE = "user"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
 IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-haiku-4-5-20251001"
@@ -289,7 +285,7 @@ TOPIC_AREA_DESCRIPTIONS: Dict[str, str] = {
 }
 
 TOPIC_AREA_TO_MATE_CATEGORY: Dict[str, str] = {
-    "openmates_platform": ONBOARDING_SUPPORT_CATEGORY,
+    "openmates_platform": "general_knowledge",
     "general_misc": "general_knowledge",
     "software_development": SOFTWARE_DEVELOPMENT_CATEGORY,
     "debugging_code": SOFTWARE_DEVELOPMENT_CATEGORY,
@@ -592,6 +588,8 @@ def _resolve_category_from_topic_area(
 
     return mapped_category
 
+# Legacy intent predicate retained for historical preprocessor tests only.
+# Retired Suki/Welcome routing does not call this predicate.
 # ---------------------------------------------------------------------------
 # Onboarding trigger phrases — multilingual (all 20 supported locales).
 #
@@ -1953,18 +1951,11 @@ async def handle_preprocessing(
     # IMPORTANT: these descriptions are deliberately written to avoid overlap between
     # categories — the preprocessing LLM must be able to distinguish them clearly.
     # We also override a small number of categories with tighter, more precise hints
-    # (especially 'onboarding_support' and 'general_knowledge') to prevent mis-routing.
+    # (especially 'general_knowledge') to prevent mis-routing.
     #
     # Override map: category -> description string used for category availability and guards.
     # Any category NOT in this map falls back to the description from the mate .md file.
     CATEGORY_DESCRIPTION_OVERRIDES: Dict[str, str] = {
-        # 'onboarding_support' is the most mis-routed category. The override makes the
-        # restriction explicit so the LLM never picks it for generic user tasks.
-        "onboarding_support": (
-            "ONLY for questions about the OpenMates platform itself: its features, mates, apps, "
-            "skills, focus modes, account management, or pricing. "
-            "Do NOT use for any general user task (writing, research, coding, cooking, travel, etc.)."
-        ),
         # 'general_knowledge' is the catch-all fallback. The override makes this explicit
         # so the LLM always prefers a specific category when one fits, and only falls back
         # here when nothing else matches.
@@ -2047,44 +2038,6 @@ async def handle_preprocessing(
         )
         available_categories_list.append(f"general_knowledge: {fallback_desc}")
         available_categories_list = sorted(available_categories_list)
-
-    # Hard guard for onboarding routing reliability.
-    #
-    # When the Welcome Onboarding focus mode is active, the user is in an onboarding
-    # conversation — we force category to onboarding_support AFTER the LLM call
-    # (see "Force onboarding_support when Welcome focus is active" block below).
-    # In that case we keep the category in the list and set a flag.
-    #
-    # Otherwise, if no user-authored message in the current chat history mentions
-    # OpenMates/trigger phrases, remove onboarding_support from selectable categories
-    # before prompting the LLM so it cannot be mis-selected.
-    force_onboarding_category = request_data.active_focus_id == ONBOARDING_FOCUS_ID
-    if force_onboarding_category:
-        logger.info(
-            f"{log_prefix} Welcome Onboarding focus mode is active "
-            f"(active_focus_id='{request_data.active_focus_id}'). "
-            f"Will force category='{ONBOARDING_SUPPORT_CATEGORY}' after LLM call."
-        )
-    else:
-        has_onboarding_trigger = _contains_onboarding_trigger_in_user_history(request_data.message_history)
-        if not has_onboarding_trigger:
-            onboarding_prefix = f"{ONBOARDING_SUPPORT_CATEGORY}:"
-            filtered_categories = [
-                category_entry
-                for category_entry in available_categories_list
-                if not category_entry.startswith(onboarding_prefix)
-            ]
-            if len(filtered_categories) != len(available_categories_list):
-                available_categories_list = filtered_categories
-                logger.info(
-                    f"{log_prefix} Removed '{ONBOARDING_SUPPORT_CATEGORY}' from selectable categories "
-                    "because no onboarding trigger terms were found in user chat history."
-                )
-        else:
-            logger.debug(
-                f"{log_prefix} Keeping '{ONBOARDING_SUPPORT_CATEGORY}' in selectable categories "
-                "because onboarding trigger terms were found in user chat history."
-            )
 
     # Build a set of bare category IDs (e.g. {"science", "finance", ...}) for validation.
     # The LLM is prompted with the full "id: description" strings (available_categories_list)
@@ -2835,19 +2788,6 @@ async def handle_preprocessing(
         )
         validated_category = "general_knowledge"
         llm_analysis_args["category"] = validated_category
-
-    # --- Force onboarding_support when Welcome focus is active ---
-    # When the user is in an onboarding conversation (openmates-welcome focus mode),
-    # always route to the onboarding mate regardless of what the LLM selected.
-    # This overrides topic_area-derived category selection above.
-    if force_onboarding_category:
-        if validated_category != ONBOARDING_SUPPORT_CATEGORY:
-            logger.info(
-                f"{log_prefix} Overriding derived category '{validated_category}' → "
-                f"'{ONBOARDING_SUPPORT_CATEGORY}' because Welcome Onboarding focus is active."
-            )
-        validated_category = ONBOARDING_SUPPORT_CATEGORY
-        llm_analysis_args["category"] = ONBOARDING_SUPPORT_CATEGORY
 
     # --- Mate selection: user override first, then explicit request_data, then category-based ---
     # When the user specified @mate:..., we use only that and do not run automatic selection

@@ -48,7 +48,6 @@
     import { clearPendingGiftCardRedemption, getPendingGiftCardRedemptionCode } from '../../stores/serverStatusStore';
     import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
     import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // Import phased sync state to mark sync completed after signup
-    import { createOnboardingChat, hasOnboardingChat, ONBOARDING_ENABLED } from '../../services/onboardingChatService'; // Import onboarding chat creation
     import { promoteAnonymousChatsAfterSignup } from '../../services/anonymousChatPromotionService';
     import { getSignupStepSequence } from './signupFlow';
 
@@ -1124,43 +1123,6 @@
             }
         } catch (error) {
             console.error('[Signup] Failed to promote anonymous chats after signup; local anonymous data was preserved for retry:', error);
-        }
-
-        // Create the onboarding chat with Suki's pre-activated welcome focus mode.
-        // Uses hasOnboardingChat() as a guard against duplicate creation on page reload.
-        // This is fire-and-forget — a failure here must not block signup completion.
-        //
-        // After creation, the chat is auto-opened on ALL devices (mobile + desktop) by
-        // setting it as the active chat via activeChatStore. This is a one-time action
-        // that only runs during signup, never on subsequent page loads.
-        //
-        // Gated by ONBOARDING_ENABLED while we rework the onboarding experience.
-        // window.onboarding() still works for manual QA.
-        if (promotedAnonymousChatCount > 0) {
-            console.debug('[Signup] Anonymous chats promoted — skipping onboarding auto-create so the user returns to their chat');
-        } else if (!ONBOARDING_ENABLED) {
-            console.debug("[Signup] Onboarding disabled — skipping auto-create");
-        } else try {
-            const alreadyExists = await hasOnboardingChat();
-            if (!alreadyExists) {
-                const username = $signupStore.username || '';
-                const onboardingChatId = await createOnboardingChat(username);
-                if (onboardingChatId) {
-                    // Auto-open is handled by the localChatListChanged event dispatched from
-                    // onboardingChatService.createOnboardingChat() with autoOpen: true.
-                    // Chats.svelte picks this up and sets _chatIdToSelectAfterUpdate, which
-                    // triggers handleChatClick → chatSelected → loadChat() without touching
-                    // the URL hash (avoids the programmatic hash update guard).
-                    console.debug(`[Signup] Created onboarding chat ${onboardingChatId} — auto-open dispatched via localChatListChanged`);
-                } else {
-                    console.warn("[Signup] createOnboardingChat returned null — onboarding chat was not created");
-                }
-            } else {
-                console.debug("[Signup] Onboarding chat already exists — skipping creation");
-            }
-        } catch (error) {
-            // Non-fatal: log but do not block signup completion
-            console.error("[Signup] Failed to create onboarding chat:", error);
         }
 
         // Open sidebar on desktop so the user sees the chat list.

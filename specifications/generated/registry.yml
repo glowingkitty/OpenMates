@@ -380,7 +380,7 @@ specifications:
     version: 1
     status: draft
     path: features/focus-modes
-    fingerprint: 3fcede82b7b3a44a2b45c6d53233c0f319b8bd97fecb3949618794f0a703cd72
+    fingerprint: f16a8dfc7061b059386b6c64f7bff062e1e5f55e0d0b1a8d790eea24ef629be8
     required_applies_to:
     - rest_api
     - cli
@@ -4704,6 +4704,18 @@ assertions:
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 9e020f8fd50696ad94d5a341b38d87b7249f29c7cf2e49b8a19b02eaaf9698b1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.retired-welcome-and-suki:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: feda32f769a80f027243bb14f1f08baf296dbe949dcbf78a9fcbcb97e11911cf
     required_applies_to:
     - rest_api
     - cli
