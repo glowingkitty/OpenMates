@@ -79,10 +79,47 @@ _CRITERIA_GLUE_WORDS = {
     "to",
     "with",
 }
+_REPOSITORY_DISCOVERY_VERBS = {"find", "list", "search", "show"}
+_REPOSITORY_PREFERENCE_CUES = _GENERIC_REPOSITORY_RANKING_WORDS | {
+    "advanced",
+    "beginner",
+    "collaborative",
+    "compatible",
+    "fast",
+    "for",
+    "license",
+    "licensed",
+    "lightweight",
+    "need",
+    "needs",
+    "permissive",
+    "prefer",
+    "privacy",
+    "production",
+    "secure",
+    "self",
+    "small",
+    "suitable",
+    "team",
+    "that",
+    "to",
+    "want",
+    "where",
+    "which",
+    "with",
+}
 
 
 def _word_tokens(value: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", value.casefold()))
+
+
+def _is_plain_github_repository_discovery(value: str | None) -> bool:
+    ordered_tokens = re.findall(r"[a-z0-9]+", (value or "").casefold())
+    if not ordered_tokens or ordered_tokens[0] not in _REPOSITORY_DISCOVERY_VERBS:
+        return False
+    tokens = set(ordered_tokens)
+    return "github" in tokens and not (tokens & _REPOSITORY_PREFERENCE_CUES)
 
 
 def omit_unstated_generic_repository_criteria(
@@ -102,6 +139,7 @@ def omit_unstated_generic_repository_criteria(
         return arguments, 0
 
     user_tokens = _word_tokens(user_request_text or "")
+    plain_discovery = _is_plain_github_repository_discovery(user_request_text)
     user_concepts = {
         concept
         for concept, words in _GENERIC_REPOSITORY_RANKING_CONCEPTS.items()
@@ -132,7 +170,9 @@ def omit_unstated_generic_repository_criteria(
         generic_only = bool(distinguishing_tokens) and (
             distinguishing_tokens <= _GENERIC_REPOSITORY_RANKING_WORDS
         )
-        if not generic_only or criteria_concepts & user_concepts:
+        if not plain_discovery and (
+            not generic_only or criteria_concepts & user_concepts
+        ):
             normalized_requests.append(item)
             continue
 

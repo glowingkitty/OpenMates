@@ -78,6 +78,22 @@ def test_neutral_repository_search_drops_invented_generic_ranking_defaults() -> 
         "requests": [{"query": "markdown editor language:TypeScript"}]
     }
 
+    specific_repo_variant, specific_repo_removed = omit_unstated_generic_repository_criteria(
+        {
+            "requests": [
+                {
+                    "query": "mdx-editor/editor",
+                    "relevance_criteria": "MDX editor library in TypeScript",
+                }
+            ]
+        },
+        "Find TypeScript Markdown editor libraries on GitHub.",
+    )
+    assert specific_repo_removed == 1
+    assert specific_repo_variant == {
+        "requests": [{"query": "mdx-editor/editor"}]
+    }
+
 
 # contract-test: supporting surface=gui.web assertions=app-skills.search-relevance.optional-and-inferred
 def test_repository_search_keeps_explicit_or_goal_specific_ranking() -> None:
