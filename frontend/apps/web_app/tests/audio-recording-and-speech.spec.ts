@@ -13,9 +13,10 @@ const {
 	createSignupLogger,
 	createStepScreenshotter,
 	getTestAccount,
+	installE2EServerContentOverrideGate,
 	withLiveMockMarker
 } = require('./signup-flow-helpers');
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { extractLiveTestMarker, loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const SPEECH_TIMEOUT_MS = 240_000;
@@ -157,6 +158,9 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		const transcriptionRelease = new Promise<void>((resolve) => {
 			releaseTranscriptionResponse = resolve;
 		});
+		// This journey owns a deterministic batch transcript. Close the realtime
+		// socket before it reaches a paid provider so the app takes its fallback.
+		await page.routeWebSocket('**/v1/apps/audio/realtime-transcription**', (socket: any) => socket.close());
 		await page.route('**/v1/apps/audio/skills/transcribe', async (route: any) => {
 			const request = route.request().postDataJSON();
 			const recordingId = request.requests[0].id;
@@ -190,6 +194,7 @@ test.describe.serial('Audio recording and assistant speech', () => {
 				})
 			});
 		});
+		await installE2EServerContentOverrideGate(page, 'assistant-response-speech');
 
 		await loginToTestAccount(page, log, screenshot);
 		await startNewChat(page, log);
@@ -249,14 +254,22 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 120_000 });
 		await expect(speechStatus).toHaveText('Speech turned on');
 		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'true');
-		await transcriptionReady;
+		await Promise.race([
+			transcriptionReady,
+			page.waitForTimeout(30_000).then(() => { throw new Error('Batch transcription fallback was not requested'); })
+		]);
 		const recordedAudio = messageField
 			.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="transcribe"]')
 			.last();
 		await expect(recordedAudio).toHaveAttribute('data-status', /uploading|processing|transcribing/);
 		await editor.click();
-		await page.keyboard.type(withRequiredLiveMock('Reply in exactly two short plain-text paragraphs confirming this encrypted chat is ready for a voice playback test.'));
-		await page.locator('[data-action="send-message"]').click();
+		const firstRequest = extractLiveTestMarker(withRequiredLiveMock('Reply in exactly two short plain-text paragraphs confirming this encrypted chat is ready for a voice playback test.'));
+		await page.keyboard.type(firstRequest.message);
+		await editor.evaluate((element: HTMLElement, marker: string) => element.dispatchEvent(new CustomEvent('custom-send-message', {
+			bubbles: true,
+			cancelable: true,
+			detail: { testMockMarker: marker }
+		})), firstRequest.testMockMarker);
 		const pendingMessage = page.locator('[data-message-id][data-status="waiting_for_upload"]').last();
 		await expect(pendingMessage).toBeVisible({ timeout: 10_000 });
 		const pendingMessageId = await pendingMessage.getAttribute('data-message-id');

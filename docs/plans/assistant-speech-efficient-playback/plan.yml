@@ -159,7 +159,7 @@ acceptance_criteria:
     scenario: S-3
     text: Each ready provider-generated chapter settles once; total credits equal message-level rounded characters after stop, retry, races, and later chapters.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BILLING]
@@ -167,7 +167,7 @@ acceptance_criteria:
     scenario: S-4
     text: Paired real-provider samples or pitch-preserving playback verify faster intelligible narration for generated and replayed chapters.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids: [T-PACE]
@@ -196,7 +196,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: blocked, actor: ci_coordinator, timestamp: '2026-09-24T16:40:00Z', reason: 'The original assistant_response_speech_web provider replay cache is absent; CI rejected the full voice-message spec.', next_action: 'Use the original cache if supplied, or obtain explicit authorization and a hard budget for provider recording. Component preview passed separately in run 36028968294.'}
+      evidence: {status: blocked, actor: dev_recording, timestamp: '2026-09-24T18:23:00Z', reason: 'Original replay cache absent; authorized real recording wrote one candidate entry, then the EUR 0.25 shared budget rejected the next conservative preprocessing reservation before provider dispatch. The browser weather/paragraph journey could not finish; the partial cassette cannot be promoted.', next_action: 'Use the original complete cache if supplied, or make one bounded recording in a future budget window with a model whose conservative reservations fit the cap, then prove a zero-call replay in isolated CI. Component preview passed separately in run 36028968294.'}
   - id: T-BILLING
     type: pytest
     file: backend/tests/test_assistant_speech_worker.py
@@ -245,7 +245,7 @@ tasks:
     ownership: {files: [frontend/packages/ui/src/services/assistantSpeechQueue.ts, frontend/packages/ui/src/services/assistantSpeechController.ts], shared_files: []}
   - id: TASK-563
     title: Settle assistant speech credits after each ready paragraph
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-3], acceptance_criteria: [AC-3]}
     expected_files: [backend/apps/audio/assistant_speech/billing_task.py, backend/apps/audio/assistant_speech/persistence.py]
@@ -256,7 +256,7 @@ tasks:
     ownership: {files: [backend/apps/audio/assistant_speech/billing_task.py, backend/apps/audio/assistant_speech/persistence.py], shared_files: []}
   - id: TASK-9657
     title: Increase assistant response speech pace
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-4], acceptance_criteria: [AC-4]}
     expected_files: [backend/apps/audio/assistant_speech/voice_profiles.py, frontend/packages/ui/src/services/assistantSpeechQueue.ts]
@@ -273,15 +273,14 @@ attempts:
     recorded_at: '2026-09-24'
 handoff:
   current_task_id: TASK-8591
-  next_action: Resolve the missing original provider replay cache or obtain an explicit bounded recording decision, finish full-flow browser evidence, and deploy the approved implementation.
+  next_action: Complete the bounded browser recording and zero-call CI replay when the provider budget permits, then verify the full Plan.
   command: python3 scripts/specifications.py validate specifications/features/assistant-response-speech
   expected_outcome: Changed assertions and human-readable examples validate before review artifact generation.
   blocker:
-    reason: Full voice-message browser CI is held because the original assistant_response_speech_web replay cache is absent; replacement recording needs explicit authorization and a hard budget.
-    requires_user_input: true
-    question: Supply the original cache, authorize a budgeted provider recording, or accept the full-flow evidence gap.
-    next_action: Preserve the passing backend and player-component CI evidence while awaiting the user's testing decision.
-  last_verified_commit: 5771efd68e562f1b7e10ccc067a40a402e9a7c1d
+    reason: The original assistant_response_speech_web replay cache is absent. Authorized recording started under the EUR 0.25 shared cap, but the next conservative AI reservation was rejected; its one-entry candidate cannot support full replay.
+    requires_user_input: false
+    next_action: Preserve passing focused CI evidence; use the original complete cache if available or record in a future budget window and prove zero-call replay before promoting it.
+  last_verified_commit: a8c3799093fdfa40ec6910ae95a02a5e85684699
 
 source_evidence:
   - backend/apps/audio/assistant_speech/voice_profiles.py
