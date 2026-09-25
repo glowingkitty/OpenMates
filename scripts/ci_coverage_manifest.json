@@ -33,6 +33,7 @@
         "connected-account-calendar-settings.spec.ts",
         "content-embed-settings.spec.ts",
         "debug-logging-settings.spec.ts",
+        "draft-embed-preview.spec.ts",
         "export-account-flow.spec.ts",
         "focus-mode-mention.spec.ts",
         "focus-mode-settings.spec.ts",

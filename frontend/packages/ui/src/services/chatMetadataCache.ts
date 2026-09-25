@@ -5,6 +5,7 @@ import { decryptWithMasterKey } from "./cryptoService";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import type { Chat } from "../types/chat";
+import { formatDraftPreview } from "../utils/draftPreview";
 
 /**
  * Represents decrypted chat metadata for display in chat lists
@@ -171,7 +172,7 @@ class ChatMetadataCache {
       // Decrypt draft preview with master key
       let draftPreview: string | null = null;
       if (chat.encrypted_draft_preview) {
-        draftPreview = await decryptWithMasterKey(chat.encrypted_draft_preview);
+        draftPreview = formatDraftPreview(await decryptWithMasterKey(chat.encrypted_draft_preview)) || null;
       }
 
       // Decrypt chat-key fields in parallel — all use the same key and are independent

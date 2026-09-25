@@ -109,6 +109,7 @@
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
     import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from '../utils/chatDraftState';
+    import { formatDraftPreview } from '../utils/draftPreview';
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
@@ -3399,10 +3400,7 @@
         const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
         let draftPreview: string | null = null;
 
-        const sanitizeVisibleDraftPreview = (value: string | null): string | null => {
-            const sanitized = value?.replace(/\s*<<<TEST_LIVE_MOCK:[^>]+>>>\s*/g, ' ').replace(/\s+/g, ' ').trim() || null;
-            return sanitized;
-        };
+        const sanitizeVisibleDraftPreview = (value: string | null): string | null => formatDraftPreview(value) || null;
 
         if (isDraftOnly) {
             try {
@@ -4221,14 +4219,14 @@
         const encryptedPreview = chat.encrypted_draft_preview || chat.encrypted_draft_md;
         if (!encryptedPreview) return false;
 
-        const preview = await decryptWithMasterKey(encryptedPreview);
-        if (!preview?.trim()) {
+        const preview = formatDraftPreview(await decryptWithMasterKey(encryptedPreview));
+        if (!preview) {
             console.error(`[ActiveChat] ${reason}: Failed to decrypt persisted draft preview for ${chat.chat_id}`);
             return false;
         }
         if (!isCurrentTarget()) return false;
 
-        activeChatDecryptedTitle = preview.trim();
+        activeChatDecryptedTitle = preview;
         activeChatDecryptedCategory = 'general_knowledge';
         activeChatDecryptedIcon = 'lightbulb';
         activeChatDecryptedSummary = null;

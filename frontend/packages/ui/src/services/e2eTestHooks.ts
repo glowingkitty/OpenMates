@@ -8,6 +8,7 @@
 import { get } from 'svelte/store';
 import { chatDB } from './db';
 import { draftEditorUIState } from './drafts/draftState';
+import { chatMetadataCache } from './chatMetadataCache';
 
 export type E2EDraftSelectionDecision = {
   chatId: string;
@@ -63,6 +64,7 @@ export async function installE2ETestHooks() {
       chat: Record<string, unknown>;
       messages: Record<string, unknown>[];
     }) => Promise<{ chatId: string; messageCount: number }>;
+    __openmatesE2ESetDraftPreview?: (chatId: string, preview: string, markdown?: string) => Promise<void>;
     __openmatesE2EChatConnectionState?: () => Promise<{
       online: boolean;
       websocketConnected: boolean;
@@ -92,6 +94,23 @@ export async function installE2ETestHooks() {
     }
     window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: chatId } }));
     return { chatId, messageCount: messages.length };
+  };
+
+  testWindow.__openmatesE2ESetDraftPreview = async (chatId, preview, markdown) => {
+    const chat = await chatDB.getRawChat(chatId);
+    if (!chat?.encrypted_draft_md || Number(chat.messages_v ?? 0) > 0) {
+      throw new Error('E2E draft preview fixture requires a saved draft-only chat');
+    }
+    const { encryptWithMasterKey } = await import('./cryptoService');
+    const encryptedPreview = await encryptWithMasterKey(preview);
+    if (!encryptedPreview) throw new Error('Could not encrypt E2E draft preview fixture');
+    const encryptedMarkdown = markdown ? await encryptWithMasterKey(markdown) : chat.encrypted_draft_md;
+    if (!encryptedMarkdown) throw new Error('Could not encrypt E2E draft markdown fixture');
+    await chatDB.addChat({ ...chat, encrypted_draft_md: encryptedMarkdown, encrypted_draft_preview: encryptedPreview });
+    chatMetadataCache.invalidateChat(chatId);
+    window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: chatId } }));
+    const { chatSyncService } = await import('./chatSyncService');
+    chatSyncService.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: chatId, type: 'draft' } }));
   };
 
   testWindow.__openmatesE2EChatConnectionState = async () => {
